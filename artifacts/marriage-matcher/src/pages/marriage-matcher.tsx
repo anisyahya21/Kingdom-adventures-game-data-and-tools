@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { Plus, Trash2, Zap, RefreshCw, HelpCircle, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -22,12 +21,32 @@ import {
 type Rank = "S" | "A" | "B" | "C" | "D";
 const RANKS: Rank[] = ["S", "A", "B", "C", "D"];
 
-const RANK_COLORS: Record<Rank, string> = {
-  S: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700",
-  A: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700",
-  B: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700",
-  C: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700",
-  D: "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+const RANK_STYLE: Record<Rank, { badge: string; header: string; border: string }> = {
+  S: {
+    badge: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700",
+    header: "bg-violet-50 dark:bg-violet-950/30",
+    border: "border-violet-200 dark:border-violet-800",
+  },
+  A: {
+    badge: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700",
+    header: "bg-rose-50 dark:bg-rose-950/30",
+    border: "border-rose-200 dark:border-rose-800",
+  },
+  B: {
+    badge: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700",
+    header: "bg-amber-50 dark:bg-amber-950/30",
+    border: "border-amber-200 dark:border-amber-800",
+  },
+  C: {
+    badge: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700",
+    header: "bg-emerald-50 dark:bg-emerald-950/30",
+    border: "border-emerald-200 dark:border-emerald-800",
+  },
+  D: {
+    badge: "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+    header: "bg-slate-50 dark:bg-slate-800/30",
+    border: "border-slate-200 dark:border-slate-700",
+  },
 };
 
 interface Job {
@@ -68,18 +87,12 @@ function runBipartiteMatching(
   effectiveFemales: Record<string, number>,
   jobRanks: Record<string, Rank>
 ): MatchResult[] {
-  // Two jobs are compatible iff they share the same rank
   const graph: Record<string, string[]> = {};
-
-  const addEdge = (m: string, f: string) => {
-    if (jobRanks[m] !== jobRanks[f]) return; // different rank — not compatible
-    if (!graph[m]) graph[m] = [];
-    if (!graph[m].includes(f)) graph[m].push(f);
-  };
-
   for (const m in effectiveMales) {
     for (const f in effectiveFemales) {
-      addEdge(m, f);
+      if (jobRanks[m] !== jobRanks[f]) continue;
+      if (!graph[m]) graph[m] = [];
+      if (!graph[m].includes(f)) graph[m].push(f);
     }
   }
 
@@ -136,12 +149,8 @@ function findOptimalMatching(jobs: Job[]): OptimalResult {
     if (idx === jobsWithUnassigned.length) {
       const effM: Record<string, number> = { ...baseMales };
       const effF: Record<string, number> = { ...baseFemales };
-      for (const name in maleExtra) {
-        if (maleExtra[name] > 0) effM[name] = (effM[name] ?? 0) + maleExtra[name];
-      }
-      for (const name in femaleExtra) {
-        if (femaleExtra[name] > 0) effF[name] = (effF[name] ?? 0) + femaleExtra[name];
-      }
+      for (const n in maleExtra) if (maleExtra[n] > 0) effM[n] = (effM[n] ?? 0) + maleExtra[n];
+      for (const n in femaleExtra) if (femaleExtra[n] > 0) effF[n] = (effF[n] ?? 0) + femaleExtra[n];
       const matches = runBipartiteMatching(effM, effF, jobRanks);
       if (matches.length > bestCount) {
         bestCount = matches.length;
@@ -165,36 +174,30 @@ function findOptimalMatching(jobs: Job[]): OptimalResult {
 
   const effM: Record<string, number> = { ...baseMales };
   const effF: Record<string, number> = { ...baseFemales };
-  for (const name in bestMaleExtra) {
-    if (bestMaleExtra[name] > 0) effM[name] = (effM[name] ?? 0) + bestMaleExtra[name];
-  }
-  for (const name in bestFemaleExtra) {
-    if (bestFemaleExtra[name] > 0) effF[name] = (effF[name] ?? 0) + bestFemaleExtra[name];
-  }
+  for (const n in bestMaleExtra) if (bestMaleExtra[n] > 0) effM[n] = (effM[n] ?? 0) + bestMaleExtra[n];
+  for (const n in bestFemaleExtra) if (bestFemaleExtra[n] > 0) effF[n] = (effF[n] ?? 0) + bestFemaleExtra[n];
 
   const unmatchedMale: string[] = [];
-  for (const name in effM) {
-    const matched = bestMatches.filter((m) => m.maleJob === name).length;
-    for (let i = 0; i < effM[name] - matched; i++) unmatchedMale.push(name);
+  for (const n in effM) {
+    const matched = bestMatches.filter((m) => m.maleJob === n).length;
+    for (let i = 0; i < effM[n] - matched; i++) unmatchedMale.push(n);
   }
   const unmatchedFemale: string[] = [];
-  for (const name in effF) {
-    const matched = bestMatches.filter((m) => m.femaleJob === name).length;
-    for (let i = 0; i < effF[name] - matched; i++) unmatchedFemale.push(name);
+  for (const n in effF) {
+    const matched = bestMatches.filter((m) => m.femaleJob === n).length;
+    for (let i = 0; i < effF[n] - matched; i++) unmatchedFemale.push(n);
   }
-
-  const unassignedDecisions: UnassignedDecision[] = jobsWithUnassigned.map((j) => ({
-    jobName: j.name,
-    rank: j.rank,
-    assignedMales: bestMaleExtra[j.name] ?? 0,
-    assignedFemales: bestFemaleExtra[j.name] ?? 0,
-  }));
 
   return {
     matches: bestMatches,
     unmatchedMale,
     unmatchedFemale,
-    unassignedDecisions,
+    unassignedDecisions: jobsWithUnassigned.map((j) => ({
+      jobName: j.name,
+      rank: j.rank,
+      assignedMales: bestMaleExtra[j.name] ?? 0,
+      assignedFemales: bestFemaleExtra[j.name] ?? 0,
+    })),
     totalMaleSlots: Object.values(effM).reduce((s, v) => s + v, 0),
     totalFemaleSlots: Object.values(effF).reduce((s, v) => s + v, 0),
   };
@@ -211,57 +214,152 @@ function makeJob(name: string, rank: Rank): Job {
 }
 
 const DEFAULT_JOBS: Job[] = [
-  makeJob("Merchant",    "C"),
-  makeJob("Farmer",      "D"),
-  makeJob("Carpenter",   "D"),
-  makeJob("Mover",       "D"),
-  makeJob("Trader",      "C"),
-  makeJob("Researcher",  "B"),
-  makeJob("Cook",        "C"),
-  makeJob("Artisan",     "C"),
-  makeJob("Blacksmith",  "B"),
-  makeJob("Doctor",      "A"),
-  makeJob("Monk",        "B"),
-  makeJob("Rancher",     "D"),
-  makeJob("Guard",       "C"),
-  makeJob("Knight",      "A"),
-  makeJob("Mage",        "A"),
-  makeJob("Paladin",     "S"),
-  makeJob("Gunner",      "B"),
-  makeJob("Archer",      "B"),
-  makeJob("Ninja",       "A"),
-  makeJob("Samurai",     "S"),
-  makeJob("Viking",      "A"),
-  makeJob("Pirate",      "B"),
-  makeJob("Champion",    "S"),
-  makeJob("Wizard",      "S"),
+  makeJob("Paladin", "S"), makeJob("Samurai", "S"), makeJob("Champion", "S"), makeJob("Wizard", "S"),
+  makeJob("Doctor", "A"), makeJob("Knight", "A"), makeJob("Mage", "A"), makeJob("Ninja", "A"), makeJob("Viking", "A"),
+  makeJob("Researcher", "B"), makeJob("Blacksmith", "B"), makeJob("Monk", "B"), makeJob("Gunner", "B"), makeJob("Archer", "B"), makeJob("Pirate", "B"),
+  makeJob("Merchant", "C"), makeJob("Trader", "C"), makeJob("Cook", "C"), makeJob("Artisan", "C"), makeJob("Guard", "C"),
+  makeJob("Farmer", "D"), makeJob("Carpenter", "D"), makeJob("Mover", "D"), makeJob("Rancher", "D"),
 ];
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Rank Table sub-component ─────────────────────────────────────────────────
+
+interface RankTableProps {
+  rank: Rank;
+  jobs: Job[];
+  onUpdate: (id: string, field: "males" | "females" | "unassigned", value: number) => void;
+  onRemove: (id: string) => void;
+  onAdd: (name: string, rank: Rank) => void;
+}
+
+function RankTable({ rank, jobs, onUpdate, onRemove, onAdd }: RankTableProps) {
+  const [newName, setNewName] = useState("");
+  const style = RANK_STYLE[rank];
+
+  const handleAdd = () => {
+    const name = newName.trim();
+    if (!name) return;
+    onAdd(name, rank);
+    setNewName("");
+  };
+
+  const maleTotal = jobs.reduce((s, j) => s + j.males, 0);
+  const femaleTotal = jobs.reduce((s, j) => s + j.females, 0);
+  const unassignedTotal = jobs.reduce((s, j) => s + j.unassigned, 0);
+
+  return (
+    <Card className={`shadow-sm border ${style.border}`}>
+      <CardHeader className={`pb-2 pt-3 px-4 rounded-t-lg ${style.header}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Badge className={`text-sm font-bold px-2.5 py-0.5 border ${style.badge}`}>
+              Rank {rank}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {jobs.length} job{jobs.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          {(maleTotal + femaleTotal + unassignedTotal) > 0 && (
+            <div className="flex gap-2 text-xs text-muted-foreground">
+              {maleTotal > 0 && <span><strong className="text-foreground">{maleTotal}</strong> M</span>}
+              {femaleTotal > 0 && <span><strong className="text-foreground">{femaleTotal}</strong> F</span>}
+              {unassignedTotal > 0 && <span className="text-amber-600 dark:text-amber-400"><strong>{unassignedTotal}</strong> ?</span>}
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-3 pt-0">
+        {jobs.length > 0 && (
+          <div className="rounded-md border border-border overflow-hidden mt-3 mb-3">
+            <div className="grid grid-cols-[1fr_72px_72px_88px_28px] bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              <span>Job</span>
+              <span className="text-center">Male</span>
+              <span className="text-center">Female</span>
+              <span className="text-center flex items-center justify-center gap-1">
+                Unassigned
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3 h-3 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-48 text-xs">
+                    Gender not yet set. The algorithm tries all splits to maximise total matches.
+                  </TooltipContent>
+                </Tooltip>
+              </span>
+              <span />
+            </div>
+            <Separator />
+            {jobs.map((job, i) => (
+              <div key={job.id}>
+                {i > 0 && <Separator />}
+                <div className="grid grid-cols-[1fr_72px_72px_88px_28px] items-center px-3 py-1.5 gap-1">
+                  <span className="text-sm font-medium truncate">
+                    {job.name}
+                    {job.unassigned > 0 && (
+                      <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">?</Badge>
+                    )}
+                  </span>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={job.males}
+                    onChange={(e) => onUpdate(job.id, "males", parseInt(e.target.value) || 0)}
+                    className="h-7 text-center text-sm px-1"
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    value={job.females}
+                    onChange={(e) => onUpdate(job.id, "females", parseInt(e.target.value) || 0)}
+                    className="h-7 text-center text-sm px-1"
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    value={job.unassigned}
+                    onChange={(e) => onUpdate(job.id, "unassigned", parseInt(e.target.value) || 0)}
+                    className="h-7 text-center text-sm px-1 border-amber-300 dark:border-amber-700 focus-visible:ring-amber-400"
+                  />
+                  <button
+                    onClick={() => onRemove(job.id)}
+                    className="text-muted-foreground hover:text-destructive transition-colors justify-self-center"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add job */}
+        <div className={`flex gap-2 ${jobs.length === 0 ? "mt-3" : ""}`}>
+          <Input
+            placeholder={`Add job to Rank ${rank}…`}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            className="h-8 text-sm"
+          />
+          <Button size="sm" variant="secondary" onClick={handleAdd} className="h-8 px-3 shrink-0">
+            <Plus className="w-4 h-4 mr-1" />
+            Add
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function MarriageMatcher() {
   const [jobs, setJobs] = useState<Job[]>(DEFAULT_JOBS);
   const [result, setResult] = useState<OptimalResult | null>(null);
-  const [newJobName, setNewJobName] = useState("");
-  const [newJobRank, setNewJobRank] = useState<Rank>("C");
-
-  const addJob = useCallback(() => {
-    const name = newJobName.trim();
-    if (!name) return;
-    if (jobs.some((j) => j.name === name)) return;
-    setJobs((prev) => [...prev, makeJob(name, newJobRank)]);
-    setNewJobName("");
-    setResult(null);
-  }, [newJobName, newJobRank, jobs]);
 
   const updateJob = useCallback(
-    (id: string, field: keyof Job, value: string | number) => {
+    (id: string, field: "males" | "females" | "unassigned", value: number) => {
       setJobs((prev) =>
-        prev.map((j) =>
-          j.id === id
-            ? { ...j, [field]: typeof value === "number" ? Math.max(0, value) : value }
-            : j
-        )
+        prev.map((j) => (j.id === id ? { ...j, [field]: Math.max(0, value) } : j))
       );
       setResult(null);
     },
@@ -273,6 +371,14 @@ export default function MarriageMatcher() {
     setResult(null);
   }, []);
 
+  const addJob = useCallback((name: string, rank: Rank) => {
+    setJobs((prev) => {
+      if (prev.some((j) => j.name === name)) return prev;
+      return [...prev, makeJob(name, rank)];
+    });
+    setResult(null);
+  }, []);
+
   const calculate = useCallback(() => {
     setResult(findOptimalMatching(jobs));
   }, [jobs]);
@@ -280,24 +386,11 @@ export default function MarriageMatcher() {
   const reset = useCallback(() => {
     setJobs(DEFAULT_JOBS.map((j) => ({ ...j, id: generateId() })));
     setResult(null);
-    setNewJobName("");
-    setNewJobRank("C");
   }, []);
-
-  // Group jobs by rank for the summary panel
-  const byRank = useMemo(() => {
-    const groups: Record<Rank, Job[]> = { S: [], A: [], B: [], C: [], D: [] };
-    for (const j of jobs) groups[j.rank].push(j);
-    return groups;
-  }, [jobs]);
-
-  const totalMales = jobs.reduce((s, j) => s + j.males, 0);
-  const totalFemales = jobs.reduce((s, j) => s + j.females, 0);
-  const totalUnassigned = jobs.reduce((s, j) => s + j.unassigned, 0);
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-10">
+      <div className="max-w-5xl mx-auto px-4 py-10">
         {/* Header */}
         <div className="mb-8 flex items-start justify-between">
           <div>
@@ -305,7 +398,7 @@ export default function MarriageMatcher() {
               Marriage Matcher
             </h1>
             <p className="mt-1 text-muted-foreground text-sm">
-              Only jobs of the same rank can marry. Unassigned slots are optimally assigned to male or female to maximise total matches.
+              Only jobs of the same rank can marry. Set slot counts and calculate the optimal matching.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={reset} className="flex items-center gap-2 shrink-0">
@@ -314,189 +407,23 @@ export default function MarriageMatcher() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
-          {/* ── Jobs table ─────────────────────────────────── */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Jobs</CardTitle>
-              <CardDescription>
-                Set each job's rank and slot counts. Only jobs of the same rank are compatible.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="rounded-md border border-border overflow-hidden">
-                {/* Header */}
-                <div className="grid grid-cols-[1fr_72px_64px_64px_80px_32px] bg-muted/60 px-3 py-2 text-xs font-medium text-muted-foreground">
-                  <span>Job</span>
-                  <span className="text-center">Rank</span>
-                  <span className="text-center">Male</span>
-                  <span className="text-center">Female</span>
-                  <span className="text-center flex items-center justify-center gap-1">
-                    Unassigned
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="w-3 h-3 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-52 text-xs">
-                        Gender not yet decided. The algorithm tries all combinations to maximise matches.
-                      </TooltipContent>
-                    </Tooltip>
-                  </span>
-                  <span />
-                </div>
-                <Separator />
-
-                {jobs.map((job, i) => (
-                  <div key={job.id}>
-                    {i > 0 && <Separator />}
-                    <div className="grid grid-cols-[1fr_72px_64px_64px_80px_32px] items-center px-3 py-1.5 gap-1">
-                      <span className="text-sm font-medium truncate pr-1">
-                        {job.name}
-                        {job.unassigned > 0 && (
-                          <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">?</Badge>
-                        )}
-                      </span>
-                      {/* Rank selector */}
-                      <div className="flex justify-center">
-                        <select
-                          value={job.rank}
-                          onChange={(e) => updateJob(job.id, "rank", e.target.value as Rank)}
-                          className={`h-6 w-14 text-xs font-semibold rounded border px-1 text-center focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer ${RANK_COLORS[job.rank]}`}
-                        >
-                          {RANKS.map((r) => (
-                            <option key={r} value={r}>{r}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={job.males}
-                        onChange={(e) => updateJob(job.id, "males", parseInt(e.target.value) || 0)}
-                        className="h-7 text-center text-sm px-1"
-                      />
-                      <Input
-                        type="number"
-                        min={0}
-                        value={job.females}
-                        onChange={(e) => updateJob(job.id, "females", parseInt(e.target.value) || 0)}
-                        className="h-7 text-center text-sm px-1"
-                      />
-                      <Input
-                        type="number"
-                        min={0}
-                        value={job.unassigned}
-                        onChange={(e) => updateJob(job.id, "unassigned", parseInt(e.target.value) || 0)}
-                        className="h-7 text-center text-sm px-1 border-amber-300 dark:border-amber-700 focus-visible:ring-amber-400"
-                      />
-                      <button
-                        onClick={() => removeJob(job.id)}
-                        className="text-muted-foreground hover:text-destructive transition-colors justify-self-center"
-                        title="Remove job"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add job row */}
-              <div className="flex gap-2 items-center">
-                <Input
-                  placeholder="Job name"
-                  value={newJobName}
-                  onChange={(e) => setNewJobName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addJob()}
-                  className="h-8 text-sm"
-                />
-                <select
-                  value={newJobRank}
-                  onChange={(e) => setNewJobRank(e.target.value as Rank)}
-                  className={`h-8 w-20 text-xs font-semibold rounded-md border px-2 text-center focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer shrink-0 ${RANK_COLORS[newJobRank]}`}
-                >
-                  {RANKS.map((r) => (
-                    <option key={r} value={r}>Rank {r}</option>
-                  ))}
-                </select>
-                <Button size="sm" variant="secondary" onClick={addJob} className="h-8 px-3 shrink-0">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
-              </div>
-
-              {/* Slot totals */}
-              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-0.5">
-                <span>Male: <strong className="text-foreground">{totalMales}</strong></span>
-                <span>Female: <strong className="text-foreground">{totalFemales}</strong></span>
-                {totalUnassigned > 0 && (
-                  <span className="text-amber-600 dark:text-amber-400">
-                    Unassigned: <strong>{totalUnassigned}</strong>
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ── Rank groups summary ─────────────────────────── */}
-          <div className="space-y-3">
-            <Card className="shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Rank Groups</CardTitle>
-                <CardDescription className="text-xs">
-                  Jobs can only marry within the same rank.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {RANKS.map((rank) => {
-                  const group = byRank[rank];
-                  const maleCount = group.reduce((s, j) => s + j.males, 0);
-                  const femaleCount = group.reduce((s, j) => s + j.females, 0);
-                  const unassignedCount = group.reduce((s, j) => s + j.unassigned, 0);
-                  const hasSlots = maleCount + femaleCount + unassignedCount > 0;
-                  return (
-                    <div key={rank} className={`rounded-lg border p-2.5 ${group.length === 0 ? "opacity-40" : ""}`}>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <Badge className={`text-xs font-bold px-2 border ${RANK_COLORS[rank]}`}>
-                          Rank {rank}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {group.length} job{group.length !== 1 ? "s" : ""}
-                        </span>
-                        {hasSlots && (
-                          <span className="text-xs text-muted-foreground ml-auto">
-                            {maleCount}M / {femaleCount}F{unassignedCount > 0 ? ` / ${unassignedCount}?` : ""}
-                          </span>
-                        )}
-                      </div>
-                      {group.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {group.map((j) => (
-                            <span key={j.id} className="text-xs bg-muted rounded px-1.5 py-0.5 text-muted-foreground">
-                              {j.name}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic">No jobs</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            {/* Calculate button (in sidebar on xl) */}
-            <Button onClick={calculate} className="w-full gap-2 shadow-md">
-              <Zap className="w-4 h-4" />
-              Calculate Optimal Matching
-            </Button>
-          </div>
+        {/* One table per rank */}
+        <div className="space-y-4">
+          {RANKS.map((rank) => (
+            <RankTable
+              key={rank}
+              rank={rank}
+              jobs={jobs.filter((j) => j.rank === rank)}
+              onUpdate={updateJob}
+              onRemove={removeJob}
+              onAdd={addJob}
+            />
+          ))}
         </div>
 
-        {/* Calculate button (below on smaller screens) */}
-        <div className="mt-6 flex justify-center xl:hidden">
-          <Button onClick={calculate} size="lg" className="gap-2 px-8 shadow-md">
+        {/* Calculate */}
+        <div className="mt-8 flex justify-center">
+          <Button onClick={calculate} size="lg" className="gap-2 px-10 shadow-md">
             <Zap className="w-4 h-4" />
             Calculate Optimal Matching
           </Button>
@@ -506,7 +433,7 @@ export default function MarriageMatcher() {
         {result && (
           <div className="mt-6 space-y-4">
             {/* Unassigned decisions */}
-            {result.unassignedDecisions.filter((d) => d.assignedMales + d.assignedFemales > 0).length > 0 && (
+            {result.unassignedDecisions.some((d) => d.assignedMales + d.assignedFemales > 0) && (
               <Card className="shadow-sm border-amber-300 dark:border-amber-700">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-amber-700 dark:text-amber-400">
@@ -520,7 +447,7 @@ export default function MarriageMatcher() {
                         key={d.jobName}
                         className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm"
                       >
-                        <Badge className={`text-[10px] px-1.5 border ${RANK_COLORS[d.rank]}`}>{d.rank}</Badge>
+                        <Badge className={`text-[10px] px-1.5 border ${RANK_STYLE[d.rank].badge}`}>{d.rank}</Badge>
                         <span className="font-semibold text-foreground">{d.jobName}</span>
                         <span className="text-muted-foreground">→</span>
                         {d.assignedMales > 0 && (
@@ -539,7 +466,7 @@ export default function MarriageMatcher() {
               </Card>
             )}
 
-            {/* Matches grouped by rank */}
+            {/* Matched pairs */}
             <Card className="shadow-sm border-primary/20">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -548,9 +475,6 @@ export default function MarriageMatcher() {
                     {result.matches.length} / {Math.min(result.totalMaleSlots, result.totalFemaleSlots)} matched
                   </Badge>
                 </div>
-                <CardDescription>
-                  Maximum bipartite matching — same-rank only.
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 {result.matches.length === 0 ? (
@@ -558,16 +482,15 @@ export default function MarriageMatcher() {
                     No matches found. Make sure jobs of the same rank have both male and female slots.
                   </p>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     {RANKS.map((rank) => {
                       const rankMatches = result.matches.filter((m) => m.rank === rank);
                       if (rankMatches.length === 0) return null;
+                      const style = RANK_STYLE[rank];
                       return (
                         <div key={rank}>
                           <div className="flex items-center gap-2 mb-2">
-                            <Badge className={`text-xs font-bold px-2 border ${RANK_COLORS[rank]}`}>
-                              Rank {rank}
-                            </Badge>
+                            <Badge className={`text-xs font-bold px-2 border ${style.badge}`}>Rank {rank}</Badge>
                             <span className="text-xs text-muted-foreground">
                               {rankMatches.length} match{rankMatches.length !== 1 ? "es" : ""}
                             </span>
@@ -595,7 +518,6 @@ export default function MarriageMatcher() {
                   </div>
                 )}
 
-                {/* Unmatched */}
                 {(result.unmatchedMale.length > 0 || result.unmatchedFemale.length > 0) && (
                   <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border space-y-2">
                     {result.unmatchedMale.length > 0 && (
