@@ -272,6 +272,16 @@ const DEFAULT_JOB_NAMES: string[] = [
   "Samurai", "Trader", "Viking", "Wizard",
 ];
 
+function makeDefaultSlots(): RankSlot[] {
+  const slots: RankSlot[] = [];
+  for (const rank of RANKS) {
+    for (const jobName of DEFAULT_JOB_NAMES) {
+      slots.push({ id: generateId(), rank, jobName, males: 0, females: 0, unassigned: 0 });
+    }
+  }
+  return slots;
+}
+
 const DEFAULT_PAIRS: Pair[] = [
   makePair("Artisan",    "Champion"),
   makePair("Artisan",    "Guard"),
@@ -542,7 +552,7 @@ function PairsPanel({ pairs, jobNames, onAdd, onRemove }: PairsPanelProps) {
 
 export default function MarriageMatcher() {
   const [jobNames, setJobNames] = useState<string[]>(DEFAULT_JOB_NAMES);
-  const [rankSlots, setRankSlots] = useState<RankSlot[]>([]);
+  const [rankSlots, setRankSlots] = useState<RankSlot[]>(() => makeDefaultSlots());
   const [pairs, setPairs] = useState<Pair[]>(DEFAULT_PAIRS);
   const [result, setResult] = useState<OptimalResult | null>(null);
 
@@ -599,7 +609,7 @@ export default function MarriageMatcher() {
 
   const reset = useCallback(() => {
     setJobNames(DEFAULT_JOB_NAMES);
-    setRankSlots([]);
+    setRankSlots(makeDefaultSlots());
     setPairs(DEFAULT_PAIRS.map((p) => ({ ...p, id: generateId() })));
     setResult(null);
   }, []);
