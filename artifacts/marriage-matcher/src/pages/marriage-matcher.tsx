@@ -716,14 +716,22 @@ export default function MarriageMatcher() {
                           <div className="space-y-1.5 pl-1">
                             {rankMatches.map((m, i) => (
                               <div key={i} className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 rounded-lg bg-accent/50 px-3 py-2">
+                                {/* Male side */}
                                 <div className="flex items-center gap-2">
                                   <span className="w-5 h-5 rounded-full bg-secondary text-secondary-foreground text-xs flex items-center justify-center font-bold shrink-0">
                                     {i + 1}
                                   </span>
-                                  <span className="font-medium text-sm">{m.maleJob}</span>
+                                  <span className="flex items-center gap-1.5">
+                                    <span className="text-base font-bold text-blue-500 leading-none" title="Male">♂</span>
+                                    <span className="font-medium text-sm">{m.maleJob}</span>
+                                  </span>
                                 </div>
-                                <ArrowLeftRight className="w-3.5 h-3.5 text-primary" />
-                                <span className="font-medium text-sm text-primary">{m.femaleJob}</span>
+                                <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground" />
+                                {/* Female side */}
+                                <span className="flex items-center gap-1.5">
+                                  <span className="text-base font-bold text-rose-500 leading-none" title="Female">♀</span>
+                                  <span className="font-medium text-sm text-rose-600 dark:text-rose-400">{m.femaleJob}</span>
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -737,11 +745,15 @@ export default function MarriageMatcher() {
                   <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border space-y-2">
                     {result.unmatchedMale.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Unmatched male slots:</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                          <span className="text-blue-500 font-bold">♂</span> Unmatched male slots:
+                        </p>
                         <div className="flex flex-wrap gap-1.5">
                           {result.unmatchedMale.map((u, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">
-                              {u.job} <span className={`ml-1 text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
+                            <Badge key={i} variant="secondary" className="text-xs gap-1">
+                              <span className="text-blue-500 font-bold">♂</span>
+                              {u.job}
+                              <span className={`text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
                             </Badge>
                           ))}
                         </div>
@@ -749,11 +761,15 @@ export default function MarriageMatcher() {
                     )}
                     {result.unmatchedFemale.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Unmatched female slots:</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                          <span className="text-rose-500 font-bold">♀</span> Unmatched female slots:
+                        </p>
                         <div className="flex flex-wrap gap-1.5">
                           {result.unmatchedFemale.map((u, i) => (
-                            <Badge key={i} variant="outline" className="text-xs text-muted-foreground">
-                              {u.job} <span className={`ml-1 text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
+                            <Badge key={i} variant="outline" className="text-xs text-muted-foreground gap-1">
+                              <span className="text-rose-500 font-bold">♀</span>
+                              {u.job}
+                              <span className={`text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
                             </Badge>
                           ))}
                         </div>
