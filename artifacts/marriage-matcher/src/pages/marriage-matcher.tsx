@@ -613,7 +613,7 @@ export default function MarriageMatcher() {
         {/* Header */}
         <div className="mb-8 flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Marriage Matcher</h1>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Kingdom Adventures Match Finder</h1>
             <p className="mt-1 text-muted-foreground text-sm">
               Add any job to any rank. Only jobs within the same rank can marry, and only if they are a compatible pair.
             </p>
