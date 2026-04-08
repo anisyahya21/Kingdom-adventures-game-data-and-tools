@@ -331,7 +331,6 @@ interface RankTableProps {
 }
 
 function RankTable({ rank, slots, allJobNames, onUpdate, onRemove, onAdd }: RankTableProps) {
-  const [selJob, setSelJob] = useState("");
   const [customJob, setCustomJob] = useState("");
   const style = RANK_STYLE[rank];
 
@@ -339,10 +338,9 @@ function RankTable({ rank, slots, allJobNames, onUpdate, onRemove, onAdd }: Rank
   const available = allJobNames.filter((n) => !presentNames.has(n));
 
   const handleAdd = () => {
-    const name = (selJob || customJob).trim();
+    const name = customJob.trim();
     if (!name) return;
     onAdd(rank, name);
-    setSelJob("");
     setCustomJob("");
   };
 
@@ -422,38 +420,33 @@ function RankTable({ rank, slots, allJobNames, onUpdate, onRemove, onAdd }: Rank
         )}
 
         {/* Add job row */}
-        <div className={`flex gap-2 ${slots.length === 0 ? "mt-3" : ""}`}>
-          {available.length > 0 ? (
+        <div className={`space-y-2 ${slots.length === 0 ? "mt-3" : ""}`}>
+          {available.length > 0 && (
             <select
-              value={selJob}
-              onChange={(e) => { setSelJob(e.target.value); setCustomJob(""); }}
-              className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+              value=""
+              onChange={(e) => {
+                const val = e.target.value;
+                if (!val || val === "__custom__") return;
+                onAdd(rank, val);
+              }}
+              className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground"
             >
-              <option value="">Select job for Rank {rank}…</option>
+              <option value="">+ Add a job to Rank {rank}…</option>
               {available.map((n) => <option key={n} value={n}>{n}</option>)}
-              <option value="__custom__">+ New job name…</option>
             </select>
-          ) : (
+          )}
+          <div className="flex gap-2">
             <Input
-              placeholder={`New job name for Rank ${rank}…`}
+              placeholder="Or type a new job name…"
               value={customJob}
               onChange={(e) => setCustomJob(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               className="flex-1 h-8 text-sm"
             />
-          )}
-          {selJob === "__custom__" && (
-            <Input
-              placeholder="Job name…"
-              value={customJob}
-              onChange={(e) => setCustomJob(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              className="w-32 h-8 text-sm"
-            />
-          )}
-          <Button size="sm" variant="secondary" onClick={handleAdd} className="h-8 px-3 shrink-0">
-            <Plus className="w-4 h-4 mr-1" />Add
-          </Button>
+            <Button size="sm" variant="secondary" onClick={handleAdd} className="h-8 px-3 shrink-0">
+              <Plus className="w-4 h-4 mr-1" />Add
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -552,7 +545,7 @@ function PairsPanel({ pairs, jobNames, onAdd, onRemove }: PairsPanelProps) {
 
 export default function MarriageMatcher() {
   const [jobNames, setJobNames] = useState<string[]>(DEFAULT_JOB_NAMES);
-  const [rankSlots, setRankSlots] = useState<RankSlot[]>(() => makeDefaultSlots());
+  const [rankSlots, setRankSlots] = useState<RankSlot[]>([]);
   const [pairs, setPairs] = useState<Pair[]>(DEFAULT_PAIRS);
   const [result, setResult] = useState<OptimalResult | null>(null);
 
@@ -609,7 +602,7 @@ export default function MarriageMatcher() {
 
   const reset = useCallback(() => {
     setJobNames(DEFAULT_JOB_NAMES);
-    setRankSlots(makeDefaultSlots());
+    setRankSlots([]);
     setPairs(DEFAULT_PAIRS.map((p) => ({ ...p, id: generateId() })));
     setResult(null);
   }, []);
