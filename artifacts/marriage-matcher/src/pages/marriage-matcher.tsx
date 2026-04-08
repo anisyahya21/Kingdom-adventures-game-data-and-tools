@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Plus, Trash2, ArrowRight, Zap, RefreshCw, HelpCircle } from "lucide-react";
+import { Plus, Trash2, ArrowLeftRight, Zap, RefreshCw, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,10 +28,11 @@ interface Job {
   unassigned: number;
 }
 
+/** A compatibility pair is undirected — order doesn't matter */
 interface Pair {
   id: string;
-  maleJob: string;
-  femaleJob: string;
+  jobA: string;
+  jobB: string;
 }
 
 interface MatchResult {
@@ -56,22 +57,32 @@ interface OptimalResult {
 
 // ─── Algorithm ────────────────────────────────────────────────────────────────
 
-/** Run standard bipartite matching given effective male/female counts per job. */
+/**
+ * Run bipartite matching given effective male/female counts per job.
+ * Pairs are undirected: if A is male and B is female (or vice versa), add an edge.
+ */
 function runBipartiteMatching(
   effectiveMales: Record<string, number>,
   effectiveFemales: Record<string, number>,
   pairs: Pair[]
 ): MatchResult[] {
-  // Build adjacency: male-job → list of female-jobs
+  // Build adjacency: maleJob → [femaleJob, ...]
+  // A pair (A, B) contributes an edge A→B if A is male & B is female,
+  // and an edge B→A if B is male & A is female.
   const graph: Record<string, string[]> = {};
+
+  const addEdge = (m: string, f: string) => {
+    if (!graph[m]) graph[m] = [];
+    if (!graph[m].includes(f)) graph[m].push(f);
+  };
+
   for (const pair of pairs) {
-    if (!graph[pair.maleJob]) graph[pair.maleJob] = [];
-    if (!graph[pair.maleJob].includes(pair.femaleJob)) {
-      graph[pair.maleJob].push(pair.femaleJob);
-    }
+    const { jobA, jobB } = pair;
+    if (effectiveMales[jobA] && effectiveFemales[jobB]) addEdge(jobA, jobB);
+    if (effectiveMales[jobB] && effectiveFemales[jobA]) addEdge(jobB, jobA);
   }
 
-  // matchF[femaleJob] = which maleJob is currently matched to it
+  // matchF[femaleJob] = which maleJob is matched to it
   const matchF: Record<string, string> = {};
 
   function tryMatch(m: string, visited: Set<string>): boolean {
@@ -101,14 +112,12 @@ function runBipartiteMatching(
 }
 
 /**
- * Find the optimal gender assignment for unassigned slots.
- * For each job with `u` unassigned slots, we try u_male = 0..u (u_female = u - u_male).
- * We enumerate all combinations via recursion and pick the one with most matches.
+ * Try all possible gender splits for unassigned slots and return the
+ * assignment that maximises total matches.
  */
 function findOptimalMatching(jobs: Job[], pairs: Pair[]): OptimalResult {
   const jobsWithUnassigned = jobs.filter((j) => j.unassigned > 0);
 
-  // Baseline effective counts (before adding unassigned)
   const baseMales: Record<string, number> = {};
   const baseFemales: Record<string, number> = {};
   for (const j of jobs) {
@@ -129,14 +138,12 @@ function findOptimalMatching(jobs: Job[], pairs: Pair[]): OptimalResult {
     if (idx === jobsWithUnassigned.length) {
       const effMales: Record<string, number> = { ...baseMales };
       const effFemales: Record<string, number> = { ...baseFemales };
-
       for (const name in maleExtra) {
         if (maleExtra[name] > 0) effMales[name] = (effMales[name] ?? 0) + maleExtra[name];
       }
       for (const name in femaleExtra) {
         if (femaleExtra[name] > 0) effFemales[name] = (effFemales[name] ?? 0) + femaleExtra[name];
       }
-
       const matches = runBipartiteMatching(effMales, effFemales, pairs);
       if (matches.length > bestCount) {
         bestCount = matches.length;
@@ -159,7 +166,7 @@ function findOptimalMatching(jobs: Job[], pairs: Pair[]): OptimalResult {
 
   recurse(0, {}, {});
 
-  // Compute final effective counts
+  // Recompute final effective counts
   const effMales: Record<string, number> = { ...baseMales };
   const effFemales: Record<string, number> = { ...baseFemales };
   for (const name in bestMaleExtra) {
@@ -169,28 +176,23 @@ function findOptimalMatching(jobs: Job[], pairs: Pair[]): OptimalResult {
     if (bestFemaleExtra[name] > 0) effFemales[name] = (effFemales[name] ?? 0) + bestFemaleExtra[name];
   }
 
-  // Unmatched male slots
   const unmatchedMale: string[] = [];
   for (const name in effMales) {
     const matched = bestMatches.filter((m) => m.maleJob === name).length;
     for (let i = 0; i < effMales[name] - matched; i++) unmatchedMale.push(name);
   }
 
-  // Unmatched female slots
   const unmatchedFemale: string[] = [];
   for (const name in effFemales) {
     const matched = bestMatches.filter((m) => m.femaleJob === name).length;
     for (let i = 0; i < effFemales[name] - matched; i++) unmatchedFemale.push(name);
   }
 
-  // Unassigned decisions
-  const unassignedDecisions: UnassignedDecision[] = jobsWithUnassigned
-    .filter((j) => j.unassigned > 0)
-    .map((j) => ({
-      jobName: j.name,
-      assignedMales: bestMaleExtra[j.name] ?? 0,
-      assignedFemales: bestFemaleExtra[j.name] ?? 0,
-    }));
+  const unassignedDecisions: UnassignedDecision[] = jobsWithUnassigned.map((j) => ({
+    jobName: j.name,
+    assignedMales: bestMaleExtra[j.name] ?? 0,
+    assignedFemales: bestFemaleExtra[j.name] ?? 0,
+  }));
 
   const totalMaleSlots = Object.values(effMales).reduce((s, v) => s + v, 0);
   const totalFemaleSlots = Object.values(effFemales).reduce((s, v) => s + v, 0);
@@ -218,10 +220,11 @@ const DEFAULT_JOBS: Job[] = [
   { id: generateId(), name: "Job4", males: 0, females: 1, unassigned: 0 },
 ];
 
+// Undirected pairs — just "these two jobs are compatible"
 const DEFAULT_PAIRS: Pair[] = [
-  { id: generateId(), maleJob: "Job1", femaleJob: "Job3" },
-  { id: generateId(), maleJob: "Job1", femaleJob: "Job4" },
-  { id: generateId(), maleJob: "Job2", femaleJob: "Job3" },
+  { id: generateId(), jobA: "Job1", jobB: "Job3" },
+  { id: generateId(), jobA: "Job1", jobB: "Job4" },
+  { id: generateId(), jobA: "Job2", jobB: "Job3" },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -231,10 +234,9 @@ export default function MarriageMatcher() {
   const [pairs, setPairs] = useState<Pair[]>(DEFAULT_PAIRS);
   const [result, setResult] = useState<OptimalResult | null>(null);
   const [newJobName, setNewJobName] = useState("");
-  const [newPairMale, setNewPairMale] = useState("");
-  const [newPairFemale, setNewPairFemale] = useState("");
+  const [newPairA, setNewPairA] = useState("");
+  const [newPairB, setNewPairB] = useState("");
 
-  // All job names are available in the pair picker — unassigned can become either gender
   const allJobNames = jobs.map((j) => j.name);
 
   const addJob = useCallback(() => {
@@ -262,7 +264,7 @@ export default function MarriageMatcher() {
       setJobs((prev) => prev.filter((j) => j.id !== id));
       if (removedName) {
         setPairs((prev) =>
-          prev.filter((p) => p.maleJob !== removedName && p.femaleJob !== removedName)
+          prev.filter((p) => p.jobA !== removedName && p.jobB !== removedName)
         );
       }
       setResult(null);
@@ -271,16 +273,16 @@ export default function MarriageMatcher() {
   );
 
   const addPair = useCallback(() => {
-    const m = newPairMale.trim();
-    const f = newPairFemale.trim();
-    if (!m || !f) return;
-    if (m === f) return;
-    if (pairs.some((p) => p.maleJob === m && p.femaleJob === f)) return;
-    setPairs((prev) => [...prev, { id: generateId(), maleJob: m, femaleJob: f }]);
-    setNewPairMale("");
-    setNewPairFemale("");
+    const a = newPairA.trim();
+    const b = newPairB.trim();
+    if (!a || !b || a === b) return;
+    // Undirected — treat (A,B) same as (B,A)
+    if (pairs.some((p) => (p.jobA === a && p.jobB === b) || (p.jobA === b && p.jobB === a))) return;
+    setPairs((prev) => [...prev, { id: generateId(), jobA: a, jobB: b }]);
+    setNewPairA("");
+    setNewPairB("");
     setResult(null);
-  }, [newPairMale, newPairFemale, pairs]);
+  }, [newPairA, newPairB, pairs]);
 
   const removePair = useCallback((id: string) => {
     setPairs((prev) => prev.filter((p) => p.id !== id));
@@ -296,8 +298,8 @@ export default function MarriageMatcher() {
     setPairs(DEFAULT_PAIRS.map((p) => ({ ...p, id: generateId() })));
     setResult(null);
     setNewJobName("");
-    setNewPairMale("");
-    setNewPairFemale("");
+    setNewPairA("");
+    setNewPairB("");
   }, []);
 
   const totalFixed = jobs.reduce((s, j) => s + j.males + j.females, 0);
@@ -313,7 +315,7 @@ export default function MarriageMatcher() {
               Marriage Matcher
             </h1>
             <p className="mt-1 text-muted-foreground text-sm">
-              Bipartite matching — optimally assigns unassigned slots to male or female to maximise total matches.
+              Bipartite matching — compatible pairs are symmetric, and unassigned slots are optimally assigned to male or female.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={reset} className="flex items-center gap-2 shrink-0">
@@ -323,17 +325,16 @@ export default function MarriageMatcher() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* ── Jobs Panel ─────────────────────────────── */}
+          {/* ── Jobs ─────────────────────────────────────── */}
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Jobs</CardTitle>
               <CardDescription>
-                Set fixed male/female slots per job. Use <strong>Unassigned</strong> for slots whose gender the algorithm should decide.
+                Set fixed male/female counts per job. Use <strong>Unassigned</strong> for slots whose gender the algorithm should decide.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="rounded-md border border-border overflow-hidden">
-                {/* Table header */}
                 <div className="grid grid-cols-[1fr_64px_64px_80px_32px] bg-muted/60 px-3 py-2 text-xs font-medium text-muted-foreground">
                   <span>Job</span>
                   <span className="text-center">Male</span>
@@ -345,7 +346,7 @@ export default function MarriageMatcher() {
                         <HelpCircle className="w-3 h-3 cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent side="top" className="max-w-52 text-xs">
-                        These slots can be either male or female. The algorithm tries all combinations and picks the assignment that maximises total matches.
+                        These slots can be male or female. The algorithm tries all combinations and picks the split that maximises total matches.
                       </TooltipContent>
                     </Tooltip>
                   </span>
@@ -354,9 +355,7 @@ export default function MarriageMatcher() {
                 <Separator />
 
                 {jobs.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No jobs yet.
-                  </p>
+                  <p className="text-sm text-muted-foreground text-center py-4">No jobs yet.</p>
                 )}
 
                 {jobs.map((job, i) => (
@@ -404,7 +403,6 @@ export default function MarriageMatcher() {
                 ))}
               </div>
 
-              {/* Add job */}
               <div className="flex gap-2">
                 <Input
                   placeholder="Job name"
@@ -419,38 +417,37 @@ export default function MarriageMatcher() {
                 </Button>
               </div>
 
-              {/* Totals */}
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground pt-1">
                 <span>Fixed: <strong className="text-foreground">{totalFixed}</strong></span>
-                <span className="text-amber-600 dark:text-amber-400">
-                  Unassigned: <strong>{totalUnassigned}</strong>
-                </span>
+                {totalUnassigned > 0 && (
+                  <span className="text-amber-600 dark:text-amber-400">
+                    Unassigned: <strong>{totalUnassigned}</strong>
+                  </span>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* ── Pairs Panel ────────────────────────────── */}
+          {/* ── Compatibility Pairs ───────────────────────── */}
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Compatibility Pairs</CardTitle>
               <CardDescription>
-                A pair means: if the left job fills a <strong>male</strong> slot and the right fills a <strong>female</strong> slot, they are compatible. Any job (including unassigned) can appear on either side.
+                Two jobs that can be matched — it doesn't matter which one ends up male or female. The pair is symmetric.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="rounded-md border border-border overflow-hidden">
                 <div className="grid grid-cols-[1fr_auto_1fr_32px] bg-muted/60 px-3 py-2 text-xs font-medium text-muted-foreground">
-                  <span>As male</span>
+                  <span>Job</span>
                   <span />
-                  <span>As female</span>
+                  <span>Job</span>
                   <span />
                 </div>
                 <Separator />
 
                 {pairs.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No pairs yet.
-                  </p>
+                  <p className="text-sm text-muted-foreground text-center py-4">No pairs yet.</p>
                 )}
 
                 {pairs.map((pair, i) => (
@@ -458,11 +455,11 @@ export default function MarriageMatcher() {
                     {i > 0 && <Separator />}
                     <div className="grid grid-cols-[1fr_auto_1fr_32px] items-center px-3 py-2">
                       <Badge variant="secondary" className="justify-self-start text-xs font-medium">
-                        {pair.maleJob}
+                        {pair.jobA}
                       </Badge>
-                      <ArrowRight className="w-3.5 h-3.5 text-muted-foreground mx-2" />
-                      <Badge variant="outline" className="justify-self-start text-xs font-medium border-primary/30 text-primary">
-                        {pair.femaleJob}
+                      <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground mx-2" />
+                      <Badge variant="secondary" className="justify-self-start text-xs font-medium">
+                        {pair.jobB}
                       </Badge>
                       <button
                         onClick={() => removePair(pair.id)}
@@ -479,10 +476,10 @@ export default function MarriageMatcher() {
               {/* Add pair */}
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
-                  <Label className="text-xs text-muted-foreground mb-1 block">As male</Label>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Job</Label>
                   <select
-                    value={newPairMale}
-                    onChange={(e) => setNewPairMale(e.target.value)}
+                    value={newPairA}
+                    onChange={(e) => setNewPairA(e.target.value)}
                     className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
                   >
                     <option value="">Select...</option>
@@ -491,12 +488,12 @@ export default function MarriageMatcher() {
                     ))}
                   </select>
                 </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground mb-1.5 shrink-0" />
+                <ArrowLeftRight className="w-4 h-4 text-muted-foreground mb-1.5 shrink-0" />
                 <div className="flex-1">
-                  <Label className="text-xs text-muted-foreground mb-1 block">As female</Label>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Job</Label>
                   <select
-                    value={newPairFemale}
-                    onChange={(e) => setNewPairFemale(e.target.value)}
+                    value={newPairB}
+                    onChange={(e) => setNewPairB(e.target.value)}
                     className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
                   >
                     <option value="">Select...</option>
@@ -526,7 +523,7 @@ export default function MarriageMatcher() {
           </Button>
         </div>
 
-        {/* ── Results ──────────────────────────────────── */}
+        {/* ── Results ──────────────────────────────────────── */}
         {result && (
           <div className="mt-6 space-y-4">
             {/* Unassigned decisions */}
@@ -569,7 +566,7 @@ export default function MarriageMatcher() {
               </Card>
             )}
 
-            {/* Match pairs */}
+            {/* Matches */}
             <Card className="shadow-sm border-primary/20">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -579,20 +576,20 @@ export default function MarriageMatcher() {
                   </Badge>
                 </div>
                 <CardDescription>
-                  Maximum bipartite matching after optimal unassigned-slot assignment.
+                  Maximum bipartite matching after optimal gender assignment.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {result.matches.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No matches found. Make sure compatible pairs exist between male and female slots.
+                    No matches found. Make sure compatible pairs exist between jobs that end up on opposite sides.
                   </p>
                 ) : (
                   <div className="space-y-2">
                     <div className="grid grid-cols-[1fr_auto_1fr] text-xs font-medium text-muted-foreground px-3 pb-1">
-                      <span>Male job</span>
+                      <span>Male slot</span>
                       <span />
-                      <span>Female job</span>
+                      <span>Female slot</span>
                     </div>
                     {result.matches.map((m, i) => (
                       <div
@@ -603,16 +600,15 @@ export default function MarriageMatcher() {
                           <span className="w-5 h-5 rounded-full bg-secondary text-secondary-foreground text-xs flex items-center justify-center font-bold shrink-0">
                             {i + 1}
                           </span>
-                          <span className="font-medium text-sm text-foreground">{m.maleJob}</span>
+                          <span className="font-medium text-sm">{m.maleJob}</span>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-primary" />
+                        <ArrowLeftRight className="w-4 h-4 text-primary" />
                         <span className="font-medium text-sm text-primary">{m.femaleJob}</span>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {/* Unmatched slots */}
                 {(result.unmatchedMale.length > 0 || result.unmatchedFemale.length > 0) && (
                   <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border space-y-2">
                     {result.unmatchedMale.length > 0 && (
