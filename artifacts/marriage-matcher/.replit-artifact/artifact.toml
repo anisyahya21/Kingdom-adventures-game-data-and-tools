@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Marriage Matcher"
+version = "1.0.0"
+id = "artifacts/marriage-matcher"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25312
+
+[services.development]
+run = "pnpm --filter @workspace/marriage-matcher run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/marriage-matcher", "run", "build" ]
+publicDir = "artifacts/marriage-matcher/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25312"
+BASE_PATH = "/"
