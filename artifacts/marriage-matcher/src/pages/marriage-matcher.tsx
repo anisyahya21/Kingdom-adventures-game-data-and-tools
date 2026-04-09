@@ -652,13 +652,42 @@ export default function MarriageMatcher() {
     else { root.classList.remove("dark"); localStorage.setItem("theme", "light"); }
   }, [darkMode]);
 
-  const [jobNames, setJobNames] = useState<string[]>(DEFAULT_JOB_NAMES);
-  const [rankSlots, setRankSlots] = useState<RankSlot[]>([]);
-  const [pairs, setPairs] = useState<Pair[]>(DEFAULT_PAIRS);
+  const [jobNames, setJobNames] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("ka_mf_jobNames");
+      if (saved) return JSON.parse(saved) as string[];
+    } catch { /* ignore */ }
+    return DEFAULT_JOB_NAMES;
+  });
+  const [rankSlots, setRankSlots] = useState<RankSlot[]>(() => {
+    try {
+      const saved = localStorage.getItem("ka_mf_rankSlots");
+      if (saved) return JSON.parse(saved) as RankSlot[];
+    } catch { /* ignore */ }
+    return [];
+  });
+  const [pairs, setPairs] = useState<Pair[]>(() => {
+    try {
+      const saved = localStorage.getItem("ka_mf_pairs");
+      if (saved) return JSON.parse(saved) as Pair[];
+    } catch { /* ignore */ }
+    return DEFAULT_PAIRS;
+  });
   const [result, setResult] = useState<OptimalResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isStale, setIsStale] = useState(false);
-  const [lockedPairs, setLockedPairs] = useState<LockedPair[]>([]);
+  const [lockedPairs, setLockedPairs] = useState<LockedPair[]>(() => {
+    try {
+      const saved = localStorage.getItem("ka_mf_lockedPairs");
+      if (saved) return JSON.parse(saved) as LockedPair[];
+    } catch { /* ignore */ }
+    return [];
+  });
+
+  useEffect(() => { localStorage.setItem("ka_mf_jobNames", JSON.stringify(jobNames)); }, [jobNames]);
+  useEffect(() => { localStorage.setItem("ka_mf_rankSlots", JSON.stringify(rankSlots)); }, [rankSlots]);
+  useEffect(() => { localStorage.setItem("ka_mf_pairs", JSON.stringify(pairs)); }, [pairs]);
+  useEffect(() => { localStorage.setItem("ka_mf_lockedPairs", JSON.stringify(lockedPairs)); }, [lockedPairs]);
 
   const sortedJobNames = useMemo(() => [...jobNames].sort((a, b) => a.localeCompare(b)), [jobNames]);
 
@@ -798,8 +827,12 @@ export default function MarriageMatcher() {
             </Link>
             <div>
               <h1 className="text-3xl font-bold text-foreground tracking-tight">Kingdom Adventures Match Finder</h1>
-              <p className="mt-1 text-muted-foreground text-sm">
-                Add jobs globally, then assign them to ranks. Only same-rank compatible jobs can marry.
+              <p className="mt-1 text-muted-foreground text-sm max-w-xl">
+                Plan optimal marriages for <span className="font-medium text-foreground">Rank A compatibility only</span> — this tool does not cover S, B, C, or D ranks for marriage.
+                Add the jobs your character owns, assign them to ranks, then run the matcher.
+              </p>
+              <p className="mt-1 text-muted-foreground text-xs max-w-xl">
+                Your job list and rank assignments are saved <span className="font-medium">in this browser only</span> — they are personal to you and do not affect anyone else.
               </p>
             </div>
           </div>
