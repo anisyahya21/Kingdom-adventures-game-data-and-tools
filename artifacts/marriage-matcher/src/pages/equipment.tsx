@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
   Loader2, AlertTriangle, Moon, Sun, Info, X, ImageIcon,
-  ChevronDown, ChevronRight, Download, History, CheckSquare,
+  ChevronDown, ChevronRight, Download, History, CheckSquare, GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,55 @@ const STAT_ORDER = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelli
 const CHAR_SLOTS = ["Head", "Weapon", "Shield", "Armor", "Accessory"] as const;
 type CharSlot = typeof CHAR_SLOTS[number];
 const SLOT_OPTIONS: Array<CharSlot | "—"> = ["—", "Head", "Weapon", "Shield", "Armor", "Accessory"];
+
+// ─── Slot SVG icons ───────────────────────────────────────────────────────────
+
+function SlotIcon({ slot, className = "w-6 h-6" }: { slot: string; className?: string }) {
+  const p = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, className };
+  switch (slot) {
+    case "Head": return (
+      <svg {...p}>
+        <path d="M12 3C7.582 3 4 6.686 4 11v1h16v-1c0-4.314-3.582-8-8-8z" />
+        <rect x="2" y="12" width="20" height="3" rx="1" />
+        <line x1="9" y1="15" x2="9" y2="18" />
+        <line x1="15" y1="15" x2="15" y2="18" />
+        <line x1="9" y1="18" x2="15" y2="18" />
+      </svg>
+    );
+    case "Weapon": return (
+      <svg {...p}>
+        <line x1="5" y1="19" x2="19" y2="5" />
+        <path d="M15 5h4v4" />
+        <line x1="7" y1="14" x2="10" y2="17" />
+        <line x1="4" y1="17" x2="7" y2="20" />
+        <line x1="4" y1="20" x2="7" y2="17" />
+      </svg>
+    );
+    case "Shield": return (
+      <svg {...p}>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+    );
+    case "Armor": return (
+      <svg {...p}>
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <path d="M16 10a4 4 0 01-8 0" />
+      </svg>
+    );
+    case "Accessory": return (
+      <svg {...p}>
+        <circle cx="12" cy="12" r="7" />
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+      </svg>
+    );
+    default: return (
+      <svg {...p}><circle cx="12" cy="12" r="8" strokeDasharray="4 2" /></svg>
+    );
+  }
+}
 
 function fullStat(raw: string): string { return STAT_FULL[raw.toLowerCase().trim()] ?? raw; }
 function isStatCol(col: string): boolean { return !!STAT_FULL[col.toLowerCase().trim()]; }
@@ -342,7 +391,8 @@ export default function EquipmentPage() {
 
   const { data: items = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery({ queryKey: ["equipment"], queryFn: fetchSheet, staleTime: 5 * 60 * 1000 });
   const { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons } = useShared();
-  const { overrides, slotAssignments, equipIcons, statIcons, history } = shared;
+  const { overrides, slotAssignments, equipIcons, statIcons } = shared;
+  const history = shared.history ?? [];
 
   const { userName, setUserName } = useUserName();
   const [namePromptOpen, setNamePromptOpen] = useState(false);
@@ -391,6 +441,10 @@ export default function EquipmentPage() {
       localStorage.setItem("ka_loadout", JSON.stringify(next));
       return next;
     });
+
+  // Drag-and-drop state for character builder
+  const [dragOverSlot, setDragOverSlot] = useState<CharSlot | null>(null);
+  const draggingItemRef = useRef<{ name: string; slot: string } | null>(null);
 
   // Slot helpers
   const getItemSlot = useCallback((name: string) => slotAssignments[name] ?? "—", [slotAssignments]);
@@ -478,7 +532,7 @@ export default function EquipmentPage() {
     return sortDir === "asc" ? <ArrowUp className="w-3 h-3 text-primary shrink-0" /> : <ArrowDown className="w-3 h-3 text-primary shrink-0" />;
   };
 
-  const colCount = 7 + STAT_ORDER.length; // checkbox, icon, name, level, slot, craftable, ...stats
+  const colCount = 8 + STAT_ORDER.length; // drag, checkbox, icon, name, level, slot, craftable, ...stats
 
   // Clear loadout entry if slot mismatch
   useEffect(() => {
@@ -591,6 +645,9 @@ export default function EquipmentPage() {
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="bg-muted/60 border-b border-border">
+                      <th className="px-1 py-2 w-5 shrink-0 text-muted-foreground/30" title="Drag to equip in Character Builder">
+                        <GripVertical className="w-3.5 h-3.5 mx-auto" />
+                      </th>
                       <th className="px-2 py-2 w-7 shrink-0">
                         <input type="checkbox" className="rounded border-border"
                           checked={selectedUids.size === filtered.length && filtered.length > 0}
@@ -633,7 +690,19 @@ export default function EquipmentPage() {
                       const isSelected = selectedUids.has(item.uid);
                       return (
                         <Fragment key={item.uid}>
-                          <tr className={`border-b border-border transition-colors ${isExpanded ? "bg-primary/5" : isSelected ? "bg-primary/5" : "hover:bg-muted/20"}`}>
+                          <tr
+                            draggable
+                            onDragStart={(e) => {
+                              draggingItemRef.current = { name: item.name, slot: itemSlot };
+                              e.dataTransfer.effectAllowed = "copy";
+                              e.dataTransfer.setData("text/plain", item.name);
+                              e.dataTransfer.setData("application/ka-slot", itemSlot);
+                            }}
+                            onDragEnd={() => { draggingItemRef.current = null; setDragOverSlot(null); }}
+                            className={`border-b border-border transition-colors cursor-grab active:cursor-grabbing ${isExpanded ? "bg-primary/5" : isSelected ? "bg-primary/5" : "hover:bg-muted/20"}`}>
+                            <td className="px-1 py-1.5 text-center text-muted-foreground/40">
+                              <GripVertical className="w-3.5 h-3.5 mx-auto" />
+                            </td>
                             <td className="px-2 py-1.5 text-center">
                               <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(item.uid)} className="rounded border-border cursor-pointer" />
                             </td>
@@ -736,15 +805,46 @@ export default function EquipmentPage() {
                     const entry = loadout[slot];
                     const item = items.find((i) => i.name === entry.itemName);
                     const eligibleItems = items.filter((i) => { const a = getItemSlot(i.name); return a === slot || a === "—"; });
+                    const isOver = dragOverSlot === slot;
+                    const dragging = draggingItemRef.current;
+                    const compatible = !dragging || dragging.slot === "—" || dragging.slot === slot;
                     return (
-                      <Card key={slot} className="border-border shadow-none">
+                      <Card key={slot}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          const dragSlot = draggingItemRef.current?.slot ?? "—";
+                          e.dataTransfer.dropEffect = (dragSlot === "—" || dragSlot === slot) ? "copy" : "none";
+                          setDragOverSlot(slot);
+                        }}
+                        onDragLeave={(e) => {
+                          if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlot(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setDragOverSlot(null);
+                          const itemName = e.dataTransfer.getData("text/plain");
+                          const dragSlot = e.dataTransfer.getData("application/ka-slot");
+                          if (!itemName) return;
+                          if (dragSlot && dragSlot !== "—" && dragSlot !== slot) return;
+                          setLoadoutEntry(slot, { itemName });
+                        }}
+                        className={`shadow-none transition-all ${isOver && compatible ? "border-primary ring-2 ring-primary/30 bg-primary/5" : isOver && !compatible ? "border-destructive/40 bg-destructive/5" : "border-border"}`}>
                         <CardHeader className="pb-1 pt-3 px-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{slot}</span>
+                            <div className="flex items-center gap-1.5">
+                              <SlotIcon slot={slot} className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{slot}</span>
+                            </div>
                             {entry.itemName && <button onClick={() => setLoadoutEntry(slot, { itemName: "" })} className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>}
                           </div>
                         </CardHeader>
                         <CardContent className="px-3 pb-3 space-y-2">
+                          {!entry.itemName && (
+                            <div className={`flex flex-col items-center justify-center gap-1 py-3 rounded border border-dashed transition-colors ${isOver && compatible ? "border-primary text-primary" : "border-border text-muted-foreground/40"}`}>
+                              <SlotIcon slot={slot} className="w-8 h-8" />
+                              <span className="text-[10px]">Drop here</span>
+                            </div>
+                          )}
                           {entry.itemName && equipIcons[`equip:${entry.itemName}`] && (
                             <img src={equipIcons[`equip:${entry.itemName}`]} alt={entry.itemName} className="w-10 h-10 object-contain rounded mx-auto" />
                           )}
