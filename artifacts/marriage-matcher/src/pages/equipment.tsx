@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, Fragment, useEffect } from "react";
+import { useState, useMemo, useCallback, useRef, Fragment, useEffect, ChangeEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
@@ -17,6 +17,33 @@ import rawSource from "./equipment.tsx?raw";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API_URL = (p: string) => `${BASE}/ka-api/ka${p}`;
+
+// ─── NumInput: local-string-state to prevent typing glitch ────────────────────
+function NumInput({
+  value, onChange, min = 0, max = 99, className = "",
+}: {
+  value: number; onChange: (v: number) => void;
+  min?: number; max?: number; className?: string;
+}) {
+  const [local, setLocal] = useState(String(value));
+  const prevRef = useRef(value);
+  useEffect(() => {
+    if (value !== prevRef.current) { setLocal(String(value)); prevRef.current = value; }
+  }, [value]);
+  const commit = () => {
+    const parsed = parseInt(local, 10);
+    const clamped = isNaN(parsed) ? min : Math.min(max, Math.max(min, parsed));
+    setLocal(String(clamped));
+    prevRef.current = clamped;
+    if (clamped !== value) onChange(clamped);
+  };
+  return (
+    <Input type="number" value={local} min={min} max={max} step={1} className={className}
+      onChange={(e: ChangeEvent<HTMLInputElement>) => setLocal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") commit(); }} />
+  );
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -962,8 +989,8 @@ export default function EquipmentPage() {
                               </button>
                             </td>
                             <td className="px-2 py-1.5">
-                              <Input type="number" min={1} max={99} value={level}
-                                onChange={(e) => setItemLevel(item.name, parseInt(e.target.value) || 1)}
+                              <NumInput value={level} min={1} max={99}
+                                onChange={(v) => setItemLevel(item.name, v)}
                                 className="h-6 w-14 text-xs text-center px-1 mx-auto" />
                             </td>
                             <td className="px-2 py-1.5">
@@ -1050,14 +1077,14 @@ export default function EquipmentPage() {
                                         <div className="flex gap-1">
                                           <div className="flex-1">
                                             <span className="text-[9px] text-muted-foreground/70">Base</span>
-                                            <Input type="number" value={base}
-                                              onChange={(e) => setOverride(item.name, stat, "base", Number(e.target.value) || 0)}
+                                            <NumInput value={base} min={0} max={99}
+                                              onChange={(v) => setOverride(item.name, stat, "base", v)}
                                               className="h-6 text-xs px-1.5 w-full" />
                                           </div>
                                           <div className="flex-1">
                                             <span className="text-[9px] text-muted-foreground/70">+/Lv</span>
-                                            <Input type="number" value={inc} step={0.1}
-                                              onChange={(e) => setOverride(item.name, stat, "inc", Number(e.target.value) || 0)}
+                                            <NumInput value={inc} min={0} max={99}
+                                              onChange={(v) => setOverride(item.name, stat, "inc", v)}
                                               className="h-6 text-xs px-1.5 w-full" />
                                           </div>
                                         </div>
@@ -1147,8 +1174,8 @@ export default function EquipmentPage() {
                           {entry.itemName && (
                             <div className="flex items-center gap-1.5">
                               <span className="text-[10px] text-muted-foreground">Level</span>
-                              <Input type="number" min={1} max={99} value={entry.level}
-                                onChange={(e) => setLoadoutEntry(slot, { level: Math.min(99, Math.max(1, parseInt(e.target.value) || 1)) })}
+                              <NumInput value={entry.level} min={1} max={99}
+                                onChange={(v) => setLoadoutEntry(slot, { level: v })}
                                 className="h-6 w-14 text-xs text-center px-1" />
                             </div>
                           )}

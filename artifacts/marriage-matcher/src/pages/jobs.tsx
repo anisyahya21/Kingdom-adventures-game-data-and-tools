@@ -28,6 +28,7 @@ const DEFAULT_RANKS  = ["S","A","B","C","D"];
 const GEN1_RANKS     = ["S","A","B","C","D"];
 const GEN2_RANKS     = ["S","A","B","C"];
 const MAX_LEVEL     = 999;
+const normJob = (name: string) => name.trim().toLowerCase();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -777,14 +778,14 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
 
   // Pairs that involve this job (only for Gen1 jobs)
   const jobPairs = pairs
-    .filter((p) => p.jobA === jobName || p.jobB === jobName)
+    .filter((p) => normJob(p.jobA) === normJob(jobName) || normJob(p.jobB) === normJob(jobName))
     .map((p) => {
-      const partner = p.jobA === jobName ? p.jobB : p.jobA;
+      const partner = normJob(p.jobA) === normJob(jobName) ? p.jobB : p.jobA;
       return { id: p.id, partner, children: [...p.children].sort() };
     })
     .sort((a, b) => a.partner.localeCompare(b.partner));
 
-  const availablePartners = firstGenJobs.filter((j) => !jobPairs.some((p) => p.partner === j));
+  const availablePartners = firstGenJobs.filter((j) => !jobPairs.some((p) => normJob(p.partner) === normJob(j)));
 
   const addPair = (partner: string) => {
     if (!partner) return;
@@ -799,7 +800,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
   const addChildToPair = (pairId: string, child: string) => {
     if (!child) return;
     const updated = pairs.map((p) =>
-      p.id === pairId && !p.children.includes(child)
+      p.id === pairId && !p.children.some((c) => normJob(c) === normJob(child))
         ? { ...p, children: [...p.children, child].sort() }
         : p
     );
@@ -808,7 +809,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
 
   const removeChildFromPair = (pairId: string, child: string) => {
     const updated = pairs.map((p) =>
-      p.id === pairId ? { ...p, children: p.children.filter((c) => c !== child) } : p
+      p.id === pairId ? { ...p, children: p.children.filter((c) => normJob(c) !== normJob(child)) } : p
     );
     onSavePairs(updated);
   };
@@ -1178,7 +1179,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                 <div className="space-y-2">
                   {jobPairs.map(({ id, partner, children }) => {
                     const allJobs = Object.keys(jobs).sort();
-                    const availableChildren = allJobs.filter((j) => !children.includes(j));
+                    const availableChildren = allJobs.filter((j) => !children.some((c) => normJob(c) === normJob(j)));
                     return (
                       <div key={id} className="rounded-md border border-border bg-muted/20 px-3 py-2 space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">

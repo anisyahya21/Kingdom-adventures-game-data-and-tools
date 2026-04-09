@@ -153,8 +153,9 @@ interface OptimalResult {
 
 // ─── Algorithm ────────────────────────────────────────────────────────────────
 
+function normJob(name: string) { return name.trim().toLowerCase(); }
 function pairKey(a: string, b: string) {
-  return [a, b].sort().join("|");
+  return [normJob(a), normJob(b)].sort().join("|");
 }
 
 function runBipartiteMatching(
@@ -507,7 +508,7 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
   const addChild = (pairId: string, child: string) => {
     if (!child) return;
     const pair = pairs.find((p) => p.id === pairId);
-    if (!pair || pair.children.includes(child)) return;
+    if (!pair || pair.children.some((c) => normJob(c) === normJob(child))) return;
     onUpdateChildren(pairId, [...pair.children, child]);
     setChildSel((prev) => ({ ...prev, [pairId]: "" }));
   };
@@ -515,7 +516,7 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
   const removeChild = (pairId: string, child: string) => {
     const pair = pairs.find((p) => p.id === pairId);
     if (!pair) return;
-    onUpdateChildren(pairId, pair.children.filter((c) => c !== child));
+    onUpdateChildren(pairId, pair.children.filter((c) => normJob(c) !== normJob(child)));
   };
 
   const sorted = [...pairs].sort((a, b) => pairKey(a.jobA, a.jobB).localeCompare(pairKey(b.jobA, b.jobB)));
@@ -587,7 +588,7 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
                         >
                           <option value="">Select child job…</option>
                           {allJobNames
-                            .filter((n) => !p.children.includes(n))
+                            .filter((n) => !p.children.some((c) => normJob(c) === normJob(n)))
                             .map((n) => <option key={n} value={n}>{n}</option>)}
                         </select>
                         <Button size="sm" variant="secondary" onClick={() => addChild(p.id, childSel[p.id] ?? "")} className="h-7 px-2.5 text-xs shrink-0">
@@ -647,7 +648,7 @@ function PriorityPanel({ desiredChildren, allJobNames, jobTypeMap, onAdd, onRemo
   };
 
   const visibleJobs = allJobNames.filter((n) => {
-    if (desiredChildren.includes(n)) return false;
+    if (desiredChildren.some((c) => normJob(c) === normJob(n))) return false;
     if (typeFilter === "all") return true;
     return jobTypeMap[n] === typeFilter;
   });
@@ -733,7 +734,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
 
   const possibleChildren = useMemo(() => getPossibleChildren(match, pairs), [match, pairs]);
   const desiredHere = useMemo(
-    () => desiredChildren.filter((c) => possibleChildren.includes(c)),
+    () => desiredChildren.filter((c) => possibleChildren.some((p) => normJob(p) === normJob(c))),
     [desiredChildren, possibleChildren]
   );
   const hasDesired = desiredHere.length > 0;
@@ -814,7 +815,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
           <Baby className="w-3 h-3 text-muted-foreground shrink-0" />
           <span className="text-[11px] text-muted-foreground">Child can be:</span>
           {[match.maleJob, match.femaleJob, ...outcomeChildren].filter((v, i, a) => a.indexOf(v) === i).map((c) => {
-            const isPriority = desiredChildren.includes(c);
+            const isPriority = desiredChildren.some((d) => normJob(d) === normJob(c));
             return (
               <Badge key={c} variant="outline" className={`text-[10px] px-1.5 py-0 ${isPriority ? "border-violet-400 text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30" : "text-muted-foreground"}`}>
                 {isPriority && <Star className="w-2.5 h-2.5 mr-0.5 text-violet-500" />}
@@ -900,14 +901,29 @@ export default function MarriageMatcher() {
 
   const apiFirstGenJobs = useMemo(() => {
     if (!sharedData?.jobs) return null;
+    const seen = new Set<string>();
     return Object.keys(sharedData.jobs)
-      .filter((name) => sharedData.jobs[name].generation === 1)
+      .filter((name) => {
+        if (sharedData.jobs[name].generation !== 1) return false;
+        const key = normJob(name);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .sort();
   }, [sharedData]);
 
   const apiAllJobs = useMemo(() => {
     if (!sharedData?.jobs) return null;
-    return Object.keys(sharedData.jobs).sort();
+    const seen = new Set<string>();
+    return Object.keys(sharedData.jobs)
+      .filter((name) => {
+        const key = normJob(name);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort();
   }, [sharedData]);
 
   const apiPairs = useMemo(() => {
@@ -1058,7 +1074,7 @@ export default function MarriageMatcher() {
     const name = jobName.trim();
     if (!name) return;
     setRankSlots((prev) => {
-      if (prev.some((s) => s.rank === rank && s.jobName === name)) return prev;
+      if (prev.some((s) => s.rank === rank && normJob(s.jobName) === normJob(name))) return prev;
       return [...prev, { id: generateId(), rank, jobName: name, males: 0, females: 0, unassigned: 0 }];
     });
     markStale();
@@ -1123,11 +1139,11 @@ export default function MarriageMatcher() {
 
   // ── Priority child actions ──
   const addDesiredChild = useCallback((child: string) => {
-    setDesiredChildren((prev) => prev.includes(child) ? prev : [...prev, child].sort());
+    setDesiredChildren((prev) => prev.some((c) => normJob(c) === normJob(child)) ? prev : [...prev, child].sort());
   }, []);
 
   const removeDesiredChild = useCallback((child: string) => {
-    setDesiredChildren((prev) => prev.filter((c) => c !== child));
+    setDesiredChildren((prev) => prev.filter((c) => normJob(c) !== normJob(child)));
   }, []);
 
   // ── Calculate ──
@@ -1176,7 +1192,7 @@ export default function MarriageMatcher() {
     if (!result || desiredChildren.length === 0) return [];
     return desiredChildren.map((child) => {
       const coveringMatches = result.matches.filter((m) =>
-        getPossibleChildren(m, pairs).includes(child)
+        getPossibleChildren(m, pairs).some((p) => normJob(p) === normJob(child))
       );
       return { child, matches: coveringMatches };
     });
