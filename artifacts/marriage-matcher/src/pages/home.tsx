@@ -33,7 +33,7 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/monsters",
     title: "Monsters & Weekly Conquest",
-    description: "Community monster database with spawn locations. See this week's conquest targets, where to find them, and what rewards are up for grabs.",
+    description: "Community monster database with spawn locations. See this week's 5 conquest targets, where to find them, and what rewards are up for grabs.",
     icon: <Skull className="w-6 h-6 text-violet-500" />,
     badge: "Monsters",
     badgeColor: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300",

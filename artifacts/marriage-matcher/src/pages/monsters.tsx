@@ -259,7 +259,7 @@ export default function MonstersPage() {
           </CardHeader>
           <CardContent>
             {!weeklyConquest || weeklyConquest.monsters.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No conquest set for this week yet. Click Edit to set the 6 targets.</p>
+              <p className="text-sm text-muted-foreground">No conquest set for this week yet. Click Edit to set the 5 targets.</p>
             ) : (
               <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -439,11 +439,11 @@ export default function MonstersPage() {
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-500" />Edit Weekly Conquest</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <p className="text-sm font-medium mb-2">Select 6 monsters ({conquestDraft.monsters.length}/6)</p>
+              <p className="text-sm font-medium mb-2">Select 5 monsters ({conquestDraft.monsters.length}/5)</p>
               <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto pr-1">
                 {monsterNames.map((mName) => {
                   const selected = conquestDraft.monsters.includes(mName);
-                  const disabled = !selected && conquestDraft.monsters.length >= 6;
+                  const disabled = !selected && conquestDraft.monsters.length >= 5;
                   return (
                     <button
                       key={mName}
