@@ -418,7 +418,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
           {/* Job selector */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Job</p>
-            <select value={loadout.jobName} onChange={(e) => onChange({ ...loadout, jobName: e.target.value, rank: "" })}
+            <select value={loadout.jobName} onChange={(e) => onChange({ ...loadout, jobName: e.target.value })}
               className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
               <option value="">Select job…</option>
               {Object.keys(jobs).sort().map((n) => <option key={n} value={n}>{n}</option>)}
