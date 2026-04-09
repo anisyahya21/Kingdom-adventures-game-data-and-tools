@@ -418,7 +418,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
           {/* Job selector */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Job</p>
-            <select value={loadout.jobName} onChange={(e) => onChange({ ...loadout, jobName: e.target.value, rank: "", statLevels: {} })}
+            <select value={loadout.jobName} onChange={(e) => onChange({ ...loadout, jobName: e.target.value, rank: "" })}
               className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
               <option value="">Select job…</option>
               {Object.keys(jobs).sort().map((n) => <option key={n} value={n}>{n}</option>)}
@@ -784,8 +784,10 @@ export default function LoadoutPage() {
                           <div className="flex flex-wrap gap-1.5">
                             {loadout.equipment.map((eq) => {
                               const icon = data?.equipIcons?.[eq.name];
+                              const slot = data?.slotAssignments?.[eq.name];
                               return (
                                 <span key={eq.name} className="inline-flex items-center gap-1.5 bg-muted/50 border border-border/50 rounded-md px-2 py-0.5 text-xs">
+                                  {slot && <span className="text-muted-foreground/60 font-medium">{slot}:</span>}
                                   {icon && <img src={icon} alt="" className="w-4 h-4 object-contain shrink-0" />}
                                   <span className="font-medium">{eq.name}</span>
                                   <span className="text-muted-foreground">Lv{eq.level}</span>
@@ -796,7 +798,8 @@ export default function LoadoutPage() {
                         )}
                         {/* Skill pills */}
                         {loadout.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs font-medium text-muted-foreground/70 shrink-0">Skills:</span>
                             {loadout.skills.map((s) => (
                               <span key={s} className="inline-block bg-violet-100 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-md px-2 py-0.5 text-xs">
                                 {s}
