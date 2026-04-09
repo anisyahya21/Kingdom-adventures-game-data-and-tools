@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toPng } from "html-to-image";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -254,6 +255,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
   const [renamingName, setRenamingName] = useState(false);
   const [nameVal, setNameVal] = useState(loadout.name);
   const [screenshotStatus, setScreenshotStatus] = useState<null | "working" | "ok" | "error">(null);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
   const hiddenRef = useRef<HTMLDivElement>(null);
 
   const jobs = data.jobs ?? {};
@@ -304,26 +306,21 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
     setScreenshotStatus("working");
     try {
       const url = await toPng(hiddenRef.current, { pixelRatio: 2 });
-      // Try clipboard first
-      let copied = false;
-      try {
-        const res = await fetch(url);
-        const blob = await res.blob();
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-        copied = true;
-      } catch { /* clipboard not available */ }
-      // Always trigger download (browser shows "Save As" if configured, or saves to Downloads)
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${loadout.name || "loadout"}.png`;
-      a.click();
+      setScreenshotUrl(url);
       setScreenshotStatus("ok");
       setTimeout(() => setScreenshotStatus(null), 2500);
-      void copied;
     } catch {
       setScreenshotStatus("error");
       setTimeout(() => setScreenshotStatus(null), 2500);
     }
+  };
+
+  const downloadScreenshot = () => {
+    if (!screenshotUrl) return;
+    const a = document.createElement("a");
+    a.href = screenshotUrl;
+    a.download = `${loadout.name || "loadout"}.png`;
+    a.click();
   };
 
   const allStatKeys = [...STAT_KEYS] as string[];
@@ -336,6 +333,25 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
           <ScreenshotCard loadout={loadout} stats={stats} />
         </div>
       </div>
+
+      {/* Screenshot preview modal */}
+      <Dialog open={!!screenshotUrl} onOpenChange={(open) => { if (!open) setScreenshotUrl(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Screenshot ready</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-2 mb-2">Right-click the image to save, or use the download button below.</p>
+          {screenshotUrl && (
+            <img src={screenshotUrl} alt="Loadout screenshot" className="w-full rounded-lg border border-border" style={{ imageRendering: "auto" }} />
+          )}
+          <div className="flex justify-end gap-2 mt-2">
+            <Button size="sm" variant="outline" onClick={() => setScreenshotUrl(null)}>Close</Button>
+            <Button size="sm" onClick={downloadScreenshot} className="gap-1.5">
+              <Download className="w-3.5 h-3.5" /> Download PNG
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Name + actions */}
       <div className="flex items-center gap-2">

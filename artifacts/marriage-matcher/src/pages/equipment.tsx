@@ -15,6 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { SourceViewerButton } from "@/components/source-viewer";
 import rawSource from "./equipment.tsx?raw";
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const API_URL = (p: string) => `${BASE}/ka-api/ka${p}`;
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STAT_FULL: Record<string, string> = {
@@ -205,7 +208,7 @@ const EMPTY_SHARED: SharedState = {
 
 async function fetchShared(): Promise<SharedState> {
   try {
-    const res = await fetch("/ka-api/ka/shared");
+    const res = await fetch(API_URL("/shared"));
     if (!res.ok) return EMPTY_SHARED;
     const data = await res.json();
     return { ...EMPTY_SHARED, ...data };
@@ -215,7 +218,7 @@ async function fetchShared(): Promise<SharedState> {
 type HistoryPayload = Omit<HistoryEntry, "id" | "timestamp">;
 
 async function putShared(endpoint: string, data: unknown, history?: HistoryPayload) {
-  await fetch(`/ka-api/ka/shared/${endpoint}`, {
+  await fetch(API_URL(`/shared/${endpoint}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data, history }),
@@ -255,7 +258,7 @@ function useShared() {
   }, [invalidate]);
 
   const saveWeaponCategories = useCallback(async (data: string[], history?: HistoryPayload) => {
-    await fetch("/ka-api/ka/shared/weapon-categories", {
+    await fetch(API_URL("/shared/weapon-categories"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data, history }),
@@ -265,7 +268,7 @@ function useShared() {
 
   const renameUser = useCallback(async (oldName: string, newName: string) => {
     if (!oldName || !newName || oldName === newName) return;
-    await fetch("/ka-api/ka/shared/rename-user", {
+    await fetch(API_URL("/shared/rename-user"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ oldName, newName }),

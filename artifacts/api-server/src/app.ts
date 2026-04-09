@@ -30,5 +30,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+// In production, Replit routes /ka-api/* directly to this server.
+// This alias ensures those requests are handled correctly.
+app.use("/ka-api", router);
 
 export default app;

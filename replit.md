@@ -60,13 +60,18 @@ jobs            — { name: { generation: 1|2, type?: "combat"|"non-combat", ico
 - Job stat formula: same formula, max level 999, per-rank base/inc
 - Username stored in `localStorage("ka_username")` — shared edits show this name
 - Red dash in equipment table = stat never set (no override + sheet value 0)
-- Green checkmark on item = all 12 stats have been contributed
+- Green checkmark on item = all 11 stats have been contributed (Move merged into Speed)
 - First gen jobs can all marry each other (A compatibility); second gen cannot marry
 - Weekly conquest: 6 monsters selected from DB, shows spawn locations + reward (job/diamonds/equipment)
 
-## Vite Proxy
+## API Routing
 
-`/ka-api/*` → `http://localhost:8080` with rewrite stripping `/ka-api` → `/api`
+- **Dev**: Vite proxy `/ka-api/*` → `http://localhost:8080` (rewrite strips `/ka-api` → `/api`)
+- **Production**: Replit router forwards `/ka-api/*` AND `/api/*` to Express on port 8080
+  - `artifacts/api-server/.replit-artifact/artifact.toml` has `paths = ["/api", "/ka-api"]`
+  - `app.ts` has `app.use("/ka-api", router)` alias alongside `app.use("/api", router)`
+- All frontend pages use `BASE = import.meta.env.BASE_URL.replace(/\/$/, "")` + `API = (p) => \`${BASE}/ka-api/ka${p}\``
+- `BASE_PATH = "/"` in the marriage-matcher artifact (set in services.env)
 
 ## Key Commands
 
