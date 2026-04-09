@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
@@ -873,11 +873,33 @@ export default function MarriageMatcher() {
     return FALLBACK_JOB_NAMES;
   });
 
+  const prevFirstGenRef = useRef<string[] | null>(null);
+
   useEffect(() => {
-    if (apiFirstGenJobs) {
-      setCachedJobNames(apiFirstGenJobs);
-      localStorage.setItem("ka_mf_jobNames", JSON.stringify(apiFirstGenJobs));
+    if (!apiFirstGenJobs) return;
+    setCachedJobNames(apiFirstGenJobs);
+    localStorage.setItem("ka_mf_jobNames", JSON.stringify(apiFirstGenJobs));
+
+    // Auto-add pairs for any newly added Gen1 jobs
+    const prev = prevFirstGenRef.current;
+    if (prev !== null) {
+      const newJobs = apiFirstGenJobs.filter((j) => !prev.includes(j));
+      if (newJobs.length > 0) {
+        setPairs((existing) => {
+          const updated = [...existing];
+          for (const newJob of newJobs) {
+            for (const otherJob of apiFirstGenJobs) {
+              const key = pairKey(newJob, otherJob);
+              if (!updated.some((p) => pairKey(p.jobA, p.jobB) === key)) {
+                updated.push(makePair(newJob, otherJob));
+              }
+            }
+          }
+          return updated;
+        });
+      }
     }
+    prevFirstGenRef.current = apiFirstGenJobs;
   }, [apiFirstGenJobs]);
 
   const sortedJobNames = apiFirstGenJobs ?? cachedJobNames;

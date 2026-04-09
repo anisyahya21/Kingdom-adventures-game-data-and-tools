@@ -36,6 +36,8 @@ export type Job = {
   weaponEquip?: Partial<Record<string, "can" | "cannot" | "weak">>;
   skillAccess?: { attack?: "can" | "cannot"; casting?: "can" | "cannot" };
   skills: string[];
+  shops?: string[];
+  notes?: string;
 };
 
 type SharedState = {

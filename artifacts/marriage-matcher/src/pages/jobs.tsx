@@ -42,6 +42,8 @@ type Job = {
   weaponEquip?: Partial<Record<string,WeaponValue>>;
   skillAccess?: { attack?: "can"|"cannot"; casting?: "can"|"cannot" };
   skills: string[];
+  shops?: string[];
+  notes?: string;
 };
 type SharedData = {
   jobs: Record<string,Job>;
@@ -648,6 +650,26 @@ function IconUploadSmall({ value, onChange }: { value?: string; onChange: (v: st
   );
 }
 
+function ShopInput({ onAdd }: { onAdd: (v: string) => void }) {
+  const [val, setVal] = useState("");
+  const submit = () => {
+    const v = val.trim();
+    if (!v) return;
+    onAdd(v); setVal("");
+  };
+  return (
+    <div className="flex gap-2 mt-2">
+      <Input value={val} onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && submit()}
+        placeholder="Add land or shop name…"
+        className="h-7 text-xs flex-1" />
+      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={submit}>
+        <Plus className="w-3 h-3 mr-1" />Add
+      </Button>
+    </div>
+  );
+}
+
 function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
   jobName: string;
   jobs: Record<string,Job>;
@@ -919,10 +941,11 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
         </CardContent>
       </Card>
 
-      {/* Equipment */}
+      {/* Equipment & Skills — combined card */}
       <Card className="shadow-sm mb-4">
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Equipment</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Equipment & Skills</CardTitle></CardHeader>
+        <CardContent className="space-y-5">
+          {/* Shield */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground mb-2">Shield</p>
             {!editing && job.shield === undefined ? (
@@ -947,6 +970,8 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
               </span>
             )}
           </div>
+
+          {/* Weapon Classes */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground mb-1">Weapon Classes</p>
             {weaponCategories.length === 0 ? (
@@ -992,54 +1017,85 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
             )}
             {editing && <p className="text-[10px] text-muted-foreground mt-1">Click to cycle: Can't → Can → Weak → Can't</p>}
           </div>
+
+          {/* Skill Access */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-2">Skill Access</p>
+            <div className="flex flex-wrap gap-3">
+              {(["attack","casting"] as const).map((cat) => {
+                const savedCatVal = job.skillAccess?.[cat];
+                const draftCatVal = draft.skillAccess?.[cat];
+                const unfilled = !editing && savedCatVal === undefined;
+                const v = (editing ? draftCatVal : savedCatVal) ?? "can";
+                return (
+                  <div key={cat} className="flex flex-col items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground capitalize">{cat} Skills</span>
+                    {unfilled ? (
+                      <span className="text-sm font-bold text-red-400">—</span>
+                    ) : editing ? (
+                      <button onClick={() => setDraft((d) => ({ ...d, skillAccess: { ...d.skillAccess, [cat]: v === "can" ? "cannot" : "can" } }))}
+                        className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${v === "can"
+                          ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
+                          : "border-dashed border-border/60 text-muted-foreground/50"}`}>
+                        {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
+                      </button>
+                    ) : (
+                      <span className={`px-3 py-1.5 rounded-full border text-xs font-medium ${v === "can"
+                        ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
+                        : "border-dashed border-border/60 text-muted-foreground/50"}`}>
+                        {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Skill Access */}
+      {/* Lands & Shops */}
       <Card className="shadow-sm mb-4">
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Skill Access</CardTitle></CardHeader>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Lands & Shops</CardTitle></CardHeader>
         <CardContent>
-          <table className="text-xs border-collapse w-full max-w-xs">
-            <thead>
-              <tr>
-                {(["attack","casting"] as const).map((cat) => (
-                  <th key={cat} className="text-center px-4 pb-1 border-b border-border font-medium text-muted-foreground capitalize">
-                    {cat} Skills
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                {(["attack","casting"] as const).map((cat) => {
-                  const savedCatVal = job.skillAccess?.[cat];
-                  const draftCatVal = draft.skillAccess?.[cat];
-                  const unfilled = !editing && savedCatVal === undefined;
-                  const v = (editing ? draftCatVal : savedCatVal) ?? "can";
-                  return (
-                    <td key={cat} className="text-center px-4 py-2">
-                      {unfilled ? (
-                        <span className="text-sm font-bold text-red-400">—</span>
-                      ) : editing ? (
-                        <button onClick={() => setDraft((d) => ({ ...d, skillAccess: { ...d.skillAccess, [cat]: v === "can" ? "cannot" : "can" } }))}
-                          className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${v === "can"
-                            ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
-                            : "border-dashed border-border/60 text-muted-foreground/50"}`}>
-                          {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
-                        </button>
-                      ) : (
-                        <span className={`px-3 py-1.5 rounded-full border text-xs font-medium ${v === "can"
-                          ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
-                          : "border-dashed border-border/60 text-muted-foreground/50"}`}>
-                          {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
-                        </span>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            </tbody>
-          </table>
+          {!editing && (!job.shops || job.shops.length === 0) ? (
+            <p className="text-xs text-muted-foreground/60">No lands or shops listed yet.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {(editing ? draft.shops : job.shops ?? [])?.map((shop, i) => (
+                <span key={i} className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-300 rounded-full px-2.5 py-1 text-xs">
+                  {shop}
+                  {editing && (
+                    <button onClick={() => setDraft((d) => ({ ...d, shops: (d.shops ?? []).filter((_, j) => j !== i) }))}
+                      className="text-amber-500 hover:text-destructive transition-colors ml-0.5">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+          {editing && <ShopInput onAdd={(v) => setDraft((d) => ({ ...d, shops: [...(d.shops ?? []), v] }))} />}
+        </CardContent>
+      </Card>
+
+      {/* Information */}
+      <Card className="shadow-sm mb-4">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Information</CardTitle></CardHeader>
+        <CardContent>
+          {editing ? (
+            <textarea
+              value={draft.notes ?? ""}
+              onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
+              placeholder="Add any notes or information about this job…"
+              rows={5}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+            />
+          ) : job.notes ? (
+            <p className="text-sm text-foreground whitespace-pre-wrap">{job.notes}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground/60">No information added yet. Click Edit to add notes.</p>
+          )}
         </CardContent>
       </Card>
 
