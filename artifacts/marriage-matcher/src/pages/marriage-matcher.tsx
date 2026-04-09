@@ -32,7 +32,8 @@ type JobData = {
   type?: "combat" | "non-combat";
   icon?: string;
   ranks: Record<string, unknown>;
-  equipment: Record<string, boolean>;
+  equipment: Record<string, "can" | "cannot" | "weak">;
+  weaponClasses?: string[];
   skills: string[];
 };
 

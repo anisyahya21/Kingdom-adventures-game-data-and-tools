@@ -25,14 +25,15 @@ export type WeeklyConquest = {
   updatedAt: number;
 };
 
-export type JobStatEntry = { base: number; inc: number };
+export type JobStatEntry = { base: number; inc: number; levels?: Record<string, number> };
 export type JobRank = { stats: Record<string, JobStatEntry> };
 export type Job = {
   generation: 1 | 2;
   type?: "combat" | "non-combat";
   icon?: string;
   ranks: Record<string, JobRank>;
-  equipment: Partial<Record<string, boolean>>;
+  equipment: Partial<Record<string, "can" | "cannot" | "weak">>;
+  weaponClasses?: string[];
   skills: string[];
 };
 
