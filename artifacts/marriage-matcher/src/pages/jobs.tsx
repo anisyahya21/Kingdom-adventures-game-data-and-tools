@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, Plus, Trash2, Moon, Sun, RefreshCw, Loader2, X,
-  Check, Star, Sword, Save, ImageIcon, Heart, ArrowUpDown,
+  Check, Star, Briefcase, Save, ImageIcon, Heart, ArrowUpDown,
   ArrowUp, ArrowDown, Settings2, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -1231,7 +1231,7 @@ export default function JobsPage() {
               <>
                 <span className="text-muted-foreground/30">/</span>
                 <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <Sword className="w-5 h-5 text-sky-500" />Job Database
+                  <Briefcase className="w-5 h-5 text-sky-500" />Job Database
                 </h1>
               </>
             )}

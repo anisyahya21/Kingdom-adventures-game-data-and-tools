@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Plus, Heart, Sword, Trash2, Moon, Sun, ExternalLink, Skull, Briefcase } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, Moon, Sun, ExternalLink, Skull, Briefcase, BookOpen, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -45,6 +45,22 @@ const BUILT_IN_TOOLS = [
     icon: <Briefcase className="w-6 h-6 text-sky-500" />,
     badge: "Jobs",
     badgeColor: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300",
+  },
+  {
+    slug: "/skills",
+    title: "Skills Database",
+    description: "Community-editable list of all skills with studio level, crafting intelligence, buy price, and sell price.",
+    icon: <BookOpen className="w-6 h-6 text-emerald-500" />,
+    badge: "Skills",
+    badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
+  },
+  {
+    slug: "/loadout",
+    title: "Loadout Builder",
+    description: "Build character loadouts combining jobs, equipment, and skills. Calculate total stats at any level and export a screenshot to share.",
+    icon: <Package className="w-6 h-6 text-orange-500" />,
+    badge: "Builder",
+    badgeColor: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300",
   },
 ];
 

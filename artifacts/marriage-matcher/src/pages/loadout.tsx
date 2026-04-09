@@ -1,0 +1,566 @@
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
+import {
+  ArrowLeft, Plus, Trash2, Moon, Sun, Loader2, Camera,
+  ChevronDown, ChevronRight, Package, X, Check, Pencil,
+  Download, Copy,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { toPng } from "html-to-image";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const API = (path: string) => `${BASE}/ka-api/ka${path}`;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Skill = { name: string; studioLevel?: number; craftingIntelligence?: number; buyPrice?: number; sellPrice?: number };
+type JobStatEntry = { base: number; inc: number };
+type Job = { generation: 1 | 2; ranks: Record<string, { stats: Record<string, JobStatEntry> }>; };
+type SharedData = {
+  jobs?: Record<string, Job>;
+  skills?: Record<string, Skill>;
+  overrides?: Record<string, Record<string, { base?: number; inc?: number }>>;
+  slotAssignments?: Record<string, string>;
+};
+type EquipEntry = { name: string; level: number };
+type Loadout = {
+  id: string;
+  name: string;
+  jobName: string;
+  rank: string;
+  level: number;
+  equipment: EquipEntry[];
+  skills: string[];
+};
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const STAT_KEYS = ["hp","mp","vig","atk","def","spd","lck","int","dex","gth","mov","hrt"] as const;
+const STAT_LABEL: Record<string, string> = {
+  hp:"HP", mp:"MP", vig:"Vig", atk:"Atk", def:"Def",
+  spd:"Spd", lck:"Lck", int:"Int", dex:"Dex", gth:"Gth", mov:"Mov", hrt:"Hrt",
+};
+const STAT_FULL: Record<string, string> = {
+  hp:"HP", mp:"MP", vig:"Vigor", atk:"Attack", def:"Defence",
+  spd:"Speed", lck:"Luck", int:"Intelligence", dex:"Dexterity",
+  gth:"Gather", mov:"Move", hrt:"Heart",
+};
+const RANK_COLORS: Record<string, string> = {
+  S:"bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700",
+  A:"bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700",
+  B:"bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700",
+  C:"bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700",
+  D:"bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+};
+
+function generateId() { return Math.random().toString(36).slice(2, 9); }
+
+function statAtLevel(base: number, inc: number, level: number): number {
+  return Math.round(base + (level - 1) * inc);
+}
+
+// ─── Hooks ────────────────────────────────────────────────────────────────────
+
+function useSharedData() {
+  return useQuery({
+    queryKey: ["ka-shared"],
+    queryFn: async () => {
+      const r = await fetch(API("/shared"));
+      return r.json() as Promise<SharedData>;
+    },
+    staleTime: 15000,
+  });
+}
+
+function useDarkMode() {
+  const [dark, setDark] = useState(() =>
+    typeof window !== "undefined"
+      ? localStorage.getItem("theme") === "dark" ||
+        (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)
+      : false
+  );
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  }, [dark]);
+  return { dark, setDark };
+}
+
+function useLoadouts() {
+  const [loadouts, setLoadouts] = useState<Loadout[]>(() => {
+    try { return JSON.parse(localStorage.getItem("ka_loadouts") ?? "[]"); }
+    catch { return []; }
+  });
+  const save = useCallback((next: Loadout[]) => {
+    setLoadouts(next);
+    localStorage.setItem("ka_loadouts", JSON.stringify(next));
+  }, []);
+  return { loadouts, save };
+}
+
+// ─── Stat Calculator ──────────────────────────────────────────────────────────
+
+function calcStats(loadout: Loadout, data: SharedData): Record<string, number> {
+  const total: Record<string, number> = {};
+
+  // Job stats
+  const job = data.jobs?.[loadout.jobName];
+  if (job && loadout.rank) {
+    const rankStats = job.ranks[loadout.rank]?.stats ?? {};
+    for (const [stat, entry] of Object.entries(rankStats)) {
+      const k = stat.toLowerCase();
+      total[k] = (total[k] ?? 0) + statAtLevel(entry.base, entry.inc, loadout.level);
+    }
+  }
+
+  // Equipment stats
+  const overrides = data.overrides ?? {};
+  for (const { name, level } of loadout.equipment) {
+    const statOverrides = overrides[name] ?? {};
+    for (const [stat, entry] of Object.entries(statOverrides)) {
+      const k = stat.toLowerCase();
+      const b = entry.base ?? 0;
+      const i = entry.inc ?? 0;
+      if (b || i) total[k] = (total[k] ?? 0) + statAtLevel(b, i, level);
+    }
+  }
+
+  return total;
+}
+
+// ─── Screenshot Card (portal-rendered) ───────────────────────────────────────
+
+function ScreenshotCard({ loadout, stats }: { loadout: Loadout; stats: Record<string, number> }) {
+  const hasStats = STAT_KEYS.some((k) => stats[k]);
+  return (
+    <div style={{ background: "#0f172a", color: "#f1f5f9", padding: 20, borderRadius: 12, width: 480, fontFamily: "system-ui, sans-serif" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 2 }}>{loadout.name || "Loadout"}</div>
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>
+            {loadout.jobName || "No job"} {loadout.rank ? `· Rank ${loadout.rank}` : ""} {loadout.level > 1 ? `· Lv ${loadout.level}` : ""}
+          </div>
+        </div>
+        <div style={{ fontSize: 10, color: "#64748b" }}>Kingdom Adventures</div>
+      </div>
+
+      {hasStats && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 4, marginBottom: 14 }}>
+          {STAT_KEYS.filter((k) => stats[k]).map((k) => (
+            <div key={k} style={{ background: "#1e293b", borderRadius: 6, padding: "6px 4px", textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>{STAT_LABEL[k]}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9" }}>{stats[k].toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loadout.equipment.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Equipment</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {loadout.equipment.map((eq, i) => (
+              <div key={i} style={{ background: "#1e293b", borderRadius: 4, padding: "2px 8px", fontSize: 11, color: "#e2e8f0" }}>
+                {eq.name} {eq.level > 1 ? <span style={{ color: "#64748b" }}>Lv{eq.level}</span> : ""}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {loadout.skills.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Skills</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {loadout.skills.map((s, i) => (
+              <div key={i} style={{ background: "#312e81", borderRadius: 4, padding: "2px 8px", fontSize: 11, color: "#c7d2fe" }}>{s}</div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Loadout Editor ───────────────────────────────────────────────────────────
+
+function LoadoutEditor({ loadout, data, onChange, onDelete }: {
+  loadout: Loadout;
+  data: SharedData;
+  onChange: (updated: Loadout) => void;
+  onDelete: () => void;
+}) {
+  const [renamingName, setRenamingName] = useState(false);
+  const [nameVal, setNameVal] = useState(loadout.name);
+  const [screenshotting, setScreenshotting] = useState(false);
+  const [showScreenshot, setShowScreenshot] = useState(false);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+  const screenshotRef = useRef<HTMLDivElement>(null);
+  const hiddenRef = useRef<HTMLDivElement>(null);
+
+  const jobs = data.jobs ?? {};
+  const allSkills = Object.keys(data.skills ?? {}).sort();
+  const allEquip = Object.keys(data.overrides ?? {}).filter((n) =>
+    data.slotAssignments?.[n] || (data.overrides?.[n] && Object.keys(data.overrides[n]).length > 0)
+  ).sort();
+
+  const job = jobs[loadout.jobName];
+  const ranks = job ? Object.keys(job.ranks).sort() : ["S","A","B","C","D"];
+  const stats = useMemo(() => calcStats(loadout, data), [loadout, data]);
+
+  const upd = useCallback(<K extends keyof Loadout>(field: K, val: Loadout[K]) => {
+    onChange({ ...loadout, [field]: val });
+  }, [loadout, onChange]);
+
+  const addEquip = (name: string) => {
+    if (!name || loadout.equipment.some((e) => e.name === name)) return;
+    upd("equipment", [...loadout.equipment, { name, level: 1 }]);
+  };
+  const removeEquip = (i: number) => upd("equipment", loadout.equipment.filter((_, j) => j !== i));
+  const setEquipLevel = (i: number, level: number) => {
+    upd("equipment", loadout.equipment.map((e, j) => j === i ? { ...e, level: Math.max(1, level) } : e));
+  };
+
+  const addSkill = (name: string) => {
+    if (!name || loadout.skills.includes(name) || loadout.skills.length >= 9) return;
+    upd("skills", [...loadout.skills, name].sort());
+  };
+  const removeSkill = (name: string) => upd("skills", loadout.skills.filter((s) => s !== name));
+
+  const takeScreenshot = async () => {
+    if (!hiddenRef.current) return;
+    setScreenshotting(true);
+    try {
+      const url = await toPng(hiddenRef.current, { pixelRatio: 2 });
+      setScreenshotUrl(url);
+      setShowScreenshot(true);
+    } catch { /* ignore */ }
+    setScreenshotting(false);
+  };
+
+  const downloadScreenshot = () => {
+    if (!screenshotUrl) return;
+    const a = document.createElement("a");
+    a.href = screenshotUrl;
+    a.download = `${loadout.name || "loadout"}.png`;
+    a.click();
+  };
+
+  const copyScreenshot = async () => {
+    if (!screenshotUrl) return;
+    try {
+      const res = await fetch(screenshotUrl);
+      const blob = await res.blob();
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    } catch { /* ignore */ }
+  };
+
+  const hasStats = STAT_KEYS.some((k) => stats[k]);
+
+  return (
+    <div className="space-y-4">
+      {/* Hidden screenshot node */}
+      <div style={{ position: "absolute", top: -9999, left: -9999 }}>
+        <div ref={hiddenRef}>
+          <ScreenshotCard loadout={loadout} stats={stats} />
+        </div>
+      </div>
+
+      {/* Screenshot preview modal */}
+      {showScreenshot && screenshotUrl && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowScreenshot(false)}>
+          <div className="bg-card rounded-xl shadow-2xl p-4 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium">Screenshot Preview</span>
+              <button onClick={() => setShowScreenshot(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            </div>
+            <img src={screenshotUrl} alt="Loadout screenshot" className="w-full rounded-lg border border-border mb-3" />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={downloadScreenshot} className="gap-1.5 flex-1"><Download className="w-3.5 h-3.5" />Download</Button>
+              <Button size="sm" variant="outline" onClick={copyScreenshot} className="gap-1.5 flex-1"><Copy className="w-3.5 h-3.5" />Copy</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Name + actions */}
+      <div className="flex items-center gap-2">
+        {renamingName ? (
+          <div className="flex gap-1.5 flex-1">
+            <Input value={nameVal} onChange={(e) => setNameVal(e.target.value)} className="h-8 text-sm flex-1"
+              onKeyDown={(e) => { if (e.key === "Enter") { upd("name", nameVal); setRenamingName(false); } if (e.key === "Escape") { setNameVal(loadout.name); setRenamingName(false); } }}
+              autoFocus />
+            <button onClick={() => { upd("name", nameVal); setRenamingName(false); }} className="text-emerald-600 hover:text-emerald-700"><Check className="w-4 h-4" /></button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <h3 className="font-semibold text-foreground text-sm truncate">{loadout.name || "Unnamed Loadout"}</h3>
+            <button onClick={() => { setNameVal(loadout.name); setRenamingName(true); }} className="text-muted-foreground hover:text-foreground shrink-0"><Pencil className="w-3 h-3" /></button>
+          </div>
+        )}
+        <Button size="sm" variant="outline" onClick={takeScreenshot} disabled={screenshotting} className="h-8 gap-1.5 shrink-0 text-xs">
+          {screenshotting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+          Screenshot
+        </Button>
+        <button onClick={onDelete} className="text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="w-4 h-4" /></button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Left: Job + Stats */}
+        <div className="space-y-3">
+          {/* Job selector */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Job</p>
+            <select value={loadout.jobName} onChange={(e) => { upd("jobName", e.target.value); upd("rank", ""); }}
+              className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
+              <option value="">Select job…</option>
+              {Object.keys(jobs).sort().map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            {loadout.jobName && (
+              <div className="flex gap-2">
+                <select value={loadout.rank} onChange={(e) => upd("rank", e.target.value)}
+                  className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
+                  <option value="">Rank…</option>
+                  {ranks.map((r) => <option key={r} value={r}>Rank {r}</option>)}
+                </select>
+                <div className="flex items-center gap-1.5 flex-1">
+                  <span className="text-xs text-muted-foreground shrink-0">Lv</span>
+                  <Input type="number" min={1} max={999} value={loadout.level}
+                    onChange={(e) => upd("level", Math.max(1, Math.min(999, parseInt(e.target.value) || 1)))}
+                    className="h-8 text-sm text-center" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Stats display */}
+          {hasStats && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Total Stats</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {STAT_KEYS.filter((k) => stats[k]).map((k) => (
+                  <div key={k} className="bg-muted/60 rounded-md px-2 py-1.5 flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground uppercase">{STAT_FULL[k] ?? k}</span>
+                    <span className="text-sm font-bold tabular-nums">{stats[k].toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Equipment + Skills */}
+        <div className="space-y-3">
+          {/* Equipment */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              Equipment <span className="normal-case font-normal">({loadout.equipment.length} items)</span>
+            </p>
+            <div className="space-y-1 mb-2 max-h-40 overflow-y-auto">
+              {loadout.equipment.map((eq, i) => (
+                <div key={i} className="flex items-center gap-1.5 bg-muted/30 rounded-md px-2 py-1">
+                  <span className="text-xs flex-1 truncate font-medium">{eq.name}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0">Lv</span>
+                  <Input type="number" min={1} max={999} value={eq.level}
+                    onChange={(e) => setEquipLevel(i, parseInt(e.target.value) || 1)}
+                    className="h-6 text-xs text-center w-14 px-1 shrink-0" />
+                  <button onClick={() => removeEquip(i)} className="text-muted-foreground hover:text-destructive shrink-0"><X className="w-3 h-3" /></button>
+                </div>
+              ))}
+            </div>
+            <select value="" onChange={(e) => { addEquip(e.target.value); }}
+              className="w-full h-7 text-xs rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground">
+              <option value="">+ Add equipment…</option>
+              {allEquip.filter((n) => !loadout.equipment.some((e) => e.name === n)).map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+
+          {/* Skills */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              Skills <span className="normal-case font-normal">({loadout.skills.length}/9)</span>
+            </p>
+            <div className="flex flex-wrap gap-1 mb-2 min-h-6">
+              {loadout.skills.map((s) => (
+                <Badge key={s} variant="secondary" className="text-xs gap-1 px-2 py-0.5 bg-violet-100 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                  {s}
+                  <button onClick={() => removeSkill(s)} className="hover:text-destructive ml-0.5"><X className="w-2.5 h-2.5" /></button>
+                </Badge>
+              ))}
+              {loadout.skills.length === 0 && <span className="text-xs text-muted-foreground/60">No skills selected</span>}
+            </div>
+            {loadout.skills.length < 9 && allSkills.length > 0 && (
+              <select value="" onChange={(e) => { addSkill(e.target.value); }}
+                className="w-full h-7 text-xs rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground">
+                <option value="">+ Add skill…</option>
+                {allSkills.filter((s) => !loadout.skills.includes(s)).map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+            {allSkills.length === 0 && <p className="text-xs text-muted-foreground/60">No skills in database yet.</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function LoadoutPage() {
+  const { dark, setDark } = useDarkMode();
+  const { data, isLoading } = useSharedData();
+  const { loadouts, save } = useLoadouts();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const addLoadout = () => {
+    const id = generateId();
+    const newLoadout: Loadout = { id, name: "New Loadout", jobName: "", rank: "", level: 1, equipment: [], skills: [] };
+    save([...loadouts, newLoadout]);
+    setExpandedId(id);
+  };
+
+  const updateLoadout = useCallback((updated: Loadout) => {
+    save(loadouts.map((l) => l.id === updated.id ? updated : l));
+  }, [loadouts, save]);
+
+  const deleteLoadout = useCallback((id: string) => {
+    save(loadouts.filter((l) => l.id !== id));
+    if (expandedId === id) setExpandedId(null);
+  }, [loadouts, save, expandedId]);
+
+  return (
+    <div className="min-h-screen bg-background transition-colors">
+      {/* Header */}
+      <div className="border-b border-border bg-card">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link href="/">
+              <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <ArrowLeft className="w-3.5 h-3.5" />Home
+              </button>
+            </Link>
+            <span className="text-muted-foreground/30">/</span>
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <Package className="w-5 h-5 text-orange-500" />Loadout Builder
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={addLoadout} className="h-8 gap-1.5">
+              <Plus className="w-3.5 h-3.5" />New Loadout
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => setDark((d) => !d)} className="h-8 w-8">
+              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-6">
+        {isLoading && (
+          <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+        )}
+
+        {!isLoading && loadouts.length === 0 && (
+          <div className="text-center py-20">
+            <Package className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">No loadouts yet.</p>
+            <p className="text-muted-foreground/60 text-xs mt-1 mb-5">Create a loadout to combine job stats, equipment, and skills.</p>
+            <Button onClick={addLoadout} className="gap-1.5"><Plus className="w-4 h-4" />Create First Loadout</Button>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {loadouts.map((loadout) => {
+            const isOpen = expandedId === loadout.id;
+            const job = data?.jobs?.[loadout.jobName];
+            const stats = data ? calcStats(loadout, data) : {};
+            const hasStats = STAT_KEYS.some((k) => stats[k]);
+
+            return (
+              <Card key={loadout.id} className="shadow-sm overflow-hidden">
+                {/* Summary bar */}
+                <button
+                  className="w-full text-left"
+                  onClick={() => setExpandedId(isOpen ? null : loadout.id)}
+                >
+                  <CardHeader className="py-3 px-4 hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+                      <CardTitle className="text-sm font-semibold truncate flex-1">
+                        {loadout.name || "Unnamed Loadout"}
+                      </CardTitle>
+                      {loadout.jobName && (
+                        <span className="text-xs text-muted-foreground shrink-0">{loadout.jobName}</span>
+                      )}
+                      {loadout.rank && (
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border ${RANK_COLORS[loadout.rank] ?? ""} shrink-0`}>
+                          Rank {loadout.rank}
+                        </Badge>
+                      )}
+                      {loadout.level > 1 && <span className="text-xs text-muted-foreground shrink-0">Lv {loadout.level}</span>}
+                      {loadout.equipment.length > 0 && (
+                        <span className="text-xs text-muted-foreground shrink-0">{loadout.equipment.length} equip</span>
+                      )}
+                      {loadout.skills.length > 0 && (
+                        <span className="text-xs text-muted-foreground shrink-0">{loadout.skills.length} skills</span>
+                      )}
+
+                      {/* Quick stat preview */}
+                      {hasStats && !isOpen && (
+                        <div className="flex gap-2 ml-1 flex-wrap">
+                          {STAT_KEYS.filter((k) => stats[k]).slice(0, 4).map((k) => (
+                            <span key={k} className="text-[10px] tabular-nums">
+                              <span className="text-muted-foreground">{STAT_LABEL[k]} </span>
+                              <strong>{stats[k].toLocaleString()}</strong>
+                            </span>
+                          ))}
+                          {STAT_KEYS.filter((k) => stats[k]).length > 4 && (
+                            <span className="text-[10px] text-muted-foreground">+more</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                </button>
+
+                {isOpen && (
+                  <>
+                    <Separator />
+                    <CardContent className="p-4">
+                      {data ? (
+                        <LoadoutEditor
+                          loadout={loadout}
+                          data={data}
+                          onChange={updateLoadout}
+                          onDelete={() => deleteLoadout(loadout.id)}
+                        />
+                      ) : (
+                        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+                      )}
+                    </CardContent>
+                  </>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+
+        {loadouts.length > 0 && !isLoading && (
+          <button onClick={addLoadout}
+            className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-muted/30 transition-colors py-4 text-sm text-muted-foreground hover:text-foreground">
+            <Plus className="w-4 h-4" />Add another loadout
+          </button>
+        )}
+
+        <p className="text-xs text-muted-foreground mt-4 text-center">
+          Loadouts are saved to your browser — private to you
+        </p>
+      </div>
+    </div>
+  );
+}

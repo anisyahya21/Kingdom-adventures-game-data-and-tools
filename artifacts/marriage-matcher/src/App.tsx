@@ -8,6 +8,8 @@ import MarriageMatcher from "@/pages/marriage-matcher";
 import EquipmentPage from "@/pages/equipment";
 import MonstersPage from "@/pages/monsters";
 import JobsPage from "@/pages/jobs";
+import SkillsPage from "@/pages/skills";
+import LoadoutPage from "@/pages/loadout";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +22,8 @@ function Router() {
       <Route path="/monsters" component={MonstersPage} />
       <Route path="/jobs" component={JobsPage} />
       <Route path="/jobs/:name" component={JobsPage} />
+      <Route path="/skills" component={SkillsPage} />
+      <Route path="/loadout" component={LoadoutPage} />
       <Route component={NotFound} />
     </Switch>
   );

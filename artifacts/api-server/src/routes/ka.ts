@@ -28,6 +28,13 @@ export type WeeklyConquest = {
 export type JobStatEntry = { base: number; inc: number; levels?: Record<string, number> };
 export type JobRank = { stats: Record<string, JobStatEntry> };
 export type SharedPair = { id: string; jobA: string; jobB: string; children: string[] };
+export type Skill = {
+  name: string;
+  studioLevel?: number;
+  craftingIntelligence?: number;
+  buyPrice?: number;
+  sellPrice?: number;
+};
 export type Job = {
   generation: 1 | 2;
   type?: "combat" | "non-combat";
@@ -53,6 +60,7 @@ type SharedState = {
   weeklyConquest: WeeklyConquest | null;
   jobs: Record<string, Job>;
   pairs: SharedPair[];
+  skills: Record<string, Skill>;
 };
 
 const DEFAULT_STATE: SharedState = {
@@ -67,6 +75,7 @@ const DEFAULT_STATE: SharedState = {
   weeklyConquest: null,
   jobs: {},
   pairs: [],
+  skills: {},
 };
 
 function ensureDir() {
@@ -86,6 +95,7 @@ function readState(): SharedState {
       weeklyConquest: null,
       jobs: {},
       pairs: [],
+      skills: {},
       ...parsed,
     };
   } catch {
@@ -216,6 +226,15 @@ router.put("/ka/jobs", (req, res) => {
   const { data, history } = req.body as { data: SharedState["jobs"]; history?: Omit<HistoryEntry, "id" | "timestamp"> };
   const state = readState();
   state.jobs = data ?? {};
+  if (history) appendHistory(state, history);
+  writeState(state);
+  res.json({ ok: true });
+});
+
+router.put("/ka/skills", (req, res) => {
+  const { data, history } = req.body as { data: SharedState["skills"]; history?: Omit<HistoryEntry, "id" | "timestamp"> };
+  const state = readState();
+  state.skills = data && typeof data === "object" ? data : {};
   if (history) appendHistory(state, history);
   writeState(state);
   res.json({ ok: true });
