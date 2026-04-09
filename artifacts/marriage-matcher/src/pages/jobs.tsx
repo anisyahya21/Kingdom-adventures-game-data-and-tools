@@ -397,28 +397,37 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete, isF
                 <tbody>
                   <tr>
                     {STAT_ORDER.map((stat) => {
-                      const base = rs.draft[stat]?.base ?? currentStats[stat]?.base ?? 0;
-                      const inc  = rs.draft[stat]?.inc  ?? currentStats[stat]?.inc  ?? 0;
+                      const hasDraft  = rs.draft[stat] !== undefined;
+                      const hasSaved  = currentStats[stat] !== undefined;
+                      const filled    = hasDraft || hasSaved;
+                      const base = hasDraft ? rs.draft[stat].base : hasSaved ? currentStats[stat].base : "";
+                      const inc  = hasDraft ? rs.draft[stat].inc  : hasSaved ? currentStats[stat].inc  : "";
+                      const previewVal = filled
+                        ? Math.round(statAtLevel({ base: Number(base) || 0, inc: Number(inc) || 0 }, levelFor(stat)) * 100) / 100
+                        : null;
                       return (
                         <td key={stat} className="px-1 pt-1 align-top">
                           <div className="space-y-1">
                             <div>
                               <p className="text-[9px] text-muted-foreground/60 text-center">Start</p>
                               <Input type="number" value={base}
+                                placeholder="—"
                                 onChange={(e) => setDraftField(stat, "base", Number(e.target.value) || 0)}
                                 className="h-6 text-[11px] text-center px-0.5 w-full" />
                             </div>
                             <div>
                               <p className="text-[9px] text-muted-foreground/60 text-center">+/Lv</p>
                               <Input type="number" step="0.1" value={inc}
+                                placeholder="—"
                                 onChange={(e) => setDraftField(stat, "inc", parseFloat(e.target.value) || 0)}
                                 className="h-6 text-[11px] text-center px-0.5 w-full" />
                             </div>
                             <div className="text-center">
                               <p className="text-[9px] text-muted-foreground/60">@ Lv {levelFor(stat)}</p>
-                              <p className="text-[11px] font-semibold tabular-nums">
-                                {Math.round(statAtLevel({ base, inc }, levelFor(stat)) * 100) / 100 || "—"}
-                              </p>
+                              {previewVal === null
+                                ? <p className="text-[11px] font-bold text-red-400">—</p>
+                                : <p className="text-[11px] font-semibold tabular-nums">{previewVal || "—"}</p>
+                              }
                             </div>
                           </div>
                         </td>
