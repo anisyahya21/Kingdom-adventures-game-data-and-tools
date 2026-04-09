@@ -29,6 +29,7 @@ export type JobStatEntry = { base: number; inc: number };
 export type JobRank = { stats: Record<string, JobStatEntry> };
 export type Job = {
   generation: 1 | 2;
+  type?: "combat" | "non-combat";
   icon?: string;
   ranks: Record<string, JobRank>;
   equipment: Partial<Record<string, boolean>>;

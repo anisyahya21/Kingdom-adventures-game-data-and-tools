@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import {
   Plus, Trash2, Zap, RefreshCw, HelpCircle, ArrowLeftRight,
   X, Lock, LockOpen, Moon, Sun, Loader2, AlertTriangle, ExternalLink,
-  ArrowLeft, Info, Star, ChevronDown, ChevronRight, Baby,
+  ArrowLeft, Info, Star, ChevronDown, ChevronRight, Baby, Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ const API = (p: string) => `${BASE}/ka-api/ka${p}`;
 
 type JobData = {
   generation: 1 | 2;
+  type?: "combat" | "non-combat";
   icon?: string;
   ranks: Record<string, unknown>;
   equipment: Record<string, boolean>;
@@ -852,6 +853,15 @@ export default function MarriageMatcher() {
     return Object.keys(sharedData.jobs).sort();
   }, [sharedData]);
 
+  const jobTypeMap = useMemo(() => {
+    if (!sharedData?.jobs) return {} as Record<string, "combat" | "non-combat">;
+    const map: Record<string, "combat" | "non-combat"> = {};
+    for (const [name, job] of Object.entries(sharedData.jobs)) {
+      if (job.type) map[name] = job.type;
+    }
+    return map;
+  }, [sharedData]);
+
   // ── Job names: API-first, localStorage cache as fallback ──
   const [cachedJobNames, setCachedJobNames] = useState<string[]>(() => {
     try {
@@ -909,6 +919,11 @@ export default function MarriageMatcher() {
     } catch { /* ignore */ }
     return [];
   });
+
+  // ── State: result filters ──
+  const [resultTypeFilter, setResultTypeFilter] = useState<"all" | "combat" | "non-combat">("all");
+  const [resultIncludeJobs, setResultIncludeJobs] = useState<string[]>([]);
+  const [resultExcludeJobs, setResultExcludeJobs] = useState<string[]>([]);
 
   // ── Persist ──
   useEffect(() => { localStorage.setItem("ka_mf_rankSlots", JSON.stringify(rankSlots)); }, [rankSlots]);
@@ -1063,6 +1078,19 @@ export default function MarriageMatcher() {
   }, [result, desiredChildren, pairs]);
 
   const hasLocked = lockedPairs.length > 0;
+
+  // ── Filtered matches (result type filter) ──
+  const filteredMatches = useMemo(() => {
+    if (!result) return [];
+    return result.matches.filter((m) => {
+      if (resultExcludeJobs.includes(m.maleJob) || resultExcludeJobs.includes(m.femaleJob)) return false;
+      if (resultIncludeJobs.length > 0 && !resultIncludeJobs.includes(m.maleJob) && !resultIncludeJobs.includes(m.femaleJob)) return false;
+      if (resultTypeFilter === "all") return true;
+      const maleType = jobTypeMap[m.maleJob];
+      const femaleType = jobTypeMap[m.femaleJob];
+      return maleType === resultTypeFilter || femaleType === resultTypeFilter;
+    });
+  }, [result, resultTypeFilter, resultIncludeJobs, resultExcludeJobs, jobTypeMap]);
 
   return (
     <div className="min-h-screen bg-background transition-colors">
@@ -1227,6 +1255,66 @@ export default function MarriageMatcher() {
               </Card>
             )}
 
+            {/* Result filter UI */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  Filter Results
+                </CardTitle>
+                <CardDescription className="text-xs">Narrow the matched pairs shown below without recalculating.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-xs text-muted-foreground font-medium">Type:</span>
+                  <div className="flex rounded-md overflow-hidden border border-input">
+                    {(["all", "combat", "non-combat"] as const).map((t) => (
+                      <button key={t} onClick={() => setResultTypeFilter(t)}
+                        className={`px-3 h-7 text-xs font-medium transition-colors ${resultTypeFilter === t
+                          ? t === "combat" ? "bg-red-500 text-white" : t === "non-combat" ? "bg-sky-500 text-white" : "bg-primary text-primary-foreground"
+                          : "bg-background text-muted-foreground hover:text-foreground"}`}>
+                        {t === "all" ? "All" : t === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {result.matches.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      <span className="text-xs text-muted-foreground font-medium w-16 shrink-0">Include:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {resultIncludeJobs.map((j) => (
+                          <Badge key={j} className="gap-1 px-2 py-0.5 text-xs bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700 border">
+                            {j}<button onClick={() => setResultIncludeJobs((prev) => prev.filter((x) => x !== j))}><X className="w-2.5 h-2.5 ml-0.5" /></button>
+                          </Badge>
+                        ))}
+                        <select value="" onChange={(e) => { if (e.target.value) setResultIncludeJobs((prev) => prev.includes(e.target.value) ? prev : [...prev, e.target.value]); }}
+                          className="h-6 text-xs rounded border border-dashed border-input bg-background px-2 text-muted-foreground">
+                          <option value="">+ Add job…</option>
+                          {result.matches.flatMap((m) => [m.maleJob, m.femaleJob]).filter((v, i, a) => a.indexOf(v) === i && !resultIncludeJobs.includes(v)).sort().map((j) => <option key={j} value={j}>{j}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      <span className="text-xs text-muted-foreground font-medium w-16 shrink-0">Exclude:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {resultExcludeJobs.map((j) => (
+                          <Badge key={j} className="gap-1 px-2 py-0.5 text-xs bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-700 border">
+                            {j}<button onClick={() => setResultExcludeJobs((prev) => prev.filter((x) => x !== j))}><X className="w-2.5 h-2.5 ml-0.5" /></button>
+                          </Badge>
+                        ))}
+                        <select value="" onChange={(e) => { if (e.target.value) setResultExcludeJobs((prev) => prev.includes(e.target.value) ? prev : [...prev, e.target.value]); }}
+                          className="h-6 text-xs rounded border border-dashed border-input bg-background px-2 text-muted-foreground">
+                          <option value="">+ Exclude job…</option>
+                          {result.matches.flatMap((m) => [m.maleJob, m.femaleJob]).filter((v, i, a) => a.indexOf(v) === i && !resultExcludeJobs.includes(v)).sort().map((j) => <option key={j} value={j}>{j}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="shadow-sm border-primary/20">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -1237,18 +1325,25 @@ export default function MarriageMatcher() {
                       {desiredChildren.length > 0 && <> · <span className="text-violet-600 dark:text-violet-400">Purple rows</span> cover your priority children.</>}
                     </CardDescription>
                   </div>
-                  <Badge className="text-sm px-3 py-1 bg-primary text-primary-foreground shrink-0">{result.matches.length} matched</Badge>
+                  <div className="flex items-center gap-2">
+                    {filteredMatches.length !== result.matches.length && (
+                      <Badge variant="outline" className="text-xs">{result.matches.length} total</Badge>
+                    )}
+                    <Badge className="text-sm px-3 py-1 bg-primary text-primary-foreground shrink-0">{filteredMatches.length} shown</Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
-                {result.matches.length === 0 ? (
+                {filteredMatches.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No matches found. Check that compatible pairs cover jobs with both male and female slots at the same character rank.
+                    {result.matches.length === 0
+                      ? "No matches found. Check that compatible pairs cover jobs with both male and female slots at the same character rank."
+                      : "No matches pass the current filters. Try adjusting the filter above."}
                   </p>
                 ) : (
                   <div className="space-y-5">
                     {RANKS.map((rank) => {
-                      const rankMatches = result.matches.filter((m) => m.rank === rank);
+                      const rankMatches = filteredMatches.filter((m) => m.rank === rank);
                       if (rankMatches.length === 0) return null;
                       const allJobsForRank = [...new Set([
                         ...jobsPerRank[rank],

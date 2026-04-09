@@ -24,6 +24,7 @@ type JobStatEntry = { base: number; inc: number };
 type JobRankData = { stats: Record<string, JobStatEntry> };
 type Job = {
   generation: 1 | 2;
+  type?: "combat" | "non-combat";
   icon?: string;
   ranks: Record<string, JobRankData>;
   equipment: Partial<Record<string, boolean>>;
@@ -210,17 +211,33 @@ function JobDetail({ jobName, jobs, statIcons, onBack, onSave }: {
         )}
         <div>
           <h2 className="text-2xl font-bold text-foreground">{jobName}</h2>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <Badge variant="outline" className={job.generation === 1 ? "border-sky-300 text-sky-600 dark:text-sky-400" : "border-orange-300 text-orange-600 dark:text-orange-400"}>
               {job.generation === 1 ? "1st Generation" : "2nd Generation"}
             </Badge>
-            {editing && (
+            {editing ? (
               <button
                 onClick={() => setDraft((d) => ({ ...d, generation: d.generation === 1 ? 2 : 1 }))}
                 className="text-xs text-primary hover:underline"
               >
                 Switch to {draft.generation === 1 ? "2nd" : "1st"} gen
               </button>
+            ) : null}
+            {editing ? (
+              <div className="flex gap-1">
+                {(["combat", "non-combat"] as const).map((t) => (
+                  <button key={t} onClick={() => setDraft((d) => ({ ...d, type: t }))}
+                    className={`px-2 py-0.5 text-xs rounded border font-medium transition-colors ${draft.type === t ? (t === "combat" ? "bg-red-500 text-white border-red-500" : "bg-sky-500 text-white border-sky-500") : "border-border text-muted-foreground hover:border-primary/40"}`}>
+                    {t === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
+                  </button>
+                ))}
+              </div>
+            ) : job.type ? (
+              <Badge variant="outline" className={job.type === "combat" ? "border-red-300 text-red-600 dark:text-red-400" : "border-emerald-300 text-emerald-600 dark:text-emerald-400"}>
+                {job.type === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
+              </Badge>
+            ) : (
+              <span className="text-xs text-muted-foreground/60">Type not set</span>
             )}
           </div>
         </div>
@@ -420,11 +437,12 @@ function JobDetail({ jobName, jobs, statIcons, onBack, onSave }: {
 function NewJobDialog({ open, onClose, onCreate }: {
   open: boolean;
   onClose: () => void;
-  onCreate: (name: string, gen: 1 | 2) => void;
+  onCreate: (name: string, gen: 1 | 2, type: "combat" | "non-combat") => void;
 }) {
   const [name, setName] = useState("");
   const [gen, setGen] = useState<1 | 2>(1);
-  const submit = () => { if (name.trim()) { onCreate(name.trim(), gen); setName(""); } };
+  const [jobType, setJobType] = useState<"combat" | "non-combat">("combat");
+  const submit = () => { if (name.trim()) { onCreate(name.trim(), gen, jobType); setName(""); } };
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-xs">
@@ -439,6 +457,17 @@ function NewJobDialog({ open, onClose, onCreate }: {
                 <button key={g} onClick={() => setGen(g)}
                   className={`flex-1 py-1.5 text-xs rounded border font-medium transition-colors ${gen === g ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"}`}>
                   {g === 1 ? "1st Gen" : "2nd Gen"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Type</label>
+            <div className="flex gap-2">
+              {(["combat", "non-combat"] as const).map((t) => (
+                <button key={t} onClick={() => setJobType(t)}
+                  className={`flex-1 py-1.5 text-xs rounded border font-medium transition-colors capitalize ${jobType === t ? (t === "combat" ? "bg-red-500 text-white border-red-500" : "bg-sky-500 text-white border-sky-500") : "border-border hover:border-primary/40"}`}>
+                  {t === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
                 </button>
               ))}
             </div>
@@ -482,6 +511,7 @@ export default function JobsPage() {
 
   const [addingJob, setAddingJob] = useState(false);
   const [genFilter, setGenFilter] = useState<"all" | "1" | "2">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "combat" | "non-combat">("all");
   const [search, setSearch] = useState("");
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
 
@@ -489,10 +519,10 @@ export default function JobsPage() {
     if (jobParam) setSelectedJob(decodeURIComponent(jobParam));
   }, [jobParam]);
 
-  const addJob = (name: string, gen: 1 | 2) => {
+  const addJob = (name: string, gen: 1 | 2, type: "combat" | "non-combat") => {
     withName(() => {
       const emptyRanks: Record<string, JobRankData> = { A: { stats: {} } };
-      const newJob: Job = { generation: gen, ranks: emptyRanks, equipment: {}, skills: [] };
+      const newJob: Job = { generation: gen, type, ranks: emptyRanks, equipment: {}, skills: [] };
       mutateJobs({ ...jobs, [name]: newJob }, `Added job: ${name}`);
       setAddingJob(false);
       setSelectedJob(name);
@@ -512,11 +542,13 @@ export default function JobsPage() {
       .filter(([name, job]) => {
         if (genFilter === "1" && job.generation !== 1) return false;
         if (genFilter === "2" && job.generation !== 2) return false;
+        if (typeFilter === "combat" && job.type !== "combat") return false;
+        if (typeFilter === "non-combat" && job.type !== "non-combat") return false;
         if (search && !name.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
       })
       .sort(([a], [b]) => a.localeCompare(b));
-  }, [jobs, genFilter, search]);
+  }, [jobs, genFilter, typeFilter, search]);
 
   return (
     <div className="min-h-screen bg-background transition-colors">
@@ -584,6 +616,16 @@ export default function JobsPage() {
                   </button>
                 ))}
               </div>
+              <div className="flex rounded-md overflow-hidden border border-input">
+                {(["all", "combat", "non-combat"] as const).map((t) => (
+                  <button key={t} onClick={() => setTypeFilter(t)}
+                    className={`px-3 h-8 text-xs font-medium transition-colors ${typeFilter === t
+                      ? t === "combat" ? "bg-red-500 text-white" : t === "non-combat" ? "bg-sky-500 text-white" : "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:text-foreground"}`}>
+                    {t === "all" ? "All Types" : t === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {isLoading ? (
@@ -604,11 +646,16 @@ export default function JobsPage() {
                             {job.icon ? <img src={job.icon} alt={name} className="w-full h-full object-contain" /> : <Star className="w-5 h-5 text-muted-foreground/30" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
+                            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                               <h3 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors truncate">{name}</h3>
                               <Badge variant="outline" className={`text-[10px] px-1.5 shrink-0 ${job.generation === 1 ? "border-sky-300 text-sky-600 dark:text-sky-400" : "border-orange-300 text-orange-600 dark:text-orange-400"}`}>
                                 {job.generation === 1 ? "Gen 1" : "Gen 2"}
                               </Badge>
+                              {job.type && (
+                                <Badge variant="outline" className={`text-[10px] px-1.5 shrink-0 ${job.type === "combat" ? "border-red-300 text-red-600 dark:text-red-400" : "border-emerald-300 text-emerald-600 dark:text-emerald-400"}`}>
+                                  {job.type === "combat" ? "⚔" : "🌿"} {job.type === "combat" ? "Combat" : "Non-Combat"}
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {rankList.length === 0 ? (
