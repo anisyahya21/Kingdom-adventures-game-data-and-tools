@@ -31,7 +31,10 @@ const STAT_FULL: Record<string, string> = {
   hrt: "Heart", heart: "Heart",
 };
 
-const STAT_ORDER = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelligence","Dexterity","Gather","Move","Heart"];
+// "Move" / "Movement" are aliases for "Speed" — merged into the Speed column
+const STAT_ORDER = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelligence","Dexterity","Gather","Heart"];
+// Stat names that are aliases for another canonical stat (these are combined during display)
+const STAT_ALIAS_FOR: Record<string, string> = { Move: "Speed", Movement: "Speed" };
 const CHAR_SLOTS = ["Head", "Weapon", "Shield", "Armor", "Accessory"] as const;
 type CharSlot = typeof CHAR_SLOTS[number];
 const SLOT_OPTIONS: Array<CharSlot | "—"> = ["—", "Head", "Weapon", "Shield", "Armor", "Accessory"];
@@ -273,14 +276,26 @@ function useShared() {
   return { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, saveWeaponTypes, saveWeaponCategories, renameUser };
 }
 
+// Returns all stat names to check for a given display stat (including aliases that collapse into it)
+function statNamesToCheck(stat: string): string[] {
+  const extras = Object.entries(STAT_ALIAS_FOR).filter(([, v]) => v === stat).map(([k]) => k);
+  return [stat, ...extras];
+}
+
 function getEffectiveStat(item: EquipmentItem, stat: string, field: "base" | "inc", overrides: Record<string, StatOverrides>): number {
-  const ov = overrides[item.name]?.[stat]?.[field];
-  if (ov !== undefined) return ov;
-  return field === "base" ? (item.baseStats[stat] ?? 0) : (item.incStats[stat] ?? 0);
+  // Sum the canonical stat plus any aliases (e.g. "Speed" + "Move")
+  return statNamesToCheck(stat).reduce((sum, name) => {
+    const ov = overrides[item.name]?.[name]?.[field];
+    if (ov !== undefined) return sum + ov;
+    return sum + (field === "base" ? (item.baseStats[name] ?? 0) : (item.incStats[name] ?? 0));
+  }, 0);
 }
 
 function isStatUnset(item: EquipmentItem, stat: string, overrides: Record<string, StatOverrides>): boolean {
-  return overrides[item.name]?.[stat]?.base === undefined && (item.baseStats[stat] ?? 0) === 0;
+  // Consider set if ANY of the alias names have data
+  return statNamesToCheck(stat).every(
+    (name) => overrides[item.name]?.[name]?.base === undefined && (item.baseStats[name] ?? 0) === 0
+  );
 }
 
 function allItemStatsFilled(item: EquipmentItem, overrides: Record<string, StatOverrides>): boolean {

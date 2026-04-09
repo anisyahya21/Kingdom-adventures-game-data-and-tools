@@ -42,24 +42,43 @@ type Loadout = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STAT_KEYS = ["hp","mp","vig","atk","def","spd","lck","int","dex","gth","mov","hrt"] as const;
+// Canonical short stat keys used throughout (Move is merged into Speed)
+const STAT_KEYS = ["hp","mp","vig","atk","def","spd","lck","int","dex","gth","hrt"] as const;
 const STAT_LABEL: Record<string, string> = {
   hp:"HP", mp:"MP", vig:"Vig", atk:"Atk", def:"Def",
-  spd:"Spd", lck:"Lck", int:"Int", dex:"Dex", gth:"Gth", mov:"Mov", hrt:"Hrt",
+  spd:"Spd", lck:"Lck", int:"Int", dex:"Dex", gth:"Gth", hrt:"Hrt",
 };
 const STAT_FULL: Record<string, string> = {
   hp:"HP", mp:"MP", vig:"Vigor", atk:"Attack", def:"Defence",
   spd:"Speed", lck:"Luck", int:"Intelligence", dex:"Dexterity",
-  gth:"Gather", mov:"Move", hrt:"Heart",
+  gth:"Gather", hrt:"Heart",
 };
-// Maps any stat name variant (full-name or abbreviated, case-insensitive) → canonical short key
+// Universal stat alias map — normalises any spelling/abbreviation to the canonical short key.
+// All variants are lowercased before lookup. Move & Movement are treated as Speed per game rules.
 const STAT_CANONICAL: Record<string, string> = {
-  hp:"hp", mp:"mp",
-  vigor:"vig", attack:"atk", defence:"def", defense:"def",
-  speed:"spd", luck:"lck", intelligence:"int", dexterity:"dex",
-  gather:"gth", move:"mov", heart:"hrt",
-  vig:"vig", atk:"atk", def:"def", spd:"spd", lck:"lck",
-  int:"int", dex:"dex", gth:"gth", mov:"mov", hrt:"hrt",
+  // HP
+  hp:"hp",
+  // MP
+  mp:"mp",
+  // Vigor
+  vig:"vig", vigor:"vig",
+  // Attack
+  atk:"atk", att:"atk", attack:"atk",
+  // Defence / Defense
+  def:"def", defence:"def", defense:"def",
+  // Speed  (Move / Movement are aliases)
+  spd:"spd", speed:"spd",
+  move:"spd", mov:"spd", movement:"spd",
+  // Luck
+  lck:"lck", luck:"lck",
+  // Intelligence
+  int:"int", intel:"int", intelligence:"int",
+  // Dexterity
+  dex:"dex", dext:"dex", dexterity:"dex",
+  // Gather
+  gth:"gth", gather:"gth",
+  // Heart
+  hrt:"hrt", heart:"hrt",
 };
 
 const EQUIP_SLOTS = [

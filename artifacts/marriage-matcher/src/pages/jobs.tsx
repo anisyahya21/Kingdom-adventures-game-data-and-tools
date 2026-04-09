@@ -17,7 +17,8 @@ import { Badge } from "@/components/ui/badge";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API  = (p: string) => `${BASE}/ka-api/ka${p}`;
 
-const STAT_ORDER   = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelligence","Dexterity","Gather","Move","Heart"];
+// "Move" / "Movement" are treated as aliases for "Speed" — only Speed is shown
+const STAT_ORDER   = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelligence","Dexterity","Gather","Heart"];
 const STAT_SHORT: Record<string,string> = {
   HP:"HP", MP:"MP", Vigor:"Vig", Attack:"Atk", Defence:"Def",
   Speed:"Spd", Luck:"Lck", Intelligence:"Int", Dexterity:"Dex",
@@ -250,9 +251,17 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete, isF
 
   const levelFor = (stat: string) => rs.levels[stat] ?? 1;
 
+  // "Move" is an alias for "Speed" — combine both if present
+  const STAT_DISPLAY_ALIASES: Record<string, string[]> = { Speed: ["Move", "Movement"] };
+
   const val = (stat: string) => {
-    const s = effectiveStats[stat];
-    return s ? statAtLevel(s, levelFor(stat)) : null;
+    const aliases = [stat, ...(STAT_DISPLAY_ALIASES[stat] ?? [])];
+    let combined: JobStatEntry | null = null;
+    for (const name of aliases) {
+      const s = effectiveStats[name];
+      if (s) combined = combined ? { base: combined.base + s.base, inc: combined.inc + s.inc } : { ...s };
+    }
+    return combined ? statAtLevel(combined, levelFor(stat)) : null;
   };
 
   const setLevel = (stat: string, raw: string) => {
