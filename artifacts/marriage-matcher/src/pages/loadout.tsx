@@ -19,15 +19,22 @@ const API = (path: string) => `${BASE}/ka-api/ka${path}`;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Skill = { name: string; studioLevel?: number; craftingIntelligence?: number; buyPrice?: number; sellPrice?: number };
+type WeaponValue = "can" | "weak" | "cannot";
+type Skill = { name: string; studioLevel?: number; craftingIntelligence?: number; buyPrice?: number; sellPrice?: number; description?: string; weaponResistance?: string };
 type JobStatEntry = { base: number; inc: number };
-type Job = { generation: 1 | 2; ranks: Record<string, { stats: Record<string, JobStatEntry> }>; };
+type Job = {
+  generation: 1 | 2;
+  ranks: Record<string, { stats: Record<string, JobStatEntry> }>;
+  weaponEquip?: Partial<Record<string, WeaponValue>>;
+  shield?: "can" | "cannot";
+};
 type SharedData = {
   jobs?: Record<string, Job>;
   skills?: Record<string, Skill>;
   overrides?: Record<string, Record<string, { base?: number; inc?: number }>>;
   slotAssignments?: Record<string, string>;
   equipIcons?: Record<string, string>;
+  weaponTypes?: Record<string, string>;
 };
 type EquipEntry = { name: string; level: number };
 type Loadout = {
@@ -103,6 +110,34 @@ function generateId() { return Math.random().toString(36).slice(2, 9); }
 
 function statAtLevel(base: number, inc: number, level: number): number {
   return Math.round(base + (level - 1) * inc);
+}
+
+// ─── Weapon proficiency helpers ───────────────────────────────────────────────
+
+function getWeaponProficiency(
+  job: Job | undefined,
+  equipName: string,
+  slot: string,
+  weaponTypes: Record<string, string> | undefined
+): { weaponType: string | null; prof: WeaponValue | null } {
+  if (!job || !equipName) return { weaponType: null, prof: null };
+  if (slot === "Shield") {
+    const prof = job.weaponEquip?.["Shield"] ?? (job.shield === "can" ? "can" : job.shield === "cannot" ? "cannot" : null);
+    return { weaponType: "Shield", prof };
+  }
+  if (slot !== "Weapon") return { weaponType: null, prof: null };
+  const wt = weaponTypes?.[equipName] ?? null;
+  if (!wt || wt === "Tool") return { weaponType: wt, prof: null };
+  const prof = job.weaponEquip?.[wt] ?? null;
+  return { weaponType: wt, prof };
+}
+
+function findResistanceSkill(
+  skills: Record<string, Skill> | undefined,
+  weaponType: string | null
+): Skill | null {
+  if (!skills || !weaponType) return null;
+  return Object.values(skills).find((s) => s.weaponResistance === weaponType) ?? null;
 }
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -494,6 +529,29 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
                             {eq ? (
                               <>
                                 <p className="text-[9px] font-medium text-center text-foreground/80 leading-tight line-clamp-2 min-h-[24px]">{eq.name}</p>
+                                {/* Weapon proficiency badge */}
+                                {(() => {
+                                  const { weaponType, prof } = getWeaponProficiency(job, eq.name, slot, data.weaponTypes);
+                                  if (!prof || prof === "can") return null;
+                                  const resSk = findResistanceSkill(data.skills, weaponType);
+                                  const isWeak = prof === "weak";
+                                  return (
+                                    <div className="text-center space-y-0.5">
+                                      <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold border ${
+                                        isWeak
+                                          ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700"
+                                          : "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-700"
+                                      }`}>
+                                        {isWeak ? "⚠ Weak" : "✗ Can't wield"}
+                                      </span>
+                                      {resSk && (
+                                        <p className="text-[7px] text-muted-foreground leading-tight">
+                                          {resSk.name} removes this
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                                 <div className="flex items-center gap-0.5 justify-center">
                                   <span className="text-[9px] text-muted-foreground">Lv</span>
                                   <Input type="number" min={1} max={999} value={eq.level}

@@ -20,6 +20,7 @@ type Skill = {
   buyPrice?: number;
   sellPrice?: number;
   description?: string;
+  weaponResistance?: string;
 };
 
 type SharedData = { skills?: Record<string, Skill> };
@@ -90,9 +91,9 @@ const EMPTY_SKILL: Omit<Skill, "name"> = {
   description: undefined,
 };
 
-function numCell(val: number | undefined, onChange: (v: number | undefined) => void, editing: boolean, prefix?: string) {
+function numCell(val: number | null | undefined, onChange: (v: number | undefined) => void, editing: boolean, prefix?: string) {
   if (!editing) {
-    return val !== undefined
+    return val != null
       ? <span className="tabular-nums">{prefix}{val.toLocaleString()}</span>
       : <span className="text-muted-foreground/40">—</span>;
   }
@@ -351,13 +352,20 @@ export default function SkillsPage() {
                           <td className="px-3 py-2 text-center">
                             {numCell(d.sellPrice, (v) => setEditDraft((x) => x ? { ...x, sellPrice: v } : x), isEditing, "💰")}
                           </td>
-                          <td className="px-3 py-2 min-w-[180px]">
+                          <td className="px-3 py-2 min-w-[200px]">
                             {isEditing
                               ? <Input value={d.description ?? ""} onChange={(e) => setEditDraft((x) => x ? { ...x, description: e.target.value || undefined } : x)}
                                   placeholder="Tips or notes…" className="h-7 text-sm px-2" />
-                              : d.description
-                                ? <span className="text-xs text-muted-foreground line-clamp-2">{d.description}</span>
-                                : <span className="text-muted-foreground/30 text-xs">—</span>}
+                              : <div className="space-y-0.5">
+                                  {d.weaponResistance && (
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700">
+                                      {d.weaponResistance} Resistance
+                                    </span>
+                                  )}
+                                  {d.description
+                                    ? <span className="block text-xs text-muted-foreground line-clamp-2">{d.description}</span>
+                                    : !d.weaponResistance && <span className="text-muted-foreground/30 text-xs">—</span>}
+                                </div>}
                           </td>
                           <td className="px-3 py-2">
                             <div className="flex gap-1 justify-end">

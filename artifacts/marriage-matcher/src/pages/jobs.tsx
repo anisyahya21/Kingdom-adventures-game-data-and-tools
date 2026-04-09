@@ -1026,27 +1026,35 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
           {/* Shield */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground mb-2">Shield</p>
-            {!editing && job.shield === undefined ? (
-              <span className="text-sm font-bold text-red-400">—</span>
-            ) : editing ? (
-              <div className="flex gap-2">
-                {(["can","cannot"] as const).map((v) => {
-                  const active = (draft.shield ?? "cannot") === v;
-                  return (
-                    <button key={v} onClick={() => setDraft((d) => ({ ...d, shield: v }))}
-                      className={`px-3 py-1.5 text-xs rounded-full border font-medium transition-colors ${active
-                        ? v === "can" ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400" : "border-border text-muted-foreground"
-                        : "border-dashed border-border/60 text-muted-foreground/50 hover:border-primary/40"}`}>
-                      {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : "Can't Equip"}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <span className={`px-3 py-1.5 text-xs rounded-full border font-medium ${job.shield === "can" ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400" : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400"}`}>
-                {job.shield === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : "Can't Equip"}
-              </span>
-            )}
+            {(() => {
+              const shieldVal = job.weaponEquip?.["Shield"] ?? (job.shield === "can" ? "can" : job.shield === "cannot" ? "cannot" : undefined);
+              const draftShieldVal = draft.weaponEquip?.["Shield"] ?? (draft.shield === "can" ? "can" : draft.shield === "cannot" ? "cannot" : undefined);
+              if (!editing && shieldVal === undefined) {
+                return <span className="text-sm font-bold text-red-400">—</span>;
+              }
+              if (editing) {
+                return (
+                  <div className="flex gap-2">
+                    {(["can","weak","cannot"] as WeaponValue[]).map((v) => {
+                      const active = (draftShieldVal ?? "cannot") === v;
+                      return (
+                        <button key={v}
+                          onClick={() => setDraft((d) => ({ ...d, shield: v === "can" ? "can" : "cannot", weaponEquip: { ...d.weaponEquip, Shield: v } }))}
+                          className={`px-3 py-1.5 text-xs rounded-full border font-medium transition-colors ${active ? weaponStyle[v] : "border-dashed border-border/60 text-muted-foreground/50 hover:border-primary/40"}`}>
+                          {v === "can" ? "Can Equip" : v === "weak" ? "Weak" : "Can't Equip"}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              }
+              const sv = shieldVal ?? "cannot";
+              return (
+                <span className={`px-3 py-1.5 text-xs rounded-full border font-medium ${weaponStyle[sv as WeaponValue]}`}>
+                  {sv === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : sv === "weak" ? "⚠ Weak" : "Can't Equip"}
+                </span>
+              );
+            })()}
           </div>
 
           {/* Weapon Classes */}
