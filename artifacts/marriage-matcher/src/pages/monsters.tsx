@@ -46,12 +46,34 @@ function useSharedData() {
   });
 }
 
-const SPAWN_LEVELS = [1,2,3,5,7,8,10,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,37,40,41,43,44,45,46,48,50,51,52,54,55,56,58,60,61,62,65,69,70,72,74,75,76,82,85,88,90,92,112,120,121,135,142,162,208,225,250,265,311,320,360,454,525,592,624,777,888,1020,1100,1600,2400,3200,4800,6000,9999];
+const DEFAULT_SPAWN_LEVELS = [1,2,3,5,7,8,10,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,37,40,41,43,44,45,46,48,50,51,52,54,55,56,58,60,61,62,65,69,70,72,74,75,76,82,85,88,90,92,112,120,121,135,142,162,208,225,250,265,311,320,360,454,525,592,624,777,888,1020,1100,1600,2400,3200,4800,6000,9999];
 
-function LevelCombobox({ value, onChange, onClose }: { value: number; onChange: (v: number) => void; onClose: () => void }) {
+function useSpawnLevels() {
+  const [levels, setLevels] = useState<number[]>(() => {
+    try {
+      const saved = localStorage.getItem("ka_spawn_levels");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return [...parsed].sort((a, b) => a - b);
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_SPAWN_LEVELS;
+  });
+  const save = (next: number[]) => {
+    const sorted = [...next].sort((a, b) => a - b);
+    setLevels(sorted);
+    localStorage.setItem("ka_spawn_levels", JSON.stringify(sorted));
+  };
+  const add = (lv: number) => { if (lv > 0 && !levels.includes(lv)) save([...levels, lv]); };
+  const remove = (lv: number) => save(levels.filter((l) => l !== lv));
+  const reset = () => { setLevels(DEFAULT_SPAWN_LEVELS); localStorage.removeItem("ka_spawn_levels"); };
+  return { levels, add, remove, reset };
+}
+
+function LevelCombobox({ value, onChange, onClose, levels }: { value: number; onChange: (v: number) => void; onClose: () => void; levels: number[] }) {
   const [q, setQ] = useState(String(value));
   const ref = useRef<HTMLDivElement>(null);
-  const filtered = SPAWN_LEVELS.filter((lv) => q === "" || String(lv).includes(q));
+  const filtered = levels.filter((lv) => q === "" || String(lv).includes(q));
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -78,8 +100,8 @@ function LevelCombobox({ value, onChange, onClose }: { value: number; onChange: 
         placeholder="Level…"
       />
       {filtered.length > 0 && (
-        <div className="absolute z-50 top-full left-0 mt-0.5 bg-popover border border-border rounded-md shadow-md max-h-40 overflow-y-auto min-w-[5rem]">
-          {filtered.slice(0, 25).map((lv) => (
+        <div className="absolute z-50 top-full left-0 mt-0.5 bg-popover border border-border rounded-md shadow-md max-h-52 overflow-y-auto min-w-[5rem]">
+          {filtered.map((lv) => (
             <button key={lv} className={`w-full text-left px-2.5 py-1 text-xs hover:bg-muted transition-colors ${lv === value ? "bg-primary/10 text-primary font-medium" : ""}`}
               onMouseDown={(e) => { e.preventDefault(); onChange(lv); onClose(); }}>
               {lv}
@@ -186,6 +208,10 @@ export default function MonstersPage() {
     qc.invalidateQueries({ queryKey: ["ka-shared"] });
   }, [userName, qc]);
 
+  const spawnLevels = useSpawnLevels();
+  const [showLevelEditor, setShowLevelEditor] = useState(false);
+  const [newLevelInput, setNewLevelInput] = useState("");
+
   const [expandedMonster, setExpandedMonster] = useState<string | null>(null);
   const [addingMonster, setAddingMonster] = useState(false);
   const [newMonsterName, setNewMonsterName] = useState("");
@@ -287,6 +313,9 @@ export default function MonstersPage() {
             <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
               <Info className="w-3.5 h-3.5" />
             </Button>
+            <Button variant="ghost" size="icon" onClick={() => setShowLevelEditor((v) => !v)} className={`h-8 w-8 transition-colors ${showLevelEditor ? "text-amber-500" : "text-muted-foreground/40 hover:text-muted-foreground"}`} title="Spawn level list settings">
+              <MapPin className="w-3.5 h-3.5" />
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-8 gap-1.5 text-muted-foreground">
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             </Button>
@@ -306,6 +335,56 @@ export default function MonstersPage() {
               className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
             />
           </div>
+        )}
+
+        {/* Spawn Level List Settings */}
+        {showLevelEditor && (
+          <Card className="mb-4 border-amber-200 dark:border-amber-800/40 shadow-sm">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 text-amber-500" />
+                  <CardTitle className="text-sm">Spawn Level List</CardTitle>
+                  <span className="text-xs text-muted-foreground">({spawnLevels.levels.length} levels · saved to this device)</span>
+                </div>
+                <Button variant="ghost" size="sm" className="h-6 text-[11px] text-muted-foreground gap-1" onClick={() => { if (confirm("Reset to default level list?")) spawnLevels.reset(); }}>
+                  <RotateCcw className="w-3 h-3" />Reset
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-3">
+              {/* Add a new level */}
+              <div className="flex gap-2">
+                <Input
+                  type="number" min={1} value={newLevelInput}
+                  onChange={(e) => setNewLevelInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const n = parseInt(newLevelInput);
+                      if (!isNaN(n) && n > 0) { spawnLevels.add(n); setNewLevelInput(""); }
+                    }
+                  }}
+                  placeholder="Add a level number…"
+                  className="h-7 text-xs flex-1"
+                />
+                <Button size="sm" variant="secondary" className="h-7 px-3 text-xs"
+                  onClick={() => { const n = parseInt(newLevelInput); if (!isNaN(n) && n > 0) { spawnLevels.add(n); setNewLevelInput(""); } }}>
+                  <Plus className="w-3.5 h-3.5 mr-1" />Add
+                </Button>
+              </div>
+              {/* Current level list */}
+              <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                {spawnLevels.levels.map((lv) => (
+                  <span key={lv} className="inline-flex items-center gap-1 text-[11px] bg-muted rounded px-1.5 py-0.5 font-mono">
+                    {lv}
+                    <button onClick={() => spawnLevels.remove(lv)} className="text-muted-foreground/50 hover:text-destructive transition-colors">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Weekly Conquest */}
@@ -476,6 +555,7 @@ export default function MonstersPage() {
                                       value={sp.level}
                                       onChange={(lv) => updateSpawn(mName, idx, { ...sp, level: lv })}
                                       onClose={() => setEditingSpawn(null)}
+                                      levels={spawnLevels.levels}
                                     />
                                   ) : (
                                     <button

@@ -280,7 +280,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
     }
   };
 
-  const allStatKeys = STAT_KEYS.filter((k) => jobStats[k] !== undefined || equipStats[k] !== undefined);
+  const allStatKeys = [...STAT_KEYS] as string[];
 
   return (
     <div className="space-y-4">
@@ -334,7 +334,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
           </div>
 
           {/* Per-stat breakdown table */}
-          {allStatKeys.length > 0 && (
+          {loadout.jobName && loadout.rank && (
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Stats</p>
               <div className="overflow-x-auto">
@@ -353,19 +353,18 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
                       const hasJob = jobStats[k] !== undefined;
                       const lv = getStatLevel(loadout, k);
                       const eq = equipStats[k];
+                      const total = (jobStats[k] ?? 0) + (eq ?? 0);
                       return (
                         <tr key={k} className="border-t border-border/30">
                           <td className="py-0.5 pr-2 text-muted-foreground uppercase text-[10px] font-medium">{STAT_FULL[k] ?? k}</td>
                           <td className="py-0.5 text-center">
-                            {hasJob ? (
-                              <Input type="number" min={1} max={999} value={lv}
-                                onChange={(e) => setStatLevel(k, parseInt(e.target.value) || 1)}
-                                className="h-5 text-[11px] text-center px-0 w-14" />
-                            ) : <span className="text-muted-foreground/30">—</span>}
+                            <Input type="number" min={1} max={999} value={lv}
+                              onChange={(e) => setStatLevel(k, parseInt(e.target.value) || 1)}
+                              className="h-5 text-[11px] text-center px-0 w-14" />
                           </td>
                           <td className="py-0.5 text-right tabular-nums text-foreground/80">{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
                           <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">—</span>}</td>
-                          <td className="py-0.5 text-right tabular-nums font-bold">{(stats[k] ?? 0).toLocaleString()}</td>
+                          <td className="py-0.5 text-right tabular-nums font-bold">{total > 0 ? total.toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
                         </tr>
                       );
                     })}
@@ -373,9 +372,6 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
                 </table>
               </div>
             </div>
-          )}
-          {allStatKeys.length === 0 && loadout.jobName && loadout.rank && (
-            <p className="text-xs text-muted-foreground/50 text-center py-4">No stat data for this job/rank yet.</p>
           )}
         </div>
 
