@@ -5,7 +5,7 @@ import {
   ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
   Loader2, AlertTriangle, Moon, Sun, Info, X, ImageIcon,
   ChevronDown, ChevronRight, Download, History, CheckSquare, GripVertical,
-  Plus, Settings2, Clock,
+  Plus, Settings2, Clock, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -277,6 +277,14 @@ function getEffectiveStat(item: EquipmentItem, stat: string, field: "base" | "in
   const ov = overrides[item.name]?.[stat]?.[field];
   if (ov !== undefined) return ov;
   return field === "base" ? (item.baseStats[stat] ?? 0) : (item.incStats[stat] ?? 0);
+}
+
+function isStatUnset(item: EquipmentItem, stat: string, overrides: Record<string, StatOverrides>): boolean {
+  return overrides[item.name]?.[stat]?.base === undefined && (item.baseStats[stat] ?? 0) === 0;
+}
+
+function allItemStatsFilled(item: EquipmentItem, overrides: Record<string, StatOverrides>): boolean {
+  return STAT_ORDER.every((stat) => !isStatUnset(item, stat, overrides));
 }
 
 // ─── Username ─────────────────────────────────────────────────────────────────
@@ -911,9 +919,14 @@ export default function EquipmentPage() {
                             </td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
                               <button onClick={() => setExpandedItem(isExpanded ? null : item.uid)}
-                                className="flex items-center gap-1.5 font-medium text-left hover:text-primary transition-colors group" title="Click to edit stats">
-                                {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-primary shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />}
-                                {item.name}
+                                className="flex items-center gap-1.5 font-medium text-left hover:text-primary transition-colors group" title={isExpanded ? "Click to collapse" : "Click to edit stats"}>
+                                {isExpanded
+                                  ? <ChevronDown className="w-3.5 h-3.5 text-primary shrink-0" />
+                                  : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />}
+                                <span className={isExpanded ? "text-primary underline underline-offset-2 decoration-primary/40" : ""}>{item.name}</span>
+                                {allItemStatsFilled(item, overrides) && (
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 ml-0.5" title="All stats have been contributed" />
+                                )}
                               </button>
                             </td>
                             <td className="px-2 py-1.5">
@@ -951,8 +964,12 @@ export default function EquipmentPage() {
                                 : <span className="text-xs"><strong>{item.crafterStudioLevel}</strong>{item.crafterIntelligence > 0 && <> / INT <strong>{item.crafterIntelligence}</strong></>}</span>}
                             </td>
                             {STAT_ORDER.map((stat) => {
+                              const unset = isStatUnset(item, stat, overrides);
                               const val = getItemStatVal(item, stat);
-                              return <td key={stat} className={`px-1.5 py-1.5 text-center text-xs tabular-nums ${val === 0 ? "text-muted-foreground/30" : "font-medium text-foreground"}`}>{val > 0 ? val : "—"}</td>;
+                              if (unset) {
+                                return <td key={stat} className="px-1.5 py-1.5 text-center text-xs tabular-nums text-red-400 dark:text-red-500">—</td>;
+                              }
+                              return <td key={stat} className={`px-1.5 py-1.5 text-center text-xs tabular-nums ${val === 0 ? "text-muted-foreground/50" : "font-medium text-foreground"}`}>{val}</td>;
                             })}
                           </tr>
 
