@@ -2,9 +2,10 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import {
-  ArrowLeft, Plus, ChevronDown, ChevronRight, Trash2, Moon, Sun,
-  RefreshCw, Loader2, X, Check, Pencil, Shield, Star, Sword,
-  Save, ImageIcon, Heart, BarChart2,
+  ArrowLeft, Plus, Trash2, Moon, Sun,
+  RefreshCw, Loader2, X, Check, Pencil, Star, Sword,
+  Save, ImageIcon, Heart, ArrowUpDown, ArrowUp, ArrowDown,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +17,10 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API = (p: string) => `${BASE}/ka-api/ka${p}`;
 
 const STAT_ORDER = ["HP", "MP", "Vigor", "Attack", "Defence", "Speed", "Luck", "Intelligence", "Dexterity", "Gather", "Move", "Heart"];
-const CHAR_SLOTS = ["Head", "Weapon", "Shield", "Armor", "Accessory"] as const;
+const DEFAULT_RANKS = ["S", "A", "B", "C", "D"];
 const MAX_LEVEL = 999;
 
-type EquipValue = "can" | "cannot" | "weak";
+type WeaponValue = "can" | "cannot" | "weak";
 type JobStatEntry = { base: number; inc: number; levels?: Record<string, number> };
 type JobRankData = { stats: Record<string, JobStatEntry> };
 type Job = {
@@ -27,11 +28,16 @@ type Job = {
   type?: "combat" | "non-combat";
   icon?: string;
   ranks: Record<string, JobRankData>;
-  equipment: Partial<Record<string, EquipValue>>;
-  weaponClasses?: string[];
+  shield?: "can" | "cannot";
+  weaponEquip?: Partial<Record<string, WeaponValue>>;
+  skillAccess?: { attack?: "can" | "cannot"; casting?: "can" | "cannot" };
   skills: string[];
 };
-type SharedData = { jobs: Record<string, Job>; statIcons: Record<string, string>; weaponCategories?: string[] };
+type SharedData = {
+  jobs: Record<string, Job>;
+  statIcons: Record<string, string>;
+  weaponCategories?: string[];
+};
 
 function statAtLevel(entry: JobStatEntry, level: number): number {
   const ov = entry.levels?.[String(level)];
@@ -93,7 +99,7 @@ async function saveJobs(jobs: Record<string, Job>, userName: string, description
   });
 }
 
-function IconUploadSmall({ value, onChange, placeholder }: { value?: string; onChange: (v: string) => void; placeholder?: React.ReactNode }) {
+function IconUploadSmall({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
   return (
     <label className="cursor-pointer group relative inline-block">
       <input type="file" accept="image/*" className="sr-only"
@@ -103,127 +109,103 @@ function IconUploadSmall({ value, onChange, placeholder }: { value?: string; onC
           reader.onload = (ev) => { if (ev.target?.result) onChange(ev.target.result as string); };
           reader.readAsDataURL(file);
         }} />
-      <div className="w-10 h-10 rounded-lg border border-dashed border-border group-hover:border-primary/50 bg-muted/30 flex items-center justify-center overflow-hidden transition-colors">
-        {value
-          ? <img src={value} alt="" className="w-full h-full object-contain" />
-          : (placeholder ?? <ImageIcon className="w-4 h-4 text-muted-foreground/40" />)}
+      <div className="w-12 h-12 rounded-xl border border-dashed border-border group-hover:border-primary/50 bg-muted/30 flex items-center justify-center overflow-hidden transition-colors">
+        {value ? <img src={value} alt="" className="w-full h-full object-contain" /> : <ImageIcon className="w-5 h-5 text-muted-foreground/40" />}
       </div>
     </label>
   );
 }
 
-// ─── Equip cycle helper ────────────────────────────────────────────────────────
+// ─── Stat Table ───────────────────────────────────────────────────────────────
 
-function cycleEquip(current: EquipValue | undefined): EquipValue {
-  if (!current || current === "cannot") return "can";
-  if (current === "can") return "weak";
-  return "cannot";
-}
-
-const EQUIP_STYLE: Record<EquipValue, string> = {
-  can:    "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400",
-  weak:   "bg-amber-100 dark:bg-amber-950/40 border-amber-400 text-amber-700 dark:text-amber-400",
-  cannot: "border-dashed border-border text-muted-foreground/40",
-};
-const EQUIP_LABEL: Record<EquipValue, string> = { can: "Can Equip", weak: "Weak", cannot: "Can't Equip" };
-
-// ─── Stat Row (expandable) ─────────────────────────────────────────────────────
-
-function StatRow({ stat, entry, icon, editing, level, onChange }: {
-  stat: string;
-  entry?: JobStatEntry;
-  icon?: string;
+function StatTable({ rankData, statIcons, editing, level, onChangeLevel, onChangeStat }: {
+  rankData: JobRankData | undefined;
+  statIcons: Record<string, string>;
   editing: boolean;
   level: number;
-  onChange: (updated: JobStatEntry | null) => void;
+  onChangeLevel: (v: number) => void;
+  onChangeStat: (stat: string, field: "base" | "inc", val: number) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [newLevelKey, setNewLevelKey] = useState("");
-  const [newLevelVal, setNewLevelVal] = useState("");
-
-  const e = entry ?? { base: 0, inc: 0, levels: {} };
-  const val = entry ? statAtLevel(entry, level) : null;
-  const overrides = Object.entries(e.levels ?? {}).sort(([a], [b]) => Number(a) - Number(b));
-
-  if (editing) {
-    return (
-      <div className="rounded-lg border border-border overflow-hidden">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors text-left"
-        >
-          <span className="flex items-center gap-1.5 flex-1 text-sm font-medium">
-            {icon && <img src={icon} alt={stat} className="w-3.5 h-3.5 object-contain" />}
-            {stat}
-          </span>
-          {entry && (
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {entry.base} +{entry.inc}/lv
-              {overrides.length > 0 && <span className="ml-1 text-amber-500">+{overrides.length} override{overrides.length !== 1 ? "s" : ""}</span>}
-            </span>
-          )}
-          {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-        </button>
-        {open && (
-          <div className="px-3 pb-3 pt-1 bg-muted/10 space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="text-[10px] text-muted-foreground mb-0.5">Start (Base)</p>
-                <Input type="number" value={e.base} onChange={(ev) => onChange({ ...e, base: Number(ev.target.value) || 0 })} className="h-7 text-xs px-2" />
-              </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground mb-0.5">Increment / Lv</p>
-                <Input type="number" step="0.1" value={e.inc} onChange={(ev) => onChange({ ...e, inc: parseFloat(ev.target.value) || 0 })} className="h-7 text-xs px-2" />
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground mb-1">Individual Level Overrides</p>
-              {overrides.length > 0 && (
-                <div className="space-y-1 mb-2">
-                  {overrides.map(([lv, v]) => (
-                    <div key={lv} className="flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground w-12 shrink-0">Lv {lv}</span>
-                      <Input type="number" value={v}
-                        onChange={(ev) => onChange({ ...e, levels: { ...e.levels, [lv]: Number(ev.target.value) || 0 } })}
-                        className="h-6 text-xs px-2 flex-1" />
-                      <button onClick={() => {
-                        const next = { ...e.levels }; delete next[lv];
-                        onChange({ ...e, levels: next });
-                      }} className="text-muted-foreground/50 hover:text-destructive"><X className="w-3 h-3" /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Input type="number" value={newLevelKey} onChange={(ev) => setNewLevelKey(ev.target.value)} placeholder="Level" className="h-6 text-xs px-2 w-20" />
-                <Input type="number" value={newLevelVal} onChange={(ev) => setNewLevelVal(ev.target.value)} placeholder="Value" className="h-6 text-xs px-2 w-20" />
-                <button onClick={() => {
-                  if (!newLevelKey) return;
-                  onChange({ ...e, levels: { ...e.levels, [newLevelKey]: Number(newLevelVal) || 0 } });
-                  setNewLevelKey(""); setNewLevelVal("");
-                }} className="text-xs text-primary hover:underline">+ Add</button>
-              </div>
-            </div>
-            {entry && (
-              <button onClick={() => onChange(null)} className="text-[10px] text-destructive/60 hover:text-destructive transition-colors">
-                Clear stat
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
+  const stats = rankData?.stats ?? {};
 
   return (
-    <div className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-1.5">
-      <span className="text-xs text-muted-foreground flex items-center gap-1">
-        {icon && <img src={icon} alt={stat} className="w-3 h-3 object-contain" />}{stat}
-      </span>
-      <span className={`text-xs font-semibold tabular-nums ${val === null || val === 0 ? "text-muted-foreground/40" : "text-foreground"}`}>
-        {val === null ? "—" : val}
-        {entry?.levels?.[String(level)] !== undefined && <span className="ml-0.5 text-[9px] text-amber-500">★</span>}
-      </span>
+    <div>
+      {/* Level row */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-muted-foreground">Preview at level</span>
+        <Input
+          type="number" min={1} max={MAX_LEVEL} value={level}
+          onChange={(e) => onChangeLevel(Math.min(MAX_LEVEL, Math.max(1, parseInt(e.target.value) || 1)))}
+          className="h-7 w-20 text-xs text-center"
+        />
+        <span className="text-xs text-muted-foreground">/ {MAX_LEVEL}</span>
+      </div>
+
+      {/* Horizontal scrollable stat table */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse" style={{ minWidth: `${STAT_ORDER.length * 90}px` }}>
+          <thead>
+            <tr>
+              {STAT_ORDER.map((stat) => (
+                <th key={stat} className="text-center px-2 pb-1 border-b border-border">
+                  <div className="flex flex-col items-center gap-0.5">
+                    {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-4 h-4 object-contain" />}
+                    <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{stat}</span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {editing && (
+              <tr>
+                {STAT_ORDER.map((stat) => {
+                  const s = stats[stat] ?? { base: 0, inc: 0 };
+                  return (
+                    <td key={stat} className="px-1 pt-2 align-top">
+                      <div className="space-y-1">
+                        <div>
+                          <p className="text-[9px] text-muted-foreground/60 text-center mb-0.5">Base</p>
+                          <Input
+                            type="number"
+                            value={s.base}
+                            onChange={(e) => onChangeStat(stat, "base", Number(e.target.value) || 0)}
+                            className="h-6 text-[11px] text-center px-1 w-full"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-muted-foreground/60 text-center mb-0.5">+/Lv</p>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={s.inc}
+                            onChange={(e) => onChangeStat(stat, "inc", parseFloat(e.target.value) || 0)}
+                            className="h-6 text-[11px] text-center px-1 w-full"
+                          />
+                        </div>
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            )}
+            <tr className={editing ? "border-t border-border/50" : ""}>
+              {STAT_ORDER.map((stat) => {
+                const s = stats[stat];
+                const val = s ? statAtLevel(s, level) : null;
+                return (
+                  <td key={stat} className="text-center px-2 py-2">
+                    <span className={`text-sm font-semibold tabular-nums ${val === null || val === 0 ? "text-muted-foreground/30" : "text-foreground"}`}>
+                      {val === null ? "—" : Math.round(val * 100) / 100}
+                    </span>
+                  </td>
+                );
+              })}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-2">value = Base + (Level − 1) × +/Lv</p>
     </div>
   );
 }
@@ -235,38 +217,43 @@ function JobDetail({ jobName, jobs, statIcons, weaponCategories, onSave }: {
   jobs: Record<string, Job>;
   statIcons: Record<string, string>;
   weaponCategories: string[];
-  onSave: (updated: Record<string, Job>, desc: string, newName?: string) => Promise<void>;
+  onSave: (updated: Record<string, Job>, desc: string) => Promise<void>;
 }) {
   const [, navigate] = useLocation();
   const job = jobs[jobName];
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Job>(() => JSON.parse(JSON.stringify(job)));
   const [draftName, setDraftName] = useState(jobName);
-  const [selectedRank, setSelectedRank] = useState(() => Object.keys(job.ranks)[0] ?? "A");
+  const [selectedRank, setSelectedRank] = useState(() => Object.keys(job.ranks)[0] ?? "S");
   const [level, setLevel] = useState(1);
-  const [newSkill, setNewSkill] = useState("");
-  const [addingSkill, setAddingSkill] = useState(false);
-  const [newRank, setNewRank] = useState("");
+  const [newRankInput, setNewRankInput] = useState("");
   const [addingRank, setAddingRank] = useState(false);
 
   const rankData = draft.ranks[selectedRank];
   const rankNames = Object.keys(draft.ranks);
 
-  const setStat = (stat: string, updated: JobStatEntry | null) => {
+  const setStat = (stat: string, field: "base" | "inc", val: number) => {
     setDraft((d) => {
-      const nextStats = { ...d.ranks[selectedRank]?.stats };
-      if (updated === null) { delete nextStats[stat]; }
-      else { nextStats[stat] = updated; }
-      return { ...d, ranks: { ...d.ranks, [selectedRank]: { ...d.ranks[selectedRank], stats: nextStats } } };
+      const cur = d.ranks[selectedRank]?.stats[stat] ?? { base: 0, inc: 0 };
+      return {
+        ...d,
+        ranks: {
+          ...d.ranks,
+          [selectedRank]: {
+            ...d.ranks[selectedRank],
+            stats: { ...d.ranks[selectedRank]?.stats, [stat]: { ...cur, [field]: val } },
+          },
+        },
+      };
     });
   };
 
   const addRank = () => {
-    const r = newRank.trim().toUpperCase();
+    const r = newRankInput.trim().toUpperCase();
     if (!r || draft.ranks[r]) return;
     setDraft((d) => ({ ...d, ranks: { ...d.ranks, [r]: { stats: {} } } }));
     setSelectedRank(r);
-    setNewRank(""); setAddingRank(false);
+    setNewRankInput(""); setAddingRank(false);
   };
 
   const removeRank = (r: string) => {
@@ -274,27 +261,6 @@ function JobDetail({ jobName, jobs, statIcons, weaponCategories, onSave }: {
     const next = { ...draft.ranks }; delete next[r];
     setDraft((d) => ({ ...d, ranks: next }));
     if (selectedRank === r) setSelectedRank(Object.keys(next)[0]);
-  };
-
-  const addSkill = () => {
-    const s = newSkill.trim();
-    if (!s || draft.skills.includes(s)) return;
-    setDraft((d) => ({ ...d, skills: [...d.skills, s] }));
-    setNewSkill(""); setAddingSkill(false);
-  };
-
-  const removeSkill = (s: string) => setDraft((d) => ({ ...d, skills: d.skills.filter((x) => x !== s) }));
-
-  const toggleEquip = (slot: string) => {
-    setDraft((d) => ({ ...d, equipment: { ...d.equipment, [slot]: cycleEquip(d.equipment[slot]) } }));
-  };
-
-  const toggleWeaponClass = (cls: string) => {
-    setDraft((d) => {
-      const current = d.weaponClasses ?? [];
-      const next = current.includes(cls) ? current.filter((c) => c !== cls) : [...current, cls];
-      return { ...d, weaponClasses: next };
-    });
   };
 
   const handleSave = async () => {
@@ -308,11 +274,9 @@ function JobDetail({ jobName, jobs, statIcons, weaponCategories, onSave }: {
     } else {
       updatedJobs = { ...jobs, [jobName]: draft };
     }
-    await onSave(updatedJobs, `Updated job: ${trimmedName}`, trimmedName !== jobName ? trimmedName : undefined);
+    await onSave(updatedJobs, `Updated job: ${trimmedName}`);
     setEditing(false);
-    if (trimmedName !== jobName) {
-      navigate(`/jobs/${encodeURIComponent(trimmedName)}`);
-    }
+    if (trimmedName !== jobName) navigate(`/jobs/${encodeURIComponent(trimmedName)}`);
   };
 
   const cancelEdit = () => {
@@ -323,8 +287,24 @@ function JobDetail({ jobName, jobs, statIcons, weaponCategories, onSave }: {
 
   const firstGenJobs = Object.entries(jobs).filter(([n, j]) => j.generation === 1 && n !== jobName).map(([n]) => n).sort();
 
+  const weaponValueLabel: Record<WeaponValue, string> = { can: "Can", cannot: "Can't", weak: "Weak" };
+  const weaponValueStyle: Record<WeaponValue, string> = {
+    can:    "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400",
+    weak:   "bg-amber-100 dark:bg-amber-950/40 border-amber-400 text-amber-700 dark:text-amber-400",
+    cannot: "border-dashed border-border/60 text-muted-foreground/40",
+  };
+
+  const cycleWeapon = (cls: string) => {
+    setDraft((d) => {
+      const cur = d.weaponEquip?.[cls];
+      const next: WeaponValue = !cur || cur === "cannot" ? "can" : cur === "can" ? "weak" : "cannot";
+      return { ...d, weaponEquip: { ...d.weaponEquip, [cls]: next } };
+    });
+  };
+
   return (
     <div>
+      {/* Toolbar */}
       <div className="flex items-center justify-between mb-6">
         <button onClick={() => navigate("/jobs")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" />Back to Jobs
@@ -343,48 +323,41 @@ function JobDetail({ jobName, jobs, statIcons, weaponCategories, onSave }: {
 
       {/* Header */}
       <div className="flex items-start gap-4 mb-6">
-        {editing ? (
-          <IconUploadSmall value={draft.icon} onChange={(icon) => setDraft((d) => ({ ...d, icon }))} />
-        ) : (
-          <div className="w-16 h-16 rounded-xl border border-border bg-muted/40 flex items-center justify-center overflow-hidden shrink-0">
-            {job.icon ? <img src={job.icon} alt={jobName} className="w-full h-full object-contain" /> : <Star className="w-8 h-8 text-muted-foreground/30" />}
-          </div>
-        )}
+        {editing
+          ? <IconUploadSmall value={draft.icon} onChange={(icon) => setDraft((d) => ({ ...d, icon }))} />
+          : <div className="w-14 h-14 rounded-xl border border-border bg-muted/40 flex items-center justify-center overflow-hidden shrink-0">
+              {job.icon ? <img src={job.icon} alt={jobName} className="w-full h-full object-contain" /> : <Star className="w-7 h-7 text-muted-foreground/30" />}
+            </div>
+        }
         <div className="flex-1 min-w-0">
-          {editing ? (
-            <Input
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              className="text-xl font-bold h-9 mb-2 max-w-xs"
-              placeholder="Job name…"
-            />
-          ) : (
-            <h2 className="text-2xl font-bold text-foreground mb-1">{jobName}</h2>
-          )}
+          {editing
+            ? <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} className="text-xl font-bold h-9 mb-2 max-w-xs" placeholder="Job name…" />
+            : <h2 className="text-2xl font-bold text-foreground mb-1">{jobName}</h2>
+          }
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className={job.generation === 1 ? "border-sky-300 text-sky-600 dark:text-sky-400" : "border-orange-300 text-orange-600 dark:text-orange-400"}>
-              {job.generation === 1 ? "1st Generation" : "2nd Generation"}
+              {job.generation === 1 ? "1st Gen" : "2nd Gen"}
             </Badge>
-            {editing ? (
+            {editing && (
               <button onClick={() => setDraft((d) => ({ ...d, generation: d.generation === 1 ? 2 : 1 }))} className="text-xs text-primary hover:underline">
                 Switch to {draft.generation === 1 ? "2nd" : "1st"} gen
               </button>
-            ) : null}
+            )}
             {editing ? (
               <div className="flex gap-1">
                 {(["combat", "non-combat"] as const).map((t) => (
                   <button key={t} onClick={() => setDraft((d) => ({ ...d, type: t }))}
-                    className={`px-2 py-0.5 text-xs rounded border font-medium transition-colors ${draft.type === t ? (t === "combat" ? "bg-red-500 text-white border-red-500" : "bg-sky-500 text-white border-sky-500") : "border-border text-muted-foreground hover:border-primary/40"}`}>
+                    className={`px-2 py-0.5 text-xs rounded border font-medium transition-colors ${draft.type === t
+                      ? t === "combat" ? "bg-red-500 text-white border-red-500" : "bg-sky-500 text-white border-sky-500"
+                      : "border-border text-muted-foreground hover:border-primary/40"}`}>
                     {t === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
                   </button>
                 ))}
               </div>
-            ) : job.type ? (
+            ) : job.type && (
               <Badge variant="outline" className={job.type === "combat" ? "border-red-300 text-red-600 dark:text-red-400" : "border-emerald-300 text-emerald-600 dark:text-emerald-400"}>
                 {job.type === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
               </Badge>
-            ) : (
-              <span className="text-xs text-muted-foreground/60">Type not set</span>
             )}
           </div>
         </div>
@@ -392,28 +365,37 @@ function JobDetail({ jobName, jobs, statIcons, weaponCategories, onSave }: {
 
       {/* Stats */}
       <Card className="shadow-sm mb-4">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-sm flex items-center gap-2"><BarChart2 className="w-4 h-4 text-primary" />Stats</CardTitle>
-            <div className="flex items-center gap-2">
+            <CardTitle className="text-sm">Stats</CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Rank tabs */}
               <div className="flex items-center gap-1 flex-wrap">
                 {rankNames.map((r) => (
                   <button key={r} onClick={() => setSelectedRank(r)}
-                    className={`px-2 py-0.5 text-xs rounded font-medium border transition-colors ${selectedRank === r ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"}`}>
+                    className={`px-2.5 py-0.5 text-xs rounded font-medium border transition-colors ${selectedRank === r ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"}`}>
                     {r}
                   </button>
                 ))}
                 {editing && (
                   addingRank ? (
                     <div className="flex items-center gap-1">
-                      <Input value={newRank} onChange={(e) => setNewRank(e.target.value)} placeholder="Rank" className="h-6 w-16 text-xs"
-                        onKeyDown={(e) => { if (e.key === "Enter") addRank(); if (e.key === "Escape") { setAddingRank(false); setNewRank(""); } }} autoFocus />
+                      <select value={newRankInput} onChange={(e) => setNewRankInput(e.target.value)}
+                        className="h-6 text-xs rounded border border-input bg-background px-1">
+                        <option value="">Pick rank…</option>
+                        {DEFAULT_RANKS.filter((r) => !draft.ranks[r]).map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
                       <button onClick={addRank} className="text-primary hover:text-primary/80"><Check className="w-3 h-3" /></button>
+                      <button onClick={() => { setAddingRank(false); setNewRankInput(""); }} className="text-muted-foreground"><X className="w-3 h-3" /></button>
                     </div>
                   ) : (
-                    <button onClick={() => setAddingRank(true)} className="px-2 py-0.5 text-xs rounded border border-dashed border-border hover:border-primary/40 text-muted-foreground hover:text-foreground transition-colors">
-                      + Rank
-                    </button>
+                    DEFAULT_RANKS.some((r) => !draft.ranks[r]) && (
+                      <button onClick={() => setAddingRank(true)} className="px-2 py-0.5 text-xs rounded border border-dashed border-border hover:border-primary/40 text-muted-foreground hover:text-foreground transition-colors">
+                        + Rank
+                      </button>
+                    )
                   )
                 )}
               </div>
@@ -424,149 +406,143 @@ function JobDetail({ jobName, jobs, statIcons, weaponCategories, onSave }: {
               )}
             </div>
           </div>
-          {!editing && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-muted-foreground">Level</span>
-              <Input type="number" min={1} max={MAX_LEVEL} value={level}
-                onChange={(e) => setLevel(Math.min(MAX_LEVEL, Math.max(1, parseInt(e.target.value) || 1)))}
-                className="h-6 w-20 text-xs text-center" />
-              <span className="text-xs text-muted-foreground">/ {MAX_LEVEL}</span>
-            </div>
-          )}
         </CardHeader>
         <CardContent>
-          {editing ? (
-            <div className="space-y-1.5">
-              {STAT_ORDER.map((stat) => (
-                <StatRow
-                  key={stat}
-                  stat={stat}
-                  entry={rankData?.stats[stat]}
-                  icon={statIcons[stat]}
-                  editing
-                  level={level}
-                  onChange={(v) => setStat(stat, v)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {STAT_ORDER.map((stat) => (
-                <StatRow
-                  key={stat}
-                  stat={stat}
-                  entry={rankData?.stats[stat]}
-                  icon={statIcons[stat]}
-                  editing={false}
-                  level={level}
-                  onChange={() => {}}
-                />
-              ))}
-            </div>
-          )}
-          {!editing && rankData && (
-            <p className="text-[10px] text-muted-foreground mt-3">
-              stat = Base + (Level − 1) × +/Lv · max level {MAX_LEVEL} · <span className="text-amber-500">★</span> = individual override
-            </p>
-          )}
+          <StatTable
+            rankData={rankData}
+            statIcons={statIcons}
+            editing={editing}
+            level={level}
+            onChangeLevel={setLevel}
+            onChangeStat={setStat}
+          />
         </CardContent>
       </Card>
 
       {/* Equipment */}
       <Card className="shadow-sm mb-4">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2"><Shield className="w-4 h-4 text-sky-500" />Equipment Slots</CardTitle>
+          <CardTitle className="text-sm">Equipment</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Non-weapon slots */}
-          <div className="flex flex-wrap gap-2">
-            {CHAR_SLOTS.filter((s) => s !== "Weapon").map((slot) => {
-              const val = draft.equipment[slot] ?? "cannot";
-              return editing ? (
-                <button key={slot} onClick={() => toggleEquip(slot)}
-                  className={`px-3 py-1.5 text-xs rounded-full border font-medium transition-colors ${EQUIP_STYLE[val]}`}>
-                  {val === "can" && <Check className="w-3 h-3 inline mr-1" />}
-                  {slot} {val !== "cannot" && <span className="ml-1 opacity-70">({val === "can" ? "Can Equip" : "Weak"})</span>}
-                </button>
-              ) : (
-                <span key={slot} className={`px-3 py-1.5 text-xs rounded-full border font-medium ${EQUIP_STYLE[val]} ${val === "cannot" ? "line-through" : ""}`}>
-                  {val !== "cannot" && val === "can" && <Check className="w-3 h-3 inline mr-1" />}
-                  {slot}{val === "weak" && <span className="ml-1 opacity-70">(Weak)</span>}
-                </span>
-              );
-            })}
-          </div>
-          {editing && <p className="text-[10px] text-muted-foreground">Click non-weapon slots to cycle: Can't Equip → Can Equip → Weak → Can't Equip</p>}
-
-          {/* Weapon slot */}
-          <div className="rounded-lg border border-border p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Sword className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs font-semibold">Weapon Classes</span>
-              <span className="text-[10px] text-muted-foreground">(select all classes this job can wield)</span>
-            </div>
-            {weaponCategories.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60">No weapon categories defined yet — add them in the Equipment Stats page.</p>
-            ) : editing ? (
-              <div className="flex flex-wrap gap-1.5">
-                {weaponCategories.map((cls) => {
-                  const active = (draft.weaponClasses ?? []).includes(cls);
-                  return (
-                    <button key={cls} onClick={() => toggleWeaponClass(cls)}
-                      className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
-                      {active && <Check className="w-3 h-3 inline mr-1" />}{cls}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {(job.weaponClasses ?? []).length === 0 ? (
-                  <span className="text-xs text-muted-foreground/50">No weapon classes assigned</span>
-                ) : (job.weaponClasses ?? []).map((cls) => (
-                  <span key={cls} className="px-2.5 py-1 text-xs rounded-full border border-primary/30 bg-primary/5 text-primary font-medium">
-                    {cls}
+        <CardContent className="space-y-4">
+          {/* Shield */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-2">Shield</p>
+            <div className="flex gap-2">
+              {(["can", "cannot"] as const).map((v) => {
+                const active = (draft.shield ?? "cannot") === v;
+                return editing ? (
+                  <button key={v} onClick={() => setDraft((d) => ({ ...d, shield: v }))}
+                    className={`px-3 py-1.5 text-xs rounded-full border font-medium transition-colors ${active
+                      ? v === "can" ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400" : "border-border text-muted-foreground"
+                      : "border-dashed border-border/60 text-muted-foreground/50 hover:border-primary/40 hover:text-foreground"}`}>
+                    {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : "Can't Equip"}
+                  </button>
+                ) : active ? (
+                  <span key={v} className={`px-3 py-1.5 text-xs rounded-full border font-medium ${v === "can" ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400" : "border-dashed border-border/60 text-muted-foreground/50"}`}>
+                    {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : "Can't Equip"}
                   </span>
-                ))}
+                ) : null;
+              })}
+            </div>
+          </div>
+
+          {/* Weapon classes */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-1">Weapon Classes</p>
+            {weaponCategories.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60">No weapon categories defined yet — add them in Equipment Stats.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="text-xs border-collapse" style={{ minWidth: `${weaponCategories.length * 80}px` }}>
+                  <thead>
+                    <tr>
+                      {weaponCategories.map((cls) => (
+                        <th key={cls} className="text-center px-2 pb-1 border-b border-border font-medium text-muted-foreground whitespace-nowrap">
+                          {cls}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      {weaponCategories.map((cls) => {
+                        const val = draft.weaponEquip?.[cls] ?? "cannot";
+                        return (
+                          <td key={cls} className="text-center px-2 py-2">
+                            {editing ? (
+                              <button onClick={() => cycleWeapon(cls)}
+                                className={`px-2 py-1 rounded-full border text-[11px] font-medium transition-colors whitespace-nowrap ${weaponValueStyle[val]}`}>
+                                {weaponValueLabel[val]}
+                              </button>
+                            ) : (
+                              <span className={`px-2 py-1 rounded-full border text-[11px] font-medium whitespace-nowrap ${weaponValueStyle[val]}`}>
+                                {weaponValueLabel[val]}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
               </div>
+            )}
+            {editing && weaponCategories.length > 0 && (
+              <p className="text-[10px] text-muted-foreground mt-1">Click to cycle: Can't → Can → Weak → Can't</p>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Skills */}
+      {/* Skill Access */}
       <Card className="shadow-sm mb-4">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2"><Star className="w-4 h-4 text-amber-500" />Skills</CardTitle>
-            {editing && !addingSkill && (
-              <Button size="sm" variant="ghost" className="h-6 text-xs gap-1 px-2" onClick={() => setAddingSkill(true)}>
-                <Plus className="w-3 h-3" />Add
-              </Button>
-            )}
-          </div>
+          <CardTitle className="text-sm">Skill Access</CardTitle>
         </CardHeader>
         <CardContent>
-          {editing && addingSkill && (
-            <div className="flex gap-2 mb-2">
-              <Input autoFocus value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="Skill name…" className="h-7 text-xs"
-                onKeyDown={(e) => { if (e.key === "Enter") addSkill(); if (e.key === "Escape") { setAddingSkill(false); setNewSkill(""); } }} />
-              <button onClick={addSkill} className="text-primary hover:text-primary/80"><Check className="w-4 h-4" /></button>
-              <button onClick={() => { setAddingSkill(false); setNewSkill(""); }} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </div>
-          )}
-          {draft.skills.length === 0 ? (
-            <p className="text-xs text-muted-foreground/60">{editing ? "No skills yet — add one above." : "No skills recorded."}</p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {draft.skills.map((skill) => (
-                <span key={skill} className="inline-flex items-center gap-1 bg-muted rounded-full px-2.5 py-1 text-xs">
-                  {skill}
-                  {editing && <button onClick={() => removeSkill(skill)} className="text-muted-foreground/60 hover:text-destructive transition-colors"><X className="w-2.5 h-2.5" /></button>}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="overflow-x-auto">
+            <table className="text-xs border-collapse w-full max-w-xs">
+              <thead>
+                <tr>
+                  {(["attack", "casting"] as const).map((cat) => (
+                    <th key={cat} className="text-center px-4 pb-1 border-b border-border font-medium text-muted-foreground capitalize">
+                      {cat} Skills
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  {(["attack", "casting"] as const).map((cat) => {
+                    const val = draft.skillAccess?.[cat] ?? "can";
+                    return (
+                      <td key={cat} className="text-center px-4 py-2">
+                        {editing ? (
+                          <button
+                            onClick={() => setDraft((d) => ({
+                              ...d,
+                              skillAccess: { ...d.skillAccess, [cat]: val === "can" ? "cannot" : "can" },
+                            }))}
+                            className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${val === "can"
+                              ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
+                              : "border-dashed border-border/60 text-muted-foreground/50"}`}>
+                            {val === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
+                          </button>
+                        ) : (
+                          <span className={`px-3 py-1.5 rounded-full border text-xs font-medium ${val === "can"
+                            ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
+                            : "border-dashed border-border/60 text-muted-foreground/50"}`}>
+                            {val === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
 
@@ -636,7 +612,9 @@ function NewJobDialog({ open, onClose, onCreate }: {
             <div className="flex gap-2">
               {(["combat", "non-combat"] as const).map((t) => (
                 <button key={t} onClick={() => setJobType(t)}
-                  className={`flex-1 py-1.5 text-xs rounded border font-medium transition-colors capitalize ${jobType === t ? (t === "combat" ? "bg-red-500 text-white border-red-500" : "bg-sky-500 text-white border-sky-500") : "border-border hover:border-primary/40"}`}>
+                  className={`flex-1 py-1.5 text-xs rounded border font-medium transition-colors ${jobType === t
+                    ? t === "combat" ? "bg-red-500 text-white border-red-500" : "bg-sky-500 text-white border-sky-500"
+                    : "border-border hover:border-primary/40"}`}>
                   {t === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
                 </button>
               ))}
@@ -653,6 +631,8 @@ function NewJobDialog({ open, onClose, onCreate }: {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
+
+type SortDir = "asc" | "desc";
 
 export default function JobsPage() {
   const { name: jobParam } = useParams<{ name?: string }>();
@@ -685,8 +665,9 @@ export default function JobsPage() {
 
   const addJob = (name: string, gen: 1 | 2, type: "combat" | "non-combat") => {
     withName(() => {
-      const emptyRanks: Record<string, JobRankData> = { A: { stats: {} } };
-      const newJob: Job = { generation: gen, type, ranks: emptyRanks, equipment: {}, weaponClasses: [], skills: [] };
+      const ranks: Record<string, JobRankData> = {};
+      DEFAULT_RANKS.forEach((r) => { ranks[r] = { stats: {} }; });
+      const newJob: Job = { generation: gen, type, ranks, shield: "cannot", weaponEquip: {}, skillAccess: { attack: "can", casting: "can" }, skills: [] };
       mutateJobs({ ...jobs, [name]: newJob }, `Added job: ${name}`);
       navigate(`/jobs/${encodeURIComponent(name)}`);
     });
@@ -699,23 +680,45 @@ export default function JobsPage() {
     });
   };
 
+  // ── List filters & sort ──
   const [search, setSearch] = useState("");
   const [genFilter, setGenFilter] = useState<"all" | "1" | "2">("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "combat" | "non-combat">("all");
   const [addingJob, setAddingJob] = useState(false);
 
+  // Sort by stat
+  const [sortStat, setSortStat] = useState<string>("");
+  const [sortRank, setSortRank] = useState<string>("S");
+  const [sortLevel, setSortLevel] = useState<number>(1);
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortExpanded, setSortExpanded] = useState(false);
+
   const filteredJobs = useMemo(() => {
-    return Object.entries(jobs)
-      .filter(([name, job]) => {
-        if (genFilter === "1" && job.generation !== 1) return false;
-        if (genFilter === "2" && job.generation !== 2) return false;
-        if (typeFilter === "combat" && job.type !== "combat") return false;
-        if (typeFilter === "non-combat" && job.type !== "non-combat") return false;
-        if (search && !name.toLowerCase().includes(search.toLowerCase())) return false;
-        return true;
-      })
-      .sort(([a], [b]) => a.localeCompare(b));
-  }, [jobs, genFilter, typeFilter, search]);
+    const entries = Object.entries(jobs).filter(([name, job]) => {
+      if (genFilter === "1" && job.generation !== 1) return false;
+      if (genFilter === "2" && job.generation !== 2) return false;
+      if (typeFilter === "combat" && job.type !== "combat") return false;
+      if (typeFilter === "non-combat" && job.type !== "non-combat") return false;
+      if (search && !name.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+
+    if (sortStat) {
+      entries.sort(([, a], [, b]) => {
+        const getVal = (job: Job) => {
+          const rd = job.ranks[sortRank] ?? Object.values(job.ranks)[0];
+          const s = rd?.stats[sortStat];
+          return s ? statAtLevel(s, sortLevel) : -Infinity;
+        };
+        const va = getVal(a), vb = getVal(b);
+        return sortDir === "desc" ? vb - va : va - vb;
+      });
+    } else {
+      entries.sort(([a], [b]) => a.localeCompare(b));
+    }
+
+    return entries;
+  }, [jobs, genFilter, typeFilter, search, sortStat, sortRank, sortLevel, sortDir]);
 
   const selectedJob = jobParam ? decodeURIComponent(jobParam) : null;
 
@@ -725,6 +728,7 @@ export default function JobsPage() {
       <NewJobDialog open={addingJob} onClose={() => setAddingJob(false)} onCreate={addJob} />
 
       <div className="max-w-5xl mx-auto px-4 py-8">
+        {/* Page header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             {selectedJob ? (
@@ -765,6 +769,7 @@ export default function JobsPage() {
           </div>
         </div>
 
+        {/* Detail page */}
         {selectedJob && jobs[selectedJob] ? (
           <JobDetail
             jobName={selectedJob}
@@ -782,7 +787,7 @@ export default function JobsPage() {
         ) : (
           <>
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <Input placeholder="Search jobs…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-sm w-44" />
               <div className="flex rounded-md overflow-hidden border border-input">
                 {(["all", "1", "2"] as const).map((g) => (
@@ -804,6 +809,50 @@ export default function JobsPage() {
               </div>
             </div>
 
+            {/* Sort controls */}
+            <div className="mb-4">
+              <button
+                onClick={() => setSortExpanded((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                Sort by stat
+                {sortStat && <Badge variant="outline" className="text-[10px] ml-1">{sortStat} @ Lv {sortLevel} · {sortDir === "desc" ? "↓ High" : "↑ Low"}</Badge>}
+                <ChevronDown className={`w-3 h-3 transition-transform ${sortExpanded ? "rotate-180" : ""}`} />
+              </button>
+              {sortExpanded && (
+                <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-border bg-muted/20">
+                  <select value={sortStat} onChange={(e) => setSortStat(e.target.value)}
+                    className="h-7 text-xs rounded border border-input bg-background px-2">
+                    <option value="">— Name (A-Z) —</option>
+                    {STAT_ORDER.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  {sortStat && (
+                    <>
+                      <select value={sortRank} onChange={(e) => setSortRank(e.target.value)}
+                        className="h-7 text-xs rounded border border-input bg-background px-2">
+                        {DEFAULT_RANKS.map((r) => <option key={r} value={r}>Rank {r}</option>)}
+                      </select>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground">Lv</span>
+                        <Input type="number" min={1} max={MAX_LEVEL} value={sortLevel}
+                          onChange={(e) => setSortLevel(Math.min(MAX_LEVEL, Math.max(1, parseInt(e.target.value) || 1)))}
+                          className="h-7 w-16 text-xs text-center" />
+                      </div>
+                      <button onClick={() => setSortDir((d) => d === "desc" ? "asc" : "desc")}
+                        className="flex items-center gap-1 px-2 h-7 text-xs rounded border border-input bg-background hover:border-primary/40 transition-colors">
+                        {sortDir === "desc" ? <><ArrowDown className="w-3 h-3" />Highest first</> : <><ArrowUp className="w-3 h-3" />Lowest first</>}
+                      </button>
+                      <button onClick={() => { setSortStat(""); }} className="text-xs text-muted-foreground hover:text-destructive transition-colors">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Job list */}
             {isLoading ? (
               <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
             ) : filteredJobs.length === 0 ? (
@@ -814,6 +863,11 @@ export default function JobsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {filteredJobs.map(([name, job]) => {
                   const rankList = Object.keys(job.ranks);
+                  const sortStatVal = sortStat ? (() => {
+                    const rd = job.ranks[sortRank] ?? Object.values(job.ranks)[0];
+                    const s = rd?.stats[sortStat];
+                    return s ? Math.round(statAtLevel(s, sortLevel) * 100) / 100 : null;
+                  })() : null;
                   return (
                     <Card key={name} className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group"
                       onClick={() => navigate(`/jobs/${encodeURIComponent(name)}`)}>
@@ -835,14 +889,14 @@ export default function JobsPage() {
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              {rankList.length === 0 ? (
-                                <span className="text-[10px] text-muted-foreground">No ranks set</span>
-                              ) : rankList.map((r) => (
+                              {rankList.map((r) => (
                                 <span key={r} className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-medium">{r}</span>
                               ))}
                             </div>
-                            {job.skills.length > 0 && (
-                              <p className="text-[10px] text-muted-foreground mt-1 truncate">{job.skills.length} skill{job.skills.length !== 1 ? "s" : ""}</p>
+                            {sortStatVal !== null && (
+                              <p className="text-xs font-semibold text-primary mt-1">
+                                {sortStat} @ Lv {sortLevel}: {sortStatVal}
+                              </p>
                             )}
                           </div>
                           <button
@@ -860,7 +914,7 @@ export default function JobsPage() {
             )}
 
             <p className="text-xs text-muted-foreground mt-4 text-center">
-              {Object.keys(jobs).length} jobs · click any job to open its detail page
+              {Object.keys(jobs).length} jobs · click any job to view details
             </p>
           </>
         )}

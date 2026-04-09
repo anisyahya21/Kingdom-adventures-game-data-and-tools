@@ -32,8 +32,9 @@ export type Job = {
   type?: "combat" | "non-combat";
   icon?: string;
   ranks: Record<string, JobRank>;
-  equipment: Partial<Record<string, "can" | "cannot" | "weak">>;
-  weaponClasses?: string[];
+  shield?: "can" | "cannot";
+  weaponEquip?: Partial<Record<string, "can" | "cannot" | "weak">>;
+  skillAccess?: { attack?: "can" | "cannot"; casting?: "can" | "cannot" };
   skills: string[];
 };
 
