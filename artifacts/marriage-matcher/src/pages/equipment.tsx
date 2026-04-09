@@ -653,10 +653,9 @@ export default function EquipmentPage() {
     });
   }, [saveStatIcons, withName, userName]);
 
-  const slotOptions = useMemo(() => {
-    const assigned = new Set(Object.values(slotAssignments).filter((s) => s && s !== "—"));
-    return ["All", ...CHAR_SLOTS.filter((s) => assigned.has(s))];
-  }, [slotAssignments]);
+  const [sortByInc, setSortByInc] = useState(false);
+
+  const slotOptions = ["All", ...CHAR_SLOTS, "Unassigned"] as const;
 
   const handleSort = (col: string) => {
     if (sortCol === col) setSortDir((d) => d === "asc" ? "desc" : "asc");
@@ -673,7 +672,11 @@ export default function EquipmentPage() {
     let list = compareMode ? items.filter((i) => selectedUids.has(i.uid)) : items;
     if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
     if (slotFilter !== "All") {
-      list = list.filter((i) => { const a = getItemSlot(i.name); return a !== "—" ? a === slotFilter : i.sheetSlot === slotFilter; });
+      list = list.filter((i) => {
+        const a = getItemSlot(i.name);
+        if (slotFilter === "Unassigned") return a === "—";
+        return a !== "—" ? a === slotFilter : i.sheetSlot === slotFilter;
+      });
     }
     if (sortCol) {
       list = [...list].sort((a, b) => {
@@ -682,13 +685,16 @@ export default function EquipmentPage() {
         else if (sortCol === "studioLevel") { av = a.crafterStudioLevel; bv = b.crafterStudioLevel; }
         else if (sortCol === "intReq") { av = a.crafterIntelligence; bv = b.crafterIntelligence; }
         else if (sortCol === "slot") { av = getItemSlot(a.name); bv = getItemSlot(b.name); }
-        else { av = getItemStatVal(a, sortCol); bv = getItemStatVal(b, sortCol); }
+        else {
+          av = sortByInc ? getEffectiveStat(a, sortCol, "inc", overrides) : getItemStatVal(a, sortCol);
+          bv = sortByInc ? getEffectiveStat(b, sortCol, "inc", overrides) : getItemStatVal(b, sortCol);
+        }
         if (typeof av === "string" && typeof bv === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
         return sortDir === "asc" ? Number(av) - Number(bv) : Number(bv) - Number(av);
       });
     }
     return list;
-  }, [items, compareMode, selectedUids, search, slotFilter, sortCol, sortDir, getItemStatVal, getItemSlot]);
+  }, [items, compareMode, selectedUids, search, slotFilter, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemSlot]);
 
   const totalStats = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -803,8 +809,15 @@ export default function EquipmentPage() {
           <Input placeholder="Search equipment…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-sm w-44" />
           <select value={slotFilter} onChange={(e) => setSlotFilter(e.target.value)}
             className="h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-            {slotOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+            {slotOptions.map((s) => <option key={s} value={s}>{s === "All" ? "All slots" : s}</option>)}
           </select>
+          <button
+            onClick={() => setSortByInc((v) => !v)}
+            className={`h-8 px-3 text-xs rounded-md border transition-colors font-medium ${sortByInc ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"}`}
+            title={sortByInc ? "Currently sorting stats by +/Lv increment — click to sort by value at level" : "Currently sorting stats by value at level — click to sort by +/Lv increment"}
+          >
+            Sort stats: {sortByInc ? "+/Lv" : "Value"}
+          </button>
           {selectedUids.size > 0 && !compareMode && (
             <Button size="sm" variant="outline" className="h-8 gap-1.5 border-primary text-primary hover:bg-primary/5" onClick={() => setCompareMode(true)}>
               <CheckSquare className="w-3.5 h-3.5" />Compare {selectedUids.size} selected
@@ -880,8 +893,9 @@ export default function EquipmentPage() {
                       </th>
                       {STAT_ORDER.map((stat) => (
                         <th key={stat} className="text-center px-1.5 py-2 font-medium text-muted-foreground">
-                          <button onClick={() => handleSort(stat)} className="flex flex-col items-center gap-0.5 hover:text-foreground w-full">
+                          <button onClick={() => handleSort(stat)} className="flex flex-col items-center gap-0.5 hover:text-foreground w-full" title={`Sort by ${sortByInc ? "+/Lv increment" : "value at level"} for ${stat}`}>
                             {statIcons[stat] ? <img src={statIcons[stat]} alt={stat} className="w-4 h-4 object-contain mx-auto" title={stat} /> : <span className="text-[10px] whitespace-nowrap">{stat}</span>}
+                            {sortByInc && <span className="text-[8px] text-primary/60 leading-none">+/Lv</span>}
                             <SortIcon col={stat} />
                           </button>
                         </th>
@@ -965,11 +979,17 @@ export default function EquipmentPage() {
                             </td>
                             {STAT_ORDER.map((stat) => {
                               const unset = isStatUnset(item, stat, overrides);
-                              const val = getItemStatVal(item, stat);
                               if (unset) {
                                 return <td key={stat} className="px-1.5 py-1.5 text-center text-xs tabular-nums text-red-400 dark:text-red-500">—</td>;
                               }
-                              return <td key={stat} className={`px-1.5 py-1.5 text-center text-xs tabular-nums ${val === 0 ? "text-muted-foreground/50" : "font-medium text-foreground"}`}>{val}</td>;
+                              const displayVal = sortByInc
+                                ? getEffectiveStat(item, stat, "inc", overrides)
+                                : getItemStatVal(item, stat);
+                              return (
+                                <td key={stat} className={`px-1.5 py-1.5 text-center text-xs tabular-nums ${displayVal === 0 ? "text-muted-foreground/50" : "font-medium text-foreground"}`}>
+                                  {sortByInc && displayVal > 0 ? `+${displayVal}` : displayVal}
+                                </td>
+                              );
                             })}
                           </tr>
 
