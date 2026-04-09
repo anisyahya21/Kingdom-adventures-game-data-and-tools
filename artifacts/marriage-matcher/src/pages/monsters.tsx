@@ -526,9 +526,6 @@ export default function MonstersPage() {
                           {m.spawns.length === 0 ? "no spawn data" : `${m.spawns.length} spawn${m.spawns.length !== 1 ? "s" : ""}`}
                         </span>
                       </button>
-                      <button onClick={() => removeMonster(mName)} className="text-muted-foreground/40 hover:text-destructive transition-colors ml-auto shrink-0">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
 
                     {isExpanded && (

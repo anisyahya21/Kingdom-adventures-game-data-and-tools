@@ -377,7 +377,6 @@ export default function SkillsPage() {
                               ) : (
                                 <>
                                   <button onClick={() => startEdit(skill)} className="text-muted-foreground hover:text-foreground p-0.5 transition-colors"><Pencil className="w-3 h-3" /></button>
-                                  <button onClick={() => deleteSkill(skill.name)} className="text-muted-foreground hover:text-destructive p-0.5 transition-colors"><Trash2 className="w-3 h-3" /></button>
                                 </>
                               )}
                             </div>

@@ -725,6 +725,9 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
   const [level,     setLevel]     = useState(1);
   const [addingRank, setAddingRank] = useState(false);
   const [newRankVal, setNewRankVal] = useState("");
+  const ALL_AFFINITIES = ["S","A","B","C","D","E"] as const;
+  const [affinityFilter, setAffinityFilter] = useState<Set<string>>(new Set(ALL_AFFINITIES));
+  const toggleAffinityFilter = (a: string) => setAffinityFilter((prev) => { const next = new Set(prev); next.has(a) ? next.delete(a) : next.add(a); return next; });
 
   const rankData = draft.ranks[selRank];
   const rankList = Object.keys(draft.ranks);
@@ -790,7 +793,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
     .map(([n]) => n).sort();
 
   // Pairs that involve this job (only for Gen1 jobs)
-  const jobPairs = pairs
+  const allJobPairs = pairs
     .filter((p) => normJob(p.jobA) === normJob(jobName) || normJob(p.jobB) === normJob(jobName))
     .map((p) => {
       const partner = normJob(p.jobA) === normJob(jobName) ? p.jobB : p.jobA;
@@ -798,41 +801,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
     })
     .sort((a, b) => a.partner.localeCompare(b.partner));
 
-  const availablePartners = firstGenJobs.filter((j) => !jobPairs.some((p) => normJob(p.partner) === normJob(j)));
-
-  const addPair = (partner: string) => {
-    if (!partner) return;
-    const key = [normJob(jobName), normJob(partner)].sort().join("|");
-    if (pairs.some((p) => [normJob(p.jobA), normJob(p.jobB)].sort().join("|") === key)) return;
-    const newPair: SharedPair = { id: generatePairId(), jobA: jobName, jobB: partner, children: [] };
-    onSavePairs([...pairs, newPair]);
-  };
-
-  const removePair = (id: string) => {
-    onSavePairs(pairs.filter((p) => p.id !== id));
-  };
-
-  const addChildToPair = (pairId: string, child: string) => {
-    if (!child) return;
-    const updated = pairs.map((p) =>
-      p.id === pairId && !p.children.some((c) => normJob(c) === normJob(child))
-        ? { ...p, children: [...p.children, child].sort() }
-        : p
-    );
-    onSavePairs(updated);
-  };
-
-  const removeChildFromPair = (pairId: string, child: string) => {
-    const updated = pairs.map((p) =>
-      p.id === pairId ? { ...p, children: p.children.filter((c) => normJob(c) !== normJob(child)) } : p
-    );
-    onSavePairs(updated);
-  };
-
-  const updatePairAffinity = (pairId: string, affinity: string) => {
-    const updated = pairs.map((p) => p.id === pairId ? { ...p, affinity: affinity || undefined } : p);
-    onSavePairs(updated);
-  };
+  const jobPairs = allJobPairs.filter((p) => !p.affinity || affinityFilter.has(p.affinity));
 
   const weaponStyle: Record<WeaponValue,string> = {
     can:    "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400",
@@ -1201,14 +1170,36 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
             <p className="text-sm text-muted-foreground">Marriage Exclusive jobs cannot be parents.</p>
           ) : (
             <div className="space-y-3">
+              {/* Affinity filter */}
+              {allJobPairs.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-muted-foreground font-medium shrink-0">Filter:</span>
+                  {ALL_AFFINITIES.map((aff) => {
+                    const colors: Record<string,string> = {
+                      S: "bg-violet-100 dark:bg-violet-950/50 border-violet-400 text-violet-700 dark:text-violet-300",
+                      A: "bg-rose-100 dark:bg-rose-950/40 border-rose-400 text-rose-700 dark:text-rose-300",
+                      B: "bg-amber-100 dark:bg-amber-950/40 border-amber-400 text-amber-700 dark:text-amber-300",
+                      C: "bg-emerald-100 dark:bg-emerald-950/40 border-emerald-400 text-emerald-700 dark:text-emerald-300",
+                      D: "bg-slate-100 dark:bg-slate-800/60 border-slate-400 text-slate-600 dark:text-slate-400",
+                      E: "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 text-zinc-500 dark:text-zinc-400",
+                    };
+                    const active = affinityFilter.has(aff);
+                    return (
+                      <button key={aff} onClick={() => toggleAffinityFilter(aff)}
+                        className={`text-xs font-bold px-2 py-0.5 rounded border transition-all ${active ? (colors[aff] ?? "bg-muted border-border text-foreground") : "bg-transparent border-border text-muted-foreground opacity-30"}`}>
+                        {aff}
+                      </button>
+                    );
+                  })}
+                  <span className="text-xs text-muted-foreground ml-1">({jobPairs.length} / {allJobPairs.length})</span>
+                </div>
+              )}
               {jobPairs.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No compatible pairs added yet for {jobName}. Use the selector below to add known compatible pairs.</p>
+                <p className="text-xs text-muted-foreground">{allJobPairs.length === 0 ? `No compatible pairs recorded for ${jobName} yet.` : "No pairs match the current filter."}</p>
               ) : (
                 <div className="space-y-2">
                   {jobPairs.map(({ id, partner, children, affinity }) => {
-                    const allJobs = Object.keys(jobs).sort();
-                    const availableChildren = allJobs.filter((j) => !children.some((c) => normJob(c) === normJob(j)));
-                    const affinityColors: Record<string,string> = {
+                    const colors: Record<string,string> = {
                       S: "bg-violet-100 dark:bg-violet-950/50 border-violet-400 text-violet-700 dark:text-violet-300",
                       A: "bg-rose-100 dark:bg-rose-950/40 border-rose-400 text-rose-700 dark:text-rose-300",
                       B: "bg-amber-100 dark:bg-amber-950/40 border-amber-400 text-amber-700 dark:text-amber-300",
@@ -1217,68 +1208,35 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                       E: "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 text-zinc-500 dark:text-zinc-400",
                     };
                     return (
-                      <div key={id} className="rounded-md border border-border bg-muted/20 px-3 py-2 space-y-2">
+                      <div key={id} className="rounded-md border border-border bg-muted/20 px-3 py-2 space-y-1.5">
                         <div className="flex items-center gap-2 flex-wrap">
+                          {affinity && (
+                            <span className={`inline-flex items-center px-2 py-0.5 text-xs font-bold rounded-full border ${colors[affinity] ?? "bg-muted border-border text-muted-foreground"}`}>
+                              {affinity}
+                            </span>
+                          )}
                           <Link href={`/jobs/${encodeURIComponent(partner)}`}>
                             <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-full px-2 py-0.5 text-xs cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-950/50 transition-colors font-medium">
                               <Heart className="w-2.5 h-2.5" />{partner}
                             </span>
                           </Link>
-                          {affinity && (
-                            <span className={`inline-flex items-center px-2 py-0.5 text-xs font-bold rounded-full border ${affinityColors[affinity] ?? "bg-muted border-border text-muted-foreground"}`} title="Affinity rating">
-                              {affinity}
-                            </span>
-                          )}
-                          <SearchableSelect
-                            value={affinity ?? ""}
-                            onChange={(v) => updatePairAffinity(id, v)}
-                            options={["S","A","B","C","D","E"].map((g) => ({ value: g, label: g }))}
-                            placeholder="affinity…"
-                            className="ml-1"
-                            triggerClassName="h-5 text-[10px] px-1 w-20"
-                          />
-                          <button onClick={() => removePair(id)} className="ml-auto text-muted-foreground/40 hover:text-destructive transition-colors shrink-0" title="Remove this pair">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
                         </div>
                         {children.length > 0 && (
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[10px] text-muted-foreground">Possible children:</span>
+                            <span className="text-[10px] text-muted-foreground">Children:</span>
                             {children.map((c) => (
-                              <span key={c} className="inline-flex items-center gap-1 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 rounded-full px-2 py-0.5 text-[11px] cursor-default">
+                              <span key={c} className="inline-flex items-center bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 rounded-full px-2 py-0.5 text-[11px]">
                                 {c}
-                                <button onClick={() => removeChildFromPair(id, c)} className="text-violet-400 hover:text-destructive transition-colors"><X className="w-2.5 h-2.5" /></button>
                               </span>
                             ))}
                           </div>
                         )}
-                        <div className="flex gap-1.5">
-                          <SearchableSelect
-                            value=""
-                            clearOnSelect
-                            onChange={(v) => { if (v) addChildToPair(id, v); }}
-                            options={availableChildren.map((j) => ({ value: j, label: j }))}
-                            placeholder="+ Add child job…"
-                            className="flex-1"
-                            triggerClassName="h-6 text-[11px]"
-                          />
-                        </div>
                       </div>
                     );
                   })}
                 </div>
               )}
-              {availablePartners.length > 0 && (
-                <SearchableSelect
-                  value=""
-                  clearOnSelect
-                  onChange={(v) => { if (v) addPair(v); }}
-                  options={availablePartners.map((j) => ({ value: j, label: j }))}
-                  placeholder="+ Add compatible pair with…"
-                  triggerClassName="h-7 text-xs"
-                />
-              )}
-              <p className="text-[10px] text-muted-foreground/70">Compatible pairs are shared community data — visible to all users and in the Marriage Match Finder.</p>
+              <p className="text-[10px] text-muted-foreground/70">Compatible pairs are community data — edit them in the Marriage Match Finder.</p>
             </div>
           )}
         </CardContent>

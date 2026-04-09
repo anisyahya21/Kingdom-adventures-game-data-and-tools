@@ -599,9 +599,6 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
                         </div>
                       )}
                     </div>
-                    <button onClick={() => onRemove(p.id)} className="text-muted-foreground hover:text-destructive transition-colors ml-2 shrink-0">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                   {isExpanded && (
                     <div className="px-4 pb-3 pt-1 bg-muted/20 border-t border-border space-y-2">
@@ -612,9 +609,6 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
                           {sortedChildren.map((c) => (
                             <Badge key={c} variant="secondary" className="text-xs gap-1.5 px-2 py-1">
                               <Baby className="w-3 h-3 text-violet-500" />{c}
-                              <button onClick={() => removeChild(p.id, c)} className="text-muted-foreground hover:text-destructive">
-                                <X className="w-2.5 h-2.5" />
-                              </button>
                             </Badge>
                           ))}
                         </div>
