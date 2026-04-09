@@ -38,17 +38,37 @@ type JobData = {
   skills: string[];
 };
 
-function useSharedJobs() {
+type SharedPair = { id: string; jobA: string; jobB: string; children: string[] };
+
+function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
     queryFn: async () => {
       const r = await fetch(API("/shared"));
-      const d = await r.json() as { jobs: Record<string, JobData> };
+      const d = await r.json() as { jobs: Record<string, JobData>; pairs?: SharedPair[] };
       return d;
     },
     staleTime: 30000,
     refetchInterval: 60000,
   });
+}
+
+async function persistPairs(pairs: SharedPair[], userName: string) {
+  try {
+    await fetch(API("/pairs"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data: pairs,
+        history: {
+          userName: userName || "community",
+          changeType: "job",
+          itemName: "pairs",
+          description: `Updated compatible pairs (${pairs.length} total)`,
+        },
+      }),
+    });
+  } catch { /* ignore network errors */ }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -322,12 +342,13 @@ interface RankTableProps {
   rank: Rank;
   slots: RankSlot[];
   availableJobs: string[];
+  totalFirstGenCount: number;
   onUpdate: (id: string, field: "males" | "females" | "unassigned", value: number) => void;
   onRemove: (id: string) => void;
   onAdd: (rank: Rank, jobName: string) => void;
 }
 
-function RankTable({ rank, slots, availableJobs, onUpdate, onRemove, onAdd }: RankTableProps) {
+function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, onRemove, onAdd }: RankTableProps) {
   const style = RANK_STYLE[rank];
   const maleTotal = slots.reduce((s, j) => s + j.males, 0);
   const femaleTotal = slots.reduce((s, j) => s + j.females, 0);
@@ -403,12 +424,16 @@ function RankTable({ rank, slots, availableJobs, onUpdate, onRemove, onAdd }: Ra
             onChange={(e) => { if (e.target.value) onAdd(rank, e.target.value); }}
             className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground mt-3"
           >
-            <option value="">+ Add a job to Rank {rank}…</option>
+            <option value="">+ Add a job you own at Rank {rank}…</option>
             {availableJobs.map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
+        ) : totalFirstGenCount === 0 ? (
+          <p className="text-xs text-muted-foreground text-center mt-3 py-1">
+            No 1st gen jobs in database yet — add them in the Jobs tool.
+          </p>
         ) : (
           <p className="text-xs text-muted-foreground text-center mt-3 py-1">
-            All 1st gen jobs added to this rank.
+            All {totalFirstGenCount} 1st gen jobs already added to this rank.
           </p>
         )}
       </CardContent>
@@ -510,6 +535,7 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
             {sorted.map((p) => {
               const [d1, d2] = [p.jobA, p.jobB].sort();
               const isExpanded = expandedId === p.id;
+              const sortedChildren = [...p.children].sort();
               return (
                 <div key={p.id} className="transition-colors">
                   <div className="flex items-center justify-between px-3 py-1.5 hover:bg-muted/30">
@@ -523,9 +549,9 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
                       <span className="font-medium truncate">{d1}</span>
                       <ArrowLeftRight className="w-3 h-3 text-muted-foreground shrink-0" />
                       <span className="font-medium truncate">{d2}</span>
-                      {p.children.length > 0 && (
+                      {sortedChildren.length > 0 && (
                         <div className="flex gap-1 flex-wrap ml-1">
-                          {p.children.map((c) => (
+                          {sortedChildren.map((c) => (
                             <Badge key={c} variant="outline" className="text-[10px] px-1.5 py-0 border-violet-300 text-violet-700 dark:text-violet-400 gap-1">
                               <Baby className="w-2.5 h-2.5" />{c}
                             </Badge>
@@ -541,9 +567,9 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
                     <div className="px-4 pb-3 pt-1 bg-muted/20 border-t border-border space-y-2">
                       <p className="text-xs text-muted-foreground font-medium">Possible child outcomes for <strong className="text-foreground">{d1} × {d2}</strong>:</p>
                       <p className="text-[11px] text-muted-foreground">The child can always take the father's or mother's job. Add here any additional job the child can receive from this marriage.</p>
-                      {p.children.length > 0 && (
+                      {sortedChildren.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
-                          {p.children.map((c) => (
+                          {sortedChildren.map((c) => (
                             <Badge key={c} variant="secondary" className="text-xs gap-1.5 px-2 py-1">
                               <Baby className="w-3 h-3 text-violet-500" />{c}
                               <button onClick={() => removeChild(p.id, c)} className="text-muted-foreground hover:text-destructive">
@@ -815,7 +841,7 @@ function InfoDialog() {
             <p>Click <strong>Calculate</strong> to find the optimal matching. Lock pairs with 🔓 to keep them fixed across recalculations.</p>
           </div>
           <div className="rounded-lg bg-muted px-3 py-2 text-xs">
-            <strong className="text-foreground">Your data stays private.</strong> Job lists, rank assignments, and locks are saved in <em>this browser only</em> and don't affect anyone else.
+            <strong className="text-foreground">What's shared vs. private?</strong> Compatible pairs are community data shared across all users. Rank assignments, locks, and filters are saved in <em>this browser only</em> — private to you.
           </div>
         </div>
       </DialogContent>
@@ -841,7 +867,7 @@ export default function MarriageMatcher() {
   }, [darkMode]);
 
   // ── API data ──
-  const { data: sharedData, isLoading: jobsLoading } = useSharedJobs();
+  const { data: sharedData, isLoading: jobsLoading } = useSharedData();
 
   const apiFirstGenJobs = useMemo(() => {
     if (!sharedData?.jobs) return null;
@@ -853,6 +879,11 @@ export default function MarriageMatcher() {
   const apiAllJobs = useMemo(() => {
     if (!sharedData?.jobs) return null;
     return Object.keys(sharedData.jobs).sort();
+  }, [sharedData]);
+
+  const apiPairs = useMemo(() => {
+    if (!sharedData?.pairs) return null;
+    return sharedData.pairs.map((p) => ({ ...p, children: p.children ?? [] }));
   }, [sharedData]);
 
   const jobTypeMap = useMemo(() => {
@@ -914,7 +945,8 @@ export default function MarriageMatcher() {
     return [];
   });
 
-  // ── State: pairs (with children upgrade for old data) ──
+  // ── State: pairs — loaded from API (community), fallback to localStorage ──
+  const [pairsLoadedFromApi, setPairsLoadedFromApi] = useState(false);
   const [pairs, setPairs] = useState<Pair[]>(() => {
     try {
       const s = localStorage.getItem("ka_mf_pairs");
@@ -949,9 +981,29 @@ export default function MarriageMatcher() {
   const [resultIncludeJobs, setResultIncludeJobs] = useState<string[]>([]);
   const [resultExcludeJobs, setResultExcludeJobs] = useState<string[]>([]);
 
+  // ── Sync pairs from API (one-time on first load) ──
+  const pairsRef = useRef(pairs);
+  useEffect(() => { pairsRef.current = pairs; }, [pairs]);
+
+  useEffect(() => {
+    if (!apiPairs || pairsLoadedFromApi) return;
+    setPairsLoadedFromApi(true);
+    if (apiPairs.length > 0) {
+      setPairs(apiPairs);
+    } else {
+      // API has no pairs yet — push our local pairs up to the backend
+      persistPairs(pairsRef.current, "community");
+    }
+  }, [apiPairs]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Persist ──
   useEffect(() => { localStorage.setItem("ka_mf_rankSlots", JSON.stringify(rankSlots)); }, [rankSlots]);
-  useEffect(() => { localStorage.setItem("ka_mf_pairs", JSON.stringify(pairs)); }, [pairs]);
+  useEffect(() => {
+    localStorage.setItem("ka_mf_pairs", JSON.stringify(pairs));
+    if (pairsLoadedFromApi) {
+      persistPairs(pairs, "community");
+    }
+  }, [pairs, pairsLoadedFromApi]);
   useEffect(() => { localStorage.setItem("ka_mf_lockedPairs", JSON.stringify(lockedPairs)); }, [lockedPairs]);
   useEffect(() => { localStorage.setItem("ka_mf_desiredChildren", JSON.stringify(desiredChildren)); }, [desiredChildren]);
 
@@ -1133,7 +1185,7 @@ export default function MarriageMatcher() {
                 Plan optimal marriages for <span className="font-medium text-foreground">Compatibility A</span> — the highest marriage compatibility rating (A through E, A is best). All 1st generation jobs have Compatibility A with each other.
               </p>
               <p className="mt-1 text-muted-foreground text-xs max-w-xl">
-                Your rank assignments, pairs, and settings are saved <span className="font-medium">in this browser only</span> — personal to you, invisible to everyone else.
+                Your rank assignments and settings are <span className="font-medium">private to your browser</span>. Compatible pairs are <span className="font-medium">shared community data</span> — visible to all users and shown on job pages.
               </p>
             </div>
           </div>
@@ -1165,6 +1217,7 @@ export default function MarriageMatcher() {
             <RankTable key={rank} rank={rank}
               slots={rankSlots.filter((s) => s.rank === rank)}
               availableJobs={availablePerRank[rank]}
+              totalFirstGenCount={sortedJobNames.length}
               onUpdate={updateSlot} onRemove={removeSlot} onAdd={addSlot}
             />
           ))}

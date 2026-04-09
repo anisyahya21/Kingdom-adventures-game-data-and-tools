@@ -45,10 +45,13 @@ type Job = {
   shops?: string[];
   notes?: string;
 };
+type SharedPair = { id: string; jobA: string; jobB: string; children: string[] };
+
 type SharedData = {
   jobs: Record<string,Job>;
   statIcons: Record<string,string>;
   weaponCategories?: string[];
+  pairs?: SharedPair[];
 };
 
 function statAtLevel(entry: JobStatEntry, level: number): number {
@@ -670,11 +673,12 @@ function ShopInput({ onAdd }: { onAdd: (v: string) => void }) {
   );
 }
 
-function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
+function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSave }: {
   jobName: string;
   jobs: Record<string,Job>;
   statIcons: Record<string,string>;
   weaponCategories: string[];
+  pairs: SharedPair[];
   onSave: (updated: Record<string,Job>, desc: string) => void;
 }) {
   const [, navigate] = useLocation();
@@ -749,6 +753,15 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
   const firstGenJobs = Object.entries(jobs)
     .filter(([n, j]) => j.generation === 1 && n !== jobName)
     .map(([n]) => n).sort();
+
+  // Pairs that involve this job (only for Gen1 jobs)
+  const jobPairs = pairs
+    .filter((p) => p.jobA === jobName || p.jobB === jobName)
+    .map((p) => {
+      const partner = p.jobA === jobName ? p.jobB : p.jobA;
+      return { partner, children: [...p.children].sort() };
+    })
+    .sort((a, b) => a.partner.localeCompare(b.partner));
 
   const weaponStyle: Record<WeaponValue,string> = {
     can:    "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400",
@@ -1110,17 +1123,51 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
           ) : firstGenJobs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No other first generation jobs in the database yet.</p>
           ) : (
-            <div>
-              <p className="text-xs text-muted-foreground mb-3">All first generation jobs are <strong>Compatibility A</strong> with each other.</p>
-              <div className="flex flex-wrap gap-1.5">
-                {firstGenJobs.map((j) => (
-                  <Link key={j} href={`/jobs/${encodeURIComponent(j)}`}>
-                    <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-full px-2.5 py-1 text-xs cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-950/50 transition-colors">
-                      <Heart className="w-2.5 h-2.5" />{j}
-                    </span>
-                  </Link>
-                ))}
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">All first generation jobs are <strong>Compatibility A</strong> with each other.</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {firstGenJobs.map((j) => (
+                    <Link key={j} href={`/jobs/${encodeURIComponent(j)}`}>
+                      <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-full px-2.5 py-1 text-xs cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-950/50 transition-colors">
+                        <Heart className="w-2.5 h-2.5" />{j}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
               </div>
+              {jobPairs.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Known pairings with child outcomes:</p>
+                  <div className="space-y-2">
+                    {jobPairs.map(({ partner, children }) => (
+                      <div key={partner} className="rounded-md border border-border bg-muted/20 px-3 py-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link href={`/jobs/${encodeURIComponent(partner)}`}>
+                            <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-full px-2 py-0.5 text-xs cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-950/50 transition-colors font-medium">
+                              <Heart className="w-2.5 h-2.5" />{partner}
+                            </span>
+                          </Link>
+                          {children.length > 0 ? (
+                            <>
+                              <span className="text-xs text-muted-foreground">→ possible children:</span>
+                              {children.map((c) => (
+                                <Link key={c} href={`/jobs/${encodeURIComponent(c)}`}>
+                                  <span className="inline-flex items-center gap-1 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 rounded-full px-2 py-0.5 text-xs cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-950/50 transition-colors">
+                                    {c}
+                                  </span>
+                                </Link>
+                              ))}
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/60">no extra children defined</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -1144,6 +1191,7 @@ export default function JobsPage() {
   const jobs:             Record<string,Job>    = data?.jobs ?? {};
   const statIcons:        Record<string,string> = data?.statIcons ?? {};
   const weaponCategories: string[]              = data?.weaponCategories ?? [];
+  const pairs:            SharedPair[]          = data?.pairs ?? [];
 
   const withName = useCallback((fn: () => void) => {
     if (!userName) { setPendingFn(() => fn); setPromptName(true); }
@@ -1207,6 +1255,7 @@ export default function JobsPage() {
             jobs={jobs}
             statIcons={statIcons}
             weaponCategories={weaponCategories}
+            pairs={pairs}
             onSave={handleSaveJobs}
           />
         ) : selectedJob ? (

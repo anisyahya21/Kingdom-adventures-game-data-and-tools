@@ -27,6 +27,7 @@ export type WeeklyConquest = {
 
 export type JobStatEntry = { base: number; inc: number; levels?: Record<string, number> };
 export type JobRank = { stats: Record<string, JobStatEntry> };
+export type SharedPair = { id: string; jobA: string; jobB: string; children: string[] };
 export type Job = {
   generation: 1 | 2;
   type?: "combat" | "non-combat";
@@ -51,6 +52,7 @@ type SharedState = {
   monsters: Record<string, Monster>;
   weeklyConquest: WeeklyConquest | null;
   jobs: Record<string, Job>;
+  pairs: SharedPair[];
 };
 
 const DEFAULT_STATE: SharedState = {
@@ -64,6 +66,7 @@ const DEFAULT_STATE: SharedState = {
   monsters: {},
   weeklyConquest: null,
   jobs: {},
+  pairs: [],
 };
 
 function ensureDir() {
@@ -82,6 +85,7 @@ function readState(): SharedState {
       monsters: {},
       weeklyConquest: null,
       jobs: {},
+      pairs: [],
       ...parsed,
     };
   } catch {
@@ -212,6 +216,15 @@ router.put("/ka/jobs", (req, res) => {
   const { data, history } = req.body as { data: SharedState["jobs"]; history?: Omit<HistoryEntry, "id" | "timestamp"> };
   const state = readState();
   state.jobs = data ?? {};
+  if (history) appendHistory(state, history);
+  writeState(state);
+  res.json({ ok: true });
+});
+
+router.put("/ka/pairs", (req, res) => {
+  const { data, history } = req.body as { data: SharedPair[]; history?: Omit<HistoryEntry, "id" | "timestamp"> };
+  const state = readState();
+  state.pairs = Array.isArray(data) ? data : [];
   if (history) appendHistory(state, history);
   writeState(state);
   res.json({ ok: true });
