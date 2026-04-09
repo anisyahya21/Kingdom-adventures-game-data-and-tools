@@ -150,21 +150,33 @@ function NamePrompt({ onSave }: { onSave: (n: string) => void }) {
   );
 }
 
-function NewJobDialog({ open, onClose, onCreate }: {
+function NewJobDialog({ open, onClose, onCreate, existingNames }: {
   open: boolean; onClose: () => void;
   onCreate: (name: string, gen: 1|2, type: "combat"|"non-combat") => void;
+  existingNames: string[];
 }) {
   const [name, setName]     = useState("");
   const [gen, setGen]       = useState<1|2>(1);
   const [jobType, setJobType] = useState<"combat"|"non-combat">("combat");
-  const submit = () => { if (name.trim()) { onCreate(name.trim(), gen, jobType); setName(""); } };
+  const [error, setError]   = useState("");
+  const trimmed = name.trim();
+  const isDupe = existingNames.some((n) => normJob(n) === normJob(trimmed));
+  const submit = () => {
+    if (!trimmed) return;
+    if (isDupe) { setError("A job with this name already exists."); return; }
+    onCreate(trimmed, gen, jobType);
+    setName(""); setError("");
+  };
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-xs">
         <DialogHeader><DialogTitle>Add Job</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Job name…"
-            className="h-8 text-sm" onKeyDown={(e) => e.key === "Enter" && submit()} autoFocus />
+          <div>
+            <Input value={name} onChange={(e) => { setName(e.target.value); setError(""); }} placeholder="Job name…"
+              className={`h-8 text-sm ${error ? "border-destructive" : ""}`} onKeyDown={(e) => e.key === "Enter" && submit()} autoFocus />
+            {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+          </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Job Type</label>
             <div className="flex gap-2">
@@ -521,6 +533,7 @@ function JobsTable({
   }, [jobs, genFilter, typeFilter, search, sortCol, sortDir]);
 
   const addJob = (name: string, gen: 1|2, type: "combat"|"non-combat") => {
+    if (Object.keys(jobs).some((k) => normJob(k) === normJob(name))) return;
     const ranks: Record<string,JobRankData> = {};
     DEFAULT_RANKS.forEach((r) => { ranks[r] = { stats: {} }; });
     const newJob: Job = { generation: gen, type, ranks, skills: [] };
@@ -547,7 +560,7 @@ function JobsTable({
 
   return (
     <div>
-      <NewJobDialog open={addingJob} onClose={() => setAddingJob(false)} onCreate={addJob} />
+      <NewJobDialog open={addingJob} onClose={() => setAddingJob(false)} onCreate={addJob} existingNames={Object.keys(jobs)} />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -789,6 +802,8 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
 
   const addPair = (partner: string) => {
     if (!partner) return;
+    const key = [normJob(jobName), normJob(partner)].sort().join("|");
+    if (pairs.some((p) => [normJob(p.jobA), normJob(p.jobB)].sort().join("|") === key)) return;
     const newPair: SharedPair = { id: generatePairId(), jobA: jobName, jobB: partner, children: [] };
     onSavePairs([...pairs, newPair]);
   };

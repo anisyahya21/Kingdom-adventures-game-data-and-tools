@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API = (p: string) => `${BASE}/ka-api/ka${p}`;
 
-const RANKS = ["A", "S", "SS", "SSS", "B", "C"];
 
 type MonsterSpawn = { area: string; level: number };
 type Monster = { icon?: string; spawns: MonsterSpawn[] };
@@ -263,12 +262,12 @@ export default function MonstersPage() {
   const [editingConquest, setEditingConquest] = useState(false);
   const [conquestDraft, setConquestDraft] = useState<{
     monsters: string[]; reward: WeeklyReward;
-  }>({ monsters: [], reward: { jobName: "", jobRank: "A", diamonds: 0, equipment: "" } });
+  }>({ monsters: [], reward: { jobName: "", jobRank: "S", diamonds: 0, equipment: "" } });
 
   const openConquestEditor = () => {
     setConquestDraft({
       monsters: weeklyConquest?.monsters ?? [],
-      reward: weeklyConquest?.reward ?? { jobName: "", jobRank: "A", diamonds: 0, equipment: "" },
+      reward: { ...(weeklyConquest?.reward ?? { jobName: "", diamonds: 0, equipment: "" }), jobRank: "S" },
     });
     setEditingConquest(true);
   };
@@ -632,15 +631,9 @@ export default function MonstersPage() {
                       {(gen1NonCombatJobNames.length > 0 ? gen1NonCombatJobNames : jobNames).map((j) => <option key={j} value={j}>{j}</option>)}
                     </select>
                   </div>
-                  <div className="w-24">
+                  <div className="w-16">
                     <label className="text-xs text-muted-foreground mb-1 block">Rank</label>
-                    <select
-                      value={conquestDraft.reward.jobRank}
-                      onChange={(e) => setConquestDraft((d) => ({ ...d, reward: { ...d.reward, jobRank: e.target.value } }))}
-                      className="h-8 w-full text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                      {RANKS.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
+                    <div className="h-8 flex items-center px-2 rounded border border-input bg-muted text-xs font-semibold text-foreground">S</div>
                   </div>
                 </div>
                 <div>
