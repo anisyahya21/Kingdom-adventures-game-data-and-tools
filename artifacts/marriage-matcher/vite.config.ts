@@ -62,6 +62,12 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: {
+      "/ka-api": {
+        target: "http://localhost:8080",
+        rewrite: (p) => p.replace(/^\/ka-api/, "/api"),
+      },
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],

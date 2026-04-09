@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef, Fragment } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useCallback, useRef, Fragment, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
@@ -31,6 +31,11 @@ const STAT_FULL: Record<string, string> = {
 
 const STAT_ORDER = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelligence","Dexterity","Gather","Move","Heart"];
 
+const CHAR_SLOTS = ["Head", "Weapon", "Shield", "Armor", "Accessory"] as const;
+type CharSlot = typeof CHAR_SLOTS[number];
+
+const SLOT_OPTIONS: Array<CharSlot | "—"> = ["—", "Head", "Weapon", "Shield", "Armor", "Accessory"];
+
 function fullStat(raw: string): string { return STAT_FULL[raw.toLowerCase().trim()] ?? raw; }
 function isStatCol(col: string): boolean { return !!STAT_FULL[col.toLowerCase().trim()]; }
 
@@ -50,9 +55,9 @@ const SHEET_ID = "1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk";
 const GID = "123527243";
 
 export interface EquipmentItem {
-  uid: string; // unique stable id (index-based)
+  uid: string;
   name: string;
-  slot: string;
+  sheetSlot: string; // raw value from sheet
   baseStats: Record<string, number>;
   incStats: Record<string, number>;
   crafterStudioLevel: number;
@@ -69,17 +74,13 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
   const cols = rawCols.map((c) => (c.label || c.id).trim());
   const colTypes = rawCols.map((c) => c.type);
 
-  // Find name column: explicit label match first, then first string column
   const nameColIdx = (() => {
     const ex = cols.findIndex((c) => /^(name|item.?name|equipment.?name|equip(ment)?)$/i.test(c));
     if (ex >= 0) return ex;
     return colTypes.findIndex((t) => t === "string");
   })();
 
-  // Find slot column
   const slotColIdx = cols.findIndex((c, i) => i !== nameColIdx && /^(slot|type|equip.?type|category|kind)$/i.test(c));
-
-  // Crafter columns
   const craftLvlIdx = cols.findIndex((c) => /crafterstudio|studio.?level|crafter.?studio/i.test(c));
   const craftIntIdx = cols.findIndex((c) => /craftermintelligence|crafter.?intel|craft.*int/i.test(c));
 
@@ -94,7 +95,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     const name = String(get(nameColIdx) ?? "").trim();
     if (!name || /^\d+$/.test(name)) continue;
 
-    const slot = slotColIdx >= 0 ? String(get(slotColIdx) ?? "").trim() : "";
+    const sheetSlot = slotColIdx >= 0 ? String(get(slotColIdx) ?? "").trim() : "";
 
     const baseStats: Record<string, number> = {};
     const incStats: Record<string, number> = {};
@@ -119,7 +120,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     items.push({
       uid: String(uid++),
       name,
-      slot,
+      sheetSlot,
       baseStats,
       incStats,
       crafterStudioLevel: Number(get(craftLvlIdx)) || 0,
@@ -133,31 +134,71 @@ function statAtLevel(base: number, inc: number, level: number): number {
   return Math.round(base + (level - 1) * inc);
 }
 
-// ─── Overrides stored in localStorage ────────────────────────────────────────
+// ─── Shared state via API ─────────────────────────────────────────────────────
 
 type StatOverrides = Record<string, { base?: number; inc?: number }>;
 
-function useStatOverrides() {
-  const [overrides, setOverrides] = useState<Record<string, StatOverrides>>(() => {
-    try { return JSON.parse(localStorage.getItem("ka_stat_overrides") ?? "{}"); }
-    catch { return {}; }
+interface SharedState {
+  overrides: Record<string, StatOverrides>;
+  slotAssignments: Record<string, string>;
+  equipIcons: Record<string, string>;
+  statIcons: Record<string, string>;
+}
+
+const EMPTY_SHARED: SharedState = {
+  overrides: {},
+  slotAssignments: {},
+  equipIcons: {},
+  statIcons: {},
+};
+
+async function fetchShared(): Promise<SharedState> {
+  const res = await fetch("/ka-api/ka/shared");
+  if (!res.ok) return EMPTY_SHARED;
+  return res.json();
+}
+
+async function putShared(endpoint: string, body: unknown) {
+  await fetch(`/ka-api/ka/shared/${endpoint}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function useShared() {
+  const qc = useQueryClient();
+  const { data: shared = EMPTY_SHARED } = useQuery<SharedState>({
+    queryKey: ["ka-shared"],
+    queryFn: fetchShared,
+    staleTime: 10_000,
+    refetchInterval: 15_000, // poll every 15s so changes from others appear
+    refetchOnWindowFocus: true,
   });
 
-  const setOverride = useCallback((itemName: string, stat: string, field: "base" | "inc", value: number) => {
-    setOverrides((prev) => {
-      const next = {
-        ...prev,
-        [itemName]: {
-          ...(prev[itemName] ?? {}),
-          [stat]: { ...(prev[itemName]?.[stat] ?? {}), [field]: value },
-        },
-      };
-      localStorage.setItem("ka_stat_overrides", JSON.stringify(next));
-      return next;
-    });
-  }, []);
+  const invalidate = useCallback(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }), [qc]);
 
-  return { overrides, setOverride };
+  const saveOverrides = useCallback(async (overrides: Record<string, StatOverrides>) => {
+    await putShared("overrides", overrides);
+    invalidate();
+  }, [invalidate]);
+
+  const saveSlots = useCallback(async (slots: Record<string, string>) => {
+    await putShared("slots", slots);
+    invalidate();
+  }, [invalidate]);
+
+  const saveEquipIcons = useCallback(async (icons: Record<string, string>) => {
+    await putShared("icons/equip", icons);
+    invalidate();
+  }, [invalidate]);
+
+  const saveStatIcons = useCallback(async (icons: Record<string, string>) => {
+    await putShared("icons/stat", icons);
+    invalidate();
+  }, [invalidate]);
+
+  return { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, invalidate };
 }
 
 function getEffectiveStat(item: EquipmentItem, stat: string, field: "base" | "inc", overrides: Record<string, StatOverrides>): number {
@@ -166,29 +207,7 @@ function getEffectiveStat(item: EquipmentItem, stat: string, field: "base" | "in
   return field === "base" ? (item.baseStats[stat] ?? 0) : (item.incStats[stat] ?? 0);
 }
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
-function useIcons(storageKey: string) {
-  const [icons, setIconsState] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem(storageKey) ?? "{}"); }
-    catch { return {}; }
-  });
-  const setIcon = useCallback((key: string, dataUrl: string) => {
-    setIconsState((prev) => {
-      const next = { ...prev, [key]: dataUrl };
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      return next;
-    });
-  }, [storageKey]);
-  const removeIcon = useCallback((key: string) => {
-    setIconsState((prev) => {
-      const next = { ...prev }; delete next[key];
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      return next;
-    });
-  }, [storageKey]);
-  return { icons, setIcon, removeIcon };
-}
+// ─── Icon upload widget ───────────────────────────────────────────────────────
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((res, rej) => {
@@ -199,22 +218,36 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-function IconUpload({ iconKey, icons, setIcon, removeIcon, size = 28 }: {
-  iconKey: string; icons: Record<string, string>;
-  setIcon: (k: string, v: string) => void; removeIcon: (k: string) => void; size?: number;
+function IconUpload({ iconKey, icons, onSave, size = 28 }: {
+  iconKey: string;
+  icons: Record<string, string>;
+  onSave: (icons: Record<string, string>) => void;
+  size?: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const existing = icons[iconKey];
+
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    setIcon(iconKey, await fileToDataUrl(file)); e.target.value = "";
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const dataUrl = await fileToDataUrl(file);
+    onSave({ ...icons, [iconKey]: dataUrl });
+    e.target.value = "";
   };
+
+  const handleRemove = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = { ...icons };
+    delete next[iconKey];
+    onSave(next);
+  };
+
   return (
     <div className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
       {existing ? (
         <>
           <img src={existing} alt="" className="rounded object-contain w-full h-full cursor-pointer hover:opacity-80" onClick={() => inputRef.current?.click()} />
-          <button onClick={(e) => { e.stopPropagation(); removeIcon(iconKey); }}
+          <button onClick={handleRemove}
             className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center">
             <X className="w-2 h-2" />
           </button>
@@ -232,14 +265,25 @@ function IconUpload({ iconKey, icons, setIcon, removeIcon, size = 28 }: {
 
 // ─── Character builder ────────────────────────────────────────────────────────
 
-const CHAR_SLOTS = ["Head", "Weapon", "Shield", "Armor", "Accessory"] as const;
-type CharSlot = typeof CHAR_SLOTS[number];
 interface SlotEntry { itemName: string; level: number; }
 type LoadoutState = Record<CharSlot, SlotEntry>;
 const DEFAULT_LOADOUT: LoadoutState = {
-  Head: { itemName: "", level: 1 }, Weapon: { itemName: "", level: 1 },
-  Shield: { itemName: "", level: 1 }, Armor: { itemName: "", level: 1 }, Accessory: { itemName: "", level: 1 },
+  Head: { itemName: "", level: 1 },
+  Weapon: { itemName: "", level: 1 },
+  Shield: { itemName: "", level: 1 },
+  Armor: { itemName: "", level: 1 },
+  Accessory: { itemName: "", level: 1 },
 };
+
+// ─── Dark mode ────────────────────────────────────────────────────────────────
+
+function initDark() {
+  const saved = localStorage.getItem("theme");
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDark = saved ? saved === "dark" : prefersDark;
+  document.documentElement.classList.toggle("dark", isDark);
+  return isDark;
+}
 
 // ─── Info dialog ──────────────────────────────────────────────────────────────
 
@@ -254,26 +298,26 @@ function InfoDialog() {
         <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
           <div>
             <h3 className="font-semibold text-foreground mb-1">Comparing stats at any level</h3>
-            <p>Each row in the table has its own <strong>Level</strong> input (1–99). Change the level to see how that item's stats scale. You can compare items at different levels simultaneously.</p>
+            <p>Each row has its own <strong>Level</strong> input (1–99). Change it to see how stats scale. You can compare items at different levels simultaneously.</p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">Editing start & increment values</h3>
-            <p>Stats are calculated as: <code className="bg-muted px-1 rounded text-xs">Base + (Level − 1) × Increment</code>. If the sheet data didn't load correctly for an item, <strong>click its name</strong> to expand it. You'll see two inputs per stat — the Base value at level 1, and the Increment per level. These are saved in your browser and override the sheet values.</p>
+            <h3 className="font-semibold text-foreground mb-1">Assigning a slot</h3>
+            <p>Use the <strong>Slot</strong> dropdown on each item to assign it to Head, Weapon, Shield, Armor, or Accessory. Once assigned, it will only appear in that slot of the Character Builder.</p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">Sorting</h3>
-            <p>Click any column header to sort — stats, name, slot, Studio Lv, or INT required. Click again to reverse the order.</p>
+            <h3 className="font-semibold text-foreground mb-1">Editing base & increment values</h3>
+            <p>Stats use the formula: <code className="bg-muted px-1 rounded text-xs">Base + (Level − 1) × Increment</code>. Click an item's name to expand its stat editor. Changes are shared with everyone.</p>
           </div>
           <div>
             <h3 className="font-semibold text-foreground mb-1">Character Builder</h3>
-            <p>Scroll down to the Character Builder to fill each equipment slot. Set individual levels per slot and see total combined stats at the bottom.</p>
+            <p>Your personal loadout — pick one item per slot. It remembers your choices even after you close the page.</p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">Icons</h3>
-            <p>Upload icons for each stat (HP, MP, etc.) in the Stat Icons row at the top. Click any item's icon slot in the table to upload an icon for that piece of equipment.</p>
+            <h3 className="font-semibold text-foreground mb-1">Shared vs. personal</h3>
+            <p>Slot assignments, stat values, and icons are <strong>shared across everyone</strong> who visits this page. The character builder is personal to you.</p>
           </div>
           <div className="rounded-lg bg-muted px-3 py-2 text-xs">
-            <strong className="text-foreground">Tip:</strong> Equipment showing "Not craftable" in red have a Studio Level of 0 in the sheet, meaning they cannot be crafted by a player.
+            <strong className="text-foreground">Tip:</strong> "Not craftable" (in red) means the item's Studio Level is 0 in the sheet — it can't be made by players.
           </div>
         </div>
       </DialogContent>
@@ -284,37 +328,47 @@ function InfoDialog() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EquipmentPage() {
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
+  const [darkMode, setDarkMode] = useState(() => initDark());
+
   const toggleDark = () => {
-    const next = !darkMode; setDarkMode(next);
+    const next = !darkMode;
+    setDarkMode(next);
     document.documentElement.classList.toggle("dark", next);
     localStorage.setItem("theme", next ? "dark" : "light");
   };
 
+  // Sheet data
   const { data: items = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery({
-    queryKey: ["equipment"], queryFn: fetchSheet, staleTime: 5 * 60 * 1000,
+    queryKey: ["equipment"],
+    queryFn: fetchSheet,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const { icons: equipIcons, setIcon: setEquipIcon, removeIcon: removeEquipIcon } = useIcons("ka_equip_icons");
-  const { icons: statIcons, setIcon: setStatIcon, removeIcon: removeStatIcon } = useIcons("ka_stat_icons");
-  const { overrides, setOverride } = useStatOverrides();
+  // Shared API state
+  const { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons } = useShared();
+  const { overrides, slotAssignments, equipIcons, statIcons } = shared;
 
-  // Per-item levels in the comparison table
+  // Per-item levels (local — just for the comparison table)
   const [itemLevels, setItemLevels] = useState<Record<string, number>>({});
   const getItemLevel = (name: string) => itemLevels[name] ?? 1;
   const setItemLevel = (name: string, v: number) =>
     setItemLevels((prev) => ({ ...prev, [name]: Math.min(99, Math.max(1, v)) }));
 
+  // Expanded stat editor row
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+
+  // Table controls
   const [search, setSearch] = useState("");
   const [slotFilter, setSlotFilter] = useState("All");
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
+  // Character builder — personal, persisted in localStorage
   const [loadout, setLoadout] = useState<LoadoutState>(() => {
     try { return JSON.parse(localStorage.getItem("ka_loadout") ?? "null") ?? DEFAULT_LOADOUT; }
     catch { return DEFAULT_LOADOUT; }
   });
+
   const setLoadoutEntry = (slot: CharSlot, entry: Partial<SlotEntry>) =>
     setLoadout((prev) => {
       const next = { ...prev, [slot]: { ...prev[slot], ...entry } };
@@ -322,10 +376,32 @@ export default function EquipmentPage() {
       return next;
     });
 
+  // Helpers
+  const getItemSlot = useCallback((name: string): string => {
+    return slotAssignments[name] ?? "—";
+  }, [slotAssignments]);
+
+  const setItemSlot = useCallback(async (name: string, slot: string) => {
+    const next = { ...slotAssignments, [name]: slot };
+    await saveSlots(next);
+  }, [slotAssignments, saveSlots]);
+
+  const setOverride = useCallback(async (itemName: string, stat: string, field: "base" | "inc", value: number) => {
+    const next = {
+      ...overrides,
+      [itemName]: {
+        ...(overrides[itemName] ?? {}),
+        [stat]: { ...(overrides[itemName]?.[stat] ?? {}), [field]: value },
+      },
+    };
+    await saveOverrides(next);
+  }, [overrides, saveOverrides]);
+
   const slotOptions = useMemo(() => {
-    const s = new Set(items.map((i) => i.slot).filter(Boolean));
-    return ["All", ...Array.from(s).sort()];
-  }, [items]);
+    const assigned = new Set(Object.values(slotAssignments).filter((s) => s && s !== "—"));
+    const fromSheet = new Set(items.map((i) => i.sheetSlot).filter(Boolean));
+    return ["All", ...CHAR_SLOTS.filter((s) => assigned.has(s) || fromSheet.has(s)), ...Array.from(fromSheet).filter((s) => !CHAR_SLOTS.includes(s as CharSlot)).sort()];
+  }, [items, slotAssignments]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) setSortDir((d) => d === "asc" ? "desc" : "asc");
@@ -341,20 +417,29 @@ export default function EquipmentPage() {
   const filtered = useMemo(() => {
     let list = items;
     if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
-    if (slotFilter !== "All") list = list.filter((i) => i.slot === slotFilter);
+    if (slotFilter !== "All") {
+      list = list.filter((i) => {
+        const assigned = getItemSlot(i.name);
+        if (assigned !== "—") return assigned === slotFilter;
+        return i.sheetSlot === slotFilter;
+      });
+    }
     if (sortCol) {
       list = [...list].sort((a, b) => {
         let av: number | string, bv: number | string;
         if (sortCol === "name") { av = a.name; bv = b.name; }
         else if (sortCol === "studioLevel") { av = a.crafterStudioLevel; bv = b.crafterStudioLevel; }
         else if (sortCol === "intReq") { av = a.crafterIntelligence; bv = b.crafterIntelligence; }
+        else if (sortCol === "slot") {
+          av = getItemSlot(a.name); bv = getItemSlot(b.name);
+        }
         else { av = getItemStatVal(a, sortCol); bv = getItemStatVal(b, sortCol); }
         if (typeof av === "string" && typeof bv === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
         return sortDir === "asc" ? Number(av) - Number(bv) : Number(bv) - Number(av);
       });
     }
     return list;
-  }, [items, search, slotFilter, sortCol, sortDir, getItemStatVal]);
+  }, [items, search, slotFilter, sortCol, sortDir, getItemStatVal, getItemSlot]);
 
   const totalStats = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -378,7 +463,27 @@ export default function EquipmentPage() {
     return sortDir === "asc" ? <ArrowUp className="w-3 h-3 text-primary shrink-0" /> : <ArrowDown className="w-3 h-3 text-primary shrink-0" />;
   };
 
-  const colCount = 5 + STAT_ORDER.length; // icon, name+chevron, level, slot, craftable, ...stats
+  const colCount = 6 + STAT_ORDER.length; // icon, name, level, slot-picker, craftable, ...stats
+
+  // Clear loadout entry if item no longer matches the slot
+  useEffect(() => {
+    if (!items.length || !Object.keys(slotAssignments).length) return;
+    let changed = false;
+    const next = { ...loadout };
+    for (const slot of CHAR_SLOTS) {
+      const entry = next[slot];
+      if (!entry.itemName) continue;
+      const assigned = slotAssignments[entry.itemName];
+      if (assigned && assigned !== "—" && assigned !== slot) {
+        next[slot] = { itemName: "", level: 1 };
+        changed = true;
+      }
+    }
+    if (changed) {
+      setLoadout(next);
+      localStorage.setItem("ka_loadout", JSON.stringify(next));
+    }
+  }, [slotAssignments, items]);
 
   return (
     <div className="min-h-screen bg-background transition-colors">
@@ -410,7 +515,12 @@ export default function EquipmentPage() {
               <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Stat Icons</span>
               {STAT_ORDER.map((stat) => (
                 <div key={stat} className="flex flex-col items-center gap-0.5">
-                  <IconUpload iconKey={stat} icons={statIcons} setIcon={setStatIcon} removeIcon={removeStatIcon} size={28} />
+                  <IconUpload
+                    iconKey={stat}
+                    icons={statIcons}
+                    onSave={saveStatIcons}
+                    size={28}
+                  />
                   <span className="text-[9px] text-muted-foreground leading-none">{stat}</span>
                 </div>
               ))}
@@ -423,7 +533,7 @@ export default function EquipmentPage() {
           <Input placeholder="Search equipment…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-sm w-44" />
           <select value={slotFilter} onChange={(e) => setSlotFilter(e.target.value)}
             className="h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-            {slotOptions.map((s) => <option key={s} value={s}>{s || "(no slot)"}</option>)}
+            {slotOptions.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           <div className="ml-auto flex items-center gap-2">
             {dataUpdatedAt && <span className="text-xs text-muted-foreground">Updated {new Date(dataUpdatedAt).toLocaleTimeString()}</span>}
@@ -443,7 +553,7 @@ export default function EquipmentPage() {
         {isError && (
           <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 mb-4">
             <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-            <p className="text-sm text-destructive">Failed to load sheet data. Make sure the sheet is publicly accessible.</p>
+            <p className="text-sm text-destructive">Failed to load sheet data.</p>
             <Button size="sm" variant="outline" onClick={() => refetch()} className="ml-auto h-7">Retry</Button>
           </div>
         )}
@@ -498,13 +608,17 @@ export default function EquipmentPage() {
                     {filtered.map((item) => {
                       const isExpanded = expandedItem === item.uid;
                       const level = getItemLevel(item.name);
+                      const itemSlot = getItemSlot(item.name);
                       return (
                         <Fragment key={item.uid}>
-                          {/* Main row */}
-                          <tr
-                            className={`border-b border-border transition-colors ${isExpanded ? "bg-primary/5" : "hover:bg-muted/20"}`}>
+                          <tr className={`border-b border-border transition-colors ${isExpanded ? "bg-primary/5" : "hover:bg-muted/20"}`}>
                             <td className="px-2 py-1.5">
-                              <IconUpload iconKey={`equip:${item.name}`} icons={equipIcons} setIcon={setEquipIcon} removeIcon={removeEquipIcon} size={26} />
+                              <IconUpload
+                                iconKey={`equip:${item.name}`}
+                                icons={equipIcons}
+                                onSave={saveEquipIcons}
+                                size={26}
+                              />
                             </td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
                               <button
@@ -525,7 +639,17 @@ export default function EquipmentPage() {
                                 className="h-6 w-14 text-xs text-center px-1 mx-auto"
                               />
                             </td>
-                            <td className="px-2 py-1.5 text-muted-foreground text-xs whitespace-nowrap">{item.slot || "—"}</td>
+                            <td className="px-2 py-1.5">
+                              <select
+                                value={itemSlot}
+                                onChange={(e) => setItemSlot(item.name, e.target.value)}
+                                className="h-6 text-xs rounded border border-input bg-background px-1 focus:outline-none focus:ring-1 focus:ring-ring w-24"
+                              >
+                                {SLOT_OPTIONS.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            </td>
                             <td className="px-2 py-1.5">
                               {item.crafterStudioLevel === 0
                                 ? <span className="text-destructive text-xs font-medium">Not craftable</span>
@@ -541,13 +665,13 @@ export default function EquipmentPage() {
                             })}
                           </tr>
 
-                          {/* Expandable row — stat editor */}
                           {isExpanded && (
                             <tr>
                               <td colSpan={colCount} className="bg-primary/5 border-b border-primary/20 px-4 py-3">
                                 <p className="text-xs text-muted-foreground mb-2">
                                   Edit base and per-level increment values for <strong className="text-foreground">{item.name}</strong>.
                                   Formula: <code className="bg-muted px-1 rounded">stat = Base + (Level − 1) × Inc</code>
+                                  <span className="ml-2 text-primary">· Changes are shared with everyone</span>
                                 </p>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2">
                                   {STAT_ORDER.map((stat) => {
@@ -591,7 +715,7 @@ export default function EquipmentPage() {
                 </table>
               </div>
               <div className="px-4 py-2 border-t border-border bg-muted/30 text-xs text-muted-foreground">
-                {filtered.length} / {items.length} items shown · click an item name to edit its base & increment values
+                {filtered.length} / {items.length} items shown · click an item name to edit its stats
               </div>
             </Card>
 
@@ -599,13 +723,18 @@ export default function EquipmentPage() {
             <Card className="shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Character Builder</CardTitle>
-                <p className="text-xs text-muted-foreground">Equip items in each slot and set their levels to see combined stats.</p>
+                <p className="text-xs text-muted-foreground">Your personal loadout — saved just for you. Each slot only shows items assigned to that slot.</p>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
                   {CHAR_SLOTS.map((slot) => {
                     const entry = loadout[slot];
                     const item = items.find((i) => i.name === entry.itemName);
+                    // Only show items assigned to this slot (or unassigned if no slot assignments exist)
+                    const eligibleItems = items.filter((i) => {
+                      const assigned = getItemSlot(i.name);
+                      return assigned === slot || assigned === "—";
+                    });
                     return (
                       <Card key={slot} className="border-border shadow-none">
                         <CardHeader className="pb-1 pt-3 px-3">
@@ -625,7 +754,7 @@ export default function EquipmentPage() {
                           <select value={entry.itemName} onChange={(e) => setLoadoutEntry(slot, { itemName: e.target.value })}
                             className="w-full h-7 text-xs rounded border border-input bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring">
                             <option value="">— none —</option>
-                            {items.map((i) => <option key={i.uid} value={i.name}>{i.name}</option>)}
+                            {eligibleItems.map((i) => <option key={i.uid} value={i.name}>{i.name}</option>)}
                           </select>
                           {entry.itemName && (
                             <div className="flex items-center gap-1.5">
