@@ -1,9 +1,10 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   Plus, Trash2, Zap, RefreshCw, HelpCircle, ArrowLeftRight,
   X, Lock, LockOpen, Moon, Sun, Loader2, AlertTriangle, ExternalLink,
-  ArrowLeft, Info,
+  ArrowLeft, Info, Star, ChevronDown, ChevronRight, Baby,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,32 @@ import {
 } from "@/components/ui/dialog";
 import { SourceViewerButton } from "@/components/source-viewer";
 import rawSource from "./marriage-matcher.tsx?raw";
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const API = (p: string) => `${BASE}/ka-api/ka${p}`;
+
+type JobData = {
+  generation: 1 | 2;
+  icon?: string;
+  ranks: Record<string, unknown>;
+  equipment: Record<string, boolean>;
+  skills: string[];
+};
+
+function useSharedJobs() {
+  return useQuery({
+    queryKey: ["ka-shared"],
+    queryFn: async () => {
+      const r = await fetch(API("/shared"));
+      const d = await r.json() as { jobs: Record<string, JobData> };
+      return d;
+    },
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +94,7 @@ interface Pair {
   id: string;
   jobA: string;
   jobB: string;
+  children: string[];
 }
 
 interface LockedPair {
@@ -252,12 +280,17 @@ function findOptimalMatching(slots: RankSlot[], pairs: Pair[], lockedPairs: Lock
   return { matches: allMatches, unmatchedMale: allUnmatchedMale, unmatchedFemale: allUnmatchedFemale, unassignedDecisions: allDecisions };
 }
 
-// ─── Default data ─────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function generateId() { return Math.random().toString(36).slice(2, 9); }
-function makePair(a: string, b: string): Pair { return { id: generateId(), jobA: a, jobB: b }; }
+function makePair(a: string, b: string): Pair { return { id: generateId(), jobA: a, jobB: b, children: [] }; }
 
-const DEFAULT_JOB_NAMES: string[] = [
+function getPossibleChildren(match: MatchResult, pairs: Pair[]): string[] {
+  const pair = pairs.find((p) => pairKey(p.jobA, p.jobB) === pairKey(match.maleJob, match.femaleJob));
+  return [...new Set([match.maleJob, match.femaleJob, ...(pair?.children ?? [])])];
+}
+
+const FALLBACK_JOB_NAMES: string[] = [
   "Archer", "Artisan", "Blacksmith", "Carpenter", "Champion",
   "Cook", "Doctor", "Farmer", "Guard", "Gunner",
   "Knight", "Mage", "Merchant", "Monk", "Mover",
@@ -285,7 +318,7 @@ const DEFAULT_PAIRS: Pair[] = [
 interface RankTableProps {
   rank: Rank;
   slots: RankSlot[];
-  availableJobs: string[]; // jobs NOT yet added to this rank
+  availableJobs: string[];
   onUpdate: (id: string, field: "males" | "females" | "unassigned", value: number) => void;
   onRemove: (id: string) => void;
   onAdd: (rank: Rank, jobName: string) => void;
@@ -372,7 +405,7 @@ function RankTable({ rank, slots, availableJobs, onUpdate, onRemove, onAdd }: Ra
           </select>
         ) : (
           <p className="text-xs text-muted-foreground text-center mt-3 py-1">
-            All jobs added. <Link href="#jobs" className="underline text-primary">Add more jobs</Link> above.
+            All 1st gen jobs added to this rank.
           </p>
         )}
       </CardContent>
@@ -382,55 +415,36 @@ function RankTable({ rank, slots, availableJobs, onUpdate, onRemove, onAdd }: Ra
 
 // ─── Jobs Panel ───────────────────────────────────────────────────────────────
 
-interface JobsPanelProps {
-  jobNames: string[];
-  onAdd: (name: string) => void;
-  onRemove: (name: string) => void;
-}
-
-function JobsPanel({ jobNames, onAdd, onRemove }: JobsPanelProps) {
-  const [input, setInput] = useState("");
-
-  const handleAdd = () => {
-    const name = input.trim();
-    if (!name || jobNames.includes(name)) return;
-    onAdd(name);
-    setInput("");
-  };
-
+function JobsPanel({ jobNames, isLoading, isFromApi }: { jobNames: string[]; isLoading: boolean; isFromApi: boolean }) {
   return (
-    <Card className="shadow-sm" id="jobs">
+    <Card className="shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Job List</CardTitle>
-        <CardDescription className="text-xs">
-          Add jobs here to make them available to all rank tables and the compatible pairs list. Removing a job here does not remove it from ranks you already added it to.
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">1st Generation Jobs</CardTitle>
+            <CardDescription className="text-xs mt-0.5">
+              Automatically loaded from the Jobs Tool. Only 1st gen jobs can be parents — they all have <strong>Compatibility A</strong> with each other.
+            </CardDescription>
+          </div>
+          {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground shrink-0" />}
+          {!isLoading && isFromApi && (
+            <Badge variant="outline" className="text-[10px] border-emerald-400 text-emerald-600 dark:text-emerald-400 shrink-0">Live</Badge>
+          )}
+          {!isLoading && !isFromApi && (
+            <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 dark:text-amber-400 shrink-0">Cached</Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-1.5 min-h-8">
-          {jobNames.length === 0 && <p className="text-xs text-muted-foreground">No jobs yet.</p>}
+          {jobNames.length === 0 && !isLoading && (
+            <p className="text-xs text-muted-foreground">No 1st gen jobs found. Add them in the Jobs Tool first.</p>
+          )}
           {jobNames.map((name) => (
-            <Badge key={name} variant="secondary" className="gap-1.5 px-2 py-1 text-xs">
-              {name}
-              <button onClick={() => onRemove(name)} className="text-muted-foreground hover:text-destructive transition-colors">
-                <X className="w-2.5 h-2.5" />
-              </button>
-            </Badge>
+            <Badge key={name} variant="secondary" className="text-xs px-2 py-1">{name}</Badge>
           ))}
         </div>
-        <div className="flex gap-2">
-          <Input
-            placeholder="New job name…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            className="h-8 text-sm flex-1"
-          />
-          <Button size="sm" variant="secondary" onClick={handleAdd} className="h-8 px-3 shrink-0">
-            <Plus className="w-4 h-4 mr-1" /> Add Job
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">{jobNames.length} job{jobNames.length !== 1 ? "s" : ""} available</p>
+        <p className="text-xs text-muted-foreground">{jobNames.length} first generation job{jobNames.length !== 1 ? "s" : ""}</p>
       </CardContent>
     </Card>
   );
@@ -440,15 +454,19 @@ function JobsPanel({ jobNames, onAdd, onRemove }: JobsPanelProps) {
 
 interface PairsPanelProps {
   pairs: Pair[];
-  jobNames: string[];
+  firstGenJobNames: string[];
+  allJobNames: string[];
   onAdd: (a: string, b: string) => string | null;
   onRemove: (id: string) => void;
+  onUpdateChildren: (id: string, children: string[]) => void;
 }
 
-function PairsPanel({ pairs, jobNames, onAdd, onRemove }: PairsPanelProps) {
+function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onUpdateChildren }: PairsPanelProps) {
   const [selA, setSelA] = useState("");
   const [selB, setSelB] = useState("");
   const [error, setError] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [childSel, setChildSel] = useState<Record<string, string>>({});
 
   const handleAdd = () => {
     const a = selA.trim(); const b = selB.trim();
@@ -458,32 +476,97 @@ function PairsPanel({ pairs, jobNames, onAdd, onRemove }: PairsPanelProps) {
     setSelA(""); setSelB(""); setError("");
   };
 
+  const addChild = (pairId: string, child: string) => {
+    if (!child) return;
+    const pair = pairs.find((p) => p.id === pairId);
+    if (!pair || pair.children.includes(child)) return;
+    onUpdateChildren(pairId, [...pair.children, child]);
+    setChildSel((prev) => ({ ...prev, [pairId]: "" }));
+  };
+
+  const removeChild = (pairId: string, child: string) => {
+    const pair = pairs.find((p) => p.id === pairId);
+    if (!pair) return;
+    onUpdateChildren(pairId, pair.children.filter((c) => c !== child));
+  };
+
   const sorted = [...pairs].sort((a, b) => pairKey(a.jobA, a.jobB).localeCompare(pairKey(b.jobA, b.jobB)));
 
   return (
     <Card className="shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Compatible Pairs</CardTitle>
+        <CardTitle className="text-base">Compatible Pairs & Children</CardTitle>
         <CardDescription className="text-xs">
-          A male from one job can marry a female from the other (same rank). Same-job pairs are allowed.
+          Define which 1st gen job pairs can marry (same character rank). Optionally add the possible child job outcomes for each pair — children can be any job (1st or 2nd gen).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="rounded-md border border-border overflow-hidden">
-          <div className="max-h-64 overflow-y-auto divide-y divide-border">
+          <div className="max-h-80 overflow-y-auto divide-y divide-border">
             {sorted.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">No pairs defined yet.</p>}
             {sorted.map((p) => {
               const [d1, d2] = [p.jobA, p.jobB].sort();
+              const isExpanded = expandedId === p.id;
               return (
-                <div key={p.id} className="flex items-center justify-between px-3 py-1.5 hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium">{d1}</span>
-                    <ArrowLeftRight className="w-3 h-3 text-muted-foreground" />
-                    <span className="font-medium">{d2}</span>
+                <div key={p.id} className="transition-colors">
+                  <div className="flex items-center justify-between px-3 py-1.5 hover:bg-muted/30">
+                    <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : p.id)}
+                        className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      >
+                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                      </button>
+                      <span className="font-medium truncate">{d1}</span>
+                      <ArrowLeftRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="font-medium truncate">{d2}</span>
+                      {p.children.length > 0 && (
+                        <div className="flex gap-1 flex-wrap ml-1">
+                          {p.children.map((c) => (
+                            <Badge key={c} variant="outline" className="text-[10px] px-1.5 py-0 border-violet-300 text-violet-700 dark:text-violet-400 gap-1">
+                              <Baby className="w-2.5 h-2.5" />{c}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button onClick={() => onRemove(p.id)} className="text-muted-foreground hover:text-destructive transition-colors ml-2 shrink-0">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <button onClick={() => onRemove(p.id)} className="text-muted-foreground hover:text-destructive transition-colors ml-2 shrink-0">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                  {isExpanded && (
+                    <div className="px-4 pb-3 pt-1 bg-muted/20 border-t border-border space-y-2">
+                      <p className="text-xs text-muted-foreground font-medium">Possible child outcomes for <strong className="text-foreground">{d1} × {d2}</strong>:</p>
+                      <p className="text-[11px] text-muted-foreground">The child can always take the father's or mother's job. Add here any additional job the child can receive from this marriage.</p>
+                      {p.children.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.children.map((c) => (
+                            <Badge key={c} variant="secondary" className="text-xs gap-1.5 px-2 py-1">
+                              <Baby className="w-3 h-3 text-violet-500" />{c}
+                              <button onClick={() => removeChild(p.id, c)} className="text-muted-foreground hover:text-destructive">
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <select
+                          value={childSel[p.id] ?? ""}
+                          onChange={(e) => setChildSel((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                          className="flex-1 h-7 text-xs rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="">Select child job…</option>
+                          {allJobNames
+                            .filter((n) => !p.children.includes(n))
+                            .map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                        <Button size="sm" variant="secondary" onClick={() => addChild(p.id, childSel[p.id] ?? "")} className="h-7 px-2.5 text-xs shrink-0">
+                          <Plus className="w-3 h-3 mr-1" />Add
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -493,14 +576,14 @@ function PairsPanel({ pairs, jobNames, onAdd, onRemove }: PairsPanelProps) {
           <div className="flex gap-2 items-center">
             <select value={selA} onChange={(e) => { setSelA(e.target.value); setError(""); }}
               className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">Job A…</option>
-              {jobNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              <option value="">Parent A (1st gen)…</option>
+              {firstGenJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
             <ArrowLeftRight className="w-4 h-4 text-muted-foreground shrink-0" />
             <select value={selB} onChange={(e) => { setSelB(e.target.value); setError(""); }}
               className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">Job B…</option>
-              {jobNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              <option value="">Parent B (1st gen)…</option>
+              {firstGenJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
             <Button size="sm" variant="secondary" onClick={handleAdd} className="h-8 px-3 shrink-0">
               <Plus className="w-4 h-4 mr-1" />Add
@@ -508,7 +591,68 @@ function PairsPanel({ pairs, jobNames, onAdd, onRemove }: PairsPanelProps) {
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
-        <p className="text-xs text-muted-foreground">{pairs.length} pair{pairs.length !== 1 ? "s" : ""} defined</p>
+        <p className="text-xs text-muted-foreground">{pairs.length} pair{pairs.length !== 1 ? "s" : ""} defined · Click <ChevronRight className="inline w-3 h-3" /> to add child outcomes</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Priority Children Panel ───────────────────────────────────────────────────
+
+interface PriorityPanelProps {
+  desiredChildren: string[];
+  allJobNames: string[];
+  onAdd: (child: string) => void;
+  onRemove: (child: string) => void;
+}
+
+function PriorityPanel({ desiredChildren, allJobNames, onAdd, onRemove }: PriorityPanelProps) {
+  const [sel, setSel] = useState("");
+
+  const handle = () => {
+    if (!sel) return;
+    onAdd(sel);
+    setSel("");
+  };
+
+  return (
+    <Card className="shadow-sm border-violet-200 dark:border-violet-800">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <Star className="w-4 h-4 text-violet-500" />
+          <CardTitle className="text-base">Priority Children</CardTitle>
+        </div>
+        <CardDescription className="text-xs">
+          Select child jobs you want to obtain. After calculating, the results will show which marriages can produce each desired child — through the child inheriting the <em>father's job</em>, the <em>mother's job</em>, or a defined <em>outcome child</em> from the pair.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {desiredChildren.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {desiredChildren.map((c) => (
+              <Badge key={c} className="gap-1.5 px-2 py-1 text-xs bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700 border">
+                <Star className="w-2.5 h-2.5" />{c}
+                <button onClick={() => onRemove(c)} className="text-violet-500 hover:text-destructive transition-colors">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No priority children set. Add some below to see coverage in results.</p>
+        )}
+        <div className="flex gap-2">
+          <select value={sel} onChange={(e) => setSel(e.target.value)}
+            className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
+            <option value="">Select desired child job…</option>
+            {allJobNames.filter((n) => !desiredChildren.includes(n)).map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <Button size="sm" variant="secondary" onClick={handle} className="h-8 px-3 shrink-0">
+            <Plus className="w-4 h-4 mr-1" />Add
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -520,30 +664,72 @@ interface MatchRowProps {
   match: MatchResult;
   index: number;
   rankJobNames: string[];
+  pairs: Pair[];
+  desiredChildren: string[];
   onLock: (id: string) => void;
   onUnlock: (id: string) => void;
   onChangeMale: (id: string, job: string) => void;
   onChangeFemale: (id: string, job: string) => void;
 }
 
-function MatchRow({ match, index, rankJobNames, onLock, onUnlock, onChangeMale, onChangeFemale }: MatchRowProps) {
+function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, onUnlock, onChangeMale, onChangeFemale }: MatchRowProps) {
   const isLocked = match.locked;
+
+  const possibleChildren = useMemo(() => getPossibleChildren(match, pairs), [match, pairs]);
+  const desiredHere = useMemo(
+    () => desiredChildren.filter((c) => possibleChildren.includes(c)),
+    [desiredChildren, possibleChildren]
+  );
+  const hasDesired = desiredHere.length > 0;
+  const outcomeChildren = useMemo(() => {
+    const pair = pairs.find((p) => pairKey(p.jobA, p.jobB) === pairKey(match.maleJob, match.femaleJob));
+    return pair?.children ?? [];
+  }, [match, pairs]);
+
   return (
-    <div className={`grid grid-cols-[1fr_auto_1fr_auto] items-center gap-x-2 rounded-lg px-3 py-2 transition-all ${
-      isLocked ? "bg-amber-50 border border-amber-300 dark:bg-amber-950/30 dark:border-amber-700" : "bg-accent/50"
+    <div className={`rounded-lg px-3 py-2 transition-all ${
+      isLocked
+        ? "bg-amber-50 border border-amber-300 dark:bg-amber-950/30 dark:border-amber-700"
+        : hasDesired
+          ? "bg-violet-50 border border-violet-200 dark:bg-violet-950/20 dark:border-violet-800"
+          : "bg-accent/50"
     }`}>
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="w-5 h-5 rounded-full bg-secondary text-secondary-foreground text-xs flex items-center justify-center font-bold shrink-0">{index + 1}</span>
+      <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-x-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-5 h-5 rounded-full bg-secondary text-secondary-foreground text-xs flex items-center justify-center font-bold shrink-0">{index + 1}</span>
+          {isLocked ? (
+            <select value={match.maleJob} onChange={(e) => onChangeMale(match.id, e.target.value)}
+              className="flex-1 h-7 text-sm rounded border border-input bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring min-w-0">
+              {rankJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          ) : (
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span className="text-base font-bold text-blue-500 leading-none shrink-0">♂</span>
+              <span className="font-medium text-sm truncate">{match.maleJob}</span>
+              {match.maleWasUnassigned && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400 shrink-0 cursor-help">unassigned</Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">This slot's gender was decided by the algorithm</TooltipContent>
+                </Tooltip>
+              )}
+            </span>
+          )}
+        </div>
+        {isLocked
+          ? <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          : <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
         {isLocked ? (
-          <select value={match.maleJob} onChange={(e) => onChangeMale(match.id, e.target.value)}
+          <select value={match.femaleJob} onChange={(e) => onChangeFemale(match.id, e.target.value)}
             className="flex-1 h-7 text-sm rounded border border-input bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring min-w-0">
             {rankJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         ) : (
           <span className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base font-bold text-blue-500 leading-none shrink-0">♂</span>
-            <span className="font-medium text-sm truncate">{match.maleJob}</span>
-            {match.maleWasUnassigned && (
+            <span className="text-base font-bold text-rose-500 leading-none shrink-0">♀</span>
+            <span className="font-medium text-sm text-rose-600 dark:text-rose-400 truncate">{match.femaleJob}</span>
+            {match.femaleWasUnassigned && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400 shrink-0 cursor-help">unassigned</Badge>
@@ -553,40 +739,35 @@ function MatchRow({ match, index, rankJobNames, onLock, onUnlock, onChangeMale, 
             )}
           </span>
         )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={() => isLocked ? onUnlock(match.id) : onLock(match.id)}
+              className={`shrink-0 p-1 rounded transition-colors ${isLocked ? "text-amber-500 hover:text-amber-700 dark:hover:text-amber-300" : "text-muted-foreground hover:text-foreground"}`}>
+              {isLocked ? <Lock className="w-3.5 h-3.5" /> : <LockOpen className="w-3.5 h-3.5" />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            {isLocked ? "Unlock — let algorithm reassign" : "Lock this pair for future calculations"}
+          </TooltipContent>
+        </Tooltip>
       </div>
-      {isLocked
-        ? <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-        : <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-      {isLocked ? (
-        <select value={match.femaleJob} onChange={(e) => onChangeFemale(match.id, e.target.value)}
-          className="flex-1 h-7 text-sm rounded border border-input bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring min-w-0">
-          {rankJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
-      ) : (
-        <span className="flex items-center gap-1.5 min-w-0">
-          <span className="text-base font-bold text-rose-500 leading-none shrink-0">♀</span>
-          <span className="font-medium text-sm text-rose-600 dark:text-rose-400 truncate">{match.femaleJob}</span>
-          {match.femaleWasUnassigned && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400 shrink-0 cursor-help">unassigned</Badge>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">This slot's gender was decided by the algorithm</TooltipContent>
-            </Tooltip>
-          )}
-        </span>
+
+      {/* Children row */}
+      {(desiredHere.length > 0 || outcomeChildren.length > 0) && (
+        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap pl-7">
+          <Baby className="w-3 h-3 text-muted-foreground shrink-0" />
+          <span className="text-[11px] text-muted-foreground">Child can be:</span>
+          {[match.maleJob, match.femaleJob, ...outcomeChildren].filter((v, i, a) => a.indexOf(v) === i).map((c) => {
+            const isPriority = desiredChildren.includes(c);
+            return (
+              <Badge key={c} variant="outline" className={`text-[10px] px-1.5 py-0 ${isPriority ? "border-violet-400 text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30" : "text-muted-foreground"}`}>
+                {isPriority && <Star className="w-2.5 h-2.5 mr-0.5 text-violet-500" />}
+                {c}
+              </Badge>
+            );
+          })}
+        </div>
       )}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button onClick={() => isLocked ? onUnlock(match.id) : onLock(match.id)}
-            className={`shrink-0 p-1 rounded transition-colors ${isLocked ? "text-amber-500 hover:text-amber-700 dark:hover:text-amber-300" : "text-muted-foreground hover:text-foreground"}`}>
-            {isLocked ? <Lock className="w-3.5 h-3.5" /> : <LockOpen className="w-3.5 h-3.5" />}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs">
-          {isLocked ? "Unlock — let algorithm reassign" : "Lock this pair for future calculations"}
-        </TooltipContent>
-      </Tooltip>
     </div>
   );
 }
@@ -607,27 +788,31 @@ function InfoDialog() {
         </DialogHeader>
         <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
           <div>
-            <h3 className="font-semibold text-foreground mb-1">1. Add jobs</h3>
-            <p>Use the <strong>Job List</strong> section to add all the job names in your game. Adding a job here makes it available to every rank table and to the compatible pairs selector.</p>
+            <h3 className="font-semibold text-foreground mb-1">Compatibility vs Character Rank</h3>
+            <p>This tool is for marriages at <strong>Compatibility A</strong> — the highest marriage compatibility rating (A is best, E is worst). All 1st generation jobs have Compatibility A with each other. Character rank (S/A/B/C/D) is separate and refers to how leveled up your character is.</p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">2. Populate rank tables</h3>
-            <p>For each rank (S through D), use the dropdown to add relevant jobs. Enter the number of <strong>male</strong> and <strong>female</strong> characters in that job at that rank. Use <strong>Unassigned</strong> for characters whose gender you haven't decided yet — the algorithm will automatically split them to maximise matches.</p>
+            <h3 className="font-semibold text-foreground mb-1">1. Jobs (auto-loaded)</h3>
+            <p>1st gen jobs are loaded automatically from the <strong>Jobs Tool</strong>. Only 1st gen jobs can be parents.</p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">3. Define compatible pairs</h3>
-            <p>Two jobs are compatible if a male from one can marry a female from the other. Use the <strong>Compatible Pairs</strong> panel to define these. Same-job pairs (e.g. Guard ↔ Guard) are allowed.</p>
+            <h3 className="font-semibold text-foreground mb-1">2. Assign to character rank tables</h3>
+            <p>For each character rank (S through D), add the relevant jobs and enter how many <strong>male</strong> / <strong>female</strong> characters you have at that rank. Use <strong>Unassigned</strong> for undecided genders — the algorithm splits them to maximise matches.</p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">4. Calculate</h3>
-            <p>Click <strong>Calculate Optimal Matching</strong>. The algorithm uses bipartite matching to maximise the number of married pairs, only pairing jobs within the same rank and within compatible pairs.</p>
+            <h3 className="font-semibold text-foreground mb-1">3. Compatible pairs & children</h3>
+            <p>Define which job pairs can marry. Click <strong>▶</strong> on any pair to add possible child job outcomes (the child can always take the father's or mother's job; list here any extra outcome jobs for that pair).</p>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-1">5. Lock pairs</h3>
-            <p>Click the 🔓 icon on any result row to lock that marriage. Locked pairs are fixed — the algorithm works around them on the next calculation. You can also edit the job names in a locked row to manually override who marries whom.</p>
+            <h3 className="font-semibold text-foreground mb-1">4. Priority children</h3>
+            <p>Select which child jobs you want. After calculating, results highlight matches that can produce your desired children — via the child inheriting the father's job, mother's job, or a defined outcome child.</p>
+          </div>
+          <div>
+            <h3 className="font-semibold text-foreground mb-1">5. Calculate & lock</h3>
+            <p>Click <strong>Calculate</strong> to find the optimal matching. Lock pairs with 🔓 to keep them fixed across recalculations.</p>
           </div>
           <div className="rounded-lg bg-muted px-3 py-2 text-xs">
-            <strong className="text-foreground">Tip:</strong> The amber <em>Unassigned</em> badge in results means that character's gender was decided by the algorithm to maximise total matches.
+            <strong className="text-foreground">Your data stays private.</strong> Job lists, rank assignments, and locks are saved in <em>this browser only</em> and don't affect anyone else.
           </div>
         </div>
       </DialogContent>
@@ -652,55 +837,93 @@ export default function MarriageMatcher() {
     else { root.classList.remove("dark"); localStorage.setItem("theme", "light"); }
   }, [darkMode]);
 
-  const [jobNames, setJobNames] = useState<string[]>(() => {
+  // ── API data ──
+  const { data: sharedData, isLoading: jobsLoading } = useSharedJobs();
+
+  const apiFirstGenJobs = useMemo(() => {
+    if (!sharedData?.jobs) return null;
+    return Object.keys(sharedData.jobs)
+      .filter((name) => sharedData.jobs[name].generation === 1)
+      .sort();
+  }, [sharedData]);
+
+  const apiAllJobs = useMemo(() => {
+    if (!sharedData?.jobs) return null;
+    return Object.keys(sharedData.jobs).sort();
+  }, [sharedData]);
+
+  // ── Job names: API-first, localStorage cache as fallback ──
+  const [cachedJobNames, setCachedJobNames] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem("ka_mf_jobNames");
-      if (saved) return JSON.parse(saved) as string[];
+      const s = localStorage.getItem("ka_mf_jobNames");
+      if (s) return JSON.parse(s) as string[];
     } catch { /* ignore */ }
-    return DEFAULT_JOB_NAMES;
+    return FALLBACK_JOB_NAMES;
   });
+
+  useEffect(() => {
+    if (apiFirstGenJobs) {
+      setCachedJobNames(apiFirstGenJobs);
+      localStorage.setItem("ka_mf_jobNames", JSON.stringify(apiFirstGenJobs));
+    }
+  }, [apiFirstGenJobs]);
+
+  const sortedJobNames = apiFirstGenJobs ?? cachedJobNames;
+  const allJobNames = apiAllJobs ?? sortedJobNames;
+
+  // ── State: rank slots ──
   const [rankSlots, setRankSlots] = useState<RankSlot[]>(() => {
     try {
-      const saved = localStorage.getItem("ka_mf_rankSlots");
-      if (saved) return JSON.parse(saved) as RankSlot[];
+      const s = localStorage.getItem("ka_mf_rankSlots");
+      if (s) return JSON.parse(s) as RankSlot[];
     } catch { /* ignore */ }
     return [];
   });
+
+  // ── State: pairs (with children upgrade for old data) ──
   const [pairs, setPairs] = useState<Pair[]>(() => {
     try {
-      const saved = localStorage.getItem("ka_mf_pairs");
-      if (saved) return JSON.parse(saved) as Pair[];
+      const s = localStorage.getItem("ka_mf_pairs");
+      if (s) {
+        const loaded = JSON.parse(s) as Pair[];
+        return loaded.map((p) => ({ ...p, children: p.children ?? [] }));
+      }
     } catch { /* ignore */ }
     return DEFAULT_PAIRS;
   });
-  const [result, setResult] = useState<OptimalResult | null>(null);
-  const [isCalculating, setIsCalculating] = useState(false);
-  const [isStale, setIsStale] = useState(false);
+
+  // ── State: locked pairs ──
   const [lockedPairs, setLockedPairs] = useState<LockedPair[]>(() => {
     try {
-      const saved = localStorage.getItem("ka_mf_lockedPairs");
-      if (saved) return JSON.parse(saved) as LockedPair[];
+      const s = localStorage.getItem("ka_mf_lockedPairs");
+      if (s) return JSON.parse(s) as LockedPair[];
     } catch { /* ignore */ }
     return [];
   });
 
-  useEffect(() => { localStorage.setItem("ka_mf_jobNames", JSON.stringify(jobNames)); }, [jobNames]);
+  // ── State: desired / priority children ──
+  const [desiredChildren, setDesiredChildren] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem("ka_mf_desiredChildren");
+      if (s) return JSON.parse(s) as string[];
+    } catch { /* ignore */ }
+    return [];
+  });
+
+  // ── Persist ──
   useEffect(() => { localStorage.setItem("ka_mf_rankSlots", JSON.stringify(rankSlots)); }, [rankSlots]);
   useEffect(() => { localStorage.setItem("ka_mf_pairs", JSON.stringify(pairs)); }, [pairs]);
   useEffect(() => { localStorage.setItem("ka_mf_lockedPairs", JSON.stringify(lockedPairs)); }, [lockedPairs]);
+  useEffect(() => { localStorage.setItem("ka_mf_desiredChildren", JSON.stringify(desiredChildren)); }, [desiredChildren]);
 
-  const sortedJobNames = useMemo(() => [...jobNames].sort((a, b) => a.localeCompare(b)), [jobNames]);
+  // ── Result state ──
+  const [result, setResult] = useState<OptimalResult | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [isStale, setIsStale] = useState(false);
 
   const markStale = useCallback(() => setIsStale(true), []);
 
-  const addJob = useCallback((name: string) => {
-    setJobNames((prev) => prev.includes(name) ? prev : [...prev, name].sort());
-  }, []);
-
-  const removeJob = useCallback((name: string) => {
-    setJobNames((prev) => prev.filter((j) => j !== name));
-  }, []);
-
+  // ── Slot actions ──
   const updateSlot = useCallback((id: string, field: "males" | "females" | "unassigned", value: number) => {
     setRankSlots((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: Math.max(0, value) } : s)));
     markStale();
@@ -721,6 +944,7 @@ export default function MarriageMatcher() {
     markStale();
   }, [markStale]);
 
+  // ── Pair actions ──
   const addPair = useCallback((a: string, b: string): string | null => {
     const key = pairKey(a, b);
     let dupe = false;
@@ -738,6 +962,12 @@ export default function MarriageMatcher() {
     markStale();
   }, [markStale]);
 
+  const updatePairChildren = useCallback((id: string, children: string[]) => {
+    setPairs((prev) => prev.map((p) => p.id === id ? { ...p, children } : p));
+    markStale();
+  }, [markStale]);
+
+  // ── Lock actions ──
   const lockMatch = useCallback((matchId: string) => {
     setResult((prev) => {
       if (!prev) return prev;
@@ -771,6 +1001,16 @@ export default function MarriageMatcher() {
     setIsStale(true);
   }, []);
 
+  // ── Priority child actions ──
+  const addDesiredChild = useCallback((child: string) => {
+    setDesiredChildren((prev) => prev.includes(child) ? prev : [...prev, child].sort());
+  }, []);
+
+  const removeDesiredChild = useCallback((child: string) => {
+    setDesiredChildren((prev) => prev.filter((c) => c !== child));
+  }, []);
+
+  // ── Calculate ──
   const calculate = useCallback(() => {
     setIsCalculating(true);
     setIsStale(false);
@@ -781,15 +1021,15 @@ export default function MarriageMatcher() {
   }, [rankSlots, pairs, lockedPairs]);
 
   const reset = useCallback(() => {
-    setJobNames(DEFAULT_JOB_NAMES);
     setRankSlots([]);
     setPairs(DEFAULT_PAIRS.map((p) => ({ ...p, id: generateId() })));
     setLockedPairs([]);
+    setDesiredChildren([]);
     setResult(null);
     setIsStale(false);
   }, []);
 
-  // Per-rank available jobs (not yet added to that rank)
+  // ── Derived ──
   const availablePerRank = useMemo(() => {
     const map: Record<Rank, string[]> = { S: [], A: [], B: [], C: [], D: [] };
     const presentPerRank: Record<Rank, Set<string>> = {
@@ -802,7 +1042,6 @@ export default function MarriageMatcher() {
     return map;
   }, [rankSlots, sortedJobNames]);
 
-  // Jobs per rank for locked pair dropdowns
   const jobsPerRank = useMemo(() => {
     const map: Record<Rank, string[]> = { S: [], A: [], B: [], C: [], D: [] };
     for (const s of rankSlots) {
@@ -811,6 +1050,17 @@ export default function MarriageMatcher() {
     for (const rank of RANKS) map[rank].sort();
     return map;
   }, [rankSlots]);
+
+  // ── Child coverage for results ──
+  const childCoverage = useMemo(() => {
+    if (!result || desiredChildren.length === 0) return [];
+    return desiredChildren.map((child) => {
+      const coveringMatches = result.matches.filter((m) =>
+        getPossibleChildren(m, pairs).includes(child)
+      );
+      return { child, matches: coveringMatches };
+    });
+  }, [result, desiredChildren, pairs]);
 
   const hasLocked = lockedPairs.length > 0;
 
@@ -828,11 +1078,10 @@ export default function MarriageMatcher() {
             <div>
               <h1 className="text-3xl font-bold text-foreground tracking-tight">Kingdom Adventures Match Finder</h1>
               <p className="mt-1 text-muted-foreground text-sm max-w-xl">
-                Plan optimal marriages for <span className="font-medium text-foreground">Rank A compatibility only</span> — this tool does not cover S, B, C, or D ranks for marriage.
-                Add the jobs your character owns, assign them to ranks, then run the matcher.
+                Plan optimal marriages for <span className="font-medium text-foreground">Compatibility A</span> — the highest marriage compatibility rating (A through E, A is best). All 1st generation jobs have Compatibility A with each other.
               </p>
               <p className="mt-1 text-muted-foreground text-xs max-w-xl">
-                Your job list and rank assignments are saved <span className="font-medium">in this browser only</span> — they are personal to you and do not affect anyone else.
+                Your rank assignments, pairs, and settings are saved <span className="font-medium">in this browser only</span> — personal to you, invisible to everyone else.
               </p>
             </div>
           </div>
@@ -853,9 +1102,9 @@ export default function MarriageMatcher() {
           </div>
         </div>
 
-        {/* Central Jobs Panel */}
+        {/* Jobs Panel */}
         <div className="mb-6">
-          <JobsPanel jobNames={sortedJobNames} onAdd={addJob} onRemove={removeJob} />
+          <JobsPanel jobNames={sortedJobNames} isLoading={jobsLoading} isFromApi={!!apiFirstGenJobs} />
         </div>
 
         {/* Rank tables */}
@@ -871,7 +1120,24 @@ export default function MarriageMatcher() {
 
         {/* Compatible pairs */}
         <div className="mt-6">
-          <PairsPanel pairs={pairs} jobNames={sortedJobNames} onAdd={addPair} onRemove={removePair} />
+          <PairsPanel
+            pairs={pairs}
+            firstGenJobNames={sortedJobNames}
+            allJobNames={allJobNames}
+            onAdd={addPair}
+            onRemove={removePair}
+            onUpdateChildren={updatePairChildren}
+          />
+        </div>
+
+        {/* Priority children */}
+        <div className="mt-6">
+          <PriorityPanel
+            desiredChildren={desiredChildren}
+            allJobNames={allJobNames}
+            onAdd={addDesiredChild}
+            onRemove={removeDesiredChild}
+          />
         </div>
 
         {/* Stale / locked notice */}
@@ -904,6 +1170,42 @@ export default function MarriageMatcher() {
         {/* Results */}
         {result && !isCalculating && (
           <div className="mt-6 space-y-4">
+
+            {/* Desired children coverage */}
+            {childCoverage.length > 0 && (
+              <Card className="shadow-sm border-violet-200 dark:border-violet-800">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-violet-500" />
+                    <CardTitle className="text-sm text-violet-800 dark:text-violet-300">Priority Children Coverage</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {childCoverage.map(({ child, matches: coverMatches }) => (
+                      <div key={child} className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
+                        coverMatches.length > 0
+                          ? "border-violet-300 bg-violet-50 dark:bg-violet-950/30 dark:border-violet-700"
+                          : "border-destructive/30 bg-destructive/5"
+                      }`}>
+                        <Star className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${coverMatches.length > 0 ? "text-violet-500" : "text-muted-foreground"}`} />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground text-xs">{child}</p>
+                          {coverMatches.length > 0 ? (
+                            <p className="text-[11px] text-muted-foreground">
+                              Covered by {coverMatches.length} match{coverMatches.length !== 1 ? "es" : ""}: {coverMatches.map((m) => `${m.maleJob} × ${m.femaleJob}`).join(", ")}
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-destructive">Not covered — no match in this plan can produce this child. Add pairs with this child as an outcome, or include it as a parent.</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {result.unassignedDecisions.some((d) => d.assignedMales + d.assignedFemales > 0) && (
               <Card className="shadow-sm border-amber-300 dark:border-amber-700">
                 <CardHeader className="pb-2">
@@ -931,7 +1233,8 @@ export default function MarriageMatcher() {
                   <div>
                     <CardTitle className="text-base">Matched Pairs</CardTitle>
                     <CardDescription className="text-xs mt-0.5">
-                      Click 🔓 to lock a pair. Locked pairs stay fixed on recalculation. Edit job names in locked rows to override.
+                      Click 🔓 to lock a pair. Edit job names in locked rows to override.
+                      {desiredChildren.length > 0 && <> · <span className="text-violet-600 dark:text-violet-400">Purple rows</span> cover your priority children.</>}
                     </CardDescription>
                   </div>
                   <Badge className="text-sm px-3 py-1 bg-primary text-primary-foreground shrink-0">{result.matches.length} matched</Badge>
@@ -940,7 +1243,7 @@ export default function MarriageMatcher() {
               <CardContent>
                 {result.matches.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No matches found. Check that compatible pairs cover jobs with both male and female slots in the same rank.
+                    No matches found. Check that compatible pairs cover jobs with both male and female slots at the same character rank.
                   </p>
                 ) : (
                   <div className="space-y-5">
@@ -967,6 +1270,8 @@ export default function MarriageMatcher() {
                             {rankMatches.map((m, i) => (
                               <MatchRow key={m.id} match={m} index={i}
                                 rankJobNames={allJobsForRank.length > 0 ? allJobsForRank : sortedJobNames}
+                                pairs={pairs}
+                                desiredChildren={desiredChildren}
                                 onLock={lockMatch} onUnlock={unlockMatch}
                                 onChangeMale={changeLockedMale} onChangeFemale={changeLockedFemale}
                               />
