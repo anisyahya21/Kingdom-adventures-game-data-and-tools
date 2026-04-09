@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { SearchableSelect } from "@/components/searchable-select";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
@@ -429,14 +430,15 @@ function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, o
           </div>
         )}
         {availableJobs.length > 0 ? (
-          <select
+          <SearchableSelect
             value=""
-            onChange={(e) => { if (e.target.value) onAdd(rank, e.target.value); }}
-            className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground mt-3"
-          >
-            <option value="">+ Add a job you own at Rank {rank}…</option>
-            {availableJobs.map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
+            clearOnSelect
+            onChange={(v) => { if (v) onAdd(rank, v); }}
+            options={availableJobs.map((n) => ({ value: n, label: n }))}
+            placeholder={`+ Add a job you own at Rank ${rank}…`}
+            className="mt-3"
+            triggerClassName="h-8 text-sm"
+          />
         ) : totalFirstGenCount === 0 ? (
           <p className="text-xs text-muted-foreground text-center mt-3 py-1">
             No Non-Marriage jobs in database yet — add them in the Jobs tool.
@@ -618,16 +620,16 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
                         </div>
                       )}
                       <div className="flex gap-2">
-                        <select
+                        <SearchableSelect
                           value={childSel[p.id] ?? ""}
-                          onChange={(e) => setChildSel((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                          className="flex-1 h-7 text-xs rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                          <option value="">Select child job…</option>
-                          {allJobNames
+                          onChange={(v) => setChildSel((prev) => ({ ...prev, [p.id]: v }))}
+                          options={allJobNames
                             .filter((n) => !p.children.some((c) => normJob(c) === normJob(n)))
-                            .map((n) => <option key={n} value={n}>{n}</option>)}
-                        </select>
+                            .map((n) => ({ value: n, label: n }))}
+                          placeholder="Select child job…"
+                          className="flex-1"
+                          triggerClassName="h-7 text-xs"
+                        />
                         <Button size="sm" variant="secondary" onClick={() => addChild(p.id, childSel[p.id] ?? "")} className="h-7 px-2.5 text-xs shrink-0">
                           <Plus className="w-3 h-3 mr-1" />Add
                         </Button>
@@ -641,17 +643,23 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
         </div>
         <div className="space-y-2">
           <div className="flex gap-2 items-center">
-            <select value={selA} onChange={(e) => { setSelA(e.target.value); setError(""); }}
-              className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">Parent A (Non-Marriage)…</option>
-              {firstGenJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <SearchableSelect
+              value={selA}
+              onChange={(v) => { setSelA(v); setError(""); }}
+              options={firstGenJobNames.map((n) => ({ value: n, label: n }))}
+              placeholder="Parent A (Non-Marriage)…"
+              className="flex-1"
+              triggerClassName="h-8 text-sm"
+            />
             <ArrowLeftRight className="w-4 h-4 text-muted-foreground shrink-0" />
-            <select value={selB} onChange={(e) => { setSelB(e.target.value); setError(""); }}
-              className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">Parent B (Non-Marriage)…</option>
-              {firstGenJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <SearchableSelect
+              value={selB}
+              onChange={(v) => { setSelB(v); setError(""); }}
+              options={firstGenJobNames.map((n) => ({ value: n, label: n }))}
+              placeholder="Parent B (Non-Marriage)…"
+              className="flex-1"
+              triggerClassName="h-8 text-sm"
+            />
             <Button size="sm" variant="secondary" onClick={handleAdd} className="h-8 px-3 shrink-0">
               <Plus className="w-4 h-4 mr-1" />Add
             </Button>
@@ -738,13 +746,14 @@ function PriorityPanel({ desiredChildren, allJobNames, jobTypeMap, jobGenMap, on
             </div>
           </div>
           <div className="flex gap-2">
-            <select value={sel} onChange={(e) => setSel(e.target.value)}
-              className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">Select desired child job…</option>
-              {visibleJobs.map((n) => (
-                <option key={n} value={n}>{n}{jobTypeMap[n] ? ` (${jobTypeMap[n]})` : ""}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              value={sel}
+              onChange={setSel}
+              options={visibleJobs.map((n) => ({ value: n, label: n + (jobTypeMap[n] ? ` (${jobTypeMap[n]})` : "") }))}
+              placeholder="Select desired child job…"
+              className="flex-1"
+              triggerClassName="h-8 text-sm"
+            />
             <Button size="sm" variant="secondary" onClick={handle} className="h-8 px-3 shrink-0">
               <Plus className="w-4 h-4 mr-1" />Add
             </Button>
@@ -795,10 +804,13 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-5 h-5 rounded-full bg-secondary text-secondary-foreground text-xs flex items-center justify-center font-bold shrink-0">{index + 1}</span>
           {isLocked ? (
-            <select value={match.maleJob} onChange={(e) => onChangeMale(match.id, e.target.value)}
-              className="flex-1 h-7 text-sm rounded border border-input bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring min-w-0">
-              {rankJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <SearchableSelect
+              value={match.maleJob}
+              onChange={(v) => onChangeMale(match.id, v)}
+              options={rankJobNames.map((n) => ({ value: n, label: n }))}
+              className="flex-1 min-w-0"
+              triggerClassName="h-7 text-sm"
+            />
           ) : (
             <span className="flex items-center gap-1.5 min-w-0">
               <span className="text-base font-bold text-blue-500 leading-none shrink-0">♂</span>
@@ -818,10 +830,13 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
           ? <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
           : <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
         {isLocked ? (
-          <select value={match.femaleJob} onChange={(e) => onChangeFemale(match.id, e.target.value)}
-            className="flex-1 h-7 text-sm rounded border border-input bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring min-w-0">
-            {rankJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
+            <SearchableSelect
+              value={match.femaleJob}
+              onChange={(v) => onChangeFemale(match.id, v)}
+              options={rankJobNames.map((n) => ({ value: n, label: n }))}
+              className="flex-1 min-w-0"
+              triggerClassName="h-7 text-sm"
+            />
         ) : (
           <span className="flex items-center gap-1.5 min-w-0">
             <span className="text-base font-bold text-rose-500 leading-none shrink-0">♀</span>
@@ -1485,11 +1500,14 @@ export default function MarriageMatcher() {
                             {j}<button onClick={() => setResultIncludeJobs((prev) => prev.filter((x) => x !== j))}><X className="w-2.5 h-2.5 ml-0.5" /></button>
                           </Badge>
                         ))}
-                        <select value="" onChange={(e) => { if (e.target.value) setResultIncludeJobs((prev) => prev.includes(e.target.value) ? prev : [...prev, e.target.value]); }}
-                          className="h-6 text-xs rounded border border-dashed border-input bg-background px-2 text-muted-foreground">
-                          <option value="">+ Add job…</option>
-                          {result.matches.flatMap((m) => [m.maleJob, m.femaleJob]).filter((v, i, a) => a.indexOf(v) === i && !resultIncludeJobs.includes(v)).sort().map((j) => <option key={j} value={j}>{j}</option>)}
-                        </select>
+                        <SearchableSelect
+                          value=""
+                          clearOnSelect
+                          onChange={(v) => { if (v) setResultIncludeJobs((prev) => prev.includes(v) ? prev : [...prev, v]); }}
+                          options={result.matches.flatMap((m) => [m.maleJob, m.femaleJob]).filter((v, i, a) => a.indexOf(v) === i && !resultIncludeJobs.includes(v)).sort().map((j) => ({ value: j, label: j }))}
+                          placeholder="+ Add job…"
+                          triggerClassName="h-6 text-xs"
+                        />
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5 items-center">
@@ -1500,11 +1518,14 @@ export default function MarriageMatcher() {
                             {j}<button onClick={() => setResultExcludeJobs((prev) => prev.filter((x) => x !== j))}><X className="w-2.5 h-2.5 ml-0.5" /></button>
                           </Badge>
                         ))}
-                        <select value="" onChange={(e) => { if (e.target.value) setResultExcludeJobs((prev) => prev.includes(e.target.value) ? prev : [...prev, e.target.value]); }}
-                          className="h-6 text-xs rounded border border-dashed border-input bg-background px-2 text-muted-foreground">
-                          <option value="">+ Exclude job…</option>
-                          {result.matches.flatMap((m) => [m.maleJob, m.femaleJob]).filter((v, i, a) => a.indexOf(v) === i && !resultExcludeJobs.includes(v)).sort().map((j) => <option key={j} value={j}>{j}</option>)}
-                        </select>
+                        <SearchableSelect
+                          value=""
+                          clearOnSelect
+                          onChange={(v) => { if (v) setResultExcludeJobs((prev) => prev.includes(v) ? prev : [...prev, v]); }}
+                          options={result.matches.flatMap((m) => [m.maleJob, m.femaleJob]).filter((v, i, a) => a.indexOf(v) === i && !resultExcludeJobs.includes(v)).sort().map((j) => ({ value: j, label: j }))}
+                          placeholder="+ Exclude job…"
+                          triggerClassName="h-6 text-xs"
+                        />
                       </div>
                     </div>
                   </div>

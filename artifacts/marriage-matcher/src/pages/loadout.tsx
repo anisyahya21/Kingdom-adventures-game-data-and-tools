@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SearchableSelect } from "@/components/searchable-select";
 import { toPng } from "html-to-image";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -418,17 +419,21 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
           {/* Job selector */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Job</p>
-            <select value={loadout.jobName} onChange={(e) => onChange({ ...loadout, jobName: e.target.value })}
-              className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">Select job…</option>
-              {Object.keys(jobs).sort().map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <SearchableSelect
+              value={loadout.jobName}
+              onChange={(v) => onChange({ ...loadout, jobName: v })}
+              options={Object.keys(jobs).sort().map((n) => ({ value: n, label: n }))}
+              placeholder="Select job…"
+              triggerClassName="h-8 text-sm"
+            />
             {loadout.jobName && (
-              <select value={loadout.rank} onChange={(e) => upd("rank", e.target.value)}
-                className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-                <option value="">Rank…</option>
-                {ranks.map((r) => <option key={r} value={r}>Rank {r}</option>)}
-              </select>
+              <SearchableSelect
+                value={loadout.rank}
+                onChange={(v) => upd("rank", v)}
+                options={ranks.map((r) => ({ value: r, label: `Rank ${r}` }))}
+                placeholder="Rank…"
+                triggerClassName="h-8 text-sm"
+              />
             )}
           </div>
 
@@ -562,11 +567,14 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 </div>
                               </>
                             ) : (
-                              <select value="" onChange={(e) => setSlotEquip(slot as EquipSlot, e.target.value)}
-                                className="w-full h-7 text-[10px] rounded border border-input bg-background px-1 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground">
-                                <option value="">— empty —</option>
-                                {slotItems.map((n) => <option key={n} value={n}>{n}</option>)}
-                              </select>
+                              <SearchableSelect
+                                value=""
+                                clearOnSelect
+                                onChange={(v) => { if (v) setSlotEquip(slot as EquipSlot, v); }}
+                                options={slotItems.map((n) => ({ value: n, label: n }))}
+                                placeholder="— empty —"
+                                triggerClassName="h-7 text-[10px]"
+                              />
                             )}
                           </div>
                         </div>
@@ -615,11 +623,14 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
               {loadout.skills.length === 0 && <span className="text-xs text-muted-foreground/60">No skills selected</span>}
             </div>
             {loadout.skills.length < 9 && allSkills.length > 0 && (
-              <select value="" onChange={(e) => { addSkill(e.target.value); }}
-                className="w-full h-7 text-xs rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground">
-                <option value="">+ Add skill…</option>
-                {allSkills.filter((s) => !loadout.skills.includes(s)).map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <SearchableSelect
+                value=""
+                clearOnSelect
+                onChange={(v) => { if (v) addSkill(v); }}
+                options={allSkills.filter((s) => !loadout.skills.includes(s)).map((s) => ({ value: s, label: s }))}
+                placeholder="+ Add skill…"
+                triggerClassName="h-7 text-xs"
+              />
             )}
             {allSkills.length === 0 && <p className="text-xs text-muted-foreground/60">No skills in database yet.</p>}
           </div>

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SourceViewerButton } from "@/components/source-viewer";
 import rawSource from "./equipment.tsx?raw";
@@ -864,10 +865,12 @@ export default function EquipmentPage() {
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <Input placeholder="Search equipment…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-sm w-44" />
-          <select value={slotFilter} onChange={(e) => setSlotFilter(e.target.value)}
-            className="h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-            {slotOptions.map((s) => <option key={s} value={s}>{s === "All" ? "All slots" : s}</option>)}
-          </select>
+          <SearchableSelect
+            value={slotFilter}
+            onChange={setSlotFilter}
+            options={slotOptions.map((s) => ({ value: s, label: s === "All" ? "All slots" : s }))}
+            triggerClassName="h-8 text-sm w-32"
+          />
           <button
             onClick={() => setSortByInc((v) => !v)}
             className={`h-8 px-3 text-xs rounded-md border transition-colors font-medium ${sortByInc ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"}`}
@@ -1007,10 +1010,12 @@ export default function EquipmentPage() {
                                 className="h-6 w-14 text-xs text-center px-1 mx-auto" />
                             </td>
                             <td className="px-2 py-1.5">
-                              <select value={itemSlot} onChange={(e) => setItemSlot(item.name, e.target.value)}
-                                className="h-6 text-xs rounded border border-input bg-background px-1 focus:outline-none focus:ring-1 focus:ring-ring w-24">
-                                {SLOT_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                              </select>
+                              <SearchableSelect
+                                value={itemSlot}
+                                onChange={(v) => setItemSlot(item.name, v)}
+                                options={SLOT_OPTIONS.map((s) => ({ value: s, label: s }))}
+                                triggerClassName="h-6 text-xs w-24"
+                              />
                             </td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
                               {(() => {
@@ -1062,14 +1067,13 @@ export default function EquipmentPage() {
                                 {itemSlot === "Weapon" && (
                                   <div className="flex items-center gap-2 mb-3 pb-3 border-b border-primary/10">
                                     <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Weapon Type</span>
-                                    <select
+                                    <SearchableSelect
                                       value={weaponTypes[item.name] ?? ""}
-                                      onChange={(e) => setWeaponType(item.name, e.target.value)}
-                                      className="h-6 text-xs rounded border border-input bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring min-w-32"
-                                    >
-                                      <option value="">— unset —</option>
-                                      {weaponCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-                                    </select>
+                                      onChange={(v) => setWeaponType(item.name, v)}
+                                      options={weaponCategories.map((cat) => ({ value: cat, label: cat }))}
+                                      placeholder="— unset —"
+                                      triggerClassName="h-6 text-xs min-w-32"
+                                    />
                                     <button onClick={() => setShowCategoriesDialog(true)} className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary">
                                       <Settings2 className="w-3 h-3" />Manage types
                                     </button>
@@ -1179,11 +1183,13 @@ export default function EquipmentPage() {
                           {entry.itemName && equipIcons[`equip:${entry.itemName}`] && (
                             <img src={equipIcons[`equip:${entry.itemName}`]} alt={entry.itemName} className="w-10 h-10 object-contain rounded mx-auto" />
                           )}
-                          <select value={entry.itemName} onChange={(e) => setLoadoutEntry(slot, { itemName: e.target.value })}
-                            className="w-full h-7 text-xs rounded border border-input bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring">
-                            <option value="">— none —</option>
-                            {eligibleItems.map((i) => <option key={i.uid} value={i.name}>{i.name}</option>)}
-                          </select>
+                          <SearchableSelect
+                            value={entry.itemName}
+                            onChange={(v) => setLoadoutEntry(slot, { itemName: v })}
+                            options={eligibleItems.map((i) => ({ value: i.name, label: i.name }))}
+                            placeholder="— none —"
+                            triggerClassName="h-7 text-xs w-full"
+                          />
                           {entry.itemName && (
                             <div className="flex items-center gap-1.5">
                               <span className="text-[10px] text-muted-foreground">Level</span>

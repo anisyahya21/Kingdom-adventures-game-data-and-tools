@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { SearchableSelect } from "@/components/searchable-select";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -363,12 +364,12 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete, isF
           </div>
           {/* Rank dropdown */}
           <div className="pl-5 mt-0.5">
-            <select value={rs.rank} onChange={(e) => changeRank(e.target.value)}
-              className="h-5 text-[10px] rounded border border-input bg-background px-1 text-muted-foreground">
-              {availRanks.map((r) => (
-                <option key={r} value={r}>Rank {r}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              value={rs.rank}
+              onChange={changeRank}
+              options={availRanks.map((r) => ({ value: r, label: `Rank ${r}` }))}
+              triggerClassName="h-5 text-[10px] px-1"
+            />
           </div>
         </td>
 
@@ -933,13 +934,13 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                 {editing && (
                   addingRank ? (
                     <div className="flex items-center gap-1">
-                      <select value={newRankVal} onChange={(e) => setNewRankVal(e.target.value)}
-                        className="h-6 text-xs rounded border border-input bg-background px-1">
-                        <option value="">Pick rank…</option>
-                        {DEFAULT_RANKS.filter((r) => !draft.ranks[r]).map((r) => (
-                          <option key={r} value={r}>{r}</option>
-                        ))}
-                      </select>
+                      <SearchableSelect
+                        value={newRankVal}
+                        onChange={setNewRankVal}
+                        options={DEFAULT_RANKS.filter((r) => !draft.ranks[r]).map((r) => ({ value: r, label: r }))}
+                        placeholder="Pick rank…"
+                        triggerClassName="h-6 text-xs px-1 w-28"
+                      />
                       <button onClick={addRank} className="text-primary"><Check className="w-3 h-3" /></button>
                       <button onClick={() => { setAddingRank(false); setNewRankVal(""); }} className="text-muted-foreground"><X className="w-3 h-3" /></button>
                     </div>
@@ -1228,15 +1229,14 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                               {affinity}
                             </span>
                           )}
-                          <select
+                          <SearchableSelect
                             value={affinity ?? ""}
-                            onChange={(e) => updatePairAffinity(id, e.target.value)}
-                            className="h-5 text-[10px] rounded border border-input bg-background px-1 text-muted-foreground ml-1"
-                            title="Set affinity rating"
-                          >
-                            <option value="">affinity…</option>
-                            {["S","A","B","C","D","E"].map((g) => <option key={g} value={g}>{g}</option>)}
-                          </select>
+                            onChange={(v) => updatePairAffinity(id, v)}
+                            options={["S","A","B","C","D","E"].map((g) => ({ value: g, label: g }))}
+                            placeholder="affinity…"
+                            className="ml-1"
+                            triggerClassName="h-5 text-[10px] px-1 w-20"
+                          />
                           <button onClick={() => removePair(id)} className="ml-auto text-muted-foreground/40 hover:text-destructive transition-colors shrink-0" title="Remove this pair">
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -1253,14 +1253,15 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                           </div>
                         )}
                         <div className="flex gap-1.5">
-                          <select
-                            defaultValue=""
-                            onChange={(e) => { if (e.target.value) { addChildToPair(id, e.target.value); e.target.value = ""; } }}
-                            className="flex-1 h-6 text-[11px] rounded border border-input bg-background px-1.5 focus:outline-none text-muted-foreground"
-                          >
-                            <option value="">+ Add child job…</option>
-                            {availableChildren.map((j) => <option key={j} value={j}>{j}</option>)}
-                          </select>
+                          <SearchableSelect
+                            value=""
+                            clearOnSelect
+                            onChange={(v) => { if (v) addChildToPair(id, v); }}
+                            options={availableChildren.map((j) => ({ value: j, label: j }))}
+                            placeholder="+ Add child job…"
+                            className="flex-1"
+                            triggerClassName="h-6 text-[11px]"
+                          />
                         </div>
                       </div>
                     );
@@ -1268,14 +1269,14 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                 </div>
               )}
               {availablePartners.length > 0 && (
-                <select
-                  defaultValue=""
-                  onChange={(e) => { if (e.target.value) { addPair(e.target.value); e.target.value = ""; } }}
-                  className="w-full h-7 text-xs rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground"
-                >
-                  <option value="">+ Add compatible pair with…</option>
-                  {availablePartners.map((j) => <option key={j} value={j}>{j}</option>)}
-                </select>
+                <SearchableSelect
+                  value=""
+                  clearOnSelect
+                  onChange={(v) => { if (v) addPair(v); }}
+                  options={availablePartners.map((j) => ({ value: j, label: j }))}
+                  placeholder="+ Add compatible pair with…"
+                  triggerClassName="h-7 text-xs"
+                />
               )}
               <p className="text-[10px] text-muted-foreground/70">Compatible pairs are shared community data — visible to all users and in the Marriage Match Finder.</p>
             </div>

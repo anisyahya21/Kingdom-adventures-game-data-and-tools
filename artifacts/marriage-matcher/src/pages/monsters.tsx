@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SearchableSelect } from "@/components/searchable-select";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API = (p: string) => `${BASE}/ka-api/ka${p}`;
@@ -622,14 +623,13 @@ export default function MonstersPage() {
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="text-xs text-muted-foreground mb-1 block">Job reward (non-combat Gen1){gen1NonCombatJobNames.length === 0 ? " — add non-combat jobs first" : ""}</label>
-                    <select
+                    <SearchableSelect
                       value={conquestDraft.reward.jobName}
-                      onChange={(e) => setConquestDraft((d) => ({ ...d, reward: { ...d.reward, jobName: e.target.value } }))}
-                      className="h-8 w-full text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                      <option value="">— no job reward —</option>
-                      {(gen1NonCombatJobNames.length > 0 ? gen1NonCombatJobNames : jobNames).map((j) => <option key={j} value={j}>{j}</option>)}
-                    </select>
+                      onChange={(v) => setConquestDraft((d) => ({ ...d, reward: { ...d.reward, jobName: v } }))}
+                      options={(gen1NonCombatJobNames.length > 0 ? gen1NonCombatJobNames : jobNames).map((j) => ({ value: j, label: j }))}
+                      placeholder="— no job reward —"
+                      triggerClassName="h-8 text-xs"
+                    />
                   </div>
                   <div className="w-16">
                     <label className="text-xs text-muted-foreground mb-1 block">Rank</label>
@@ -646,14 +646,13 @@ export default function MonstersPage() {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Equipment piece{allEquip.length === 0 ? " — add equipment to the equipment database first" : ""}</label>
-                  <select
+                  <SearchableSelect
                     value={conquestDraft.reward.equipment}
-                    onChange={(e) => setConquestDraft((d) => ({ ...d, reward: { ...d.reward, equipment: e.target.value } }))}
-                    className="h-8 w-full text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
-                  >
-                    <option value="">— no equipment reward —</option>
-                    {allEquip.map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
+                    onChange={(v) => setConquestDraft((d) => ({ ...d, reward: { ...d.reward, equipment: v } }))}
+                    options={allEquip.map((n) => ({ value: n, label: n }))}
+                    placeholder="— no equipment reward —"
+                    triggerClassName="h-8 text-xs"
+                  />
                 </div>
               </div>
             </div>
