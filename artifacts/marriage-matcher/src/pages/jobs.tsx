@@ -77,6 +77,24 @@ function useUserName() {
   return { name, save };
 }
 
+function useFavorites() {
+  const [favs, setFavs] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("ka_fav_jobs");
+      return new Set(stored ? JSON.parse(stored) : []);
+    } catch { return new Set(); }
+  });
+  const toggle = (name: string) => {
+    setFavs((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      localStorage.setItem("ka_fav_jobs", JSON.stringify([...next]));
+      return next;
+    });
+  };
+  return { favs, toggle };
+}
+
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
@@ -187,13 +205,15 @@ function clampLevel(v: number): number {
   return Math.min(MAX_LEVEL, Math.max(1, v));
 }
 
-function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete }: {
-  jobName:     string;
-  job:         Job;
-  statIcons:   Record<string,string>;
-  onDelete:    () => void;
-  onSaveStats: (rank: string, stats: Record<string,JobStatEntry>) => Promise<void>;
-  canDelete:   boolean;
+function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete, isFav, onToggleFav }: {
+  jobName:      string;
+  job:          Job;
+  statIcons:    Record<string,string>;
+  onDelete:     () => void;
+  onSaveStats:  (rank: string, stats: Record<string,JobStatEntry>) => Promise<void>;
+  canDelete:    boolean;
+  isFav:        boolean;
+  onToggleFav:  () => void;
 }) {
   const [rs, setRs] = useState<RowState>(() => makeRowState(job));
 
@@ -263,6 +283,11 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete }: {
         {/* Sticky left column */}
         <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-2 py-1.5 min-w-[220px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
+            {/* Favorite star */}
+            <button onClick={onToggleFav} title={isFav ? "Remove from favorites" : "Add to favorites"}
+              className="shrink-0 transition-colors hover:scale-110">
+              <Star className={`w-3.5 h-3.5 ${isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/25 hover:text-yellow-400/60"}`} />
+            </button>
             {/* Backend toggle */}
             <button
               onClick={() => setRs((r) => ({ ...r, showBackend: !r.showBackend, draft: r.showBackend ? {} : r.draft, dirty: r.showBackend ? false : r.dirty }))}
@@ -420,9 +445,11 @@ function JobsTable({
   userName: string;
   onSaveJobs: (updated: Record<string,Job>, desc: string) => void;
 }) {
+  const { favs, toggle: toggleFav } = useFavorites();
   const [search,      setSearch]      = useState("");
   const [genFilter,   setGenFilter]   = useState<"all"|"1"|"2">("all");
   const [typeFilter,  setTypeFilter]  = useState<"all"|"combat"|"non-combat">("all");
+  const [favsOnly,    setFavsOnly]    = useState(false);
   const [addingJob,   setAddingJob]   = useState(false);
 
   // Sort
@@ -437,6 +464,7 @@ function JobsTable({
   // Per-row default rank (first rank) for sorting — use the first rank's stat at level 1
   const sortedEntries = useMemo(() => {
     const entries = Object.entries(jobs).filter(([name, job]) => {
+      if (favsOnly && !favs.has(name)) return false;
       if (genFilter === "1" && job.generation !== 1) return false;
       if (genFilter === "2" && job.generation !== 2) return false;
       if (typeFilter === "combat"     && job.type !== "combat")     return false;
@@ -463,7 +491,7 @@ function JobsTable({
   const addJob = (name: string, gen: 1|2, type: "combat"|"non-combat") => {
     const ranks: Record<string,JobRankData> = {};
     DEFAULT_RANKS.forEach((r) => { ranks[r] = { stats: {} }; });
-    const newJob: Job = { generation: gen, type, ranks, shield: "cannot", weaponEquip: {}, skillAccess: { attack: "can", casting: "can" }, skills: [] };
+    const newJob: Job = { generation: gen, type, ranks, skills: [] };
     onSaveJobs({ ...jobs, [name]: newJob }, `Added job: ${name}`);
   };
 
@@ -511,6 +539,13 @@ function JobsTable({
             </button>
           ))}
         </div>
+        <button onClick={() => setFavsOnly((v) => !v)}
+          className={`flex items-center gap-1.5 px-3 h-8 text-xs font-medium rounded border transition-colors ${favsOnly
+            ? "bg-yellow-400/20 border-yellow-400 text-yellow-600 dark:text-yellow-400"
+            : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
+          <Star className={`w-3.5 h-3.5 ${favsOnly ? "fill-yellow-400 text-yellow-400" : ""}`} />
+          Favorites {favsOnly && favs.size > 0 && `(${favs.size})`}
+        </button>
         <Button size="sm" variant="outline" className="h-8 gap-1.5 ml-auto" onClick={() => setAddingJob(true)}>
           <Plus className="w-3.5 h-3.5" />Add Job
         </Button>
@@ -568,6 +603,8 @@ function JobsTable({
                     onDelete={() => deleteJob(name)}
                     onSaveStats={saveStats(name)}
                     canDelete={true}
+                    isFav={favs.has(name)}
+                    onToggleFav={() => toggleFav(name)}
                   />
                 ))
               )}
@@ -852,12 +889,16 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
                 <tr className={editing ? "border-t border-border/50" : ""}>
                   {STAT_ORDER.map((stat) => {
                     const s = rankData?.stats[stat];
+                    const filled = s !== undefined;
                     const v = s ? statAtLevel(s, level) : null;
                     return (
                       <td key={stat} className="text-center px-2 py-2">
-                        <span className={`text-sm font-semibold tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
-                          {v === null || v === 0 ? "—" : Math.round(v * 100) / 100}
-                        </span>
+                        {!filled && !editing
+                          ? <span className="text-sm font-bold text-red-400">—</span>
+                          : <span className={`text-sm font-semibold tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
+                              {v === null || v === 0 ? "—" : Math.round(v * 100) / 100}
+                            </span>
+                        }
                       </td>
                     );
                   })}
@@ -875,23 +916,27 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
         <CardContent className="space-y-4">
           <div>
             <p className="text-xs font-semibold text-muted-foreground mb-2">Shield</p>
-            <div className="flex gap-2">
-              {(["can","cannot"] as const).map((v) => {
-                const active = (draft.shield ?? "cannot") === v;
-                return editing ? (
-                  <button key={v} onClick={() => setDraft((d) => ({ ...d, shield: v }))}
-                    className={`px-3 py-1.5 text-xs rounded-full border font-medium transition-colors ${active
-                      ? v === "can" ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400" : "border-border text-muted-foreground"
-                      : "border-dashed border-border/60 text-muted-foreground/50 hover:border-primary/40"}`}>
-                    {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : "Can't Equip"}
-                  </button>
-                ) : active ? (
-                  <span key={v} className={`px-3 py-1.5 text-xs rounded-full border font-medium ${v === "can" ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400" : "border-dashed border-border/60 text-muted-foreground/50"}`}>
-                    {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : "Can't Equip"}
-                  </span>
-                ) : null;
-              })}
-            </div>
+            {!editing && job.shield === undefined ? (
+              <span className="text-sm font-bold text-red-400">—</span>
+            ) : editing ? (
+              <div className="flex gap-2">
+                {(["can","cannot"] as const).map((v) => {
+                  const active = (draft.shield ?? "cannot") === v;
+                  return (
+                    <button key={v} onClick={() => setDraft((d) => ({ ...d, shield: v }))}
+                      className={`px-3 py-1.5 text-xs rounded-full border font-medium transition-colors ${active
+                        ? v === "can" ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400" : "border-border text-muted-foreground"
+                        : "border-dashed border-border/60 text-muted-foreground/50 hover:border-primary/40"}`}>
+                      {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : "Can't Equip"}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <span className={`px-3 py-1.5 text-xs rounded-full border font-medium ${job.shield === "can" ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400" : "border-dashed border-border/60 text-muted-foreground/50"}`}>
+                {job.shield === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : "Can't Equip"}
+              </span>
+            )}
           </div>
           <div>
             <p className="text-xs font-semibold text-muted-foreground mb-1">Weapon Classes</p>
@@ -910,10 +955,15 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
                   <tbody>
                     <tr>
                       {weaponCategories.map((cls) => {
-                        const v = draft.weaponEquip?.[cls] ?? "cannot";
+                        const savedVal = job.weaponEquip?.[cls];
+                        const draftVal = draft.weaponEquip?.[cls];
+                        const unfilled = !editing && savedVal === undefined;
+                        const v = (editing ? draftVal : savedVal) ?? "cannot";
                         return (
                           <td key={cls} className="text-center px-2 py-2">
-                            {editing ? (
+                            {unfilled ? (
+                              <span className="text-sm font-bold text-red-400">—</span>
+                            ) : editing ? (
                               <button onClick={() => cycleWeapon(cls)}
                                 className={`px-2 py-1 rounded-full border text-[11px] font-medium transition-colors whitespace-nowrap ${weaponStyle[v]}`}>
                                 {weaponLabel[v]}
@@ -953,10 +1003,15 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, onSave }: {
             <tbody>
               <tr>
                 {(["attack","casting"] as const).map((cat) => {
-                  const v = draft.skillAccess?.[cat] ?? "can";
+                  const savedCatVal = job.skillAccess?.[cat];
+                  const draftCatVal = draft.skillAccess?.[cat];
+                  const unfilled = !editing && savedCatVal === undefined;
+                  const v = (editing ? draftCatVal : savedCatVal) ?? "can";
                   return (
                     <td key={cat} className="text-center px-4 py-2">
-                      {editing ? (
+                      {unfilled ? (
+                        <span className="text-sm font-bold text-red-400">—</span>
+                      ) : editing ? (
                         <button onClick={() => setDraft((d) => ({ ...d, skillAccess: { ...d.skillAccess, [cat]: v === "can" ? "cannot" : "can" } }))}
                           className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${v === "can"
                             ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
