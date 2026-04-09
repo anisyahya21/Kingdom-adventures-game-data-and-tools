@@ -10,7 +10,7 @@ export interface HistoryEntry {
   id: string;
   timestamp: number;
   userName: string;
-  changeType: "stat" | "slot" | "equip-icon" | "stat-icon";
+  changeType: "stat" | "slot" | "equip-icon" | "stat-icon" | "weapon-type" | "weapon-category";
   itemName: string;
   description: string;
 }
@@ -20,6 +20,8 @@ type SharedState = {
   slotAssignments: Record<string, string>;
   equipIcons: Record<string, string>;
   statIcons: Record<string, string>;
+  weaponTypes: Record<string, string>;
+  weaponCategories: string[];
   history: HistoryEntry[];
 };
 
@@ -28,6 +30,8 @@ const DEFAULT_STATE: SharedState = {
   slotAssignments: {},
   equipIcons: {},
   statIcons: {},
+  weaponTypes: {},
+  weaponCategories: [],
   history: [],
 };
 
@@ -40,7 +44,7 @@ function readState(): SharedState {
     ensureDir();
     if (!fs.existsSync(STATE_FILE)) return { ...DEFAULT_STATE };
     const parsed = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
-    return { ...DEFAULT_STATE, history: [], ...parsed };
+    return { ...DEFAULT_STATE, history: [], weaponCategories: [], ...parsed };
   } catch {
     return { ...DEFAULT_STATE };
   }
@@ -97,6 +101,24 @@ router.put("/ka/shared/icons/stat", (req, res) => {
   const { data, history } = req.body as { data: SharedState["statIcons"]; history?: Omit<HistoryEntry, "id" | "timestamp"> };
   const state = readState();
   state.statIcons = data ?? {};
+  if (history) appendHistory(state, history);
+  writeState(state);
+  res.json({ ok: true });
+});
+
+router.put("/ka/shared/weapon-types", (req, res) => {
+  const { data, history } = req.body as { data: SharedState["weaponTypes"]; history?: Omit<HistoryEntry, "id" | "timestamp"> };
+  const state = readState();
+  state.weaponTypes = data ?? {};
+  if (history) appendHistory(state, history);
+  writeState(state);
+  res.json({ ok: true });
+});
+
+router.put("/ka/shared/weapon-categories", (req, res) => {
+  const { data, history } = req.body as { data: SharedState["weaponCategories"]; history?: Omit<HistoryEntry, "id" | "timestamp"> };
+  const state = readState();
+  state.weaponCategories = Array.isArray(data) ? data : [];
   if (history) appendHistory(state, history);
   writeState(state);
   res.json({ ok: true });

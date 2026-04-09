@@ -5,6 +5,7 @@ import {
   ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
   Loader2, AlertTriangle, Moon, Sun, Info, X, ImageIcon,
   ChevronDown, ChevronRight, Download, History, CheckSquare, GripVertical,
+  Plus, Settings2, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,9 +67,16 @@ function SlotIcon({ slot, className = "w-6 h-6" }: { slot: string; className?: s
     );
     case "Armor": return (
       <svg {...p}>
-        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-        <line x1="3" y1="6" x2="21" y2="6" />
-        <path d="M16 10a4 4 0 01-8 0" />
+        {/* Breastplate body */}
+        <path d="M5 9L12 6L19 9V16C19 19 16 21 12 22C8 21 5 19 5 16V9Z" />
+        {/* Left pauldron */}
+        <path d="M5 9C5 9 2 9 2 12L5 12" />
+        {/* Right pauldron */}
+        <path d="M19 9C19 9 22 9 22 12L19 12" />
+        {/* Center ridge */}
+        <line x1="12" y1="6" x2="12" y2="21" />
+        {/* Pectoral curve */}
+        <path d="M7 12Q12 14 17 12" />
       </svg>
     );
     case "Accessory": return (
@@ -172,7 +180,7 @@ interface HistoryEntry {
   id: string;
   timestamp: number;
   userName: string;
-  changeType: "stat" | "slot" | "equip-icon" | "stat-icon";
+  changeType: "stat" | "slot" | "equip-icon" | "stat-icon" | "weapon-type" | "weapon-category";
   itemName: string;
   description: string;
 }
@@ -182,10 +190,15 @@ interface SharedState {
   slotAssignments: Record<string, string>;
   equipIcons: Record<string, string>;
   statIcons: Record<string, string>;
+  weaponTypes: Record<string, string>;
+  weaponCategories: string[];
   history: HistoryEntry[];
 }
 
-const EMPTY_SHARED: SharedState = { overrides: {}, slotAssignments: {}, equipIcons: {}, statIcons: {}, history: [] };
+const EMPTY_SHARED: SharedState = {
+  overrides: {}, slotAssignments: {}, equipIcons: {}, statIcons: {},
+  weaponTypes: {}, weaponCategories: [], history: [],
+};
 
 async function fetchShared(): Promise<SharedState> {
   try {
@@ -234,6 +247,19 @@ function useShared() {
     await putShared("icons/stat", data, history); invalidate();
   }, [invalidate]);
 
+  const saveWeaponTypes = useCallback(async (data: Record<string, string>, history?: HistoryPayload) => {
+    await putShared("weapon-types", data, history); invalidate();
+  }, [invalidate]);
+
+  const saveWeaponCategories = useCallback(async (data: string[], history?: HistoryPayload) => {
+    await fetch("/ka-api/ka/shared/weapon-categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data, history }),
+    });
+    invalidate();
+  }, [invalidate]);
+
   const renameUser = useCallback(async (oldName: string, newName: string) => {
     if (!oldName || !newName || oldName === newName) return;
     await fetch("/ka-api/ka/shared/rename-user", {
@@ -244,7 +270,7 @@ function useShared() {
     invalidate();
   }, [invalidate]);
 
-  return { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, renameUser };
+  return { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, saveWeaponTypes, saveWeaponCategories, renameUser };
 }
 
 function getEffectiveStat(item: EquipmentItem, stat: string, field: "base" | "inc", overrides: Record<string, StatOverrides>): number {
@@ -349,6 +375,8 @@ const CHANGE_COLORS: Record<string, string> = {
   slot: "bg-violet-500",
   "equip-icon": "bg-amber-500",
   "stat-icon": "bg-emerald-500",
+  "weapon-type": "bg-rose-500",
+  "weapon-category": "bg-orange-500",
 };
 
 // ─── Character builder ────────────────────────────────────────────────────────
@@ -369,10 +397,104 @@ function InfoDialog() {
         <DialogHeader><DialogTitle>How to use Equipment Stats</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
           <div><h3 className="font-semibold text-foreground mb-1">Comparing specific items</h3><p>Check the checkbox on any rows you want to compare, then click <strong>Compare</strong> to show only those items side by side. Click <strong>Show all</strong> to go back.</p></div>
-          <div><h3 className="font-semibold text-foreground mb-1">Assigning slots</h3><p>Use the Slot dropdown on each item to assign it to Head, Weapon, Shield, Armor, or Accessory. Once set, it only appears in that slot in the Character Builder.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">Assigning slots</h3><p>Use the Slot dropdown on each item to assign it to Head, Weapon, Shield, Armor, or Accessory. Once set, it only appears in that slot in the Equipment Builder.</p></div>
           <div><h3 className="font-semibold text-foreground mb-1">Editing stats</h3><p>Click an item's name to expand its stat editor. Set Base and +/Lv values using <code className="bg-muted px-1 rounded text-xs">stat = Base + (Level − 1) × Inc</code>. You'll be asked for your name — this gets logged in the change history.</p></div>
           <div><h3 className="font-semibold text-foreground mb-1">Exporting data</h3><p>Use the <strong>Export JSON</strong> button to download all current slot assignments and stat values as a file. This can be re-imported or committed to the project's code.</p></div>
-          <div><h3 className="font-semibold text-foreground mb-1">What's shared vs personal</h3><p>Slots, stats, and icons are shared with everyone. Character builder and dark/light preference are yours only.</p></div>
+          <div><h3 className="font-semibold text-foreground mb-1">What's shared vs personal</h3><p>Slots, stats, icons, weapon types, and weapon categories are shared with everyone. Equipment builder loadout and dark/light preference are yours only.</p></div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Item stat history dialog ─────────────────────────────────────────────────
+
+function ItemStatHistoryDialog({ itemName, history, onClose }: {
+  itemName: string | null; history: HistoryEntry[]; onClose: () => void;
+}) {
+  const entries = useMemo(
+    () => history.filter((e) => e.itemName === itemName && e.changeType === "stat"),
+    [itemName, history]
+  );
+  return (
+    <Dialog open={!!itemName} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-muted-foreground" />
+            Stat edit history — {itemName}
+          </DialogTitle>
+        </DialogHeader>
+        {entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No stat edits recorded for this item yet.</p>
+        ) : (
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+            {entries.map((e) => (
+              <div key={e.id} className="flex items-start gap-2.5 text-sm">
+                <div className="mt-0.5 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                  {e.userName.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                    <span className="font-medium text-foreground">{e.userName}</span>
+                    <span className="text-[10px] text-muted-foreground" title={new Date(e.timestamp).toLocaleString()}>{relTime(e.timestamp)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{e.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Weapon categories manager dialog ─────────────────────────────────────────
+
+function WeaponCategoriesDialog({ open, categories, onClose, onSave }: {
+  open: boolean; categories: string[]; onClose: () => void;
+  onSave: (cats: string[]) => void;
+}) {
+  const [draft, setDraft] = useState<string[]>([]);
+  const [newCat, setNewCat] = useState("");
+  useEffect(() => { setDraft([...categories]); }, [categories, open]);
+
+  const addCat = (e: React.FormEvent) => {
+    e.preventDefault();
+    const t = newCat.trim();
+    if (t && !draft.includes(t)) { setDraft((d) => [...d, t].sort()); setNewCat(""); }
+  };
+  const removeCat = (cat: string) => setDraft((d) => d.filter((c) => c !== cat));
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-muted-foreground" />
+            Weapon Type Categories
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground">These categories appear in the weapon type dropdown when editing a weapon. Changes are shared with everyone.</p>
+        <div className="space-y-1.5 max-h-48 overflow-y-auto mt-1">
+          {draft.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No categories yet — add one below.</p>}
+          {draft.map((cat) => (
+            <div key={cat} className="flex items-center justify-between text-sm rounded px-2 py-1 bg-muted/40">
+              <span>{cat}</span>
+              <button onClick={() => removeCat(cat)} className="text-muted-foreground hover:text-destructive"><X className="w-3.5 h-3.5" /></button>
+            </div>
+          ))}
+        </div>
+        <form onSubmit={addCat} className="flex gap-2 mt-1">
+          <Input autoFocus placeholder="New category…" value={newCat} onChange={(e) => setNewCat(e.target.value)} className="flex-1 h-8 text-sm" />
+          <Button type="submit" size="sm" className="h-8" disabled={!newCat.trim() || draft.includes(newCat.trim())}>
+            <Plus className="w-3.5 h-3.5" />Add
+          </Button>
+        </form>
+        <div className="flex justify-end gap-2 mt-2">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" onClick={() => { onSave(draft); onClose(); }}>Save</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -411,9 +533,15 @@ export default function EquipmentPage() {
   };
 
   const { data: items = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery({ queryKey: ["equipment"], queryFn: fetchSheet, staleTime: 5 * 60 * 1000 });
-  const { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, renameUser } = useShared();
+  const { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, saveWeaponTypes, saveWeaponCategories, renameUser } = useShared();
   const { overrides, slotAssignments, equipIcons, statIcons } = shared;
+  const weaponTypes = shared.weaponTypes ?? {};
+  const weaponCategories = shared.weaponCategories ?? [];
   const history = shared.history ?? [];
+
+  // Dialogs
+  const [itemHistoryName, setItemHistoryName] = useState<string | null>(null);
+  const [showCategoriesDialog, setShowCategoriesDialog] = useState(false);
 
   const { userName, setUserName } = useUserName();
   const [namePromptOpen, setNamePromptOpen] = useState(false);
@@ -484,6 +612,19 @@ export default function EquipmentPage() {
       await saveSlots(next, { userName, changeType: "slot", itemName: name, description: `Assigned "${name}" to slot: ${slot}` });
     });
   }, [slotAssignments, saveSlots, withName, userName]);
+
+  const setWeaponType = useCallback((name: string, category: string) => {
+    withName(async () => {
+      const next = { ...weaponTypes, [name]: category };
+      await saveWeaponTypes(next, { userName, changeType: "weapon-type", itemName: name, description: `Set weapon type of "${name}" to: ${category || "— unset"}` });
+    });
+  }, [weaponTypes, saveWeaponTypes, withName, userName]);
+
+  const saveCategories = useCallback((cats: string[]) => {
+    withName(async () => {
+      await saveWeaponCategories(cats, { userName, changeType: "weapon-category", itemName: "—", description: `Updated weapon category list (${cats.length} categories)` });
+    });
+  }, [saveWeaponCategories, withName, userName]);
 
   const setOverride = useCallback((itemName: string, stat: string, field: "base" | "inc", value: number) => {
     withName(async () => {
@@ -592,6 +733,17 @@ export default function EquipmentPage() {
         onSave={onNameSaved}
         onCancel={() => { setNamePromptOpen(false); setRenameMode(false); }}
       />
+      <ItemStatHistoryDialog
+        itemName={itemHistoryName}
+        history={history}
+        onClose={() => setItemHistoryName(null)}
+      />
+      <WeaponCategoriesDialog
+        open={showCategoriesDialog}
+        categories={weaponCategories}
+        onClose={() => setShowCategoriesDialog(false)}
+        onSave={saveCategories}
+      />
 
       <div className="max-w-[1400px] mx-auto px-4 py-8">
 
@@ -655,6 +807,9 @@ export default function EquipmentPage() {
               <X className="w-3.5 h-3.5" />Show all
             </Button>
           )}
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-muted-foreground" onClick={() => setShowCategoriesDialog(true)}>
+            <Settings2 className="w-3.5 h-3.5" />Weapon Types
+          </Button>
           <div className="ml-auto flex items-center gap-2">
             {dataUpdatedAt && <span className="text-xs text-muted-foreground">Updated {new Date(dataUpdatedAt).toLocaleTimeString()}</span>}
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} className="h-8 gap-2">
@@ -777,10 +932,16 @@ export default function EquipmentPage() {
                                 const e = lastStatEdit[item.name];
                                 if (!e) return <span className="text-muted-foreground/30 text-xs">—</span>;
                                 return (
-                                  <span className="text-[10px] text-muted-foreground leading-tight" title={new Date(e.timestamp).toLocaleString()}>
-                                    <span className="font-medium text-foreground/80">{e.userName}</span>
-                                    <br />{relTime(e.timestamp)}
-                                  </span>
+                                  <button
+                                    onClick={() => setItemHistoryName(item.name)}
+                                    className="text-left hover:text-primary transition-colors"
+                                    title={`See all stat edits for ${item.name}`}
+                                  >
+                                    <span className="text-[10px] leading-tight block">
+                                      <span className="font-medium text-foreground/80 hover:text-primary">{e.userName}</span>
+                                      <br /><span className="text-muted-foreground">{relTime(e.timestamp)}</span>
+                                    </span>
+                                  </button>
                                 );
                               })()}
                             </td>
@@ -803,6 +964,25 @@ export default function EquipmentPage() {
                                   <span className="ml-2 text-primary">· Saved to everyone</span>
                                   {!userName && <span className="ml-2 text-amber-500">· You'll be asked for your name on first edit</span>}
                                 </p>
+                                {itemSlot === "Weapon" && (
+                                  <div className="flex items-center gap-2 mb-3 pb-3 border-b border-primary/10">
+                                    <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Weapon Type</span>
+                                    <select
+                                      value={weaponTypes[item.name] ?? ""}
+                                      onChange={(e) => setWeaponType(item.name, e.target.value)}
+                                      className="h-6 text-xs rounded border border-input bg-background px-1.5 focus:outline-none focus:ring-1 focus:ring-ring min-w-32"
+                                    >
+                                      <option value="">— unset —</option>
+                                      {weaponCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                                    </select>
+                                    <button onClick={() => setShowCategoriesDialog(true)} className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary">
+                                      <Settings2 className="w-3 h-3" />Manage types
+                                    </button>
+                                    {weaponCategories.length === 0 && (
+                                      <span className="text-xs text-amber-500">No types yet — click Manage types to add some</span>
+                                    )}
+                                  </div>
+                                )}
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2">
                                   {STAT_ORDER.map((stat) => {
                                     const base = getEffectiveStat(item, stat, "base", overrides);
@@ -849,10 +1029,10 @@ export default function EquipmentPage() {
               </div>
             </Card>
 
-            {/* Character Builder */}
+            {/* Equipment Builder */}
             <Card className="shadow-sm mb-6">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Character Builder</CardTitle>
+                <CardTitle className="text-base">Equipment Builder</CardTitle>
                 <p className="text-xs text-muted-foreground">Your personal loadout — saved only for you. Each slot shows only items assigned to it.</p>
               </CardHeader>
               <CardContent>
