@@ -61,10 +61,8 @@ const STAT_FULL: Record<string, string> = {
   hrt: "Heart", heart: "Heart",
 };
 
-// "Move" / "Movement" are aliases for "Speed" — merged into the Speed column
-const STAT_ORDER = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelligence","Dexterity","Gather","Heart"];
-// Stat names that are aliases for another canonical stat (these are combined during display)
-const STAT_ALIAS_FOR: Record<string, string> = { Move: "Speed", Movement: "Speed" };
+const STAT_ORDER = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelligence","Dexterity","Gather","Move","Heart"];
+const STAT_ALIAS_FOR: Record<string, string> = { Movement: "Move" };
 const CHAR_SLOTS = ["Head", "Weapon", "Shield", "Armor", "Accessory"] as const;
 type CharSlot = typeof CHAR_SLOTS[number];
 const SLOT_OPTIONS: Array<CharSlot | "—"> = ["—", "Head", "Weapon", "Shield", "Armor", "Accessory"];

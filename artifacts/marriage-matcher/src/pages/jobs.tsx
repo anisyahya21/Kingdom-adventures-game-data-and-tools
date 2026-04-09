@@ -17,8 +17,7 @@ import { Badge } from "@/components/ui/badge";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API  = (p: string) => `${BASE}/ka-api/ka${p}`;
 
-// "Move" / "Movement" are treated as aliases for "Speed" — only Speed is shown
-const STAT_ORDER   = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelligence","Dexterity","Gather","Heart"];
+const STAT_ORDER   = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelligence","Dexterity","Gather","Move","Heart"];
 const STAT_SHORT: Record<string,string> = {
   HP:"HP", MP:"MP", Vigor:"Vig", Attack:"Atk", Defence:"Def",
   Speed:"Spd", Luck:"Lck", Intelligence:"Int", Dexterity:"Dex",
@@ -47,7 +46,7 @@ type Job = {
   shops?: string[];
   notes?: string;
 };
-type SharedPair = { id: string; jobA: string; jobB: string; children: string[] };
+type SharedPair = { id: string; jobA: string; jobB: string; children: string[]; affinity?: string };
 
 type SharedData = {
   jobs: Record<string,Job>;

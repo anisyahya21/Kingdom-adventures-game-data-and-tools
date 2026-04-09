@@ -27,7 +27,7 @@ export type WeeklyConquest = {
 
 export type JobStatEntry = { base: number; inc: number; levels?: Record<string, number> };
 export type JobRank = { stats: Record<string, JobStatEntry> };
-export type SharedPair = { id: string; jobA: string; jobB: string; children: string[] };
+export type SharedPair = { id: string; jobA: string; jobB: string; children: string[]; affinity?: string };
 export type Skill = {
   name: string;
   studioLevel?: number;

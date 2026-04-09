@@ -118,7 +118,16 @@ interface Pair {
   jobA: string;
   jobB: string;
   children: string[];
+  affinity?: string;
 }
+
+const AFFINITY_STYLE: Record<string, string> = {
+  A: "bg-amber-100 text-amber-800 border-amber-400 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-600",
+  B: "bg-violet-100 text-violet-800 border-violet-400 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-600",
+  C: "bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-600",
+  D: "bg-sky-100 text-sky-800 border-sky-400 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-600",
+  E: "bg-slate-100 text-slate-600 border-slate-400 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+};
 
 interface LockedPair {
   id: string;
@@ -481,6 +490,8 @@ function JobsPanel({ jobNames, isLoading, isFromApi }: { jobNames: string[]; isL
 
 // ─── Pairs Panel ──────────────────────────────────────────────────────────────
 
+const ALL_AFFINITIES = ["A", "B", "C", "D", "E"] as const;
+
 interface PairsPanelProps {
   pairs: Pair[];
   firstGenJobNames: string[];
@@ -488,14 +499,22 @@ interface PairsPanelProps {
   onAdd: (a: string, b: string) => string | null;
   onRemove: (id: string) => void;
   onUpdateChildren: (id: string, children: string[]) => void;
+  affinityFilter: Set<string>;
+  onAffinityFilterChange: (aff: Set<string>) => void;
 }
 
-function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onUpdateChildren }: PairsPanelProps) {
+function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onUpdateChildren, affinityFilter, onAffinityFilterChange }: PairsPanelProps) {
   const [selA, setSelA] = useState("");
   const [selB, setSelB] = useState("");
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [childSel, setChildSel] = useState<Record<string, string>>({});
+
+  const toggleAffinity = (aff: string) => {
+    const next = new Set(affinityFilter);
+    if (next.has(aff)) { if (next.size > 1) next.delete(aff); } else next.add(aff);
+    onAffinityFilterChange(next);
+  };
 
   const handleAdd = () => {
     const a = selA.trim(); const b = selB.trim();
@@ -519,7 +538,8 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
     onUpdateChildren(pairId, pair.children.filter((c) => normJob(c) !== normJob(child)));
   };
 
-  const sorted = [...pairs].sort((a, b) => pairKey(a.jobA, a.jobB).localeCompare(pairKey(b.jobA, b.jobB)));
+  const filtered = pairs.filter((p) => !p.affinity || affinityFilter.has(p.affinity));
+  const sorted = [...filtered].sort((a, b) => pairKey(a.jobA, a.jobB).localeCompare(pairKey(b.jobA, b.jobB)));
 
   return (
     <Card className="shadow-sm">
@@ -530,6 +550,20 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* Affinity filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground font-medium shrink-0">Affinity filter:</span>
+          {ALL_AFFINITIES.map((aff) => {
+            const active = affinityFilter.has(aff);
+            return (
+              <button key={aff} onClick={() => toggleAffinity(aff)}
+                className={`text-xs font-bold px-2 py-0.5 rounded border transition-all ${active ? (AFFINITY_STYLE[aff] ?? "bg-muted border-border text-foreground") : "bg-transparent border-border text-muted-foreground opacity-40"}`}>
+                {aff}
+              </button>
+            );
+          })}
+          <span className="text-xs text-muted-foreground ml-1">({filtered.length} / {pairs.length})</span>
+        </div>
         <div className="rounded-md border border-border overflow-hidden">
           <div className="max-h-80 overflow-y-auto divide-y divide-border">
             {sorted.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">No pairs defined yet.</p>}
@@ -547,6 +581,9 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
                       >
                         {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                       </button>
+                      {p.affinity && (
+                        <span className={`text-[10px] font-bold px-1 py-0 rounded border shrink-0 ${AFFINITY_STYLE[p.affinity] ?? "bg-muted border-border"}`}>{p.affinity}</span>
+                      )}
                       <span className="font-medium truncate">{d1}</span>
                       <ArrowLeftRight className="w-3 h-3 text-muted-foreground shrink-0" />
                       <span className="font-medium truncate">{d2}</span>
@@ -1033,6 +1070,13 @@ export default function MarriageMatcher() {
     return [];
   });
 
+  // ── State: affinity filter (for matching and pair list) ──
+  const [affinityFilter, setAffinityFilter] = useState<Set<string>>(new Set(["A", "B", "C", "D", "E"]));
+  const filteredPairs = useMemo(
+    () => pairs.filter((p) => !p.affinity || affinityFilter.has(p.affinity)),
+    [pairs, affinityFilter]
+  );
+
   // ── State: result filters ──
   const [resultTypeFilter, setResultTypeFilter] = useState<"all" | "combat" | "non-combat">("all");
   const [resultIncludeJobs, setResultIncludeJobs] = useState<string[]>([]);
@@ -1163,10 +1207,10 @@ export default function MarriageMatcher() {
     setIsCalculating(true);
     setIsStale(false);
     setTimeout(() => {
-      setResult(findOptimalMatching(rankSlots, pairs, lockedPairs));
+      setResult(findOptimalMatching(rankSlots, filteredPairs, lockedPairs));
       setIsCalculating(false);
     }, 80);
-  }, [rankSlots, pairs, lockedPairs]);
+  }, [rankSlots, filteredPairs, lockedPairs]);
 
   const reset = useCallback(() => {
     setRankSlots([]);
@@ -1304,6 +1348,8 @@ export default function MarriageMatcher() {
             onAdd={addPair}
             onRemove={removePair}
             onUpdateChildren={updatePairChildren}
+            affinityFilter={affinityFilter}
+            onAffinityFilterChange={setAffinityFilter}
           />
         </div>
 
