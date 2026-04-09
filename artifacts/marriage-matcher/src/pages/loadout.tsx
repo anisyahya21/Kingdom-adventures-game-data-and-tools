@@ -327,7 +327,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
   };
   const removeEquip = (i: number) => upd("equipment", loadout.equipment.filter((_, j) => j !== i));
   const setEquipLevel = (i: number, level: number) => {
-    upd("equipment", loadout.equipment.map((e, j) => j === i ? { ...e, level: Math.max(1, level) } : e));
+    upd("equipment", loadout.equipment.map((e, j) => j === i ? { ...e, level: Math.max(1, Math.min(99, level)) } : e));
   };
 
   const addSkill = (name: string) => {
@@ -554,7 +554,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
                                 })()}
                                 <div className="flex items-center gap-1 justify-center">
                                   <span className="text-xs text-muted-foreground">Lv</span>
-                                  <Input type="number" min={1} max={999} value={eq.level}
+                                  <Input type="number" min={1} max={99} value={eq.level}
                                     onChange={(e) => setEquipLevel(globalIdx, parseInt(e.target.value) || 1)}
                                     className="h-6 text-xs text-center w-14 px-0" />
                                 </div>
@@ -583,7 +583,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
                               {iconMap[eq.name] ? <img src={iconMap[eq.name]} alt="" className="w-4 h-4 object-contain" /> : <div className="w-4 h-4" />}
                               <span className="text-xs flex-1 truncate font-medium">{eq.name}</span>
                               <span className="text-[10px] text-muted-foreground">Lv</span>
-                              <Input type="number" min={1} max={999} value={eq.level}
+                              <Input type="number" min={1} max={99} value={eq.level}
                                 onChange={(e) => setEquipLevel(idx, parseInt(e.target.value) || 1)}
                                 className="h-5 text-[10px] text-center w-12 px-0" />
                               <button onClick={() => removeEquip(idx)} className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
@@ -730,10 +730,11 @@ export default function LoadoutPage() {
                   className="w-full text-left"
                   onClick={() => setExpandedId(isOpen ? null : loadout.id)}
                 >
-                  <CardHeader className="py-3 px-4 hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center gap-3 flex-wrap">
+                  <CardHeader className="py-2.5 px-4 hover:bg-muted/30 transition-colors">
+                    {/* Row 1: chevron + name + job + rank */}
+                    <div className="flex items-center gap-2.5 flex-wrap">
                       {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
-                      <CardTitle className="text-sm font-semibold truncate flex-1">
+                      <CardTitle className="text-sm font-semibold truncate flex-1 min-w-0">
                         {loadout.name || "Unnamed Loadout"}
                       </CardTitle>
                       {loadout.jobName && (
@@ -744,29 +745,52 @@ export default function LoadoutPage() {
                           Rank {loadout.rank}
                         </Badge>
                       )}
-                      {loadout.level > 1 && <span className="text-xs text-muted-foreground shrink-0">Lv {loadout.level}</span>}
-                      {loadout.equipment.length > 0 && (
-                        <span className="text-xs text-muted-foreground shrink-0">{loadout.equipment.length} equip</span>
-                      )}
-                      {loadout.skills.length > 0 && (
-                        <span className="text-xs text-muted-foreground shrink-0">{loadout.skills.length} skills</span>
-                      )}
-
-                      {/* Quick stat preview */}
-                      {hasStats && !isOpen && (
-                        <div className="flex gap-2 ml-1 flex-wrap">
-                          {STAT_KEYS.filter((k) => stats[k]).slice(0, 4).map((k) => (
-                            <span key={k} className="text-[10px] tabular-nums">
-                              <span className="text-muted-foreground">{STAT_LABEL[k]} </span>
-                              <strong>{stats[k].toLocaleString()}</strong>
-                            </span>
-                          ))}
-                          {STAT_KEYS.filter((k) => stats[k]).length > 4 && (
-                            <span className="text-[10px] text-muted-foreground">+more</span>
-                          )}
-                        </div>
-                      )}
                     </div>
+
+                    {/* Collapsed detail rows */}
+                    {!isOpen && (
+                      <div className="pl-6 mt-1.5 space-y-1.5">
+                        {/* All stats */}
+                        {hasStats && (
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                            {STAT_KEYS.filter((k) => stats[k]).map((k) => (
+                              <span key={k} className="text-[10px] tabular-nums">
+                                <span className="text-muted-foreground/70">{STAT_LABEL[k]} </span>
+                                <strong className="text-foreground">{stats[k].toLocaleString()}</strong>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {/* Equipment chips */}
+                        {loadout.equipment.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {loadout.equipment.map((eq) => {
+                              const icon = data?.equipIcons?.[eq.name];
+                              return (
+                                <span key={eq.name} className="inline-flex items-center gap-1 bg-muted/50 border border-border/50 rounded px-1.5 py-0.5 text-[10px]">
+                                  {icon && <img src={icon} alt="" className="w-3 h-3 object-contain shrink-0" />}
+                                  <span className="font-medium">{eq.name}</span>
+                                  <span className="text-muted-foreground">Lv{eq.level}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {/* Skill pills */}
+                        {loadout.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {loadout.skills.map((s) => (
+                              <span key={s} className="inline-block bg-violet-100 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded px-1.5 py-0.5 text-[10px]">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {!hasStats && loadout.equipment.length === 0 && loadout.skills.length === 0 && (
+                          <span className="text-[10px] text-muted-foreground/50">Empty loadout — click to configure</span>
+                        )}
+                      </div>
+                    )}
                   </CardHeader>
                 </button>
 

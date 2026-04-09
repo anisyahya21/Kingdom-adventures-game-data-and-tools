@@ -969,16 +969,17 @@ export default function EquipmentPage() {
                       return (
                         <Fragment key={item.uid}>
                           <tr
-                            draggable
-                            onDragStart={(e) => {
-                              draggingItemRef.current = { name: item.name, slot: itemSlot };
-                              e.dataTransfer.effectAllowed = "copy";
-                              e.dataTransfer.setData("text/plain", item.name);
-                              e.dataTransfer.setData("application/ka-slot", itemSlot);
-                            }}
-                            onDragEnd={() => { draggingItemRef.current = null; setDragOverSlot(null); }}
-                            className={`border-b border-border transition-colors cursor-grab active:cursor-grabbing ${isExpanded ? "bg-primary/5" : isSelected ? "bg-primary/5" : "hover:bg-muted/20"}`}>
-                            <td className="px-1 py-1.5 text-center text-muted-foreground/40">
+                            className={`border-b border-border transition-colors ${isExpanded ? "bg-primary/5" : isSelected ? "bg-primary/5" : "hover:bg-muted/20"}`}>
+                            <td
+                              className="px-1 py-1.5 text-center text-muted-foreground/40 cursor-grab active:cursor-grabbing select-none"
+                              draggable
+                              onDragStart={(e) => {
+                                draggingItemRef.current = { name: item.name, slot: itemSlot };
+                                e.dataTransfer.effectAllowed = "copy";
+                                e.dataTransfer.setData("text/plain", item.name);
+                                e.dataTransfer.setData("application/ka-slot", itemSlot);
+                              }}
+                              onDragEnd={() => { draggingItemRef.current = null; setDragOverSlot(null); }}>
                               <GripVertical className="w-3.5 h-3.5 mx-auto" />
                             </td>
                             <td className="px-2 py-1.5 text-center">
