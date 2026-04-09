@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, Plus, Trash2, Moon, Sun, Loader2, Camera,
   ChevronDown, ChevronRight, Package, X, Check, Pencil,
-  Download, Copy, Info, RotateCcw,
+  Download, Copy, Info, RotateCcw, Crown, Sword, Shield, Gem,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,25 @@ const STAT_FULL: Record<string, string> = {
   spd:"Speed", lck:"Luck", int:"Intelligence", dex:"Dexterity",
   gth:"Gather", mov:"Move", hrt:"Heart",
 };
+// Maps any stat name variant (full-name or abbreviated, case-insensitive) → canonical short key
+const STAT_CANONICAL: Record<string, string> = {
+  hp:"hp", mp:"mp",
+  vigor:"vig", attack:"atk", defence:"def", defense:"def",
+  speed:"spd", luck:"lck", intelligence:"int", dexterity:"dex",
+  gather:"gth", move:"mov", heart:"hrt",
+  vig:"vig", atk:"atk", def:"def", spd:"spd", lck:"lck",
+  int:"int", dex:"dex", gth:"gth", mov:"mov", hrt:"hrt",
+};
+
+const EQUIP_SLOTS = [
+  { slot: "Head",      Icon: Crown   },
+  { slot: "Weapon",    Icon: Sword   },
+  { slot: "Shield",    Icon: Shield  },
+  { slot: "Armor",     Icon: Package },
+  { slot: "Accessory", Icon: Gem     },
+] as const;
+type EquipSlot = typeof EQUIP_SLOTS[number]["slot"];
+
 const RANK_COLORS: Record<string, string> = {
   S:"bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700",
   A:"bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700",
@@ -111,13 +130,17 @@ function getStatLevel(loadout: Loadout, k: string): number {
   return loadout.statLevels?.[k] ?? loadout.level ?? 1;
 }
 
+function normStat(raw: string): string {
+  return STAT_CANONICAL[raw.toLowerCase()] ?? raw.toLowerCase();
+}
+
 function calcJobStats(loadout: Loadout, data: SharedData): Record<string, number> {
   const out: Record<string, number> = {};
   const job = data.jobs?.[loadout.jobName];
   if (job && loadout.rank) {
     const rankStats = job.ranks[loadout.rank]?.stats ?? {};
     for (const [stat, entry] of Object.entries(rankStats)) {
-      const k = stat.toLowerCase();
+      const k = normStat(stat);
       out[k] = statAtLevel(entry.base, entry.inc, getStatLevel(loadout, k));
     }
   }
@@ -130,7 +153,7 @@ function calcEquipStats(loadout: Loadout, data: SharedData): Record<string, numb
   for (const { name, level } of loadout.equipment) {
     const statOverrides = overrides[name] ?? {};
     for (const [stat, entry] of Object.entries(statOverrides)) {
-      const k = stat.toLowerCase();
+      const k = normStat(stat);
       const b = entry.base ?? 0;
       const i = entry.inc ?? 0;
       if (b || i) out[k] = (out[k] ?? 0) + statAtLevel(b, i, level);
@@ -238,9 +261,13 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
     upd("statLevels", { ...(loadout.statLevels ?? {}), [k]: Math.max(1, Math.min(999, lv)) });
   };
 
-  const addEquip = (name: string) => {
-    if (!name || loadout.equipment.some((e) => e.name === name)) return;
-    upd("equipment", [...loadout.equipment, { name, level: 1 }]);
+  // Slot-aware equipment helpers
+  const setSlotEquip = (slot: EquipSlot, name: string) => {
+    const slotMap = data.slotAssignments ?? {};
+    // Remove any existing item in this slot
+    const withoutSlot = loadout.equipment.filter((e) => slotMap[e.name] !== slot);
+    if (!name) { upd("equipment", withoutSlot); return; }
+    upd("equipment", [...withoutSlot, { name, level: 1 }]);
   };
   const removeEquip = (i: number) => upd("equipment", loadout.equipment.filter((_, j) => j !== i));
   const setEquipLevel = (i: number, level: number) => {
@@ -377,60 +404,105 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
 
         {/* Right: Equipment + Skills */}
         <div className="space-y-3">
-          {/* Equipment (slot-based) */}
+          {/* Equipment — 5-slot card grid */}
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-              Equipment <span className="normal-case font-normal">({loadout.equipment.length} items)</span>
-            </p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Equipment</p>
             {(() => {
               const slotMap = data.slotAssignments ?? {};
               const iconMap = data.equipIcons ?? {};
-              const groups: Record<string, EquipEntry[]> = {};
-              const unassigned: EquipEntry[] = [];
+              // Items grouped by slot
+              const slotToEquip: Record<string, EquipEntry> = {};
               for (const eq of loadout.equipment) {
-                const slot = slotMap[eq.name];
-                if (slot) { (groups[slot] ??= []).push(eq); }
-                else { unassigned.push(eq); }
+                const s = slotMap[eq.name];
+                if (s) slotToEquip[s] = eq;
               }
-              const allSlots = Object.keys(groups).sort();
-              const renderRow = (eq: EquipEntry, i: number) => {
-                const globalIdx = loadout.equipment.findIndex((e) => e.name === eq.name);
-                const icon = iconMap[eq.name];
-                return (
-                  <div key={eq.name} className="flex items-center gap-1.5 bg-muted/30 rounded-md px-2 py-1">
-                    {icon ? <img src={icon} alt="" className="w-4 h-4 shrink-0 object-contain" /> : <div className="w-4 h-4 shrink-0" />}
-                    <span className="text-xs flex-1 truncate font-medium">{eq.name}</span>
-                    <span className="text-[10px] text-muted-foreground shrink-0">Lv</span>
-                    <Input type="number" min={1} max={999} value={eq.level}
-                      onChange={(e) => setEquipLevel(globalIdx, parseInt(e.target.value) || 1)}
-                      className="h-6 text-xs text-center w-14 px-1 shrink-0" />
-                    <button onClick={() => removeEquip(globalIdx)} className="text-muted-foreground hover:text-destructive shrink-0"><X className="w-3 h-3" /></button>
-                  </div>
-                );
-              };
+              // Items in no known slot
+              const extra = loadout.equipment.filter((eq) => !slotMap[eq.name]);
               return (
-                <div className="space-y-2 mb-2 max-h-52 overflow-y-auto">
-                  {allSlots.map((slot) => (
-                    <div key={slot}>
-                      <p className="text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider px-0.5 mb-0.5">{slot}</p>
-                      <div className="space-y-1">{groups[slot].map(renderRow)}</div>
-                    </div>
-                  ))}
-                  {unassigned.length > 0 && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {EQUIP_SLOTS.map(({ slot, Icon }) => {
+                      const eq = slotToEquip[slot];
+                      const globalIdx = eq ? loadout.equipment.findIndex((e) => e.name === eq.name) : -1;
+                      const icon = eq ? iconMap[eq.name] : null;
+                      const slotItems = Object.entries(slotMap)
+                        .filter(([, s]) => s === slot)
+                        .map(([n]) => n)
+                        .sort();
+                      return (
+                        <div key={slot} className={`flex flex-col rounded-lg border-2 transition-colors ${eq ? "border-primary/30 bg-primary/5" : "border-dashed border-border/60 bg-muted/20"}`}>
+                          {/* Slot header */}
+                          <div className="flex items-center justify-between px-1.5 pt-1.5 pb-0.5">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70">{slot}</span>
+                            {eq && (
+                              <button onClick={() => setSlotEquip(slot as EquipSlot, "")} className="text-muted-foreground/40 hover:text-destructive transition-colors">
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            )}
+                          </div>
+                          {/* Icon area */}
+                          <div className="flex items-center justify-center py-2 px-1">
+                            {eq && icon ? (
+                              <img src={icon} alt={eq.name} className="w-10 h-10 object-contain rounded" />
+                            ) : eq ? (
+                              <div className="w-10 h-10 rounded bg-muted/40 flex items-center justify-center">
+                                <Icon className="w-5 h-5 text-muted-foreground/50" />
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 rounded bg-muted/20 flex items-center justify-center">
+                                <Icon className="w-5 h-5 text-muted-foreground/25" />
+                              </div>
+                            )}
+                          </div>
+                          {/* Item name + level or select */}
+                          <div className="px-1.5 pb-1.5 space-y-1">
+                            {eq ? (
+                              <>
+                                <p className="text-[9px] font-medium text-center text-foreground/80 leading-tight line-clamp-2 min-h-[24px]">{eq.name}</p>
+                                <div className="flex items-center gap-0.5 justify-center">
+                                  <span className="text-[9px] text-muted-foreground">Lv</span>
+                                  <Input type="number" min={1} max={999} value={eq.level}
+                                    onChange={(e) => setEquipLevel(globalIdx, parseInt(e.target.value) || 1)}
+                                    className="h-5 text-[10px] text-center w-12 px-0" />
+                                </div>
+                              </>
+                            ) : (
+                              <select value="" onChange={(e) => setSlotEquip(slot as EquipSlot, e.target.value)}
+                                className="w-full h-6 text-[9px] rounded border border-input bg-background px-1 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground">
+                                <option value="">— empty —</option>
+                                {slotItems.map((n) => <option key={n} value={n}>{n}</option>)}
+                              </select>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Unassigned items (no slot in db) */}
+                  {extra.length > 0 && (
                     <div>
-                      {allSlots.length > 0 && <p className="text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider px-0.5 mb-0.5">Other</p>}
-                      <div className="space-y-1">{unassigned.map(renderRow)}</div>
+                      <p className="text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider mb-1">Other</p>
+                      <div className="space-y-1">
+                        {extra.map((eq) => {
+                          const idx = loadout.equipment.findIndex((e) => e.name === eq.name);
+                          return (
+                            <div key={eq.name} className="flex items-center gap-1.5 bg-muted/30 rounded-md px-2 py-1">
+                              {iconMap[eq.name] ? <img src={iconMap[eq.name]} alt="" className="w-4 h-4 object-contain" /> : <div className="w-4 h-4" />}
+                              <span className="text-xs flex-1 truncate font-medium">{eq.name}</span>
+                              <span className="text-[10px] text-muted-foreground">Lv</span>
+                              <Input type="number" min={1} max={999} value={eq.level}
+                                onChange={(e) => setEquipLevel(idx, parseInt(e.target.value) || 1)}
+                                className="h-5 text-[10px] text-center w-12 px-0" />
+                              <button onClick={() => removeEquip(idx)} className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
-                  {loadout.equipment.length === 0 && <p className="text-xs text-muted-foreground/40 text-center py-2">No equipment added yet.</p>}
                 </div>
               );
             })()}
-            <select value="" onChange={(e) => { addEquip(e.target.value); }}
-              className="w-full h-7 text-xs rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground">
-              <option value="">+ Add equipment…</option>
-              {allEquip.filter((n) => !loadout.equipment.some((e) => e.name === n)).map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
           </div>
 
           {/* Skills */}
