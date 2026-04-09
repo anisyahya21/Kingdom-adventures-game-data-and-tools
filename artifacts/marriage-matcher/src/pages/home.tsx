@@ -1,10 +1,104 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Plus, Heart, Sword, Trash2, Moon, Sun, ExternalLink, Skull, Briefcase, BookOpen, Package } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, Moon, Sun, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, GitFork } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+import srcHome from "./home.tsx?raw";
+import srcEquipment from "./equipment.tsx?raw";
+import srcJobs from "./jobs.tsx?raw";
+import srcMatcher from "./marriage-matcher.tsx?raw";
+import srcMonsters from "./monsters.tsx?raw";
+import srcSkills from "./skills.tsx?raw";
+import srcLoadout from "./loadout.tsx?raw";
+import srcApp from "../App.tsx?raw";
+import srcSourceViewer from "../components/source-viewer.tsx?raw";
+
+const SOURCE_FILES: Array<{ label: string; path: string; content: string }> = [
+  { label: "App.tsx",                path: "src/App.tsx",                          content: srcApp },
+  { label: "home.tsx",               path: "src/pages/home.tsx",                   content: srcHome },
+  { label: "equipment.tsx",          path: "src/pages/equipment.tsx",              content: srcEquipment },
+  { label: "jobs.tsx",               path: "src/pages/jobs.tsx",                   content: srcJobs },
+  { label: "marriage-matcher.tsx",   path: "src/pages/marriage-matcher.tsx",       content: srcMatcher },
+  { label: "monsters.tsx",           path: "src/pages/monsters.tsx",               content: srcMonsters },
+  { label: "skills.tsx",             path: "src/pages/skills.tsx",                 content: srcSkills },
+  { label: "loadout.tsx",            path: "src/pages/loadout.tsx",                content: srcLoadout },
+  { label: "source-viewer.tsx",      path: "src/components/source-viewer.tsx",     content: srcSourceViewer },
+];
+
+function SourceViewerDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [selected, setSelected] = useState(0);
+  const [copied, setCopied] = useState<"file" | "all" | null>(null);
+
+  const copyFile = async () => {
+    await navigator.clipboard.writeText(SOURCE_FILES[selected].content);
+    setCopied("file");
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const copyAll = async () => {
+    const all = SOURCE_FILES.map(f =>
+      `// ${"=".repeat(60)}\n// FILE: ${f.path}\n// ${"=".repeat(60)}\n\n${f.content}`
+    ).join("\n\n");
+    await navigator.clipboard.writeText(all);
+    setCopied("all");
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+        <DialogHeader className="px-5 py-3 border-b border-border shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className="text-sm font-semibold">Project Source Code — {SOURCE_FILES.length} files</DialogTitle>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={copyFile} className="gap-1.5 h-7 text-xs">
+                {copied === "file" ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                {copied === "file" ? "Copied!" : "Copy file"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={copyAll} className="gap-1.5 h-7 text-xs">
+                {copied === "all" ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                {copied === "all" ? "Copied all!" : "Copy all files"}
+              </Button>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="flex flex-1 overflow-hidden">
+          <div className="w-56 shrink-0 border-r border-border flex flex-col bg-muted/30 overflow-y-auto">
+            <p className="px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Frontend</p>
+            {SOURCE_FILES.map((f, i) => (
+              <button
+                key={f.path}
+                onClick={() => setSelected(i)}
+                className={`px-3 py-1.5 text-left text-xs truncate transition-colors ${
+                  selected === i
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+            <p className="px-3 py-2 mt-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border shrink-0">Backend (API Server)</p>
+            <p className="px-3 py-1.5 text-xs text-muted-foreground/60 italic">See artifacts/api-server/src/</p>
+            <p className="px-3 pb-3 text-[10px] text-muted-foreground/60">app.ts · routes/ka.ts</p>
+          </div>
+          <div className="flex-1 overflow-auto bg-muted/20">
+            <div className="px-3 py-2 border-b border-border bg-muted/40 sticky top-0 z-10">
+              <span className="text-[10px] font-mono text-muted-foreground">{SOURCE_FILES[selected].path}</span>
+            </div>
+            <pre className="p-4 text-[11px] font-mono leading-relaxed whitespace-pre text-foreground">
+              {SOURCE_FILES[selected].content}
+            </pre>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface CustomProject {
   id: string;
@@ -75,6 +169,8 @@ export default function Home() {
     return false;
   });
 
+  const [srcOpen, setSrcOpen] = useState(false);
+
   useEffect(() => {
     const root = document.documentElement;
     if (darkMode) { root.classList.add("dark"); localStorage.setItem("theme", "dark"); }
@@ -110,14 +206,20 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background transition-colors">
       <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="flex items-start justify-between mb-10">
-          <div>
+        <div className="flex items-start justify-between mb-10 gap-4">
+          <div className="min-w-0">
             <h1 className="text-4xl font-bold text-foreground tracking-tight">Kingdom Adventures</h1>
             <p className="mt-2 text-muted-foreground">Tools &amp; resources for Kingdom Adventures players.</p>
           </div>
-          <Button variant="outline" size="icon" onClick={() => setDarkMode((d) => !d)} className="h-9 w-9 shrink-0">
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => setSrcOpen(true)}>
+              <Code className="w-4 h-4" />
+              View Source
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => setDarkMode((d) => !d)} className="h-9 w-9">
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
+          </div>
         </div>
 
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tools</h2>
@@ -200,14 +302,21 @@ export default function Home() {
           </button>
         )}
 
-        <div className="mt-12 pt-6 border-t border-border text-xs text-muted-foreground flex items-center justify-between">
+        <div className="mt-12 pt-6 border-t border-border text-xs text-muted-foreground flex items-center justify-between gap-4 flex-wrap">
           <span>Kingdom Adventures — open source tools</span>
-          <a href="https://replit.com" target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 hover:text-foreground transition-colors">
-            <ExternalLink className="w-3 h-3" /> Fork on Replit
-          </a>
+          <div className="flex items-center gap-4">
+            <button onClick={() => setSrcOpen(true)} className="flex items-center gap-1 hover:text-foreground transition-colors">
+              <Code className="w-3 h-3" /> View source code
+            </button>
+            <a href="https://replit.com" target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 hover:text-foreground transition-colors">
+              <GitFork className="w-3 h-3" /> Fork on Replit
+            </a>
+          </div>
         </div>
       </div>
+
+      <SourceViewerDialog open={srcOpen} onClose={() => setSrcOpen(false)} />
     </div>
   );
 }
