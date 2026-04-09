@@ -51,7 +51,7 @@ weaponCategories — list of weapon type strings
 history         — last 200 change events with userName, timestamp, changeType
 monsters        — { name: { icon?, spawns: [{area, level}] } }
 weeklyConquest  — { monsters: string[6], reward: {jobName, jobRank, diamonds, equipment}, updatedBy, updatedAt }
-jobs            — { name: { generation: 1|2, icon?, ranks: { A: { stats: {...} } }, equipment: { slot: bool }, skills: string[] } }
+jobs            — { name: { generation: 1|2, type?: "combat"|"non-combat", icon?, ranks: { S|A|B|C|D: { stats: { HP: { base, inc, levels? }, … } } }, shield?: "can"|"cannot", weaponEquip?: { [weaponClass]: "can"|"cannot"|"weak" }, skillAccess?: { attack: "can"|"cannot", casting: "can"|"cannot" }, skills: [] } }
 ```
 
 ## Key Design Notes
