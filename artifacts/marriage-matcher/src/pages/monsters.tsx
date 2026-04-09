@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
@@ -39,11 +39,56 @@ function useSharedData() {
     queryKey: ["ka-shared"],
     queryFn: async () => {
       const r = await fetch(API("/shared"));
-      return r.json() as Promise<{ monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest; jobs: Record<string, Job> }>;
+      return r.json() as Promise<{ monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest; jobs: Record<string, Job>; overrides?: Record<string, unknown> }>;
     },
     staleTime: 15000,
     refetchInterval: 30000,
   });
+}
+
+const SPAWN_LEVELS = [1,2,3,5,7,8,10,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,37,40,41,43,44,45,46,48,50,51,52,54,55,56,58,60,61,62,65,69,70,72,74,75,76,82,85,88,90,92,112,120,121,135,142,162,208,225,250,265,311,320,360,454,525,592,624,777,888,1020,1100,1600,2400,3200,4800,6000,9999];
+
+function LevelCombobox({ value, onChange, onClose }: { value: number; onChange: (v: number) => void; onClose: () => void }) {
+  const [q, setQ] = useState(String(value));
+  const ref = useRef<HTMLDivElement>(null);
+  const filtered = SPAWN_LEVELS.filter((lv) => q === "" || String(lv).includes(q));
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <Input
+        autoFocus
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            const num = parseInt(q);
+            if (!isNaN(num) && num > 0) { onChange(num); onClose(); }
+          }
+          if (e.key === "Escape") onClose();
+        }}
+        className="h-6 text-xs w-20 px-1.5"
+        placeholder="Level…"
+      />
+      {filtered.length > 0 && (
+        <div className="absolute z-50 top-full left-0 mt-0.5 bg-popover border border-border rounded-md shadow-md max-h-40 overflow-y-auto min-w-[5rem]">
+          {filtered.slice(0, 25).map((lv) => (
+            <button key={lv} className={`w-full text-left px-2.5 py-1 text-xs hover:bg-muted transition-colors ${lv === value ? "bg-primary/10 text-primary font-medium" : ""}`}
+              onMouseDown={(e) => { e.preventDefault(); onChange(lv); onClose(); }}>
+              {lv}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 async function saveMonsters(monsters: Record<string, Monster>, userName: string, description: string) {
@@ -169,7 +214,7 @@ export default function MonstersPage() {
   const addSpawn = (monsterName: string) => {
     withName(() => {
       const m = monsters[monsterName];
-      const next = { ...monsters, [monsterName]: { ...m, spawns: [...m.spawns, { area: "New Area", level: 1 }] } };
+      const next = { ...monsters, [monsterName]: { ...m, spawns: [...m.spawns, { area: "", level: 1 }] } };
       mutateMonsters(next, `Added spawn to ${monsterName}`);
     });
   };
@@ -219,6 +264,7 @@ export default function MonstersPage() {
   };
 
   const monsterNames = Object.keys(monsters).sort();
+  const allEquip = Object.keys(data?.overrides ?? {}).sort();
 
   return (
     <div className="min-h-screen bg-background transition-colors">
@@ -426,33 +472,18 @@ export default function MonstersPage() {
                                 <div key={idx} className="flex items-center gap-2">
                                   <MapPin className="w-3 h-3 text-muted-foreground/50 shrink-0" />
                                   {isEditingThis ? (
-                                    <>
-                                      <Input
-                                        value={sp.area} className="h-6 text-xs flex-1"
-                                        onChange={(e) => updateSpawn(mName, idx, { ...sp, area: e.target.value })}
-                                        onBlur={() => setEditingSpawn(null)}
-                                        autoFocus
-                                      />
-                                      <span className="text-xs text-muted-foreground shrink-0">Lv</span>
-                                      <select
-                                        value={sp.level}
-                                        onChange={(e) => updateSpawn(mName, idx, { ...sp, level: parseInt(e.target.value) || 1 })}
-                                        onBlur={() => setEditingSpawn(null)}
-                                        className="h-6 text-xs w-20 rounded border border-input bg-background px-1 focus:outline-none"
-                                      >
-                                        {[1,2,3,5,7,8,10,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,37,40,41,43,44,45,46,48,50,51,52,54,55,56,58,60,61,62,65,69,70,72,74,75,76,82,85,88,90,92,112,120,121,135,142,162,208,225,250,265,311,320,360,454,525,592,624,777,888,1020,1100,1600,2400,3200,4800,6000,9999].map((lv) => (
-                                          <option key={lv} value={lv}>{lv}</option>
-                                        ))}
-                                      </select>
-                                    </>
+                                    <LevelCombobox
+                                      value={sp.level}
+                                      onChange={(lv) => updateSpawn(mName, idx, { ...sp, level: lv })}
+                                      onClose={() => setEditingSpawn(null)}
+                                    />
                                   ) : (
                                     <button
-                                      className="flex items-center gap-2 flex-1 text-left text-xs hover:text-primary transition-colors"
+                                      className="flex items-center gap-1.5 flex-1 text-left text-xs hover:text-primary transition-colors"
                                       onClick={() => setEditingSpawn({ name: mName, idx })}
                                     >
-                                      <span className="font-medium">{sp.area}</span>
-                                      <span className="text-muted-foreground">Lv {sp.level}</span>
-                                      <Pencil className="w-2.5 h-2.5 text-muted-foreground/40 ml-1" />
+                                      <span className="text-muted-foreground font-medium">Lv {sp.level}</span>
+                                      <Pencil className="w-2.5 h-2.5 text-muted-foreground/30 ml-0.5" />
                                     </button>
                                   )}
                                   <button onClick={() => removeSpawn(mName, idx)} className="text-muted-foreground/40 hover:text-destructive transition-colors shrink-0">
@@ -541,13 +572,15 @@ export default function MonstersPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Equipment piece</label>
-                  <Input
+                  <label className="text-xs text-muted-foreground mb-1 block">Equipment piece{allEquip.length === 0 ? " — add equipment to the equipment database first" : ""}</label>
+                  <select
                     value={conquestDraft.reward.equipment}
                     onChange={(e) => setConquestDraft((d) => ({ ...d, reward: { ...d.reward, equipment: e.target.value } }))}
-                    placeholder="e.g. Dragon Sword"
-                    className="h-8 text-xs"
-                  />
+                    className="h-8 w-full text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="">— no equipment reward —</option>
+                    {allEquip.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
                 </div>
               </div>
             </div>

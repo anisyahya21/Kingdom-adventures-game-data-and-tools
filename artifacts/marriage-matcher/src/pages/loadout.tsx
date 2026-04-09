@@ -34,7 +34,8 @@ type Loadout = {
   name: string;
   jobName: string;
   rank: string;
-  level: number;
+  level?: number;          // legacy / fallback default level
+  statLevels?: Record<string, number>; // per-stat levels (primary)
   equipment: EquipEntry[];
   skills: string[];
 };
@@ -104,22 +105,27 @@ function useLoadouts() {
   return { loadouts, save };
 }
 
-// ─── Stat Calculator ──────────────────────────────────────────────────────────
+// ─── Stat Calculators ─────────────────────────────────────────────────────────
 
-function calcStats(loadout: Loadout, data: SharedData): Record<string, number> {
-  const total: Record<string, number> = {};
+function getStatLevel(loadout: Loadout, k: string): number {
+  return loadout.statLevels?.[k] ?? loadout.level ?? 1;
+}
 
-  // Job stats
+function calcJobStats(loadout: Loadout, data: SharedData): Record<string, number> {
+  const out: Record<string, number> = {};
   const job = data.jobs?.[loadout.jobName];
   if (job && loadout.rank) {
     const rankStats = job.ranks[loadout.rank]?.stats ?? {};
     for (const [stat, entry] of Object.entries(rankStats)) {
       const k = stat.toLowerCase();
-      total[k] = (total[k] ?? 0) + statAtLevel(entry.base, entry.inc, loadout.level);
+      out[k] = statAtLevel(entry.base, entry.inc, getStatLevel(loadout, k));
     }
   }
+  return out;
+}
 
-  // Equipment stats
+function calcEquipStats(loadout: Loadout, data: SharedData): Record<string, number> {
+  const out: Record<string, number> = {};
   const overrides = data.overrides ?? {};
   for (const { name, level } of loadout.equipment) {
     const statOverrides = overrides[name] ?? {};
@@ -127,10 +133,17 @@ function calcStats(loadout: Loadout, data: SharedData): Record<string, number> {
       const k = stat.toLowerCase();
       const b = entry.base ?? 0;
       const i = entry.inc ?? 0;
-      if (b || i) total[k] = (total[k] ?? 0) + statAtLevel(b, i, level);
+      if (b || i) out[k] = (out[k] ?? 0) + statAtLevel(b, i, level);
     }
   }
+  return out;
+}
 
+function calcStats(loadout: Loadout, data: SharedData): Record<string, number> {
+  const job = calcJobStats(loadout, data);
+  const equip = calcEquipStats(loadout, data);
+  const total = { ...job };
+  for (const [k, v] of Object.entries(equip)) total[k] = (total[k] ?? 0) + v;
   return total;
 }
 
@@ -198,10 +211,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
 }) {
   const [renamingName, setRenamingName] = useState(false);
   const [nameVal, setNameVal] = useState(loadout.name);
-  const [screenshotting, setScreenshotting] = useState(false);
-  const [showScreenshot, setShowScreenshot] = useState(false);
-  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
-  const screenshotRef = useRef<HTMLDivElement>(null);
+  const [screenshotStatus, setScreenshotStatus] = useState<null | "working" | "ok" | "error">(null);
   const hiddenRef = useRef<HTMLDivElement>(null);
 
   const jobs = data.jobs ?? {};
@@ -212,11 +222,21 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
 
   const job = jobs[loadout.jobName];
   const ranks = job ? Object.keys(job.ranks).sort() : ["S","A","B","C","D"];
-  const stats = useMemo(() => calcStats(loadout, data), [loadout, data]);
+  const jobStats = useMemo(() => calcJobStats(loadout, data), [loadout, data]);
+  const equipStats = useMemo(() => calcEquipStats(loadout, data), [loadout, data]);
+  const stats = useMemo(() => {
+    const t = { ...jobStats };
+    for (const [k, v] of Object.entries(equipStats)) t[k] = (t[k] ?? 0) + v;
+    return t;
+  }, [jobStats, equipStats]);
 
   const upd = useCallback(<K extends keyof Loadout>(field: K, val: Loadout[K]) => {
     onChange({ ...loadout, [field]: val });
   }, [loadout, onChange]);
+
+  const setStatLevel = (k: string, lv: number) => {
+    upd("statLevels", { ...(loadout.statLevels ?? {}), [k]: Math.max(1, Math.min(999, lv)) });
+  };
 
   const addEquip = (name: string) => {
     if (!name || loadout.equipment.some((e) => e.name === name)) return;
@@ -235,59 +255,41 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
 
   const takeScreenshot = async () => {
     if (!hiddenRef.current) return;
-    setScreenshotting(true);
+    setScreenshotStatus("working");
     try {
       const url = await toPng(hiddenRef.current, { pixelRatio: 2 });
-      setScreenshotUrl(url);
-      setShowScreenshot(true);
-    } catch { /* ignore */ }
-    setScreenshotting(false);
+      // Try clipboard first
+      let copied = false;
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        copied = true;
+      } catch { /* clipboard not available */ }
+      // Always trigger download (browser shows "Save As" if configured, or saves to Downloads)
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${loadout.name || "loadout"}.png`;
+      a.click();
+      setScreenshotStatus("ok");
+      setTimeout(() => setScreenshotStatus(null), 2500);
+      void copied;
+    } catch {
+      setScreenshotStatus("error");
+      setTimeout(() => setScreenshotStatus(null), 2500);
+    }
   };
 
-  const downloadScreenshot = () => {
-    if (!screenshotUrl) return;
-    const a = document.createElement("a");
-    a.href = screenshotUrl;
-    a.download = `${loadout.name || "loadout"}.png`;
-    a.click();
-  };
-
-  const copyScreenshot = async () => {
-    if (!screenshotUrl) return;
-    try {
-      const res = await fetch(screenshotUrl);
-      const blob = await res.blob();
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-    } catch { /* ignore */ }
-  };
-
-  const hasStats = STAT_KEYS.some((k) => stats[k]);
+  const allStatKeys = STAT_KEYS.filter((k) => jobStats[k] !== undefined || equipStats[k] !== undefined);
 
   return (
     <div className="space-y-4">
       {/* Hidden screenshot node */}
-      <div style={{ position: "absolute", top: -9999, left: -9999 }}>
+      <div style={{ position: "absolute", top: -9999, left: -9999, pointerEvents: "none" }}>
         <div ref={hiddenRef}>
           <ScreenshotCard loadout={loadout} stats={stats} />
         </div>
       </div>
-
-      {/* Screenshot preview modal */}
-      {showScreenshot && screenshotUrl && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowScreenshot(false)}>
-          <div className="bg-card rounded-xl shadow-2xl p-4 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium">Screenshot Preview</span>
-              <button onClick={() => setShowScreenshot(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </div>
-            <img src={screenshotUrl} alt="Loadout screenshot" className="w-full rounded-lg border border-border mb-3" />
-            <div className="flex gap-2">
-              <Button size="sm" onClick={downloadScreenshot} className="gap-1.5 flex-1"><Download className="w-3.5 h-3.5" />Download</Button>
-              <Button size="sm" variant="outline" onClick={copyScreenshot} className="gap-1.5 flex-1"><Copy className="w-3.5 h-3.5" />Copy</Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Name + actions */}
       <div className="flex items-center gap-2">
@@ -304,54 +306,76 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
             <button onClick={() => { setNameVal(loadout.name); setRenamingName(true); }} className="text-muted-foreground hover:text-foreground shrink-0"><Pencil className="w-3 h-3" /></button>
           </div>
         )}
-        <Button size="sm" variant="outline" onClick={takeScreenshot} disabled={screenshotting} className="h-8 gap-1.5 shrink-0 text-xs">
-          {screenshotting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-          Screenshot
+        <Button size="sm" variant="outline" onClick={takeScreenshot} disabled={screenshotStatus === "working"} className={`h-8 gap-1.5 shrink-0 text-xs ${screenshotStatus === "ok" ? "text-emerald-600 border-emerald-400" : screenshotStatus === "error" ? "text-destructive border-destructive/40" : ""}`}>
+          {screenshotStatus === "working" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+          {screenshotStatus === "ok" ? "Saved!" : screenshotStatus === "error" ? "Failed" : "Screenshot"}
         </Button>
         <button onClick={onDelete} className="text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="w-4 h-4" /></button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Left: Job + Stats */}
+        {/* Left: Job + Per-stat breakdown */}
         <div className="space-y-3">
           {/* Job selector */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Job</p>
-            <select value={loadout.jobName} onChange={(e) => onChange({ ...loadout, jobName: e.target.value, rank: "" })}
+            <select value={loadout.jobName} onChange={(e) => onChange({ ...loadout, jobName: e.target.value, rank: "", statLevels: {} })}
               className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
               <option value="">Select job…</option>
               {Object.keys(jobs).sort().map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
             {loadout.jobName && (
-              <div className="flex gap-2">
-                <select value={loadout.rank} onChange={(e) => upd("rank", e.target.value)}
-                  className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-                  <option value="">Rank…</option>
-                  {ranks.map((r) => <option key={r} value={r}>Rank {r}</option>)}
-                </select>
-                <div className="flex items-center gap-1.5 flex-1">
-                  <span className="text-xs text-muted-foreground shrink-0">Lv</span>
-                  <Input type="number" min={1} max={999} value={loadout.level}
-                    onChange={(e) => upd("level", Math.max(1, Math.min(999, parseInt(e.target.value) || 1)))}
-                    className="h-8 text-sm text-center" />
-                </div>
-              </div>
+              <select value={loadout.rank} onChange={(e) => upd("rank", e.target.value)}
+                className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
+                <option value="">Rank…</option>
+                {ranks.map((r) => <option key={r} value={r}>Rank {r}</option>)}
+              </select>
             )}
           </div>
 
-          {/* Stats display */}
-          {hasStats && (
+          {/* Per-stat breakdown table */}
+          {allStatKeys.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Total Stats</p>
-              <div className="grid grid-cols-3 gap-1.5">
-                {STAT_KEYS.filter((k) => stats[k]).map((k) => (
-                  <div key={k} className="bg-muted/60 rounded-md px-2 py-1.5 flex items-center justify-between">
-                    <span className="text-[10px] text-muted-foreground uppercase">{STAT_FULL[k] ?? k}</span>
-                    <span className="text-sm font-bold tabular-nums">{stats[k].toLocaleString()}</span>
-                  </div>
-                ))}
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Stats</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="text-left pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium">Stat</th>
+                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-center w-16">Level</th>
+                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right w-14">Job</th>
+                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right w-14">Equip</th>
+                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right w-14">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allStatKeys.map((k) => {
+                      const hasJob = jobStats[k] !== undefined;
+                      const lv = getStatLevel(loadout, k);
+                      const eq = equipStats[k];
+                      return (
+                        <tr key={k} className="border-t border-border/30">
+                          <td className="py-0.5 pr-2 text-muted-foreground uppercase text-[10px] font-medium">{STAT_FULL[k] ?? k}</td>
+                          <td className="py-0.5 text-center">
+                            {hasJob ? (
+                              <Input type="number" min={1} max={999} value={lv}
+                                onChange={(e) => setStatLevel(k, parseInt(e.target.value) || 1)}
+                                className="h-5 text-[11px] text-center px-0 w-14" />
+                            ) : <span className="text-muted-foreground/30">—</span>}
+                          </td>
+                          <td className="py-0.5 text-right tabular-nums text-foreground/80">{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
+                          <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">—</span>}</td>
+                          <td className="py-0.5 text-right tabular-nums font-bold">{(stats[k] ?? 0).toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
+          )}
+          {allStatKeys.length === 0 && loadout.jobName && loadout.rank && (
+            <p className="text-xs text-muted-foreground/50 text-center py-4">No stat data for this job/rank yet.</p>
           )}
         </div>
 
@@ -454,7 +478,7 @@ export default function LoadoutPage() {
 
   const addLoadout = () => {
     const id = generateId();
-    const newLoadout: Loadout = { id, name: "New Loadout", jobName: "", rank: "", level: 1, equipment: [], skills: [] };
+    const newLoadout: Loadout = { id, name: "New Loadout", jobName: "", rank: "", statLevels: {}, equipment: [], skills: [] };
     save([...loadouts, newLoadout]);
     setExpandedId(id);
   };

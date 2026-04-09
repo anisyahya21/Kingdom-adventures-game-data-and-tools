@@ -118,9 +118,23 @@ export default function SkillsPage() {
   const qc = useQueryClient();
   const { data, isLoading, refetch } = useSharedData();
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<"name" | "studioLevel" | "craftingIntelligence" | "buyPrice" | "sellPrice">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const skills: Record<string, Skill> = data?.skills ?? {};
-  const sorted = Object.values(skills).sort((a, b) => a.name.localeCompare(b.name));
+
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  const sorted = Object.values(skills).sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    if (sortKey === "name") return dir * a.name.localeCompare(b.name);
+    const av = a[sortKey] ?? -Infinity;
+    const bv = b[sortKey] ?? -Infinity;
+    return dir * ((av as number) < (bv as number) ? -1 : (av as number) > (bv as number) ? 1 : 0);
+  });
   const filtered = search.trim()
     ? sorted.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
     : sorted;
@@ -258,13 +272,25 @@ export default function SkillsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-[200px]">Skill Name</th>
-                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[100px]">Studio Level</th>
-                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[130px]">
-                        <span className="inline-flex items-center gap-1"><Zap className="w-3 h-3 text-yellow-500" />Crafting Intel</span>
-                      </th>
-                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[100px]">Buy Price</th>
-                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[100px]">Sell Price</th>
+                      {([
+                        { key: "name", label: "Skill Name", align: "left", cls: "w-[200px]" },
+                        { key: "studioLevel", label: "Studio Level", align: "center", cls: "w-[100px]" },
+                        { key: "craftingIntelligence", label: null, align: "center", cls: "w-[130px]" },
+                        { key: "buyPrice", label: "Buy Price", align: "center", cls: "w-[100px]" },
+                        { key: "sellPrice", label: "Sell Price", align: "center", cls: "w-[100px]" },
+                      ] as const).map(({ key, label, align, cls }) => (
+                        <th key={key} className={`px-3 py-2 text-xs font-medium text-muted-foreground select-none cursor-pointer hover:text-foreground transition-colors ${cls} text-${align}`}
+                          onClick={() => toggleSort(key)}>
+                          <span className="inline-flex items-center gap-1">
+                            {key === "craftingIntelligence"
+                              ? <><Zap className="w-3 h-3 text-yellow-500" />Crafting Intel</>
+                              : label}
+                            {sortKey === key
+                              ? (sortDir === "asc" ? " ↑" : " ↓")
+                              : <span className="text-muted-foreground/30"> ↕</span>}
+                          </span>
+                        </th>
+                      ))}
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tips / Notes</th>
                       <th className="w-16" />
                     </tr>

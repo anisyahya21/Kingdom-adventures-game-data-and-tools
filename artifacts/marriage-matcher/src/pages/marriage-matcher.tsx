@@ -631,18 +631,26 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
 interface PriorityPanelProps {
   desiredChildren: string[];
   allJobNames: string[];
+  jobTypeMap: Record<string, "combat" | "non-combat">;
   onAdd: (child: string) => void;
   onRemove: (child: string) => void;
 }
 
-function PriorityPanel({ desiredChildren, allJobNames, onAdd, onRemove }: PriorityPanelProps) {
+function PriorityPanel({ desiredChildren, allJobNames, jobTypeMap, onAdd, onRemove }: PriorityPanelProps) {
   const [sel, setSel] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "combat" | "non-combat">("all");
 
   const handle = () => {
     if (!sel) return;
     onAdd(sel);
     setSel("");
   };
+
+  const visibleJobs = allJobNames.filter((n) => {
+    if (desiredChildren.includes(n)) return false;
+    if (typeFilter === "all") return true;
+    return jobTypeMap[n] === typeFilter;
+  });
 
   return (
     <Card className="shadow-sm border-violet-200 dark:border-violet-800">
@@ -658,29 +666,48 @@ function PriorityPanel({ desiredChildren, allJobNames, onAdd, onRemove }: Priori
       <CardContent className="space-y-3">
         {desiredChildren.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
-            {desiredChildren.map((c) => (
-              <Badge key={c} className="gap-1.5 px-2 py-1 text-xs bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700 border">
-                <Star className="w-2.5 h-2.5" />{c}
-                <button onClick={() => onRemove(c)} className="text-violet-500 hover:text-destructive transition-colors">
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </Badge>
-            ))}
+            {desiredChildren.map((c) => {
+              const t = jobTypeMap[c];
+              return (
+                <Badge key={c} className={`gap-1.5 px-2 py-1 text-xs border ${t === "combat" ? "bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-800" : t === "non-combat" ? "bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800" : "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700"}`}>
+                  <Star className="w-2.5 h-2.5" />{c}
+                  <button onClick={() => onRemove(c)} className="hover:text-destructive transition-colors ml-0.5">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </Badge>
+              );
+            })}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">No priority children set. Add some below to see coverage in results.</p>
         )}
-        <div className="flex gap-2">
-          <select value={sel} onChange={(e) => setSel(e.target.value)}
-            className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-            <option value="">Select desired child job…</option>
-            {allJobNames.filter((n) => !desiredChildren.includes(n)).map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-          <Button size="sm" variant="secondary" onClick={handle} className="h-8 px-3 shrink-0">
-            <Plus className="w-4 h-4 mr-1" />Add
-          </Button>
+        <div className="space-y-2">
+          {/* Type filter buttons */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-medium shrink-0">Filter:</span>
+            <div className="flex rounded-md overflow-hidden border border-input">
+              {(["all", "combat", "non-combat"] as const).map((t) => (
+                <button key={t} onClick={() => { setTypeFilter(t); setSel(""); }}
+                  className={`px-2.5 h-6 text-[11px] font-medium transition-colors ${typeFilter === t
+                    ? t === "combat" ? "bg-red-500 text-white" : t === "non-combat" ? "bg-sky-500 text-white" : "bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:text-foreground"}`}>
+                  {t === "all" ? "All" : t === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <select value={sel} onChange={(e) => setSel(e.target.value)}
+              className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
+              <option value="">Select desired child job…</option>
+              {visibleJobs.map((n) => (
+                <option key={n} value={n}>{n}{jobTypeMap[n] ? ` (${jobTypeMap[n]})` : ""}</option>
+              ))}
+            </select>
+            <Button size="sm" variant="secondary" onClick={handle} className="h-8 px-3 shrink-0">
+              <Plus className="w-4 h-4 mr-1" />Add
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -1257,6 +1284,7 @@ export default function MarriageMatcher() {
           <PriorityPanel
             desiredChildren={desiredChildren}
             allJobNames={allJobNames}
+            jobTypeMap={jobTypeMap}
             onAdd={addDesiredChild}
             onRemove={removeDesiredChild}
           />
