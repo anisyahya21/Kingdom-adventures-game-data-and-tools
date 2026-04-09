@@ -430,11 +430,11 @@ function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, o
           </select>
         ) : totalFirstGenCount === 0 ? (
           <p className="text-xs text-muted-foreground text-center mt-3 py-1">
-            No 1st gen jobs in database yet — add them in the Jobs tool.
+            No Non-Marriage jobs in database yet — add them in the Jobs tool.
           </p>
         ) : (
           <p className="text-xs text-muted-foreground text-center mt-3 py-1">
-            All {totalFirstGenCount} 1st gen jobs already added to this rank.
+            All {totalFirstGenCount} Non-Marriage jobs already added to this rank.
           </p>
         )}
       </CardContent>
@@ -450,9 +450,9 @@ function JobsPanel({ jobNames, isLoading, isFromApi }: { jobNames: string[]; isL
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base">1st Generation Jobs</CardTitle>
+            <CardTitle className="text-base">Non-Marriage Jobs</CardTitle>
             <CardDescription className="text-xs mt-0.5">
-              Automatically loaded from the Jobs Tool. Only 1st gen jobs can be parents.
+              Automatically loaded from the Jobs Tool. Only Non-Marriage jobs can be parents.
             </CardDescription>
           </div>
           {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground shrink-0" />}
@@ -467,13 +467,13 @@ function JobsPanel({ jobNames, isLoading, isFromApi }: { jobNames: string[]; isL
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-1.5 min-h-8">
           {jobNames.length === 0 && !isLoading && (
-            <p className="text-xs text-muted-foreground">No 1st gen jobs found. Add them in the Jobs Tool first.</p>
+            <p className="text-xs text-muted-foreground">No Non-Marriage jobs found. Add them in the Jobs Tool first.</p>
           )}
           {jobNames.map((name) => (
             <Badge key={name} variant="secondary" className="text-xs px-2 py-1">{name}</Badge>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">{jobNames.length} first generation job{jobNames.length !== 1 ? "s" : ""}</p>
+        <p className="text-xs text-muted-foreground">{jobNames.length} Non-Marriage job{jobNames.length !== 1 ? "s" : ""}</p>
       </CardContent>
     </Card>
   );
@@ -526,7 +526,7 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Compatible Pairs & Children</CardTitle>
         <CardDescription className="text-xs">
-          Define which 1st gen job pairs can marry (same character rank). Optionally add the possible child job outcomes for each pair — children can be any job (1st or 2nd gen).
+          Define which Non-Marriage job pairs can marry (same character rank). Optionally add the possible child job outcomes for each pair — children can be any job (Non-Marriage or Marriage Exclusive).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -606,13 +606,13 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
           <div className="flex gap-2 items-center">
             <select value={selA} onChange={(e) => { setSelA(e.target.value); setError(""); }}
               className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">Parent A (1st gen)…</option>
+              <option value="">Parent A (Non-Marriage)…</option>
               {firstGenJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
             <ArrowLeftRight className="w-4 h-4 text-muted-foreground shrink-0" />
             <select value={selB} onChange={(e) => { setSelB(e.target.value); setError(""); }}
               className="flex-1 h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="">Parent B (1st gen)…</option>
+              <option value="">Parent B (Non-Marriage)…</option>
               {firstGenJobNames.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
             <Button size="sm" variant="secondary" onClick={handleAdd} className="h-8 px-3 shrink-0">
@@ -633,13 +633,14 @@ interface PriorityPanelProps {
   desiredChildren: string[];
   allJobNames: string[];
   jobTypeMap: Record<string, "combat" | "non-combat">;
+  jobGenMap: Record<string, 1 | 2>;
   onAdd: (child: string) => void;
   onRemove: (child: string) => void;
 }
 
-function PriorityPanel({ desiredChildren, allJobNames, jobTypeMap, onAdd, onRemove }: PriorityPanelProps) {
+function PriorityPanel({ desiredChildren, allJobNames, jobTypeMap, jobGenMap, onAdd, onRemove }: PriorityPanelProps) {
   const [sel, setSel] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "combat" | "non-combat">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "combat" | "non-combat" | "marriage-exclusive">("all");
 
   const handle = () => {
     if (!sel) return;
@@ -649,6 +650,7 @@ function PriorityPanel({ desiredChildren, allJobNames, jobTypeMap, onAdd, onRemo
 
   const visibleJobs = allJobNames.filter((n) => {
     if (desiredChildren.some((c) => normJob(c) === normJob(n))) return false;
+    if (typeFilter === "marriage-exclusive") return jobGenMap[n] === 2;
     if (typeFilter === "all") return true;
     return jobTypeMap[n] === typeFilter;
   });
@@ -669,8 +671,9 @@ function PriorityPanel({ desiredChildren, allJobNames, jobTypeMap, onAdd, onRemo
           <div className="flex flex-wrap gap-1.5">
             {desiredChildren.map((c) => {
               const t = jobTypeMap[c];
+              const isMarriageExclusive = jobGenMap[c] === 2;
               return (
-                <Badge key={c} className={`gap-1.5 px-2 py-1 text-xs border ${t === "combat" ? "bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-800" : t === "non-combat" ? "bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800" : "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700"}`}>
+                <Badge key={c} className={`gap-1.5 px-2 py-1 text-xs border ${isMarriageExclusive ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800" : t === "combat" ? "bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-800" : t === "non-combat" ? "bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800" : "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700"}`}>
                   <Star className="w-2.5 h-2.5" />{c}
                   <button onClick={() => onRemove(c)} className="hover:text-destructive transition-colors ml-0.5">
                     <X className="w-2.5 h-2.5" />
@@ -684,15 +687,15 @@ function PriorityPanel({ desiredChildren, allJobNames, jobTypeMap, onAdd, onRemo
         )}
         <div className="space-y-2">
           {/* Type filter buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-muted-foreground font-medium shrink-0">Filter:</span>
             <div className="flex rounded-md overflow-hidden border border-input">
-              {(["all", "combat", "non-combat"] as const).map((t) => (
+              {(["all", "combat", "non-combat", "marriage-exclusive"] as const).map((t) => (
                 <button key={t} onClick={() => { setTypeFilter(t); setSel(""); }}
                   className={`px-2.5 h-6 text-[11px] font-medium transition-colors ${typeFilter === t
-                    ? t === "combat" ? "bg-red-500 text-white" : t === "non-combat" ? "bg-sky-500 text-white" : "bg-primary text-primary-foreground"
+                    ? t === "combat" ? "bg-red-500 text-white" : t === "non-combat" ? "bg-sky-500 text-white" : t === "marriage-exclusive" ? "bg-orange-500 text-white" : "bg-primary text-primary-foreground"
                     : "bg-background text-muted-foreground hover:text-foreground"}`}>
-                  {t === "all" ? "All" : t === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
+                  {t === "all" ? "All" : t === "combat" ? "⚔ Combat" : t === "non-combat" ? "🌿 Non-Combat" : "💍 Marriage Exclusive"}
                 </button>
               ))}
             </div>
@@ -850,7 +853,7 @@ function InfoDialog() {
           </div>
           <div>
             <h3 className="font-semibold text-foreground mb-1">1. Jobs (auto-loaded)</h3>
-            <p>1st gen jobs are loaded automatically from the <strong>Jobs Tool</strong>. Only 1st gen jobs can be parents.</p>
+            <p>Non-Marriage jobs are loaded automatically from the <strong>Jobs Tool</strong>. Only Non-Marriage jobs can be parents.</p>
           </div>
           <div>
             <h3 className="font-semibold text-foreground mb-1">2. Assign to character rank tables</h3>
@@ -936,6 +939,15 @@ export default function MarriageMatcher() {
     const map: Record<string, "combat" | "non-combat"> = {};
     for (const [name, job] of Object.entries(sharedData.jobs)) {
       if (job.type) map[name] = job.type;
+    }
+    return map;
+  }, [sharedData]);
+
+  const jobGenMap = useMemo(() => {
+    if (!sharedData?.jobs) return {} as Record<string, 1 | 2>;
+    const map: Record<string, 1 | 2> = {};
+    for (const [name, job] of Object.entries(sharedData.jobs)) {
+      map[name] = job.generation;
     }
     return map;
   }, [sharedData]);
@@ -1301,6 +1313,7 @@ export default function MarriageMatcher() {
             desiredChildren={desiredChildren}
             allJobNames={allJobNames}
             jobTypeMap={jobTypeMap}
+            jobGenMap={jobGenMap}
             onAdd={addDesiredChild}
             onRemove={removeDesiredChild}
           />

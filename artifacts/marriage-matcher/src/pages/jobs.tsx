@@ -166,12 +166,12 @@ function NewJobDialog({ open, onClose, onCreate }: {
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Job name…"
             className="h-8 text-sm" onKeyDown={(e) => e.key === "Enter" && submit()} autoFocus />
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Generation</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Job Type</label>
             <div className="flex gap-2">
               {([1,2] as const).map((g) => (
                 <button key={g} onClick={() => setGen(g)}
                   className={`flex-1 py-1.5 text-xs rounded border font-medium transition-colors ${gen === g ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"}`}>
-                  {g === 1 ? "1st Gen" : "2nd Gen"}
+                  {g === 1 ? "Non-Marriage" : "Marriage Exclusive"}
                 </button>
               ))}
             </div>
@@ -334,7 +334,7 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete, isF
             {/* Gen / type badges */}
             <div className="flex gap-1 shrink-0 ml-auto">
               <span className={`text-[9px] px-1 rounded font-semibold ${job.generation === 1 ? "bg-sky-100 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400" : "bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400"}`}>
-                G{job.generation}
+                {job.generation === 1 ? "NM" : "ME"}
               </span>
               {job.type && (
                 <span className={`text-[9px] px-1 rounded font-semibold ${job.type === "combat" ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"}`}>
@@ -557,7 +557,7 @@ function JobsTable({
           {(["all","1","2"] as const).map((g) => (
             <button key={g} onClick={() => setGenFilter(g)}
               className={`px-3 h-8 text-xs font-medium transition-colors ${genFilter === g ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}>
-              {g === "all" ? "All" : g === "1" ? "1st Gen" : "2nd Gen"}
+              {g === "all" ? "All" : g === "1" ? "Non-Marriage" : "Marriage Exclusive"}
             </button>
           ))}
         </div>
@@ -862,12 +862,12 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                 : <h3 className="text-2xl font-bold text-foreground mb-1">{jobName}</h3>}
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={job.generation === 1 ? "border-sky-300 text-sky-600 dark:text-sky-400" : "border-orange-300 text-orange-600 dark:text-orange-400"}>
-                  {job.generation === 1 ? "1st Gen" : "2nd Gen"}
+                  {job.generation === 1 ? "Non-Marriage" : "Marriage Exclusive"}
                 </Badge>
                 {editing && (
                   <button onClick={() => setDraft((d) => ({ ...d, generation: d.generation === 1 ? 2 : 1 }))}
                     className="text-xs text-primary hover:underline">
-                    Switch to {draft.generation === 1 ? "2nd" : "1st"} gen
+                    Switch to {draft.generation === 1 ? "Marriage Exclusive" : "Non-Marriage"}
                   </button>
                 )}
                 {editing ? (
@@ -1170,7 +1170,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
         </CardHeader>
         <CardContent>
           {job.generation === 2 ? (
-            <p className="text-sm text-muted-foreground">Second generation jobs cannot marry.</p>
+            <p className="text-sm text-muted-foreground">Marriage Exclusive jobs cannot be parents.</p>
           ) : (
             <div className="space-y-3">
               {jobPairs.length === 0 ? (
