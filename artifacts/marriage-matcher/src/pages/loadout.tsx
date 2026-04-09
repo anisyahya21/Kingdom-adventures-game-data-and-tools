@@ -281,11 +281,12 @@ function ScreenshotCard({ loadout, stats }: { loadout: Loadout; stats: Record<st
 
 // ─── Loadout Editor ───────────────────────────────────────────────────────────
 
-function LoadoutEditor({ loadout, data, onChange, onDelete }: {
+function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   loadout: Loadout;
   data: SharedData;
   onChange: (updated: Loadout) => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }) {
   const [renamingName, setRenamingName] = useState(false);
   const [nameVal, setNameVal] = useState(loadout.name);
@@ -407,6 +408,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
           {screenshotStatus === "working" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
           {screenshotStatus === "ok" ? "Saved!" : screenshotStatus === "error" ? "Failed" : "Screenshot"}
         </Button>
+        <button onClick={onDuplicate} className="text-muted-foreground hover:text-primary shrink-0" title="Duplicate this loadout"><Copy className="w-4 h-4" /></button>
         <button onClick={onDelete} className="text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="w-4 h-4" /></button>
       </div>
 
@@ -653,6 +655,15 @@ export default function LoadoutPage() {
     if (expandedId === id) setExpandedId(null);
   }, [loadouts, save, expandedId]);
 
+  const duplicateLoadout = useCallback((id: string) => {
+    const source = loadouts.find((l) => l.id === id);
+    if (!source) return;
+    const newId = generateId();
+    const duplicate: Loadout = { ...source, id: newId, name: `Copy of ${source.name}` };
+    save([...loadouts, duplicate]);
+    setExpandedId(newId);
+  }, [loadouts, save]);
+
   return (
     <div className="min-h-screen bg-background transition-colors">
       {/* Header */}
@@ -730,32 +741,39 @@ export default function LoadoutPage() {
                   className="w-full text-left"
                   onClick={() => setExpandedId(isOpen ? null : loadout.id)}
                 >
-                  <CardHeader className="py-2.5 px-4 hover:bg-muted/30 transition-colors">
-                    {/* Row 1: chevron + name + job + rank */}
+                  <CardHeader className="py-3 px-4 hover:bg-muted/30 transition-colors">
+                    {/* Row 1: chevron + name + job + rank + duplicate */}
                     <div className="flex items-center gap-2.5 flex-wrap">
                       {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
-                      <CardTitle className="text-sm font-semibold truncate flex-1 min-w-0">
+                      <CardTitle className="text-base font-bold truncate flex-1 min-w-0">
                         {loadout.name || "Unnamed Loadout"}
                       </CardTitle>
                       {loadout.jobName && (
-                        <span className="text-xs text-muted-foreground shrink-0">{loadout.jobName}</span>
+                        <span className="text-sm font-bold text-primary shrink-0">{loadout.jobName}</span>
                       )}
                       {loadout.rank && (
-                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border ${RANK_COLORS[loadout.rank] ?? ""} shrink-0`}>
+                        <Badge variant="outline" className={`text-xs px-2 py-0.5 border font-semibold ${RANK_COLORS[loadout.rank] ?? ""} shrink-0`}>
                           Rank {loadout.rank}
                         </Badge>
                       )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); duplicateLoadout(loadout.id); }}
+                        className="text-muted-foreground hover:text-primary shrink-0 ml-1"
+                        title="Duplicate this loadout"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
                     {/* Collapsed detail rows */}
                     {!isOpen && (
-                      <div className="pl-6 mt-1.5 space-y-1.5">
+                      <div className="pl-6 mt-2 space-y-2">
                         {/* All stats */}
                         {hasStats && (
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
                             {STAT_KEYS.filter((k) => stats[k]).map((k) => (
-                              <span key={k} className="text-[10px] tabular-nums">
-                                <span className="text-muted-foreground/70">{STAT_LABEL[k]} </span>
+                              <span key={k} className="text-xs tabular-nums">
+                                <span className="text-muted-foreground">{STAT_LABEL[k]} </span>
                                 <strong className="text-foreground">{stats[k].toLocaleString()}</strong>
                               </span>
                             ))}
@@ -763,12 +781,12 @@ export default function LoadoutPage() {
                         )}
                         {/* Equipment chips */}
                         {loadout.equipment.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1.5">
                             {loadout.equipment.map((eq) => {
                               const icon = data?.equipIcons?.[eq.name];
                               return (
-                                <span key={eq.name} className="inline-flex items-center gap-1 bg-muted/50 border border-border/50 rounded px-1.5 py-0.5 text-[10px]">
-                                  {icon && <img src={icon} alt="" className="w-3 h-3 object-contain shrink-0" />}
+                                <span key={eq.name} className="inline-flex items-center gap-1.5 bg-muted/50 border border-border/50 rounded-md px-2 py-0.5 text-xs">
+                                  {icon && <img src={icon} alt="" className="w-4 h-4 object-contain shrink-0" />}
                                   <span className="font-medium">{eq.name}</span>
                                   <span className="text-muted-foreground">Lv{eq.level}</span>
                                 </span>
@@ -778,16 +796,16 @@ export default function LoadoutPage() {
                         )}
                         {/* Skill pills */}
                         {loadout.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1.5">
                             {loadout.skills.map((s) => (
-                              <span key={s} className="inline-block bg-violet-100 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded px-1.5 py-0.5 text-[10px]">
+                              <span key={s} className="inline-block bg-violet-100 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-md px-2 py-0.5 text-xs">
                                 {s}
                               </span>
                             ))}
                           </div>
                         )}
                         {!hasStats && loadout.equipment.length === 0 && loadout.skills.length === 0 && (
-                          <span className="text-[10px] text-muted-foreground/50">Empty loadout — click to configure</span>
+                          <span className="text-xs text-muted-foreground/50">Empty loadout — click to configure</span>
                         )}
                       </div>
                     )}
@@ -804,6 +822,7 @@ export default function LoadoutPage() {
                           data={data}
                           onChange={updateLoadout}
                           onDelete={() => deleteLoadout(loadout.id)}
+                          onDuplicate={() => duplicateLoadout(loadout.id)}
                         />
                       ) : (
                         <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
