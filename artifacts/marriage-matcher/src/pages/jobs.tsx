@@ -529,7 +529,7 @@ function JobsTable({
       entries.sort(([a], [b]) => a.localeCompare(b));
     }
     return entries;
-  }, [jobs, genFilter, typeFilter, search, sortCol, sortDir]);
+  }, [jobs, genFilter, typeFilter, favsOnly, favs, search, sortCol, sortDir]);
 
   const addJob = (name: string, gen: 1|2, type: "combat"|"non-combat") => {
     if (Object.keys(jobs).some((k) => normJob(k) === normJob(name))) return;
