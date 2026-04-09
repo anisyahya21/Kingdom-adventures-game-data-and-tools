@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, Plus, ChevronDown, ChevronRight, Trash2, Moon, Sun,
-  MapPin, Trophy, Skull, RefreshCw, Loader2, X, Check, Pencil, Diamond,
+  MapPin, Trophy, Skull, RefreshCw, Loader2, X, Check, Pencil, Diamond, Info, RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ type MonsterSpawn = { area: string; level: number };
 type Monster = { icon?: string; spawns: MonsterSpawn[] };
 type WeeklyReward = { jobName: string; jobRank: string; diamonds: number; equipment: string };
 type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; updatedBy: string; updatedAt: number } | null;
-type Job = { generation: 1 | 2; icon?: string; ranks: Record<string, { stats: Record<string, { base: number; inc: number }> }>; equipment: Partial<Record<string, boolean>>; skills: string[] };
+type Job = { generation: 1 | 2; type?: "combat" | "non-combat"; icon?: string; ranks: Record<string, { stats: Record<string, { base: number; inc: number }> }>; equipment: Partial<Record<string, boolean>>; skills: string[] };
 
 function useDarkMode() {
   const [dark, setDark] = useState(() =>
@@ -109,6 +109,8 @@ export default function MonstersPage() {
   const { name: userName, save: saveUserName } = useUserName();
   const [promptName, setPromptName] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_monsters") ?? "");
+  const [showNote, setShowNote] = useState(false);
   const qc = useQueryClient();
   const { data, isLoading, refetch } = useSharedData();
 
@@ -116,6 +118,9 @@ export default function MonstersPage() {
   const weeklyConquest: WeeklyConquest = data?.weeklyConquest ?? null;
   const jobs: Record<string, Job> = data?.jobs ?? {};
   const jobNames = Object.keys(jobs).sort();
+  const gen1NonCombatJobNames = Object.entries(jobs)
+    .filter(([, j]) => j.generation === 1 && j.type === "non-combat")
+    .map(([n]) => n).sort();
   const withName = useCallback((fn: () => void) => {
     if (!userName) { setPendingAction(() => fn); setPromptName(true); }
     else fn();
@@ -233,6 +238,9 @@ export default function MonstersPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
+              <Info className="w-3.5 h-3.5" />
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-8 gap-1.5 text-muted-foreground">
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             </Button>
@@ -241,6 +249,18 @@ export default function MonstersPage() {
             </Button>
           </div>
         </div>
+
+        {showNote && (
+          <div className="mb-4">
+            <textarea
+              value={pageNote}
+              onChange={(e) => setPageNote(e.target.value)}
+              onBlur={() => localStorage.setItem("ka_note_monsters", pageNote)}
+              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
+              className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
+            />
+          </div>
+        )}
 
         {/* Weekly Conquest */}
         <Card className="shadow-sm mb-6 border-violet-200 dark:border-violet-900/50">
@@ -258,59 +278,78 @@ export default function MonstersPage() {
             )}
           </CardHeader>
           <CardContent>
-            {!weeklyConquest || weeklyConquest.monsters.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No conquest set for this week yet. Click Edit to set the 5 targets.</p>
-            ) : (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {weeklyConquest.monsters.map((mName, i) => {
-                    const m = monsters[mName];
-                    return (
-                      <div key={i} className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
-                        <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                          {m?.icon ? <img src={m.icon} alt="" className="w-full h-full object-contain" /> : <Skull className="w-4 h-4 text-muted-foreground/40" />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium leading-tight">{mName}</p>
-                          {m && m.spawns.length > 0 ? (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {m.spawns.map((sp, si) => (
-                                <span key={si} className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted rounded px-1.5 py-0.5">
-                                  <MapPin className="w-2.5 h-2.5" />{sp.area} Lv{sp.level}
-                                </span>
-                              ))}
-                            </div>
-                          ) : <p className="text-[10px] text-muted-foreground/60 mt-0.5">No spawns recorded</p>}
-                        </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const mName = weeklyConquest?.monsters[i];
+                  const m = mName ? monsters[mName] : undefined;
+                  return mName ? (
+                    <div key={i} className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
+                      <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                        {m?.icon ? <img src={m.icon} alt="" className="w-full h-full object-contain" /> : <Skull className="w-4 h-4 text-muted-foreground/40" />}
                       </div>
-                    );
-                  })}
-                </div>
-
-                {weeklyConquest.reward && (weeklyConquest.reward.jobName || weeklyConquest.reward.diamonds > 0 || weeklyConquest.reward.equipment) && (
-                  <div className="mt-3 pt-3 border-t border-border">
-                    <p className="text-xs font-semibold text-muted-foreground mb-2">This Week's Reward</p>
-                    <div className="flex flex-wrap gap-2">
-                      {weeklyConquest.reward.jobName && (
-                        <span className="inline-flex items-center gap-1.5 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-full px-3 py-1 text-xs font-medium">
-                          <Trophy className="w-3 h-3" />{weeklyConquest.reward.jobRank} — {weeklyConquest.reward.jobName}
-                        </span>
-                      )}
-                      {weeklyConquest.reward.diamonds > 0 && (
-                        <span className="inline-flex items-center gap-1.5 bg-sky-100 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 rounded-full px-3 py-1 text-xs font-medium">
-                          <Diamond className="w-3 h-3" />{weeklyConquest.reward.diamonds.toLocaleString()} Diamonds
-                        </span>
-                      )}
-                      {weeklyConquest.reward.equipment && (
-                        <span className="inline-flex items-center gap-1.5 bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 rounded-full px-3 py-1 text-xs font-medium">
-                          🗡️ {weeklyConquest.reward.equipment}
-                        </span>
-                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium leading-tight">{mName}</p>
+                        {m && m.spawns.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {m.spawns.map((sp, si) => (
+                              <span key={si} className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted rounded px-1.5 py-0.5">
+                                <MapPin className="w-2.5 h-2.5" />{sp.area} Lv{sp.level}
+                              </span>
+                            ))}
+                          </div>
+                        ) : <p className="text-[10px] text-muted-foreground/60 mt-0.5">No spawns recorded</p>}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div key={i} className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/10 px-3 py-2 h-14">
+                      <div className="w-8 h-8 rounded-md border border-dashed border-border/50 flex items-center justify-center shrink-0">
+                        <Skull className="w-3.5 h-3.5 text-muted-foreground/20" />
+                      </div>
+                      <p className="text-xs text-muted-foreground/40">Slot {i + 1} — not set</p>
+                    </div>
+                  );
+                })}
               </div>
-            )}
+
+              {weeklyConquest?.reward && (weeklyConquest.reward.jobName || weeklyConquest.reward.diamonds > 0 || weeklyConquest.reward.equipment) ? (
+                <div className="mt-3 pt-3 border-t border-border">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">This Week's Reward</p>
+                  <div className="flex flex-wrap gap-2">
+                    {weeklyConquest.reward.jobName && (
+                      <span className="inline-flex items-center gap-1.5 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-full px-3 py-1 text-xs font-medium">
+                        <Trophy className="w-3 h-3" />{weeklyConquest.reward.jobRank} — {weeklyConquest.reward.jobName}
+                      </span>
+                    )}
+                    {weeklyConquest.reward.diamonds > 0 && (
+                      <span className="inline-flex items-center gap-1.5 bg-sky-100 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 rounded-full px-3 py-1 text-xs font-medium">
+                        <Diamond className="w-3 h-3" />{weeklyConquest.reward.diamonds.toLocaleString()} Diamonds
+                      </span>
+                    )}
+                    {weeklyConquest.reward.equipment && (
+                      <span className="inline-flex items-center gap-1.5 bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 rounded-full px-3 py-1 text-xs font-medium">
+                        🗡️ {weeklyConquest.reward.equipment}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 pt-3 border-t border-border">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">This Week's Reward</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-xs text-muted-foreground/50">
+                      <Trophy className="w-3 h-3" />Job reward — not set
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-xs text-muted-foreground/50">
+                      <Diamond className="w-3 h-3" />Diamonds — not set
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-xs text-muted-foreground/50">
+                      🗡️ Equipment — not set
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -395,11 +434,16 @@ export default function MonstersPage() {
                                         autoFocus
                                       />
                                       <span className="text-xs text-muted-foreground shrink-0">Lv</span>
-                                      <Input
-                                        type="number" value={sp.level} className="h-6 text-xs w-16"
+                                      <select
+                                        value={sp.level}
                                         onChange={(e) => updateSpawn(mName, idx, { ...sp, level: parseInt(e.target.value) || 1 })}
                                         onBlur={() => setEditingSpawn(null)}
-                                      />
+                                        className="h-6 text-xs w-20 rounded border border-input bg-background px-1 focus:outline-none"
+                                      >
+                                        {[1,2,3,5,7,8,10,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,37,40,41,43,44,45,46,48,50,51,52,54,55,56,58,60,61,62,65,69,70,72,74,75,76,82,85,88,90,92,112,120,121,135,142,162,208,225,250,265,311,320,360,454,525,592,624,777,888,1020,1100,1600,2400,3200,4800,6000,9999].map((lv) => (
+                                          <option key={lv} value={lv}>{lv}</option>
+                                        ))}
+                                      </select>
                                     </>
                                   ) : (
                                     <button
@@ -467,14 +511,14 @@ export default function MonstersPage() {
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <label className="text-xs text-muted-foreground mb-1 block">Job (from job database)</label>
+                    <label className="text-xs text-muted-foreground mb-1 block">Job reward (non-combat Gen1){gen1NonCombatJobNames.length === 0 ? " — add non-combat jobs first" : ""}</label>
                     <select
                       value={conquestDraft.reward.jobName}
                       onChange={(e) => setConquestDraft((d) => ({ ...d, reward: { ...d.reward, jobName: e.target.value } }))}
                       className="h-8 w-full text-xs rounded border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
                     >
                       <option value="">— no job reward —</option>
-                      {jobNames.map((j) => <option key={j} value={j}>{j}</option>)}
+                      {(gen1NonCombatJobNames.length > 0 ? gen1NonCombatJobNames : jobNames).map((j) => <option key={j} value={j}>{j}</option>)}
                     </select>
                   </div>
                   <div className="w-24">

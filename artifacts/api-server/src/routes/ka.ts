@@ -34,6 +34,7 @@ export type Skill = {
   craftingIntelligence?: number;
   buyPrice?: number;
   sellPrice?: number;
+  description?: string;
 };
 export type Job = {
   generation: 1 | 2;

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, Plus, Trash2, Moon, Sun, Loader2, Pencil, Check, X,
-  RefreshCw, BookOpen, Search,
+  RefreshCw, BookOpen, Search, Zap, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ type Skill = {
   craftingIntelligence?: number;
   buyPrice?: number;
   sellPrice?: number;
+  description?: string;
 };
 
 type SharedData = { skills?: Record<string, Skill> };
@@ -86,6 +87,7 @@ const EMPTY_SKILL: Omit<Skill, "name"> = {
   craftingIntelligence: undefined,
   buyPrice: undefined,
   sellPrice: undefined,
+  description: undefined,
 };
 
 function numCell(val: number | undefined, onChange: (v: number | undefined) => void, editing: boolean, prefix?: string) {
@@ -111,6 +113,8 @@ export default function SkillsPage() {
   const { name: userName, save: saveUserName } = useUserName();
   const [promptName, setPromptName] = useState(false);
   const [pendingFn, setPendingFn] = useState<(() => void) | null>(null);
+  const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_skills") ?? "");
+  const [showNote, setShowNote] = useState(false);
   const qc = useQueryClient();
   const { data, isLoading, refetch } = useSharedData();
   const [search, setSearch] = useState("");
@@ -200,6 +204,9 @@ export default function SkillsPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
+              <Info className="w-3.5 h-3.5" />
+            </Button>
             <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-muted">
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -211,6 +218,17 @@ export default function SkillsPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-6">
+        {showNote && (
+          <div className="mb-4">
+            <textarea
+              value={pageNote}
+              onChange={(e) => setPageNote(e.target.value)}
+              onBlur={() => localStorage.setItem("ka_note_skills", pageNote)}
+              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
+              className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
+            />
+          </div>
+        )}
         {/* Toolbar */}
         <div className="flex gap-2 mb-4 flex-wrap">
           <div className="relative flex-1 min-w-48">
@@ -240,11 +258,14 @@ export default function SkillsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-[220px]">Skill Name</th>
-                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[110px]">Studio Level</th>
-                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[140px]">Crafting Intel</th>
-                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[110px]">Buy Price</th>
-                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[110px]">Sell Price</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground w-[200px]">Skill Name</th>
+                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[100px]">Studio Level</th>
+                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[130px]">
+                        <span className="inline-flex items-center gap-1"><Zap className="w-3 h-3 text-yellow-500" />Crafting Intel</span>
+                      </th>
+                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[100px]">Buy Price</th>
+                      <th className="text-center px-3 py-2 text-xs font-medium text-muted-foreground w-[100px]">Sell Price</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tips / Notes</th>
                       <th className="w-16" />
                     </tr>
                   </thead>
@@ -263,6 +284,10 @@ export default function SkillsPage() {
                         <td className="px-3 py-2">{numCell(draft.buyPrice, (v) => setDraft((d) => ({ ...d, buyPrice: v })), true, "💰")}</td>
                         <td className="px-3 py-2">{numCell(draft.sellPrice, (v) => setDraft((d) => ({ ...d, sellPrice: v })), true, "💰")}</td>
                         <td className="px-3 py-2">
+                          <Input value={draft.description ?? ""} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value || undefined }))}
+                            placeholder="Tips or notes…" className="h-7 text-sm px-2" />
+                        </td>
+                        <td className="px-3 py-2">
                           <div className="flex gap-1 justify-end">
                             <button onClick={commitAdd} className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 p-0.5"><Check className="w-3.5 h-3.5" /></button>
                             <button onClick={() => setAddingSkill(false)} className="text-muted-foreground hover:text-destructive p-0.5"><X className="w-3.5 h-3.5" /></button>
@@ -272,7 +297,7 @@ export default function SkillsPage() {
                     )}
 
                     {filtered.length === 0 && !addingSkill && (
-                      <tr><td colSpan={6} className="text-center py-12 text-sm text-muted-foreground">
+                      <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">
                         {search ? "No skills match your search." : "No skills added yet. Click \"Add Skill\" to start."}
                       </td></tr>
                     )}
@@ -299,6 +324,14 @@ export default function SkillsPage() {
                           </td>
                           <td className="px-3 py-2 text-center">
                             {numCell(d.sellPrice, (v) => setEditDraft((x) => x ? { ...x, sellPrice: v } : x), isEditing, "💰")}
+                          </td>
+                          <td className="px-3 py-2 min-w-[180px]">
+                            {isEditing
+                              ? <Input value={d.description ?? ""} onChange={(e) => setEditDraft((x) => x ? { ...x, description: e.target.value || undefined } : x)}
+                                  placeholder="Tips or notes…" className="h-7 text-sm px-2" />
+                              : d.description
+                                ? <span className="text-xs text-muted-foreground line-clamp-2">{d.description}</span>
+                                : <span className="text-muted-foreground/30 text-xs">—</span>}
                           </td>
                           <td className="px-3 py-2">
                             <div className="flex gap-1 justify-end">

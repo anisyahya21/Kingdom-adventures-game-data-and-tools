@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, Plus, Trash2, Moon, Sun, Loader2, Camera,
   ChevronDown, ChevronRight, Package, X, Check, Pencil,
-  Download, Copy,
+  Download, Copy, Info, RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ type SharedData = {
   skills?: Record<string, Skill>;
   overrides?: Record<string, Record<string, { base?: number; inc?: number }>>;
   slotAssignments?: Record<string, string>;
+  equipIcons?: Record<string, string>;
 };
 type EquipEntry = { name: string; level: number };
 type Loadout = {
@@ -316,7 +317,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
           {/* Job selector */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Job</p>
-            <select value={loadout.jobName} onChange={(e) => { upd("jobName", e.target.value); upd("rank", ""); }}
+            <select value={loadout.jobName} onChange={(e) => onChange({ ...loadout, jobName: e.target.value, rank: "" })}
               className="w-full h-8 text-sm rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring">
               <option value="">Select job…</option>
               {Object.keys(jobs).sort().map((n) => <option key={n} value={n}>{n}</option>)}
@@ -356,23 +357,55 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
 
         {/* Right: Equipment + Skills */}
         <div className="space-y-3">
-          {/* Equipment */}
+          {/* Equipment (slot-based) */}
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
               Equipment <span className="normal-case font-normal">({loadout.equipment.length} items)</span>
             </p>
-            <div className="space-y-1 mb-2 max-h-40 overflow-y-auto">
-              {loadout.equipment.map((eq, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-muted/30 rounded-md px-2 py-1">
-                  <span className="text-xs flex-1 truncate font-medium">{eq.name}</span>
-                  <span className="text-[10px] text-muted-foreground shrink-0">Lv</span>
-                  <Input type="number" min={1} max={999} value={eq.level}
-                    onChange={(e) => setEquipLevel(i, parseInt(e.target.value) || 1)}
-                    className="h-6 text-xs text-center w-14 px-1 shrink-0" />
-                  <button onClick={() => removeEquip(i)} className="text-muted-foreground hover:text-destructive shrink-0"><X className="w-3 h-3" /></button>
+            {(() => {
+              const slotMap = data.slotAssignments ?? {};
+              const iconMap = data.equipIcons ?? {};
+              const groups: Record<string, EquipEntry[]> = {};
+              const unassigned: EquipEntry[] = [];
+              for (const eq of loadout.equipment) {
+                const slot = slotMap[eq.name];
+                if (slot) { (groups[slot] ??= []).push(eq); }
+                else { unassigned.push(eq); }
+              }
+              const allSlots = Object.keys(groups).sort();
+              const renderRow = (eq: EquipEntry, i: number) => {
+                const globalIdx = loadout.equipment.findIndex((e) => e.name === eq.name);
+                const icon = iconMap[eq.name];
+                return (
+                  <div key={eq.name} className="flex items-center gap-1.5 bg-muted/30 rounded-md px-2 py-1">
+                    {icon ? <img src={icon} alt="" className="w-4 h-4 shrink-0 object-contain" /> : <div className="w-4 h-4 shrink-0" />}
+                    <span className="text-xs flex-1 truncate font-medium">{eq.name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">Lv</span>
+                    <Input type="number" min={1} max={999} value={eq.level}
+                      onChange={(e) => setEquipLevel(globalIdx, parseInt(e.target.value) || 1)}
+                      className="h-6 text-xs text-center w-14 px-1 shrink-0" />
+                    <button onClick={() => removeEquip(globalIdx)} className="text-muted-foreground hover:text-destructive shrink-0"><X className="w-3 h-3" /></button>
+                  </div>
+                );
+              };
+              return (
+                <div className="space-y-2 mb-2 max-h-52 overflow-y-auto">
+                  {allSlots.map((slot) => (
+                    <div key={slot}>
+                      <p className="text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider px-0.5 mb-0.5">{slot}</p>
+                      <div className="space-y-1">{groups[slot].map(renderRow)}</div>
+                    </div>
+                  ))}
+                  {unassigned.length > 0 && (
+                    <div>
+                      {allSlots.length > 0 && <p className="text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider px-0.5 mb-0.5">Other</p>}
+                      <div className="space-y-1">{unassigned.map(renderRow)}</div>
+                    </div>
+                  )}
+                  {loadout.equipment.length === 0 && <p className="text-xs text-muted-foreground/40 text-center py-2">No equipment added yet.</p>}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
             <select value="" onChange={(e) => { addEquip(e.target.value); }}
               className="w-full h-7 text-xs rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground">
               <option value="">+ Add equipment…</option>
@@ -416,6 +449,8 @@ export default function LoadoutPage() {
   const { data, isLoading } = useSharedData();
   const { loadouts, save } = useLoadouts();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_loadout") ?? "");
+  const [showNote, setShowNote] = useState(false);
 
   const addLoadout = () => {
     const id = generateId();
@@ -450,6 +485,16 @@ export default function LoadoutPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
+              <Info className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => {
+              if (confirm("Delete all your loadouts? This cannot be undone.")) {
+                save([]);
+              }
+            }} className="h-8 w-8 text-muted-foreground" title="Reset all loadouts">
+              <RotateCcw className="w-3.5 h-3.5" />
+            </Button>
             <Button size="sm" onClick={addLoadout} className="h-8 gap-1.5">
               <Plus className="w-3.5 h-3.5" />New Loadout
             </Button>
@@ -461,6 +506,18 @@ export default function LoadoutPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-6">
+        {showNote && (
+          <div className="mb-4">
+            <textarea
+              value={pageNote}
+              onChange={(e) => setPageNote(e.target.value)}
+              onBlur={() => localStorage.setItem("ka_note_loadout", pageNote)}
+              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
+              className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
+            />
+          </div>
+        )}
+
         {isLoading && (
           <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         )}

@@ -4,7 +4,7 @@ import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, Plus, Trash2, Moon, Sun, RefreshCw, Loader2, X,
   Check, Star, Briefcase, Save, ImageIcon, Heart, ArrowUpDown,
-  ArrowUp, ArrowDown, Settings2, Pencil,
+  ArrowUp, ArrowDown, Settings2, Pencil, Info, RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,6 +119,14 @@ async function persistJobs(jobs: Record<string,Job>, userName: string, desc: str
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data: jobs, history: { userName, changeType: "job", itemName: "jobs", description: desc } }),
+  });
+}
+
+async function persistPairs(pairs: SharedPair[], userName: string) {
+  await fetch(API("/pairs"), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: pairs, history: { userName: userName || "community", changeType: "job", itemName: "pairs", description: `Updated compatible pairs (${pairs.length} total)` } }),
   });
 }
 
@@ -673,13 +681,17 @@ function ShopInput({ onAdd }: { onAdd: (v: string) => void }) {
   );
 }
 
-function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSave }: {
+function generatePairId() { return Math.random().toString(36).slice(2, 9); }
+
+function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSave, onSavePairs, userName }: {
   jobName: string;
   jobs: Record<string,Job>;
   statIcons: Record<string,string>;
   weaponCategories: string[];
   pairs: SharedPair[];
   onSave: (updated: Record<string,Job>, desc: string) => void;
+  onSavePairs: (updated: SharedPair[]) => void;
+  userName: string;
 }) {
   const [, navigate] = useLocation();
   const job = jobs[jobName];
@@ -759,14 +771,43 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
     .filter((p) => p.jobA === jobName || p.jobB === jobName)
     .map((p) => {
       const partner = p.jobA === jobName ? p.jobB : p.jobA;
-      return { partner, children: [...p.children].sort() };
+      return { id: p.id, partner, children: [...p.children].sort() };
     })
     .sort((a, b) => a.partner.localeCompare(b.partner));
+
+  const availablePartners = firstGenJobs.filter((j) => !jobPairs.some((p) => p.partner === j));
+
+  const addPair = (partner: string) => {
+    if (!partner) return;
+    const newPair: SharedPair = { id: generatePairId(), jobA: jobName, jobB: partner, children: [] };
+    onSavePairs([...pairs, newPair]);
+  };
+
+  const removePair = (id: string) => {
+    onSavePairs(pairs.filter((p) => p.id !== id));
+  };
+
+  const addChildToPair = (pairId: string, child: string) => {
+    if (!child) return;
+    const updated = pairs.map((p) =>
+      p.id === pairId && !p.children.includes(child)
+        ? { ...p, children: [...p.children, child].sort() }
+        : p
+    );
+    onSavePairs(updated);
+  };
+
+  const removeChildFromPair = (pairId: string, child: string) => {
+    const updated = pairs.map((p) =>
+      p.id === pairId ? { ...p, children: p.children.filter((c) => c !== child) } : p
+    );
+    onSavePairs(updated);
+  };
 
   const weaponStyle: Record<WeaponValue,string> = {
     can:    "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400",
     weak:   "bg-amber-100 dark:bg-amber-950/40 border-amber-400 text-amber-700 dark:text-amber-400",
-    cannot: "border-dashed border-border/60 text-muted-foreground/40",
+    cannot: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400",
   };
   const weaponLabel: Record<WeaponValue,string> = { can:"Can", weak:"Weak", cannot:"Can't" };
 
@@ -978,7 +1019,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                 })}
               </div>
             ) : (
-              <span className={`px-3 py-1.5 text-xs rounded-full border font-medium ${job.shield === "can" ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400" : "border-dashed border-border/60 text-muted-foreground/50"}`}>
+              <span className={`px-3 py-1.5 text-xs rounded-full border font-medium ${job.shield === "can" ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400" : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400"}`}>
                 {job.shield === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : "Can't Equip"}
               </span>
             )}
@@ -1055,7 +1096,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                     ) : (
                       <span className={`px-3 py-1.5 rounded-full border text-xs font-medium ${v === "can"
                         ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
-                        : "border-dashed border-border/60 text-muted-foreground/50"}`}>
+                        : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400"}`}>
                         {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
                       </span>
                     )}
@@ -1120,54 +1161,64 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
         <CardContent>
           {job.generation === 2 ? (
             <p className="text-sm text-muted-foreground">Second generation jobs cannot marry.</p>
-          ) : firstGenJobs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No other first generation jobs in the database yet.</p>
           ) : (
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">All first generation jobs are <strong>Compatibility A</strong> with each other.</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {firstGenJobs.map((j) => (
-                    <Link key={j} href={`/jobs/${encodeURIComponent(j)}`}>
-                      <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-full px-2.5 py-1 text-xs cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-950/50 transition-colors">
-                        <Heart className="w-2.5 h-2.5" />{j}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-              {jobPairs.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Known pairings with child outcomes:</p>
-                  <div className="space-y-2">
-                    {jobPairs.map(({ partner, children }) => (
-                      <div key={partner} className="rounded-md border border-border bg-muted/20 px-3 py-2">
+            <div className="space-y-3">
+              {jobPairs.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No compatible pairs added yet for {jobName}. Use the selector below to add known compatible pairs.</p>
+              ) : (
+                <div className="space-y-2">
+                  {jobPairs.map(({ id, partner, children }) => {
+                    const allJobs = Object.keys(jobs).sort();
+                    const availableChildren = allJobs.filter((j) => !children.includes(j));
+                    return (
+                      <div key={id} className="rounded-md border border-border bg-muted/20 px-3 py-2 space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <Link href={`/jobs/${encodeURIComponent(partner)}`}>
                             <span className="inline-flex items-center gap-1 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-full px-2 py-0.5 text-xs cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-950/50 transition-colors font-medium">
                               <Heart className="w-2.5 h-2.5" />{partner}
                             </span>
                           </Link>
-                          {children.length > 0 ? (
-                            <>
-                              <span className="text-xs text-muted-foreground">→ possible children:</span>
-                              {children.map((c) => (
-                                <Link key={c} href={`/jobs/${encodeURIComponent(c)}`}>
-                                  <span className="inline-flex items-center gap-1 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 rounded-full px-2 py-0.5 text-xs cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-950/50 transition-colors">
-                                    {c}
-                                  </span>
-                                </Link>
-                              ))}
-                            </>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/60">no extra children defined</span>
-                          )}
+                          <button onClick={() => removePair(id)} className="ml-auto text-muted-foreground/40 hover:text-destructive transition-colors shrink-0" title="Remove this pair">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {children.length > 0 && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] text-muted-foreground">Possible children:</span>
+                            {children.map((c) => (
+                              <span key={c} className="inline-flex items-center gap-1 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300 rounded-full px-2 py-0.5 text-[11px] cursor-default">
+                                {c}
+                                <button onClick={() => removeChildFromPair(id, c)} className="text-violet-400 hover:text-destructive transition-colors"><X className="w-2.5 h-2.5" /></button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-1.5">
+                          <select
+                            defaultValue=""
+                            onChange={(e) => { if (e.target.value) { addChildToPair(id, e.target.value); e.target.value = ""; } }}
+                            className="flex-1 h-6 text-[11px] rounded border border-input bg-background px-1.5 focus:outline-none text-muted-foreground"
+                          >
+                            <option value="">+ Add child job…</option>
+                            {availableChildren.map((j) => <option key={j} value={j}>{j}</option>)}
+                          </select>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               )}
+              {availablePartners.length > 0 && (
+                <select
+                  defaultValue=""
+                  onChange={(e) => { if (e.target.value) { addPair(e.target.value); e.target.value = ""; } }}
+                  className="w-full h-7 text-xs rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground"
+                >
+                  <option value="">+ Add compatible pair with…</option>
+                  {availablePartners.map((j) => <option key={j} value={j}>{j}</option>)}
+                </select>
+              )}
+              <p className="text-[10px] text-muted-foreground/70">Compatible pairs are shared community data — visible to all users and in the Marriage Match Finder.</p>
             </div>
           )}
         </CardContent>
@@ -1185,6 +1236,8 @@ export default function JobsPage() {
   const { name: userName, save: saveUserName } = useUserName();
   const [promptName, setPromptName] = useState(false);
   const [pendingFn,  setPendingFn]  = useState<(() => void) | null>(null);
+  const [pageNote,   setPageNote]   = useState(() => localStorage.getItem("ka_note_jobs") ?? "");
+  const [showNote,   setShowNote]   = useState(false);
   const qc = useQueryClient();
   const { data, isLoading, refetch } = useSharedData();
 
@@ -1207,6 +1260,13 @@ export default function JobsPage() {
     withName(() => {
       qc.setQueryData(["ka-shared"], (old: SharedData|undefined) => old ? { ...old, jobs: updated } : old);
       persistJobs(updated, userName, desc).then(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }));
+    });
+  }, [qc, userName, withName]);
+
+  const handleSavePairs = useCallback((updated: SharedPair[]) => {
+    withName(() => {
+      qc.setQueryData(["ka-shared"], (old: SharedData|undefined) => old ? { ...old, pairs: updated } : old);
+      persistPairs(updated, userName).then(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }));
     });
   }, [qc, userName, withName]);
 
@@ -1237,6 +1297,18 @@ export default function JobsPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
+              <Info className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => {
+              if (confirm("Reset your private data for Jobs (favourites, rank selections)? Community data is not affected.")) {
+                localStorage.removeItem("ka_fav_jobs");
+                localStorage.removeItem("ka_rank_slots");
+                window.location.reload();
+              }
+            }} className="h-8 w-8 text-muted-foreground" title="Reset private data (favourites, rank selections)">
+              <RotateCcw className="w-3.5 h-3.5" />
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-8 gap-1.5 text-muted-foreground">
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             </Button>
@@ -1245,6 +1317,18 @@ export default function JobsPage() {
             </Button>
           </div>
         </div>
+
+        {showNote && (
+          <div className="mb-4">
+            <textarea
+              value={pageNote}
+              onChange={(e) => setPageNote(e.target.value)}
+              onBlur={() => localStorage.setItem("ka_note_jobs", pageNote)}
+              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
+              className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
+            />
+          </div>
+        )}
 
         {/* Content */}
         {isLoading ? (
@@ -1257,6 +1341,8 @@ export default function JobsPage() {
             weaponCategories={weaponCategories}
             pairs={pairs}
             onSave={handleSaveJobs}
+            onSavePairs={handleSavePairs}
+            userName={userName}
           />
         ) : selectedJob ? (
           <div className="text-center py-16 text-sm text-muted-foreground">

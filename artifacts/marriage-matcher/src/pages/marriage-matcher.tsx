@@ -451,7 +451,7 @@ function JobsPanel({ jobNames, isLoading, isFromApi }: { jobNames: string[]; isL
           <div>
             <CardTitle className="text-base">1st Generation Jobs</CardTitle>
             <CardDescription className="text-xs mt-0.5">
-              Automatically loaded from the Jobs Tool. Only 1st gen jobs can be parents — they all have <strong>Compatibility A</strong> with each other.
+              Automatically loaded from the Jobs Tool. Only 1st gen jobs can be parents.
             </CardDescription>
           </div>
           {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground shrink-0" />}
@@ -818,7 +818,7 @@ function InfoDialog() {
         <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
           <div>
             <h3 className="font-semibold text-foreground mb-1">Compatibility vs Character Rank</h3>
-            <p>This tool is for marriages at <strong>Compatibility A</strong> — the highest marriage compatibility rating (A is best, E is worst). All 1st generation jobs have Compatibility A with each other. Character rank (S/A/B/C/D) is separate and refers to how leveled up your character is.</p>
+            <p>This tool helps you plan optimal marriages by adding the compatible pairs you know. Character rank (S/A/B/C/D) is separate and refers to how leveled up your character is — it is not the same as marriage compatibility. Compatible pairs are community data: anyone can add or remove them and they appear on job pages too.</p>
           </div>
           <div>
             <h3 className="font-semibold text-foreground mb-1">1. Jobs (auto-loaded)</h3>
@@ -859,6 +859,8 @@ export default function MarriageMatcher() {
     }
     return false;
   });
+  const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_marriage") ?? "");
+  const [showNote, setShowNote] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -1182,7 +1184,7 @@ export default function MarriageMatcher() {
             <div>
               <h1 className="text-3xl font-bold text-foreground tracking-tight">Kingdom Adventures Match Finder</h1>
               <p className="mt-1 text-muted-foreground text-sm max-w-xl">
-                Plan optimal marriages for <span className="font-medium text-foreground">Compatibility A</span> — the highest marriage compatibility rating (A through E, A is best). All 1st generation jobs have Compatibility A with each other.
+                Plan optimal marriages using your compatible pairs. Add the pairs you know, assign your slots, and let the algorithm find the best matches.
               </p>
               <p className="mt-1 text-muted-foreground text-xs max-w-xl">
                 Your rank assignments and settings are <span className="font-medium">private to your browser</span>. Compatible pairs are <span className="font-medium">shared community data</span> — visible to all users and shown on job pages.
@@ -1190,6 +1192,9 @@ export default function MarriageMatcher() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
+              <Info className="w-3.5 h-3.5" />
+            </Button>
             <InfoDialog />
             <SourceViewerButton source={rawSource} title="Match Finder — Source Code" />
             <Tooltip>
@@ -1205,6 +1210,18 @@ export default function MarriageMatcher() {
             </Button>
           </div>
         </div>
+
+        {showNote && (
+          <div className="mb-4">
+            <textarea
+              value={pageNote}
+              onChange={(e) => setPageNote(e.target.value)}
+              onBlur={() => localStorage.setItem("ka_note_marriage", pageNote)}
+              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
+              className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
+            />
+          </div>
+        )}
 
         {/* Jobs Panel */}
         <div className="mb-6">
