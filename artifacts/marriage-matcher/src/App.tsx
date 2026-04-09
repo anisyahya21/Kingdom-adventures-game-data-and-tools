@@ -6,6 +6,8 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import MarriageMatcher from "@/pages/marriage-matcher";
 import EquipmentPage from "@/pages/equipment";
+import MonstersPage from "@/pages/monsters";
+import JobsPage from "@/pages/jobs";
 
 const queryClient = new QueryClient();
 
@@ -15,6 +17,9 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/match-finder" component={MarriageMatcher} />
       <Route path="/equipment" component={EquipmentPage} />
+      <Route path="/monsters" component={MonstersPage} />
+      <Route path="/jobs" component={JobsPage} />
+      <Route path="/jobs/:name" component={JobsPage} />
       <Route component={NotFound} />
     </Switch>
   );

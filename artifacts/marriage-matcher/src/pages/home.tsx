@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Plus, Heart, Sword, Trash2, Moon, Sun, ExternalLink } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, Moon, Sun, ExternalLink, Skull, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -29,6 +29,22 @@ const BUILT_IN_TOOLS = [
     icon: <Sword className="w-6 h-6 text-amber-500" />,
     badge: "Stats",
     badgeColor: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300",
+  },
+  {
+    slug: "/monsters",
+    title: "Monsters & Weekly Conquest",
+    description: "Community monster database with spawn locations. See this week's conquest targets, where to find them, and what rewards are up for grabs.",
+    icon: <Skull className="w-6 h-6 text-violet-500" />,
+    badge: "Monsters",
+    badgeColor: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300",
+  },
+  {
+    slug: "/jobs",
+    title: "Job Database",
+    description: "Explore all jobs with their stats, ranks, and equipment restrictions. Click any job to see full details, skills, equipment loadouts, and marriage compatibility.",
+    icon: <Briefcase className="w-6 h-6 text-sky-500" />,
+    badge: "Jobs",
+    badgeColor: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300",
   },
 ];
 
@@ -78,7 +94,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background transition-colors">
       <div className="max-w-5xl mx-auto px-4 py-12">
-        {/* Header */}
         <div className="flex items-start justify-between mb-10">
           <div>
             <h1 className="text-4xl font-bold text-foreground tracking-tight">Kingdom Adventures</h1>
@@ -89,7 +104,6 @@ export default function Home() {
           </Button>
         </div>
 
-        {/* Built-in tools */}
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tools</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
           {BUILT_IN_TOOLS.map((tool) => (
@@ -114,7 +128,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Custom projects */}
         {customProjects.length > 0 && (
           <>
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Community Projects</h2>
@@ -147,7 +160,6 @@ export default function Home() {
           </>
         )}
 
-        {/* Add project */}
         {adding ? (
           <Card className="shadow-sm border-dashed border-primary/40">
             <CardHeader className="pb-2">
@@ -172,7 +184,6 @@ export default function Home() {
           </button>
         )}
 
-        {/* Footer */}
         <div className="mt-12 pt-6 border-t border-border text-xs text-muted-foreground flex items-center justify-between">
           <span>Kingdom Adventures — open source tools</span>
           <a href="https://replit.com" target="_blank" rel="noopener noreferrer"

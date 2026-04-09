@@ -10,10 +10,30 @@ export interface HistoryEntry {
   id: string;
   timestamp: number;
   userName: string;
-  changeType: "stat" | "slot" | "equip-icon" | "stat-icon" | "weapon-type" | "weapon-category";
+  changeType: "stat" | "slot" | "equip-icon" | "stat-icon" | "weapon-type" | "weapon-category" | "monster" | "weekly-conquest" | "job";
   itemName: string;
   description: string;
 }
+
+export type MonsterSpawn = { area: string; level: number };
+export type Monster = { icon?: string; spawns: MonsterSpawn[] };
+
+export type WeeklyConquest = {
+  monsters: string[];
+  reward: { jobName: string; jobRank: string; diamonds: number; equipment: string };
+  updatedBy: string;
+  updatedAt: number;
+};
+
+export type JobStatEntry = { base: number; inc: number };
+export type JobRank = { stats: Record<string, JobStatEntry> };
+export type Job = {
+  generation: 1 | 2;
+  icon?: string;
+  ranks: Record<string, JobRank>;
+  equipment: Partial<Record<string, boolean>>;
+  skills: string[];
+};
 
 type SharedState = {
   overrides: Record<string, Record<string, { base?: number; inc?: number }>>;
@@ -23,6 +43,9 @@ type SharedState = {
   weaponTypes: Record<string, string>;
   weaponCategories: string[];
   history: HistoryEntry[];
+  monsters: Record<string, Monster>;
+  weeklyConquest: WeeklyConquest | null;
+  jobs: Record<string, Job>;
 };
 
 const DEFAULT_STATE: SharedState = {
@@ -33,6 +56,9 @@ const DEFAULT_STATE: SharedState = {
   weaponTypes: {},
   weaponCategories: [],
   history: [],
+  monsters: {},
+  weeklyConquest: null,
+  jobs: {},
 };
 
 function ensureDir() {
@@ -44,7 +70,15 @@ function readState(): SharedState {
     ensureDir();
     if (!fs.existsSync(STATE_FILE)) return { ...DEFAULT_STATE };
     const parsed = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
-    return { ...DEFAULT_STATE, history: [], weaponCategories: [], ...parsed };
+    return {
+      ...DEFAULT_STATE,
+      history: [],
+      weaponCategories: [],
+      monsters: {},
+      weeklyConquest: null,
+      jobs: {},
+      ...parsed,
+    };
   } catch {
     return { ...DEFAULT_STATE };
   }
@@ -56,15 +90,13 @@ function writeState(state: SharedState) {
 }
 
 function appendHistory(state: SharedState, entry: Omit<HistoryEntry, "id" | "timestamp">) {
-  const full: HistoryEntry = {
-    id: crypto.randomUUID(),
-    timestamp: Date.now(),
-    ...entry,
-  };
+  const full: HistoryEntry = { id: crypto.randomUUID(), timestamp: Date.now(), ...entry };
   state.history = [full, ...state.history].slice(0, 200);
 }
 
 const router = Router();
+
+// ─── Equipment shared state ────────────────────────────────────────────────────
 
 router.get("/ka/shared", (_req, res) => {
   res.json(readState());
@@ -130,9 +162,52 @@ router.post("/ka/shared/rename-user", (req, res) => {
     return res.status(400).json({ error: "oldName and newName must differ and be non-empty" });
   }
   const state = readState();
-  state.history = state.history.map((e) =>
-    e.userName === oldName ? { ...e, userName: newName } : e
-  );
+  state.history = state.history.map((e) => e.userName === oldName ? { ...e, userName: newName } : e);
+  writeState(state);
+  res.json({ ok: true });
+});
+
+// ─── Monsters ─────────────────────────────────────────────────────────────────
+
+router.get("/ka/monsters", (_req, res) => {
+  res.json(readState().monsters);
+});
+
+router.put("/ka/monsters", (req, res) => {
+  const { data, history } = req.body as { data: SharedState["monsters"]; history?: Omit<HistoryEntry, "id" | "timestamp"> };
+  const state = readState();
+  state.monsters = data ?? {};
+  if (history) appendHistory(state, history);
+  writeState(state);
+  res.json({ ok: true });
+});
+
+// ─── Weekly Conquest ──────────────────────────────────────────────────────────
+
+router.get("/ka/weekly-conquest", (_req, res) => {
+  res.json(readState().weeklyConquest);
+});
+
+router.put("/ka/weekly-conquest", (req, res) => {
+  const { data, history } = req.body as { data: WeeklyConquest; history?: Omit<HistoryEntry, "id" | "timestamp"> };
+  const state = readState();
+  state.weeklyConquest = data ?? null;
+  if (history) appendHistory(state, history);
+  writeState(state);
+  res.json({ ok: true });
+});
+
+// ─── Jobs ─────────────────────────────────────────────────────────────────────
+
+router.get("/ka/jobs", (_req, res) => {
+  res.json(readState().jobs);
+});
+
+router.put("/ka/jobs", (req, res) => {
+  const { data, history } = req.body as { data: SharedState["jobs"]; history?: Omit<HistoryEntry, "id" | "timestamp"> };
+  const state = readState();
+  state.jobs = data ?? {};
+  if (history) appendHistory(state, history);
   writeState(state);
   res.json({ ok: true });
 });
