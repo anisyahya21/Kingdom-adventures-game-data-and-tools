@@ -490,7 +490,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
               const extra = loadout.equipment.filter((eq) => !slotMap[eq.name]);
               return (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-5 gap-1.5">
+                  <div className="grid grid-cols-5 gap-2">
                     {EQUIP_SLOTS.map(({ slot, Icon }) => {
                       const eq = slotToEquip[slot];
                       const globalIdx = eq ? loadout.equipment.findIndex((e) => e.name === eq.name) : -1;
@@ -502,33 +502,33 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
                       return (
                         <div key={slot} className={`flex flex-col rounded-lg border-2 transition-colors ${eq ? "border-primary/30 bg-primary/5" : "border-dashed border-border/60 bg-muted/20"}`}>
                           {/* Slot header */}
-                          <div className="flex items-center justify-between px-1.5 pt-1.5 pb-0.5">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70">{slot}</span>
+                          <div className="flex items-center justify-between px-2 pt-2 pb-0.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{slot}</span>
                             {eq && (
                               <button onClick={() => setSlotEquip(slot as EquipSlot, "")} className="text-muted-foreground/40 hover:text-destructive transition-colors">
-                                <X className="w-2.5 h-2.5" />
+                                <X className="w-3 h-3" />
                               </button>
                             )}
                           </div>
                           {/* Icon area */}
-                          <div className="flex items-center justify-center py-2 px-1">
+                          <div className="flex items-center justify-center py-3 px-1">
                             {eq && icon ? (
-                              <img src={icon} alt={eq.name} className="w-10 h-10 object-contain rounded" />
+                              <img src={icon} alt={eq.name} className="w-14 h-14 object-contain rounded" />
                             ) : eq ? (
-                              <div className="w-10 h-10 rounded bg-muted/40 flex items-center justify-center">
-                                <Icon className="w-5 h-5 text-muted-foreground/50" />
+                              <div className="w-14 h-14 rounded bg-muted/40 flex items-center justify-center">
+                                <Icon className="w-7 h-7 text-muted-foreground/50" />
                               </div>
                             ) : (
-                              <div className="w-10 h-10 rounded bg-muted/20 flex items-center justify-center">
-                                <Icon className="w-5 h-5 text-muted-foreground/25" />
+                              <div className="w-14 h-14 rounded bg-muted/20 flex items-center justify-center">
+                                <Icon className="w-7 h-7 text-muted-foreground/25" />
                               </div>
                             )}
                           </div>
                           {/* Item name + level or select */}
-                          <div className="px-1.5 pb-1.5 space-y-1">
+                          <div className="px-2 pb-2 space-y-1">
                             {eq ? (
                               <>
-                                <p className="text-[9px] font-medium text-center text-foreground/80 leading-tight line-clamp-2 min-h-[24px]">{eq.name}</p>
+                                <p className="text-[11px] font-medium text-center text-foreground/80 leading-tight line-clamp-2 min-h-[30px]">{eq.name}</p>
                                 {/* Weapon proficiency badge */}
                                 {(() => {
                                   const { weaponType, prof } = getWeaponProficiency(job, eq.name, slot, data.weaponTypes);
@@ -537,7 +537,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
                                   const isWeak = prof === "weak";
                                   return (
                                     <div className="text-center space-y-0.5">
-                                      <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold border ${
+                                      <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold border ${
                                         isWeak
                                           ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700"
                                           : "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-700"
@@ -545,23 +545,23 @@ function LoadoutEditor({ loadout, data, onChange, onDelete }: {
                                         {isWeak ? "⚠ Weak" : "✗ Can't wield"}
                                       </span>
                                       {resSk && (
-                                        <p className="text-[7px] text-muted-foreground leading-tight">
+                                        <p className="text-[8px] text-muted-foreground leading-tight">
                                           {resSk.name} removes this
                                         </p>
                                       )}
                                     </div>
                                   );
                                 })()}
-                                <div className="flex items-center gap-0.5 justify-center">
-                                  <span className="text-[9px] text-muted-foreground">Lv</span>
+                                <div className="flex items-center gap-1 justify-center">
+                                  <span className="text-xs text-muted-foreground">Lv</span>
                                   <Input type="number" min={1} max={999} value={eq.level}
                                     onChange={(e) => setEquipLevel(globalIdx, parseInt(e.target.value) || 1)}
-                                    className="h-5 text-[10px] text-center w-12 px-0" />
+                                    className="h-6 text-xs text-center w-14 px-0" />
                                 </div>
                               </>
                             ) : (
                               <select value="" onChange={(e) => setSlotEquip(slot as EquipSlot, e.target.value)}
-                                className="w-full h-6 text-[9px] rounded border border-input bg-background px-1 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground">
+                                className="w-full h-7 text-[10px] rounded border border-input bg-background px-1 focus:outline-none focus:ring-1 focus:ring-ring text-muted-foreground">
                                 <option value="">— empty —</option>
                                 {slotItems.map((n) => <option key={n} value={n}>{n}</option>)}
                               </select>

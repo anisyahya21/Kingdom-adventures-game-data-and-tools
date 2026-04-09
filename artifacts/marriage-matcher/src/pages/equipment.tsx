@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
-  Loader2, AlertTriangle, Moon, Sun, Info, X, ImageIcon,
+  Loader2, AlertTriangle, Moon, Sun, Info, X, ImageIcon, Pencil,
   ChevronDown, ChevronRight, Download, History, CheckSquare, GripVertical,
   Plus, Settings2, Clock, CheckCircle2,
 } from "lucide-react";
@@ -386,20 +386,34 @@ function IconUpload({ iconKey, icons, onSave, size = 28 }: {
   onSave: (icons: Record<string, string>) => void; size?: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [editMode, setEditMode] = useState(false);
   const existing = icons[iconKey];
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     onSave({ ...icons, [iconKey]: await fileToDataUrl(file) }); e.target.value = "";
+    setEditMode(false);
   };
   const handleRemove = (e: React.MouseEvent) => {
-    e.stopPropagation(); const next = { ...icons }; delete next[iconKey]; onSave(next);
+    e.stopPropagation(); const next = { ...icons }; delete next[iconKey]; onSave(next); setEditMode(false);
   };
   return (
-    <div className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+    <div className="group relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
       {existing ? (
         <>
-          <img src={existing} alt="" className="rounded object-contain w-full h-full cursor-pointer hover:opacity-80" onClick={() => inputRef.current?.click()} />
-          <button onClick={handleRemove} className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"><X className="w-2 h-2" /></button>
+          <img src={existing} alt="" className="rounded object-contain w-full h-full" />
+          {editMode ? (
+            <>
+              <button onClick={handleRemove} className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center z-10" title="Remove icon"><X className="w-2 h-2" /></button>
+              <button onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }} className="absolute inset-0 rounded bg-black/30 flex items-center justify-center" title="Replace icon">
+                <ImageIcon className="w-3 h-3 text-white" />
+              </button>
+              <button onClick={() => setEditMode(false)} className="absolute -bottom-1 -right-1 w-3 h-3 bg-muted border border-border rounded-full flex items-center justify-center z-10 text-muted-foreground hover:text-foreground" title="Done editing"><X className="w-2 h-2" /></button>
+            </>
+          ) : (
+            <button onClick={(e) => { e.stopPropagation(); setEditMode(true); }} className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-background border border-border rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:!opacity-100 transition-opacity z-10" title="Edit icon">
+              <Pencil className="w-2 h-2 text-muted-foreground" />
+            </button>
+          )}
         </>
       ) : (
         <button onClick={() => inputRef.current?.click()} className="w-full h-full flex items-center justify-center rounded border border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-colors text-muted-foreground" title="Upload icon">
