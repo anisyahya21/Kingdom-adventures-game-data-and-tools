@@ -234,7 +234,17 @@ function useShared() {
     await putShared("icons/stat", data, history); invalidate();
   }, [invalidate]);
 
-  return { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, invalidate };
+  const renameUser = useCallback(async (oldName: string, newName: string) => {
+    if (!oldName || !newName || oldName === newName) return;
+    await fetch("/ka-api/ka/shared/rename-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ oldName, newName }),
+    });
+    invalidate();
+  }, [invalidate]);
+
+  return { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, renameUser };
 }
 
 function getEffectiveStat(item: EquipmentItem, stat: string, field: "base" | "inc", overrides: Record<string, StatOverrides>): number {
@@ -256,8 +266,13 @@ function useUserName() {
 
 // ─── Name prompt dialog ───────────────────────────────────────────────────────
 
-function NamePromptDialog({ open, onSave }: { open: boolean; onSave: (name: string) => void }) {
-  const [draft, setDraft] = useState("");
+function NamePromptDialog({ open, currentName, onSave, onCancel }: {
+  open: boolean; currentName?: string;
+  onSave: (name: string) => void; onCancel?: () => void;
+}) {
+  const isRename = !!currentName;
+  const [draft, setDraft] = useState(currentName ?? "");
+  useEffect(() => { setDraft(currentName ?? ""); }, [currentName, open]);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const n = draft.trim();
@@ -265,12 +280,18 @@ function NamePromptDialog({ open, onSave }: { open: boolean; onSave: (name: stri
   };
   return (
     <Dialog open={open}>
-      <DialogContent className="max-w-sm" onPointerDownOutside={(e) => e.preventDefault()}>
-        <DialogHeader><DialogTitle>Who's making this change?</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground">Your name will be shown in the change history so everyone knows who updated what.</p>
+      <DialogContent className="max-w-sm" onPointerDownOutside={(e) => { if (isRename && onCancel) onCancel(); else e.preventDefault(); }}>
+        <DialogHeader>
+          <DialogTitle>{isRename ? "Change your display name" : "Who's making this change?"}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          {isRename
+            ? `All your past changes recorded as "${currentName}" will be updated to the new name automatically.`
+            : "Your name will be shown in the change history so everyone knows who updated what."}
+        </p>
         <form onSubmit={submit} className="flex gap-2 mt-2">
           <Input autoFocus placeholder="Your name…" value={draft} onChange={(e) => setDraft(e.target.value)} className="flex-1" />
-          <Button type="submit" disabled={!draft.trim()}>Continue</Button>
+          <Button type="submit" disabled={!draft.trim()}>{isRename ? "Rename" : "Continue"}</Button>
         </form>
       </DialogContent>
     </Dialog>
@@ -390,24 +411,32 @@ export default function EquipmentPage() {
   };
 
   const { data: items = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery({ queryKey: ["equipment"], queryFn: fetchSheet, staleTime: 5 * 60 * 1000 });
-  const { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons } = useShared();
+  const { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, renameUser } = useShared();
   const { overrides, slotAssignments, equipIcons, statIcons } = shared;
   const history = shared.history ?? [];
 
   const { userName, setUserName } = useUserName();
   const [namePromptOpen, setNamePromptOpen] = useState(false);
+  const [renameMode, setRenameMode] = useState(false);
   const pendingAction = useRef<(() => Promise<void>) | null>(null);
 
   // Before any change, ensure we have a username
   const withName = useCallback((action: () => Promise<void>) => {
     if (userName) { action(); return; }
     pendingAction.current = action;
+    setRenameMode(false);
     setNamePromptOpen(true);
   }, [userName]);
 
-  const onNameSaved = (name: string) => {
+  const openRenameDialog = () => { setRenameMode(true); setNamePromptOpen(true); };
+
+  const onNameSaved = async (name: string) => {
+    if (renameMode && userName && userName !== name) {
+      await renameUser(userName, name);
+    }
     setUserName(name);
     setNamePromptOpen(false);
+    setRenameMode(false);
     if (pendingAction.current) { pendingAction.current(); pendingAction.current = null; }
   };
 
@@ -532,7 +561,16 @@ export default function EquipmentPage() {
     return sortDir === "asc" ? <ArrowUp className="w-3 h-3 text-primary shrink-0" /> : <ArrowDown className="w-3 h-3 text-primary shrink-0" />;
   };
 
-  const colCount = 8 + STAT_ORDER.length; // drag, checkbox, icon, name, level, slot, craftable, ...stats
+  const colCount = 9 + STAT_ORDER.length; // drag, checkbox, icon, name, level, slot, last-edit, craftable, ...stats
+
+  // Most recent "stat" (base/inc) history entry per item — for the Last Edit column
+  const lastStatEdit = useMemo<Record<string, HistoryEntry>>(() => {
+    const map: Record<string, HistoryEntry> = {};
+    for (const e of history) {
+      if (e.changeType === "stat" && !map[e.itemName]) map[e.itemName] = e;
+    }
+    return map;
+  }, [history]);
 
   // Clear loadout entry if slot mismatch
   useEffect(() => {
@@ -548,7 +586,12 @@ export default function EquipmentPage() {
 
   return (
     <div className="min-h-screen bg-background transition-colors">
-      <NamePromptDialog open={namePromptOpen} onSave={onNameSaved} />
+      <NamePromptDialog
+        open={namePromptOpen}
+        currentName={renameMode ? userName : undefined}
+        onSave={onNameSaved}
+        onCancel={() => { setNamePromptOpen(false); setRenameMode(false); }}
+      />
 
       <div className="max-w-[1400px] mx-auto px-4 py-8">
 
@@ -564,7 +607,7 @@ export default function EquipmentPage() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {userName && (
-              <button onClick={() => { setUserName(""); }} className="text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded px-2 py-1" title="Click to change your display name">
+              <button onClick={openRenameDialog} className="text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded px-2 py-1" title="Click to change your display name">
                 Editing as <strong>{userName}</strong>
               </button>
             )}
@@ -664,6 +707,7 @@ export default function EquipmentPage() {
                       <th className="text-left px-2 py-2 font-medium text-muted-foreground whitespace-nowrap">
                         <button onClick={() => handleSort("slot")} className="flex items-center gap-1 hover:text-foreground">Slot <SortIcon col="slot" /></button>
                       </th>
+                      <th className="text-left px-2 py-2 font-medium text-muted-foreground whitespace-nowrap">Last Edit</th>
                       <th className="text-left px-2 py-2 font-medium text-muted-foreground whitespace-nowrap">
                         <div className="flex items-center gap-1">
                           <button onClick={() => handleSort("studioLevel")} className="flex items-center gap-1 hover:text-foreground">Studio Lv <SortIcon col="studioLevel" /></button>
@@ -727,6 +771,18 @@ export default function EquipmentPage() {
                                 className="h-6 text-xs rounded border border-input bg-background px-1 focus:outline-none focus:ring-1 focus:ring-ring w-24">
                                 {SLOT_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                               </select>
+                            </td>
+                            <td className="px-2 py-1.5 whitespace-nowrap">
+                              {(() => {
+                                const e = lastStatEdit[item.name];
+                                if (!e) return <span className="text-muted-foreground/30 text-xs">—</span>;
+                                return (
+                                  <span className="text-[10px] text-muted-foreground leading-tight" title={new Date(e.timestamp).toLocaleString()}>
+                                    <span className="font-medium text-foreground/80">{e.userName}</span>
+                                    <br />{relTime(e.timestamp)}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="px-2 py-1.5">
                               {item.crafterStudioLevel === 0

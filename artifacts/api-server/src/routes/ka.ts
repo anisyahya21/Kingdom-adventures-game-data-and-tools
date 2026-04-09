@@ -102,4 +102,17 @@ router.put("/ka/shared/icons/stat", (req, res) => {
   res.json({ ok: true });
 });
 
+router.post("/ka/shared/rename-user", (req, res) => {
+  const { oldName, newName } = req.body as { oldName: string; newName: string };
+  if (!oldName || !newName || oldName === newName) {
+    return res.status(400).json({ error: "oldName and newName must differ and be non-empty" });
+  }
+  const state = readState();
+  state.history = state.history.map((e) =>
+    e.userName === oldName ? { ...e, userName: newName } : e
+  );
+  writeState(state);
+  res.json({ ok: true });
+});
+
 export default router;
