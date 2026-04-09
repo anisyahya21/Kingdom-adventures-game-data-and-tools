@@ -1,11 +1,10 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import {
   ArrowLeft, Plus, Trash2, Moon, Sun, RefreshCw, Loader2, X,
   Check, Star, Sword, Save, ImageIcon, Heart, ArrowUpDown,
-  ArrowUp, ArrowDown, ChevronDown, ChevronRight, ExternalLink,
-  Settings2, Pencil,
+  ArrowUp, ArrowDown, Settings2, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +23,9 @@ const STAT_SHORT: Record<string,string> = {
   Speed:"Spd", Luck:"Lck", Intelligence:"Int", Dexterity:"Dex",
   Gather:"Gth", Move:"Mov", Heart:"Hrt",
 };
-const DEFAULT_RANKS = ["S","A","B","C","D"];
+const DEFAULT_RANKS  = ["S","A","B","C","D"];
+const GEN1_RANKS     = ["S","A","B","C","D"];
+const GEN2_RANKS     = ["S","A","B","C"];
 const MAX_LEVEL     = 999;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -167,19 +168,23 @@ function NewJobDialog({ open, onClose, onCreate }: {
 
 // ─── Job Row ──────────────────────────────────────────────────────────────────
 
-type ExpandState = "none" | "preview" | "backend";
-
 interface RowState {
-  expand: ExpandState;
-  level:  number;
+  showBackend: boolean;
+  levels: Record<string, number>; // per-stat preview level
   rank:   string;
-  draft:  Record<string, { base: number; inc: number }>; // per-stat backend draft
+  draft:  Record<string, { base: number; inc: number }>;
   dirty:  boolean;
 }
 
 function makeRowState(job: Job): RowState {
-  const rank = Object.keys(job.ranks)[0] ?? "S";
-  return { expand: "none", level: 1, rank, draft: {}, dirty: false };
+  const availRanks = job.generation === 1 ? GEN1_RANKS : GEN2_RANKS;
+  const existingRanks = Object.keys(job.ranks);
+  const rank = availRanks.find((r) => existingRanks.includes(r)) ?? existingRanks[0] ?? "S";
+  return { showBackend: false, levels: {}, rank, draft: {}, dirty: false };
+}
+
+function clampLevel(v: number): number {
+  return Math.min(MAX_LEVEL, Math.max(1, v));
 }
 
 function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete }: {
@@ -192,43 +197,57 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete }: {
 }) {
   const [rs, setRs] = useState<RowState>(() => makeRowState(job));
 
-  // Keep rank list up to date if job changes externally
-  const rankList = Object.keys(job.ranks);
-  if (!rankList.includes(rs.rank) && rankList.length > 0) {
-    setRs((r) => ({ ...r, rank: rankList[0] }));
+  const availRanks    = job.generation === 1 ? GEN1_RANKS : GEN2_RANKS;
+  const currentStats  = job.ranks[rs.rank]?.stats ?? {};
+
+  // Keep rank valid if job.ranks changes externally
+  const rankKeys = Object.keys(job.ranks);
+  if (!rankKeys.includes(rs.rank) && rankKeys.length > 0) {
+    setRs((r) => ({ ...r, rank: rankKeys[0] }));
   }
 
-  const currentStats = job.ranks[rs.rank]?.stats ?? {};
-
-  // Merge draft on top of saved stats
+  // Merge draft on top of saved stats (for live preview while editing backend)
   const effectiveStats = useMemo(() => {
     const merged: Record<string,JobStatEntry> = { ...currentStats };
     for (const [stat, d] of Object.entries(rs.draft)) {
-      merged[stat] = { ...(merged[stat] ?? { base:0,inc:0 }), ...d };
+      merged[stat] = { ...(merged[stat] ?? { base:0, inc:0 }), ...d };
     }
     return merged;
   }, [currentStats, rs.draft]);
 
+  const levelFor = (stat: string) => rs.levels[stat] ?? 1;
+
   const val = (stat: string) => {
     const s = effectiveStats[stat];
-    return s ? statAtLevel(s, rs.level) : null;
+    return s ? statAtLevel(s, levelFor(stat)) : null;
+  };
+
+  const setLevel = (stat: string, raw: string) => {
+    const n = parseInt(raw);
+    if (!isNaN(n)) {
+      setRs((r) => ({ ...r, levels: { ...r.levels, [stat]: clampLevel(n) } }));
+    }
+  };
+
+  const changeRank = (rank: string) => {
+    setRs((r) => ({ ...r, rank, draft: {}, dirty: false }));
   };
 
   const setDraftField = (stat: string, field: "base"|"inc", v: number) => {
     setRs((r) => ({
-      ...r,
-      dirty: true,
+      ...r, dirty: true,
       draft: {
         ...r.draft,
-        [stat]: { base: (r.draft[stat]?.base ?? currentStats[stat]?.base ?? 0),
-                  inc:  (r.draft[stat]?.inc  ?? currentStats[stat]?.inc  ?? 0),
-                  [field]: v },
+        [stat]: {
+          base: r.draft[stat]?.base ?? currentStats[stat]?.base ?? 0,
+          inc:  r.draft[stat]?.inc  ?? currentStats[stat]?.inc  ?? 0,
+          [field]: v,
+        },
       },
     }));
   };
 
   const handleSave = async () => {
-    // Merge draft into full stats for this rank
     const merged: Record<string,JobStatEntry> = { ...currentStats };
     for (const [stat, d] of Object.entries(rs.draft)) {
       merged[stat] = { ...(merged[stat] ?? { base:0, inc:0 }), ...d };
@@ -237,18 +256,6 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete }: {
     setRs((r) => ({ ...r, draft: {}, dirty: false }));
   };
 
-  const toggleExpand = () => setRs((r) => ({
-    ...r,
-    expand: r.expand === "none" ? "preview" : "none",
-    draft: r.expand === "none" ? r.draft : {},
-    dirty: r.expand === "none" ? r.dirty : false,
-  }));
-
-  const toggleBackend = () => setRs((r) => ({
-    ...r,
-    expand: r.expand === "preview" ? "backend" : "preview",
-  }));
-
   return (
     <>
       {/* ── Main row ── */}
@@ -256,26 +263,28 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete }: {
         {/* Sticky left column */}
         <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-2 py-1.5 min-w-[220px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
-            {/* Expand toggle */}
-            <button onClick={toggleExpand}
-              className="text-muted-foreground/40 hover:text-foreground transition-colors shrink-0">
-              {rs.expand !== "none"
-                ? <ChevronDown className="w-3.5 h-3.5" />
-                : <ChevronRight className="w-3.5 h-3.5" />}
+            {/* Backend toggle */}
+            <button
+              onClick={() => setRs((r) => ({ ...r, showBackend: !r.showBackend, draft: r.showBackend ? {} : r.draft, dirty: r.showBackend ? false : r.dirty }))}
+              className={`transition-colors shrink-0 ${rs.showBackend ? "text-primary" : "text-muted-foreground/40 hover:text-foreground"}`}
+              title="Edit backend stats">
+              <Settings2 className="w-3.5 h-3.5" />
             </button>
-            {/* Icon → detail page */}
+            {/* Icon */}
             <Link href={`/jobs/${encodeURIComponent(jobName)}`}>
               <div className="w-7 h-7 rounded-md border border-border bg-muted/40 flex items-center justify-center overflow-hidden shrink-0 hover:border-primary/40 transition-colors cursor-pointer"
-                title={`View full details for ${jobName}`}>
+                title={`Full details for ${jobName}`}>
                 {job.icon
                   ? <img src={job.icon} alt={jobName} className="w-full h-full object-contain" />
                   : <Star className="w-3.5 h-3.5 text-muted-foreground/30" />}
               </div>
             </Link>
-            {/* Name */}
-            <span className="font-medium text-sm text-foreground truncate flex-1">{jobName}</span>
+            {/* Name — clickable link */}
+            <Link href={`/jobs/${encodeURIComponent(jobName)}`}>
+              <span className="font-medium text-sm text-foreground hover:text-primary transition-colors truncate cursor-pointer">{jobName}</span>
+            </Link>
             {/* Gen / type badges */}
-            <div className="flex gap-1 shrink-0">
+            <div className="flex gap-1 shrink-0 ml-auto">
               <span className={`text-[9px] px-1 rounded font-semibold ${job.generation === 1 ? "bg-sky-100 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400" : "bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400"}`}>
                 G{job.generation}
               </span>
@@ -284,126 +293,116 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete }: {
                   {job.type === "combat" ? "⚔" : "🌿"}
                 </span>
               )}
+              {/* Delete */}
+              {canDelete && (
+                <button onClick={onDelete}
+                  className="text-muted-foreground/20 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
             </div>
-            {/* Delete */}
-            {canDelete && (
-              <button onClick={onDelete}
-                className="text-muted-foreground/20 hover:text-destructive transition-colors shrink-0 opacity-0 group-hover:opacity-100">
-                <Trash2 className="w-3 h-3" />
-              </button>
-            )}
           </div>
-          {/* Rank dropdown inline below */}
+          {/* Rank dropdown */}
           <div className="pl-5 mt-0.5">
-            <select value={rs.rank} onChange={(e) => setRs((r) => ({ ...r, rank: e.target.value, draft: {}, dirty: false }))}
+            <select value={rs.rank} onChange={(e) => changeRank(e.target.value)}
               className="h-5 text-[10px] rounded border border-input bg-background px-1 text-muted-foreground">
-              {rankList.map((r) => <option key={r} value={r}>Rank {r}</option>)}
+              {availRanks.map((r) => (
+                <option key={r} value={r}>Rank {r}</option>
+              ))}
             </select>
           </div>
         </td>
 
-        {/* Stat cells */}
+        {/* Stat cells — level input always visible + computed value */}
         {STAT_ORDER.map((stat) => {
           const v = val(stat);
           return (
-            <td key={stat} className="text-center px-2 py-2 text-sm tabular-nums">
-              {v === null || v === 0
-                ? <span className="text-muted-foreground/25">—</span>
-                : <span className="font-medium">{Math.round(v * 100) / 100}</span>}
+            <td key={stat} className="text-center px-1 py-1 align-middle">
+              {/* Level input */}
+              <Input
+                type="number"
+                min={1}
+                max={MAX_LEVEL}
+                value={levelFor(stat)}
+                onChange={(e) => setLevel(stat, e.target.value)}
+                onBlur={(e) => setLevel(stat, e.target.value)}
+                className="h-5 w-14 text-[10px] text-center px-0.5 mx-auto mb-0.5 block"
+              />
+              {/* Value */}
+              <span className={`text-sm font-semibold tabular-nums ${v === null || v === 0 ? "text-muted-foreground/25" : "text-foreground"}`}>
+                {v === null || v === 0 ? "—" : Math.round(v * 100) / 100}
+              </span>
             </td>
           );
         })}
       </tr>
 
-      {/* ── Expansion row ── */}
-      {rs.expand !== "none" && (
-        <tr className="border-b border-border/30 bg-muted/10">
+      {/* ── Backend editing row ── */}
+      {rs.showBackend && (
+        <tr className="border-b border-primary/20 bg-primary/5">
           <td colSpan={1 + STAT_ORDER.length} className="px-3 py-2">
-            {/* Preview controls */}
             <div className="flex items-center gap-3 mb-2 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Preview at level</span>
-                <Input type="number" min={1} max={MAX_LEVEL} value={rs.level}
-                  onChange={(e) => setRs((r) => ({ ...r, level: Math.min(MAX_LEVEL, Math.max(1, parseInt(e.target.value) || 1)) }))}
-                  className="h-6 w-16 text-xs text-center" />
-                <span className="text-xs text-muted-foreground">/ {MAX_LEVEL}</span>
-              </div>
-              <button onClick={toggleBackend}
-                className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded border transition-colors ${rs.expand === "backend"
-                  ? "bg-primary/10 border-primary/40 text-primary"
-                  : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
-                <Settings2 className="w-3 h-3" />
-                {rs.expand === "backend" ? "Hide backend" : "Edit backend"}
-              </button>
+              <span className="text-xs font-semibold text-primary">Editing rank {rs.rank} backend stats</span>
               {rs.dirty && (
-                <Button size="sm" className="h-6 text-xs px-2 gap-1" onClick={handleSave}>
-                  <Save className="w-3 h-3" />Save
-                </Button>
+                <>
+                  <Button size="sm" className="h-6 text-xs px-2 gap-1" onClick={handleSave}>
+                    <Save className="w-3 h-3" />Save
+                  </Button>
+                  <button onClick={() => setRs((r) => ({ ...r, draft: {}, dirty: false }))}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    Discard
+                  </button>
+                </>
               )}
-              {rs.dirty && (
-                <button onClick={() => setRs((r) => ({ ...r, draft: {}, dirty: false }))}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  Discard
-                </button>
-              )}
-              <Link href={`/jobs/${encodeURIComponent(jobName)}`}>
-                <span className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer">
-                  <ExternalLink className="w-3 h-3" />Full job page
-                </span>
-              </Link>
             </div>
-
-            {/* Backend editing — stat grid */}
-            {rs.expand === "backend" && (
-              <div className="overflow-x-auto">
-                <table className="text-xs border-collapse w-full" style={{ minWidth: `${STAT_ORDER.length * 90}px` }}>
-                  <thead>
-                    <tr>
-                      {STAT_ORDER.map((stat) => (
-                        <th key={stat} className="text-center px-2 pb-1 border-b border-border">
-                          <div className="flex flex-col items-center gap-0.5">
-                            {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
-                            <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{stat}</span>
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      {STAT_ORDER.map((stat) => {
-                        const base = rs.draft[stat]?.base ?? currentStats[stat]?.base ?? 0;
-                        const inc  = rs.draft[stat]?.inc  ?? currentStats[stat]?.inc  ?? 0;
-                        return (
-                          <td key={stat} className="px-1 pt-1 align-top">
-                            <div className="space-y-1">
-                              <div>
-                                <p className="text-[9px] text-muted-foreground/60 text-center">Start</p>
-                                <Input type="number" value={base}
-                                  onChange={(e) => setDraftField(stat, "base", Number(e.target.value) || 0)}
-                                  className="h-6 text-[11px] text-center px-0.5 w-full" />
-                              </div>
-                              <div>
-                                <p className="text-[9px] text-muted-foreground/60 text-center">+/Lv</p>
-                                <Input type="number" step="0.1" value={inc}
-                                  onChange={(e) => setDraftField(stat, "inc", parseFloat(e.target.value) || 0)}
-                                  className="h-6 text-[11px] text-center px-0.5 w-full" />
-                              </div>
-                              <div className="text-center">
-                                <p className="text-[9px] text-muted-foreground/60">@ Lv {rs.level}</p>
-                                <p className="text-[11px] font-semibold tabular-nums">
-                                  {Math.round(statAtLevel({ base, inc }, rs.level) * 100) / 100 || "—"}
-                                </p>
-                              </div>
+            <div className="overflow-x-auto">
+              <table className="text-xs border-collapse w-full" style={{ minWidth: `${STAT_ORDER.length * 90}px` }}>
+                <thead>
+                  <tr>
+                    {STAT_ORDER.map((stat) => (
+                      <th key={stat} className="text-center px-2 pb-1 border-b border-border">
+                        <div className="flex flex-col items-center gap-0.5">
+                          {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
+                          <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{stat}</span>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    {STAT_ORDER.map((stat) => {
+                      const base = rs.draft[stat]?.base ?? currentStats[stat]?.base ?? 0;
+                      const inc  = rs.draft[stat]?.inc  ?? currentStats[stat]?.inc  ?? 0;
+                      return (
+                        <td key={stat} className="px-1 pt-1 align-top">
+                          <div className="space-y-1">
+                            <div>
+                              <p className="text-[9px] text-muted-foreground/60 text-center">Start</p>
+                              <Input type="number" value={base}
+                                onChange={(e) => setDraftField(stat, "base", Number(e.target.value) || 0)}
+                                className="h-6 text-[11px] text-center px-0.5 w-full" />
                             </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
+                            <div>
+                              <p className="text-[9px] text-muted-foreground/60 text-center">+/Lv</p>
+                              <Input type="number" step="0.1" value={inc}
+                                onChange={(e) => setDraftField(stat, "inc", parseFloat(e.target.value) || 0)}
+                                className="h-6 text-[11px] text-center px-0.5 w-full" />
+                            </div>
+                            <div className="text-center">
+                              <p className="text-[9px] text-muted-foreground/60">@ Lv {levelFor(stat)}</p>
+                              <p className="text-[11px] font-semibold tabular-nums">
+                                {Math.round(statAtLevel({ base, inc }, levelFor(stat)) * 100) / 100 || "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </td>
         </tr>
       )}
@@ -577,7 +576,7 @@ function JobsTable({
         </div>
       </div>
       <p className="text-xs text-muted-foreground mt-2 text-center">
-        {sortedEntries.length} job{sortedEntries.length !== 1 ? "s" : ""} · click any stat header to sort · click ▶ to expand a row · click the job icon to view full details
+        {sortedEntries.length} job{sortedEntries.length !== 1 ? "s" : ""} · click any stat header to sort · type a level (1–999) in each cell · click ⚙ to edit backend stats · click a job name or icon to view full details
       </p>
     </div>
   );
