@@ -277,10 +277,23 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete, isF
     return combined ? statAtLevel(combined, levelFor(stat)) : null;
   };
 
+  const [allLv, setAllLv] = useState(1);
+
   const setLevel = (stat: string, raw: string) => {
     const n = parseInt(raw);
     if (!isNaN(n)) {
       setRs((r) => ({ ...r, levels: { ...r.levels, [stat]: clampLevel(n) } }));
+    }
+  };
+
+  const setAllLevels = (raw: string) => {
+    const n = parseInt(raw);
+    if (!isNaN(n)) {
+      const clamped = clampLevel(n);
+      setAllLv(clamped);
+      const newLevels: Record<string, number> = {};
+      for (const s of STAT_ORDER) newLevels[s] = clamped;
+      setRs((r) => ({ ...r, levels: newLevels }));
     }
   };
 
@@ -362,14 +375,20 @@ function JobRow({ jobName, job, statIcons, onDelete, onSaveStats, canDelete, isF
               )}
             </div>
           </div>
-          {/* Rank dropdown */}
-          <div className="pl-5 mt-0.5">
+          {/* Rank dropdown + All Level input */}
+          <div className="pl-5 mt-0.5 flex items-center gap-2 flex-wrap">
             <SearchableSelect
               value={rs.rank}
               onChange={changeRank}
               options={availRanks.map((r) => ({ value: r, label: `Rank ${r}` }))}
               triggerClassName="h-5 text-[10px] px-1"
             />
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-muted-foreground whitespace-nowrap">All Lv:</span>
+              <Input type="number" min={1} max={MAX_LEVEL} value={allLv}
+                onChange={(e) => setAllLevels(e.target.value)}
+                className="h-5 w-14 text-[10px] text-center px-0.5" />
+            </div>
           </div>
         </td>
 
@@ -722,10 +741,11 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
   const [draft,     setDraft]     = useState<Job>(() => JSON.parse(JSON.stringify(job)));
   const [draftName, setDraftName] = useState(jobName);
   const [selRank,   setSelRank]   = useState(() => Object.keys(job.ranks)[0] ?? "S");
-  const [level,     setLevel]     = useState(1);
+  const [level,      setLevel]     = useState(1);
+  const [statLevels, setStatLevels] = useState<Record<string, number>>({});
   const [addingRank, setAddingRank] = useState(false);
   const [newRankVal, setNewRankVal] = useState("");
-  const ALL_AFFINITIES = ["S","A","B","C","D","E"] as const;
+  const ALL_AFFINITIES = ["A","B","C","D","E"] as const;
   const [affinityFilter, setAffinityFilter] = useState<Set<string>>(new Set(ALL_AFFINITIES));
   const toggleAffinityFilter = (a: string) => setAffinityFilter((prev) => { const next = new Set(prev); next.has(a) ? next.delete(a) : next.add(a); return next; });
 
@@ -888,9 +908,13 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
             <CardTitle className="text-sm">Stats</CardTitle>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">Level</span>
+                <span className="text-xs text-muted-foreground">All Lv</span>
                 <Input type="number" min={1} max={MAX_LEVEL} value={level}
-                  onChange={(e) => setLevel(Math.min(MAX_LEVEL, Math.max(1, parseInt(e.target.value)||1)))}
+                  onChange={(e) => {
+                    const v = Math.min(MAX_LEVEL, Math.max(1, parseInt(e.target.value)||1));
+                    setLevel(v);
+                    setStatLevels({});
+                  }}
                   className="h-6 w-16 text-xs text-center" />
               </div>
               <div className="flex items-center gap-1 flex-wrap">
@@ -974,14 +998,25 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                   {STAT_ORDER.map((stat) => {
                     const s = rankData?.stats[stat];
                     const filled = s !== undefined;
-                    const v = s ? statAtLevel(s, level) : null;
+                    const effLevel = statLevels[stat] ?? level;
+                    const v = s ? statAtLevel(s, effLevel) : null;
                     return (
                       <td key={stat} className="text-center px-2 py-2">
                         {!filled && !editing
                           ? <span className="text-sm font-bold text-red-400">—</span>
-                          : <span className={`text-sm font-semibold tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
-                              {v === null || v === 0 ? "—" : Math.round(v * 100) / 100}
-                            </span>
+                          : <>
+                              <Input
+                                type="number" min={1} max={MAX_LEVEL} value={effLevel}
+                                onChange={(e) => {
+                                  const n = Math.min(MAX_LEVEL, Math.max(1, parseInt(e.target.value)||1));
+                                  setStatLevels((prev) => ({ ...prev, [stat]: n }));
+                                }}
+                                className="h-5 w-14 text-[10px] text-center px-0.5 mx-auto mb-0.5 block"
+                              />
+                              <span className={`text-sm font-semibold tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
+                                {v === null || v === 0 ? "—" : Math.round(v * 100) / 100}
+                              </span>
+                            </>
                         }
                       </td>
                     );

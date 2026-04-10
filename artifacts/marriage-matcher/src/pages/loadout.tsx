@@ -361,6 +361,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   };
 
   const allStatKeys = [...STAT_KEYS] as string[];
+  const [allLv, setAllLv] = useState(1);
 
   return (
     <div className="space-y-4">
@@ -440,7 +441,19 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
           {/* Per-stat breakdown table */}
           {loadout.jobName && loadout.rank && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Stats</p>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Stats</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground">All Lv:</span>
+                  <Input type="number" min={1} max={999} value={allLv}
+                    onChange={(e) => {
+                      const n = Math.max(1, Math.min(999, parseInt(e.target.value)||1));
+                      setAllLv(n);
+                      for (const k of allStatKeys) setStatLevel(k, n);
+                    }}
+                    className="h-5 text-[11px] text-center px-0 w-14" />
+                </div>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse">
                   <thead>

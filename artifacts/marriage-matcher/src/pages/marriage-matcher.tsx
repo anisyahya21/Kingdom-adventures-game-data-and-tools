@@ -514,7 +514,7 @@ function PairsPanel({ pairs, firstGenJobNames, allJobNames, onAdd, onRemove, onU
 
   const toggleAffinity = (aff: string) => {
     const next = new Set(affinityFilter);
-    if (next.has(aff)) { if (next.size > 1) next.delete(aff); } else next.add(aff);
+    if (next.has(aff)) { next.delete(aff); } else next.add(aff);
     onAffinityFilterChange(next);
   };
 
