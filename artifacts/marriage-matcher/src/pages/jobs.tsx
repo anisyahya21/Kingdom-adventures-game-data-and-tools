@@ -377,12 +377,13 @@ function commitOnEnter(e: React.KeyboardEvent<HTMLInputElement>, commit: () => v
   }
 }
 
-function JobRow({ jobName, job, statIcons, isFav, onToggleFav }: {
+function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false }: {
   jobName: string;
   job: Job;
   statIcons: Record<string, string>;
   isFav: boolean;
   onToggleFav: () => void;
+  mobile?: boolean;
 }) {
   const [rs, setRs] = useState<RowState>(() => makeRowState(job));
 
@@ -456,14 +457,163 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav }: {
     setRs((r) => ({ ...r, levels: newLevels, levelInputs: newLevelInputs }));
   };
 
-  const changeRank = (rank: string) => {
-    setRs((r) => ({ ...r, rank, draft: {}, dirty: false }));
-  };
+  const mobileStats = STAT_ORDER.map((stat) => ({
+    stat,
+    value: val(stat),
+  }));
+
+  if (mobile) {
+    return (
+      <div className="rounded-xl border border-border bg-card/70 overflow-hidden">
+        <div className="p-3">
+          <div className="flex items-start gap-2">
+            <button
+              onClick={onToggleFav}
+              title={isFav ? "Remove from favorites" : "Add to favorites"}
+              className="shrink-0 pt-0.5 transition-colors"
+            >
+              <Star className={`w-4 h-4 ${isFav ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/25 hover:text-yellow-400/60"}`} />
+            </button>
+            <div className="min-w-0 flex-1">
+              <Link href={`/jobs/${encodeURIComponent(jobName)}`}>
+                <p className="font-medium text-base text-foreground hover:text-primary transition-colors break-words cursor-pointer">
+                  {jobName}
+                </p>
+              </Link>
+              <div className="mt-2 flex flex-wrap gap-1">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${job.generation === 1 ? "bg-sky-100 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400" : "bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400"}`}>
+                  {job.generation === 1 ? "NM" : "ME"}
+                </span>
+                {job.type && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${job.type === "combat" ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"}`}>
+                    {job.type === "combat" ? "Combat" : "Non-Combat"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <select
+              value={rs.rank}
+              onChange={(e) => changeRank(e.target.value)}
+              className="h-8 rounded border border-border bg-background px-2 text-xs text-foreground"
+            >
+              {availRanks.map((r) => (
+                <option key={r} value={r}>
+                  Rank {r}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => setRs((r) => ({ ...r, showBackend: !r.showBackend }))}
+              className={`h-8 px-2 rounded border text-[11px] font-medium transition-colors ${
+                rs.showBackend
+                  ? "border-primary/40 text-primary bg-primary/5"
+                  : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+              }`}
+            >
+              {rs.showBackend ? "Hide Base & Growth" : "Show Base & Growth"}
+            </button>
+            <button
+              onClick={() => setRs((r) => ({ ...r, showLevels: !r.showLevels }))}
+              className={`h-8 px-2 rounded border text-[11px] font-medium transition-colors ${
+                rs.showLevels
+                  ? "border-primary/40 text-primary bg-primary/5"
+                  : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+              }`}
+            >
+              {rs.showLevels ? "Done" : "Edit Levels"}
+            </button>
+            {rs.showLevels && (
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">All Lv:</span>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={allLvInput}
+                  onChange={(e) => setAllLevels(e.target.value)}
+                  onKeyDown={(e) => commitOnEnter(e, () => commitAllLevels(e.currentTarget.value))}
+                  onBlur={(e) => commitAllLevels(e.target.value)}
+                  className="h-8 w-16 text-xs text-center px-1"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {mobileStats.map(({ stat, value }) => (
+              <div key={stat} className="rounded-md border border-border bg-background/60 px-3 py-3">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1">
+                  {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
+                  <span>{STAT_SHORT[stat] ?? stat}</span>
+                </div>
+                {rs.showLevels ? (
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={levelInputValue(stat)}
+                    onChange={(e) => setLevel(stat, e.target.value)}
+                    onKeyDown={(e) => commitOnEnter(e, () => commitLevel(stat, e.currentTarget.value))}
+                    onBlur={(e) => commitLevel(stat, e.target.value)}
+                    className="h-8 w-16 text-xs text-center px-1 mb-2"
+                  />
+                ) : (
+                  <div className="text-[10px] text-muted-foreground/60 mb-1">Lv {levelFor(stat)}</div>
+                )}
+                <div className={`text-sm font-semibold tabular-nums ${value === null || value === 0 ? "text-muted-foreground/25" : "text-foreground"}`}>
+                  {value === null || value === 0 ? "-" : Math.round(value * 100) / 100}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {rs.showBackend && (
+          <div className="border-t border-primary/20 bg-primary/5 p-3">
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <span className="text-xs font-semibold text-primary">Rank {rs.rank} base and growth data</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {STAT_ORDER.map((stat) => {
+                const saved = currentStats[stat];
+                const base = saved?.base ?? "";
+                const inc = saved?.inc ?? "";
+                const previewVal = saved ? Math.round(statAtLevel(saved, levelFor(stat)) * 100) / 100 : null;
+                return (
+                  <div key={stat} className="rounded-md border border-border bg-background/70 px-3 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1 text-[10px] font-semibold text-muted-foreground mb-2">
+                      {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
+                      <span>{stat}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <div className="text-[9px] text-muted-foreground/60">Start</div>
+                        <div className="text-[11px] tabular-nums text-foreground">{base === "" ? "-" : base}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-muted-foreground/60">+/Lv</div>
+                        <div className="text-[11px] tabular-nums text-foreground">{inc === "" ? "-" : inc}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-muted-foreground/60">Now</div>
+                        <div className="text-[11px] font-semibold tabular-nums text-foreground">{previewVal === null ? "-" : previewVal}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
       <tr className="border-b border-border/50 hover:bg-muted/20 group transition-colors">
-        <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-2 py-1.5 min-w-[160px] max-w-[160px] sm:min-w-[220px] sm:max-w-[220px]">
+        <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-2 py-1.5 min-w-[220px] max-w-[220px] lg:min-w-[260px] lg:max-w-[260px]">
           <div className="flex items-center gap-1.5">
             <button
               onClick={onToggleFav}
@@ -861,57 +1011,18 @@ function JobsTable({
                 {Object.keys(jobs).length === 0 ? "No jobs available yet." : "No jobs match your filter."}
               </div>
             ) : (
-              sortedEntries.map(([name, job]) => {
-                const rankKeys = Object.keys(job.ranks ?? {});
-                const previewRank = rankKeys[0] ?? "S";
-                const previewStats = job.ranks?.[previewRank]?.stats ?? {};
-                return (
-                  <div key={name} className="p-3">
-                    <div className="flex items-start gap-2">
-                      <button
-                        onClick={() => toggleFav(name)}
-                        title={favs.has(name) ? "Remove from favorites" : "Add to favorites"}
-                        className="shrink-0 pt-0.5 transition-colors"
-                      >
-                        <Star className={`w-4 h-4 ${favs.has(name) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/25 hover:text-yellow-400/60"}`} />
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <Link href={`/jobs/${encodeURIComponent(name)}`}>
-                          <p className="font-medium text-base text-foreground hover:text-primary transition-colors truncate cursor-pointer">
-                            {name}
-                          </p>
-                        </Link>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${job.generation === 1 ? "bg-sky-100 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400" : "bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400"}`}>
-                            {job.generation === 1 ? "NM" : "ME"}
-                          </span>
-                          {job.type && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${job.type === "combat" ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"}`}>
-                              {job.type === "combat" ? "Combat" : "Non-Combat"}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      {STAT_ORDER.map((stat) => {
-                        const value = previewStats[stat]?.base ?? null;
-                        return (
-                          <div key={stat} className="rounded-md border border-border bg-background/60 px-2 py-2">
-                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1">
-                              {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
-                              <span>{STAT_SHORT[stat] ?? stat}</span>
-                            </div>
-                            <div className={`text-sm font-semibold tabular-nums ${value === null || value === 0 ? "text-muted-foreground/25" : "text-foreground"}`}>
-                              {value === null || value === 0 ? "-" : value}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })
+              sortedEntries.map(([name, job]) => (
+                <div key={name} className="p-3">
+                  <JobRow
+                    jobName={name}
+                    job={job}
+                    statIcons={statIcons}
+                    isFav={favs.has(name)}
+                    onToggleFav={() => toggleFav(name)}
+                    mobile
+                  />
+                </div>
+              ))
             )}
           </div>
         </div>
