@@ -1,0 +1,56 @@
+{
+  "status": "working",
+  "summary": {
+    "goal": "Translate raw Equip sheet codes into player-friendly slots and weapon classes.",
+    "currentUnderstanding": [
+      "The website imports item names, stats, stat increments, and crafting requirements from the Equip tab.",
+      "The website does not yet fully decode raw sheet category/type codes into final equipment slots automatically.",
+      "Current slot assignments and weapon types are stored separately in live shared JSON after human-guided mapping."
+    ]
+  },
+  "sheet": {
+    "gid": 123527243,
+    "tabName": "Equip",
+    "importantColumns": {
+      "name": "B",
+      "category": "C",
+      "type": "D",
+      "group": "F",
+      "rank": "G",
+      "statsStart": "R",
+      "craftStudioLevel": "BL",
+      "craftIntelligence": "BM"
+    }
+  },
+  "knownExamples": [
+    {
+      "itemName": "S/ Santa Staff",
+      "raw": { "category": 0, "type": 2 },
+      "translatedAs": { "slot": "Weapon", "weaponType": "Staff" },
+      "status": "hypothesis"
+    },
+    {
+      "itemName": "S/ Santa Shield",
+      "raw": { "category": 1, "type": 11 },
+      "translatedAs": { "slot": "Shield" },
+      "status": "hypothesis"
+    },
+    {
+      "itemName": "C/ Cloth Bag",
+      "raw": { "category": 2, "type": 14 },
+      "translatedAs": { "slot": "Accessory" },
+      "status": "hypothesis"
+    },
+    {
+      "itemName": "B/ Red Ribbon",
+      "raw": { "category": 2, "type": 14 },
+      "translatedAs": { "slot": "Accessory" },
+      "status": "hypothesis"
+    }
+  ],
+  "openQuestions": [
+    "Does category map directly to top-level slot families such as weapon, shield, and accessory?",
+    "Does type map to weapon subtypes or to broader visual/equip classes?",
+    "Which raw combinations correspond to Head, Armor, and Accessory consistently?"
+  ]
+}

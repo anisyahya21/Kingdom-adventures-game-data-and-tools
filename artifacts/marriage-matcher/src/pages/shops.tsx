@@ -1,0 +1,921 @@
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useLocation, useRoute } from "wouter";
+import {
+  ArrowLeft,
+  Hammer,
+  Moon,
+  Package,
+  Search,
+  Shield,
+  Sofa,
+  Store,
+  Sun,
+  UtensilsCrossed,
+  WandSparkles,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { localSharedData } from "@/lib/local-shared-data";
+import { SHOP_RECORDS, type ShopRecord, type ShopSlug } from "@/lib/shop-utils";
+
+type EquipmentSlot = "Head" | "Weapon" | "Shield" | "Armor" | "Accessory" | "-";
+type EquipmentRow = {
+  name: string;
+  rank: string;
+  slot: EquipmentSlot;
+  weaponType: string;
+  craftable: boolean;
+  studioLevel: number;
+  craftingIntelligence: number;
+  attack: number;
+  defence: number;
+  speed: number;
+  intelligence: number;
+  luck: number;
+  hp: number;
+  mp: number;
+};
+
+type SkillRow = {
+  name: string;
+  studioLevel: number;
+  craftingIntelligence: number;
+  buyPrice: number;
+  sellPrice: number;
+  description?: string;
+  weaponResistance?: string;
+};
+
+type ItemRow = {
+  name: string;
+  studioLevel: number;
+  craftingIntelligence: number;
+  craftTimeSeconds: number;
+  eggBonusType: number;
+  eggBonusValue: number;
+  eggBonusExp: number;
+  eggBonusTime: number;
+};
+
+type FurnitureRow = {
+  name: string;
+  studioLevel: number;
+  craftingIntelligence: number;
+};
+
+type SharedDataShape = {
+  slotAssignments?: Record<string, string>;
+  weaponTypes?: Record<string, string>;
+  skills?: Record<string, SkillRow>;
+};
+
+const EQUIP_SHEET_URL = "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=123527243";
+const ITEM_SHEET_URL = "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=1863106351";
+const VALID_SLOTS: EquipmentSlot[] = ["Head", "Weapon", "Shield", "Armor", "Accessory", "-"];
+const STATUS_STYLE = {
+  Ready: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
+  "In Progress": "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300",
+  "Research Needed": "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300",
+} as const;
+const RANKS = ["All", "S", "A", "B", "C", "D", "E", "F"] as const;
+const CRAFT_FILTERS = ["All", "Craftable", "Not Craftable"] as const;
+const EXCLUDED_SKILLS = new Set(["normal attack", "gun attack", "critical hit"]);
+const FURNITURE_ROWS: FurnitureRow[] = [
+  { name: "Candle", studioLevel: 1, craftingIntelligence: 7 },
+  { name: "Kitchen Shelves", studioLevel: 1, craftingIntelligence: 8 },
+  { name: "Desk", studioLevel: 1, craftingIntelligence: 8 },
+  { name: "Red Carpet", studioLevel: 2, craftingIntelligence: 13 },
+  { name: "Decorative Plant", studioLevel: 2, craftingIntelligence: 17 },
+  { name: "Dining Table", studioLevel: 2, craftingIntelligence: 17 },
+  { name: "Study Desk", studioLevel: 2, craftingIntelligence: 21 },
+  { name: "Rainwater Barrel", studioLevel: 2, craftingIntelligence: 25 },
+  { name: "Chest of Drawers", studioLevel: 2, craftingIntelligence: 29 },
+  { name: "Flower Vase", studioLevel: 3, craftingIntelligence: 23 },
+  { name: "Shelf", studioLevel: 3, craftingIntelligence: 32 },
+  { name: "Bookshelf", studioLevel: 4, craftingIntelligence: 53 },
+  { name: "Training Room", studioLevel: 4, craftingIntelligence: 85 },
+  { name: "Rejuvenating Bath", studioLevel: 4, craftingIntelligence: 85 },
+  { name: "Flowers", studioLevel: 5, craftingIntelligence: 55 },
+  { name: "Tomato", studioLevel: 5, craftingIntelligence: 80 },
+  { name: "Dresser", studioLevel: 5, craftingIntelligence: 80 },
+  { name: "Couch", studioLevel: 5, craftingIntelligence: 155 },
+  { name: "Bathtub", studioLevel: 5, craftingIntelligence: 155 },
+  { name: "Stove", studioLevel: 5, craftingIntelligence: 155 },
+  { name: "Pansy", studioLevel: 6, craftingIntelligence: 77 },
+  { name: "Shooting Range", studioLevel: 7, craftingIntelligence: 293 },
+  { name: "Fluffy Carpet", studioLevel: 7, craftingIntelligence: 152 },
+  { name: "Cooking Counter", studioLevel: 7, craftingIntelligence: 201 },
+  { name: "Decorative Armor", studioLevel: 8, craftingIntelligence: 261 },
+  { name: "Vanity Mirror", studioLevel: 8, craftingIntelligence: 261 },
+  { name: "Window", studioLevel: 9, craftingIntelligence: 329 },
+  { name: "Magic Training Ground", studioLevel: 9, craftingIntelligence: 500 },
+  { name: "Glittering Stone", studioLevel: 10, craftingIntelligence: 405 },
+  { name: "Black Mat", studioLevel: 11, craftingIntelligence: 489 },
+  { name: "Fireplace", studioLevel: 11, craftingIntelligence: 489 },
+  { name: "Tree Nursery", studioLevel: 12, craftingIntelligence: 293 },
+  { name: "Ancestor Statue", studioLevel: 12, craftingIntelligence: 500 },
+  { name: "Animal Figurine", studioLevel: 13, craftingIntelligence: 500 },
+  { name: "Tool Workshop", studioLevel: 16, craftingIntelligence: 500 },
+  { name: "Ore Workbench", studioLevel: 23, craftingIntelligence: 500 },
+  { name: "Double Bed", studioLevel: 25, craftingIntelligence: 500 },
+];
+
+const SHOP_ICONS: Record<ShopSlug, JSX.Element> = {
+  "weapon-shop": <Hammer className="w-5 h-5 text-amber-500" />,
+  "armor-shop": <Shield className="w-5 h-5 text-sky-500" />,
+  "accessory-shop": <Store className="w-5 h-5 text-violet-500" />,
+  "item-shop": <Package className="w-5 h-5 text-emerald-500" />,
+  "furniture-shop": <Sofa className="w-5 h-5 text-orange-500" />,
+  restaurant: <UtensilsCrossed className="w-5 h-5 text-rose-500" />,
+  "skill-shop": <WandSparkles className="w-5 h-5 text-cyan-500" />,
+};
+
+function getRank(name: string): string {
+  const match = name.trim().match(/^([FSABCDE])\s*\//i);
+  return match ? match[1].toUpperCase() : "";
+}
+
+function isPlayerFacingEquipmentName(name: string): boolean {
+  return /^[FSABCDE]\s*\/\s*/i.test(name);
+}
+
+function getNumeric(cells: Array<{ v: string | number | null } | null>, index: number): number {
+  const value = index >= 0 && index < cells.length ? cells[index]?.v : null;
+  return Number(value) || 0;
+}
+
+function getText(cells: Array<{ v: string | number | null } | null>, index: number): string {
+  const value = index >= 0 && index < cells.length ? cells[index]?.v : null;
+  return String(value ?? "").trim();
+}
+
+function findColumnIndex(cols: string[], patterns: RegExp[]): number {
+  return cols.findIndex((col) => patterns.some((pattern) => pattern.test(col)));
+}
+
+function fallbackIndex(index: number, fallback: number): number {
+  return index >= 0 ? index : fallback;
+}
+
+async function fetchEquipmentRows(): Promise<EquipmentRow[]> {
+  const response = await fetch(EQUIP_SHEET_URL);
+  const text = await response.text();
+  const json = text.replace(/^[^(]+\(/, "").replace(/\);?\s*$/, "");
+  const data = JSON.parse(json);
+  const cols: string[] = data.table.cols.map((col: { label?: string; id?: string }) => (col.label || col.id || "").trim());
+  const rows = data.table.rows as Array<{ c: Array<{ v: string | number | null } | null> }>;
+
+  const nameIndex = cols.findIndex((col) => /^(name|item.?name|equipment.?name)$/i.test(col));
+  const slotIndex = cols.findIndex((col) => /^(slot|type|equip.?type|category|kind)$/i.test(col));
+  const studioIndex = cols.findIndex((col) => /crafterstudio|studio.?level|crafter.?studio/i.test(col));
+  const intIndex = cols.findIndex((col) => /craftermintelligence|crafter.?intel|craft.*int/i.test(col));
+
+  const shared = localSharedData as SharedDataShape;
+  const slotAssignments = shared.slotAssignments ?? {};
+  const weaponTypes = shared.weaponTypes ?? {};
+
+  return rows
+    .map((row) => {
+      const cells = row.c ?? [];
+      const name = String(cells[nameIndex]?.v ?? "").trim();
+      if (!name || !isPlayerFacingEquipmentName(name)) return null;
+      const sheetSlot = String(cells[slotIndex]?.v ?? "").trim();
+      const assignedSlot = slotAssignments[name];
+      const slot = VALID_SLOTS.includes(assignedSlot as EquipmentSlot)
+        ? assignedSlot as EquipmentSlot
+        : VALID_SLOTS.includes(sheetSlot as EquipmentSlot)
+          ? sheetSlot as EquipmentSlot
+          : "-";
+
+      return {
+        name,
+        rank: getRank(name),
+        slot,
+        weaponType: weaponTypes[name] ?? "",
+        craftable: getNumeric(cells, studioIndex) > 0,
+        studioLevel: getNumeric(cells, studioIndex),
+        craftingIntelligence: getNumeric(cells, intIndex),
+        hp: getNumeric(cells, cols.findIndex((col) => /^hp$/i.test(col))),
+        mp: getNumeric(cells, cols.findIndex((col) => /^mp$/i.test(col))),
+        attack: getNumeric(cells, cols.findIndex((col) => /^atk$|^attack$/i.test(col))),
+        defence: getNumeric(cells, cols.findIndex((col) => /^def$|^defence$|^defense$/i.test(col))),
+        speed: getNumeric(cells, cols.findIndex((col) => /^spd$|^speed$/i.test(col))),
+        intelligence: getNumeric(cells, cols.findIndex((col) => /^int$|^intelligence$/i.test(col))),
+        luck: getNumeric(cells, cols.findIndex((col) => /^lck$|^luck$/i.test(col))),
+      };
+    })
+    .filter((row): row is EquipmentRow => !!row);
+}
+
+async function fetchItemRows(): Promise<ItemRow[]> {
+  const response = await fetch(ITEM_SHEET_URL);
+  const text = await response.text();
+  const json = text.replace(/^[^(]+\(/, "").replace(/\);?\s*$/, "");
+  const data = JSON.parse(json);
+  const cols: string[] = data.table.cols.map((col: { label?: string; id?: string }) => (col.label || col.id || "").trim());
+  const rows = data.table.rows as Array<{ c: Array<{ v: string | number | null } | null> }>;
+
+  const nameIndex = fallbackIndex(findColumnIndex(cols, [/^name$/i]), 1);
+  const studioIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTermStudioLevel/i, /crafttermstudiolevel/i]), 28);
+  const intIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTermIntelligence/i, /crafttermintelligence/i]), 29);
+  const timeIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTimeSeconds/i, /crafttimeseconds/i]), 30);
+  const eggTypeIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusType/i, /eggbonustype/i]), 22);
+  const eggValueIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusValue/i, /eggbonusvalue/i]), 23);
+  const eggExpIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusExp/i, /eggbonusexp/i]), 24);
+  const eggTimeIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusTime/i, /eggbonustime/i]), 25);
+
+  return rows
+    .map((row) => {
+      const cells = row.c ?? [];
+      const name = getText(cells, nameIndex);
+      const studioLevel = getNumeric(cells, studioIndex);
+      const craftingIntelligence = getNumeric(cells, intIndex);
+      if (!name || studioLevel <= 0) return null;
+      return {
+        name,
+        studioLevel,
+        craftingIntelligence,
+        craftTimeSeconds: getNumeric(cells, timeIndex),
+        eggBonusType: getNumeric(cells, eggTypeIndex),
+        eggBonusValue: getNumeric(cells, eggValueIndex),
+        eggBonusExp: getNumeric(cells, eggExpIndex),
+        eggBonusTime: getNumeric(cells, eggTimeIndex),
+      };
+    })
+    .filter((row): row is ItemRow => !!row)
+    .sort((a, b) => {
+      const studioDiff = a.studioLevel - b.studioLevel;
+      return studioDiff !== 0 ? studioDiff : a.name.localeCompare(b.name);
+    });
+}
+
+function describeEggBonusType(type: number): string {
+  switch (type) {
+    case 1: return "Attack";
+    case 2: return "Defence";
+    case 3: return "Balanced";
+    case 4: return "Special";
+    default: return "-";
+  }
+}
+
+function ShopHeader({ selectedShop, darkMode, setDarkMode }: {
+  selectedShop?: ShopRecord | null;
+  darkMode: boolean;
+  setDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
+      <div className="flex items-start gap-3">
+        <Link href={selectedShop ? "/shops" : "/"}>
+          <Button variant="ghost" size="sm" className="gap-2 h-8 text-muted-foreground hover:text-foreground mt-1">
+            <ArrowLeft className="w-4 h-4" /> {selectedShop ? "Shops" : "Home"}
+          </Button>
+        </Link>
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            {(selectedShop ? SHOP_ICONS[selectedShop.slug] : <Store className="w-5 h-5 text-indigo-500" />)}
+            <h1 className="text-2xl font-bold text-foreground">{selectedShop ? selectedShop.title : "Shops"}</h1>
+            {selectedShop && (
+              <Badge variant="outline" className={STATUS_STYLE[selectedShop.status]}>
+                {selectedShop.status}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground max-w-3xl">
+            {selectedShop
+              ? selectedShop.description
+              : "Browse shop databases by owner and category. Ready shops already use translated game data; unfinished shops stay clearly marked as research-backed."}
+          </p>
+        </div>
+      </div>
+      <Button variant="outline" size="icon" onClick={() => setDarkMode((d) => !d)} className="h-8 w-8">
+        {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      </Button>
+    </div>
+  );
+}
+
+function ShopTabs({ currentSlug }: { currentSlug?: ShopSlug }) {
+  return (
+    <div className="flex flex-wrap gap-2 mb-6">
+      {SHOP_RECORDS.map((shop) => (
+        <Link key={shop.slug} href={`/shops/${shop.slug}`}>
+          <button
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              currentSlug === shop.slug
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/40"
+            }`}
+          >
+            {SHOP_ICONS[shop.slug]}
+            {shop.shortTitle}
+          </button>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function ShopOwnerLink({ owner }: { owner: string }) {
+  return (
+    <Link href={`/jobs/${encodeURIComponent(owner)}`}>
+      <button
+        onClick={(e) => e.stopPropagation()}
+        className="font-medium text-foreground hover:text-primary transition-colors"
+      >
+        {owner}
+      </button>
+    </Link>
+  );
+}
+
+function dedupeEquipmentRows(rows: EquipmentRow[]): EquipmentRow[] {
+  const byKey = new Map<string, EquipmentRow>();
+  for (const row of rows) {
+    const key = `${row.name}::${row.slot}::${row.weaponType}`;
+    if (!byKey.has(key)) byKey.set(key, row);
+  }
+  return Array.from(byKey.values());
+}
+
+function normalizeQuery(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function matchesQuery(name: string, query: string): boolean {
+  const parts = normalizeQuery(query);
+  if (parts.length === 0) return true;
+  const normalizedName = name.toLowerCase();
+  return parts.every((part) => normalizedName.includes(part));
+}
+
+function EquipmentTable({ rows, showWeaponType = false }: { rows: EquipmentRow[]; showWeaponType?: boolean }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40 text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 text-left font-medium">Name</th>
+            <th className="px-3 py-2 text-center font-medium">Rank</th>
+            <th className="px-3 py-2 text-center font-medium">Slot</th>
+            {showWeaponType && <th className="px-3 py-2 text-center font-medium">Type</th>}
+            <th className="px-3 py-2 text-center font-medium">Craftable</th>
+            <th className="px-3 py-2 text-center font-medium">Studio</th>
+            <th className="px-3 py-2 text-center font-medium">INT</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.name} className="border-t border-border/70">
+              <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
+              <td className="px-3 py-2 text-center">{row.rank || "-"}</td>
+              <td className="px-3 py-2 text-center">{row.slot}</td>
+              {showWeaponType && <td className="px-3 py-2 text-center">{row.weaponType || "-"}</td>}
+              <td className="px-3 py-2 text-center">{row.craftable ? "Yes" : "No"}</td>
+              <td className="px-3 py-2 text-center">{row.craftable ? row.studioLevel : "-"}</td>
+              <td className="px-3 py-2 text-center">{row.craftable ? row.craftingIntelligence || "-" : "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SkillsTable({ rows }: { rows: SkillRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40 text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 text-left font-medium">Skill</th>
+            <th className="px-3 py-2 text-center font-medium">Studio</th>
+            <th className="px-3 py-2 text-center font-medium">INT</th>
+            <th className="px-3 py-2 text-center font-medium">Buy</th>
+            <th className="px-3 py-2 text-center font-medium">Sell</th>
+            <th className="px-3 py-2 text-left font-medium">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.name} className="border-t border-border/70">
+              <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
+              <td className="px-3 py-2 text-center">{row.studioLevel}</td>
+              <td className="px-3 py-2 text-center">{row.craftingIntelligence || "-"}</td>
+              <td className="px-3 py-2 text-center">{row.buyPrice || "-"}</td>
+              <td className="px-3 py-2 text-center">{row.sellPrice || "-"}</td>
+              <td className="px-3 py-2 text-muted-foreground">{row.description || row.weaponResistance || "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ItemTable({ rows }: { rows: ItemRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40 text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 text-left font-medium">Item</th>
+            <th className="px-3 py-2 text-center font-medium">Studio</th>
+            <th className="px-3 py-2 text-center font-medium">INT</th>
+            <th className="px-3 py-2 text-center font-medium">Craft Time</th>
+            <th className="px-3 py-2 text-center font-medium">Egg Stat</th>
+            <th className="px-3 py-2 text-center font-medium">Egg +Stat</th>
+            <th className="px-3 py-2 text-center font-medium">Egg EXP</th>
+            <th className="px-3 py-2 text-center font-medium">Egg Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.name} className="border-t border-border/70">
+              <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
+              <td className="px-3 py-2 text-center">{row.studioLevel}</td>
+              <td className="px-3 py-2 text-center">{row.craftingIntelligence || "-"}</td>
+              <td className="px-3 py-2 text-center">{row.craftTimeSeconds ? `${row.craftTimeSeconds}s` : "-"}</td>
+              <td className="px-3 py-2 text-center">{describeEggBonusType(row.eggBonusType)}</td>
+              <td className="px-3 py-2 text-center">{row.eggBonusValue || "-"}</td>
+              <td className="px-3 py-2 text-center">{row.eggBonusExp || "-"}</td>
+              <td className="px-3 py-2 text-center">{row.eggBonusTime || "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function FurnitureTable({ rows }: { rows: FurnitureRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40 text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 text-left font-medium">Name</th>
+            <th className="px-3 py-2 text-center font-medium">Studio</th>
+            <th className="px-3 py-2 text-center font-medium">INT</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.name} className="border-t border-border/70">
+              <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
+              <td className="px-3 py-2 text-center">{row.studioLevel}</td>
+              <td className="px-3 py-2 text-center">{row.craftingIntelligence}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ResearchShopView({ shop }: { shop: ShopRecord }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <Card className="shadow-sm lg:col-span-2">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Current Scope</CardTitle>
+          <CardDescription className="text-xs">
+            This shop is wired into the site and navigation now, but the full player-facing data source still needs translation.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          {shop.currentScope.map((line) => (
+            <div key={line} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">{line}</div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Shop Info</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <div>
+            <div className="text-xs text-muted-foreground">Owner job</div>
+            <ShopOwnerLink owner={shop.owner} />
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Current source</div>
+            <div className="font-medium text-foreground">{shop.dataSource}</div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm lg:col-span-3">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Next Build Steps</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+          {shop.nextSteps.map((line) => (
+            <div key={line} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">{line}</div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function ShopsPage() {
+  const [, navigate] = useLocation();
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("theme") === "dark"
+        || (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    return false;
+  });
+  const [, params] = useRoute("/shops/:slug");
+  const [search, setSearch] = useState("");
+  const [rankFilter, setRankFilter] = useState<(typeof RANKS)[number]>("All");
+  const [craftFilter, setCraftFilter] = useState<(typeof CRAFT_FILTERS)[number]>("All");
+  const [armorSlotFilter, setArmorSlotFilter] = useState<"All" | "Head" | "Armor" | "Shield">("All");
+  const [skillSearch, setSkillSearch] = useState("");
+  const [itemSearch, setItemSearch] = useState("");
+  const [furnitureSearch, setFurnitureSearch] = useState("");
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [darkMode]);
+
+  const selectedShop = useMemo(
+    () => SHOP_RECORDS.find((shop) => shop.slug === params?.slug) ?? null,
+    [params]
+  );
+  const currentUrlSearch = typeof window !== "undefined" ? window.location.search : "";
+
+  useEffect(() => {
+    const currentSearch = new URLSearchParams(window.location.search);
+    const q = currentSearch.get("search") ?? "";
+    if (selectedShop?.slug === "item-shop") setItemSearch(q);
+    else if (selectedShop?.slug === "furniture-shop") setFurnitureSearch(q);
+    else setSearch(q);
+  }, [currentUrlSearch, selectedShop?.slug]);
+
+  const { data: equipmentRows = [], isLoading: equipmentLoading } = useQuery({
+    queryKey: ["shop-equipment-rows"],
+    queryFn: fetchEquipmentRows,
+    staleTime: 60_000,
+  });
+  const { data: itemRows = [], isLoading: itemLoading } = useQuery({
+    queryKey: ["shop-item-rows"],
+    queryFn: fetchItemRows,
+    staleTime: 60_000,
+  });
+
+  const skillRows = useMemo(() => {
+    const shared = localSharedData as SharedDataShape;
+    return Object.values(shared.skills ?? {})
+      .filter((skill) => (skill.studioLevel ?? 0) > 0)
+      .filter((skill) => !EXCLUDED_SKILLS.has(skill.name.trim().toLowerCase()))
+      .sort((a, b) => {
+        const studioDiff = (a.studioLevel ?? 0) - (b.studioLevel ?? 0);
+        return studioDiff !== 0 ? studioDiff : a.name.localeCompare(b.name);
+      });
+  }, []);
+
+  const dedupedEquipmentRows = useMemo(() => dedupeEquipmentRows(equipmentRows), [equipmentRows]);
+
+  const filteredEquipment = useMemo(() => {
+    return dedupedEquipmentRows.filter((row) => {
+      const matchesSearch = matchesQuery(row.name, search);
+      const matchesRank = rankFilter === "All" || row.rank === rankFilter;
+      const matchesCraft = craftFilter === "All"
+        || (craftFilter === "Craftable" && row.craftable)
+        || (craftFilter === "Not Craftable" && !row.craftable);
+      return matchesSearch && matchesRank && matchesCraft;
+    });
+  }, [craftFilter, dedupedEquipmentRows, rankFilter, search]);
+
+  const weaponRows = useMemo(
+    () => filteredEquipment.filter((row) => row.slot === "Weapon"),
+    [filteredEquipment]
+  );
+  const armorRows = useMemo(
+    () => filteredEquipment.filter((row) => ["Head", "Armor", "Shield"].includes(row.slot) && (armorSlotFilter === "All" || row.slot === armorSlotFilter)),
+    [armorSlotFilter, filteredEquipment]
+  );
+  const accessoryRows = useMemo(
+    () => filteredEquipment.filter((row) => row.slot === "Accessory"),
+    [filteredEquipment]
+  );
+  const filteredSkillRows = useMemo(
+    () => skillRows.filter((row) => matchesQuery(row.name, skillSearch)),
+    [skillRows, skillSearch]
+  );
+  const filteredItemRows = useMemo(
+    () => itemRows.filter((row) => matchesQuery(row.name, itemSearch)),
+    [itemRows, itemSearch]
+  );
+  const filteredFurnitureRows = useMemo(
+    () => FURNITURE_ROWS.filter((row) => matchesQuery(row.name, furnitureSearch)),
+    [furnitureSearch]
+  );
+  const selectedShopResults = useMemo(() => {
+    switch (selectedShop?.slug) {
+      case "weapon-shop":
+        return weaponRows.length;
+      case "armor-shop":
+        return armorRows.length;
+      case "accessory-shop":
+        return accessoryRows.length;
+      case "skill-shop":
+        return filteredSkillRows.length;
+      case "item-shop":
+        return filteredItemRows.length;
+      case "furniture-shop":
+        return filteredFurnitureRows.length;
+      default:
+        return null;
+    }
+  }, [
+    accessoryRows.length,
+    armorRows.length,
+    filteredFurnitureRows.length,
+    filteredItemRows.length,
+    filteredSkillRows.length,
+    selectedShop?.slug,
+    weaponRows.length,
+  ]);
+
+  if (!selectedShop) {
+    return (
+      <div className="min-h-screen bg-background transition-colors">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <ShopHeader darkMode={darkMode} setDarkMode={setDarkMode} />
+
+          <Card className="shadow-sm mb-4 border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Batch B Shop System</CardTitle>
+              <CardDescription className="text-xs">
+                Ready shops now open as real database views. Item, furniture, and restaurant stay visible too, but are clearly marked until their translated sources are fully decoded.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {SHOP_RECORDS.map((shop) => (
+              <Card
+                key={shop.slug}
+                onClick={() => navigate(`/shops/${shop.slug}`)}
+                className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all group h-full cursor-pointer"
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
+                      {SHOP_ICONS[shop.slug]}
+                    </div>
+                    <Badge variant="outline" className={STATUS_STYLE[shop.status]}>
+                      {shop.status}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <CardDescription className="text-xs leading-relaxed">{shop.description}</CardDescription>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <ShopOwnerLink owner={shop.owner} />
+                    <span>{shop.dataSource}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background transition-colors">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <ShopHeader selectedShop={selectedShop} darkMode={darkMode} setDarkMode={setDarkMode} />
+        <ShopTabs currentSlug={selectedShop.slug} />
+
+        <Card className="shadow-sm mb-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Owner & Scope</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="text-muted-foreground">Owner:</span>
+            <ShopOwnerLink owner={selectedShop.owner} />
+            <span className="text-muted-foreground">Source:</span>
+            <span className="font-medium text-foreground">{selectedShop.dataSource}</span>
+            {selectedShopResults !== null && (
+              <>
+                <span className="text-muted-foreground">Results:</span>
+                <span className="font-medium text-foreground">{selectedShopResults}</span>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {selectedShop.slug === "weapon-shop" && (
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Weapon Shop Database</CardTitle>
+                <CardDescription className="text-xs">
+                  Read-only weapon browsing from the translated equipment data. Fixed weapon data stays reference-only.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="relative md:col-span-2">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search weapons..." className="pl-9" />
+                </div>
+                <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                  {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
+                </select>
+                <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                  {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                {equipmentLoading ? <p className="text-sm text-muted-foreground">Loading weapon data...</p> : <EquipmentTable rows={weaponRows} showWeaponType />}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {selectedShop.slug === "armor-shop" && (
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Armor Shop Database</CardTitle>
+                <CardDescription className="text-xs">
+                  Covers headgear, armor, and shields in one shop-facing view.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <div className="relative md:col-span-2">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search armor..." className="pl-9" />
+                </div>
+                <select value={armorSlotFilter} onChange={(e) => setArmorSlotFilter(e.target.value as "All" | "Head" | "Armor" | "Shield")} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                  <option value="All">All armor slots</option>
+                  <option value="Head">Head</option>
+                  <option value="Armor">Armor</option>
+                  <option value="Shield">Shield</option>
+                </select>
+                <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                  {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
+                </select>
+                <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                  {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                {equipmentLoading ? <p className="text-sm text-muted-foreground">Loading armor data...</p> : <EquipmentTable rows={armorRows} />}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {selectedShop.slug === "accessory-shop" && (
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Accessory Shop Database</CardTitle>
+                <CardDescription className="text-xs">
+                  Accessory-only browsing from the translated equipment database.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="relative md:col-span-2">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search accessories..." className="pl-9" />
+                </div>
+                <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                  {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
+                </select>
+                <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                  {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                {equipmentLoading ? <p className="text-sm text-muted-foreground">Loading accessory data...</p> : <EquipmentTable rows={accessoryRows} />}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {selectedShop.slug === "skill-shop" && (
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Skill Shop Database</CardTitle>
+                <CardDescription className="text-xs">
+                  Only shop-craftable skills are shown here. Fixed skill data stays read-only.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="relative md:col-span-2">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={skillSearch} onChange={(e) => setSkillSearch(e.target.value)} placeholder="Search skills..." className="pl-9" />
+                </div>
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  {filteredSkillRows.length} skills
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                <SkillsTable rows={filteredSkillRows} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {selectedShop.slug === "item-shop" && (
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Item Shop Database</CardTitle>
+                <CardDescription className="text-xs">
+                  Craftable items pulled from the item sheet by studio and intelligence requirements. Egg-feed columns are shown too because they already live in the same source.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="relative md:col-span-2">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search items..." className="pl-9" />
+                </div>
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  {filteredItemRows.length} items
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                {itemLoading ? <p className="text-sm text-muted-foreground">Loading item data...</p> : <ItemTable rows={filteredItemRows} />}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {selectedShop.slug === "furniture-shop" && (
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Furniture Shop Database</CardTitle>
+                <CardDescription className="text-xs">
+                  Community-confirmed furniture catalog with studio and intelligence requirements. Prices and fuller facility effects can be added once we decode them from the source cleanly.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="relative md:col-span-2">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={furnitureSearch} onChange={(e) => setFurnitureSearch(e.target.value)} placeholder="Search furniture..." className="pl-9" />
+                </div>
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  {filteredFurnitureRows.length} furniture items
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                <FurnitureTable rows={filteredFurnitureRows} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {selectedShop.slug === "restaurant" && (
+          <ResearchShopView shop={selectedShop} />
+        )}
+      </div>
+    </div>
+  );
+}

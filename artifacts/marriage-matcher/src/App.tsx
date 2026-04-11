@@ -10,6 +10,8 @@ import MonstersPage from "@/pages/monsters";
 import JobsPage from "@/pages/jobs";
 import SkillsPage from "@/pages/skills";
 import LoadoutPage from "@/pages/loadout";
+import EggsPage from "@/pages/eggs";
+import ShopsPage from "@/pages/shops";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +26,9 @@ function Router() {
       <Route path="/jobs/:name" component={JobsPage} />
       <Route path="/skills" component={SkillsPage} />
       <Route path="/loadout" component={LoadoutPage} />
+      <Route path="/eggs" component={EggsPage} />
+      <Route path="/shops" component={ShopsPage} />
+      <Route path="/shops/:slug" component={ShopsPage} />
       <Route component={NotFound} />
     </Switch>
   );

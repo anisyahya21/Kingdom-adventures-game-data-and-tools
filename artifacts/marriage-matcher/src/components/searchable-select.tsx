@@ -16,17 +16,19 @@ interface Props {
   triggerClassName?: string;
   clearOnSelect?: boolean;
   disabled?: boolean;
+  searchThreshold?: number | null;
 }
 
 export function SearchableSelect({
   value,
   onChange,
   options,
-  placeholder = "Select…",
+  placeholder = "Choose...",
   className = "",
   triggerClassName = "",
   clearOnSelect = false,
   disabled = false,
+  searchThreshold = 8,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -39,6 +41,7 @@ export function SearchableSelect({
   const filtered = query.trim()
     ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
     : options;
+  const useSimpleSelect = searchThreshold !== null && options.length <= searchThreshold;
 
   const openDrop = () => {
     if (!triggerRef.current) return;
@@ -99,7 +102,7 @@ export function SearchableSelect({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Type to filter…"
+                placeholder="Type to filter..."
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50 min-w-0"
                 onKeyDown={(e) => {
                   if (e.key === "Escape") setOpen(false);
@@ -144,6 +147,26 @@ export function SearchableSelect({
       )
     : null;
 
+  if (useSimpleSelect) {
+    return (
+      <div className={`relative ${className}`}>
+        <select
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring hover:border-ring/50 transition-colors ${triggerClassName}`}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
   return (
     <div className={`relative ${className}`}>
       <button
@@ -151,7 +174,21 @@ export function SearchableSelect({
         type="button"
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : openDrop())}
-        className={`flex items-center justify-between w-full rounded-md border border-input bg-background px-2 gap-1.5 text-left focus:outline-none focus:ring-1 focus:ring-ring hover:bg-muted/30 transition-colors ${triggerClassName}`}
+        onKeyDown={(e) => {
+          if (open || disabled) return;
+          if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+          e.preventDefault();
+          if (options.length === 0) return;
+          const currentIndex = options.findIndex((o) => o.value === value);
+          if (e.key === "ArrowDown") {
+            const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % options.length;
+            onChange(options[nextIndex].value);
+          } else {
+            const nextIndex = currentIndex < 0 ? options.length - 1 : (currentIndex - 1 + options.length) % options.length;
+            onChange(options[nextIndex].value);
+          }
+        }}
+        className={`flex items-center justify-between w-full rounded-md border border-input bg-background px-2 gap-1.5 text-left focus:outline-none focus:ring-1 focus:ring-ring hover:border-ring/50 transition-colors ${triggerClassName}`}
       >
         <span
           className={`truncate flex-1 ${
@@ -185,3 +222,5 @@ export function SearchableSelect({
     </div>
   );
 }
+
+

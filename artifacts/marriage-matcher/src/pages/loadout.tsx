@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/searchable-select";
 import { toPng } from "html-to-image";
+import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API = (path: string) => `${BASE}/ka-api/ka${path}`;
@@ -113,6 +114,13 @@ function statAtLevel(base: number, inc: number, level: number): number {
   return Math.round(base + (level - 1) * inc);
 }
 
+function commitOnEnter(e: React.KeyboardEvent<HTMLInputElement>, commit: () => void) {
+  if (e.key === "Enter") {
+    commit();
+    e.currentTarget.blur();
+  }
+}
+
 // ─── Weapon proficiency helpers ───────────────────────────────────────────────
 
 function getWeaponProficiency(
@@ -141,15 +149,33 @@ function findResistanceSkill(
   return Object.values(skills).find((s) => s.weaponResistance === weaponType) ?? null;
 }
 
+type EquipRuleState = {
+  slot: string | null;
+  weaponType: string | null;
+  prof: WeaponValue | null;
+  resistanceSkill: Skill | null;
+  hasResistanceSkillEquipped: boolean;
+  appliesPenalty: boolean;
+  blocked: boolean;
+};
+
+function getEquipRuleState(loadout: Loadout, data: SharedData, equipName: string): EquipRuleState {
+  const slot = data.slotAssignments?.[equipName] ?? null;
+  const job = data.jobs?.[loadout.jobName];
+  const { weaponType, prof } = getWeaponProficiency(job, equipName, slot ?? "", data.weaponTypes);
+  const resistanceSkill = findResistanceSkill(data.skills, weaponType);
+  const hasResistanceSkillEquipped = !!resistanceSkill && loadout.skills.includes(resistanceSkill.name);
+  const blocked = prof === "cannot";
+  const appliesPenalty = prof === "weak" && !hasResistanceSkillEquipped;
+  return { slot, weaponType, prof, resistanceSkill, hasResistanceSkillEquipped, appliesPenalty, blocked };
+}
+
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
-    queryFn: async () => {
-      const r = await fetch(API("/shared"));
-      return r.json() as Promise<SharedData>;
-    },
+    queryFn: () => fetchSharedWithFallback<SharedData>(API("/shared")),
     staleTime: 15000,
   });
 }
@@ -207,12 +233,18 @@ function calcEquipStats(loadout: Loadout, data: SharedData): Record<string, numb
   const out: Record<string, number> = {};
   const overrides = data.overrides ?? {};
   for (const { name, level } of loadout.equipment) {
+    const rule = getEquipRuleState(loadout, data, name);
+    if (rule.blocked) continue;
+    const multiplier = rule.appliesPenalty ? 0.5 : 1;
     const statOverrides = overrides[name] ?? {};
     for (const [stat, entry] of Object.entries(statOverrides)) {
       const k = normStat(stat);
       const b = entry.base ?? 0;
       const i = entry.inc ?? 0;
-      if (b || i) out[k] = (out[k] ?? 0) + statAtLevel(b, i, level);
+      if (b || i) {
+        const total = statAtLevel(b, i, level);
+        out[k] = (out[k] ?? 0) + Math.floor(total * multiplier);
+      }
     }
   }
   return out;
@@ -318,6 +350,12 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   const setStatLevel = (k: string, lv: number) => {
     upd("statLevels", { ...(loadout.statLevels ?? {}), [k]: Math.max(1, Math.min(999, lv)) });
   };
+  const setAllStatLevels = (lv: number) => {
+    const next = Math.max(1, Math.min(999, lv));
+    const nextLevels: Record<string, number> = {};
+    for (const k of allStatKeys) nextLevels[k] = next;
+    upd("statLevels", nextLevels);
+  };
 
   // Slot-aware equipment helpers
   const setSlotEquip = (slot: EquipSlot, name: string) => {
@@ -362,6 +400,49 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 
   const allStatKeys = [...STAT_KEYS] as string[];
   const [allLv, setAllLv] = useState(1);
+  const [allLvInput, setAllLvInput] = useState("1");
+  const [statLevelInputs, setStatLevelInputs] = useState<Record<string, string>>({});
+  const [equipLevelInputs, setEquipLevelInputs] = useState<Record<number, string>>({});
+
+  const setAllStatLevelsInput = (raw: string) => {
+    if (!/^\d*$/.test(raw)) return;
+    setAllLvInput(raw);
+  };
+
+  const commitAllStatLevels = (raw: string) => {
+    const parsed = parseInt(raw, 10);
+    const next = Math.max(1, Math.min(999, isNaN(parsed) ? 1 : parsed));
+    setAllLv(next);
+    setAllLvInput(String(next));
+    setAllStatLevels(next);
+    const nextInputs: Record<string, string> = {};
+    for (const k of allStatKeys) nextInputs[k] = String(next);
+    setStatLevelInputs(nextInputs);
+  };
+
+  const setStatLevelInput = (k: string, raw: string) => {
+    if (!/^\d*$/.test(raw)) return;
+    setStatLevelInputs((prev) => ({ ...prev, [k]: raw }));
+  };
+
+  const commitStatLevel = (k: string, raw: string) => {
+    const parsed = parseInt(raw, 10);
+    const next = Math.max(1, Math.min(999, isNaN(parsed) ? 1 : parsed));
+    setStatLevel(k, next);
+    setStatLevelInputs((prev) => ({ ...prev, [k]: String(next) }));
+  };
+
+  const setEquipLevelInput = (idx: number, raw: string) => {
+    if (!/^\d*$/.test(raw)) return;
+    setEquipLevelInputs((prev) => ({ ...prev, [idx]: raw }));
+  };
+
+  const commitEquipLevel = (idx: number, raw: string) => {
+    const parsed = parseInt(raw, 10);
+    const next = Math.max(1, Math.min(99, isNaN(parsed) ? 1 : parsed));
+    setEquipLevel(idx, next);
+    setEquipLevelInputs((prev) => ({ ...prev, [idx]: String(next) }));
+  };
 
   return (
     <div className="space-y-4">
@@ -428,13 +509,18 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
               triggerClassName="h-8 text-sm"
             />
             {loadout.jobName && (
-              <SearchableSelect
+              <select
                 value={loadout.rank}
-                onChange={(v) => upd("rank", v)}
-                options={ranks.map((r) => ({ value: r, label: `Rank ${r}` }))}
-                placeholder="Rank…"
-                triggerClassName="h-8 text-sm"
-              />
+                onChange={(e) => upd("rank", e.target.value)}
+                className="h-8 w-28 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+              >
+                <option value="" disabled>Select rank</option>
+                {ranks.map((r) => (
+                  <option key={r} value={r}>
+                    Rank {r}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
 
@@ -445,12 +531,10 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Stats</p>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-muted-foreground">All Lv:</span>
-                  <Input type="number" min={1} max={999} value={allLv}
-                    onChange={(e) => {
-                      const n = Math.max(1, Math.min(999, parseInt(e.target.value)||1));
-                      setAllLv(n);
-                      for (const k of allStatKeys) setStatLevel(k, n);
-                    }}
+                  <Input type="text" inputMode="numeric" value={allLvInput}
+                    onChange={(e) => setAllStatLevelsInput(e.target.value)}
+                    onKeyDown={(e) => commitOnEnter(e, () => commitAllStatLevels(e.currentTarget.value))}
+                    onBlur={(e) => commitAllStatLevels(e.target.value)}
                     className="h-5 text-[11px] text-center px-0 w-14" />
                 </div>
               </div>
@@ -475,8 +559,10 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                         <tr key={k} className="border-t border-border/30">
                           <td className="py-0.5 pr-2 text-muted-foreground uppercase text-[10px] font-medium">{STAT_FULL[k] ?? k}</td>
                           <td className="py-0.5 text-center">
-                            <Input type="number" min={1} max={999} value={lv}
-                              onChange={(e) => setStatLevel(k, parseInt(e.target.value) || 1)}
+                            <Input type="text" inputMode="numeric" value={statLevelInputs[k] ?? String(lv)}
+                              onChange={(e) => setStatLevelInput(k, e.target.value)}
+                              onKeyDown={(e) => commitOnEnter(e, () => commitStatLevel(k, e.currentTarget.value))}
+                              onBlur={(e) => commitStatLevel(k, e.target.value)}
                               className="h-5 text-[11px] text-center px-0 w-14" />
                           </td>
                           <td className="py-0.5 text-right tabular-nums text-foreground/80">{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
@@ -551,10 +637,9 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 <p className="text-[11px] font-medium text-center text-foreground/80 leading-tight line-clamp-2 min-h-[30px]">{eq.name}</p>
                                 {/* Weapon proficiency badge */}
                                 {(() => {
-                                  const { weaponType, prof } = getWeaponProficiency(job, eq.name, slot, data.weaponTypes);
-                                  if (!prof || prof === "can") return null;
-                                  const resSk = findResistanceSkill(data.skills, weaponType);
-                                  const isWeak = prof === "weak";
+                                  const rule = getEquipRuleState(loadout, data, eq.name);
+                                  if (!rule.prof || rule.prof === "can") return null;
+                                  const isWeak = rule.prof === "weak";
                                   return (
                                     <div className="text-center space-y-0.5">
                                       <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold border ${
@@ -562,11 +647,19 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                           ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700"
                                           : "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-700"
                                       }`}>
-                                        {isWeak ? "⚠ Weak" : "✗ Can't wield"}
+                                        {isWeak
+                                          ? (rule.appliesPenalty ? "⚠ Weak: 50%" : "✓ Weak removed")
+                                          : "✗ Can't wield"}
                                       </span>
-                                      {resSk && (
+                                      {rule.blocked ? (
                                         <p className="text-[8px] text-muted-foreground leading-tight">
-                                          {resSk.name} removes this
+                                          This item is ignored in stat totals
+                                        </p>
+                                      ) : rule.resistanceSkill && (
+                                        <p className="text-[8px] text-muted-foreground leading-tight">
+                                          {rule.hasResistanceSkillEquipped
+                                            ? `${rule.resistanceSkill.name} restores full stats`
+                                            : `${rule.resistanceSkill.name} removes this penalty`}
                                         </p>
                                       )}
                                     </div>
@@ -574,8 +667,10 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 })()}
                                 <div className="flex items-center gap-1 justify-center">
                                   <span className="text-xs text-muted-foreground">Lv</span>
-                                  <Input type="number" min={1} max={99} value={eq.level}
-                                    onChange={(e) => setEquipLevel(globalIdx, parseInt(e.target.value) || 1)}
+                                  <Input type="text" inputMode="numeric" value={equipLevelInputs[globalIdx] ?? String(eq.level)}
+                                    onChange={(e) => setEquipLevelInput(globalIdx, e.target.value)}
+                                    onKeyDown={(e) => commitOnEnter(e, () => commitEquipLevel(globalIdx, e.currentTarget.value))}
+                                    onBlur={(e) => commitEquipLevel(globalIdx, e.target.value)}
                                     className="h-6 text-xs text-center w-14 px-0" />
                                 </div>
                               </>
@@ -606,8 +701,10 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                               {iconMap[eq.name] ? <img src={iconMap[eq.name]} alt="" className="w-4 h-4 object-contain" /> : <div className="w-4 h-4" />}
                               <span className="text-xs flex-1 truncate font-medium">{eq.name}</span>
                               <span className="text-[10px] text-muted-foreground">Lv</span>
-                              <Input type="number" min={1} max={99} value={eq.level}
-                                onChange={(e) => setEquipLevel(idx, parseInt(e.target.value) || 1)}
+                              <Input type="text" inputMode="numeric" value={equipLevelInputs[idx] ?? String(eq.level)}
+                                onChange={(e) => setEquipLevelInput(idx, e.target.value)}
+                                onKeyDown={(e) => commitOnEnter(e, () => commitEquipLevel(idx, e.currentTarget.value))}
+                                onBlur={(e) => commitEquipLevel(idx, e.target.value)}
                                 className="h-5 text-[10px] text-center w-12 px-0" />
                               <button onClick={() => removeEquip(idx)} className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
                             </div>
@@ -809,12 +906,15 @@ export default function LoadoutPage() {
                             {loadout.equipment.map((eq) => {
                               const icon = data?.equipIcons?.[eq.name];
                               const slot = data?.slotAssignments?.[eq.name];
+                              const rule = data ? getEquipRuleState(loadout, data, eq.name) : null;
                               return (
                                 <span key={eq.name} className="inline-flex items-center gap-1.5 bg-muted/50 border border-border/50 rounded-md px-2 py-0.5 text-xs">
                                   {slot && <span className="text-muted-foreground/60 font-medium">{slot}:</span>}
                                   {icon && <img src={icon} alt="" className="w-4 h-4 object-contain shrink-0" />}
                                   <span className="font-medium">{eq.name}</span>
                                   <span className="text-muted-foreground">Lv{eq.level}</span>
+                                  {rule?.blocked && <span className="text-orange-600 dark:text-orange-400 font-semibold">Can't</span>}
+                                  {rule?.appliesPenalty && <span className="text-amber-600 dark:text-amber-400 font-semibold">Weak</span>}
                                 </span>
                               );
                             })}
@@ -876,3 +976,4 @@ export default function LoadoutPage() {
     </div>
   );
 }
+

@@ -1,0 +1,10 @@
+{
+  "mainSheet": {
+    "sheetId": "1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk",
+    "notes": "Primary raw game-data sheet used by the website."
+  },
+  "referenceSheet": {
+    "sheetId": "1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A",
+    "notes": "Secondary reference sheet used to help interpret the main sheet."
+  }
+}

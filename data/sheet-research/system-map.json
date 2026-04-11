@@ -1,0 +1,90 @@
+{
+  "uiRules": {
+    "simpleSelectMaxOptions": 8,
+    "defaultPublicMode": "read-only",
+    "interactiveToolsRemainLocal": true
+  },
+  "systems": {
+    "equipment": {
+      "rawSource": "google-sheet",
+      "translationStatus": "in-progress",
+      "publicMode": "mixed-moving-to-read-only",
+      "contributionMode": "structured-or-admin",
+      "notes": [
+        "Base equipment data comes from the sheet.",
+        "Translated slot and weapon typing should eventually replace public manual editing where confirmed.",
+        "Internal or junk entries should be filtered from the player-facing database."
+      ]
+    },
+    "jobs": {
+      "rawSource": "google-sheet",
+      "translationStatus": "in-progress",
+      "publicMode": "read-only-target",
+      "contributionMode": "structured-or-admin",
+      "notes": [
+        "Job base and growth data should be treated as shared truth.",
+        "Job pages should present researched rules in player-friendly language."
+      ]
+    },
+    "skills": {
+      "rawSource": "google-sheet",
+      "translationStatus": "in-progress",
+      "publicMode": "read-only-target",
+      "contributionMode": "structured-or-admin",
+      "notes": [
+        "Combat and non-combat skill grouping still needs final translation.",
+        "Craftability and hidden or unreachable skills should be filtered by translation rules."
+      ]
+    },
+    "monsters": {
+      "rawSource": "google-sheet",
+      "translationStatus": "in-progress",
+      "publicMode": "mixed",
+      "contributionMode": "structured-or-admin",
+      "notes": [
+        "Monster database truth should move toward translated sheet-backed data.",
+        "Weekly conquest remains research-first until the rotation is decoded."
+      ]
+    },
+    "weeklyConquest": {
+      "rawSource": "google-sheet",
+      "translationStatus": "automatic-current-week",
+      "publicMode": "automatic",
+      "contributionMode": "research-for-browse-controls",
+      "notes": [
+        "Current weekly conquest is now derived automatically from Campaign and Campaign_lookup.",
+        "Previous and upcoming week browsing still needs a cleaner rotation model before being exposed."
+      ]
+    },
+    "pairs": {
+      "rawSource": "google-sheet",
+      "translationStatus": "usable-with-special-cases",
+      "publicMode": "read-only",
+      "contributionMode": "admin-or-import",
+      "notes": [
+        "Compatible pairs are now treated as loaded shared truth.",
+        "Special-case child rules like Monarch -> Royal only belong in translation logic."
+      ]
+    },
+    "shops": {
+      "rawSource": "google-sheet-plus-community",
+      "translationStatus": "in-progress",
+      "publicMode": "database-target",
+      "contributionMode": "structured-submission",
+      "notes": [
+        "Ownership patterns are already understandable.",
+        "Furniture prices and unresolved shop outputs still need collection and translation."
+      ]
+    },
+    "loadout": {
+      "rawSource": "browser-local",
+      "translationStatus": "uses-shared-rules",
+      "publicMode": "interactive-local",
+      "contributionMode": "not-applicable",
+      "notes": [
+        "Loadouts are personal planning state and should stay browser-local.",
+        "Confirmed game rules must still be applied consistently in calculations."
+      ]
+    }
+  }
+}

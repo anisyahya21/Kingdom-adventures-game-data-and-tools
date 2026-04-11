@@ -1,0 +1,38 @@
+{
+  "sources": {
+    "mainSheetItemData": {
+      "sheetId": "1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk",
+      "gid": "1863106351",
+      "notes": [
+        "Contains raw item fields including prices/eggBonusType, prices/eggBonusValue, prices/eggBonusExp, and prices/eggBonusTime.",
+        "Also contains craftTermStudioLevel and craftTermIntelligence, which are useful later for item shop and furniture/facility work."
+      ]
+    },
+    "referenceSheetPets": {
+      "sheetId": "1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A",
+      "gid": "1439838004",
+      "notes": [
+        "Left side contains egg color, monster name, required stat, threshold bands, starting skill, and 2nd skill item.",
+        "Right side contains feed item name, copper cost, Attack/Defense/Balanced/Special gains, EXP, and hatch-time remarks."
+      ]
+    },
+    "referenceFormulas": {
+      "sheetId": "1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk",
+      "gid": "405071095",
+      "notes": [
+        "Contains the egg rank and hatch probability helper notes.",
+        "References monster category values like Atk, Def, Balance, and Special."
+      ]
+    }
+  },
+  "decodedRules": {
+    "eggStats": ["Attack", "Defense", "Balanced", "Special"],
+    "thresholdBands": ["Low", "Medium", "High", "Over"],
+    "currentPlannerMeaning": "The site currently treats the highest reached threshold column as the current band for a target monster.",
+    "futureWork": [
+      "Decode egg level feed-cap rules cleanly enough to enforce them in the simulator.",
+      "Confirm whether the threshold columns map directly to probability bands or need another min/max formula layer.",
+      "Link target monsters to minimum egg level when that data is confirmed."
+    ]
+  }
+}

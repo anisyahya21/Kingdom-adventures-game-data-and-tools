@@ -1,0 +1,286 @@
+{
+  "status": "working",
+  "goal": "Understand when jobs can equip items fully, equip with penalty, or cannot equip them.",
+  "ruleStates": [
+    "can",
+    "weak",
+    "cannot"
+  ],
+  "notes": [
+    "The website already models job equipment permissions using can/weak/cannot.",
+    "We found a likely raw source tab in the main sheet: gid 52017777.",
+    "That tab has rows named after jobs (for example Merchant, Farmer, Blacksmith, Cook) and a wide equipAffinity[] array.",
+    "The raw equipAffinity[] values appear to use a 3-state code: 1 = can, 0 = weak, -1 = cannot.",
+    "The website's current can/weak/cannot values line up strongly with those raw 1/0/-1 patterns.",
+    "The same row also includes a skill access summary: examples include 'Can equip Attack skill' and 'Can equip Recovery magic skill'.",
+    "We have not found a separate numeric percentage field for the weak penalty in this tab.",
+    "In-game spot checks now strongly support a simple behavior rule: weak jobs receive floor(displayed item stat / 2).",
+    "This half-and-round-down behavior matched level 1, mid-level, and level 99 tests across swords, staffs, books, knives, and shields.",
+    "We compared the raw equipAffinity[] columns against the website's saved job weapon labels across many jobs and found a strong column map."
+  ],
+  "rawColumnMapping": {
+    "source": {
+      "sheetId": "1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk",
+      "gid": "52017777",
+      "field": "equipAffinity[]"
+    },
+    "confirmedMatches": {
+      "col4": "Sword",
+      "col5": "Staff",
+      "col6": "Axe",
+      "col7": "Spear",
+      "col8": "Hammer",
+      "col9": "Club",
+      "col10": "Gun",
+      "col11": "Bow",
+      "col12": "Book",
+      "col14": "Shield"
+    },
+    "unresolvedColumns": {
+      "col3": "Unknown extra equip class; likely a non-weapon slot because almost every sampled job can use it.",
+      "col13": "Unknown extra equip class; likely a non-weapon slot because it is not any of the currently tracked weapon categories."
+    },
+    "matchingEvidence": {
+      "col4_vs_Sword": "28 same / 0 diff",
+      "col5_vs_Staff": "28 same / 0 diff",
+      "col6_vs_Axe": "28 same / 0 diff",
+      "col7_vs_Spear": "28 same / 0 diff",
+      "col8_vs_Hammer": "28 same / 0 diff",
+      "col9_vs_Club": "28 same / 0 diff",
+      "col10_vs_Gun": "26 same / 2 diff",
+      "col11_vs_Bow": "28 same / 0 diff",
+      "col12_vs_Book": "26 same / 0 diff among jobs with book data",
+      "col14_vs_Shield": "28 same / 0 diff"
+    }
+  },
+  "verifiedExamples": [
+    {
+      "job": "Merchant",
+      "rawSource": {
+        "gid": "52017777",
+        "rawValuesExcerpt": {
+          "3": 1,
+          "4": 0,
+          "5": 0,
+          "6": -1,
+          "7": -1,
+          "8": -1,
+          "9": 1,
+          "10": -1,
+          "11": -1,
+          "12": 0,
+          "13": -1,
+          "14": 0
+        }
+      },
+      "website": {
+        "Axe": "cannot",
+        "Book": "weak",
+        "Bow": "cannot",
+        "Club": "can",
+        "Gun": "cannot",
+        "Hammer": "cannot",
+        "Shield": "weak",
+        "Spear": "cannot",
+        "Staff": "weak",
+        "Sword": "weak"
+      },
+      "confidence": "high"
+    },
+    {
+      "job": "Farmer",
+      "rawSource": {
+        "gid": "52017777",
+        "rawValuesExcerpt": {
+          "3": 1,
+          "4": 0,
+          "5": -1,
+          "6": 1,
+          "7": 0,
+          "8": 1,
+          "9": 1,
+          "10": -1,
+          "11": -1,
+          "12": -1,
+          "13": -1,
+          "14": 0
+        }
+      },
+      "website": {
+        "Axe": "can",
+        "Book": "cannot",
+        "Bow": "cannot",
+        "Club": "can",
+        "Gun": "cannot",
+        "Hammer": "can",
+        "Shield": "weak",
+        "Spear": "weak",
+        "Staff": "cannot",
+        "Sword": "weak"
+      },
+      "confidence": "high"
+    },
+    {
+      "job": "Merchant",
+      "item": "C/ Courage Sword",
+      "itemLevel": 1,
+      "fullStats": {
+        "HP": 4,
+        "Attack": 21,
+        "Speed": 13
+      },
+      "weakStats": {
+        "HP": 2,
+        "Attack": 10,
+        "Speed": 6
+      },
+      "ruleFit": "weak = floor(full / 2)",
+      "confidence": "high"
+    },
+    {
+      "job": "Merchant",
+      "item": "E/ Infantry Sword",
+      "itemLevels": [
+        { "level": 5, "weakStats": { "Attack": 8, "Speed": 6, "Luck": 4 } },
+        { "level": 6, "fullStats": { "Attack": 19, "Speed": 14, "Luck": 11 }, "weakStats": { "Attack": 9, "Speed": 7, "Luck": 5 } },
+        { "level": 7, "fullStats": { "Attack": 21, "Speed": 16, "Luck": 13 }, "weakStats": { "Attack": 10, "Speed": 8, "Luck": 6 } },
+        { "level": 8, "weakStats": { "Attack": 11, "Speed": 9, "Luck": 7 } },
+        { "level": 10, "weakStats": { "Attack": 13, "Speed": 11, "Luck": 9 } },
+        { "level": 16, "weakStats": { "Attack": 19, "Speed": 17, "Luck": 15 } },
+        { "level": 20, "weakStats": { "Attack": 23, "Speed": 21, "Luck": 19 } }
+      ],
+      "ruleFit": "weak = floor(full / 2)",
+      "confidence": "very high"
+    },
+    {
+      "job": "Merchant",
+      "item": "D/ Steel Sword",
+      "itemLevel": 1,
+      "fullStatsFromData": {
+        "Attack": 15,
+        "Defence": 3,
+        "Speed": 9
+      },
+      "weakStats": {
+        "Attack": 7,
+        "Defence": 1,
+        "Speed": 4
+      },
+      "ruleFit": "weak = floor(full / 2)",
+      "confidence": "high"
+    },
+    {
+      "job": "Merchant",
+      "item": "A/ Honor Sword",
+      "itemLevel": 1,
+      "fullStatsFromData": {
+        "Attack": 45,
+        "Defence": 10,
+        "Speed": 31
+      },
+      "weakStats": {
+        "Attack": 22,
+        "Defence": 5,
+        "Speed": 15
+      },
+      "ruleFit": "weak = floor(full / 2)",
+      "confidence": "high"
+    },
+    {
+      "job": "Merchant",
+      "item": "C/ Ancient Staff",
+      "itemLevel": 10,
+      "fullStatsFromData": {
+        "MP": 51,
+        "Attack": 30,
+        "Luck": 33,
+        "Intelligence": 57
+      },
+      "weakStatsObserved": {
+        "MP": 25,
+        "Attack": 15,
+        "Intelligence": 28
+      },
+      "ruleFit": "Observed stats match floor(full / 2) on the reported fields",
+      "confidence": "high"
+    },
+    {
+      "job": "Merchant",
+      "item": "F/ Novel",
+      "itemLevel": 99,
+      "fullStatsFromData": {
+        "MP": 308,
+        "Vigor": 304,
+        "Attack": 297,
+        "Luck": 297
+      },
+      "weakStatsObserved": {
+        "MP": 154,
+        "Attack": 148,
+        "Luck": 148
+      },
+      "ruleFit": "Observed stats match floor(full / 2) on the reported fields",
+      "confidence": "high"
+    },
+    {
+      "job": "Merchant",
+      "item": "F/ Tiny Knife",
+      "itemLevel": 5,
+      "fullStatsFromData": {
+        "HP": 9,
+        "Attack": 18,
+        "Speed": 13
+      },
+      "weakStats": {
+        "HP": 4,
+        "Attack": 9,
+        "Speed": 6
+      },
+      "ruleFit": "weak = floor(full / 2)",
+      "confidence": "high"
+    },
+    {
+      "job": "Merchant",
+      "item": "C/ Magic Staff",
+      "itemLevel": 99,
+      "fullStatsFromData": {
+        "HP": 199,
+        "Attack": 199,
+        "MP": 210,
+        "Intelligence": 214
+      },
+      "weakStats": {
+        "HP": 99,
+        "Attack": 99,
+        "MP": 105,
+        "Intelligence": 107
+      },
+      "ruleFit": "weak = floor(full / 2)",
+      "confidence": "high"
+    },
+    {
+      "job": "Merchant",
+      "item": "C/ Silver Scalpel",
+      "itemLevel": 99,
+      "fullStatsFromData": {
+        "Attack": 325,
+        "Speed": 315,
+        "Luck": 301
+      },
+      "weakStats": {
+        "Attack": 162,
+        "Speed": 157,
+        "Luck": 150
+      },
+      "ruleFit": "weak = floor(full / 2)",
+      "confidence": "high"
+    }
+  ],
+  "openQuestions": [
+    "What exactly are col3 and col13 in equipAffinity[]?",
+    "Do col3 and col13 correspond to head, armor, or accessory classes?",
+    "Is 0 always the weak state and 1 always full proficiency across every job row?",
+    "Is there any exception to the floor(full / 2) weak rule, or was the Blizzard Sword result affected by another modifier or read error?",
+    "Can we fully label every equipAffinity[] column with weapon and armor classes?"
+  ]
+}

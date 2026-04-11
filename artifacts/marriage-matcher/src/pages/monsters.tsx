@@ -1,15 +1,16 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
-  ArrowLeft, Plus, ChevronDown, ChevronRight, Trash2, Moon, Sun,
-  MapPin, Trophy, Skull, RefreshCw, Loader2, X, Check, Pencil, Diamond, Info, RotateCcw,
+  ArrowLeft, ChevronDown, ChevronRight, Moon, Sun,
+  MapPin, Trophy, Skull, RefreshCw, Loader2, X, Check, Pencil, Diamond, Info, RotateCcw, ChevronLeft, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { SearchableSelect } from "@/components/searchable-select";
+import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API = (p: string) => `${BASE}/ka-api/ka${p}`;
@@ -18,8 +19,30 @@ const API = (p: string) => `${BASE}/ka-api/ka${p}`;
 type MonsterSpawn = { area: string; level: number };
 type Monster = { icon?: string; spawns: MonsterSpawn[] };
 type WeeklyReward = { jobName: string; jobRank: string; diamonds: number; equipment: string };
-type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; updatedBy: string; updatedAt: number } | null;
+type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; updatedBy?: string; updatedAt?: number } | null;
 type Job = { generation: 1 | 2; type?: "combat" | "non-combat"; icon?: string; ranks: Record<string, { stats: Record<string, { base: number; inc: number }> }>; equipment: Partial<Record<string, boolean>>; skills: string[] };
+
+const MONSTER_SPAWN_FALLBACKS: Record<string, MonsterSpawn[]> = {
+  Alpacavalier: [
+    { area: "Grass", level: 5 },
+    { area: "Grass", level: 7 },
+    { area: "Grass", level: 15 },
+    { area: "Desert", level: 8 },
+    { area: "Desert", level: 10 },
+    { area: "Desert", level: 13 },
+    { area: "Desert", level: 37 },
+    { area: "Desert", level: 41 },
+    { area: "Desert", level: 76 },
+    { area: "Desert", level: 92 },
+    { area: "Rock", level: 12 },
+    { area: "Rock", level: 14 },
+    { area: "Rock", level: 16 },
+    { area: "Snow", level: 135 },
+    { area: "Swamp", level: 85 },
+    { area: "Swamp", level: 225 },
+    { area: "Lava", level: 525 },
+  ],
+};
 
 function useDarkMode() {
   const [dark, setDark] = useState(() =>
@@ -37,10 +60,7 @@ function useDarkMode() {
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
-    queryFn: async () => {
-      const r = await fetch(API("/shared"));
-      return r.json() as Promise<{ monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest; jobs: Record<string, Job>; overrides?: Record<string, unknown> }>;
-    },
+    queryFn: () => fetchSharedWithFallback<{ monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest; jobs: Record<string, Job>; overrides?: Record<string, unknown> }>(API("/shared")),
     staleTime: 15000,
     refetchInterval: 30000,
   });
@@ -121,14 +141,6 @@ async function saveMonsters(monsters: Record<string, Monster>, userName: string,
   });
 }
 
-async function saveWeeklyConquest(conquest: WeeklyConquest, userName: string) {
-  await fetch(API("/weekly-conquest"), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: conquest, history: { userName, changeType: "weekly-conquest", itemName: "weeklyConquest", description: "Updated weekly conquest" } }),
-  });
-}
-
 function IconUploadSmall({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
   const ref = useState<HTMLInputElement | null>(null);
   const inputRef = { current: ref[0] };
@@ -181,13 +193,18 @@ export default function MonstersPage() {
   const qc = useQueryClient();
   const { data, isLoading, refetch } = useSharedData();
 
-  const monsters: Record<string, Monster> = data?.monsters ?? {};
-  const weeklyConquest: WeeklyConquest = data?.weeklyConquest ?? null;
-  const jobs: Record<string, Job> = data?.jobs ?? {};
-  const jobNames = Object.keys(jobs).sort();
-  const gen1NonCombatJobNames = Object.entries(jobs)
-    .filter(([, j]) => j.generation === 1 && j.type === "non-combat")
-    .map(([n]) => n).sort();
+  const monsters: Record<string, Monster> = useMemo(() => {
+    const source = data?.monsters ?? {};
+    const merged: Record<string, Monster> = { ...source };
+    for (const [name, spawns] of Object.entries(MONSTER_SPAWN_FALLBACKS)) {
+      const existing = merged[name];
+      if (!existing || existing.spawns.length === 0) {
+        merged[name] = { icon: existing?.icon, spawns };
+      }
+    }
+    return merged;
+  }, [data?.monsters]);
+  const fallbackWeeklyConquest: WeeklyConquest = data?.weeklyConquest ?? null;
   const withName = useCallback((fn: () => void) => {
     if (!userName) { setPendingAction(() => fn); setPromptName(true); }
     else fn();
@@ -203,35 +220,12 @@ export default function MonstersPage() {
     qc.invalidateQueries({ queryKey: ["ka-shared"] });
   }, [userName, qc]);
 
-  const mutateConquest = useCallback(async (next: WeeklyConquest) => {
-    await saveWeeklyConquest(next, userName);
-    qc.invalidateQueries({ queryKey: ["ka-shared"] });
-  }, [userName, qc]);
-
   const spawnLevels = useSpawnLevels();
   const [showLevelEditor, setShowLevelEditor] = useState(false);
   const [newLevelInput, setNewLevelInput] = useState("");
 
   const [expandedMonster, setExpandedMonster] = useState<string | null>(null);
-  const [addingMonster, setAddingMonster] = useState(false);
-  const [newMonsterName, setNewMonsterName] = useState("");
   const [editingSpawn, setEditingSpawn] = useState<{ name: string; idx: number } | null>(null);
-
-  const addMonster = () => {
-    const trimmed = newMonsterName.trim();
-    if (!trimmed || monsters[trimmed]) return;
-    withName(() => {
-      mutateMonsters({ ...monsters, [trimmed]: { spawns: [] } }, `Added monster: ${trimmed}`);
-      setNewMonsterName(""); setAddingMonster(false); setExpandedMonster(trimmed);
-    });
-  };
-
-  const removeMonster = (name: string) => {
-    withName(() => {
-      const next = { ...monsters }; delete next[name];
-      mutateMonsters(next, `Removed monster: ${name}`);
-    });
-  };
 
   const updateIcon = (name: string, icon: string) => {
     withName(() => mutateMonsters({ ...monsters, [name]: { ...monsters[name], icon } }, `Updated icon for ${name}`));
@@ -260,37 +254,47 @@ export default function MonstersPage() {
     });
   };
 
-  const [editingConquest, setEditingConquest] = useState(false);
-  const [conquestDraft, setConquestDraft] = useState<{
-    monsters: string[]; reward: WeeklyReward;
-  }>({ monsters: [], reward: { jobName: "", jobRank: "S", diamonds: 0, equipment: "" } });
+  const [conquestOffset, setConquestOffset] = useState(0);
+  const { data: conquestTimeline } = useQuery({
+    queryKey: ["weekly-conquest-automatic"],
+    queryFn: () => fetchAutomaticWeeklyConquestTimeline(),
+    staleTime: 15 * 60 * 1000,
+    refetchInterval: 15 * 60 * 1000,
+  });
 
-  const openConquestEditor = () => {
-    setConquestDraft({
-      monsters: weeklyConquest?.monsters ?? [],
-      reward: { ...(weeklyConquest?.reward ?? { jobName: "", diamonds: 0, equipment: "" }), jobRank: "S" },
-    });
-    setEditingConquest(true);
-  };
+  const browsedConquest = conquestTimeline?.entries.find(
+    (entry) => entry.id === (conquestTimeline.currentId + conquestOffset),
+  ) ?? null;
 
-  const saveConquest = () => {
-    withName(() => {
-      mutateConquest({ ...conquestDraft, updatedBy: userName, updatedAt: Date.now() });
-      setEditingConquest(false);
-    });
-  };
-
-  const toggleConquestMonster = (name: string) => {
-    setConquestDraft((d) => {
-      const has = d.monsters.includes(name);
-      if (has) return { ...d, monsters: d.monsters.filter((m) => m !== name) };
-      if (d.monsters.length >= 6) return d;
-      return { ...d, monsters: [...d.monsters, name] };
-    });
-  };
+  const weeklyConquest: WeeklyConquest = browsedConquest
+    ? {
+      monsters: browsedConquest.monsters,
+      reward: browsedConquest.reward,
+    }
+    : fallbackWeeklyConquest;
 
   const monsterNames = Object.keys(monsters).sort();
-  const allEquip = Object.keys(data?.overrides ?? {}).sort();
+  const conquestMeta = browsedConquest
+    ? {
+      title: browsedConquest.name,
+      subtitle: "Automatic from Campaign + Campaign_lookup",
+      range: `${new Date(browsedConquest.startedAt).toLocaleString()} - ${new Date(browsedConquest.endsAt).toLocaleString()}`,
+      isCurrent: conquestOffset === 0,
+    }
+    : fallbackWeeklyConquest?.updatedBy
+      ? {
+        title: "Manual fallback",
+        subtitle: `Last updated by ${fallbackWeeklyConquest.updatedBy}`,
+        range: fallbackWeeklyConquest.updatedAt ? new Date(fallbackWeeklyConquest.updatedAt).toLocaleString() : "",
+        isCurrent: true,
+      }
+      : null;
+  const canGoPrevious = Boolean(conquestTimeline?.entries.find((entry) => entry.id === conquestTimeline.currentId + conquestOffset - 1));
+  const canGoNext = Boolean(conquestTimeline?.entries.find((entry) => entry.id === conquestTimeline.currentId + conquestOffset + 1));
+
+  useEffect(() => {
+    setConquestOffset(0);
+  }, [conquestTimeline?.currentId]);
 
   return (
     <div className="min-h-screen bg-background transition-colors">
@@ -390,20 +394,61 @@ export default function MonstersPage() {
         {/* Weekly Conquest */}
         <Card className="shadow-sm mb-6 border-violet-200 dark:border-violet-900/50">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-amber-500" />Weekly Conquest
-              </CardTitle>
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={openConquestEditor}>
-                <Pencil className="w-3 h-3" />Edit this week
-              </Button>
-            </div>
-            {weeklyConquest?.updatedBy && (
-              <p className="text-[11px] text-muted-foreground">Last updated by <strong>{weeklyConquest.updatedBy}</strong></p>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-amber-500" />Weekly Conquest
+            </CardTitle>
+            {conquestMeta && (
+              <div className="space-y-0.5">
+                <p className="text-[11px] text-muted-foreground">{conquestMeta.subtitle}</p>
+                {conquestMeta.range && <p className="text-[11px] text-muted-foreground/70">{conquestMeta.range}</p>}
+              </div>
             )}
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
+              {conquestMeta?.title && (
+                <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        {conquestMeta.isCurrent ? "Current Event" : conquestOffset < 0 ? "Past Event" : "Upcoming Event"}
+                      </p>
+                      <p className="text-sm font-semibold">{conquestMeta.title}</p>
+                    </div>
+                    {conquestTimeline?.entries?.length ? (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-7 w-7"
+                          disabled={!canGoPrevious}
+                          onClick={() => setConquestOffset((value) => value - 1)}
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          disabled={conquestOffset === 0}
+                          onClick={() => setConquestOffset(0)}
+                        >
+                          Back to This Week
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-7 w-7"
+                          disabled={!canGoNext}
+                          onClick={() => setConquestOffset((value) => value + 1)}
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {Array.from({ length: 5 }).map((_, i) => {
                   const mName = weeklyConquest?.monsters[i];
@@ -439,7 +484,7 @@ export default function MonstersPage() {
 
               {weeklyConquest?.reward && (weeklyConquest.reward.jobName || weeklyConquest.reward.diamonds > 0 || weeklyConquest.reward.equipment) ? (
                 <div className="mt-3 pt-3 border-t border-border">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">This Week's Reward</p>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Event Reward</p>
                   <div className="flex flex-wrap gap-2">
                     {weeklyConquest.reward.jobName && (
                       <span className="inline-flex items-center gap-1.5 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-full px-3 py-1 text-xs font-medium">
@@ -460,7 +505,7 @@ export default function MonstersPage() {
                 </div>
               ) : (
                 <div className="mt-3 pt-3 border-t border-border">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">This Week's Reward</p>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Event Reward</p>
                   <div className="flex flex-wrap gap-2">
                     <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-xs text-muted-foreground/50">
                       <Trophy className="w-3 h-3" />Job reward — not set
@@ -481,28 +526,13 @@ export default function MonstersPage() {
         {/* Monster Database */}
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Monster Database</h2>
-          <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setAddingMonster(true)}>
-            <Plus className="w-3 h-3" />Add Monster
-          </Button>
+
         </div>
-
-        {addingMonster && (
-          <div className="flex gap-2 mb-3">
-            <Input autoFocus value={newMonsterName} onChange={(e) => setNewMonsterName(e.target.value)}
-              placeholder="Monster name…" className="h-8 text-sm"
-              onKeyDown={(e) => { if (e.key === "Enter") addMonster(); if (e.key === "Escape") { setAddingMonster(false); setNewMonsterName(""); } }} />
-            <Button size="sm" className="h-8 gap-1" onClick={addMonster}><Check className="w-3.5 h-3.5" />Add</Button>
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => { setAddingMonster(false); setNewMonsterName(""); }}>
-              <X className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        )}
-
         {isLoading ? (
           <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : monsterNames.length === 0 ? (
           <div className="text-center py-16 text-sm text-muted-foreground">
-            No monsters yet. Click Add Monster to get started.
+            No monsters are available from the shared database yet.
           </div>
         ) : (
           <Card className="shadow-sm overflow-hidden">
@@ -585,82 +615,6 @@ export default function MonstersPage() {
         </p>
       </div>
 
-      {/* Weekly Conquest Editor Dialog */}
-      <Dialog open={editingConquest} onOpenChange={setEditingConquest}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-500" />Edit Weekly Conquest</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-medium mb-2">Select 5 monsters ({conquestDraft.monsters.length}/5)</p>
-              <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto pr-1">
-                {monsterNames.map((mName) => {
-                  const selected = conquestDraft.monsters.includes(mName);
-                  const disabled = !selected && conquestDraft.monsters.length >= 5;
-                  return (
-                    <button
-                      key={mName}
-                      disabled={disabled}
-                      onClick={() => toggleConquestMonster(mName)}
-                      className={`flex items-center gap-2 text-xs rounded-md px-2.5 py-1.5 border transition-colors text-left ${
-                        selected ? "bg-primary/10 border-primary text-primary font-medium" : disabled ? "opacity-30 cursor-not-allowed border-border" : "border-border hover:border-primary/40 hover:bg-muted/30"
-                      }`}
-                    >
-                      {selected ? <Check className="w-3 h-3 shrink-0" /> : <div className="w-3 h-3 shrink-0" />}
-                      {mName}
-                    </button>
-                  );
-                })}
-                {monsterNames.length === 0 && <p className="col-span-2 text-xs text-muted-foreground text-center py-4">Add monsters to the database first.</p>}
-              </div>
-            </div>
-
-            <div className="border-t border-border pt-4">
-              <p className="text-sm font-medium mb-3">This Week's Reward</p>
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="text-xs text-muted-foreground mb-1 block">Job reward (non-combat Gen1){gen1NonCombatJobNames.length === 0 ? " — add non-combat jobs first" : ""}</label>
-                    <SearchableSelect
-                      value={conquestDraft.reward.jobName}
-                      onChange={(v) => setConquestDraft((d) => ({ ...d, reward: { ...d.reward, jobName: v } }))}
-                      options={(gen1NonCombatJobNames.length > 0 ? gen1NonCombatJobNames : jobNames).map((j) => ({ value: j, label: j }))}
-                      placeholder="— no job reward —"
-                      triggerClassName="h-8 text-xs"
-                    />
-                  </div>
-                  <div className="w-16">
-                    <label className="text-xs text-muted-foreground mb-1 block">Rank</label>
-                    <div className="h-8 flex items-center px-2 rounded border border-input bg-muted text-xs font-semibold text-foreground">S</div>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Diamonds</label>
-                  <Input
-                    type="number" min={0} value={conquestDraft.reward.diamonds}
-                    onChange={(e) => setConquestDraft((d) => ({ ...d, reward: { ...d.reward, diamonds: parseInt(e.target.value) || 0 } }))}
-                    className="h-8 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Equipment piece{allEquip.length === 0 ? " — add equipment to the equipment database first" : ""}</label>
-                  <SearchableSelect
-                    value={conquestDraft.reward.equipment}
-                    onChange={(v) => setConquestDraft((d) => ({ ...d, reward: { ...d.reward, equipment: v } }))}
-                    options={allEquip.map((n) => ({ value: n, label: n }))}
-                    placeholder="— no equipment reward —"
-                    triggerClassName="h-8 text-xs"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button className="flex-1 h-8 text-sm" onClick={saveConquest}>Save Conquest</Button>
-              <Button variant="outline" className="h-8 text-sm" onClick={() => setEditingConquest(false)}>Cancel</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
