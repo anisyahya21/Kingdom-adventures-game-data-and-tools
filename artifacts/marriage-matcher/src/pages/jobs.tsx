@@ -82,6 +82,17 @@ const SKILL_ACCESS_LABELS: Record<SkillAccessKey, string> = {
 };
 
 const JOB_WEAPON_ACCESS_FALLBACKS: Record<string, Partial<Record<string, WeaponValue>>> = {
+  Researcher: {
+    Axe: "cannot",
+    Book: "can",
+    Bow: "cannot",
+    Club: "can",
+    Gun: "cannot",
+    Hammer: "cannot",
+    Spear: "cannot",
+    Staff: "weak",
+    Sword: "weak",
+  },
   Royal: {
     Axe: "can",
     Book: "can",
@@ -107,13 +118,18 @@ const JOB_WEAPON_ACCESS_FALLBACKS: Record<string, Partial<Record<string, WeaponV
 };
 
 const JOB_SHIELD_FALLBACKS: Record<string, WeaponValue> = {
+  Researcher: "weak",
   Royal: "can",
   "Santa Claus": "can",
 };
 
 const SHEET_SKILL_ACCESS_FALLBACKS: Record<string, SkillAccessMap> = {
+  Artist: { attack: "cannot", attackMagic: "cannot", recovery: "cannot" },
+  "Beast Tamer": { attack: "can", attackMagic: "can", recovery: "can" },
+  Carpenter: { attack: "cannot", attackMagic: "cannot", recovery: "cannot" },
   Cook: { recovery: "can" },
   Doctor: { recovery: "can" },
+  Entertainer: { attack: "cannot", attackMagic: "cannot", recovery: "cannot" },
   Farmer: { recovery: "can" },
   Monk: { recovery: "can" },
   Researcher: { recovery: "can" },
@@ -132,6 +148,7 @@ const SHEET_SKILL_ACCESS_FALLBACKS: Record<string, SkillAccessMap> = {
   Pirate: { attack: "can" },
   Samurai: { attack: "can" },
   Viking: { attack: "can" },
+  Trader: { attack: "cannot", attackMagic: "cannot", recovery: "cannot" },
   Berserker: { attack: "can", recovery: "can" },
   Ninja: { attack: "can", recovery: "can" },
   Champion: { attack: "can", attackMagic: "can", recovery: "can" },
@@ -446,7 +463,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav }: {
   return (
     <>
       <tr className="border-b border-border/50 hover:bg-muted/20 group transition-colors">
-        <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-2 py-1.5 min-w-[220px] max-w-[220px]">
+        <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 transition-colors px-2 py-1.5 min-w-[160px] max-w-[160px] sm:min-w-[220px] sm:max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <button
               onClick={onToggleFav}
@@ -794,7 +811,7 @@ function JobsTable({
         )
       ) : (
         <div className="border border-border rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto hidden md:block">
             <table className="w-full border-collapse" style={{ minWidth: `${220 + STAT_ORDER.length * 75}px` }}>
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
@@ -837,6 +854,65 @@ function JobsTable({
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="md:hidden divide-y divide-border bg-card/70">
+            {sortedEntries.length === 0 ? (
+              <div className="text-center py-12 text-sm text-muted-foreground">
+                {Object.keys(jobs).length === 0 ? "No jobs available yet." : "No jobs match your filter."}
+              </div>
+            ) : (
+              sortedEntries.map(([name, job]) => {
+                const rankKeys = Object.keys(job.ranks ?? {});
+                const previewRank = rankKeys[0] ?? "S";
+                const previewStats = job.ranks?.[previewRank]?.stats ?? {};
+                return (
+                  <div key={name} className="p-3">
+                    <div className="flex items-start gap-2">
+                      <button
+                        onClick={() => toggleFav(name)}
+                        title={favs.has(name) ? "Remove from favorites" : "Add to favorites"}
+                        className="shrink-0 pt-0.5 transition-colors"
+                      >
+                        <Star className={`w-4 h-4 ${favs.has(name) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/25 hover:text-yellow-400/60"}`} />
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <Link href={`/jobs/${encodeURIComponent(name)}`}>
+                          <p className="font-medium text-base text-foreground hover:text-primary transition-colors truncate cursor-pointer">
+                            {name}
+                          </p>
+                        </Link>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${job.generation === 1 ? "bg-sky-100 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400" : "bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400"}`}>
+                            {job.generation === 1 ? "NM" : "ME"}
+                          </span>
+                          {job.type && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${job.type === "combat" ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"}`}>
+                              {job.type === "combat" ? "Combat" : "Non-Combat"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {STAT_ORDER.map((stat) => {
+                        const value = previewStats[stat]?.base ?? null;
+                        return (
+                          <div key={stat} className="rounded-md border border-border bg-background/60 px-2 py-2">
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1">
+                              {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
+                              <span>{STAT_SHORT[stat] ?? stat}</span>
+                            </div>
+                            <div className={`text-sm font-semibold tabular-nums ${value === null || value === 0 ? "text-muted-foreground/25" : "text-foreground"}`}>
+                              {value === null || value === 0 ? "-" : value}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

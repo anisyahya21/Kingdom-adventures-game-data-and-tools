@@ -694,9 +694,9 @@ export default function EquipmentPage() {
   // Slot helpers
   const getItemSlot = useCallback((name: string) => {
     const assigned = slotAssignments[name];
-    if (assigned && assigned !== "—") return assigned;
+    if (assigned && assigned !== " ") return assigned;
     const item = items.find((entry) => entry.name === name);
-    return CHAR_SLOTS.includes(item?.sheetSlot as CharSlot) ? item!.sheetSlot : "—";
+    return CHAR_SLOTS.includes(item?.sheetSlot as CharSlot) ? item!.sheetSlot : " ";
   }, [slotAssignments, items]);
 
   const setItemSlot = useCallback((name: string, slot: string) => {
@@ -759,7 +759,7 @@ export default function EquipmentPage() {
     if (slotFilter !== "All") {
       list = list.filter((i) => {
         const a = getItemSlot(i.name);
-        return a !== "—" ? a === slotFilter : i.sheetSlot === slotFilter;
+        return a !== " " ? a === slotFilter : i.sheetSlot === slotFilter;
       });
     }
     if (rankFilter !== "All") {
@@ -958,7 +958,7 @@ export default function EquipmentPage() {
             )}
 
             {/* Equipment Table */}
-            <Card className="shadow-sm mb-6 overflow-hidden">
+            <Card className="shadow-sm mb-6 overflow-hidden hidden md:block">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm border-collapse">
                   <thead>
@@ -1050,7 +1050,7 @@ export default function EquipmentPage() {
                             </td>
                             <td className="px-2 py-1.5">
                               <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
-                                {itemSlot !== "—" ? itemSlot : item.sheetSlot || "—"}
+                                {itemSlot !== " " ? itemSlot : item.sheetSlot || " "}
                               </span>
                             </td>
                             <td className="px-2 py-1.5 whitespace-nowrap">
@@ -1076,20 +1076,37 @@ export default function EquipmentPage() {
                                 ? <span className="text-destructive text-xs font-medium">Not craftable</span>
                                 : <span className="text-xs"><strong>{item.crafterStudioLevel}</strong>{item.crafterIntelligence > 0 && <> / INT <strong>{item.crafterIntelligence}</strong></>}</span>}
                             </td>
-                            {STAT_ORDER.map((stat) => {
-                              const unset = isStatUnset(item, stat, overrides);
-                              if (unset) {
-                                return <td key={stat} className="px-1.5 py-1.5 text-center text-xs tabular-nums text-red-400 dark:text-red-500">â€”</td>;
-                              }
-                              const displayVal = sortByInc
-                                ? getEffectiveStat(item, stat, "inc", overrides)
-                                : getItemStatVal(item, stat);
-                              return (
-                                <td key={stat} className={`px-1.5 py-1.5 text-center text-xs tabular-nums ${displayVal === 0 ? "text-muted-foreground/50" : "font-medium text-foreground"}`}>
-                                  {sortByInc && displayVal > 0 ? `+${displayVal}` : displayVal}
-                                </td>
-                              );
-                            })}
+                          {STAT_ORDER.map((stat) => {
+  const unset = isStatUnset(item, stat, overrides);
+
+  if (unset) {
+    return (
+      <td
+        key={stat}
+        className="px-1.5 py-1.5 text-center text-xs tabular-nums text-red-400 dark:text-red-500"
+      >
+        â€”
+      </td>
+    );
+  }
+
+  const displayVal = sortByInc
+    ? getEffectiveStat(item, stat, "inc", overrides)
+    : getItemStatVal(item, stat);
+
+  return (
+    <td
+      key={stat}
+      className={`px-1.5 py-1.5 text-center text-xs tabular-nums ${
+        displayVal === 0
+          ? "text-muted-foreground/50"
+          : "font-medium text-foreground"
+      }`}
+    >
+      {sortByInc && displayVal > 0 ? `+${displayVal}` : displayVal}
+    </td>
+  );
+})}
                           </tr>
 
                           {isExpanded && (
@@ -1100,7 +1117,7 @@ export default function EquipmentPage() {
                                     Viewing <strong className="text-foreground">{item.name}</strong>
                                   </span>
                                   <span className="rounded-full border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground/80">
-                                    Slot: {itemSlot !== "—" ? itemSlot : item.sheetSlot || "—"}
+                                    Slot: {itemSlot !== " " ? itemSlot : item.sheetSlot || " "}
                                   </span>
                                   {itemSlot === "Weapon" && weaponTypes[item.name] && (
                                     <span className="rounded-full border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground/80">
@@ -1109,7 +1126,7 @@ export default function EquipmentPage() {
                                   )}
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2">
-                                  {STAT_ORDER.map((stat) => {
+                                  {STAT_ORDER.filter((stat) => { const base = getEffectiveStat(item, stat, "base", overrides); const inc = getEffectiveStat(item, stat, "inc", overrides); const current = statAtLevel(base, inc, level); return base !== 0 || inc !== 0 || current !== 0; }).map((stat) => {
                                     const base = getEffectiveStat(item, stat, "base", overrides);
                                     const inc = getEffectiveStat(item, stat, "inc", overrides);
                                     const current = statAtLevel(base, inc, level);
@@ -1154,6 +1171,99 @@ export default function EquipmentPage() {
                 )}
               </div>
             </Card>
+
+            <div className="md:hidden space-y-3 mb-6">
+              {filtered.length === 0 ? (
+                <Card className="shadow-sm">
+                  <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                    No equipment found.
+                  </CardContent>
+                </Card>
+              ) : (
+                filtered.map((item) => {
+                  const isExpanded = expandedItem === item.uid;
+                  const level = getItemLevel(item.name);
+                  const itemSlot = getItemSlot(item.name);
+                  return (
+                    <Card key={item.uid} className={`shadow-sm overflow-hidden ${isExpanded ? "border-primary/30" : ""}`}>
+                      <CardContent className="p-3">
+                        <div className="flex items-start gap-3">
+                          <div className="shrink-0">
+                            <IconUpload iconKey={`equip:${item.name}`} icons={equipIcons} onSave={(icons) => handleEquipIcons(icons, item.name)} size={30} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <button
+                              onClick={() => setExpandedItem(isExpanded ? null : item.uid)}
+                              className="flex items-center gap-1.5 font-medium text-left hover:text-primary transition-colors w-full"
+                              title={isExpanded ? "Click to collapse" : "Click to view base and growth"}
+                            >
+                              {isExpanded
+                                ? <ChevronDown className="w-4 h-4 text-primary shrink-0" />
+                                : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+                              <span className={`min-w-0 break-words ${isExpanded ? "text-primary underline underline-offset-2 decoration-primary/40" : ""}`}>{item.name}</span>
+                            </button>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
+                                {itemSlot !== "â€”" ? itemSlot : item.sheetSlot || "â€”"}
+                              </span>
+                              {itemSlot === "Weapon" && weaponTypes[item.name] && (
+                                <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
+                                  {weaponTypes[item.name]}
+                                </span>
+                              )}
+                              {item.crafterStudioLevel === 0 ? (
+                                <span className="inline-flex items-center rounded-full border border-red-300/50 bg-red-500/5 px-2 py-1 text-[11px] font-medium text-red-500">
+                                  Not craftable
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
+                                  Studio {item.crafterStudioLevel}{item.crafterIntelligence > 0 ? ` / INT ${item.crafterIntelligence}` : ""}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="shrink-0">
+                            <NumInput value={level} min={1} max={99} onChange={(v) => setItemLevel(item.name, v)} className="h-8 w-16 text-sm text-center px-1" />
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {STAT_ORDER.filter((stat) => { const base = getEffectiveStat(item, stat, "base", overrides); const inc = getEffectiveStat(item, stat, "inc", overrides); const current = statAtLevel(base, inc, level); return base !== 0 || inc !== 0 || current !== 0; }).map((stat) => {
+                              const base = getEffectiveStat(item, stat, "base", overrides);
+                              const inc = getEffectiveStat(item, stat, "inc", overrides);
+                              const current = statAtLevel(base, inc, level);
+                              return (
+                                <div key={stat} className="rounded-md border border-border bg-background/70 px-3 py-3">
+                                  <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+                                    {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
+                                    <span>{stat}</span>
+                                  </div>
+                                  <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                                    <div>
+                                      <div className="text-[10px] text-muted-foreground/70">Base</div>
+                                      <div className="text-base font-medium text-foreground">{base}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] text-muted-foreground/70">+/Lv</div>
+                                      <div className="text-base font-medium text-foreground">{inc}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] text-muted-foreground/70">Lv {level}</div>
+                                      <div className="text-base font-semibold text-primary">{current}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
 
             {/* Equipment Builder */}
             <Card className="shadow-sm mb-6">

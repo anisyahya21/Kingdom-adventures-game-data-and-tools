@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, ChevronDown, ChevronRight, Moon, Sun,
-  MapPin, Trophy, Skull, RefreshCw, Loader2, X, Check, Pencil, Diamond, Info, RotateCcw, ChevronLeft, Plus,
+  MapPin, Trophy, Skull, RefreshCw, Loader2, Check, Diamond, Info, RotateCcw, ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -298,8 +298,6 @@ export default function MonstersPage() {
 
   return (
     <div className="min-h-screen bg-background transition-colors">
-      {promptName && <NamePrompt onSave={onNameSaved} />}
-
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -543,7 +541,11 @@ export default function MonstersPage() {
                 return (
                   <div key={mName}>
                     <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
-                      <IconUploadSmall value={m.icon} onChange={(icon) => updateIcon(mName, icon)} />
+                      <div className="w-9 h-9 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
+                        {m.icon
+                          ? <img src={m.icon} alt="" className="w-full h-full object-contain" />
+                          : <Skull className="w-4 h-4 text-muted-foreground/40" />}
+                      </div>
                       <button
                         onClick={() => setExpandedMonster(isExpanded ? null : mName)}
                         className="flex items-center gap-2 flex-1 min-w-0 text-left"
@@ -564,41 +566,20 @@ export default function MonstersPage() {
                           <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                             <MapPin className="w-3 h-3" />Spawn Locations
                           </p>
-                          <Button size="sm" variant="ghost" className="h-6 text-xs gap-1 px-2" onClick={() => addSpawn(mName)}>
-                            <Plus className="w-3 h-3" />Add Spawn
-                          </Button>
                         </div>
                         {m.spawns.length === 0 ? (
-                          <p className="text-xs text-muted-foreground/60 py-1">No spawns recorded — add one above.</p>
+                          <p className="text-xs text-muted-foreground/60 py-1">No spawns recorded yet.</p>
                         ) : (
                           <div className="space-y-1.5">
-                            {m.spawns.map((sp, idx) => {
-                              const isEditingThis = editingSpawn?.name === mName && editingSpawn?.idx === idx;
-                              return (
-                                <div key={idx} className="flex items-center gap-2">
-                                  <MapPin className="w-3 h-3 text-muted-foreground/50 shrink-0" />
-                                  {isEditingThis ? (
-                                    <LevelCombobox
-                                      value={sp.level}
-                                      onChange={(lv) => updateSpawn(mName, idx, { ...sp, level: lv })}
-                                      onClose={() => setEditingSpawn(null)}
-                                      levels={spawnLevels.levels}
-                                    />
-                                  ) : (
-                                    <button
-                                      className="flex items-center gap-1.5 flex-1 text-left text-xs hover:text-primary transition-colors"
-                                      onClick={() => setEditingSpawn({ name: mName, idx })}
-                                    >
-                                      <span className="text-muted-foreground font-medium">Lv {sp.level}</span>
-                                      <Pencil className="w-2.5 h-2.5 text-muted-foreground/30 ml-0.5" />
-                                    </button>
-                                  )}
-                                  <button onClick={() => removeSpawn(mName, idx)} className="text-muted-foreground/40 hover:text-destructive transition-colors shrink-0">
-                                    <X className="w-3 h-3" />
-                                  </button>
+                            {m.spawns.map((sp, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <MapPin className="w-3 h-3 text-muted-foreground/50 shrink-0" />
+                                <div className="flex-1 text-xs text-muted-foreground">
+                                  <span className="font-medium">Lv {sp.level}</span>
+                                  {sp.area && <span className="text-muted-foreground/60"> • {sp.area}</span>}
                                 </div>
-                              );
-                            })}
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -611,7 +592,7 @@ export default function MonstersPage() {
         )}
 
         <p className="text-xs text-muted-foreground mt-4 text-center">
-          {monsterNames.length} monsters · changes are saved to everyone
+          {monsterNames.length} monsters
         </p>
       </div>
 

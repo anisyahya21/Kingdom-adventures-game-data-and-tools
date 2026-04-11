@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
-import { Plus, Heart, Sword, Trash2, Moon, Sun, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, GitFork, Egg, Store, Search } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, Moon, Sun, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, GitFork, Egg, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -170,21 +170,6 @@ interface CustomProject {
   url: string;
 }
 
-type HomeSearchEntry = {
-  label: string;
-  subtitle: string;
-  href: string;
-};
-
-const FURNITURE_SEARCH_ROWS = [
-  "Candle", "Kitchen Shelves", "Desk", "Red Carpet", "Decorative Plant", "Dining Table", "Study Desk",
-  "Rainwater Barrel", "Chest of Drawers", "Flower Vase", "Shelf", "Bookshelf", "Training Room",
-  "Rejuvenating Bath", "Flowers", "Tomato", "Dresser", "Couch", "Bathtub", "Stove", "Pansy",
-  "Shooting Range", "Fluffy Carpet", "Cooking Counter", "Decorative Armor", "Vanity Mirror", "Window",
-  "Magic Training Ground", "Glittering Stone", "Black Mat", "Fireplace", "Tree Nursery", "Ancestor Statue",
-  "Animal Figurine", "Tool Workshop", "Ore Workbench", "Double Bed",
-];
-
 const BUILT_IN_TOOLS = [
   {
     slug: "/match-finder",
@@ -266,8 +251,6 @@ export default function Home() {
 
   const [srcOpen, setSrcOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
-  const [globalSearch, setGlobalSearch] = useState("");
-
   useEffect(() => {
     const root = document.documentElement;
     if (darkMode) { root.classList.add("dark"); localStorage.setItem("theme", "dark"); }
@@ -283,60 +266,6 @@ export default function Home() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newUrl, setNewUrl] = useState("");
-
-  const searchEntries = useMemo<HomeSearchEntry[]>(() => {
-    const shared = localSharedData as {
-      jobs?: Record<string, unknown>;
-      monsters?: Record<string, unknown>;
-      skills?: Record<string, unknown>;
-      overrides?: Record<string, unknown>;
-      slotAssignments?: Record<string, string>;
-    };
-
-    const entries: HomeSearchEntry[] = [];
-
-    Object.keys(shared.jobs ?? {}).forEach((name) => {
-      entries.push({ label: name, subtitle: "Job Database", href: `/jobs/${encodeURIComponent(name)}` });
-    });
-    Object.keys(shared.monsters ?? {}).forEach((name) => {
-      entries.push({ label: name, subtitle: "Monster Database", href: "/monsters" });
-    });
-    Object.keys(shared.skills ?? {}).forEach((name) => {
-      entries.push({ label: name, subtitle: "Skills Database", href: "/skills" });
-    });
-    Object.keys(shared.overrides ?? {}).forEach((name) => {
-      const slot = shared.slotAssignments?.[name] ?? "";
-      const shopHref = slot === "Weapon"
-        ? `/shops/weapon-shop?search=${encodeURIComponent(name)}`
-        : slot === "Accessory"
-          ? `/shops/accessory-shop?search=${encodeURIComponent(name)}`
-          : slot === "Head" || slot === "Armor" || slot === "Shield"
-            ? `/shops/armor-shop?search=${encodeURIComponent(name)}`
-            : `/equipment`;
-      entries.push({ label: name, subtitle: "Equipment Database", href: shopHref });
-    });
-    FURNITURE_SEARCH_ROWS.forEach((name) => {
-      entries.push({ label: name, subtitle: "Furniture Shop", href: `/shops/furniture-shop?search=${encodeURIComponent(name)}` });
-    });
-    SHOP_RECORDS.forEach((shop) => {
-      entries.push({ label: shop.title, subtitle: "Shops", href: `/shops/${shop.slug}` });
-    });
-
-    const deduped = new Map<string, HomeSearchEntry>();
-    entries.forEach((entry) => {
-      const key = `${entry.label}::${entry.subtitle}`;
-      if (!deduped.has(key)) deduped.set(key, entry);
-    });
-    return Array.from(deduped.values());
-  }, []);
-
-  const filteredSearchEntries = useMemo(() => {
-    const q = globalSearch.trim().toLowerCase();
-    if (!q) return [];
-    return searchEntries
-      .filter((entry) => entry.label.toLowerCase().includes(q))
-      .slice(0, 8);
-  }, [globalSearch, searchEntries]);
 
   const saveProjects = (projects: CustomProject[]) => {
     setCustomProjects(projects);
@@ -363,36 +292,6 @@ export default function Home() {
             <p className="mt-2 text-muted-foreground">Tools &amp; resources for Kingdom Adventures players.</p>
           </div>
           <div className="flex items-start gap-2 shrink-0">
-            <div className="relative w-72 max-w-[45vw]">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={globalSearch}
-                onChange={(e) => setGlobalSearch(e.target.value)}
-                placeholder="Search"
-                className="pl-9 h-9"
-              />
-              {filteredSearchEntries.length > 0 && (
-                <Card className="absolute right-0 top-full mt-2 w-full shadow-md z-20">
-                  <CardContent className="py-2">
-                    <div className="divide-y divide-border/60">
-                      {filteredSearchEntries.map((entry) => (
-                        <button
-                          key={`${entry.label}-${entry.subtitle}`}
-                          onClick={() => {
-                            navigate(entry.href);
-                            setGlobalSearch("");
-                          }}
-                          className="w-full text-left px-2 py-2 hover:bg-muted/40 rounded-md transition-colors"
-                        >
-                          <div className="font-medium text-sm text-foreground">{entry.label}</div>
-                          <div className="text-xs text-muted-foreground">{entry.subtitle}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
             <Button variant="outline" size="icon" onClick={() => setDarkMode((d) => !d)} className="h-9 w-9">
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>

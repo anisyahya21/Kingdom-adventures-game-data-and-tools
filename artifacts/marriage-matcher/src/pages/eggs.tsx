@@ -38,6 +38,7 @@ const BAND_STYLE: Record<EggBand, string> = {
 };
 type FeedSortKey = EggStat | "EXP" | "Copper";
 type FeedState = Record<string, number>;
+type FeedInputState = Record<string, string>;
 
 function parseLevel(value: string): number {
   const parsed = Number.parseInt(value, 10);
@@ -163,6 +164,7 @@ export default function EggsPage() {
   const [showOnlyReachable, setShowOnlyReachable] = useState(true);
   const [targetFoodToAdd, setTargetFoodToAdd] = useState("");
   const [targetFeedState, setTargetFeedState] = useState<FeedState>({});
+  const [targetFeedInputs, setTargetFeedInputs] = useState<FeedInputState>({});
   const [feedSortBy, setFeedSortBy] = useState<FeedSortKey>("Attack");
   const [feedRowsToShow, setFeedRowsToShow] = useState("25");
 
@@ -249,6 +251,16 @@ export default function EggsPage() {
   }, [selectedMonsterData, targetBestPerItem]);
 
   const targetPlanEggLevel = targetTotals.itemCount > 0 ? Math.ceil(targetTotals.itemCount / 10) : null;
+  const targetTierHints = useMemo(() => {
+    if (!selectedMonsterData) return [];
+    const values = Array.from(new Set(targetAllowedFoods.map((item) => item.stats[selectedMonsterData.requiredStat]).filter((value) => value > 0)))
+      .sort((a, b) => b - a)
+      .slice(0, 3);
+    return values.map((value) => ({
+      perItem: value,
+      minLevel: minEggLevelForThreshold(selectedMonsterData.thresholds.High, value),
+    }));
+  }, [selectedMonsterData, targetAllowedFoods]);
 
   const existingPerItemOptions = useMemo(() => {
     const values = Array.from(new Set(
@@ -276,7 +288,7 @@ export default function EggsPage() {
     const monsters = (data?.monsters ?? []).filter((monster) => monster.eggColor === selectedEggColor);
     const rows = monsters.map((monster) => {
       const total = monster.requiredStat === existingPlanStat ? existingMaxTotal : 0;
-      const band = monster.requiredStat === existingPlanStat
+      const band: EggBand = monster.requiredStat === existingPlanStat
         ? (
           (monster.thresholds.High !== null && total >= monster.thresholds.High) ? "High"
             : (monster.thresholds.Medium !== null && total >= monster.thresholds.Medium) ? "Medium"
@@ -337,17 +349,28 @@ export default function EggsPage() {
     return sortedFeedItems.slice(0, Number.isFinite(limit) ? limit : 25);
   }, [feedRowsToShow, sortedFeedItems]);
 
-  const updateFeedQuantity = (
-    setter: Dispatch<SetStateAction<FeedState>>,
+  const updateFeedQuantityInput = (
+    inputSetter: Dispatch<SetStateAction<FeedInputState>>,
     name: string,
     nextValue: string
   ) => {
-    if (nextValue.trim() === "") {
-      setter((current) => ({ ...current, [name]: 0 }));
+    inputSetter((current) => ({ ...current, [name]: nextValue }));
+  };
+
+  const commitFeedQuantity = (
+    setter: Dispatch<SetStateAction<FeedState>>,
+    inputSetter: Dispatch<SetStateAction<FeedInputState>>,
+    name: string,
+    nextValue: string
+  ) => {
+    const trimmed = nextValue.trim();
+    if (trimmed === "") {
+      inputSetter((current) => ({ ...current, [name]: "" }));
       return;
     }
-    const parsed = Math.max(0, Number.parseInt(nextValue, 10) || 0);
+    const parsed = Math.max(0, Number.parseInt(trimmed, 10) || 0);
     setter((current) => ({ ...current, [name]: parsed }));
+    inputSetter((current) => ({ ...current, [name]: String(parsed) }));
   };
 
   const removeFeed = (
@@ -363,10 +386,14 @@ export default function EggsPage() {
 
   const addTargetFood = () => {
     if (!targetFoodToAdd) return;
-    setTargetFeedState((current) => ({
-      ...current,
-      [targetFoodToAdd]: (current[targetFoodToAdd] ?? 0) + 1,
-    }));
+    setTargetFeedState((current) => {
+      const next = (current[targetFoodToAdd] ?? 0) + 1;
+      setTargetFeedInputs((inputs) => ({ ...inputs, [targetFoodToAdd]: String(next) }));
+      return {
+        ...current,
+        [targetFoodToAdd]: next,
+      };
+    });
     setTargetFoodToAdd("");
   };
 
@@ -482,6 +509,15 @@ export default function EggsPage() {
                               ? `${selectedMonsterData.eggColor} egg level ${targetMinLevels.High}+ for High`
                               : `${selectedMonsterData.eggColor} egg color confirmed`}
                           </div>
+                          {targetTierHints.length > 0 && (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {targetTierHints.map((hint) => (
+                                <Badge key={hint.perItem} variant="secondary" className="text-[11px]">
+                                  +{hint.perItem} food: {hint.minLevel ? `Lv ${hint.minLevel}+` : "n/a"}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                           {targetPlanEggLevel ? (
                             <div className="text-sm text-muted-foreground">
                               Your current food plan uses <span className="text-foreground font-medium">{targetTotals.itemCount}</span> items,
@@ -535,11 +571,18 @@ export default function EggsPage() {
                                     <Input
                                       type="number"
                                       min={0}
-                                      value={quantity}
-                                      onChange={(e) => updateFeedQuantity(setTargetFeedState, item.name, e.target.value)}
+                                      value={targetFeedInputs[item.name] ?? String(quantity)}
+                                      onChange={(e) => updateFeedQuantityInput(setTargetFeedInputs, item.name, e.target.value)}
+                                      onBlur={(e) => commitFeedQuantity(setTargetFeedState, setTargetFeedInputs, item.name, e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          commitFeedQuantity(setTargetFeedState, setTargetFeedInputs, item.name, e.currentTarget.value);
+                                          e.currentTarget.blur();
+                                        }
+                                      }}
                                       className="w-20 h-8"
                                     />
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFeed(setTargetFeedState, item.name)}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { removeFeed(setTargetFeedState, item.name); setTargetFeedInputs((current) => { const next = { ...current }; delete next[item.name]; return next; }); }}>
                                       <Trash2 className="w-4 h-4" />
                                     </Button>
                                   </div>
@@ -644,7 +687,7 @@ export default function EggsPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-border/60 overflow-hidden">
+                    <div className="rounded-lg border border-border/60 overflow-hidden hidden md:block">
                       <div className="grid grid-cols-[1.4fr_0.7fr_0.7fr_0.9fr_0.9fr_0.9fr] gap-3 px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border/60 bg-muted/20">
                         <div>Pet</div>
                         <div>Req. Stat</div>
@@ -681,6 +724,47 @@ export default function EggsPage() {
                           ))
                         )}
                       </div>
+                    </div>
+                    <div className="md:hidden space-y-2">
+                      {existingEggResults.length === 0 ? (
+                        <div className="rounded-lg border border-border/60 px-3 py-6 text-sm text-muted-foreground">
+                          No pets match this view yet.
+                        </div>
+                      ) : (
+                        existingEggResults.map((row) => (
+                          <div key={row.monster.monsterName} className="rounded-lg border border-border/60 px-3 py-3 bg-card/60">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="font-medium text-foreground break-words">{row.monster.monsterName}</div>
+                                <div className="text-[11px] text-muted-foreground break-words">{row.monster.startingSkill || "-"}</div>
+                              </div>
+                              <BandPill band={row.band} />
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                              <div className="rounded-md border border-border/50 bg-muted/20 px-2 py-2">
+                                <div className="text-muted-foreground">Required stat</div>
+                                <div className="font-medium text-foreground">{row.monster.requiredStat}</div>
+                              </div>
+                              <div className="rounded-md border border-border/50 bg-muted/20 px-2 py-2">
+                                <div className="text-muted-foreground">0 to Cap</div>
+                                <div className="font-medium text-foreground">0 to {row.total}</div>
+                              </div>
+                              <div className="rounded-md border border-border/50 bg-muted/20 px-2 py-2">
+                                <div className="text-muted-foreground">Low / Med</div>
+                                <div className="font-medium text-foreground">
+                                  {row.itemsToLow && row.itemsToLow <= eggItemCap ? `${row.itemsToLow}` : "-"} / {row.itemsToMedium && row.itemsToMedium <= eggItemCap ? `${row.itemsToMedium}` : "-"}
+                                </div>
+                              </div>
+                              <div className="rounded-md border border-border/50 bg-muted/20 px-2 py-2">
+                                <div className="text-muted-foreground">High</div>
+                                <div className="font-medium text-foreground">
+                                  {row.itemsToHigh && row.itemsToHigh <= eggItemCap ? `${row.itemsToHigh}` : "-"}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
