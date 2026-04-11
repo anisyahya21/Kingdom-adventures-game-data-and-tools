@@ -457,6 +457,10 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false }:
     setRs((r) => ({ ...r, levels: newLevels, levelInputs: newLevelInputs }));
   };
 
+  const changeRank = (rank: string) => {
+    setRs((r) => ({ ...r, rank, draft: {}, dirty: false }));
+  };
+
   const mobileStats = STAT_ORDER.map((stat) => ({
     stat,
     value: val(stat),
