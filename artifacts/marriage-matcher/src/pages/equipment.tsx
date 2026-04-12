@@ -990,15 +990,48 @@ export default function EquipmentPage() {
                           <button onClick={() => handleSort("intReq")} className="flex items-center gap-1 hover:text-foreground">INT Req <SortIcon col="intReq" /></button>
                         </div>
                       </th>
-                      {STAT_ORDER.map((stat) => (
-                        <th key={stat} className="text-center px-1.5 py-2 font-medium text-muted-foreground">
-                          <button onClick={() => handleSort(stat)} className="flex flex-col items-center gap-0.5 hover:text-foreground w-full" title={`Sort by ${sortByInc ? "+/Lv increment" : "value at level"} for ${stat}`}>
-                            {statIcons[stat] ? <img src={statIcons[stat]} alt={stat} className="w-4 h-4 object-contain mx-auto" title={stat} /> : <span className="text-[10px] whitespace-nowrap">{stat}</span>}
-                            {sortByInc && <span className="text-[8px] text-primary/60 leading-none">+/Lv</span>}
-                            <SortIcon col={stat} />
-                          </button>
-                        </th>
-                      ))}
+                    {STAT_ORDER.map((stat) => (
+  <th key={stat} className="text-center px-1.5 py-2 font-medium text-muted-foreground">
+    <button
+      onClick={() => handleSort(stat)}
+      className="flex flex-col items-center gap-0.5 hover:text-foreground w-full min-w-[42px]"
+      title={`Sort by ${sortByInc ? "+/Lv increment" : "value at level"} for ${stat}`}
+    >
+      {statIcons[stat] ? (
+        <img
+          src={statIcons[stat]}
+          alt={stat}
+          className="w-4 h-4 object-contain mx-auto"
+          title={stat}
+        />
+      ) : (
+        <div className="h-4" />
+      )}
+
+      <span className="text-[9px] leading-none font-medium whitespace-nowrap">
+        {stat === "Vigor" ? "Vig" :
+         stat === "Attack" ? "Atk" :
+         stat === "Defence" ? "Def" :
+         stat === "Speed" ? "Spd" :
+         stat === "Luck" ? "Lck" :
+         stat === "Intelligence" ? "Int" :
+         stat === "Dexterity" ? "Dex" :
+         stat === "Gather" ? "Gth" :
+         stat === "Move" ? "Mov" :
+         stat === "Heart" ? "Hrt" :
+         stat}
+      </span>
+
+      {sortByInc ? (
+        <span className="text-[8px] text-primary/70 leading-none">+/Lv</span>
+      ) : (
+        <span className="text-[8px] leading-none opacity-0">+/Lv</span>
+      )}
+
+      <SortIcon col={stat} />
+    </button>
+  </th>
+))}
                     </tr>
                   </thead>
                   <tbody>

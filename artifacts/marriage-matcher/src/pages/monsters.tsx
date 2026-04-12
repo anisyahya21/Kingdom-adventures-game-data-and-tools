@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, ChevronDown, ChevronRight, Moon, Sun,
-  MapPin, Trophy, Skull, RefreshCw, Loader2, Check, Diamond, Info, RotateCcw, ChevronLeft,
+  MapPin, Trophy, Skull, RefreshCw, Loader2, Check, Diamond, Info, RotateCcw, ChevronLeft, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -255,6 +255,18 @@ export default function MonstersPage() {
   };
 
   const [conquestOffset, setConquestOffset] = useState(0);
+  const [deploymentQuery, setDeploymentQuery] = useState("");
+  const [deploymentOpen, setDeploymentOpen] = useState(false);
+  const [coveredConquestAreas, setCoveredConquestAreas] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("ka_conquest_covered_areas");
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const deploymentBoxRef = useRef<HTMLDivElement | null>(null);
   const { data: conquestTimeline } = useQuery({
     queryKey: ["weekly-conquest-automatic"],
     queryFn: () => fetchAutomaticWeeklyConquestTimeline(),
@@ -295,6 +307,92 @@ export default function MonstersPage() {
   useEffect(() => {
     setConquestOffset(0);
   }, [conquestTimeline?.currentId]);
+
+  useEffect(() => {
+    localStorage.setItem("ka_conquest_covered_areas", JSON.stringify(coveredConquestAreas));
+  }, [coveredConquestAreas]);
+
+  const conquestAreaKey = useCallback((spawn: MonsterSpawn) => `${spawn.area.trim().toLowerCase()}|${spawn.level}`, []);
+  const toggleConquestArea = useCallback((spawn: MonsterSpawn) => {
+    const key = conquestAreaKey(spawn);
+    setCoveredConquestAreas((current) =>
+      current.includes(key) ? current.filter((value) => value !== key) : [...current, key],
+    );
+  }, [conquestAreaKey]);
+  const isConquestAreaCovered = useCallback((spawn: MonsterSpawn) => {
+    return coveredConquestAreas.includes(conquestAreaKey(spawn));
+  }, [coveredConquestAreas, conquestAreaKey]);
+
+  const availableConquestDeployments = useMemo(() => {
+    if (!weeklyConquest?.monsters?.length) return [];
+
+    const seen = new Set<string>();
+    const results: Array<{ label: string; spawn: MonsterSpawn }> = [];
+
+    for (const monsterName of weeklyConquest.monsters) {
+      const monster = monsters[monsterName];
+      if (!monster?.spawns?.length) continue;
+
+      for (const spawn of monster.spawns) {
+        if (!spawn.area || spawn.area === "Dispatch") continue;
+
+        const key = `${spawn.area.trim().toLowerCase()}|${spawn.level}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        results.push({
+          label: `${spawn.area} Lv${spawn.level}`,
+          spawn,
+        });
+      }
+    }
+
+    return results.sort((a, b) => {
+      const areaCmp = a.spawn.area.localeCompare(b.spawn.area);
+      if (areaCmp !== 0) return areaCmp;
+      return a.spawn.level - b.spawn.level;
+    });
+  }, [weeklyConquest, monsters]);
+
+  const filteredConquestDeployments = useMemo(() => {
+    const q = deploymentQuery.trim().toLowerCase();
+    if (!q) return availableConquestDeployments;
+
+    return availableConquestDeployments.filter(({ label, spawn }) => {
+      const normalizedLabel = label.toLowerCase();
+      const area = spawn.area.toLowerCase();
+      const level = String(spawn.level);
+      const compact = `${area} lv${level}`;
+      return (
+        normalizedLabel.includes(q) ||
+        area.includes(q) ||
+        level.includes(q) ||
+        compact.includes(q.replace(/\s+/g, " ").trim())
+      );
+    });
+  }, [deploymentQuery, availableConquestDeployments]);
+
+  const addDeploymentFromSearch = useCallback((spawn: MonsterSpawn) => {
+    if (!isConquestAreaCovered(spawn)) {
+      toggleConquestArea(spawn);
+    }
+    setDeploymentQuery("");
+    setDeploymentOpen(false);
+  }, [isConquestAreaCovered, toggleConquestArea]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!deploymentBoxRef.current) return;
+      if (!deploymentBoxRef.current.contains(event.target as Node)) {
+        setDeploymentOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const conquestKillTargets = [50, 350, 600, 1200, 1500];
 
   return (
     <div className="min-h-screen bg-background transition-colors">
@@ -448,7 +546,89 @@ export default function MonstersPage() {
                 </div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {Array.from({ length: 5 }).map((_, i) => {
+                {Array.from({ length: 6 }).map((_, i) => {
+                  if (i === 5) {
+                    return (
+                      <div
+                        key="add-deployments"
+                        ref={deploymentBoxRef}
+                        className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-3"
+                      >
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">
+                          Add Deployments
+                        </p>
+
+                        <div className="relative">
+                          <Input
+                            value={deploymentQuery}
+                            onChange={(e) => {
+                              setDeploymentQuery(e.target.value);
+                              setDeploymentOpen(true);
+                            }}
+                            onFocus={() => setDeploymentOpen(true)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                if (filteredConquestDeployments.length > 0) {
+                                  addDeploymentFromSearch(filteredConquestDeployments[0].spawn);
+                                }
+                              }
+                              if (e.key === "Escape") {
+                                setDeploymentOpen(false);
+                              }
+                            }}
+                            placeholder="Type area or level..."
+                            className="h-8 text-xs"
+                          />
+
+                          {deploymentOpen && (
+                            <div className="absolute z-20 top-full left-0 right-0 mt-1 rounded-md border border-border bg-popover shadow-lg max-h-48 overflow-y-auto">
+                              {filteredConquestDeployments.length > 0 ? (
+                                filteredConquestDeployments.map(({ label, spawn }) => {
+                                  const covered = isConquestAreaCovered(spawn);
+                                  return (
+                                    <button
+                                      key={`${spawn.area}-${spawn.level}`}
+                                      type="button"
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        addDeploymentFromSearch(spawn);
+                                      }}
+                                      className={`w-full text-left px-2.5 py-2 text-xs border-b border-border last:border-b-0 hover:bg-muted/50 transition-colors ${
+                                        covered ? "text-emerald-400" : "text-foreground"
+                                      }`}
+                                    >
+                                      <span className="inline-flex items-center gap-1.5">
+                                        {covered ? (
+                                          <Check className="w-3 h-3" />
+                                        ) : (
+                                          <MapPin className="w-3 h-3 text-muted-foreground" />
+                                        )}
+                                        {label}
+                                      </span>
+                                    </button>
+                                  );
+                                })
+                              ) : (
+                                <div className="px-2.5 py-2 text-xs text-muted-foreground">
+                                  No matching deployments this week.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <p className="text-[10px] text-muted-foreground mt-2">
+                          Only deployments from this week’s conquest are available.
+                        </p>
+
+                        <p className="text-[10px] text-muted-foreground/70 mt-1">
+                          Covered: {coveredConquestAreas.length}
+                        </p>
+                      </div>
+                    );
+                  }
+
                   const mName = weeklyConquest?.monsters[i];
                   const m = mName ? monsters[mName] : undefined;
                   return mName ? (
@@ -458,12 +638,26 @@ export default function MonstersPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium leading-tight">{mName}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Target kills: {conquestKillTargets[i]?.toLocaleString() ?? "—"}
+                        </p>
                         {m && m.spawns.length > 0 ? (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {m.spawns.map((sp, si) => (
-                              <span key={si} className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted rounded px-1.5 py-0.5">
-                                <MapPin className="w-2.5 h-2.5" />{sp.area} Lv{sp.level}
-                              </span>
+                              <button
+                                key={si}
+                                type="button"
+                                onClick={() => toggleConquestArea(sp)}
+                                className={`inline-flex items-center gap-0.5 text-[10px] rounded px-1.5 py-0.5 border transition-colors ${
+                                  isConquestAreaCovered(sp)
+                                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                                    : "bg-muted border-transparent text-muted-foreground"
+                                }`}
+                                title={isConquestAreaCovered(sp) ? "Marked as covered" : "Tap to mark as covered"}
+                              >
+                                {isConquestAreaCovered(sp) ? <Check className="w-2.5 h-2.5" /> : <MapPin className="w-2.5 h-2.5" />}
+                                {sp.area} Lv{sp.level}
+                              </button>
                             ))}
                           </div>
                         ) : <p className="text-[10px] text-muted-foreground/60 mt-0.5">No spawns recorded</p>}
@@ -512,7 +706,7 @@ export default function MonstersPage() {
                       <Diamond className="w-3 h-3" />Diamonds — not set
                     </span>
                     <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-xs text-muted-foreground/50">
-                      🗡️ Equipment — not set
+                      ð¡ï¸ Equipment — not set
                     </span>
                   </div>
                 </div>
@@ -538,6 +732,8 @@ export default function MonstersPage() {
               {monsterNames.map((mName) => {
                 const m = monsters[mName];
                 const isExpanded = expandedMonster === mName;
+                const realSpawns = m.spawns.filter((sp) => sp.area && sp.area !== "Dispatch");
+                const dispatchSpawns = m.spawns.filter((sp) => sp.area === "Dispatch");
                 return (
                   <div key={mName}>
                     <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
@@ -555,31 +751,63 @@ export default function MonstersPage() {
                           : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
                         <span className={`font-medium text-sm ${isExpanded ? "text-primary underline underline-offset-2 decoration-primary/40" : ""}`}>{mName}</span>
                         <span className="text-[11px] text-muted-foreground ml-1">
-                          {m.spawns.length === 0 ? "no spawn data" : `${m.spawns.length} spawn${m.spawns.length !== 1 ? "s" : ""}`}
+                          {realSpawns.length > 0
+                            ? `${realSpawns.length} spawn${realSpawns.length !== 1 ? "s" : ""}${dispatchSpawns.length > 0 ? ` · ${dispatchSpawns.length} dispatch` : ""}`
+                            : dispatchSpawns.length > 0
+                              ? `${dispatchSpawns.length} dispatch level${dispatchSpawns.length !== 1 ? "s" : ""}`
+                              : "no spawn data"}
                         </span>
                       </button>
                     </div>
 
                     {isExpanded && (
                       <div className="bg-muted/10 px-4 py-3 border-t border-border/50">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />Spawn Locations
-                          </p>
-                        </div>
-                        {m.spawns.length === 0 ? (
+                        {realSpawns.length === 0 && dispatchSpawns.length === 0 ? (
                           <p className="text-xs text-muted-foreground/60 py-1">No spawns recorded yet.</p>
                         ) : (
-                          <div className="space-y-1.5">
-                            {m.spawns.map((sp, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <MapPin className="w-3 h-3 text-muted-foreground/50 shrink-0" />
-                                <div className="flex-1 text-xs text-muted-foreground">
-                                  <span className="font-medium">Lv {sp.level}</span>
-                                  {sp.area && <span className="text-muted-foreground/60"> • {sp.area}</span>}
+                          <div className="space-y-3">
+                            {realSpawns.length > 0 && (
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />Spawn Locations
+                                  </p>
+                                </div>
+                                <div className="space-y-1.5">
+                                  {realSpawns.map((sp, idx) => (
+                                    <div key={`real-${idx}-${sp.area}-${sp.level}`} className="flex items-center gap-2">
+                                      <MapPin className="w-3 h-3 text-muted-foreground/50 shrink-0" />
+                                      <div className="flex-1 text-xs text-muted-foreground">
+                                        <span className="font-medium">Lv {sp.level}</span>
+                                        {sp.area && <span className="text-muted-foreground/60"> • {sp.area}</span>}
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
-                            ))}
+                            )}
+                            {dispatchSpawns.length > 0 && (
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                                    <Info className="w-3 h-3" />Dispatch Levels
+                                  </p>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground/60 mb-2">
+                                  Reference levels only. These are not confirmed map area spawns.
+                                </p>
+                                <div className="space-y-1.5">
+                                  {dispatchSpawns.map((sp, idx) => (
+                                    <div key={`dispatch-${idx}-${sp.level}`} className="flex items-center gap-2">
+                                      <Info className="w-3 h-3 text-muted-foreground/50 shrink-0" />
+                                      <div className="flex-1 text-xs text-muted-foreground">
+                                        <span className="font-medium">Lv {sp.level}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
