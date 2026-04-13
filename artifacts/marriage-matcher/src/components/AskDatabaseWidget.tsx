@@ -770,17 +770,30 @@ function answerTargetedClarification(question: string): AnswerResult | null {
 
   if (!stat) return null;
 
+  // stop loops after the user already picked one branch
   if (
-    /\b(max|maximum|highest)\s+(possible\s+)?(value|attack|atk|mp|hp|intelligence|int|speed|spd|defence|defense|def|luck|lck)\b/.test(lower)
+    lower.includes("from equipment loadout") ||
+    lower.includes("from equipment only") ||
+    lower.includes("from maxed job") ||
+    lower.includes("job + equipment")
   ) {
-    const label = STAT_LABEL[stat] ?? stat;
-    return result(`That can mean two things for ${label}. Pick one:`, [
-      `highest possible ${label} from equipment loadout`,
-      `highest possible ${label} from maxed job + equipment loadout`,
-    ]);
+    return null;
   }
 
-  return null;
+  // only clarify real max-possible questions
+  const asksMax =
+    lower.includes("max possible") ||
+    lower.includes("maximum possible") ||
+    lower.includes("highest possible");
+
+  if (!asksMax) return null;
+
+  const label = STAT_LABEL[stat] ?? stat;
+
+  return result(`That can mean two things for ${label}. Pick one:`, [
+    `highest possible ${label} from equipment only`,
+    `highest possible ${label} from maxed job + equipment`,
+  ]);
 }
 
 function skillDisplayName(raw: string): string {
