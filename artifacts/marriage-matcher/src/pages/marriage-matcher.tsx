@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 
-// ─── API ──────────────────────────────────────────────────────────────────────
+// âââ API ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API = (p: string) => `${BASE}/ka-api/ka${p}`;
@@ -67,7 +67,7 @@ async function persistPairs(pairs: SharedPair[], userName: string) {
   } catch { /* ignore network errors */ }
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// âââ Types ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 type Rank = "S" | "A" | "B" | "C" | "D";
 const RANKS: Rank[] = ["S", "A", "B", "C", "D"];
@@ -156,7 +156,7 @@ interface OptimalResult {
   unassignedDecisions: UnassignedDecision[];
 }
 
-// ─── Algorithm ────────────────────────────────────────────────────────────────
+// âââ Algorithm ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function normJob(name: string) { return name.trim().toLowerCase(); }
 function pairKey(a: string, b: string) {
@@ -330,7 +330,7 @@ function findOptimalMatching(slots: RankSlot[], pairs: Pair[], lockedPairs: Lock
   return { matches: allMatches, unmatchedMale: allUnmatchedMale, unmatchedFemale: allUnmatchedFemale, unassignedDecisions: allDecisions };
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// âââ Helpers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function generateId() { return Math.random().toString(36).slice(2, 9); }
 function makePair(a: string, b: string): Pair { return { id: generateId(), jobA: a, jobB: b, children: [] }; }
@@ -376,7 +376,7 @@ const DEFAULT_PAIRS: Pair[] = [
   makePair("Rancher", "Knight"), makePair("Trader", "Gunner"), makePair("Wizard", "Wizard"),
 ];
 
-// ─── RankTable ────────────────────────────────────────────────────────────────
+// âââ RankTable ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 interface RankTableProps {
   rank: Rank;
@@ -386,6 +386,50 @@ interface RankTableProps {
   onUpdate: (id: string, field: "males" | "females" | "unassigned", value: number) => void;
   onRemove: (id: string) => void;
   onAdd: (rank: Rank, jobName: string) => void;
+}
+
+function CountInput({
+  value,
+  onCommit,
+  className = "",
+}: {
+  value: number;
+  onCommit: (value: number) => void;
+  className?: string;
+}) {
+  const [local, setLocal] = useState(value === 0 ? "" : String(value));
+
+  useEffect(() => {
+    setLocal(value === 0 ? "" : String(value));
+  }, [value]);
+
+  const commit = useCallback(() => {
+    const trimmed = local.trim();
+    const parsed = trimmed === "" ? 0 : parseInt(trimmed, 10);
+    const next = Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
+    onCommit(next);
+    setLocal(next === 0 ? "" : String(next));
+  }, [local, onCommit]);
+
+  return (
+    <Input
+      type="number"
+      min={0}
+      inputMode="numeric"
+      value={local}
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+          e.currentTarget.blur();
+        }
+      }}
+      className={className}
+    />
+  );
 }
 
 function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, onRemove, onAdd }: RankTableProps) {
@@ -440,15 +484,9 @@ function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, o
                       <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">?</Badge>
                     )}
                   </span>
-                  <Input type="number" min={0} value={slot.males}
-                    onChange={(e) => onUpdate(slot.id, "males", parseInt(e.target.value) || 0)}
-                    className="h-7 text-center text-sm px-1" />
-                  <Input type="number" min={0} value={slot.females}
-                    onChange={(e) => onUpdate(slot.id, "females", parseInt(e.target.value) || 0)}
-                    className="h-7 text-center text-sm px-1" />
-                  <Input type="number" min={0} value={slot.unassigned}
-                    onChange={(e) => onUpdate(slot.id, "unassigned", parseInt(e.target.value) || 0)}
-                    className="h-7 text-center text-sm px-1 border-amber-300 dark:border-amber-700 focus-visible:ring-amber-400" />
+                  <CountInput value={slot.males} onCommit={(value) => onUpdate(slot.id, "males", value)} className="h-7 text-center text-sm px-1" />
+                  <CountInput value={slot.females} onCommit={(value) => onUpdate(slot.id, "females", value)} className="h-7 text-center text-sm px-1" />
+                  <CountInput value={slot.unassigned} onCommit={(value) => onUpdate(slot.id, "unassigned", value)} className="h-7 text-center text-sm px-1 border-amber-300 dark:border-amber-700 focus-visible:ring-amber-400" />
                   <button onClick={() => onRemove(slot.id)}
                     className="text-muted-foreground hover:text-destructive transition-colors justify-self-center">
                     <Trash2 className="w-3.5 h-3.5" />
@@ -519,7 +557,7 @@ function JobsPanel({ jobNames, isLoading, isFromApi }: { jobNames: string[]; isL
   );
 }
 
-// ─── Pairs Panel ──────────────────────────────────────────────────────────────
+// âââ Pairs Panel ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const ALL_AFFINITIES = ["A", "B", "C", "D", "E"] as const;
 
@@ -530,13 +568,16 @@ interface PairsPanelProps {
   pairs: Pair[];
   jobTypeMap: Record<string, "combat" | "non-combat">;
   jobGenMap: Record<string, 1 | 2>;
+  allJobNames: string[];
 }
 
-function PairsPanel({ pairs, jobTypeMap, jobGenMap }: PairsPanelProps) {
+function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelProps) {
   const [pairAffinityFilter, setPairAffinityFilter] = useState<Set<string>>(new Set(["A", "B", "C", "D", "E"]));
   const [pairChildTypeFilter, setPairChildTypeFilter] = useState<ChildTypeFilter>("all");
   const [pairExclusiveFilter, setPairExclusiveFilter] = useState<ExclusiveFilter>("all");
   const [includeParentInheritance, setIncludeParentInheritance] = useState(true);
+  const [pairParentFilter, setPairParentFilter] = useState<string>("all");
+  const [pairChildFilter, setPairChildFilter] = useState<string>("all");
 
   const toggleAffinity = (aff: string) => {
     const next = new Set(pairAffinityFilter);
@@ -547,16 +588,40 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap }: PairsPanelProps) {
 
   const filtered = pairs.filter((p) => {
     if (p.affinity && !pairAffinityFilter.has(p.affinity)) return false;
-    if (pairChildTypeFilter === "all" && pairExclusiveFilter === "all") return true;
+
     const possibleChildren = buildPossibleChildren(p.jobA, p.jobB, p.children, includeParentInheritance);
-    return possibleChildren.some((child) => {
-      const typeOk = pairChildTypeFilter === "all" || jobTypeMap[child] === pairChildTypeFilter;
-      const exclusiveOk = pairExclusiveFilter === "all"
-        || (pairExclusiveFilter === "exclude-exclusive" ? jobGenMap[child] !== 2 : jobGenMap[child] === 2);
-      return typeOk && exclusiveOk;
-    });
+
+    if (pairParentFilter !== "all") {
+      const parentMatch =
+        normJob(p.jobA) === normJob(pairParentFilter) ||
+        normJob(p.jobB) === normJob(pairParentFilter);
+      if (!parentMatch) return false;
+    }
+
+    if (pairChildFilter !== "all") {
+      const childMatch = possibleChildren.some((child) => normJob(child) === normJob(pairChildFilter));
+      if (!childMatch) return false;
+    }
+
+    const typeOk = pairChildTypeFilter === "all"
+      || possibleChildren.some((child) => jobTypeMap[child] === pairChildTypeFilter);
+    if (!typeOk) return false;
+
+    const exclusiveOk = pairExclusiveFilter === "all"
+      || possibleChildren.some((child) =>
+        pairExclusiveFilter === "exclude-exclusive" ? jobGenMap[child] !== 2 : jobGenMap[child] === 2
+      );
+    if (!exclusiveOk) return false;
+
+    return true;
   });
+
   const sorted = [...filtered].sort((a, b) => pairKey(a.jobA, a.jobB).localeCompare(pairKey(b.jobA, b.jobB)));
+  const parentOptions = allJobNames.map((job) => ({ value: job, label: job }));
+  const childOptions = [...new Set([
+    ...allJobNames,
+    ...pairs.flatMap((p) => buildPossibleChildren(p.jobA, p.jobB, p.children, true)),
+  ])].sort((a, b) => a.localeCompare(b)).map((job) => ({ value: job, label: job }));
 
   return (
     <Card className="shadow-sm">
@@ -579,6 +644,29 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap }: PairsPanelProps) {
                 </button>
               );
             })}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground font-medium shrink-0">Parent job:</span>
+              <SearchableSelect
+                value={pairParentFilter}
+                onChange={(v) => setPairParentFilter(v || "all")}
+                options={[{ value: "all", label: "All parents" }, ...parentOptions]}
+                placeholder="All parents"
+                triggerClassName="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground font-medium shrink-0">Child job:</span>
+              <SearchableSelect
+                value={pairChildFilter}
+                onChange={(v) => setPairChildFilter(v || "all")}
+                options={[{ value: "all", label: "All children" }, ...childOptions]}
+                placeholder="All children"
+                triggerClassName="h-8 text-sm"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -648,6 +736,20 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap }: PairsPanelProps) {
             <span className="text-xs text-muted-foreground">
               Showing {filtered.length} of {pairs.length} pairs.
             </span>
+            {(pairParentFilter !== "all" || pairChildFilter !== "all") && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setPairParentFilter("all");
+                  setPairChildFilter("all");
+                }}
+                className="h-6 px-2 text-xs"
+              >
+                Clear parent/child
+              </Button>
+            )}
           </div>
         </div>
         <div className="rounded-md border border-border overflow-hidden">
@@ -655,7 +757,7 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap }: PairsPanelProps) {
             {sorted.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">No pairs defined yet.</p>}
             {sorted.map((p) => {
               const [d1, d2] = [p.jobA, p.jobB].sort();
-              const sortedChildren = [...p.children].sort();
+              const sortedChildren = [...buildPossibleChildren(p.jobA, p.jobB, p.children, includeParentInheritance)].sort();
               return (
                 <div key={p.id} className="px-3 py-2 hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
@@ -882,7 +984,7 @@ function PlannerSetup({
   );
 }
 
-// ─── Match Row ────────────────────────────────────────────────────────────────
+// âââ Match Row ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 interface MatchRowProps {
   match: MatchResult;
@@ -927,7 +1029,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
             />
           ) : (
             <span className="flex items-center gap-1.5 min-w-0">
-              <span className="text-base font-bold text-blue-500 leading-none shrink-0">♂</span>
+              <span className="text-base font-bold text-blue-500 leading-none shrink-0">â</span>
               <span className="font-medium text-sm truncate">{match.maleJob}</span>
               {match.maleWasUnassigned && (
                 <Tooltip>
@@ -953,7 +1055,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
             />
         ) : (
           <span className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base font-bold text-rose-500 leading-none shrink-0">♀</span>
+            <span className="text-base font-bold text-rose-500 leading-none shrink-0">â</span>
             <span className="font-medium text-sm text-rose-600 dark:text-rose-400 truncate">{match.femaleJob}</span>
             {match.femaleWasUnassigned && (
               <Tooltip>
@@ -973,7 +1075,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
             </button>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
-            {isLocked ? "Unlock — let algorithm reassign" : "Lock this pair for future calculations"}
+            {isLocked ? "Unlock â let algorithm reassign" : "Lock this pair for future calculations"}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -998,7 +1100,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
   );
 }
 
-// ─── Info Dialog ──────────────────────────────────────────────────────────────
+// âââ Info Dialog ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function InfoDialog() {
   return (
@@ -1023,7 +1125,7 @@ function InfoDialog() {
           </div>
           <div>
             <h3 className="font-semibold text-foreground mb-1">2. Assign to character rank tables</h3>
-            <p>For each character rank (S through D), add the relevant jobs and enter how many <strong>male</strong> / <strong>female</strong> characters you have at that rank. Use <strong>Unassigned</strong> for undecided genders — the algorithm splits them to maximise matches.</p>
+            <p>For each character rank (S through D), add the relevant jobs and enter how many <strong>male</strong> / <strong>female</strong> characters you have at that rank. Use <strong>Unassigned</strong> for undecided genders â the algorithm splits them to maximise matches.</p>
           </div>
           <div>
             <h3 className="font-semibold text-foreground mb-1">3. Compatible pairs & children</h3>
@@ -1035,7 +1137,7 @@ function InfoDialog() {
           </div>
           <div>
             <h3 className="font-semibold text-foreground mb-1">5. Calculate & lock</h3>
-            <p>Click <strong>Calculate</strong> to find the optimal matching. Lock pairs with 🔓 to keep them fixed across recalculations.</p>
+            <p>Click <strong>Calculate</strong> to find the optimal matching. Lock pairs with ð to keep them fixed across recalculations.</p>
           </div>
           <div className="rounded-lg bg-muted px-3 py-2 text-xs">
             <strong className="text-foreground">Private to this browser:</strong> Rank assignments, locks, and filters are saved only on this device.
@@ -1046,7 +1148,7 @@ function InfoDialog() {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// âââ Main Component âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export default function MarriageMatcher() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -1065,7 +1167,7 @@ export default function MarriageMatcher() {
     else { root.classList.remove("dark"); localStorage.setItem("theme", "light"); }
   }, [darkMode]);
 
-  // ── API data ──
+  // ââ API data ââ
   const { data: sharedData, isLoading: jobsLoading } = useSharedData();
 
   const apiFirstGenJobs = useMemo(() => {
@@ -1118,7 +1220,7 @@ export default function MarriageMatcher() {
     return map;
   }, [sharedData]);
 
-  // ── Job names: API-first, localStorage cache as fallback ──
+  // ââ Job names: API-first, localStorage cache as fallback ââ
   const [cachedJobNames, setCachedJobNames] = useState<string[]>(() => {
     try {
       const s = localStorage.getItem("ka_mf_jobNames");
@@ -1159,7 +1261,7 @@ export default function MarriageMatcher() {
   const sortedJobNames = apiFirstGenJobs ?? cachedJobNames;
   const allJobNames = apiAllJobs ?? sortedJobNames;
 
-  // ── State: rank slots ──
+  // ââ State: rank slots ââ
   const [rankSlots, setRankSlots] = useState<RankSlot[]>(() => {
     try {
       const s = localStorage.getItem("ka_mf_rankSlots");
@@ -1168,7 +1270,7 @@ export default function MarriageMatcher() {
     return [];
   });
 
-  // ── State: pairs — loaded from API (community), fallback to localStorage ──
+  // ââ State: pairs â loaded from API (community), fallback to localStorage ââ
   const [pairsLoadedFromApi, setPairsLoadedFromApi] = useState(false);
   const [pairs, setPairs] = useState<Pair[]>(() => {
     try {
@@ -1181,7 +1283,7 @@ export default function MarriageMatcher() {
     return DEFAULT_PAIRS;
   });
 
-  // ── State: locked pairs ──
+  // ââ State: locked pairs ââ
   const [lockedPairs, setLockedPairs] = useState<LockedPair[]>(() => {
     try {
       const s = localStorage.getItem("ka_mf_lockedPairs");
@@ -1190,7 +1292,7 @@ export default function MarriageMatcher() {
     return [];
   });
 
-  // ── State: desired / priority children ──
+  // ââ State: desired / priority children ââ
   const [desiredChildren, setDesiredChildren] = useState<string[]>(() => {
     try {
       const s = localStorage.getItem("ka_mf_desiredChildren");
@@ -1216,7 +1318,7 @@ export default function MarriageMatcher() {
     return [];
   });
 
-  // ── State: affinity filter (for matching and pair list) ──
+  // ââ State: affinity filter (for matching and pair list) ââ
   const [affinityFilter, setAffinityFilter] = useState<Set<string>>(new Set(["A", "B", "C", "D", "E"]));
   const filteredPairs = useMemo(
     () => pairs.filter((p) => !p.affinity || affinityFilter.has(p.affinity)),
@@ -1234,12 +1336,12 @@ export default function MarriageMatcher() {
       .sort();
   }, [allJobNames, jobGenMap, jobTypeMap, targetChildTypeFilter, targetExclusiveFilter, targetIncludeJobs, targetExcludeJobs]);
 
-  // ── State: result filters ──
+  // ââ State: result filters ââ
   const [resultTypeFilter, setResultTypeFilter] = useState<"all" | "combat" | "non-combat">("all");
   const [resultIncludeJobs, setResultIncludeJobs] = useState<string[]>([]);
   const [resultExcludeJobs, setResultExcludeJobs] = useState<string[]>([]);
 
-  // ── Sync pairs from API (one-time on first load) ──
+  // ââ Sync pairs from API (one-time on first load) ââ
   const pairsRef = useRef(pairs);
   useEffect(() => { pairsRef.current = pairs; }, [pairs]);
 
@@ -1249,12 +1351,12 @@ export default function MarriageMatcher() {
     if (apiPairs.length > 0) {
       setPairs(apiPairs);
     } else {
-      // API has no pairs yet — push our local pairs up to the backend
+      // API has no pairs yet â push our local pairs up to the backend
       persistPairs(pairsRef.current, "community");
     }
   }, [apiPairs]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Persist ──
+  // ââ Persist ââ
   useEffect(() => { localStorage.setItem("ka_mf_rankSlots", JSON.stringify(rankSlots)); }, [rankSlots]);
   useEffect(() => {
     localStorage.setItem("ka_mf_pairs", JSON.stringify(pairs));
@@ -1267,14 +1369,14 @@ export default function MarriageMatcher() {
   useEffect(() => { localStorage.setItem("ka_mf_targetIncludeJobs", JSON.stringify(targetIncludeJobs)); }, [targetIncludeJobs]);
   useEffect(() => { localStorage.setItem("ka_mf_targetExcludeJobs", JSON.stringify(targetExcludeJobs)); }, [targetExcludeJobs]);
 
-  // ── Result state ──
+  // ââ Result state ââ
   const [result, setResult] = useState<OptimalResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isStale, setIsStale] = useState(false);
 
   const markStale = useCallback(() => setIsStale(true), []);
 
-  // ── Slot actions ──
+  // ââ Slot actions ââ
   const updateSlot = useCallback((id: string, field: "males" | "females" | "unassigned", value: number) => {
     setRankSlots((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: Math.max(0, value) } : s)));
     markStale();
@@ -1295,7 +1397,7 @@ export default function MarriageMatcher() {
     markStale();
   }, [markStale]);
 
-  // ── Pair actions ──
+  // ââ Pair actions ââ
   const addPair = useCallback((a: string, b: string): string | null => {
     const key = pairKey(a, b);
     let dupe = false;
@@ -1318,7 +1420,7 @@ export default function MarriageMatcher() {
     markStale();
   }, [markStale]);
 
-  // ── Lock actions ──
+  // ââ Lock actions ââ
   const lockMatch = useCallback((matchId: string) => {
     setResult((prev) => {
       if (!prev) return prev;
@@ -1353,7 +1455,7 @@ export default function MarriageMatcher() {
     setIsStale(true);
   }, []);
 
-  // ── Priority child actions ──
+  // ââ Priority child actions ââ
   const addDesiredChild = useCallback((child: string) => {
     setDesiredChildren((prev) => prev.some((c) => normJob(c) === normJob(child)) ? prev : [...prev, child].sort());
   }, []);
@@ -1399,7 +1501,7 @@ export default function MarriageMatcher() {
     });
   }, [targetPoolJobs]);
 
-  // ── Calculate ──
+  // ââ Calculate ââ
   const calculate = useCallback(() => {
     setIsCalculating(true);
     setIsStale(false);
@@ -1422,7 +1524,7 @@ export default function MarriageMatcher() {
     setIsStale(false);
   }, []);
 
-  // ── Derived ──
+  // ââ Derived ââ
   const availablePerRank = useMemo(() => {
     const map: Record<Rank, string[]> = { S: [], A: [], B: [], C: [], D: [] };
     const presentPerRank: Record<Rank, Set<string>> = {
@@ -1444,7 +1546,7 @@ export default function MarriageMatcher() {
     return map;
   }, [rankSlots]);
 
-  // ── Child coverage for results ──
+  // ââ Child coverage for results ââ
   const childCoverage = useMemo(() => {
     if (!result || desiredChildren.length === 0) return [];
     return desiredChildren.map((child) => {
@@ -1457,7 +1559,7 @@ export default function MarriageMatcher() {
 
   const hasLocked = lockedPairs.length > 0;
 
-  // ── Filtered matches (result type filter) ──
+  // ââ Filtered matches (result type filter) ââ
   const filteredMatches = useMemo(() => {
     if (!result) return [];
     return result.matches.filter((m) => {
@@ -1513,7 +1615,7 @@ export default function MarriageMatcher() {
               value={pageNote}
               onChange={(e) => setPageNote(e.target.value)}
               onBlur={() => localStorage.setItem("ka_note_marriage", pageNote)}
-              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
+              placeholder="Personal notes for this pageâ¦ (only visible to you, saved on this device)"
               className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
             />
           </div>
@@ -1578,7 +1680,7 @@ export default function MarriageMatcher() {
         <div className="mt-6 flex justify-center">
           <Button onClick={calculate} disabled={isCalculating} size="lg" className={`gap-2 px-10 shadow-md transition-all ${isStale && result ? "ring-2 ring-amber-400 ring-offset-2" : ""}`}>
             {isCalculating
-              ? <><Loader2 className="w-4 h-4 animate-spin" />Calculating…</>
+              ? <><Loader2 className="w-4 h-4 animate-spin" />Calculatingâ¦</>
               : <><Zap className="w-4 h-4" />{result ? "Recalculate" : "Calculate Optimal Matching"}</>}
           </Button>
         </div>
@@ -1604,7 +1706,7 @@ export default function MarriageMatcher() {
                         <div className="min-w-0">
                           <p className="font-semibold text-foreground text-xs">{child}</p>
                           <p className="text-[11px] text-muted-foreground">
-                            Covered by {coverMatches.length} match{coverMatches.length !== 1 ? "es" : ""}: {coverMatches.map((m) => `${m.maleJob} � ${m.femaleJob}`).join(", ")}
+                            Covered by {coverMatches.length} match{coverMatches.length !== 1 ? "es" : ""}: {coverMatches.map((m) => `${m.maleJob} × ${m.femaleJob}`).join(", ")}
                           </p>
                         </div>
                       </div>
@@ -1625,9 +1727,9 @@ export default function MarriageMatcher() {
                       <div key={i} className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm">
                         <Badge className={`text-[10px] px-1.5 border ${RANK_STYLE[d.rank].badge}`}>{d.rank}</Badge>
                         <span className="font-semibold text-foreground">{d.jobName}</span>
-                        <span className="text-muted-foreground">→</span>
-                        {d.assignedMales > 0 && <Badge variant="secondary" className="text-xs gap-1"><span className="text-blue-500">♂</span>{d.assignedMales}</Badge>}
-                        {d.assignedFemales > 0 && <Badge variant="outline" className="text-xs border-primary/30 text-primary gap-1"><span className="text-rose-500">♀</span>{d.assignedFemales}</Badge>}
+                        <span className="text-muted-foreground">â</span>
+                        {d.assignedMales > 0 && <Badge variant="secondary" className="text-xs gap-1"><span className="text-blue-500">â</span>{d.assignedMales}</Badge>}
+                        {d.assignedFemales > 0 && <Badge variant="outline" className="text-xs border-primary/30 text-primary gap-1"><span className="text-rose-500">â</span>{d.assignedFemales}</Badge>}
                       </div>
                     ))}
                   </div>
@@ -1652,7 +1754,7 @@ export default function MarriageMatcher() {
                         className={`px-3 h-7 text-xs font-medium transition-colors ${resultTypeFilter === t
                           ? t === "combat" ? "bg-red-500 text-white" : t === "non-combat" ? "bg-sky-500 text-white" : "bg-primary text-primary-foreground"
                           : "bg-background text-muted-foreground hover:text-foreground"}`}>
-                        {t === "all" ? "All" : t === "combat" ? "⚔ Combat" : "🌿 Non-Combat"}
+                        {t === "all" ? "All" : t === "combat" ? "â Combat" : "ð¿ Non-Combat"}
                       </button>
                     ))}
                   </div>
@@ -1672,7 +1774,7 @@ export default function MarriageMatcher() {
                           clearOnSelect
                           onChange={(v) => { if (v) setResultIncludeJobs((prev) => prev.includes(v) ? prev : [...prev, v]); }}
                           options={result.matches.flatMap((m) => [m.maleJob, m.femaleJob]).filter((v, i, a) => a.indexOf(v) === i && !resultIncludeJobs.includes(v)).sort().map((j) => ({ value: j, label: j }))}
-                          placeholder="+ Add job…"
+                          placeholder="+ Add jobâ¦"
                           triggerClassName="h-6 text-xs"
                         />
                       </div>
@@ -1690,7 +1792,7 @@ export default function MarriageMatcher() {
                           clearOnSelect
                           onChange={(v) => { if (v) setResultExcludeJobs((prev) => prev.includes(v) ? prev : [...prev, v]); }}
                           options={result.matches.flatMap((m) => [m.maleJob, m.femaleJob]).filter((v, i, a) => a.indexOf(v) === i && !resultExcludeJobs.includes(v)).sort().map((j) => ({ value: j, label: j }))}
-                          placeholder="+ Exclude job…"
+                          placeholder="+ Exclude jobâ¦"
                           triggerClassName="h-6 text-xs"
                         />
                       </div>
@@ -1707,7 +1809,7 @@ export default function MarriageMatcher() {
                     <CardTitle className="text-base">Matched Pairs</CardTitle>
                     <CardDescription className="text-xs mt-0.5">
                       Lock a pair to keep it fixed across recalculations.
-                      {desiredChildren.length > 0 && <> · <span className="text-violet-600 dark:text-violet-400">Purple rows</span> cover your desired children.</>}
+                      {desiredChildren.length > 0 && <> Â· <span className="text-violet-600 dark:text-violet-400">Purple rows</span> cover your desired children.</>}
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1767,11 +1869,11 @@ export default function MarriageMatcher() {
                   <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border space-y-2">
                     {result.unmatchedMale.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><span className="text-blue-500 font-bold">♂</span> Unmatched male slots:</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><span className="text-blue-500 font-bold">â</span> Unmatched male slots:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {result.unmatchedMale.map((u, i) => (
                             <Badge key={i} variant="secondary" className="text-xs gap-1">
-                              <span className="text-blue-500 font-bold">♂</span>{u.job}
+                              <span className="text-blue-500 font-bold">â</span>{u.job}
                               <span className={`text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
                             </Badge>
                           ))}
@@ -1780,11 +1882,11 @@ export default function MarriageMatcher() {
                     )}
                     {result.unmatchedFemale.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><span className="text-rose-500 font-bold">♀</span> Unmatched female slots:</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><span className="text-rose-500 font-bold">â</span> Unmatched female slots:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {result.unmatchedFemale.map((u, i) => (
                             <Badge key={i} variant="outline" className="text-xs text-muted-foreground gap-1">
-                              <span className="text-rose-500 font-bold">♀</span>{u.job}
+                              <span className="text-rose-500 font-bold">â</span>{u.job}
                               <span className={`text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
                             </Badge>
                           ))}
@@ -1806,7 +1908,7 @@ export default function MarriageMatcher() {
         {isCalculating && (
           <div className="mt-6 flex flex-col items-center gap-3 py-12 text-muted-foreground">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-sm">Running optimal matching algorithm…</p>
+            <p className="text-sm">Running optimal matching algorithmâ¦</p>
           </div>
         )}
 
@@ -1815,12 +1917,13 @@ export default function MarriageMatcher() {
             pairs={pairs}
             jobTypeMap={jobTypeMap}
             jobGenMap={jobGenMap}
+            allJobNames={allJobNames}
           />
         </div>
 
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-          <span>Match Finder — open source</span>
+          <span>Match Finder â open source</span>
           <a href="https://replit.com" target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1 hover:text-foreground transition-colors">
             <ExternalLink className="w-3 h-3" /> Fork &amp; edit on Replit

@@ -72,6 +72,27 @@ const STAT_FULL: Record<string, string> = {
 };
 
 const STAT_ORDER = ["HP","MP","Vigor","Attack","Defence","Speed","Luck","Intelligence","Dexterity","Gather","Move","Heart"];
+const STAT_SHORT: Record<string, string> = {
+  HP: "HP",
+  MP: "MP",
+  Vigor: "Vig",
+  Attack: "Atk",
+  Defence: "Def",
+  Speed: "Spd",
+  Luck: "Lck",
+  Intelligence: "Int",
+  Dexterity: "Dex",
+  Gather: "Gth",
+  Move: "Mov",
+  Heart: "Hrt",
+};
+const MOBILE_SORT_OPTIONS = [
+  { value: "name", label: "Name" },
+  { value: "slot", label: "Slot" },
+  { value: "studioLevel", label: "Studio Lv" },
+  { value: "intReq", label: "INT Req" },
+  ...STAT_ORDER.map((stat) => ({ value: stat, label: STAT_SHORT[stat] ?? stat })),
+];
 const STAT_ALIAS_FOR: Record<string, string> = { Movement: "Move" };
 const CHAR_SLOTS = ["Head", "Weapon", "Shield", "Armor", "Accessory"] as const;
 type CharSlot = typeof CHAR_SLOTS[number];
@@ -920,6 +941,23 @@ export default function EquipmentPage() {
           >
             Sort stats: {sortByInc ? "+/Lv" : "Value"}
           </button>
+          <div className="md:hidden flex items-center gap-2">
+            <SearchableSelect
+              value={sortCol ?? "name"}
+              onChange={(v) => setSortCol(v)}
+              options={MOBILE_SORT_OPTIONS}
+              triggerClassName="h-8 text-sm w-32"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
+              title={`Sort direction: ${sortDir === "asc" ? "Ascending" : "Descending"}`}
+            >
+              {sortDir === "asc" ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
+            </Button>
+          </div>
           {selectedUids.size > 0 && !compareMode && (
             <Button size="sm" variant="outline" className="h-8 gap-1.5 border-primary text-primary hover:bg-primary/5" onClick={() => setCompareMode(true)}>
               <CheckSquare className="w-3.5 h-3.5" />Compare {selectedUids.size} selected
@@ -1217,13 +1255,53 @@ export default function EquipmentPage() {
                   const isExpanded = expandedItem === item.uid;
                   const level = getItemLevel(item.name);
                   const itemSlot = getItemSlot(item.name);
+                  const isSelected = selectedUids.has(item.uid);
+
+                  const summaryStats = STAT_ORDER
+                    .map((stat) => {
+                      const unset = isStatUnset(item, stat, overrides);
+                      if (unset) return null;
+
+                      const value = sortByInc
+                        ? getEffectiveStat(item, stat, "inc", overrides)
+                        : getItemStatVal(item, stat);
+
+                      if (value === 0) return null;
+
+                      return {
+                        stat,
+                        label: STAT_SHORT[stat] ?? stat,
+                        value: sortByInc && value > 0 ? `+${value}` : `${value}`,
+                      };
+                    })
+                    .filter(Boolean) as Array<{ stat: string; label: string; value: string }>;
+
                   return (
-                    <Card key={item.uid} className={`shadow-sm overflow-hidden ${isExpanded ? "border-primary/30" : ""}`}>
+                    <Card
+                      key={item.uid}
+                      className={`shadow-sm overflow-hidden ${isExpanded || isSelected ? "border-primary/30" : ""}`}
+                    >
                       <CardContent className="p-3">
                         <div className="flex items-start gap-3">
-                          <div className="shrink-0">
-                            <IconUpload iconKey={`equip:${item.name}`} icons={equipIcons} onSave={(icons) => handleEquipIcons(icons, item.name)} size={30} />
+                          <div className="pt-0.5 shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelect(item.uid)}
+                              className="rounded border-border cursor-pointer"
+                              aria-label={`Select ${item.name} for comparison`}
+                            />
                           </div>
+
+                          <div className="shrink-0">
+                            <IconUpload
+                              iconKey={`equip:${item.name}`}
+                              icons={equipIcons}
+                              onSave={(icons) => handleEquipIcons(icons, item.name)}
+                              size={30}
+                            />
+                          </div>
+
                           <div className="min-w-0 flex-1">
                             <button
                               onClick={() => setExpandedItem(isExpanded ? null : item.uid)}
@@ -1233,11 +1311,20 @@ export default function EquipmentPage() {
                               {isExpanded
                                 ? <ChevronDown className="w-4 h-4 text-primary shrink-0" />
                                 : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
-                              <span className={`min-w-0 break-words ${isExpanded ? "text-primary underline underline-offset-2 decoration-primary/40" : ""}`}>{item.name}</span>
+                              <span className={`min-w-0 break-words ${isExpanded ? "text-primary underline underline-offset-2 decoration-primary/40" : ""}`}>
+                                {item.name}
+                              </span>
+                              {allItemStatsFilled(item, overrides) && (
+                                <CheckCircle2
+                                  className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 ml-0.5"
+                                  title="All stats have been contributed"
+                                />
+                              )}
                             </button>
+
                             <div className="mt-2 flex flex-wrap gap-2">
                               <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
-                                {itemSlot !== "—" ? itemSlot : item.sheetSlot || "—"}
+                                {itemSlot !== " " ? itemSlot : item.sheetSlot || "—"}
                               </span>
                               {itemSlot === "Weapon" && weaponTypes[item.name] && (
                                 <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
@@ -1254,22 +1341,53 @@ export default function EquipmentPage() {
                                 </span>
                               )}
                             </div>
+
+                            {summaryStats.length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-1.5">
+                                {summaryStats.map(({ stat, label, value }) => (
+                                  <span
+                                    key={stat}
+                                    className="inline-flex items-center gap-1 rounded-md border border-border bg-background/70 px-2 py-1 text-[11px] leading-none"
+                                  >
+                                    {statIcons[stat] && (
+                                      <img src={statIcons[stat]} alt={label} className="w-3 h-3 object-contain" />
+                                    )}
+                                    <span className="text-muted-foreground">{label}</span>
+                                    <span className="font-semibold text-foreground tabular-nums">{value}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
+
                           <div className="shrink-0">
-                            <NumInput value={level} min={1} max={99} onChange={(v) => setItemLevel(item.name, v)} className="h-8 w-16 text-sm text-center px-1" />
+                            <NumInput
+                              value={level}
+                              min={1}
+                              max={99}
+                              onChange={(v) => setItemLevel(item.name, v)}
+                              className="h-8 w-16 text-sm text-center px-1"
+                            />
                           </div>
                         </div>
 
                         {isExpanded && (
                           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {STAT_ORDER.filter((stat) => { const base = getEffectiveStat(item, stat, "base", overrides); const inc = getEffectiveStat(item, stat, "inc", overrides); const current = statAtLevel(base, inc, level); return base !== 0 || inc !== 0 || current !== 0; }).map((stat) => {
+                            {STAT_ORDER.filter((stat) => {
+                              const base = getEffectiveStat(item, stat, "base", overrides);
+                              const inc = getEffectiveStat(item, stat, "inc", overrides);
+                              const current = statAtLevel(base, inc, level);
+                              return base !== 0 || inc !== 0 || current !== 0;
+                            }).map((stat) => {
                               const base = getEffectiveStat(item, stat, "base", overrides);
                               const inc = getEffectiveStat(item, stat, "inc", overrides);
                               const current = statAtLevel(base, inc, level);
                               return (
                                 <div key={stat} className="rounded-md border border-border bg-background/70 px-3 py-3">
                                   <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-                                    {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
+                                    {statIcons[stat] && (
+                                      <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />
+                                    )}
                                     <span>{stat}</span>
                                   </div>
                                   <div className="mt-2 grid grid-cols-3 gap-2 text-center">

@@ -19,6 +19,7 @@ import srcLoadout from "./loadout.tsx?raw";
 import srcShops from "./shops.tsx?raw";
 import srcApp from "../App.tsx?raw";
 import srcSourceViewer from "../components/source-viewer.tsx?raw";
+import AskDatabaseWidget from "@/components/AskDatabaseWidget";
 
 const SOURCE_FILES: Array<{ label: string; path: string; content: string }> = [
   { label: "App.tsx",                path: "src/App.tsx",                          content: srcApp },
@@ -394,6 +395,8 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <AskDatabaseWidget />
 
       <CreditsDialog open={creditsOpen} onClose={() => setCreditsOpen(false)} />
       <SourceViewerDialog open={srcOpen} onClose={() => setSrcOpen(false)} />
