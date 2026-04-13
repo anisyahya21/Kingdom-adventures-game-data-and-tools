@@ -8,7 +8,7 @@ The actual website is inside:
 
 
 
-artifacts/marriage-matcher
+artifacts/kingdom-adventures
 
 
 
@@ -20,7 +20,7 @@ Use these commands:
 
 
 
-cd artifacts\\marriage-matcher
+cd artifacts\\kingdom-adventures
 
 set PORT=5173
 
@@ -43,4 +43,7 @@ npm run dev -- --host
 \- For phone testing, use LAN IP with port 5173
 
 \- Prefer fixing files over repeatedly restarting preview
+
+
+
 

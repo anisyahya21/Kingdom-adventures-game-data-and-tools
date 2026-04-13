@@ -1,14 +1,13 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowLeft, ChevronDown, ChevronRight, Moon, Sun,
-  MapPin, Trophy, Skull, RefreshCw, Loader2, Check, Diamond, Info, RotateCcw, ChevronLeft, Plus,
+  MapPin, Trophy, Skull, RefreshCw, Loader2, Check, Diamond, Info, RotateCcw, ChevronLeft, Plus, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 
@@ -90,107 +89,10 @@ function useSpawnLevels() {
   return { levels, add, remove, reset };
 }
 
-function LevelCombobox({ value, onChange, onClose, levels }: { value: number; onChange: (v: number) => void; onClose: () => void; levels: number[] }) {
-  const [q, setQ] = useState(String(value));
-  const ref = useRef<HTMLDivElement>(null);
-  const filtered = levels.filter((lv) => q === "" || String(lv).includes(q));
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onClose]);
-
-  return (
-    <div ref={ref} className="relative inline-block">
-      <Input
-        autoFocus
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            const num = parseInt(q);
-            if (!isNaN(num) && num > 0) { onChange(num); onClose(); }
-          }
-          if (e.key === "Escape") onClose();
-        }}
-        className="h-6 text-xs w-20 px-1.5"
-        placeholder="Level…"
-      />
-      {filtered.length > 0 && (
-        <div className="absolute z-50 top-full left-0 mt-0.5 bg-popover border border-border rounded-md shadow-md max-h-52 overflow-y-auto min-w-[5rem]">
-          {filtered.map((lv) => (
-            <button key={lv} className={`w-full text-left px-2.5 py-1 text-xs hover:bg-muted transition-colors ${lv === value ? "bg-primary/10 text-primary font-medium" : ""}`}
-              onMouseDown={(e) => { e.preventDefault(); onChange(lv); onClose(); }}>
-              {lv}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-async function saveMonsters(monsters: Record<string, Monster>, userName: string, description: string) {
-  await fetch(API("/monsters"), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: monsters, history: { userName, changeType: "monster", itemName: "monsters", description } }),
-  });
-}
-
-function IconUploadSmall({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
-  const ref = useState<HTMLInputElement | null>(null);
-  const inputRef = { current: ref[0] };
-  const [_, setRef] = ref;
-  return (
-    <label className="cursor-pointer group relative inline-block">
-      <input ref={(el) => setRef(el)} type="file" accept="image/*" className="sr-only"
-        onChange={(e) => {
-          const file = e.target.files?.[0]; if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (ev) => { if (ev.target?.result) onChange(ev.target.result as string); };
-          reader.readAsDataURL(file);
-        }} />
-      <div className="w-9 h-9 rounded-lg border border-dashed border-border group-hover:border-primary/50 bg-muted/30 flex items-center justify-center overflow-hidden transition-colors">
-        {value
-          ? <img src={value} alt="" className="w-full h-full object-contain" />
-          : <Skull className="w-4 h-4 text-muted-foreground/40" />}
-      </div>
-    </label>
-  );
-}
-
-function useUserName() {
-  const [name, setName] = useState(() => localStorage.getItem("ka_username") ?? "");
-  const save = (n: string) => { setName(n); localStorage.setItem("ka_username", n); };
-  return { name, save };
-}
-
-function NamePrompt({ onSave }: { onSave: (n: string) => void }) {
-  const [val, setVal] = useState("");
-  return (
-    <Dialog open>
-      <DialogContent className="max-w-xs">
-        <DialogHeader><DialogTitle>What's your name?</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground">This will be shown on edits you make.</p>
-        <Input value={val} onChange={(e) => setVal(e.target.value)} placeholder="Your name" className="h-8 text-sm" onKeyDown={(e) => e.key === "Enter" && val.trim() && onSave(val.trim())} />
-        <Button size="sm" onClick={() => val.trim() && onSave(val.trim())} className="w-full">Continue</Button>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export default function MonstersPage() {
   const { dark, setDark } = useDarkMode();
-  const { name: userName, save: saveUserName } = useUserName();
-  const [promptName, setPromptName] = useState(false);
-  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_monsters") ?? "");
   const [showNote, setShowNote] = useState(false);
-  const qc = useQueryClient();
   const { data, isLoading, refetch } = useSharedData();
 
   const monsters: Record<string, Monster> = useMemo(() => {
@@ -205,54 +107,14 @@ export default function MonstersPage() {
     return merged;
   }, [data?.monsters]);
   const fallbackWeeklyConquest: WeeklyConquest = data?.weeklyConquest ?? null;
-  const withName = useCallback((fn: () => void) => {
-    if (!userName) { setPendingAction(() => fn); setPromptName(true); }
-    else fn();
-  }, [userName]);
-
-  const onNameSaved = (n: string) => {
-    saveUserName(n); setPromptName(false);
-    if (pendingAction) { pendingAction(); setPendingAction(null); }
-  };
-
-  const mutateMonsters = useCallback(async (next: Record<string, Monster>, desc: string) => {
-    await saveMonsters(next, userName, desc);
-    qc.invalidateQueries({ queryKey: ["ka-shared"] });
-  }, [userName, qc]);
 
   const spawnLevels = useSpawnLevels();
   const [showLevelEditor, setShowLevelEditor] = useState(false);
   const [newLevelInput, setNewLevelInput] = useState("");
 
   const [expandedMonster, setExpandedMonster] = useState<string | null>(null);
-  const [editingSpawn, setEditingSpawn] = useState<{ name: string; idx: number } | null>(null);
-
-  const updateIcon = (name: string, icon: string) => {
-    withName(() => mutateMonsters({ ...monsters, [name]: { ...monsters[name], icon } }, `Updated icon for ${name}`));
-  };
-
-  const addSpawn = (monsterName: string) => {
-    withName(() => {
-      const m = monsters[monsterName];
-      const next = { ...monsters, [monsterName]: { ...m, spawns: [...m.spawns, { area: "", level: 1 }] } };
-      mutateMonsters(next, `Added spawn to ${monsterName}`);
-    });
-  };
-
-  const updateSpawn = (monsterName: string, idx: number, spawn: MonsterSpawn) => {
-    withName(() => {
-      const m = monsters[monsterName];
-      const spawns = m.spawns.map((s, i) => i === idx ? spawn : s);
-      mutateMonsters({ ...monsters, [monsterName]: { ...m, spawns } }, `Updated spawn for ${monsterName}`);
-    });
-  };
-
-  const removeSpawn = (monsterName: string, idx: number) => {
-    withName(() => {
-      const m = monsters[monsterName];
-      mutateMonsters({ ...monsters, [monsterName]: { ...m, spawns: m.spawns.filter((_, i) => i !== idx) } }, `Removed spawn from ${monsterName}`);
-    });
-  };
+  const [showConquestCalendar, setShowConquestCalendar] = useState(false);
+  const [timeNow, setTimeNow] = useState(() => Date.now());
 
   const [conquestOffset, setConquestOffset] = useState(0);
   const [deploymentQuery, setDeploymentQuery] = useState("");
@@ -269,7 +131,7 @@ export default function MonstersPage() {
   const deploymentBoxRef = useRef<HTMLDivElement | null>(null);
   const { data: conquestTimeline } = useQuery({
     queryKey: ["weekly-conquest-automatic"],
-    queryFn: () => fetchAutomaticWeeklyConquestTimeline(),
+    queryFn: () => fetchAutomaticWeeklyConquestTimeline(undefined, 4),
     staleTime: 15 * 60 * 1000,
     refetchInterval: 15 * 60 * 1000,
   });
@@ -303,6 +165,29 @@ export default function MonstersPage() {
       : null;
   const canGoPrevious = Boolean(conquestTimeline?.entries.find((entry) => entry.id === conquestTimeline.currentId + conquestOffset - 1));
   const canGoNext = Boolean(conquestTimeline?.entries.find((entry) => entry.id === conquestTimeline.currentId + conquestOffset + 1));
+
+  const conquestEventEntries = conquestTimeline?.entries ?? [];
+  const currentTimelineId = conquestTimeline?.currentId ?? 0;
+  const selectedConquestId = currentTimelineId + conquestOffset;
+  const isOngoingEvent = browsedConquest
+    ? timeNow >= browsedConquest.startedAt && timeNow < browsedConquest.endsAt
+    : false;
+
+  const conquestCountdown = useMemo(() => {
+    if (!browsedConquest || !isOngoingEvent) return "";
+    const diff = browsedConquest.endsAt - timeNow;
+    if (diff <= 0) return "Event ending soon";
+    const totalSeconds = Math.floor(diff / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s remaining`;
+  }, [browsedConquest, isOngoingEvent, timeNow]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setTimeNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     setConquestOffset(0);
@@ -497,6 +382,11 @@ export default function MonstersPage() {
               <div className="space-y-0.5">
                 <p className="text-[11px] text-muted-foreground">{conquestMeta.subtitle}</p>
                 {conquestMeta.range && <p className="text-[11px] text-muted-foreground/70">{conquestMeta.range}</p>}
+                {conquestCountdown ? (
+                  <div className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-1 text-[12px] font-semibold text-amber-400 dark:text-amber-300">
+                    {conquestCountdown}
+                  </div>
+                ) : null}
               </div>
             )}
           </CardHeader>
@@ -504,7 +394,7 @@ export default function MonstersPage() {
             <div className="space-y-3">
               {conquestMeta?.title && (
                 <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-xs text-muted-foreground">
                         {conquestMeta.isCurrent ? "Current Event" : conquestOffset < 0 ? "Past Event" : "Upcoming Event"}
@@ -512,7 +402,7 @@ export default function MonstersPage() {
                       <p className="text-sm font-semibold">{conquestMeta.title}</p>
                     </div>
                     {conquestTimeline?.entries?.length ? (
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
                         <Button
                           size="icon"
                           variant="outline"
@@ -545,14 +435,134 @@ export default function MonstersPage() {
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+
+              {conquestEventEntries.length > 0 && (
+                <div className="-mx-3 overflow-x-auto px-3">
+                  <div className="inline-flex gap-2 py-2 min-w-[max-content]">
+                    {conquestEventEntries.map((entry) => {
+                      const offset = entry.id - currentTimelineId;
+                      const isSelected = entry.id === selectedConquestId;
+                      const stateClasses = isSelected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : offset < 0
+                          ? "bg-muted text-muted-foreground border-border"
+                          : "bg-muted/80 text-muted-foreground border-border";
+                      return (
+                        <button
+                          key={entry.id}
+                          type="button"
+                          onClick={() => setConquestOffset(offset)}
+                          className={`shrink-0 rounded-xl border px-3 py-2 text-left text-[11px] transition-colors ${stateClasses}`}
+                        >
+                          <div className="font-semibold leading-tight">{entry.name}</div>
+                          <div className="text-[10px] text-muted-foreground/70">
+                            {offset === 0 ? "Current" : offset < 0 ? `${-offset} past` : `${offset} upcoming`}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-lg border border-border bg-muted/10 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold text-muted-foreground">Event Reward</p>
+                  {isOngoingEvent && (
+                    <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">Ongoing event</span>
+                  )}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {weeklyConquest?.reward && weeklyConquest.reward.jobName ? (
+                    <span className="inline-flex items-center gap-1.5 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-full px-3 py-1 text-[10px] font-medium">
+                      <Trophy className="w-3 h-3" />{weeklyConquest.reward.jobRank} — {weeklyConquest.reward.jobName}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-[10px] text-muted-foreground/50">
+                      <Trophy className="w-3 h-3" />Job reward — not set
+                    </span>
+                  )}
+                  {weeklyConquest?.reward && weeklyConquest.reward.diamonds > 0 ? (
+                    <span className="inline-flex items-center gap-1.5 bg-sky-100 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 rounded-full px-3 py-1 text-[10px] font-medium">
+                      <Diamond className="w-3 h-3" />{weeklyConquest.reward.diamonds.toLocaleString()} Diamonds
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-[10px] text-muted-foreground/50">
+                      <Diamond className="w-3 h-3" />Diamonds — not set
+                    </span>
+                  )}
+                  {weeklyConquest?.reward && weeklyConquest.reward.equipment ? (
+                    <span className="inline-flex items-center gap-1.5 bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 rounded-full px-3 py-1 text-[10px] font-medium">
+                      🗡️ {weeklyConquest.reward.equipment}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-[10px] text-muted-foreground/50">
+                      🗡️ Equipment — not set
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-muted/10 p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground">Event Calendar</p>
+                    <p className="text-[11px] text-muted-foreground">Past, current and upcoming events with rewards only.</p>
+                  </div>
+                  <Button size="sm" variant="ghost" className="h-8 px-3 text-xs" onClick={() => setShowConquestCalendar((value) => !value)}>
+                    {showConquestCalendar ? <ChevronDown className="w-3.5 h-3.5 mr-1" /> : <ChevronRight className="w-3.5 h-3.5 mr-1" />}
+                    {showConquestCalendar ? "Collapse" : "Expand"}
+                  </Button>
+                </div>
+                {showConquestCalendar && (
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {conquestEventEntries.map((entry) => {
+                      const isCurrent = entry.id === currentTimelineId;
+                      const isPast = entry.id < currentTimelineId;
+                      const entryLabel = isCurrent ? "Current" : isPast ? "Past" : "Upcoming";
+                      return (
+                        <div key={entry.id} className={`rounded-xl border p-2 ${isCurrent ? "border-primary bg-primary/10" : "border-border bg-muted/50"}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold leading-snug truncate">{entry.name}</p>
+                              <p className="text-[9px] text-muted-foreground">{new Date(entry.startedAt).toLocaleDateString()} - {new Date(entry.endsAt).toLocaleDateString()}</p>
+                            </div>
+                            <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium ${isCurrent ? "bg-primary text-primary-foreground" : isPast ? "bg-muted text-muted-foreground" : "bg-muted/70 text-muted-foreground"}`}>
+                              {entryLabel}
+                            </span>
+                          </div>
+                          <div className="mt-2 space-y-1 text-[9px]">
+                            {entry.reward.jobName ? (
+                              <div className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-full px-2 py-0.5 font-medium w-full overflow-hidden whitespace-nowrap text-ellipsis">
+                                <Trophy className="w-3 h-3" />{entry.reward.jobRank} — {entry.reward.jobName}
+                              </div>
+                            ) : null}
+                            {entry.reward.diamonds > 0 ? (
+                              <div className="inline-flex items-center gap-1 bg-sky-100 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 rounded-full px-2 py-0.5 font-medium w-full overflow-hidden whitespace-nowrap text-ellipsis">
+                                <Diamond className="w-3 h-3" />{entry.reward.diamonds.toLocaleString()} Diamonds
+                              </div>
+                            ) : null}
+                            {entry.reward.equipment ? (
+                              <div className="inline-flex items-center gap-1 bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 rounded-full px-2 py-0.5 font-medium w-full overflow-hidden whitespace-nowrap text-ellipsis">
+                                🗡️ {entry.reward.equipment}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {Array.from({ length: 6 }).map((_, i) => {
                   if (i === 5) {
                     return (
                       <div
                         key="add-deployments"
                         ref={deploymentBoxRef}
-                        className="rounded-lg border border-dashed border-border bg-muted/10 px-3 py-3"
+                        className="rounded-lg border border-dashed border-border bg-muted/10 px-2 py-2"
                       >
                         <p className="text-xs font-semibold text-muted-foreground mb-2">
                           Add Deployments
@@ -632,39 +642,44 @@ export default function MonstersPage() {
                   const mName = weeklyConquest?.monsters[i];
                   const m = mName ? monsters[mName] : undefined;
                   return mName ? (
-                    <div key={i} className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2">
-                      <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                        {m?.icon ? <img src={m.icon} alt="" className="w-full h-full object-contain" /> : <Skull className="w-4 h-4 text-muted-foreground/40" />}
+                    <div key={i} className="rounded-lg border border-border bg-muted/20 px-2 py-2 text-[11px]">
+                      <div className="flex items-start gap-2">
+                        <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                          {m?.icon ? <img src={m.icon} alt="" className="w-full h-full object-contain" /> : <Skull className="w-4 h-4 text-muted-foreground/40" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold leading-tight">{mName}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Target kills: {conquestKillTargets[i]?.toLocaleString() ?? "—"}
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium leading-tight">{mName}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Target kills: {conquestKillTargets[i]?.toLocaleString() ?? "—"}
-                        </p>
-                        {m && m.spawns.length > 0 ? (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {m.spawns.map((sp, si) => (
-                              <button
-                                key={si}
-                                type="button"
-                                onClick={() => toggleConquestArea(sp)}
-                                className={`inline-flex items-center gap-0.5 text-[10px] rounded px-1.5 py-0.5 border transition-colors ${
-                                  isConquestAreaCovered(sp)
-                                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
-                                    : "bg-muted border-transparent text-muted-foreground"
-                                }`}
-                                title={isConquestAreaCovered(sp) ? "Marked as covered" : "Tap to mark as covered"}
-                              >
-                                {isConquestAreaCovered(sp) ? <Check className="w-2.5 h-2.5" /> : <MapPin className="w-2.5 h-2.5" />}
-                                {sp.area} Lv{sp.level}
-                              </button>
-                            ))}
-                          </div>
-                        ) : <p className="text-[10px] text-muted-foreground/60 mt-0.5">No spawns recorded</p>}
-                      </div>
+                      {m && m.spawns.length > 0 ? (
+                        <div className="mt-2 grid grid-cols-2 gap-1">
+                          {m.spawns.map((sp, si) => (
+                            <button
+                              key={si}
+                              type="button"
+                              onClick={() => toggleConquestArea(sp)}
+                              className={`w-full text-left inline-flex flex-col items-start gap-1 text-[10px] rounded px-1.5 py-1.5 border transition-colors ${
+                                isConquestAreaCovered(sp)
+                                  ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                                  : "bg-muted border-transparent text-muted-foreground"
+                              }`}
+                              title={isConquestAreaCovered(sp) ? "Marked as covered" : "Tap to mark as covered"}
+                            >
+                              <div className="flex items-center gap-1">
+                                {isConquestAreaCovered(sp) ? <Check className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
+                                <span className="font-medium">{sp.area}</span>
+                              </div>
+                              <span className="text-[9px] text-muted-foreground">Lv{sp.level}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : <p className="text-[10px] text-muted-foreground/60 mt-2">No spawns recorded</p>}
                     </div>
                   ) : (
-                    <div key={i} className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/10 px-3 py-2 h-14">
+                    <div key={i} className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/10 px-2 py-2 h-14">
                       <div className="w-8 h-8 rounded-md border border-dashed border-border/50 flex items-center justify-center shrink-0">
                         <Skull className="w-3.5 h-3.5 text-muted-foreground/20" />
                       </div>
@@ -674,43 +689,6 @@ export default function MonstersPage() {
                 })}
               </div>
 
-              {weeklyConquest?.reward && (weeklyConquest.reward.jobName || weeklyConquest.reward.diamonds > 0 || weeklyConquest.reward.equipment) ? (
-                <div className="mt-3 pt-3 border-t border-border">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Event Reward</p>
-                  <div className="flex flex-wrap gap-2">
-                    {weeklyConquest.reward.jobName && (
-                      <span className="inline-flex items-center gap-1.5 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-full px-3 py-1 text-xs font-medium">
-                        <Trophy className="w-3 h-3" />{weeklyConquest.reward.jobRank} — {weeklyConquest.reward.jobName}
-                      </span>
-                    )}
-                    {weeklyConquest.reward.diamonds > 0 && (
-                      <span className="inline-flex items-center gap-1.5 bg-sky-100 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 rounded-full px-3 py-1 text-xs font-medium">
-                        <Diamond className="w-3 h-3" />{weeklyConquest.reward.diamonds.toLocaleString()} Diamonds
-                      </span>
-                    )}
-                    {weeklyConquest.reward.equipment && (
-                      <span className="inline-flex items-center gap-1.5 bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 rounded-full px-3 py-1 text-xs font-medium">
-                        🗡️ {weeklyConquest.reward.equipment}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-3 pt-3 border-t border-border">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Event Reward</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-xs text-muted-foreground/50">
-                      <Trophy className="w-3 h-3" />Job reward — not set
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-xs text-muted-foreground/50">
-                      <Diamond className="w-3 h-3" />Diamonds — not set
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-xs text-muted-foreground/50">
-                      ð¡ï¸ Equipment — not set
-                    </span>
-                  </div>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

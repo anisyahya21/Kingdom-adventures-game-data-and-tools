@@ -1,8 +1,8 @@
 kind = "web"
 previewPath = "/"
-title = "Marriage Matcher"
+title = "Kingdom Adventures"
 version = "1.0.0"
-id = "artifacts/marriage-matcher"
+id = "artifacts/kingdom-adventures"
 router = "path"
 
 [[integratedSkills]]
@@ -15,11 +15,11 @@ paths = [ "/" ]
 localPort = 25312
 
 [services.development]
-run = "pnpm --filter @workspace/marriage-matcher run dev"
+run = "pnpm --filter @workspace/kingdom-adventures run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/marriage-matcher", "run", "build" ]
-publicDir = "artifacts/marriage-matcher/dist/public"
+build = [ "pnpm", "--filter", "@workspace/kingdom-adventures", "run", "build" ]
+publicDir = "artifacts/kingdom-adventures/dist/public"
 serve = "static"
 
 [[services.production.rewrites]]

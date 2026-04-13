@@ -12,7 +12,7 @@ pnpm workspace monorepo using TypeScript. React+Vite frontend at `/` with an Exp
 - **Icons**: Lucide-react
 - **Node.js**: 24, TypeScript 5.9
 
-## Routes (marriage-matcher frontend)
+## Routes (Kingdom Adventures frontend)
 
 | Path | Page |
 |------|------|
@@ -71,9 +71,9 @@ jobs            — { name: { generation: 1|2, type?: "combat"|"non-combat", ico
   - `artifacts/api-server/.replit-artifact/artifact.toml` has `paths = ["/api", "/ka-api"]`
   - `app.ts` has `app.use("/ka-api", router)` alias alongside `app.use("/api", router)`
 - All frontend pages use `BASE = import.meta.env.BASE_URL.replace(/\/$/, "")` + `API = (p) => \`${BASE}/ka-api/ka${p}\``
-- `BASE_PATH = "/"` in the marriage-matcher artifact (set in services.env)
+- `BASE_PATH = "/"` in the Kingdom Adventures artifact (set in services.env)
 
 ## Key Commands
 
 - `pnpm --filter @workspace/api-server run dev` — API server
-- `pnpm --filter @workspace/marriage-matcher run dev` — Frontend
+- `pnpm --filter @workspace/kingdom-adventures run dev` — Frontend

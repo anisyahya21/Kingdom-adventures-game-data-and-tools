@@ -216,7 +216,7 @@ importers:
         specifier: 3.1.0
         version: 3.1.0
 
-  artifacts/marriage-matcher:
+  artifacts/kingdom-adventures:
     dependencies:
       html-to-image:
         specifier: ^1.11.13
