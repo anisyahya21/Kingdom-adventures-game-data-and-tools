@@ -48,10 +48,16 @@ function NumInput({
     if (clamped !== value) onChange(clamped);
   };
   return (
-    <Input type="number" value={local} min={min} max={max} step={1} className={className}
-      onChange={(e: ChangeEvent<HTMLInputElement>) => updateWhileTyping(e.target.value)}
+    <Input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={local}
+      className={className}
+      onChange={(e: ChangeEvent<HTMLInputElement>) => updateWhileTyping(e.target.value.replace(/[^0-9]/g, ""))}
       onBlur={commit}
-      onKeyDown={(e) => { if (e.key === "Enter") commit(); }} />
+      onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+    />
   );
 }
 
@@ -677,6 +683,7 @@ export default function EquipmentPage() {
 
   // Per-item levels (local, comparison table only)
   const [itemLevels, setItemLevels] = useState<Record<string, number>>({});
+  const [bulkCompareLevel, setBulkCompareLevel] = useState(99);
   const getItemLevel = (name: string) => itemLevels[name] ?? 1;
   const setItemLevel = (name: string, v: number) => setItemLevels((prev) => ({ ...prev, [name]: Math.min(99, Math.max(1, v)) }));
 
@@ -806,6 +813,24 @@ export default function EquipmentPage() {
     }
     return list;
   }, [items, compareMode, selectedUids, search, slotFilter, rankFilter, craftFilter, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemSlot]);
+
+  const applyLevelToShown = useCallback((level: number) => {
+    const clamped = Math.min(99, Math.max(1, level));
+    setItemLevels((prev) => {
+      const next = { ...prev };
+      for (const item of filtered) next[item.name] = clamped;
+      return next;
+    });
+  }, [filtered]);
+
+  const applyLevelToAll = useCallback((level: number) => {
+    const clamped = Math.min(99, Math.max(1, level));
+    setItemLevels((prev) => {
+      const next = { ...prev };
+      for (const item of items) next[item.name] = clamped;
+      return next;
+    });
+  }, [items]);
 
   const totalStats = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -976,6 +1001,24 @@ export default function EquipmentPage() {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 mb-4 rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <span className="text-xs font-medium text-muted-foreground">Compare at level</span>
+          <NumInput
+            value={bulkCompareLevel}
+            min={1}
+            max={99}
+            onChange={setBulkCompareLevel}
+            className="h-8 w-16 text-sm text-center px-1 bg-background border-border/70"
+          />
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => applyLevelToShown(bulkCompareLevel)}>
+            Set shown items
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => applyLevelToAll(bulkCompareLevel)}>
+            Set all items
+          </Button>
+          <span className="text-[11px] text-muted-foreground">Quick way to compare everything at one level without changing rows one by one.</span>
+        </div>
+
         {isLoading && <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground"><Loader2 className="w-6 h-6 animate-spin text-primary" /><span className="text-sm">Fetching data…</span></div>}
         {isError && (
           <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 mb-4">
@@ -1117,7 +1160,7 @@ export default function EquipmentPage() {
                             <td className="px-2 py-1.5">
                               <NumInput value={level} min={1} max={99}
                                 onChange={(v) => setItemLevel(item.name, v)}
-                                className="h-6 w-14 text-xs text-center px-1 mx-auto" />
+                                className="h-7 w-14 text-xs text-center px-1 mx-auto bg-background border-border/70" />
                             </td>
                             <td className="px-2 py-1.5">
                               <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
@@ -1366,7 +1409,7 @@ export default function EquipmentPage() {
                               min={1}
                               max={99}
                               onChange={(v) => setItemLevel(item.name, v)}
-                              className="h-8 w-16 text-sm text-center px-1"
+                              className="h-8 w-16 text-sm text-center px-1 bg-background border-border/70"
                             />
                           </div>
                         </div>
@@ -1483,7 +1526,7 @@ export default function EquipmentPage() {
                               <span className="text-[10px] text-muted-foreground">Level</span>
                               <NumInput value={entry.level} min={1} max={99}
                                 onChange={(v) => setLoadoutEntry(slot, { level: v })}
-                                className="h-6 w-14 text-xs text-center px-1" />
+                                className="h-7 w-14 text-xs text-center px-1 bg-background border-border/70" />
                             </div>
                           )}
                           {item && entry.itemName && (

@@ -1,6 +1,13 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircle, Sparkles, Send, X } from "lucide-react";
+import {
+  MessageCircle,
+  Sparkles,
+  Send,
+  Minus,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +24,7 @@ type RawEquipmentItem = {
 };
 
 type StatOverride = { base?: number; inc?: number };
+
 type SharedJob = {
   generation: 1 | 2;
   type?: "combat" | "non-combat";
@@ -31,12 +39,21 @@ type SharedPair = {
   affinity?: string;
 };
 
+type SkillRow = {
+  name: string;
+  buyPrice?: number | null;
+  sellPrice?: number | null;
+  studioLevel?: number | null;
+  craftingIntelligence?: number | null;
+};
+
 type SharedData = {
   overrides?: Record<string, Record<string, StatOverride>>;
   slotAssignments?: Record<string, string>;
   weaponTypes?: Record<string, string>;
   jobs?: Record<string, SharedJob>;
   pairs?: SharedPair[];
+  skills?: Record<string, SkillRow>;
 };
 
 type EquipmentRecord = {
@@ -52,6 +69,12 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
+  options?: string[];
+};
+
+type AnswerResult = {
+  text: string;
+  options?: string[];
 };
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -63,7 +86,24 @@ const RANKED_EQUIPMENT_NAME = /^[FSABCDE]\s*\/\s*/i;
 const ITEM_RANK_ORDER = ["S", "A", "B", "C", "D", "E", "F"] as const;
 const JOB_RANK_ORDER = ["S", "A", "B", "C", "D"] as const;
 const VALID_SLOTS = ["Head", "Weapon", "Shield", "Armor", "Accessory"] as const;
-type ValidSlot = typeof VALID_SLOTS[number];
+type ValidSlot = (typeof VALID_SLOTS)[number];
+
+const WEAPON_CATEGORY_WORDS = [
+  "staff",
+  "sword",
+  "spear",
+  "bow",
+  "gun",
+  "axe",
+  "hammer",
+  "wand",
+  "book",
+  "club",
+  "katana",
+  "knife",
+] as const;
+
+type WeaponCategory = (typeof WEAPON_CATEGORY_WORDS)[number];
 
 const STAT_FULL: Record<string, string> = {
   hp: "HP",
@@ -109,9 +149,80 @@ const STAT_LABEL: Record<string, string> = {
   Heart: "HRT",
 };
 
+const DISPLAY_STAT_KEYS = [
+  "HP",
+  "MP",
+  "Vigor",
+  "Attack",
+  "Defence",
+  "Speed",
+  "Move",
+  "Luck",
+  "Intelligence",
+  "Dexterity",
+  "Gather",
+  "Heart",
+] as const;
+
 const SLOT_KEYWORDS: Array<{ slot: ValidSlot; words: string[] }> = [
-  { slot: "Accessory", words: ["accessory", "accessories", "ring", "rings", "necklace", "necklaces", "pendant", "pendants", "amulet", "amulets", "charm", "charms", "bracelet", "bracelets", "earring", "earrings", "ornament", "ornaments", "bag", "bags", "boots", "sandals"] },
-  { slot: "Weapon", words: ["weapon", "weapons", "staff", "staffs", "sword", "swords", "spear", "spears", "bow", "bows", "gun", "guns", "axe", "axes", "hammer", "hammers", "wand", "wands", "book", "books", "club", "clubs", "katana", "katanas", "knife", "knives"] },
+  {
+    slot: "Accessory",
+    words: [
+      "accessory",
+      "accessories",
+      "ring",
+      "rings",
+      "necklace",
+      "necklaces",
+      "pendant",
+      "pendants",
+      "amulet",
+      "amulets",
+      "charm",
+      "charms",
+      "bracelet",
+      "bracelets",
+      "earring",
+      "earrings",
+      "ornament",
+      "ornaments",
+      "bag",
+      "bags",
+      "boots",
+      "sandals",
+    ],
+  },
+  {
+    slot: "Weapon",
+    words: [
+      "weapon",
+      "weapons",
+      "staff",
+      "staffs",
+      "sword",
+      "swords",
+      "spear",
+      "spears",
+      "bow",
+      "bows",
+      "gun",
+      "guns",
+      "axe",
+      "axes",
+      "hammer",
+      "hammers",
+      "wand",
+      "wands",
+      "book",
+      "books",
+      "club",
+      "clubs",
+      "katana",
+      "katanas",
+      "knife",
+      "knives",
+    ],
+  },
   { slot: "Armor", words: ["armor", "armour", "robe", "robes", "cape", "capes", "mail", "coat", "coats", "clothes", "clothing", "body"] },
   { slot: "Shield", words: ["shield", "shields", "buckler", "bucklers"] },
   { slot: "Head", words: ["head", "headgear", "helmet", "helm", "hat", "hats", "cap", "caps", "hood", "hoods", "crown", "crowns", "ribbon", "ribbons", "band", "bands", "tiara"] },
@@ -158,12 +269,10 @@ const FURNITURE_ROWS = [
 ];
 
 const SUGGESTIONS = [
-  "what accessory has the highest int at level 99",
-  "what is the hp of S/ Divine Club at level 99",
-  "who has the highest int at level 999",
-  "highest int craftable single piece of equipment at level 99",
-  "highest int craftable full loadout at level 99",
-  "where can i unlock B/ Boots",
+  "How do I unlock Double Bed?",
+  "What job has the highest attack?",
+  "How can I get a Royal?",
+  "Max possible attack?",
 ];
 
 function makeId() {
@@ -229,16 +338,26 @@ function isIncCol(col: string): string | null {
 }
 
 function parseLevel(text: string, maxLevel = 999): number {
-  if (/(max level|level 99|lvl 99|lv 99)/i.test(text) && maxLevel >= 99) return 99;
+  if (/\bmax level\b/i.test(text)) return maxLevel;
+
   const match = text.match(/(?:level|lvl|lv)\s*(\d{1,4})/i);
-  if (!match) return Math.min(maxLevel, 99);
+  if (!match) return Math.min(maxLevel, maxLevel >= 999 ? 999 : 99);
+
   const parsed = Number(match[1]);
-  if (!Number.isFinite(parsed)) return Math.min(maxLevel, 99);
+  if (!Number.isFinite(parsed)) return Math.min(maxLevel, maxLevel >= 999 ? 999 : 99);
+
   return Math.max(1, Math.min(maxLevel, parsed));
 }
 
 function parseStat(text: string): string | null {
   const lower = text.toLowerCase();
+
+  if (/\bfastest\b/.test(lower)) return "Speed";
+  if (/\bstrongest\b/.test(lower)) return "Attack";
+  if (/\bsmartest\b/.test(lower)) return "Intelligence";
+  if (/\bluckiest\b/.test(lower)) return "Luck";
+  if (/\btankiest\b|\btoughest\b/.test(lower)) return "Defence";
+
   if (/\bint(?:elligence)?\b/.test(lower)) return "Intelligence";
   if (/\bdef(?:ence|ense)?\b/.test(lower)) return "Defence";
   if (/\batk\b|\batt\b|\battack\b/.test(lower)) return "Attack";
@@ -262,9 +381,77 @@ function parseSlot(text: string): ValidSlot | null {
   return null;
 }
 
+function parseWeaponCategory(text: string): WeaponCategory | null {
+  const lower = normalize(text);
+  for (const cat of WEAPON_CATEGORY_WORDS) {
+    if (new RegExp(`\\b${escapeRegExp(cat)}s?\\b`).test(lower)) return cat;
+  }
+  return null;
+}
+
+function normalizeWeaponType(raw: string): string {
+  return normalize(raw).replace(/\bweapons?\b/g, "").trim();
+}
+
+function getWeaponCategoryForItem(item: EquipmentRecord, shared: SharedData): WeaponCategory | null {
+  const fromShared = shared.weaponTypes?.[item.name];
+  const sharedNorm = normalizeWeaponType(fromShared ?? "");
+  for (const cat of WEAPON_CATEGORY_WORDS) {
+    if (sharedNorm.includes(cat)) return cat;
+  }
+
+  const clean = normalize(cleanupItemName(item.name));
+  for (const cat of WEAPON_CATEGORY_WORDS) {
+    if (clean.includes(cat)) return cat;
+  }
+
+  return null;
+}
+
 function statNamesToCheck(stat: string): string[] {
   if (stat === "Move") return ["Move", "Movement"];
   return [stat];
+}
+
+function containsMaxLevel(text: string): boolean {
+  return /\bmax level\b/i.test(text);
+}
+
+function isShortRankingFollowup(question: string): boolean {
+  const lower = question.toLowerCase().trim();
+  return (
+    /^(and\s+)?(the\s+)?(second|2nd|third|3rd)\b/.test(lower) ||
+    /^(and\s+)?(the\s+)?(second|2nd|third|3rd)\s+highest\b/.test(lower) ||
+    /^(and\s+)?what about\b/.test(lower)
+  );
+}
+
+function parseExclusionTerms(question: string): string[] {
+  const lower = normalize(question);
+  const results: string[] = [];
+
+  const patterns = [
+    /\bexcluding\s+([a-z0-9 ]{1,40})$/,
+    /\bexclude\s+([a-z0-9 ]{1,40})$/,
+    /\bwithout\s+([a-z0-9 ]{1,40})$/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = lower.match(pattern);
+    if (!match?.[1]) continue;
+
+    const phrase = match[1]
+      .split(/\b(at|level|max|job|class|unit|with|for|and|or)\b/)[0]
+      .trim();
+
+    if (phrase) results.push(phrase);
+  }
+
+  return Array.from(new Set(results));
+}
+
+function result(text: string, options?: string[]): AnswerResult {
+  return { text, options };
 }
 
 async function fetchEquipmentSheet(): Promise<RawEquipmentItem[]> {
@@ -293,6 +480,7 @@ async function fetchEquipmentSheet(): Promise<RawEquipmentItem[]> {
 
   for (const row of data.table.rows ?? []) {
     if (!row?.c) continue;
+
     const cells = row.c as Array<{ v: string | number | null } | null>;
     const get = (i: number) => (i >= 0 && i < cells.length ? cells[i]?.v ?? null : null);
 
@@ -305,11 +493,16 @@ async function fetchEquipmentSheet(): Promise<RawEquipmentItem[]> {
 
     for (let i = 0; i < cols.length; i++) {
       if (i === nameColIdx || i === slotColIdx || i === craftLvlIdx || i === craftIntIdx) continue;
+
       const col = cols[i];
       if (!col) continue;
+
       const incName = isIncCol(col);
-      if (incName) incStats[incName] = Number(get(i)) || 0;
-      else if (isStatCol(col)) baseStats[fullStat(col)] = Number(get(i)) || 0;
+      if (incName) {
+        incStats[incName] = Number(get(i)) || 0;
+      } else if (isStatCol(col)) {
+        baseStats[fullStat(col)] = Number(get(i)) || 0;
+      }
     }
 
     items.push({
@@ -356,6 +549,7 @@ function buildEquipmentRecords(sheetItems: RawEquipmentItem[], shared: SharedDat
       const names = statNamesToCheck(stat);
       let base = 0;
       let inc = 0;
+
       for (const statName of names) {
         const ov = overrides[statName];
         if (ov?.base !== undefined) base += ov.base;
@@ -364,11 +558,13 @@ function buildEquipmentRecords(sheetItems: RawEquipmentItem[], shared: SharedDat
         if (ov?.inc !== undefined) inc += ov.inc;
         else inc += sheet?.incStats?.[statName] ?? 0;
       }
+
       baseStats[stat] = base;
       incStats[stat] = inc;
     }
 
     const slot = shared.slotAssignments?.[name] || sheet?.sheetSlot || "";
+
     records.push({
       name,
       slot,
@@ -398,6 +594,8 @@ function isExactEquipmentQuestion(question: string): boolean {
     /\bwhere do i craft\b/.test(lower) ||
     /\bwhere can i get\b/.test(lower) ||
     /\bwhere do i get\b/.test(lower) ||
+    /\bhow do i get\b/.test(lower) ||
+    /\bhow do i unlock\b/.test(lower) ||
     /\bwhat level unlocks\b/.test(lower) ||
     RANKED_EQUIPMENT_NAME.test(question)
   );
@@ -446,8 +644,11 @@ function questionLooksLikeJobQuestion(question: string): boolean {
     /\bclass\b/.test(lower) ||
     /\bunit\b/.test(lower) ||
     /\bcombat unit\b/.test(lower) ||
+    /\bcombat class\b/.test(lower) ||
     /\bnon combat unit\b/.test(lower) ||
     /\bnon-combat unit\b/.test(lower) ||
+    /\bnon combat class\b/.test(lower) ||
+    /\bnon-combat class\b/.test(lower) ||
     /\bmage\b/.test(lower) ||
     /\bdoctor\b/.test(lower) ||
     /\bchampion\b/.test(lower)
@@ -455,14 +656,17 @@ function questionLooksLikeJobQuestion(question: string): boolean {
 }
 
 function questionLooksLikeEquipmentRanking(question: string): boolean {
-  return /\b(best|highest|strongest|top)\b/i.test(question);
+  return /\b(best|highest|strongest|fastest|smartest|luckiest|tankiest|toughest|top)\b/i.test(question);
 }
 
 function questionLooksLikeLoadout(question: string): boolean {
   const lower = question.toLowerCase();
   return (
     /\bloadout\b/.test(lower) ||
+    /\bload out\b/.test(lower) ||
+    /\bloud out\b/.test(lower) ||
     /\bfull loadout\b/.test(lower) ||
+    /\bfull load out\b/.test(lower) ||
     /\bfull gear\b/.test(lower) ||
     /\bgear set\b/.test(lower) ||
     /\bone per slot\b/.test(lower) ||
@@ -483,18 +687,162 @@ function wantsGrowth(question: string): boolean {
   return /\bgrowth\b/.test(question.toLowerCase()) || /\bper level\b/.test(question.toLowerCase()) || /\bincrement\b/.test(question.toLowerCase());
 }
 
-function answerFurnitureUnlock(question: string): string | null {
+function parseOrdinal(question: string): number {
+  const lower = question.toLowerCase().trim();
+  if (/\bthird\b|\b3rd\b/.test(lower)) return 3;
+  if (/\bsecond\b|\b2nd\b/.test(lower)) return 2;
+  return 1;
+}
+
+function inferFollowupJobQuestion(question: string, messages: ChatMessage[]): string {
+  const lower = question.toLowerCase().trim();
+
+  const looksLikeFollowup =
+    isShortRankingFollowup(question) ||
+    (/^(and\s+)?(the\s+)?(second|2nd|third|3rd)\b/.test(lower)) ||
+    (/^(and\s+)?(same|what about)\b/.test(lower) && !parseStat(question));
+
+  if (!looksLikeFollowup) return question;
+
+  const priorUser = [...messages]
+    .reverse()
+    .find((m) => {
+      if (m.role !== "user") return false;
+      const text = m.text.toLowerCase();
+      return (
+        questionLooksLikeJobQuestion(m.text) ||
+        /\b(highest|best|top|second|third|2nd|3rd|strongest|fastest|smartest|luckiest|tankiest|toughest)\b/.test(text)
+      );
+    });
+
+  if (!priorUser) return question;
+
+  const currentStat = parseStat(question);
+  const priorStat = parseStat(priorUser.text);
+  const stat = currentStat ?? priorStat;
+  if (!stat) return question;
+
+  const ordinal = parseOrdinal(question);
+  const ordinalWord = ordinal === 3 ? "third" : ordinal === 2 ? "second" : "highest";
+
+  const currentLower = question.toLowerCase();
+  const priorLower = priorUser.text.toLowerCase();
+
+  const combatOnly =
+    /\bcombat\b/.test(currentLower)
+      ? !/\bnon combat\b|\bnon-combat\b/.test(currentLower)
+      : /\bcombat\b/.test(priorLower) && !/\bnon combat\b|\bnon-combat\b/.test(priorLower);
+
+  const nonCombatOnly =
+    /\bnon combat\b|\bnon-combat\b/.test(currentLower) ||
+    /\bnon combat\b|\bnon-combat\b/.test(priorLower);
+
+  const explicitLevelMatch = question.match(/(?:level|lvl|lv)\s*(\d{1,4})/i);
+  const priorLevelMatch = priorUser.text.match(/(?:level|lvl|lv)\s*(\d{1,4})/i);
+
+  let rebuilt = `${ordinalWord} highest ${STAT_LABEL[stat] ?? stat} job`;
+
+  if (combatOnly) {
+    rebuilt = `${ordinalWord} highest combat ${STAT_LABEL[stat] ?? stat} job`;
+  } else if (nonCombatOnly) {
+    rebuilt = `${ordinalWord} highest non-combat ${STAT_LABEL[stat] ?? stat} job`;
+  }
+
+  if (containsMaxLevel(question) || containsMaxLevel(priorUser.text)) {
+    rebuilt += ` at max level`;
+  } else if (explicitLevelMatch) {
+    rebuilt += ` at level ${explicitLevelMatch[1]}`;
+  } else if (priorLevelMatch) {
+    rebuilt += ` at level ${priorLevelMatch[1]}`;
+  }
+
+  const exclusions = parseExclusionTerms(question);
+  if (exclusions.length > 0) {
+    rebuilt += ` excluding ${exclusions.join(" and ")}`;
+  }
+
+  return rebuilt;
+}
+
+function answerTargetedClarification(question: string): AnswerResult | null {
+  const lower = normalize(question);
+  const stat = parseStat(question);
+
+  if (!stat) return null;
+
+  if (
+    /\b(max|maximum|highest)\s+(possible\s+)?(value|attack|atk|mp|hp|intelligence|int|speed|spd|defence|defense|def|luck|lck)\b/.test(lower)
+  ) {
+    const label = STAT_LABEL[stat] ?? stat;
+    return result(`That can mean two things for ${label}. Pick one:`, [
+      `highest possible ${label} from equipment loadout`,
+      `highest possible ${label} from maxed job + equipment loadout`,
+    ]);
+  }
+
+  return null;
+}
+
+function skillDisplayName(raw: string): string {
+  const lower = raw.toLowerCase().trim();
+  if (/^\d+\s*hit attack$/.test(lower)) {
+    const n = lower.match(/^(\d+)/)?.[1] ?? "";
+    return `${n}-Hit Attack`;
+  }
+  return raw;
+}
+
+function findExactSkill(question: string, shared: SharedData): SkillRow | null {
+  const skills = Object.values(shared.skills ?? {});
+  if (skills.length === 0) return null;
+
+  const normalizedQuestion = normalize(question);
+
+  const exact = skills.find((skill) => {
+    const clean = normalize(skillDisplayName(skill.name));
+    return new RegExp(`\\b${escapeRegExp(clean)}\\b`).test(normalizedQuestion);
+  });
+
+  return exact ?? null;
+}
+
+function answerSkillLookup(question: string, shared: SharedData): AnswerResult | null {
   const lower = question.toLowerCase();
-  const asksUnlock = /\b(unlock|where can i|get|craft|make)\b/.test(lower);
+  const skill = findExactSkill(question, shared);
+  if (!skill) return null;
+
+  const asksPrice = /\bhow much\b|\bcost\b|\bprice\b|\bbuy\b|\bsell\b|\bworth\b/.test(lower);
+  const asksLevel = /\blevel\b|\bstudio\b|\bunlock\b/.test(lower);
+  const asksInt = /\bint\b|\bcrafting\b/.test(lower);
+
+  if (asksPrice && !/\bsell\b/.test(lower) && !/\bbuy\b/.test(lower)) {
+    return result(`${skill.name} costs $${skill.buyPrice ?? "—"}. Sell price: $${skill.sellPrice ?? "—"}. Studio level: ${skill.studioLevel ?? "—"}. Crafting INT: ${skill.craftingIntelligence ?? "—"}.`);
+  }
+  if (/\bsell\b/.test(lower)) {
+    return result(`${skill.name} sells for $${skill.sellPrice ?? "—"}. Buy price: $${skill.buyPrice ?? "—"}.`);
+  }
+  if (/\bbuy\b/.test(lower) || /\bcost\b/.test(lower) || /\bprice\b/.test(lower)) {
+    return result(`${skill.name} costs $${skill.buyPrice ?? "—"}. Sell price: $${skill.sellPrice ?? "—"}.`);
+  }
+  if (asksLevel || asksInt) {
+    return result(`${skill.name} unlocks at studio level ${skill.studioLevel ?? "—"} and needs ${skill.craftingIntelligence ?? "—"} Crafting INT. Buy price: $${skill.buyPrice ?? "—"}.`);
+  }
+
+  return result(`${skill.name}: buy $${skill.buyPrice ?? "—"}, sell $${skill.sellPrice ?? "—"}, studio level ${skill.studioLevel ?? "—"}, Crafting INT ${skill.craftingIntelligence ?? "—"}.`);
+}
+
+function answerFurnitureUnlock(question: string): AnswerResult | null {
+  const lower = question.toLowerCase();
+  const asksUnlock = /\b(unlock|where can i|get|craft|make|how do i get|how do i unlock)\b/.test(lower);
   if (!asksUnlock) return null;
 
   const row = FURNITURE_ROWS.find((entry) => lower.includes(entry.name.toLowerCase()));
   if (!row) return null;
 
-  return `${row.name} unlocks at Furniture Shop level ${row.shopLevel} and needs ${row.requiredInt} INT.`;
+  return result(`${row.name} unlocks at Furniture Shop level ${row.shopLevel} and needs ${row.requiredInt} INT.`);
 }
 
-function answerEquipmentExactStat(question: string, items: EquipmentRecord[]): string | null {
+function answerEquipmentExactStat(question: string, items: EquipmentRecord[]): AnswerResult | null {
   const item = findExactEquipment(question, items);
   const stat = parseStat(question);
   if (!item || !stat) return null;
@@ -504,22 +852,22 @@ function answerEquipmentExactStat(question: string, items: EquipmentRecord[]): s
   const inc = item.incStats[stat] ?? 0;
   const value = statAtLevel(base, inc, level);
 
-  return `${item.name} has ${value} ${STAT_LABEL[stat] ?? stat} at level ${level}. Base ${STAT_LABEL[stat] ?? stat}: ${base}. Growth: +${inc} per level.`;
+  return result(`${item.name} has ${value} ${STAT_LABEL[stat] ?? stat} at level ${level}. Base ${STAT_LABEL[stat] ?? stat}: ${base}. Growth: +${inc} per level.`);
 }
 
-function answerEquipmentUnlock(question: string, items: EquipmentRecord[]): string | null {
+function answerEquipmentUnlock(question: string, items: EquipmentRecord[]): AnswerResult | null {
   const lower = question.toLowerCase();
-  if (!/\b(unlock|where can i|get|craft|make)\b/.test(lower)) return null;
+  if (!/\b(unlock|where can i|get|craft|make|how do i get|how do i unlock)\b/.test(lower)) return null;
 
   const item = findExactEquipment(question, items);
   if (!item) return null;
 
   if (item.crafterStudioLevel <= 0) {
-    return `${item.name} is marked as not craftable on the current site data.`;
+    return result(`${item.name} is marked as not craftable on the current site data.`);
   }
 
   const shop = mapSlotToShop(item.slot);
-  return `${item.name} unlocks at ${shop} level ${item.crafterStudioLevel} and needs ${item.crafterIntelligence} INT.`;
+  return result(`${item.name} unlocks at ${shop} level ${item.crafterStudioLevel} and needs ${item.crafterIntelligence} INT.`);
 }
 
 function scoreEquipment(item: EquipmentRecord, stat: string, level: number, useGrowthOnly: boolean): { value: number; base: number; inc: number } {
@@ -534,7 +882,7 @@ function filterCraftable(items: EquipmentRecord[], craftableOnly: boolean): Equi
   return items.filter((item) => item.crafterStudioLevel > 0);
 }
 
-function answerBestEquipment(question: string, items: EquipmentRecord[]): string | null {
+function answerBestEquipment(question: string, items: EquipmentRecord[], shared: SharedData): AnswerResult | null {
   if (!questionLooksLikeEquipmentRanking(question)) return null;
   if (questionLooksLikeJobQuestion(question)) return null;
   if (questionLooksLikeLoadout(question)) return null;
@@ -542,17 +890,29 @@ function answerBestEquipment(question: string, items: EquipmentRecord[]): string
   const stat = parseStat(question);
   if (!stat) return null;
 
+  const lower = question.toLowerCase();
   const slot = parseSlot(question);
   const craftableOnly = wantsCraftableOnly(question);
   const level = Math.min(parseLevel(question, 99), 99);
   const useGrowthOnly = wantsGrowth(question);
+  const asksGenericItem = /\b(item|equipment|piece)\b/.test(lower);
+  const weaponCategory = parseWeaponCategory(question);
 
   let pool = filterCraftable(items, craftableOnly);
-  if (slot) pool = pool.filter((item) => item.slot === slot);
 
-  if (questionLooksLikeSinglePiece(question) && !slot) {
-    // stays across all items
-  } else if (!slot && !questionLooksLikeSinglePiece(question)) {
+  if (slot) {
+    pool = pool.filter((item) => item.slot === slot);
+  }
+
+  if (weaponCategory) {
+    pool = pool.filter((item) => item.slot === "Weapon" && getWeaponCategoryForItem(item, shared) === weaponCategory);
+  }
+
+  if (questionLooksLikeSinglePiece(question) && !slot && !weaponCategory) {
+    // all items
+  } else if (!slot && !weaponCategory && asksGenericItem) {
+    // generic item query
+  } else if (!slot && !weaponCategory) {
     return null;
   }
 
@@ -571,21 +931,39 @@ function answerBestEquipment(question: string, items: EquipmentRecord[]): string
 
   const best = ranked[0];
   if (!best) {
-    const qualifier = slot ? `${slot.toLowerCase()} ` : "";
+    const qualifier = weaponCategory
+      ? `${weaponCategory} `
+      : slot
+        ? `${slot.toLowerCase()} `
+        : "";
     const craftText = craftableOnly ? "craftable " : "";
-    return `I could not find any ${craftText}${qualifier}item with non-zero ${STAT_LABEL[stat] ?? stat} in the current site data.`;
+    return result(`I could not find any ${craftText}${qualifier}item with non-zero ${STAT_LABEL[stat] ?? stat} in the current site data.`);
   }
 
-  const subject = slot ? `${slot.toLowerCase()} items` : "single equipment pieces";
+  const subject = weaponCategory
+    ? `${weaponCategory} weapons`
+    : slot
+      ? `${slot.toLowerCase()} items`
+      : "single equipment pieces";
+
   const craftText = craftableOnly ? " craftable" : "";
+
   if (useGrowthOnly) {
-    return `${best.item.name} has the highest ${STAT_LABEL[stat] ?? stat} growth among${craftText} ${subject}. It gains +${best.inc} per level, with base ${best.base}.`;
+    return result(`${best.item.name} has the highest ${STAT_LABEL[stat] ?? stat} growth among${craftText} ${subject}. It gains +${best.inc} per level, with base ${best.base}.`);
   }
-  return `${best.item.name} has the highest ${STAT_LABEL[stat] ?? stat} among${craftText} ${subject} at level ${level}. It reaches ${best.value}, with base ${best.base} and +${best.inc} per level.`;
+
+  return result(`${best.item.name} has the highest ${STAT_LABEL[stat] ?? stat} among${craftText} ${subject} at level ${level}. It reaches ${best.value}, with base ${best.base} and +${best.inc} per level.`);
 }
 
-function answerBestLoadout(question: string, items: EquipmentRecord[]): string | null {
-  if (!questionLooksLikeLoadout(question)) return null;
+function answerBestLoadout(question: string, items: EquipmentRecord[]): AnswerResult | null {
+  const lower = question.toLowerCase();
+
+  const impliedLoadout =
+    /\b(best|highest|top|strongest|fastest|smartest|luckiest|tankiest|toughest)\b/.test(lower) &&
+    /\b(full gear|gear set|loadout|load out|loud out)\b/.test(lower);
+
+  if (!questionLooksLikeLoadout(question) && !impliedLoadout) return null;
+
   const stat = parseStat(question);
   if (!stat) return null;
 
@@ -596,6 +974,7 @@ function answerBestLoadout(question: string, items: EquipmentRecord[]): string |
   const pool = filterCraftable(items, craftableOnly);
 
   const winners: Array<{ slot: ValidSlot; item: EquipmentRecord; value: number; base: number; inc: number }> = [];
+
   for (const slot of VALID_SLOTS) {
     const best = pool
       .filter((item) => item.slot === slot)
@@ -613,83 +992,220 @@ function answerBestLoadout(question: string, items: EquipmentRecord[]): string |
 
   if (winners.length === 0) {
     const craftText = craftableOnly ? " craftable" : "";
-    return `I could not build a${craftText} loadout with non-zero ${STAT_LABEL[stat] ?? stat}.`;
+    return result(`I could not build a${craftText} loadout with non-zero ${STAT_LABEL[stat] ?? stat}.`);
   }
 
   const total = winners.reduce((sum, row) => sum + row.value, 0);
   const label = STAT_LABEL[stat] ?? stat;
-  const lines = winners.map((row) => `${row.slot}: ${row.item.name} (${useGrowthOnly ? `+${row.inc}` : row.value} ${label})`);
+  const lines = winners.map((row) => `• ${row.slot}: ${row.item.name} (${useGrowthOnly ? `+${row.inc}` : row.value} ${label})`);
   const craftText = craftableOnly ? " craftable" : "";
-  const lead = useGrowthOnly
-    ? `Highest total ${label} growth${craftText} full loadout:`
-    : `Highest total ${label}${craftText} full loadout at level ${level}:`;
 
-  return `${lead}\n${lines.join("\n")}\nTotal ${label}: ${total}`;
+  const lead = useGrowthOnly
+    ? `Best total ${label} growth${craftText} full loadout:`
+    : `Best total ${label}${craftText} full loadout at level ${level}:`;
+
+  return result(`${lead}\n${lines.join("\n")}\nTotal ${label}: ${total}`);
 }
 
-function answerComparison(question: string, items: EquipmentRecord[]): string | null {
+function answerCombinedMax(question: string, items: EquipmentRecord[], shared: SharedData): AnswerResult | null {
+  const lower = normalize(question);
+  const stat = parseStat(question);
+  if (!stat) return null;
+
+  if (!/\b(max|maximum|highest)\s+(possible\s+)?/.test(lower)) return null;
+  if (!/\b(job\b.*equipment|equipment\b.*job|maxed job|maxed job \+ equipment|maxed job and equipment|maxed|loadout)\b/.test(lower)) return null;
+
+  const level = 99;
+  const jobs = Object.entries(shared.jobs ?? {});
+  if (jobs.length === 0) return result("I could not read any jobs from the site data.");
+
+  const bestJob = jobs
+    .flatMap(([name, job]) =>
+      Object.entries(job.ranks ?? {}).map(([rankName, rank]) => {
+        const entry = rank.stats?.[stat];
+        if (!entry) return null;
+        return {
+          name,
+          rankName,
+          value: statAtLevel(entry.base, entry.inc, 999),
+        };
+      })
+    )
+    .filter((row): row is NonNullable<typeof row> => Boolean(row))
+    .sort((a, b) => b.value - a.value || getJobRank(a.rankName) - getJobRank(b.rankName))[0];
+
+  if (!bestJob) return result(`I could not find any job with ${STAT_LABEL[stat] ?? stat} data.`);
+
+  const winners: Array<{ slot: ValidSlot; item: EquipmentRecord; value: number }> = [];
+
+  for (const slot of VALID_SLOTS) {
+    const best = items
+      .filter((item) => item.slot === slot)
+      .map((item) => ({
+        item,
+        value: statAtLevel(item.baseStats[stat] ?? 0, item.incStats[stat] ?? 0, level),
+      }))
+      .filter((row) => row.value > 0)
+      .sort((a, b) => b.value - a.value || getItemRank(a.item.name) - getItemRank(b.item.name))[0];
+
+    if (best) winners.push({ slot, item: best.item, value: best.value });
+  }
+
+  const equipTotal = winners.reduce((sum, row) => sum + row.value, 0);
+  const total = bestJob.value + equipTotal;
+  const label = STAT_LABEL[stat] ?? stat;
+  const lines = winners.map((row) => `• ${row.slot}: ${row.item.name} (${row.value} ${label})`);
+
+  return result(
+    `Highest possible ${label} from maxed job + equipment loadout:\n` +
+      `Best job: ${bestJob.name} (${bestJob.rankName}) = ${bestJob.value} ${label} at level 999\n` +
+      `${lines.join("\n")}\n` +
+      `Equipment total: ${equipTotal}\n` +
+      `Grand total: ${total}`
+  );
+}
+
+function answerComparison(question: string, items: EquipmentRecord[]): AnswerResult | null {
   const lower = question.toLowerCase();
-  if (!/\bbetter\b|\bstronger\b|\bcompare\b/.test(lower)) return null;
+  if (!/\bbetter\b|\bstronger\b|\bcompare\b|\bvs\b|\bversus\b|\bor\b/.test(lower)) return null;
 
   const normalized = normalize(question);
-  const found = items.filter((item) => {
-    const full = new RegExp(`\\b${escapeRegExp(normalize(item.name))}\\b`);
-    const clean = new RegExp(`\\b${escapeRegExp(normalize(cleanupItemName(item.name)))}\\b`);
-    return full.test(normalized) || clean.test(normalized);
-  });
 
-  const unique = Array.from(new Map(found.map((item) => [item.name, item])).values()).slice(0, 5);
-  if (unique.length < 2) return null;
+  const findBySegment = (segment: string): EquipmentRecord | null => {
+    const cleanSegment = normalize(segment);
+    if (!cleanSegment) return null;
 
-  const a = unique[0];
-  const b = unique[1];
+    const exactFull = items.find(
+      (item) => new RegExp(`\\b${escapeRegExp(normalize(item.name))}\\b`).test(cleanSegment)
+    );
+    if (exactFull) return exactFull;
+
+    const exactClean = items.find((item) => {
+      const cleanName = normalize(cleanupItemName(item.name));
+      return cleanName.length >= 4 && new RegExp(`\\b${escapeRegExp(cleanName)}\\b`).test(cleanSegment);
+    });
+    if (exactClean) return exactClean;
+
+    const partials = items.filter((item) => {
+      const cleanName = normalize(cleanupItemName(item.name));
+      if (cleanName.length < 4) return false;
+      const words = cleanName.split(" ").filter(Boolean);
+      return words.length > 0 && words.every((w) => cleanSegment.includes(w) || w.includes(cleanSegment));
+    });
+
+    return partials.length
+      ? partials.sort((a, b) => getItemRank(a.name) - getItemRank(b.name))[0]
+      : null;
+  };
+
+  const cleanedQuestion = question
+    .replace(/^what\s+is\s+better\s+/i, "")
+    .replace(/^which\s+is\s+better\s+/i, "")
+    .replace(/^compare\s+/i, "");
+
+  let left: EquipmentRecord | null = null;
+  let right: EquipmentRecord | null = null;
+
+  const splitMatch = cleanedQuestion.split(/\bvs\b|\bversus\b|\bor\b/i).map((s) => s.trim()).filter(Boolean);
+  if (splitMatch.length >= 2) {
+    left = findBySegment(splitMatch[0]);
+    right = findBySegment(splitMatch[1]);
+  }
+
+  if (!left || !right) {
+    const found = items.filter((item) => {
+      const full = new RegExp(`\\b${escapeRegExp(normalize(item.name))}\\b`);
+      const cleanName = normalize(cleanupItemName(item.name));
+      if (cleanName.length < 4) return full.test(normalized);
+      const clean = new RegExp(`\\b${escapeRegExp(cleanName)}\\b`);
+      return full.test(normalized) || clean.test(normalized);
+    });
+
+    const unique = Array.from(new Map(found.map((item) => [item.name, item])).values());
+    left = left ?? unique[0] ?? null;
+    right = right ?? unique[1] ?? null;
+  }
+
+  if (!left || !right) return null;
+
   const stat = parseStat(question);
   const level = Math.min(parseLevel(question, 99), 99);
 
   if (stat) {
-    const av = statAtLevel(a.baseStats[stat] ?? 0, a.incStats[stat] ?? 0, level);
-    const bv = statAtLevel(b.baseStats[stat] ?? 0, b.incStats[stat] ?? 0, level);
-    if (av === bv) return `${a.name} and ${b.name} are tied for ${STAT_LABEL[stat] ?? stat} at level ${level}, at ${av}.`;
-    const winner = av > bv ? a : b;
-    const loser = av > bv ? b : a;
+    const av = statAtLevel(left.baseStats[stat] ?? 0, left.incStats[stat] ?? 0, level);
+    const bv = statAtLevel(right.baseStats[stat] ?? 0, right.incStats[stat] ?? 0, level);
+
+    if (av === bv) {
+      return result(`${left.name} and ${right.name} are tied for ${STAT_LABEL[stat] ?? stat} at level ${level}, at ${av}.`);
+    }
+
+    const winner = av > bv ? left : right;
+    const loser = av > bv ? right : left;
     const winVal = Math.max(av, bv);
     const loseVal = Math.min(av, bv);
-    return `${winner.name} is better for ${STAT_LABEL[stat] ?? stat} at level ${level}. It has ${winVal}, while ${loser.name} has ${loseVal}.`;
+
+    return result(`${winner.name} is better for ${STAT_LABEL[stat] ?? stat} at level ${level}. It has ${winVal}, while ${loser.name} has ${loseVal}.`);
   }
 
-  const totalA = Object.keys(STAT_LABEL).reduce((sum, key) => sum + statAtLevel(a.baseStats[key] ?? 0, a.incStats[key] ?? 0, level), 0);
-  const totalB = Object.keys(STAT_LABEL).reduce((sum, key) => sum + statAtLevel(b.baseStats[key] ?? 0, b.incStats[key] ?? 0, level), 0);
-  if (totalA === totalB) return `${a.name} and ${b.name} are tied on total displayed stats at level ${level}, at ${totalA}.`;
-  const winner = totalA > totalB ? a : b;
-  const loser = totalA > totalB ? b : a;
+  const totalA = DISPLAY_STAT_KEYS.reduce(
+    (sum, key) => sum + statAtLevel(left.baseStats[key] ?? 0, left.incStats[key] ?? 0, level),
+    0
+  );
+  const totalB = DISPLAY_STAT_KEYS.reduce(
+    (sum, key) => sum + statAtLevel(right.baseStats[key] ?? 0, right.incStats[key] ?? 0, level),
+    0
+  );
+
+  if (totalA === totalB) {
+    return result(`${left.name} and ${right.name} are tied on total displayed stats at level ${level}, at ${totalA}.`);
+  }
+
+  const winner = totalA > totalB ? left : right;
+  const loser = totalA > totalB ? right : left;
   const winVal = Math.max(totalA, totalB);
   const loseVal = Math.min(totalA, totalB);
-  return `${winner.name} has the higher total displayed stats at level ${level}. It totals ${winVal}, while ${loser.name} totals ${loseVal}.`;
+
+  return result(`${winner.name} has the higher total displayed stats at level ${level}. It totals ${winVal}, while ${loser.name} totals ${loseVal}.`);
 }
 
-function answerBestJob(question: string, shared: SharedData): string | null {
-  if (!questionLooksLikeJobQuestion(question)) return null;
-  const stat = parseStat(question);
+function answerBestJob(question: string, shared: SharedData, messages: ChatMessage[] = []): AnswerResult | null {
+  const resolvedQuestion = inferFollowupJobQuestion(question, messages);
+  const lower = resolvedQuestion.toLowerCase();
+  const stat = parseStat(resolvedQuestion);
   if (!stat) return null;
 
-  const lower = question.toLowerCase();
-  const level = parseLevel(question, 999);
+  const looksLikeRankedJobQuestion =
+    questionLooksLikeJobQuestion(resolvedQuestion) ||
+    (/\b(best|highest|top|second|third|2nd|3rd|strongest|fastest|smartest|luckiest|tankiest|toughest)\b/.test(lower) &&
+      /\b(unit|class|profession|job|who)\b/.test(lower));
+
+  if (!looksLikeRankedJobQuestion) return null;
+
+  const exclusions = parseExclusionTerms(resolvedQuestion);
+
+  const rankIndex = parseOrdinal(resolvedQuestion) - 1;
+  const level = parseLevel(resolvedQuestion, 999);
   const combatOnly = /\bcombat\b/.test(lower) && !/\bnon combat\b|\bnon-combat\b/.test(lower);
   const nonCombatOnly = /\bnon combat\b|\bnon-combat\b/.test(lower);
 
   const jobs = Object.entries(shared.jobs ?? {});
-  if (jobs.length === 0) return "I could not read any jobs from the site data.";
+  if (jobs.length === 0) return result("I could not read any jobs from the site data.");
 
   const ranked = jobs
-    .filter(([, job]) => {
-      if (combatOnly) return job.type === "combat";
-      if (nonCombatOnly) return job.type === "non-combat";
+    .filter(([name, job]) => {
+      if (combatOnly && job.type !== "combat") return false;
+      if (nonCombatOnly && job.type !== "non-combat") return false;
+
+      const cleanName = normalize(name);
+      if (exclusions.some((term) => cleanName.includes(normalize(term)))) return false;
+
       return true;
     })
     .flatMap(([name, job]) =>
       Object.entries(job.ranks ?? {}).map(([rankName, rank]) => {
         const entry = rank.stats?.[stat];
         if (!entry) return null;
+
         const value = statAtLevel(entry.base, entry.inc, level);
         return { name, rankName, type: job.type ?? "unknown", value, base: entry.base, inc: entry.inc };
       })
@@ -702,90 +1218,192 @@ function answerBestJob(question: string, shared: SharedData): string | null {
       return getJobRank(a.rankName) - getJobRank(b.rankName);
     });
 
-  const best = ranked[0];
-  if (!best) return `I could not find any matching job with ${STAT_LABEL[stat] ?? stat} data.`;
+  const deduped = Array.from(new Map(ranked.map((row) => [row.name, row])).values());
+  const picked = deduped[rankIndex];
+
+  if (!picked) {
+    const ord = rankIndex === 1 ? "second" : rankIndex === 2 ? "third" : `${rankIndex + 1}th`;
+    return result(`I could not find a ${ord} matching job with ${STAT_LABEL[stat] ?? stat} data.`);
+  }
 
   const typeText = combatOnly ? " combat" : nonCombatOnly ? " non-combat" : "";
-  return `${best.name} has the highest${typeText} ${STAT_LABEL[stat] ?? stat} at level ${level} on the current site data, using rank ${best.rankName}. It reaches ${best.value}, with base ${best.base} and +${best.inc} per level.`;
+  const ordLabel =
+    rankIndex === 0 ? "highest" : rankIndex === 1 ? "second-highest" : rankIndex === 2 ? "third-highest" : `${rankIndex + 1}th-highest`;
+
+  const exclusionText = exclusions.length > 0 ? `, excluding ${exclusions.join(" and ")}` : "";
+
+  return result(`${picked.name} has the ${ordLabel}${typeText} ${STAT_LABEL[stat] ?? stat} at level ${level} on the current site data${exclusionText}, using rank ${picked.rankName}. It reaches ${picked.value}, with base ${picked.base} and +${picked.inc} per level.`);
 }
 
-function answerShop(question: string): string | null {
+function answerShop(question: string): AnswerResult | null {
   const lower = question.toLowerCase();
 
-  if (/\bcape\b|\bcapes\b/.test(lower)) return "Capes are in the Armor Shop.";
+  if (/\bcape\b|\bcapes\b/.test(lower)) return result("Capes are in the Armor Shop.");
   if (/\b(accessory|ring|pendant|amulet|necklace)\b/.test(lower) && /\b(shop|where|buy|craft|make)\b/.test(lower)) {
-    return "Accessories are in the Accessory Shop.";
+    return result("Accessories are in the Accessory Shop.");
   }
   if (/\b(weapon|sword|staff|spear|bow|gun|axe|hammer|book|club)\b/.test(lower) && /\b(shop|where|buy|craft|make)\b/.test(lower)) {
-    return "Weapons are in the Weapon Shop.";
+    return result("Weapons are in the Weapon Shop.");
   }
   if (/\b(armor|armour|shield|headgear|hat|helmet)\b/.test(lower) && /\b(shop|where|buy|craft|make)\b/.test(lower)) {
-    return "Armor, shields, and headgear are in the Armor Shop.";
+    return result("Armor, shields, and headgear are in the Armor Shop.");
   }
 
   return null;
 }
 
-function answerPairs(question: string, shared: SharedData): string | null {
+function answerPairs(question: string, shared: SharedData): AnswerResult | null {
   const lower = question.toLowerCase();
-  const asksRoyal = /\broyal\b/.test(lower);
-  const asksParentOrBreed = /\bparent\b|\bmarry\b|\bbreed\b|\bchild\b/.test(lower);
-  if (!asksRoyal && !asksParentOrBreed) return null;
+  const hasMarriageIntent =
+    /\bparent\b|\bmarry\b|\bbreed\b|\bchild\b|\bpair\b|\bcompatibility\b|\bhow can i get a royal\b|\bhow do i get a royal\b/.test(lower);
+
+  const asksRoyal =
+    /\broyal\b/.test(lower) &&
+    !questionLooksLikeJobQuestion(question) &&
+    !questionLooksLikeLoadout(question) &&
+    !questionLooksLikeEquipmentRanking(question) &&
+    !parseStat(question);
+
+  const asksMonarchOnly =
+    /^\s*monarch\s*$/i.test(question) ||
+    /^\s*royal\s*$/i.test(question);
+
+  if (!hasMarriageIntent && !asksRoyal && !asksMonarchOnly) return null;
 
   const pairs = shared.pairs ?? [];
-  if (pairs.length === 0) return "I could not read any pair data from the site.";
+  if (pairs.length === 0) return result("I could not read any pair data from the site.");
 
+  const normalizedQuestion = normalize(question);
   const royalPairs = pairs.filter((pair) => pair.children.some((child) => normalize(child) === "royal"));
-  if (royalPairs.length === 0) return "I could not find any Royal child pairs in the current site data.";
 
-  if (/\bmonarch\b/.test(lower)) {
-    const monarchPairs = royalPairs.filter((pair) => normalize(pair.jobA) === "monarch" || normalize(pair.jobB) === "monarch");
-    if (monarchPairs.length === 0) return "I could not find a Monarch pair that makes Royal in the current site data.";
-    const examples = monarchPairs.slice(0, 8).map((pair) => `${pair.jobA} + ${pair.jobB}${pair.affinity ? ` (${pair.affinity})` : ""}`);
-    return `Monarch can make Royal with these known pairs: ${examples.join("; ")}.`;
+  const requestedAffinity = (() => {
+    if (/\b(highest|best)\s+compatibility\b/i.test(question)) return "A";
+    const match = lower.match(/\b([abcde])\s+compatibility\b|\bcompatibility\s+([abcde])\b|\baffinity\s+([abcde])\b/);
+    if (!match) return null;
+    return (match[1] || match[2] || match[3] || "").toUpperCase() || null;
+  })();
+
+  const knownJobs = Array.from(
+    new Set(
+      pairs
+        .flatMap((pair) => [pair.jobA, pair.jobB, ...pair.children])
+        .map((name) => name.trim())
+        .filter(Boolean)
+    )
+  );
+
+  const requestedJobs = knownJobs.filter((job) => {
+    const clean = normalize(job);
+    if (clean.length < 4) return false;
+    return new RegExp(`\\b${escapeRegExp(clean)}\\b`).test(normalizedQuestion);
+  });
+
+  let filtered = asksRoyal || asksMonarchOnly ? royalPairs : pairs;
+
+  if (requestedAffinity) {
+    filtered = filtered.filter((pair) => (pair.affinity || "").toUpperCase() === requestedAffinity);
   }
 
-  const examples = royalPairs.slice(0, 10).map((pair) => `${pair.jobA} + ${pair.jobB}${pair.affinity ? ` (${pair.affinity})` : ""}`);
-  return `Known Royal child pairs in the current site data include: ${examples.join("; ")}.`;
+  if (requestedJobs.length > 0) {
+    filtered = filtered.filter((pair) => {
+      const hay = [pair.jobA, pair.jobB, ...pair.children].map(normalize);
+      return requestedJobs.some((job) => hay.includes(normalize(job)));
+    });
+  }
+
+  if (asksRoyal || asksMonarchOnly || /\bmonarch\b/.test(lower)) {
+    const grouped = new Map<string, string[]>();
+
+    for (const pair of filtered) {
+      const affinity = (pair.affinity || "?").toUpperCase();
+      const left = pair.jobA;
+      const right = pair.jobB;
+      const display =
+        normalize(left) === "monarch"
+          ? `Monarch + ${right}`
+          : normalize(right) === "monarch"
+            ? `Monarch + ${left}`
+            : `${left} + ${right}`;
+
+      if (!grouped.has(affinity)) grouped.set(affinity, []);
+      grouped.get(affinity)!.push(display);
+    }
+
+    const affinityOrder = ["A", "B", "C", "D", "E", "?"];
+    const lines = affinityOrder
+      .filter((aff) => grouped.has(aff))
+      .map((aff) => {
+        const values = Array.from(new Set(grouped.get(aff)!)).sort((a, b) => a.localeCompare(b));
+        const label =
+          aff === "?"
+            ? "Unknown compatibility"
+            : aff === "A" && /\b(highest|best)\s+compatibility\b/i.test(question)
+              ? "A Compatibility (highest)"
+              : `${aff} Compatibility`;
+        return `${label}: ${values.join("; ")}`;
+      });
+
+    if (lines.length === 0) {
+      return result("I could not find any matching Royal child pairs in the current site data.");
+    }
+
+    return result(`Royal child pairs:\n${lines.join("\n")}`);
+  }
+
+  const shown = filtered.slice(0, 12).map((pair) => {
+    const children = pair.children.join(", ");
+    const affinity = pair.affinity ? ` (${pair.affinity})` : "";
+    return `${pair.jobA} + ${pair.jobB}${affinity} -> ${children}`;
+  });
+
+  if (shown.length === 0) {
+    return result("I could not find any matching parent-child pairs in the current site data.");
+  }
+
+  return result(`Matching parent-child pairs:\n${shown.join("\n")}`);
 }
 
-function answerWeeklyConquest(question: string): string | null {
+function answerWeeklyConquest(question: string): AnswerResult | null {
   const lower = question.toLowerCase();
   if (!/\bweekly conquest\b|\bthis week\b/.test(lower)) return null;
-  return "I have not wired weekly conquest answers into the helper yet, even though the site has a weekly conquest page.";
+  return result("I have not wired weekly conquest answers into the helper yet, even though the site has a weekly conquest page.");
 }
 
-function answerOwnedInventory(question: string): string | null {
+function answerOwnedInventory(question: string): AnswerResult | null {
   const lower = question.toLowerCase();
   if (!/\bi own\b|\bowned\b|\bmy gear\b|\bmy equipment\b/.test(lower)) return null;
-  return "I do not know your owned gear yet. I can answer database-wide, craftable, and full-loadout questions, but personal inventory is not wired in yet.";
+  return result("I do not know your owned gear yet. I can answer database-wide, craftable, and full-loadout questions, but personal inventory is not wired in yet.");
 }
 
-function answerQuestion(question: string, items: EquipmentRecord[], shared: SharedData): string {
+function answerQuestion(question: string, items: EquipmentRecord[], shared: SharedData, messages: ChatMessage[] = []): AnswerResult {
   return (
+    answerTargetedClarification(question) ??
     answerOwnedInventory(question) ??
+    answerSkillLookup(question, shared) ??
     answerFurnitureUnlock(question) ??
     answerEquipmentUnlock(question, items) ??
     answerEquipmentExactStat(question, items) ??
+    answerCombinedMax(question, items, shared) ??
     answerComparison(question, items) ??
+    answerBestJob(question, shared, messages) ??
+    answerBestLoadout(question, items) ??
+    answerBestEquipment(question, items, shared) ??
     answerPairs(question, shared) ??
     answerWeeklyConquest(question) ??
-    answerBestJob(question, shared) ??
-    answerBestLoadout(question, items) ??
-    answerBestEquipment(question, items) ??
     answerShop(question) ??
-    "I do not know that one yet. I am best at exact equipment stats, best items, craftable single pieces, craftable full loadouts, jobs, furniture unlocks, and shops."
+    result("I do not know that one yet.")
   );
 }
 
 export default function AskDatabaseWidget() {
   const [open, setOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: makeId(),
       role: "assistant",
-      text: "Ask me about equipment, jobs, furniture unlocks, shops, craftable single pieces, or craftable full loadouts. I keep full names like C/ Magic Pendant in the reply.",
+      text: "Ask me about equipment, jobs, skill prices, furniture unlocks, shops, craftable single pieces, craftable full loadouts, or Royal child pair questions.",
     },
   ]);
 
@@ -810,12 +1428,18 @@ export default function AskDatabaseWidget() {
     if (!text) return;
 
     const userMsg: ChatMessage = { id: makeId(), role: "user", text };
-    const answerText =
-      sheetLoading || sharedLoading
-        ? "Loading site data..."
-        : answerQuestion(text, equipmentRecords, shared);
 
-    const assistantMsg: ChatMessage = { id: makeId(), role: "assistant", text: answerText };
+    const answer =
+      sheetLoading || sharedLoading
+        ? result("Loading site data...")
+        : answerQuestion(text, equipmentRecords, shared, messages);
+
+    const assistantMsg: ChatMessage = {
+      id: makeId(),
+      role: "assistant",
+      text: answer.text,
+      options: answer.options,
+    };
 
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setQuery("");
@@ -827,61 +1451,96 @@ export default function AskDatabaseWidget() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 transition-transform flex items-center justify-center"
+          className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
           aria-label="Open Ask the Database"
         >
-          <MessageCircle className="w-6 h-6" />
+          <MessageCircle className="h-6 w-6" />
         </button>
       )}
 
       {open && (
         <div className="fixed bottom-5 right-5 z-50 w-[min(26rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]">
-          <Card className="shadow-2xl border-primary/20 overflow-hidden">
-            <CardHeader className="pb-3 border-b border-border bg-background">
+          <Card className="overflow-hidden border-primary/20 shadow-2xl">
+            <CardHeader className="border-b border-border bg-background pb-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Sparkles className="h-5 w-5 text-primary" />
                     Ask the Database
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Floating helper, not AI. This version supports stricter routing, craftable filters, and full-loadout questions.
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Floating helper, not AI.
                   </p>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setOpen(false)}>
-                  <X className="w-4 h-4" />
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => setOpen(false)}
+                  aria-label="Minimize Ask the Database"
+                >
+                  <Minus className="h-4 w-4" />
                 </Button>
               </div>
             </CardHeader>
 
-            <CardContent className="p-0 bg-background">
-              <div className="max-h-[28rem] overflow-y-auto px-4 py-4 space-y-3">
+            <CardContent className="bg-background p-0">
+              <div className="border-b border-border px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setGuideOpen((v) => !v)}
+                  className="flex w-full items-center justify-between text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <span>Guide and examples</span>
+                  {guideOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+
+                {guideOpen && (
+                  <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                    <div>Try simple questions first.</div>
+                    <div>Examples: “How do I unlock Double Bed?”, “What job has the highest attack?”, “How can I get a Royal?”, “Max possible attack?”</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="max-h-[28rem] space-y-3 overflow-y-auto px-4 py-4">
                 {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`max-w-[90%] whitespace-pre-line rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                      message.role === "user"
-                        ? "ml-auto bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
-                    }`}
-                  >
-                    {message.text}
+                  <div key={message.id} className="space-y-2">
+                    <div
+                      className={`max-w-[90%] whitespace-pre-line rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                        message.role === "user"
+                          ? "ml-auto bg-primary text-primary-foreground"
+                          : "bg-muted text-foreground"
+                      }`}
+                    >
+                      {message.text}
+                    </div>
+
+                    {message.role === "assistant" && message.options && message.options.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {message.options.map((option) => (
+                          <button
+                            key={`${message.id}-${option}`}
+                            onClick={() => submitQuestion(option)}
+                            className="rounded-full border border-border px-3 py-1.5 text-left text-xs transition-colors hover:bg-muted"
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
 
-              <div className="border-t border-border px-4 py-3 space-y-3">
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <div>Try: exact item, best slot item, craftable single piece, full loadout, job ranking, unlock, or shop.</div>
-                  <div>Examples: “highest int craftable single piece”, “highest total attack craftable full loadout”, “who has the highest int at level 999”.</div>
-                </div>
-
+              <div className="space-y-3 border-t border-border px-4 py-3">
                 <div className="flex flex-wrap gap-2">
                   {SUGGESTIONS.map((suggestion) => (
                     <button
                       key={suggestion}
                       onClick={() => submitQuestion(suggestion)}
-                      className="text-xs rounded-full border border-border px-3 py-1.5 hover:bg-muted transition-colors text-left"
+                      className="rounded-full border border-border px-3 py-1.5 text-left text-xs transition-colors hover:bg-muted"
                     >
                       {suggestion}
                     </button>
@@ -898,11 +1557,11 @@ export default function AskDatabaseWidget() {
                   <Input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Ask about equipment, jobs, full loadouts, shops..."
+                    placeholder="Ask about equipment, jobs, shops, or marriage..."
                     className="h-12"
                   />
                   <Button type="submit" size="icon" className="h-12 w-12 shrink-0" disabled={!canSend}>
-                    <Send className="w-4 h-4" />
+                    <Send className="h-4 w-4" />
                   </Button>
                 </form>
               </div>
