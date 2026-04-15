@@ -1398,17 +1398,21 @@ export default function MarriageMatcher() {
   // ââ Persist ââ
   // ka_mf_rankSlots is persisted by useLocalFeature AND synced to server for cross-device access.
 
-  // Hydration: on first API data load, pull rankSlots from server (or push local if server is empty)
+  // Hydration: on first API data load, pull rankSlots from server.
+  // Rule: if marriageMatcher is non-null the server has been explicitly written to
+  // and is authoritative — even if rankSlots is empty (means user deleted everything).
+  // Only push local state when the server has NEVER been initialized (marriageMatcher === null).
   useEffect(() => {
     if (rankSlotsHydratedRef.current) return;
     if (!sharedData) return; // still loading
     rankSlotsHydratedRef.current = true;
-    const apiSlots = sharedData.marriageMatcher?.rankSlots ?? [];
-    if (apiSlots.length > 0) {
+    const mm = sharedData.marriageMatcher;
+    if (mm !== null && mm !== undefined) {
+      // Server has been written before — always take its state, even if empty
       skipNextRankSlotsEchoRef.current = true;
-      setRankSlots(apiSlots as RankSlot[]);
+      setRankSlots((mm.rankSlots ?? []) as RankSlot[]);
     } else if (rankSlotsRef.current.length > 0) {
-      // Server has no roster yet — push local state so other devices can get it
+      // Server has never been synced — push local state as the initial seed
       fetch(API("/marriage-matcher/rank-slots"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

@@ -98,6 +98,7 @@ type SharedState = {
   marriageMatcher: MarriageMatcherState | null;
   skills: Record<string, Skill>;
   loadouts: Loadout[];
+  loadoutsUpdatedAt: number | null;
 };
 
 const DEFAULT_STATE: SharedState = {
@@ -115,6 +116,7 @@ const DEFAULT_STATE: SharedState = {
   marriageMatcher: null,
   skills: {},
   loadouts: [],
+  loadoutsUpdatedAt: null,
 };
 
 function ensureDir() {
@@ -137,6 +139,7 @@ function readState(): SharedState {
       marriageMatcher: null,
       skills: {},
       loadouts: [],
+      loadoutsUpdatedAt: null,
       ...parsed,
     };
   } catch {
@@ -339,6 +342,7 @@ router.put("/ka/loadouts", (req, res) => {
   const { data } = req.body as { data: Loadout[] };
   const state = readState();
   state.loadouts = Array.isArray(data) ? data : [];
+  state.loadoutsUpdatedAt = Date.now();
   writeState(state);
   res.json({ ok: true });
 });

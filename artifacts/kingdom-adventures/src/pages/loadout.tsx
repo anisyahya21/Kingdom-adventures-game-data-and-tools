@@ -50,6 +50,7 @@ type SharedData = {
   equipIcons?: Record<string, string>;
   weaponTypes?: Record<string, string>;
   loadouts?: Loadout[];
+  loadoutsUpdatedAt?: number | null;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -206,17 +207,20 @@ function useLoadouts(sharedData: SharedData | undefined) {
   const skipNextLoadoutsEchoRef = useRef(false);
   const loadoutsPutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Hydration: on first API data load, pull loadouts from server (or push local if server is empty)
+  // Hydration: on first API data load, pull loadouts from server.
+  // Rule: if loadoutsUpdatedAt is non-null the server has been explicitly saved to
+  // and is authoritative — even if loadouts is empty (means user deleted everything).
+  // Only push local state when the server has NEVER been initialized (loadoutsUpdatedAt === null).
   useEffect(() => {
     if (loadoutsHydratedRef.current) return;
     if (!sharedData) return; // still loading
     loadoutsHydratedRef.current = true;
-    const apiLoadouts = sharedData.loadouts ?? [];
-    if (apiLoadouts.length > 0) {
+    if (sharedData.loadoutsUpdatedAt != null) {
+      // Server has been written before — always take its state, even if empty
       skipNextLoadoutsEchoRef.current = true;
-      setLoadouts(apiLoadouts);
+      setLoadouts(sharedData.loadouts ?? []);
     } else if (loadoutsRef.current.length > 0) {
-      // Server has no loadouts yet — push local state so other devices can get it
+      // Server has never been synced — push local state as the initial seed
       fetch(API("/loadouts"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
