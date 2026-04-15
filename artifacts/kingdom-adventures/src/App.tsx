@@ -1,7 +1,7 @@
 import { memo, useMemo, useState, useRef, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, Route, Switch, Router as WouterRouter, useLocation } from "wouter";
-import { Menu, Search, X } from "lucide-react";
+import { Menu, Search, X, ArrowLeft, Moon, Sun } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import LoadoutPage from "@/pages/loadout";
 import EggsPage from "@/pages/eggs";
 import ShopsPage from "@/pages/shops";
 import SyncDevicesPage from "@/pages/sync-devices";
+import WorldMapPage from "@/pages/world-map";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
 
@@ -35,13 +36,41 @@ const FURNITURE_SEARCH_ROWS = [
 ];
 
 function SiteHeader() {
-  const [, navigate] = useLocation();
+  const [pathname, navigate] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [dark, setDark] = useState(() =>
+    typeof window !== "undefined"
+      ? localStorage.getItem("theme") === "dark" ||
+        (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)
+      : false
+  );
 
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const hasNavRef = useRef(false);
+  const prevPathRef = useRef(pathname);
+
+  useEffect(() => {
+    if (prevPathRef.current !== pathname) {
+      hasNavRef.current = true;
+      prevPathRef.current = pathname;
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  }, [dark]);
+
+  const goBack = () => {
+    if (hasNavRef.current) {
+      window.history.back();
+    } else {
+      navigate("/");
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -113,36 +142,45 @@ function SiteHeader() {
     { href: "/match-finder", label: "Match Finder" },
     { href: "/loadout", label: "Loadout" },
     { href: "/sync-devices", label: "Sync Devices" },
+    { href: "/world-map", label: "World Map" },
   ];
 
   return (
     <div className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
 
-        <div ref={menuRef}>
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setMenuOpen(!menuOpen)}>
-            <Menu className="w-5 h-5" />
-          </Button>
+        <div className="flex items-center gap-0.5">
+          <div ref={menuRef}>
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setMenuOpen(!menuOpen)}>
+              <Menu className="w-5 h-5" />
+            </Button>
 
-          {menuOpen && (
-            <div className="absolute left-4 top-full mt-2 z-50 w-72">
-              <Card>
-                <CardContent className="p-3 space-y-2">
-                  {links.map((link) => (
-                    <button
-                      key={link.href}
-                      onClick={() => {
-                        navigate(link.href);
-                        setMenuOpen(false);
-                      }}
-                      className="w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted/40"
-                    >
-                      {link.label}
-                    </button>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
+            {menuOpen && (
+              <div className="absolute left-4 top-full mt-2 z-50 w-72">
+                <Card>
+                  <CardContent className="p-3 space-y-2">
+                    {links.map((link) => (
+                      <button
+                        key={link.href}
+                        onClick={() => {
+                          navigate(link.href);
+                          setMenuOpen(false);
+                        }}
+                        className="w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted/40"
+                      >
+                        {link.label}
+                      </button>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
+
+          {pathname !== "/" && (
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={goBack} title="Go back">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
           )}
         </div>
 
@@ -152,7 +190,12 @@ function SiteHeader() {
           </button>
         </Link>
 
-        <div ref={searchRef}>
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDark((d) => !d)} title={dark ? "Switch to light mode" : "Switch to dark mode"}>
+            {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </Button>
+
+          <div ref={searchRef}>
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setSearchOpen(!searchOpen)}>
             <Search className="w-5 h-5" />
           </Button>
@@ -201,6 +244,7 @@ function SiteHeader() {
               </Card>
             </div>
           )}
+          </div>
         </div>
 
       </div>
@@ -223,6 +267,7 @@ function Router() {
       <Route path="/shops" component={ShopsPage} />
       <Route path="/shops/:slug" component={ShopsPage} />
       <Route path="/sync-devices" component={SyncDevicesPage} />
+      <Route path="/world-map" component={WorldMapPage} />
       <Route component={NotFound} />
     </Switch>
   );

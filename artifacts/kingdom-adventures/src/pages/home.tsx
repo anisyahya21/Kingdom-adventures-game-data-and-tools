@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link, useLocation } from "wouter";
-import { Plus, Heart, Sword, Trash2, Moon, Sun, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, GitFork, Egg, Store } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, Egg, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -243,22 +243,8 @@ function generateId() { return Math.random().toString(36).slice(2, 9); }
 
 export default function Home() {
   const [, navigate] = useLocation();
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("theme") === "dark" ||
-        (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    }
-    return false;
-  });
-
   const [srcOpen, setSrcOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
-  useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) { root.classList.add("dark"); localStorage.setItem("theme", "dark"); }
-    else { root.classList.remove("dark"); localStorage.setItem("theme", "light"); }
-  }, [darkMode]);
-
   const [customProjects, setCustomProjects] = useLocalFeature<CustomProject[]>("ka_custom_projects", []);
 
   const [adding, setAdding] = useState(false);
@@ -288,11 +274,6 @@ export default function Home() {
           <div className="min-w-0">
             <h1 className="text-4xl font-bold text-foreground tracking-tight">Kingdom Adventures</h1>
             <p className="mt-2 text-muted-foreground">Tools &amp; resources for Kingdom Adventures players.</p>
-          </div>
-          <div className="flex items-start gap-2 shrink-0">
-            <Button variant="outline" size="icon" onClick={() => setDarkMode((d) => !d)} className="h-9 w-9">
-              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
           </div>
         </div>
 
@@ -402,10 +383,6 @@ export default function Home() {
             <button onClick={() => setSrcOpen(true)} className="flex items-center gap-1 hover:text-foreground transition-colors">
               <Code className="w-3 h-3" /> View source code
             </button>
-            <a href="https://replit.com" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 hover:text-foreground transition-colors">
-              <GitFork className="w-3 h-3" /> Fork on Replit
-            </a>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,22 +18,6 @@ type ApiError = {
 	error?: string;
 };
 
-function useDarkMode() {
-	const [dark, setDark] = useState(() =>
-		typeof window !== "undefined"
-			? localStorage.getItem("theme") === "dark" ||
-				(!localStorage.getItem("theme") &&
-					window.matchMedia("(prefers-color-scheme: dark)").matches)
-			: false
-	);
-
-	useEffect(() => {
-		document.documentElement.classList.toggle("dark", dark);
-		localStorage.setItem("theme", dark ? "dark" : "light");
-	}, [dark]);
-
-	return { dark, setDark };
-}
 
 async function readJson<T>(res: Response): Promise<T> {
 	const text = await res.text();
@@ -51,8 +35,6 @@ function readLocalDeviceName() {
 }
 
 export default function SyncDevicesPage() {
-	const { dark, setDark } = useDarkMode();
-
 	const [code, setCode] = useState("");
 	const [expiresAt, setExpiresAt] = useState<number | null>(null);
 	const [copied, setCopied] = useState(false);
@@ -341,14 +323,7 @@ export default function SyncDevicesPage() {
 					</p>
 				</div>
 
-				<Button
-					variant="outline"
-					size="icon"
-					onClick={() => setDark((d) => !d)}
-				>
-					{dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-				</Button>
-			</div>
+</div>
 
 			{(message || error) && (
 				<Card>

@@ -16,7 +16,7 @@ type BrushSize = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type DeploymentSize = 1 | 2 | 3 | 4 | 5 | 6;
 type PaintMode = "mark" | "erase";
 type ReclaimMode = "reclaim" | "restore";
-type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads";
+type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water";
 
 type NativeCell = {
   terrain: TerrainType;
@@ -375,6 +375,7 @@ export default function WorldMapPage() {
     reclaimed: true,
     grid: true,
     roads: true,
+    water: true,
   });
   const [historyPast, setHistoryPast] = useState<HistoryState[]>([]);
   const [historyFuture, setHistoryFuture] = useState<HistoryState[]>([]);
@@ -757,26 +758,31 @@ export default function WorldMapPage() {
     viewportRef.current?.scrollBy({ left: dx, top: dy, behavior: "smooth" });
   }
 
-  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
-    if (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+  const tileSizeRef = useRef(tileSize);
+  useEffect(() => { tileSizeRef.current = tileSize; }, [tileSize]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    function onWheel(e: WheelEvent) {
       e.preventDefault();
-      const viewport = viewportRef.current;
-      if (!viewport) return;
-      const rect = viewport.getBoundingClientRect();
-      const offsetX = e.clientX - rect.left + viewport.scrollLeft;
-      const offsetY = e.clientY - rect.top + viewport.scrollTop;
-      const prevTileSize = tileSize;
+      const currentSize = tileSizeRef.current;
+      const rect = viewport!.getBoundingClientRect();
+      const offsetX = e.clientX - rect.left + viewport!.scrollLeft;
+      const offsetY = e.clientY - rect.top + viewport!.scrollTop;
       const zoomFactor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-      const nextTileSize = Math.max(MIN_TILE_SIZE, Math.min(MAX_TILE_SIZE, tileSize * zoomFactor));
-      if (nextTileSize === prevTileSize) return;
-      const scale = nextTileSize / prevTileSize;
+      const nextTileSize = Math.max(MIN_TILE_SIZE, Math.min(MAX_TILE_SIZE, currentSize * zoomFactor));
+      if (nextTileSize === currentSize) return;
+      const scale = nextTileSize / currentSize;
       setTileSize(nextTileSize);
       requestAnimationFrame(() => {
-        viewport.scrollLeft = offsetX * scale - (e.clientX - rect.left);
-        viewport.scrollTop = offsetY * scale - (e.clientY - rect.top);
+        viewport!.scrollLeft = offsetX * scale - (e.clientX - rect.left);
+        viewport!.scrollTop = offsetY * scale - (e.clientY - rect.top);
       });
     }
-  }
+    viewport.addEventListener("wheel", onWheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", onWheel);
+  }, []);
 
   function startPan(e: React.MouseEvent<HTMLDivElement>) {
     if (e.button !== 2) return;
@@ -1104,7 +1110,6 @@ export default function WorldMapPage() {
                 height: cleanMode ? "80vh" : "70vh",
                 cursor: getCursor(),
               }}
-              onWheel={handleWheel}
               onMouseDown={startPan}
               onMouseMove={movePan}
               onContextMenu={(e) => e.preventDefault()}

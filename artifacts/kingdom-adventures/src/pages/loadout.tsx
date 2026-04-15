@@ -3,7 +3,7 @@ import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
-  ArrowLeft, Plus, Trash2, Moon, Sun, Loader2, Camera,
+  Plus, Trash2, Loader2, Camera,
   ChevronDown, ChevronRight, Package, X, Check, Pencil,
   Download, Copy, Info, RotateCcw, Crown, Sword, Shield, Gem,
 } from "lucide-react";
@@ -181,19 +181,6 @@ function useSharedData() {
   });
 }
 
-function useDarkMode() {
-  const [dark, setDark] = useState(() =>
-    typeof window !== "undefined"
-      ? localStorage.getItem("theme") === "dark" ||
-        (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)
-      : false
-  );
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("theme", dark ? "dark" : "light");
-  }, [dark]);
-  return { dark, setDark };
-}
 
 function useLoadouts(sharedData: SharedData | undefined) {
   const [loadouts, setLoadouts] = useLocalFeature<Loadout[]>("ka_loadouts", []);
@@ -538,8 +525,6 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
           {screenshotStatus === "working" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
           {screenshotStatus === "ok" ? "Saved!" : screenshotStatus === "error" ? "Failed" : "Screenshot"}
         </Button>
-        <button onClick={onDuplicate} className="text-muted-foreground hover:text-primary shrink-0" title="Duplicate this loadout"><Copy className="w-4 h-4" /></button>
-        <button onClick={onDelete} className="text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="w-4 h-4" /></button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -800,7 +785,6 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LoadoutPage() {
-  const { dark, setDark } = useDarkMode();
   const { data, isLoading } = useSharedData();
   const { loadouts, save } = useLoadouts(data);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -838,12 +822,6 @@ export default function LoadoutPage() {
       <div className="border-b border-border bg-card">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <Link href="/">
-              <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <ArrowLeft className="w-3.5 h-3.5" />Home
-              </button>
-            </Link>
-            <span className="text-muted-foreground/30">/</span>
             <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
               <Package className="w-5 h-5 text-orange-500" />Loadout Builder
             </h1>
@@ -861,9 +839,6 @@ export default function LoadoutPage() {
             </Button>
             <Button size="sm" onClick={addLoadout} className="h-8 gap-1.5">
               <Plus className="w-3.5 h-3.5" />New Loadout
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => setDark((d) => !d)} className="h-8 w-8">
-              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
           </div>
         </div>
@@ -929,6 +904,13 @@ export default function LoadoutPage() {
                         title="Duplicate this loadout"
                       >
                         <Copy className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteLoadout(loadout.id); }}
+                        className="text-destructive hover:text-destructive/70 shrink-0 ml-1"
+                        title="Delete this loadout"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
 

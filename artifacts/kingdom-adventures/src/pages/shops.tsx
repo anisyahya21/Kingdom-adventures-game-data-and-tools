@@ -2,15 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
 import {
-  ArrowLeft,
   Hammer,
-  Moon,
   Package,
   Search,
   Shield,
   Sofa,
   Store,
-  Sun,
   UtensilsCrossed,
   WandSparkles,
 } from "lucide-react";
@@ -262,19 +259,12 @@ function describeEggBonusType(type: number): string {
   }
 }
 
-function ShopHeader({ selectedShop, darkMode, setDarkMode }: {
+function ShopHeader({ selectedShop }: {
   selectedShop?: ShopRecord | null;
-  darkMode: boolean;
-  setDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   return (
     <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
       <div className="flex items-start gap-3">
-        <Link href={selectedShop ? "/shops" : "/"}>
-          <Button variant="ghost" size="sm" className="gap-2 h-8 text-muted-foreground hover:text-foreground mt-1">
-            <ArrowLeft className="w-4 h-4" /> {selectedShop ? "Shops" : "Home"}
-          </Button>
-        </Link>
         <div>
           <div className="flex items-center gap-2 mb-2">
             {(selectedShop ? SHOP_ICONS[selectedShop.slug] : <Store className="w-5 h-5 text-indigo-500" />)}
@@ -292,9 +282,6 @@ function ShopHeader({ selectedShop, darkMode, setDarkMode }: {
           </p>
         </div>
       </div>
-      <Button variant="outline" size="icon" onClick={() => setDarkMode((d) => !d)} className="h-8 w-8">
-        {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-      </Button>
     </div>
   );
 }
@@ -358,22 +345,43 @@ function matchesQuery(name: string, query: string): boolean {
 }
 
 function EquipmentTable({ rows, showWeaponType = false }: { rows: EquipmentRow[]; showWeaponType?: boolean }) {
+  type SortCol = "name" | "rank" | "studio" | "int";
+  const [sortCol, setSortCol] = useState<SortCol>("studio");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  function toggleSort(col: SortCol) {
+    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir("asc"); }
+  }
+  const sorted = useMemo(() => {
+    const rankOrder: Record<string, number> = { S: 1, A: 2, B: 3, C: 4, D: 5, E: 6, F: 7 };
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      switch (sortCol) {
+        case "rank": return ((rankOrder[a.rank] ?? 99) - (rankOrder[b.rank] ?? 99)) * dir;
+        case "studio": return (((a.studioLevel ?? 0) - (b.studioLevel ?? 0)) * dir) || a.name.localeCompare(b.name);
+        case "int": return (((a.craftingIntelligence ?? 0) - (b.craftingIntelligence ?? 0)) * dir) || a.name.localeCompare(b.name);
+        default: return a.name.localeCompare(b.name) * dir;
+      }
+    });
+  }, [rows, sortCol, sortDir]);
+  const arrow = (col: SortCol) => sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : " ⇅";
+  const thC = "px-3 py-2 font-medium cursor-pointer select-none hover:bg-muted/60 transition-colors";
   return (
     <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-sm">
         <thead className="bg-muted/40 text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 text-left font-medium">Name</th>
-            <th className="px-3 py-2 text-center font-medium">Rank</th>
+            <th className={`${thC} text-left`} onClick={() => toggleSort("name")}>Name{arrow("name")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("rank")}>Rank{arrow("rank")}</th>
             <th className="px-3 py-2 text-center font-medium">Slot</th>
             {showWeaponType && <th className="px-3 py-2 text-center font-medium">Type</th>}
             <th className="px-3 py-2 text-center font-medium">Craftable</th>
-            <th className="px-3 py-2 text-center font-medium">Studio</th>
-            <th className="px-3 py-2 text-center font-medium">INT</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("studio")}>Studio{arrow("studio")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("int")}>INT{arrow("int")}</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {sorted.map((row) => (
             <tr key={row.name} className="border-t border-border/70">
               <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
               <td className="px-3 py-2 text-center">{row.rank || "-"}</td>
@@ -391,21 +399,42 @@ function EquipmentTable({ rows, showWeaponType = false }: { rows: EquipmentRow[]
 }
 
 function SkillsTable({ rows }: { rows: SkillRow[] }) {
+  type SortCol = "name" | "studio" | "int" | "buy" | "sell";
+  const [sortCol, setSortCol] = useState<SortCol>("studio");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  function toggleSort(col: SortCol) {
+    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir("asc"); }
+  }
+  const sorted = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      switch (sortCol) {
+        case "studio": return (((a.studioLevel ?? 0) - (b.studioLevel ?? 0)) * dir) || a.name.localeCompare(b.name);
+        case "int": return (((a.craftingIntelligence ?? 0) - (b.craftingIntelligence ?? 0)) * dir) || a.name.localeCompare(b.name);
+        case "buy": return (((a.buyPrice ?? 0) - (b.buyPrice ?? 0)) * dir) || a.name.localeCompare(b.name);
+        case "sell": return (((a.sellPrice ?? 0) - (b.sellPrice ?? 0)) * dir) || a.name.localeCompare(b.name);
+        default: return a.name.localeCompare(b.name) * dir;
+      }
+    });
+  }, [rows, sortCol, sortDir]);
+  const arrow = (col: SortCol) => sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : " ⇅";
+  const thC = "px-3 py-2 font-medium cursor-pointer select-none hover:bg-muted/60 transition-colors";
   return (
     <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-sm">
         <thead className="bg-muted/40 text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 text-left font-medium">Skill</th>
-            <th className="px-3 py-2 text-center font-medium">Studio</th>
-            <th className="px-3 py-2 text-center font-medium">INT</th>
-            <th className="px-3 py-2 text-center font-medium">Buy</th>
-            <th className="px-3 py-2 text-center font-medium">Sell</th>
+            <th className={`${thC} text-left`} onClick={() => toggleSort("name")}>Skill{arrow("name")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("studio")}>Studio{arrow("studio")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("int")}>INT{arrow("int")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("buy")}>Buy{arrow("buy")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("sell")}>Sell{arrow("sell")}</th>
             <th className="px-3 py-2 text-left font-medium">Notes</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {sorted.map((row) => (
             <tr key={row.name} className="border-t border-border/70">
               <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
               <td className="px-3 py-2 text-center">{row.studioLevel}</td>
@@ -422,23 +451,43 @@ function SkillsTable({ rows }: { rows: SkillRow[] }) {
 }
 
 function ItemTable({ rows }: { rows: ItemRow[] }) {
+  type SortCol = "name" | "studio" | "int" | "craftTime" | "eggExp";
+  const [sortCol, setSortCol] = useState<SortCol>("studio");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  function toggleSort(col: SortCol) {
+    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir("asc"); }
+  }
+  const sorted = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      switch (sortCol) {
+        case "studio": return (((a.studioLevel ?? 0) - (b.studioLevel ?? 0)) * dir) || a.name.localeCompare(b.name);
+        case "int": return (((a.craftingIntelligence ?? 0) - (b.craftingIntelligence ?? 0)) * dir) || a.name.localeCompare(b.name);
+        case "craftTime": return (((a.craftTimeSeconds ?? 0) - (b.craftTimeSeconds ?? 0)) * dir) || a.name.localeCompare(b.name);
+        case "eggExp": return (((a.eggBonusExp ?? 0) - (b.eggBonusExp ?? 0)) * dir) || a.name.localeCompare(b.name);
+        default: return a.name.localeCompare(b.name) * dir;
+      }
+    });
+  }, [rows, sortCol, sortDir]);
+  const arrow = (col: SortCol) => sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : " ⇅";
+  const thC = "px-3 py-2 font-medium cursor-pointer select-none hover:bg-muted/60 transition-colors";
   return (
     <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-sm">
         <thead className="bg-muted/40 text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 text-left font-medium">Item</th>
-            <th className="px-3 py-2 text-center font-medium">Studio</th>
-            <th className="px-3 py-2 text-center font-medium">INT</th>
-            <th className="px-3 py-2 text-center font-medium">Craft Time</th>
+            <th className={`${thC} text-left`} onClick={() => toggleSort("name")}>Item{arrow("name")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("studio")}>Studio{arrow("studio")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("int")}>INT{arrow("int")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("craftTime")}>Craft Time{arrow("craftTime")}</th>
             <th className="px-3 py-2 text-center font-medium">Egg Stat</th>
             <th className="px-3 py-2 text-center font-medium">Egg +Stat</th>
-            <th className="px-3 py-2 text-center font-medium">Egg EXP</th>
-            <th className="px-3 py-2 text-center font-medium">Egg Time</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("eggExp")}>Egg EXP{arrow("eggExp")}</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {sorted.map((row) => (
             <tr key={row.name} className="border-t border-border/70">
               <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
               <td className="px-3 py-2 text-center">{row.studioLevel}</td>
@@ -447,7 +496,6 @@ function ItemTable({ rows }: { rows: ItemRow[] }) {
               <td className="px-3 py-2 text-center">{describeEggBonusType(row.eggBonusType)}</td>
               <td className="px-3 py-2 text-center">{row.eggBonusValue || "-"}</td>
               <td className="px-3 py-2 text-center">{row.eggBonusExp || "-"}</td>
-              <td className="px-3 py-2 text-center">{row.eggBonusTime || "-"}</td>
             </tr>
           ))}
         </tbody>
@@ -457,18 +505,37 @@ function ItemTable({ rows }: { rows: ItemRow[] }) {
 }
 
 function FurnitureTable({ rows }: { rows: FurnitureRow[] }) {
+  type SortCol = "name" | "studio" | "int";
+  const [sortCol, setSortCol] = useState<SortCol>("studio");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  function toggleSort(col: SortCol) {
+    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir("asc"); }
+  }
+  const sorted = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      switch (sortCol) {
+        case "studio": return (((a.studioLevel ?? 0) - (b.studioLevel ?? 0)) * dir) || a.name.localeCompare(b.name);
+        case "int": return (((a.craftingIntelligence ?? 0) - (b.craftingIntelligence ?? 0)) * dir) || a.name.localeCompare(b.name);
+        default: return a.name.localeCompare(b.name) * dir;
+      }
+    });
+  }, [rows, sortCol, sortDir]);
+  const arrow = (col: SortCol) => sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : " ⇅";
+  const thC = "px-3 py-2 font-medium cursor-pointer select-none hover:bg-muted/60 transition-colors";
   return (
     <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-sm">
         <thead className="bg-muted/40 text-muted-foreground">
           <tr>
-            <th className="px-3 py-2 text-left font-medium">Name</th>
-            <th className="px-3 py-2 text-center font-medium">Studio</th>
-            <th className="px-3 py-2 text-center font-medium">INT</th>
+            <th className={`${thC} text-left`} onClick={() => toggleSort("name")}>Name{arrow("name")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("studio")}>Studio{arrow("studio")}</th>
+            <th className={`${thC} text-center`} onClick={() => toggleSort("int")}>INT{arrow("int")}</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {sorted.map((row) => (
             <tr key={row.name} className="border-t border-border/70">
               <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
               <td className="px-3 py-2 text-center">{row.studioLevel}</td>
@@ -530,13 +597,6 @@ function ResearchShopView({ shop }: { shop: ShopRecord }) {
 
 export default function ShopsPage() {
   const [, navigate] = useLocation();
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("theme") === "dark"
-        || (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    }
-    return false;
-  });
   const [, params] = useRoute("/shops/:slug");
   const [search, setSearch] = useState("");
   const [rankFilter, setRankFilter] = useState<(typeof RANKS)[number]>("All");
@@ -545,17 +605,7 @@ export default function ShopsPage() {
   const [skillSearch, setSkillSearch] = useState("");
   const [itemSearch, setItemSearch] = useState("");
   const [furnitureSearch, setFurnitureSearch] = useState("");
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      root.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [darkMode]);
+  const [studioFilter, setStudioFilter] = useState<Set<number>>(new Set());
 
   const selectedShop = useMemo(
     () => SHOP_RECORDS.find((shop) => shop.slug === params?.slug) ?? null,
@@ -569,6 +619,7 @@ export default function ShopsPage() {
     if (selectedShop?.slug === "item-shop") setItemSearch(q);
     else if (selectedShop?.slug === "furniture-shop") setFurnitureSearch(q);
     else setSearch(q);
+    setStudioFilter(new Set());
   }, [currentUrlSearch, selectedShop?.slug]);
 
   const { data: equipmentRows = [], isLoading: equipmentLoading } = useQuery({
@@ -607,29 +658,64 @@ export default function ShopsPage() {
   }, [craftFilter, dedupedEquipmentRows, rankFilter, search]);
 
   const weaponRows = useMemo(
-    () => filteredEquipment.filter((row) => row.slot === "Weapon"),
-    [filteredEquipment]
+    () => filteredEquipment.filter((row) => row.slot === "Weapon" && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
+    [filteredEquipment, studioFilter]
   );
   const armorRows = useMemo(
-    () => filteredEquipment.filter((row) => ["Head", "Armor", "Shield"].includes(row.slot) && (armorSlotFilter === "All" || row.slot === armorSlotFilter)),
-    [armorSlotFilter, filteredEquipment]
+    () => filteredEquipment.filter((row) => ["Head", "Armor", "Shield"].includes(row.slot) && (armorSlotFilter === "All" || row.slot === armorSlotFilter) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
+    [armorSlotFilter, filteredEquipment, studioFilter]
   );
   const accessoryRows = useMemo(
-    () => filteredEquipment.filter((row) => row.slot === "Accessory"),
-    [filteredEquipment]
+    () => filteredEquipment.filter((row) => row.slot === "Accessory" && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
+    [filteredEquipment, studioFilter]
   );
   const filteredSkillRows = useMemo(
-    () => skillRows.filter((row) => matchesQuery(row.name, skillSearch)),
-    [skillRows, skillSearch]
+    () => skillRows.filter((row) => matchesQuery(row.name, skillSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
+    [skillRows, skillSearch, studioFilter]
   );
   const filteredItemRows = useMemo(
-    () => itemRows.filter((row) => matchesQuery(row.name, itemSearch)),
-    [itemRows, itemSearch]
+    () => itemRows.filter((row) => matchesQuery(row.name, itemSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
+    [itemRows, itemSearch, studioFilter]
   );
   const filteredFurnitureRows = useMemo(
-    () => FURNITURE_ROWS.filter((row) => matchesQuery(row.name, furnitureSearch)),
-    [furnitureSearch]
+    () => FURNITURE_ROWS.filter((row) => matchesQuery(row.name, furnitureSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
+    [furnitureSearch, studioFilter]
   );
+  const shopStudioLevels = useMemo((): number[] => {
+    if (!selectedShop) return [];
+    const levels = (() => {
+      switch (selectedShop.slug) {
+        case "weapon-shop": return dedupedEquipmentRows.filter((r) => r.slot === "Weapon" && r.craftable).map((r) => r.studioLevel);
+        case "armor-shop": return dedupedEquipmentRows.filter((r) => ["Head", "Armor", "Shield"].includes(r.slot) && r.craftable).map((r) => r.studioLevel);
+        case "accessory-shop": return dedupedEquipmentRows.filter((r) => r.slot === "Accessory" && r.craftable).map((r) => r.studioLevel);
+        case "skill-shop": return skillRows.map((r) => r.studioLevel);
+        case "item-shop": return itemRows.map((r) => r.studioLevel);
+        case "furniture-shop": return FURNITURE_ROWS.map((r) => r.studioLevel);
+        default: return [];
+      }
+    })();
+    return [...new Set(levels.filter((v) => v > 0))].sort((a, b) => a - b);
+  }, [selectedShop, dedupedEquipmentRows, skillRows, itemRows]);
+  const toggleStudio = (level: number) => setStudioFilter((prev) => {
+    const next = new Set(prev);
+    next.has(level) ? next.delete(level) : next.add(level);
+    return next;
+  });
+  const studioChips = shopStudioLevels.length > 0 ? (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs font-medium text-muted-foreground shrink-0">Studio:</span>
+      {shopStudioLevels.map((level) => (
+        <button
+          key={level}
+          onClick={() => toggleStudio(level)}
+          className={`px-2.5 h-7 text-xs font-medium rounded border transition-colors ${studioFilter.has(level) ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
+        >Lv {level}</button>
+      ))}
+      {studioFilter.size > 0 && (
+        <button onClick={() => setStudioFilter(new Set())} className="text-xs text-muted-foreground hover:text-destructive transition-colors px-1">✕ clear</button>
+      )}
+    </div>
+  ) : null;
   const selectedShopResults = useMemo(() => {
     switch (selectedShop?.slug) {
       case "weapon-shop":
@@ -661,7 +747,7 @@ export default function ShopsPage() {
     return (
       <div className="min-h-screen bg-background transition-colors">
         <div className="max-w-6xl mx-auto px-4 py-8">
-          <ShopHeader darkMode={darkMode} setDarkMode={setDarkMode} />
+          <ShopHeader />
 
           <Card className="shadow-sm mb-4 border-primary/20">
             <CardHeader className="pb-2">
@@ -708,7 +794,7 @@ export default function ShopsPage() {
   return (
     <div className="min-h-screen bg-background transition-colors">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <ShopHeader selectedShop={selectedShop} darkMode={darkMode} setDarkMode={setDarkMode} />
+        <ShopHeader selectedShop={selectedShop} />
         <ShopTabs currentSlug={selectedShop.slug} />
 
         <Card className="shadow-sm mb-4">
@@ -738,17 +824,20 @@ export default function ShopsPage() {
                   Read-only weapon browsing from the translated equipment data. Fixed weapon data stays reference-only.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="relative md:col-span-2">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search weapons..." className="pl-9" />
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="relative md:col-span-2">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search weapons..." className="pl-9" />
+                  </div>
+                  <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                    {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
+                  </select>
+                  <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                    {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
                 </div>
-                <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                  {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
-                </select>
-                <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                  {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
+                {studioChips}
               </CardContent>
             </Card>
 
@@ -769,23 +858,26 @@ export default function ShopsPage() {
                   Covers headgear, armor, and shields in one shop-facing view.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                <div className="relative md:col-span-2">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search armor..." className="pl-9" />
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                  <div className="relative md:col-span-2">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search armor..." className="pl-9" />
+                  </div>
+                  <select value={armorSlotFilter} onChange={(e) => setArmorSlotFilter(e.target.value as "All" | "Head" | "Armor" | "Shield")} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                    <option value="All">All armor slots</option>
+                    <option value="Head">Head</option>
+                    <option value="Armor">Armor</option>
+                    <option value="Shield">Shield</option>
+                  </select>
+                  <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                    {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
+                  </select>
+                  <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                    {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
                 </div>
-                <select value={armorSlotFilter} onChange={(e) => setArmorSlotFilter(e.target.value as "All" | "Head" | "Armor" | "Shield")} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                  <option value="All">All armor slots</option>
-                  <option value="Head">Head</option>
-                  <option value="Armor">Armor</option>
-                  <option value="Shield">Shield</option>
-                </select>
-                <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                  {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
-                </select>
-                <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                  {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
+                {studioChips}
               </CardContent>
             </Card>
 
@@ -806,17 +898,20 @@ export default function ShopsPage() {
                   Accessory-only browsing from the translated equipment database.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="relative md:col-span-2">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search accessories..." className="pl-9" />
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="relative md:col-span-2">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search accessories..." className="pl-9" />
+                  </div>
+                  <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                    {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
+                  </select>
+                  <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+                    {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
                 </div>
-                <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                  {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
-                </select>
-                <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                  {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
+                {studioChips}
               </CardContent>
             </Card>
 
@@ -837,14 +932,17 @@ export default function ShopsPage() {
                   Only shop-craftable skills are shown here. Fixed skill data stays read-only.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="relative md:col-span-2">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={skillSearch} onChange={(e) => setSkillSearch(e.target.value)} placeholder="Search skills..." className="pl-9" />
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="relative md:col-span-2">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={skillSearch} onChange={(e) => setSkillSearch(e.target.value)} placeholder="Search skills..." className="pl-9" />
+                  </div>
+                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    {filteredSkillRows.length} skills
+                  </div>
                 </div>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                  {filteredSkillRows.length} skills
-                </div>
+                {studioChips}
               </CardContent>
             </Card>
 
@@ -865,14 +963,17 @@ export default function ShopsPage() {
                   Craftable items pulled from the item sheet by studio and intelligence requirements. Egg-feed columns are shown too because they already live in the same source.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="relative md:col-span-2">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search items..." className="pl-9" />
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="relative md:col-span-2">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search items..." className="pl-9" />
+                  </div>
+                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    {filteredItemRows.length} items
+                  </div>
                 </div>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                  {filteredItemRows.length} items
-                </div>
+                {studioChips}
               </CardContent>
             </Card>
 
@@ -893,14 +994,17 @@ export default function ShopsPage() {
                   Community-confirmed furniture catalog with studio and intelligence requirements. Prices and fuller facility effects can be added once we decode them from the source cleanly.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="relative md:col-span-2">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={furnitureSearch} onChange={(e) => setFurnitureSearch(e.target.value)} placeholder="Search furniture..." className="pl-9" />
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="relative md:col-span-2">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={furnitureSearch} onChange={(e) => setFurnitureSearch(e.target.value)} placeholder="Search furniture..." className="pl-9" />
+                  </div>
+                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    {filteredFurnitureRows.length} furniture items
+                  </div>
                 </div>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                  {filteredFurnitureRows.length} furniture items
-                </div>
+                {studioChips}
               </CardContent>
             </Card>
 

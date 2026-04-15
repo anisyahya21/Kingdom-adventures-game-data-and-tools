@@ -4,8 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   Plus, Trash2, Zap, RefreshCw, HelpCircle, ArrowLeftRight,
-  X, Lock, LockOpen, Moon, Sun, Loader2, AlertTriangle, ExternalLink,
-  ArrowLeft, Info, Star, Baby, Filter,
+  X, Lock, LockOpen, Loader2, AlertTriangle, ExternalLink,
+  Info, Star, Baby, Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1169,20 +1169,6 @@ function InfoDialog() {
 
 // âââ Main Component âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 export default function MarriageMatcher() {
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("theme") === "dark" ||
-        (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    }
-    return false;
-  });
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) { root.classList.add("dark"); localStorage.setItem("theme", "dark"); }
-    else { root.classList.remove("dark"); localStorage.setItem("theme", "light"); }
-  }, [darkMode]);
-
   // -- API data --
   const { data: sharedData, isLoading: jobsLoading } = useSharedData();
 
@@ -1673,11 +1659,6 @@ export default function MarriageMatcher() {
         {/* Header */}
         <div className="mb-8 flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="gap-2 h-8 text-muted-foreground hover:text-foreground mt-1">
-                <ArrowLeft className="w-4 h-4" /> Home
-              </Button>
-            </Link>
             <div>
               <h1 className="text-3xl font-bold text-foreground tracking-tight">Match Finder</h1>
               <p className="mt-1 text-muted-foreground text-sm max-w-xl">
@@ -1690,14 +1671,6 @@ export default function MarriageMatcher() {
               <Info className="w-3.5 h-3.5" />
             </Button>
             <InfoDialog />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={() => setDarkMode((d) => !d)} className="h-8 w-8">
-                  {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">Toggle {darkMode ? "light" : "dark"} mode</TooltipContent>
-            </Tooltip>
             <Button variant="outline" size="sm" onClick={reset} className="flex items-center gap-2 h-8">
               <RefreshCw className="w-4 h-4" /> Reset
             </Button>

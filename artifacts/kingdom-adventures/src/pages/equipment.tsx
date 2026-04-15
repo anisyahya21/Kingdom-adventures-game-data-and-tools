@@ -1,16 +1,16 @@
 import { useState, useMemo, useCallback, useRef, Fragment, useEffect, ChangeEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
+
 import {
-  ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
-  Loader2, AlertTriangle, Moon, Sun, Info, X, ImageIcon, Pencil,
+  ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
+  Loader2, AlertTriangle, Info, X, ImageIcon, Pencil,
   ChevronDown, ChevronRight, Download, History, CheckSquare, GripVertical,
   Plus, Settings2, Clock, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+
 import { SearchableSelect } from "@/components/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
@@ -636,13 +636,6 @@ function exportData(shared: SharedState) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EquipmentPage() {
-  const [darkMode, setDarkMode] = useState(() => initDark());
-  const toggleDark = () => {
-    const next = !darkMode; setDarkMode(next);
-    document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("theme", next ? "dark" : "light");
-  };
-
   const { data: items = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery({ queryKey: ["equipment"], queryFn: fetchSheet, staleTime: 5 * 60 * 1000 });
   const { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, saveWeaponTypes, saveWeaponCategories, renameUser } = useShared();
   const { overrides, slotAssignments, equipIcons, statIcons } = shared;
@@ -687,8 +680,10 @@ export default function EquipmentPage() {
 
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [slotFilter, setSlotFilter] = useState("All");
-  const [rankFilter, setRankFilter] = useState("All");
+  const [slotFilters, setSlotFilters] = useState<Set<string>>(new Set());
+  const [rankFilters, setRankFilters] = useState<Set<string>>(new Set());
+  const [studioFilters, setStudioFilters] = useState<Set<number>>(new Set());
+  const [intFilters, setIntFilters] = useState<Set<number>>(new Set());
   const [craftFilter, setCraftFilter] = useState<CraftFilter>("All");
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -766,7 +761,25 @@ export default function EquipmentPage() {
 
   const [sortByInc, setSortByInc] = useState(false);
 
-  const slotOptions = ["All", ...CHAR_SLOTS] as const;
+  const allStudioLevels = useMemo(
+    () => [...new Set(items.filter((i) => i.crafterStudioLevel > 0).map((i) => i.crafterStudioLevel))].sort((a, b) => a - b),
+    [items]
+  );
+  const availableIntValues = useMemo(() => {
+    if (studioFilters.size === 0) return [];
+    const base = items.filter((i) => studioFilters.has(i.crafterStudioLevel));
+    return [...new Set(base.map((i) => i.crafterIntelligence).filter((v) => v > 0))].sort((a, b) => a - b);
+  }, [items, studioFilters]);
+
+  const anyFilterActive = slotFilters.size > 0 || rankFilters.size > 0 || studioFilters.size > 0 || intFilters.size > 0 || craftFilter !== "All" || search.length > 0;
+  const clearAllFilters = useCallback(() => {
+    setSlotFilters(new Set());
+    setRankFilters(new Set());
+    setStudioFilters(new Set());
+    setIntFilters(new Set());
+    setCraftFilter("All");
+    setSearch("");
+  }, []);
 
   const handleSort = (col: string) => {
     if (sortCol === col) setSortDir((d) => d === "asc" ? "desc" : "asc");
@@ -782,14 +795,21 @@ export default function EquipmentPage() {
   const filtered = useMemo(() => {
     let list = compareMode ? items.filter((i) => selectedUids.has(i.uid)) : items;
     if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
-    if (slotFilter !== "All") {
+    if (slotFilters.size > 0) {
       list = list.filter((i) => {
         const a = getItemSlot(i.name);
-        return a !== " " ? a === slotFilter : i.sheetSlot === slotFilter;
+        const s = a !== " " ? a : i.sheetSlot;
+        return slotFilters.has(s);
       });
     }
-    if (rankFilter !== "All") {
-      list = list.filter((i) => getEquipmentRank(i.name) === rankFilter);
+    if (rankFilters.size > 0) {
+      list = list.filter((i) => rankFilters.has(getEquipmentRank(i.name)));
+    }
+    if (studioFilters.size > 0) {
+      list = list.filter((i) => studioFilters.has(i.crafterStudioLevel));
+    }
+    if (intFilters.size > 0) {
+      list = list.filter((i) => intFilters.has(i.crafterIntelligence));
     }
     if (craftFilter !== "All") {
       list = list.filter((i) => craftFilter === "Craftable" ? i.crafterStudioLevel > 0 : i.crafterStudioLevel === 0);
@@ -810,7 +830,7 @@ export default function EquipmentPage() {
       });
     }
     return list;
-  }, [items, compareMode, selectedUids, search, slotFilter, rankFilter, craftFilter, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemSlot]);
+  }, [items, compareMode, selectedUids, search, slotFilters, rankFilters, studioFilters, intFilters, craftFilter, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemSlot]);
 
   const applyLevelToShown = useCallback((level: number) => {
     const clamped = Math.min(99, Math.max(1, level));
@@ -898,8 +918,6 @@ export default function EquipmentPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <Link href="/"><Button variant="ghost" size="sm" className="gap-2 h-8 text-muted-foreground hover:text-foreground"><ArrowLeft className="w-4 h-4" />Home</Button></Link>
-            <Separator orientation="vertical" className="h-5" />
             <div>
               <h1 className="text-2xl font-bold text-foreground">Equipment Stats</h1>
               <p className="text-xs text-muted-foreground">Compare equipment at any level · Build your loadout</p>
@@ -913,7 +931,6 @@ export default function EquipmentPage() {
               <History className="w-3.5 h-3.5" />History {history.length > 0 && <span className="ml-0.5 text-[10px] bg-primary/10 text-primary px-1 rounded-full">{history.length}</span>}
             </Button>
             <InfoDialog />
-            <Button variant="outline" size="icon" onClick={toggleDark} className="h-8 w-8">{darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</Button>
           </div>
         </div>
 
@@ -933,20 +950,8 @@ export default function EquipmentPage() {
         </Card>
 
         {/* Controls */}
-        <div className="flex flex-wrap items-center gap-3 mb-3">
+        <div className="flex flex-wrap items-center gap-3 mb-2">
           <Input placeholder="Search equipment…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-sm w-44" />
-          <SearchableSelect
-            value={slotFilter}
-            onChange={setSlotFilter}
-            options={slotOptions.map((s) => ({ value: s, label: s === "All" ? "All slots" : s }))}
-            triggerClassName="h-8 text-sm w-32"
-          />
-          <SearchableSelect
-            value={rankFilter}
-            onChange={setRankFilter}
-            options={[{ value: "All", label: "All tiers" }, ...EQUIPMENT_RANKS.map((rank) => ({ value: rank, label: `${rank}/` }))]}
-            triggerClassName="h-8 text-sm w-28"
-          />
           <SearchableSelect
             value={craftFilter}
             onChange={(v) => setCraftFilter(v as CraftFilter)}
@@ -960,9 +965,9 @@ export default function EquipmentPage() {
           <button
             onClick={() => setSortByInc((v) => !v)}
             className={`h-8 px-3 text-xs rounded-md border transition-colors font-medium ${sortByInc ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"}`}
-            title={sortByInc ? "Currently sorting stats by +/Lv increment — click to sort by value at level" : "Currently sorting stats by value at level — click to sort by +/Lv increment"}
+            title={sortByInc ? "Currently sorting stats by Growth +Lv — click to sort by value at level" : "Currently sorting stats by value at level — click to sort by Growth +Lv"}
           >
-            Sort stats: {sortByInc ? "+/Lv" : "Value"}
+            Sort stats: {sortByInc ? "Growth +Lv" : "Value"}
           </button>
           <div className="md:hidden flex items-center gap-2">
             <SearchableSelect
@@ -991,6 +996,11 @@ export default function EquipmentPage() {
               <X className="w-3.5 h-3.5" />Show all
             </Button>
           )}
+          {anyFilterActive && (
+            <Button size="sm" variant="ghost" className="h-8 gap-1 text-muted-foreground hover:text-foreground" onClick={clearAllFilters}>
+              <X className="w-3 h-3" />Clear all
+            </Button>
+          )}
           <div className="ml-auto flex items-center gap-2">
             {dataUpdatedAt && <span className="text-xs text-muted-foreground">Updated {new Date(dataUpdatedAt).toLocaleTimeString()}</span>}
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} className="h-8 gap-2">
@@ -998,6 +1008,64 @@ export default function EquipmentPage() {
             </Button>
           </div>
         </div>
+        {/* Slot toggle filter */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          <span className="text-xs font-medium text-muted-foreground w-8 shrink-0">Slot</span>
+          {CHAR_SLOTS.map((slot) => (
+            <button
+              key={slot}
+              onClick={() => setSlotFilters((prev) => { const next = new Set(prev); next.has(slot) ? next.delete(slot) : next.add(slot); return next; })}
+              className={`px-2.5 h-7 text-xs font-medium rounded border transition-colors ${slotFilters.has(slot) ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
+            >
+              {slot}
+            </button>
+          ))}
+        </div>
+        {/* Tier toggle filter */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          <span className="text-xs font-medium text-muted-foreground w-8 shrink-0">Tier</span>
+          {EQUIPMENT_RANKS.map((rank) => (
+            <button
+              key={rank}
+              onClick={() => setRankFilters((prev) => { const next = new Set(prev); next.has(rank) ? next.delete(rank) : next.add(rank); return next; })}
+              className={`px-2.5 h-7 text-xs font-medium rounded border transition-colors ${rankFilters.has(rank) ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
+            >
+              {rank}
+            </button>
+          ))}
+        </div>
+        {/* Studio + INT cross-filter */}
+        {allStudioLevels.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-3">
+            <span className="text-xs font-medium text-muted-foreground w-12 shrink-0">Studio</span>
+            {allStudioLevels.map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setStudioFilters((prev) => { const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next; });
+                  setIntFilters(new Set());
+                }}
+                className={`px-2.5 h-7 text-xs font-medium rounded border transition-colors ${studioFilters.has(s) ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
+              >
+                Lv {s}
+              </button>
+            ))}
+            {studioFilters.size > 0 && availableIntValues.length > 0 && (
+              <>
+                <span className="text-xs font-medium text-muted-foreground ml-2 shrink-0">INT</span>
+                {availableIntValues.map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setIntFilters((prev) => { const next = new Set(prev); next.has(v) ? next.delete(v) : next.add(v); return next; })}
+                    className={`px-2.5 h-7 text-xs font-medium rounded border transition-colors ${intFilters.has(v) ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 mb-4 rounded-lg border border-border bg-muted/30 px-3 py-2">
           <span className="text-xs font-medium text-muted-foreground">Compare at level</span>
@@ -1597,7 +1665,6 @@ export default function EquipmentPage() {
 
         <div className="mt-8 pt-4 border-t border-border text-xs text-muted-foreground flex items-center justify-between">
           <span>Data from Google Sheets · Kingdom Adventures</span>
-          <Link href="/"><span className="hover:text-foreground transition-colors cursor-pointer">← Back to home</span></Link>
         </div>
       </div>
     </div>

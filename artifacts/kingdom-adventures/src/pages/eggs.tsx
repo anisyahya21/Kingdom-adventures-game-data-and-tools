@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+
 import {
-  ArrowLeft,
   ArrowUpDown,
   BadgeInfo,
   Egg,
-  Moon,
   Plus,
   Search,
-  Sun,
   Target,
   Trash2,
 } from "lucide-react";
@@ -148,13 +145,6 @@ function BandProgress({
 }
 
 export default function EggsPage() {
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("theme") === "dark"
-        || (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    }
-    return false;
-  });
   const [mode, setMode] = useState<"target" | "existing">("target");
   const [selectedMonster, setSelectedMonster] = useState("");
   const [selectedEggColor, setSelectedEggColor] = useState("");
@@ -167,17 +157,6 @@ export default function EggsPage() {
   const [targetFeedInputs, setTargetFeedInputs] = useState<FeedInputState>({});
   const [feedSortBy, setFeedSortBy] = useState<FeedSortKey>("Attack");
   const [feedRowsToShow, setFeedRowsToShow] = useState("25");
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      root.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [darkMode]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["egg-reference-data"],
@@ -402,11 +381,7 @@ export default function EggsPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <div className="flex items-center gap-3">
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="gap-2 h-8 text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-4 h-4" />Home
-              </Button>
-            </Link>
+
             <div>
               <h1 className="text-2xl font-bold text-foreground">Eggs & Pets</h1>
               <p className="text-sm text-muted-foreground">
@@ -414,9 +389,6 @@ export default function EggsPage() {
               </p>
             </div>
           </div>
-          <Button variant="outline" size="icon" onClick={() => setDarkMode((d) => !d)} className="h-8 w-8">
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </Button>
         </div>
 
         <Card className="shadow-sm border-primary/20 mb-4">

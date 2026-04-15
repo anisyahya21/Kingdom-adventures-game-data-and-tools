@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
-  ArrowLeft, Moon, Sun, Loader2, Pencil, Check, X,
+  Loader2, Pencil, Check, X,
   RefreshCw, BookOpen, Search, Zap, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,19 +46,6 @@ async function persistSkills(skills: Record<string, Skill>, userName: string, de
   });
 }
 
-function useDarkMode() {
-  const [dark, setDark] = useState(() =>
-    typeof window !== "undefined"
-      ? localStorage.getItem("theme") === "dark" ||
-        (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)
-      : false
-  );
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("theme", dark ? "dark" : "light");
-  }, [dark]);
-  return { dark, setDark };
-}
 
 function useUserName() {
   const [name, setName] = useState(() => localStorage.getItem("ka_username") ?? "");
@@ -100,7 +87,6 @@ function numCell(val: number | null | undefined, onChange: (v: number | undefine
 }
 
 export default function SkillsPage() {
-  const { dark, setDark } = useDarkMode();
   const { name: userName, save: saveUserName } = useUserName();
   const [promptName, setPromptName] = useState(false);
   const [pendingFn, setPendingFn] = useState<(() => void) | null>(null);
@@ -184,12 +170,6 @@ export default function SkillsPage() {
       <div className="border-b border-border bg-card">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <Link href="/">
-              <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <ArrowLeft className="w-3.5 h-3.5" />Home
-              </button>
-            </Link>
-            <span className="text-muted-foreground/30">/</span>
             <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-emerald-500" />Skills Database
             </h1>
@@ -201,9 +181,6 @@ export default function SkillsPage() {
             <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-muted">
               <RefreshCw className="w-4 h-4" />
             </button>
-            <Button variant="outline" size="icon" onClick={() => setDark((d) => !d)} className="h-8 w-8">
-              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
           </div>
         </div>
       </div>

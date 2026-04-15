@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+
 import {
-  ArrowLeft, ChevronDown, ChevronRight, Moon, Sun,
+  ChevronDown, ChevronRight,
   MapPin, Trophy, Skull, RefreshCw, Loader2, Check, Diamond, Info, RotateCcw, ChevronLeft, Plus, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,19 +41,6 @@ const MONSTER_SPAWN_FALLBACKS: Record<string, MonsterSpawn[]> = {
   ],
 };
 
-function useDarkMode() {
-  const [dark, setDark] = useState(() =>
-    typeof window !== "undefined"
-      ? localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)
-      : false
-  );
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("theme", dark ? "dark" : "light");
-  }, [dark]);
-  return { dark, setDark };
-}
-
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
@@ -88,7 +75,6 @@ function useSpawnLevels() {
 }
 
 export default function MonstersPage() {
-  const { dark, setDark } = useDarkMode();
   const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_monsters") ?? "");
   const [showNote, setShowNote] = useState(false);
   const { data, isLoading, refetch } = useSharedData();
@@ -282,12 +268,6 @@ export default function MonstersPage() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Link href="/">
-              <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <ArrowLeft className="w-4 h-4" />Home
-              </button>
-            </Link>
-            <span className="text-muted-foreground/30">/</span>
             <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
               <Skull className="w-5 h-5 text-violet-500" />Monsters
             </h1>
@@ -301,9 +281,6 @@ export default function MonstersPage() {
             </Button>
             <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-8 gap-1.5 text-muted-foreground">
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => setDark((d) => !d)} className="h-8 w-8">
-              {dark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             </Button>
           </div>
         </div>
