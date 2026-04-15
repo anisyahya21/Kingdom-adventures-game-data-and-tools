@@ -85,7 +85,6 @@ type SharedState = {
   jobs: Record<string, Job>;
   pairs: SharedPair[];
   marriageMatcher: MarriageMatcherState | null;
-  marriageNote: string;
   skills: Record<string, Skill>;
 };
 
@@ -102,7 +101,6 @@ const DEFAULT_STATE: SharedState = {
   jobs: {},
   pairs: [],
   marriageMatcher: null,
-  marriageNote: "",
   skills: {},
 };
 
@@ -298,16 +296,6 @@ router.put("/ka/marriage-matcher", (req, res) => {
   const state = readState();
   state.marriageMatcher = data ?? null;
   if (history) appendHistory(state, history);
-  writeState(state);
-  res.json({ ok: true });
-});
-
-// Dedicated endpoint for the Match Finder page note — touches only
-// state.marriageNote, never the planner state in state.marriageMatcher.
-router.put("/ka/marriage-matcher/note", (req, res) => {
-  const { note } = req.body as { note: string };
-  const state = readState();
-  state.marriageNote = typeof note === "string" ? note : "";
   writeState(state);
   res.json({ ok: true });
 });

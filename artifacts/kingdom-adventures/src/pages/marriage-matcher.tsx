@@ -47,7 +47,6 @@ function useSharedData() {
     queryFn: () => fetchSharedWithFallback<{
       jobs: Record<string, JobData>;
       pairs?: SharedPair[];
-      marriageNote?: string;
     }>(API("/shared")),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
@@ -1187,54 +1186,6 @@ export default function MarriageMatcher() {
 
   const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_marriage", "");
   const [showNote, setShowNote] = useState(false);
-
-  // -- Remote sync: pageNote only --
-  // noteHydratedRef: true after the first remote value has been applied.
-  // skipNextNoteEchoRef: blocks the debounce PUT on the render caused by the
-  //   hydrate setPageNote call, preventing a remote-load -> PUT -> write loop.
-  const noteHydratedRef = useRef(false);
-  const skipNextNoteEchoRef = useRef(false);
-  const notePutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // One-time hydration: when sharedData arrives, if the server has a note that
-  // differs from local, apply it. Only runs once per page mount.
-  useEffect(() => {
-    if (noteHydratedRef.current) return;
-    if (sharedData === undefined) return; // still loading
-    noteHydratedRef.current = true;
-    const remote = sharedData.marriageNote ?? "";
-    // Read localStorage directly to compare without stale closure -- setPageNote
-    // state may lag one render behind. If values match no echo guard is needed.
-    let local = "";
-    try { local = JSON.parse(localStorage.getItem("ka_note_marriage") ?? '""'); } catch { local = ""; }
-    if (remote !== local) {
-      skipNextNoteEchoRef.current = true;
-      setPageNote(remote);
-    }
-  // sharedData reference changes once on load; subsequent renders do not re-run
-  // because noteHydratedRef guards the body.
-  }, [sharedData, setPageNote]);
-
-  // Debounced PUT: only after hydration, only on user-driven changes.
-  useEffect(() => {
-    if (!noteHydratedRef.current) return; // not yet hydrated -- skip
-    if (skipNextNoteEchoRef.current) {
-      skipNextNoteEchoRef.current = false;
-      return; // this change came from hydration -- do not echo back
-    }
-    if (notePutTimerRef.current) clearTimeout(notePutTimerRef.current);
-    notePutTimerRef.current = setTimeout(() => {
-      fetch(API("/marriage-matcher/note"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note: pageNote }),
-      }).catch(() => { /* ignore network errors */ });
-    }, 1000);
-    return () => {
-      if (notePutTimerRef.current) clearTimeout(notePutTimerRef.current);
-    };
-  }, [pageNote]);
-
 
   const apiFirstGenJobs = useMemo(() => {
     if (!sharedData?.jobs) return null;
