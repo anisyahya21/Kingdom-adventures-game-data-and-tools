@@ -281,7 +281,7 @@ export default function Home() {
           <button className="w-full text-left rounded-2xl border p-4 mb-8 hover:bg-muted/40">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="font-semibold">World map (Beta)</div>
-              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">
+              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-orange-400 border-orange-400">
                 Beta
               </span>
               <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">

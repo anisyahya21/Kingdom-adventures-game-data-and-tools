@@ -142,7 +142,7 @@ function SiteHeader() {
     { href: "/match-finder", label: "Match Finder" },
     { href: "/loadout", label: "Loadout" },
     { href: "/sync-devices", label: "Sync Devices" },
-    { href: "/world-map", label: "World Map" },
+    { href: "/world-map", label: "World Map", beta: true },
   ];
 
   return (
@@ -168,7 +168,12 @@ function SiteHeader() {
                         }}
                         className="w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted/40"
                       >
-                        {link.label}
+                        <span className="flex items-center gap-1.5">
+                          {link.label}
+                          {(link as { beta?: boolean }).beta && (
+                            <span className="text-[10px] font-semibold text-orange-400">BETA</span>
+                          )}
+                        </span>
                       </button>
                     ))}
                   </CardContent>

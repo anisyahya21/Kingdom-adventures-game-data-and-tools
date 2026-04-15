@@ -1100,7 +1100,17 @@ export default function WorldMapPage() {
                   Mouse wheel zooms. Right-drag pans. Double-click centers. Click and drag paints.
                 </div>
               </div>
-              <div className="text-xs opacity-70">{cols} × {rows} tiles</div>
+              <div className="flex flex-col items-end gap-1">
+                {cleanMode && (
+                  <button
+                    onClick={() => setCleanMode(false)}
+                    className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-colors"
+                  >
+                    <span className="text-base leading-none">✕</span> Exit screenshot mode
+                  </button>
+                )}
+                <div className="text-xs opacity-70">{cols} × {rows} tiles</div>
+              </div>
             </div>
 
             <div
