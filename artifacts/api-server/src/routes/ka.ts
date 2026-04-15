@@ -99,6 +99,7 @@ type SharedState = {
   skills: Record<string, Skill>;
   loadouts: Loadout[];
   loadoutsUpdatedAt: number | null;
+  syncedDevices: Array<{ id: string; name: string; createdAt: number }>;
 };
 
 const DEFAULT_STATE: SharedState = {
@@ -117,6 +118,7 @@ const DEFAULT_STATE: SharedState = {
   skills: {},
   loadouts: [],
   loadoutsUpdatedAt: null,
+  syncedDevices: [],
 };
 
 function ensureDir() {
@@ -140,6 +142,7 @@ function readState(): SharedState {
       skills: {},
       loadouts: [],
       loadoutsUpdatedAt: null,
+      syncedDevices: [],
       ...parsed,
     };
   } catch {
@@ -159,7 +162,6 @@ function appendHistory(state: SharedState, entry: Omit<HistoryEntry, "id" | "tim
 
 const router = Router();
 
-const syncedDevices = new Map<string, { id: string; name: string; createdAt: number }>();
 const syncCodes = new Map<string, { expiresAt: number; sourceDeviceId: string }>();
 
 function generateSyncCode(): string {
@@ -347,28 +349,32 @@ router.put("/ka/loadouts", (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── Device Sync (in-memory) ──────────────────────────────────────────────────
+// ─── Device Sync (persisted) ──────────────────────────────────────────────────
 
 router.get("/ka/sync/devices", (_req, res) => {
-  const devices = [...syncedDevices.values()].sort((a, b) => b.createdAt - a.createdAt);
+  const state = readState();
+  const devices = [...state.syncedDevices].sort((a, b) => b.createdAt - a.createdAt);
   res.json(devices);
 });
 
 router.post("/ka/sync/generate", (req, res) => {
   const { name, currentDeviceId } = req.body as { name?: string; currentDeviceId?: string | null };
+  const state = readState();
 
-  let device = currentDeviceId ? syncedDevices.get(currentDeviceId) : undefined;
-  if (!device) {
-    const id = crypto.randomUUID();
+  const existing = currentDeviceId ? state.syncedDevices.find((d) => d.id === currentDeviceId) : undefined;
+  let device: { id: string; name: string; createdAt: number };
+  if (!existing) {
     device = {
-      id,
+      id: crypto.randomUUID(),
       name: (name ?? "").trim() || "Unnamed Device",
       createdAt: Date.now(),
     };
-    syncedDevices.set(id, device);
-  } else if (typeof name === "string" && name.trim()) {
-    device = { ...device, name: name.trim() };
-    syncedDevices.set(device.id, device);
+    state.syncedDevices.push(device);
+  } else {
+    device = typeof name === "string" && name.trim()
+      ? { ...existing, name: name.trim() }
+      : existing;
+    state.syncedDevices = state.syncedDevices.map((d) => (d.id === device.id ? device : d));
   }
 
   let code = generateSyncCode();
@@ -378,6 +384,7 @@ router.post("/ka/sync/generate", (req, res) => {
 
   const expiresAt = Date.now() + 5 * 60 * 1000;
   syncCodes.set(code, { expiresAt, sourceDeviceId: device.id });
+  writeState(state);
 
   res.json({
     ok: true,
@@ -404,22 +411,32 @@ router.post("/ka/sync/redeem", (req, res) => {
     return res.status(400).json({ ok: false, message: "Invalid or expired code." });
   }
 
-  let device = currentDeviceId ? syncedDevices.get(currentDeviceId) : undefined;
-  if (!device) {
-    const id = crypto.randomUUID();
+  const state = readState();
+
+  const existing = currentDeviceId ? state.syncedDevices.find((d) => d.id === currentDeviceId) : undefined;
+  let device: { id: string; name: string; createdAt: number };
+  if (!existing) {
     device = {
-      id,
+      id: crypto.randomUUID(),
       name: (name ?? "").trim() || "Unnamed Device",
       createdAt: Date.now(),
     };
-  } else if (typeof name === "string" && name.trim()) {
-    device = { ...device, name: name.trim() };
+  } else {
+    device = typeof name === "string" && name.trim()
+      ? { ...existing, name: name.trim() }
+      : existing;
   }
 
-  syncedDevices.set(device.id, device);
+  const upsert = (d: { id: string; name: string; createdAt: number }) => {
+    const idx = state.syncedDevices.findIndex((x) => x.id === d.id);
+    if (idx >= 0) state.syncedDevices[idx] = d;
+    else state.syncedDevices.push(d);
+  };
 
-  if (!syncedDevices.has(record.sourceDeviceId)) {
-    syncedDevices.set(record.sourceDeviceId, {
+  upsert(device);
+
+  if (!state.syncedDevices.find((d) => d.id === record.sourceDeviceId)) {
+    state.syncedDevices.push({
       id: record.sourceDeviceId,
       name: "Source Device",
       createdAt: Date.now(),
@@ -427,6 +444,7 @@ router.post("/ka/sync/redeem", (req, res) => {
   }
 
   syncCodes.delete(normalizedCode);
+  writeState(state);
 
   res.json({
     ok: true,
@@ -437,7 +455,9 @@ router.post("/ka/sync/redeem", (req, res) => {
 });
 
 router.delete("/ka/sync/device/:id", (req, res) => {
-  syncedDevices.delete(req.params.id);
+  const state = readState();
+  state.syncedDevices = state.syncedDevices.filter((d) => d.id !== req.params.id);
+  writeState(state);
   res.json({ ok: true });
 });
 
