@@ -47,6 +47,9 @@ function useSharedData() {
     queryFn: () => fetchSharedWithFallback<{
       jobs: Record<string, JobData>;
       pairs?: SharedPair[];
+      marriageMatcher?: {
+        rankSlots: Array<{ id: string; rank: string; jobName: string; males: number; females: number; unassigned: number }>;
+      } | null;
     }>(API("/shared")),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
@@ -1279,6 +1282,13 @@ export default function MarriageMatcher() {
 
   // ââ State: rank slots ââ
   const [rankSlots, setRankSlots] = useLocalFeature<RankSlot[]>("ka_mf_rankSlots", []);
+  // Ref that always mirrors rankSlots — used inside effects to avoid stale closures
+  const rankSlotsRef = useRef(rankSlots);
+  useEffect(() => { rankSlotsRef.current = rankSlots; }, [rankSlots]);
+  // Sync guards (same pattern as the existing pairs sync)
+  const rankSlotsHydratedRef = useRef(false);
+  const skipNextRankSlotsEchoRef = useRef(false);
+  const rankSlotsPutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ââ State: pairs â loaded from API (community), fallback to localStorage ââ
   const [pairsLoadedFromApi, setPairsLoadedFromApi] = useState(false);
@@ -1386,7 +1396,46 @@ export default function MarriageMatcher() {
   }, [apiPairs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ââ Persist ââ
-  // ka_mf_rankSlots is now persisted by useLocalFeature (see roster state above).
+  // ka_mf_rankSlots is persisted by useLocalFeature AND synced to server for cross-device access.
+
+  // Hydration: on first API data load, pull rankSlots from server (or push local if server is empty)
+  useEffect(() => {
+    if (rankSlotsHydratedRef.current) return;
+    if (!sharedData) return; // still loading
+    rankSlotsHydratedRef.current = true;
+    const apiSlots = sharedData.marriageMatcher?.rankSlots ?? [];
+    if (apiSlots.length > 0) {
+      skipNextRankSlotsEchoRef.current = true;
+      setRankSlots(apiSlots as RankSlot[]);
+    } else if (rankSlotsRef.current.length > 0) {
+      // Server has no roster yet — push local state so other devices can get it
+      fetch(API("/marriage-matcher/rank-slots"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: rankSlotsRef.current }),
+      }).catch(() => {});
+    }
+  }, [sharedData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced PUT: push rankSlots to server on every user change (after hydration)
+  useEffect(() => {
+    if (!rankSlotsHydratedRef.current) return;
+    if (skipNextRankSlotsEchoRef.current) {
+      skipNextRankSlotsEchoRef.current = false;
+      return;
+    }
+    if (rankSlotsPutTimerRef.current) clearTimeout(rankSlotsPutTimerRef.current);
+    rankSlotsPutTimerRef.current = setTimeout(() => {
+      fetch(API("/marriage-matcher/rank-slots"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: rankSlots }),
+      }).catch(() => {});
+    }, 500);
+    return () => {
+      if (rankSlotsPutTimerRef.current) clearTimeout(rankSlotsPutTimerRef.current);
+    };
+  }, [rankSlots]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     localStorage.setItem("ka_mf_pairs", JSON.stringify(pairs));

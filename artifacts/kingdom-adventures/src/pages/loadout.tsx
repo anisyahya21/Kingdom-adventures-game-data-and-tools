@@ -31,14 +31,6 @@ type Job = {
   weaponEquip?: Partial<Record<string, WeaponValue>>;
   shield?: "can" | "cannot";
 };
-type SharedData = {
-  jobs?: Record<string, Job>;
-  skills?: Record<string, Skill>;
-  overrides?: Record<string, Record<string, { base?: number; inc?: number }>>;
-  slotAssignments?: Record<string, string>;
-  equipIcons?: Record<string, string>;
-  weaponTypes?: Record<string, string>;
-};
 type EquipEntry = { name: string; level: number };
 type Loadout = {
   id: string;
@@ -49,6 +41,15 @@ type Loadout = {
   statLevels?: Record<string, number>; // per-stat levels (primary)
   equipment: EquipEntry[];
   skills: string[];
+};
+type SharedData = {
+  jobs?: Record<string, Job>;
+  skills?: Record<string, Skill>;
+  overrides?: Record<string, Record<string, { base?: number; inc?: number }>>;
+  slotAssignments?: Record<string, string>;
+  equipIcons?: Record<string, string>;
+  weaponTypes?: Record<string, string>;
+  loadouts?: Loadout[];
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -195,8 +196,55 @@ function useDarkMode() {
   return { dark, setDark };
 }
 
-function useLoadouts() {
+function useLoadouts(sharedData: SharedData | undefined) {
   const [loadouts, setLoadouts] = useLocalFeature<Loadout[]>("ka_loadouts", []);
+  // Ref that always mirrors loadouts — used inside effects to avoid stale closures
+  const loadoutsRef = useRef(loadouts);
+  useEffect(() => { loadoutsRef.current = loadouts; }, [loadouts]);
+  // Sync guards (same pattern as the pairs sync in marriage-matcher)
+  const loadoutsHydratedRef = useRef(false);
+  const skipNextLoadoutsEchoRef = useRef(false);
+  const loadoutsPutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Hydration: on first API data load, pull loadouts from server (or push local if server is empty)
+  useEffect(() => {
+    if (loadoutsHydratedRef.current) return;
+    if (!sharedData) return; // still loading
+    loadoutsHydratedRef.current = true;
+    const apiLoadouts = sharedData.loadouts ?? [];
+    if (apiLoadouts.length > 0) {
+      skipNextLoadoutsEchoRef.current = true;
+      setLoadouts(apiLoadouts);
+    } else if (loadoutsRef.current.length > 0) {
+      // Server has no loadouts yet — push local state so other devices can get it
+      fetch(API("/loadouts"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: loadoutsRef.current }),
+      }).catch(() => {});
+    }
+  }, [sharedData, setLoadouts]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced PUT: push loadouts to server on every user change (after hydration)
+  useEffect(() => {
+    if (!loadoutsHydratedRef.current) return;
+    if (skipNextLoadoutsEchoRef.current) {
+      skipNextLoadoutsEchoRef.current = false;
+      return;
+    }
+    if (loadoutsPutTimerRef.current) clearTimeout(loadoutsPutTimerRef.current);
+    loadoutsPutTimerRef.current = setTimeout(() => {
+      fetch(API("/loadouts"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: loadouts }),
+      }).catch(() => {});
+    }, 500);
+    return () => {
+      if (loadoutsPutTimerRef.current) clearTimeout(loadoutsPutTimerRef.current);
+    };
+  }, [loadouts]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const save = useCallback((next: Loadout[]) => {
     setLoadouts(next);
   }, [setLoadouts]);
@@ -752,7 +800,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 export default function LoadoutPage() {
   const { dark, setDark } = useDarkMode();
   const { data, isLoading } = useSharedData();
-  const { loadouts, save } = useLoadouts();
+  const { loadouts, save } = useLoadouts(data);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_loadout", "");
   const [showNote, setShowNote] = useState(false);

@@ -72,6 +72,17 @@ export type Job = {
   notes?: string;
 };
 
+type Loadout = {
+  id: string;
+  name: string;
+  jobName: string;
+  rank: string;
+  level?: number;
+  statLevels?: Record<string, number>;
+  equipment: Array<{ name: string; level: number }>;
+  skills: string[];
+};
+
 type SharedState = {
   overrides: Record<string, Record<string, { base?: number; inc?: number }>>;
   slotAssignments: Record<string, string>;
@@ -86,6 +97,7 @@ type SharedState = {
   pairs: SharedPair[];
   marriageMatcher: MarriageMatcherState | null;
   skills: Record<string, Skill>;
+  loadouts: Loadout[];
 };
 
 const DEFAULT_STATE: SharedState = {
@@ -102,6 +114,7 @@ const DEFAULT_STATE: SharedState = {
   pairs: [],
   marriageMatcher: null,
   skills: {},
+  loadouts: [],
 };
 
 function ensureDir() {
@@ -123,6 +136,7 @@ function readState(): SharedState {
       pairs: [],
       marriageMatcher: null,
       skills: {},
+      loadouts: [],
       ...parsed,
     };
   } catch {
@@ -296,6 +310,35 @@ router.put("/ka/marriage-matcher", (req, res) => {
   const state = readState();
   state.marriageMatcher = data ?? null;
   if (history) appendHistory(state, history);
+  writeState(state);
+  res.json({ ok: true });
+});
+
+router.put("/ka/marriage-matcher/rank-slots", (req, res) => {
+  const { data } = req.body as { data: MarriageMatcherState["rankSlots"] };
+  const state = readState();
+  if (!state.marriageMatcher) {
+    state.marriageMatcher = {
+      rankSlots: [],
+      lockedPairs: [],
+      desiredChildren: [],
+      targetChildTypeFilter: "all",
+      targetExclusiveFilter: "all",
+      targetIncludeJobs: [],
+      targetExcludeJobs: [],
+      updatedAt: Date.now(),
+    };
+  }
+  state.marriageMatcher.rankSlots = Array.isArray(data) ? data : [];
+  state.marriageMatcher.updatedAt = Date.now();
+  writeState(state);
+  res.json({ ok: true });
+});
+
+router.put("/ka/loadouts", (req, res) => {
+  const { data } = req.body as { data: Loadout[] };
+  const state = readState();
+  state.loadouts = Array.isArray(data) ? data : [];
   writeState(state);
   res.json({ ok: true });
 });
