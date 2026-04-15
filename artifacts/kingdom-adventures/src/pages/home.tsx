@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link, useLocation } from "wouter";
 import { Plus, Heart, Sword, Trash2, Moon, Sun, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, GitFork, Egg, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -258,10 +259,7 @@ export default function Home() {
     else { root.classList.remove("dark"); localStorage.setItem("theme", "light"); }
   }, [darkMode]);
 
-  const [customProjects, setCustomProjects] = useState<CustomProject[]>(() => {
-    try { return JSON.parse(localStorage.getItem("ka_custom_projects") ?? "[]"); }
-    catch { return []; }
-  });
+  const [customProjects, setCustomProjects] = useLocalFeature<CustomProject[]>("ka_custom_projects", []);
 
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -270,7 +268,6 @@ export default function Home() {
 
   const saveProjects = (projects: CustomProject[]) => {
     setCustomProjects(projects);
-    localStorage.setItem("ka_custom_projects", JSON.stringify(projects));
   };
 
   const addProject = () => {
@@ -298,6 +295,23 @@ export default function Home() {
             </Button>
           </div>
         </div>
+
+        <Link href="/world-map">
+          <button className="w-full text-left rounded-2xl border p-4 mb-8 hover:bg-muted/40">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="font-semibold">World map (Beta)</div>
+              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">
+                Beta
+              </span>
+              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">
+                Experimental
+              </span>
+            </div>
+            <div className="mt-2 text-sm opacity-75">
+              Tile map planner with hover info on PC, tap info on mobile, and tool/highlight/deployment modes.
+            </div>
+          </button>
+        </Link>
 
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tools</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">

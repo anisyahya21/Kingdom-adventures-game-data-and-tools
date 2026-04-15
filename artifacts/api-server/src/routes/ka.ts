@@ -28,6 +28,29 @@ export type WeeklyConquest = {
 export type JobStatEntry = { base: number; inc: number; levels?: Record<string, number> };
 export type JobRank = { stats: Record<string, JobStatEntry> };
 export type SharedPair = { id: string; jobA: string; jobB: string; children: string[]; affinity?: string };
+export type MarriageMatcherRank = "S" | "A" | "B" | "C" | "D";
+export type MarriageMatcherState = {
+  rankSlots: Array<{
+    id: string;
+    rank: MarriageMatcherRank;
+    jobName: string;
+    males: number;
+    females: number;
+    unassigned: number;
+  }>;
+  lockedPairs: Array<{
+    id: string;
+    maleJob: string;
+    femaleJob: string;
+    rank: MarriageMatcherRank;
+  }>;
+  desiredChildren: string[];
+  targetChildTypeFilter: "all" | "combat" | "non-combat";
+  targetExclusiveFilter: "all" | "exclude-exclusive" | "only-exclusive";
+  targetIncludeJobs: string[];
+  targetExcludeJobs: string[];
+  updatedAt: number;
+};
 export type Skill = {
   name: string;
   studioLevel?: number;
@@ -61,6 +84,8 @@ type SharedState = {
   weeklyConquest: WeeklyConquest | null;
   jobs: Record<string, Job>;
   pairs: SharedPair[];
+  marriageMatcher: MarriageMatcherState | null;
+  marriageNote: string;
   skills: Record<string, Skill>;
 };
 
@@ -76,6 +101,8 @@ const DEFAULT_STATE: SharedState = {
   weeklyConquest: null,
   jobs: {},
   pairs: [],
+  marriageMatcher: null,
+  marriageNote: "",
   skills: {},
 };
 
@@ -96,6 +123,7 @@ function readState(): SharedState {
       weeklyConquest: null,
       jobs: {},
       pairs: [],
+      marriageMatcher: null,
       skills: {},
       ...parsed,
     };
@@ -115,6 +143,18 @@ function appendHistory(state: SharedState, entry: Omit<HistoryEntry, "id" | "tim
 }
 
 const router = Router();
+
+const syncedDevices = new Map<string, { id: string; name: string; createdAt: number }>();
+const syncCodes = new Map<string, { expiresAt: number; sourceDeviceId: string }>();
+
+function generateSyncCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
 
 // ─── Equipment shared state ────────────────────────────────────────────────────
 
@@ -247,6 +287,122 @@ router.put("/ka/pairs", (req, res) => {
   state.pairs = Array.isArray(data) ? data : [];
   if (history) appendHistory(state, history);
   writeState(state);
+  res.json({ ok: true });
+});
+
+router.put("/ka/marriage-matcher", (req, res) => {
+  const { data, history } = req.body as {
+    data: SharedState["marriageMatcher"];
+    history?: Omit<HistoryEntry, "id" | "timestamp">;
+  };
+  const state = readState();
+  state.marriageMatcher = data ?? null;
+  if (history) appendHistory(state, history);
+  writeState(state);
+  res.json({ ok: true });
+});
+
+// Dedicated endpoint for the Match Finder page note — touches only
+// state.marriageNote, never the planner state in state.marriageMatcher.
+router.put("/ka/marriage-matcher/note", (req, res) => {
+  const { note } = req.body as { note: string };
+  const state = readState();
+  state.marriageNote = typeof note === "string" ? note : "";
+  writeState(state);
+  res.json({ ok: true });
+});
+
+// ─── Device Sync (in-memory) ──────────────────────────────────────────────────
+
+router.get("/ka/sync/devices", (_req, res) => {
+  const devices = [...syncedDevices.values()].sort((a, b) => b.createdAt - a.createdAt);
+  res.json(devices);
+});
+
+router.post("/ka/sync/generate", (req, res) => {
+  const { name, currentDeviceId } = req.body as { name?: string; currentDeviceId?: string | null };
+
+  let device = currentDeviceId ? syncedDevices.get(currentDeviceId) : undefined;
+  if (!device) {
+    const id = crypto.randomUUID();
+    device = {
+      id,
+      name: (name ?? "").trim() || "Unnamed Device",
+      createdAt: Date.now(),
+    };
+    syncedDevices.set(id, device);
+  } else if (typeof name === "string" && name.trim()) {
+    device = { ...device, name: name.trim() };
+    syncedDevices.set(device.id, device);
+  }
+
+  let code = generateSyncCode();
+  while (syncCodes.has(code)) {
+    code = generateSyncCode();
+  }
+
+  const expiresAt = Date.now() + 5 * 60 * 1000;
+  syncCodes.set(code, { expiresAt, sourceDeviceId: device.id });
+
+  res.json({
+    ok: true,
+    code,
+    expiresAt,
+    currentDeviceId: device.id,
+    device,
+  });
+});
+
+router.post("/ka/sync/redeem", (req, res) => {
+  const { code, name, currentDeviceId } = req.body as {
+    code: string;
+    name?: string;
+    currentDeviceId?: string | null;
+  };
+
+  const normalizedCode = (code ?? "").trim().toUpperCase();
+  const record = syncCodes.get(normalizedCode);
+  if (!record || record.expiresAt <= Date.now()) {
+    if (record && record.expiresAt <= Date.now()) {
+      syncCodes.delete(normalizedCode);
+    }
+    return res.status(400).json({ ok: false, message: "Invalid or expired code." });
+  }
+
+  let device = currentDeviceId ? syncedDevices.get(currentDeviceId) : undefined;
+  if (!device) {
+    const id = crypto.randomUUID();
+    device = {
+      id,
+      name: (name ?? "").trim() || "Unnamed Device",
+      createdAt: Date.now(),
+    };
+  } else if (typeof name === "string" && name.trim()) {
+    device = { ...device, name: name.trim() };
+  }
+
+  syncedDevices.set(device.id, device);
+
+  if (!syncedDevices.has(record.sourceDeviceId)) {
+    syncedDevices.set(record.sourceDeviceId, {
+      id: record.sourceDeviceId,
+      name: "Source Device",
+      createdAt: Date.now(),
+    });
+  }
+
+  syncCodes.delete(normalizedCode);
+
+  res.json({
+    ok: true,
+    message: "Device linked successfully.",
+    currentDeviceId: device.id,
+    device,
+  });
+});
+
+router.delete("/ka/sync/device/:id", (req, res) => {
+  syncedDevices.delete(req.params.id);
   res.json({ ok: true });
 });
 

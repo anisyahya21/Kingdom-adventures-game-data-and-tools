@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+﻿import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
@@ -43,9 +44,13 @@ type SharedPair = { id: string; jobA: string; jobB: string; children: string[] }
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<{ jobs: Record<string, JobData>; pairs?: SharedPair[] }>(API("/shared")),
-    staleTime: 30000,
-    refetchInterval: 60000,
+    queryFn: () => fetchSharedWithFallback<{
+      jobs: Record<string, JobData>;
+      pairs?: SharedPair[];
+      marriageNote?: string;
+    }>(API("/shared")),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -376,6 +381,15 @@ const DEFAULT_PAIRS: Pair[] = [
   makePair("Rancher", "Knight"), makePair("Trader", "Gunner"), makePair("Wizard", "Wizard"),
 ];
 
+function normalizeStringList(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function rankSortValue(rank: Rank) {
+  return RANKS.indexOf(rank);
+}
+
 // âââ RankTable ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 interface RankTableProps {
@@ -398,10 +412,14 @@ function CountInput({
   className?: string;
 }) {
   const [local, setLocal] = useState(value === 0 ? "" : String(value));
+  const [focused, setFocused] = useState(false);
 
+  // Only sync from parent when not actively editing
   useEffect(() => {
-    setLocal(value === 0 ? "" : String(value));
-  }, [value]);
+    if (!focused) {
+      setLocal(value === 0 ? "" : String(value));
+    }
+  }, [value, focused]);
 
   const commit = useCallback(() => {
     const trimmed = local.trim();
@@ -413,13 +431,13 @@ function CountInput({
 
   return (
     <Input
-      type="number"
-      min={0}
+      type="text"
       inputMode="numeric"
+      pattern="[0-9]*"
       value={local}
-      onFocus={(e) => e.currentTarget.select()}
+      onFocus={(e) => { setFocused(true); e.currentTarget.select(); }}
       onChange={(e) => setLocal(e.target.value)}
-      onBlur={commit}
+      onBlur={() => { setFocused(false); commit(); }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -1149,7 +1167,6 @@ function InfoDialog() {
 }
 
 // âââ Main Component âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-
 export default function MarriageMatcher() {
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== "undefined") {
@@ -1158,8 +1175,6 @@ export default function MarriageMatcher() {
     }
     return false;
   });
-  const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_marriage") ?? "");
-  const [showNote, setShowNote] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -1167,8 +1182,59 @@ export default function MarriageMatcher() {
     else { root.classList.remove("dark"); localStorage.setItem("theme", "light"); }
   }, [darkMode]);
 
-  // ââ API data ââ
+  // -- API data --
   const { data: sharedData, isLoading: jobsLoading } = useSharedData();
+
+  const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_marriage", "");
+  const [showNote, setShowNote] = useState(false);
+
+  // -- Remote sync: pageNote only --
+  // noteHydratedRef: true after the first remote value has been applied.
+  // skipNextNoteEchoRef: blocks the debounce PUT on the render caused by the
+  //   hydrate setPageNote call, preventing a remote-load -> PUT -> write loop.
+  const noteHydratedRef = useRef(false);
+  const skipNextNoteEchoRef = useRef(false);
+  const notePutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // One-time hydration: when sharedData arrives, if the server has a note that
+  // differs from local, apply it. Only runs once per page mount.
+  useEffect(() => {
+    if (noteHydratedRef.current) return;
+    if (sharedData === undefined) return; // still loading
+    noteHydratedRef.current = true;
+    const remote = sharedData.marriageNote ?? "";
+    // Read localStorage directly to compare without stale closure -- setPageNote
+    // state may lag one render behind. If values match no echo guard is needed.
+    let local = "";
+    try { local = JSON.parse(localStorage.getItem("ka_note_marriage") ?? '""'); } catch { local = ""; }
+    if (remote !== local) {
+      skipNextNoteEchoRef.current = true;
+      setPageNote(remote);
+    }
+  // sharedData reference changes once on load; subsequent renders do not re-run
+  // because noteHydratedRef guards the body.
+  }, [sharedData, setPageNote]);
+
+  // Debounced PUT: only after hydration, only on user-driven changes.
+  useEffect(() => {
+    if (!noteHydratedRef.current) return; // not yet hydrated -- skip
+    if (skipNextNoteEchoRef.current) {
+      skipNextNoteEchoRef.current = false;
+      return; // this change came from hydration -- do not echo back
+    }
+    if (notePutTimerRef.current) clearTimeout(notePutTimerRef.current);
+    notePutTimerRef.current = setTimeout(() => {
+      fetch(API("/marriage-matcher/note"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: pageNote }),
+      }).catch(() => { /* ignore network errors */ });
+    }, 1000);
+    return () => {
+      if (notePutTimerRef.current) clearTimeout(notePutTimerRef.current);
+    };
+  }, [pageNote]);
+
 
   const apiFirstGenJobs = useMemo(() => {
     if (!sharedData?.jobs) return null;
@@ -1221,7 +1287,7 @@ export default function MarriageMatcher() {
   }, [sharedData]);
 
   // ââ Job names: API-first, localStorage cache as fallback ââ
-  const [cachedJobNames, setCachedJobNames] = useState<string[]>(() => {
+  const [cachedJobNames] = useState<string[]>(() => {
     try {
       const s = localStorage.getItem("ka_mf_jobNames");
       if (s) return JSON.parse(s) as string[];
@@ -1233,7 +1299,6 @@ export default function MarriageMatcher() {
 
   useEffect(() => {
     if (!apiFirstGenJobs) return;
-    setCachedJobNames(apiFirstGenJobs);
     localStorage.setItem("ka_mf_jobNames", JSON.stringify(apiFirstGenJobs));
 
     // Auto-add pairs for any newly added Gen1 jobs
@@ -1262,13 +1327,7 @@ export default function MarriageMatcher() {
   const allJobNames = apiAllJobs ?? sortedJobNames;
 
   // ââ State: rank slots ââ
-  const [rankSlots, setRankSlots] = useState<RankSlot[]>(() => {
-    try {
-      const s = localStorage.getItem("ka_mf_rankSlots");
-      if (s) return JSON.parse(s) as RankSlot[];
-    } catch { /* ignore */ }
-    return [];
-  });
+  const [rankSlots, setRankSlots] = useLocalFeature<RankSlot[]>("ka_mf_rankSlots", []);
 
   // ââ State: pairs â loaded from API (community), fallback to localStorage ââ
   const [pairsLoadedFromApi, setPairsLoadedFromApi] = useState(false);
@@ -1301,8 +1360,20 @@ export default function MarriageMatcher() {
     return [];
   });
 
-  const [targetChildTypeFilter, setTargetChildTypeFilter] = useState<ChildTypeFilter>("all");
-  const [targetExclusiveFilter, setTargetExclusiveFilter] = useState<ExclusiveFilter>("all");
+  const [targetChildTypeFilter, setTargetChildTypeFilter] = useState<ChildTypeFilter>(() => {
+    try {
+      const s = localStorage.getItem("ka_mf_targetChildTypeFilter");
+      if (s === "combat" || s === "non-combat") return s;
+    } catch { /* ignore */ }
+    return "all";
+  });
+  const [targetExclusiveFilter, setTargetExclusiveFilter] = useState<ExclusiveFilter>(() => {
+    try {
+      const s = localStorage.getItem("ka_mf_targetExclusiveFilter");
+      if (s === "exclude-exclusive" || s === "only-exclusive") return s;
+    } catch { /* ignore */ }
+    return "all";
+  });
   const [targetIncludeJobs, setTargetIncludeJobs] = useState<string[]>(() => {
     try {
       const s = localStorage.getItem("ka_mf_targetIncludeJobs");
@@ -1345,10 +1416,17 @@ export default function MarriageMatcher() {
   const pairsRef = useRef(pairs);
   useEffect(() => { pairsRef.current = pairs; }, [pairs]);
 
+  // Guard: prevents echoing API-loaded pairs straight back to the server.
+  // Without this, loading pairs from the API immediately triggers a PUT which
+  // writes to ka_shared.json, which Vite watches (via the static import in
+  // local-shared-data.ts), causing an HMR remount loop.
+  const skipNextPairsApiEchoRef = useRef(false);
+
   useEffect(() => {
     if (!apiPairs || pairsLoadedFromApi) return;
     setPairsLoadedFromApi(true);
     if (apiPairs.length > 0) {
+      skipNextPairsApiEchoRef.current = true;
       setPairs(apiPairs);
     } else {
       // API has no pairs yet â push our local pairs up to the backend
@@ -1357,17 +1435,42 @@ export default function MarriageMatcher() {
   }, [apiPairs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ââ Persist ââ
-  useEffect(() => { localStorage.setItem("ka_mf_rankSlots", JSON.stringify(rankSlots)); }, [rankSlots]);
+  // ka_mf_rankSlots is now persisted by useLocalFeature (see roster state above).
+
   useEffect(() => {
     localStorage.setItem("ka_mf_pairs", JSON.stringify(pairs));
     if (pairsLoadedFromApi) {
+      if (skipNextPairsApiEchoRef.current) {
+        skipNextPairsApiEchoRef.current = false;
+        return; // Pairs were just loaded from API — don't echo them back
+      }
       persistPairs(pairs, "community");
     }
   }, [pairs, pairsLoadedFromApi]);
-  useEffect(() => { localStorage.setItem("ka_mf_lockedPairs", JSON.stringify(lockedPairs)); }, [lockedPairs]);
-  useEffect(() => { localStorage.setItem("ka_mf_desiredChildren", JSON.stringify(desiredChildren)); }, [desiredChildren]);
-  useEffect(() => { localStorage.setItem("ka_mf_targetIncludeJobs", JSON.stringify(targetIncludeJobs)); }, [targetIncludeJobs]);
-  useEffect(() => { localStorage.setItem("ka_mf_targetExcludeJobs", JSON.stringify(targetExcludeJobs)); }, [targetExcludeJobs]);
+
+  useEffect(() => {
+    localStorage.setItem("ka_mf_lockedPairs", JSON.stringify(lockedPairs));
+  }, [lockedPairs]);
+
+  useEffect(() => {
+    localStorage.setItem("ka_mf_desiredChildren", JSON.stringify(desiredChildren));
+  }, [desiredChildren]);
+
+  useEffect(() => {
+    localStorage.setItem("ka_mf_targetChildTypeFilter", targetChildTypeFilter);
+  }, [targetChildTypeFilter]);
+
+  useEffect(() => {
+    localStorage.setItem("ka_mf_targetExclusiveFilter", targetExclusiveFilter);
+  }, [targetExclusiveFilter]);
+
+  useEffect(() => {
+    localStorage.setItem("ka_mf_targetIncludeJobs", JSON.stringify(targetIncludeJobs));
+  }, [targetIncludeJobs]);
+
+  useEffect(() => {
+    localStorage.setItem("ka_mf_targetExcludeJobs", JSON.stringify(targetExcludeJobs));
+  }, [targetExcludeJobs]);
 
   // ââ Result state ââ
   const [result, setResult] = useState<OptimalResult | null>(null);
@@ -1489,18 +1592,6 @@ export default function MarriageMatcher() {
     setDesiredChildren([]);
   }, []);
 
-  useEffect(() => {
-    setDesiredChildren((prev) => {
-      if (
-        prev.length === targetPoolJobs.length
-        && prev.every((job, index) => normJob(job) === normJob(targetPoolJobs[index]))
-      ) {
-        return prev;
-      }
-      return targetPoolJobs;
-    });
-  }, [targetPoolJobs]);
-
   // ââ Calculate ââ
   const calculate = useCallback(() => {
     setIsCalculating(true);
@@ -1512,8 +1603,9 @@ export default function MarriageMatcher() {
   }, [rankSlots, filteredPairs, lockedPairs]);
 
   const reset = useCallback(() => {
+    const nextPairs = DEFAULT_PAIRS.map((p) => ({ ...p, id: generateId() }));
     setRankSlots([]);
-    setPairs(DEFAULT_PAIRS.map((p) => ({ ...p, id: generateId() })));
+    setPairs(nextPairs);
     setLockedPairs([]);
     setDesiredChildren([]);
     setTargetChildTypeFilter("all");
@@ -1573,7 +1665,7 @@ export default function MarriageMatcher() {
   }, [result, resultTypeFilter, resultIncludeJobs, resultExcludeJobs, jobTypeMap]);
 
   return (
-    <div className="min-h-screen bg-background transition-colors">
+    <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 py-10">
         {/* Header */}
         <div className="mb-8 flex items-start justify-between gap-4">
@@ -1614,8 +1706,7 @@ export default function MarriageMatcher() {
             <textarea
               value={pageNote}
               onChange={(e) => setPageNote(e.target.value)}
-              onBlur={() => localStorage.setItem("ka_note_marriage", pageNote)}
-              placeholder="Personal notes for this pageâ¦ (only visible to you, saved on this device)"
+              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
               className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
             />
           </div>
@@ -1680,7 +1771,7 @@ export default function MarriageMatcher() {
         <div className="mt-6 flex justify-center">
           <Button onClick={calculate} disabled={isCalculating} size="lg" className={`gap-2 px-10 shadow-md transition-all ${isStale && result ? "ring-2 ring-amber-400 ring-offset-2" : ""}`}>
             {isCalculating
-              ? <><Loader2 className="w-4 h-4 animate-spin" />Calculatingâ¦</>
+              ? <><Loader2 className="w-4 h-4 animate-spin" />Calculating…</>
               : <><Zap className="w-4 h-4" />{result ? "Recalculate" : "Calculate Optimal Matching"}</>}
           </Button>
         </div>
@@ -1774,7 +1865,7 @@ export default function MarriageMatcher() {
                           clearOnSelect
                           onChange={(v) => { if (v) setResultIncludeJobs((prev) => prev.includes(v) ? prev : [...prev, v]); }}
                           options={result.matches.flatMap((m) => [m.maleJob, m.femaleJob]).filter((v, i, a) => a.indexOf(v) === i && !resultIncludeJobs.includes(v)).sort().map((j) => ({ value: j, label: j }))}
-                          placeholder="+ Add jobâ¦"
+                          placeholder="+ Add job…"
                           triggerClassName="h-6 text-xs"
                         />
                       </div>
@@ -1792,7 +1883,7 @@ export default function MarriageMatcher() {
                           clearOnSelect
                           onChange={(v) => { if (v) setResultExcludeJobs((prev) => prev.includes(v) ? prev : [...prev, v]); }}
                           options={result.matches.flatMap((m) => [m.maleJob, m.femaleJob]).filter((v, i, a) => a.indexOf(v) === i && !resultExcludeJobs.includes(v)).sort().map((j) => ({ value: j, label: j }))}
-                          placeholder="+ Exclude jobâ¦"
+                          placeholder="+ Exclude job…"
                           triggerClassName="h-6 text-xs"
                         />
                       </div>
@@ -1908,7 +1999,7 @@ export default function MarriageMatcher() {
         {isCalculating && (
           <div className="mt-6 flex flex-col items-center gap-3 py-12 text-muted-foreground">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-sm">Running optimal matching algorithmâ¦</p>
+            <p className="text-sm">Running optimal matching algorithm…</p>
           </div>
         )}
 

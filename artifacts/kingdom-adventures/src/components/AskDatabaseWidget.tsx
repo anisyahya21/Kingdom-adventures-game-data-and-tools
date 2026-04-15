@@ -1423,13 +1423,15 @@ export default function AskDatabaseWidget() {
   const { data: sheetItems = [], isLoading: sheetLoading } = useQuery({
     queryKey: ["askdb-equipment-sheet"],
     queryFn: fetchEquipmentSheet,
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const { data: shared = {}, isLoading: sharedLoading } = useQuery({
     queryKey: ["askdb-shared"],
     queryFn: fetchSharedData,
-    staleTime: 30 * 1000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const equipmentRecords = useMemo(() => buildEquipmentRecords(sheetItems, shared), [sheetItems, shared]);

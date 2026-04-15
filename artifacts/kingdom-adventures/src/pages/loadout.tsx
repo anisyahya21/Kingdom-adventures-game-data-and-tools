@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
@@ -195,14 +196,10 @@ function useDarkMode() {
 }
 
 function useLoadouts() {
-  const [loadouts, setLoadouts] = useState<Loadout[]>(() => {
-    try { return JSON.parse(localStorage.getItem("ka_loadouts") ?? "[]"); }
-    catch { return []; }
-  });
+  const [loadouts, setLoadouts] = useLocalFeature<Loadout[]>("ka_loadouts", []);
   const save = useCallback((next: Loadout[]) => {
     setLoadouts(next);
-    localStorage.setItem("ka_loadouts", JSON.stringify(next));
-  }, []);
+  }, [setLoadouts]);
   return { loadouts, save };
 }
 
@@ -757,7 +754,7 @@ export default function LoadoutPage() {
   const { data, isLoading } = useSharedData();
   const { loadouts, save } = useLoadouts();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_loadout") ?? "");
+  const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_loadout", "");
   const [showNote, setShowNote] = useState(false);
 
   const addLoadout = () => {
@@ -828,7 +825,6 @@ export default function LoadoutPage() {
             <textarea
               value={pageNote}
               onChange={(e) => setPageNote(e.target.value)}
-              onBlur={() => localStorage.setItem("ka_note_loadout", pageNote)}
               placeholder="Personal notes for this page… (only visible to you, saved on this device)"
               className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
             />

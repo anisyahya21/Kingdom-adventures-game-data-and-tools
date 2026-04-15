@@ -72,6 +72,13 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    // Prevent Vite from triggering HMR when the API server writes to its data
+    // files (e.g. ka_shared.json). local-shared-data.ts imports that file as a
+    // static module, so without this ignore Vite watches it and every
+    // PUT /api/ka/pairs causes an HMR cycle that remounts the page.
+    watch: {
+      ignored: ["**/api-server/data/**"],
+    },
   },
   preview: {
     port,

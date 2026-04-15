@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { memo, useMemo, useState, useRef, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Link, Route, Switch, Router as WouterRouter, useLocation } from "wouter";
 import { Menu, Search, X } from "lucide-react";
@@ -17,6 +17,7 @@ import SkillsPage from "@/pages/skills";
 import LoadoutPage from "@/pages/loadout";
 import EggsPage from "@/pages/eggs";
 import ShopsPage from "@/pages/shops";
+import SyncDevicesPage from "@/pages/sync-devices";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
 
@@ -111,6 +112,7 @@ function SiteHeader() {
     { href: "/shops", label: "Shops" },
     { href: "/match-finder", label: "Match Finder" },
     { href: "/loadout", label: "Loadout" },
+    { href: "/sync-devices", label: "Sync Devices" },
   ];
 
   return (
@@ -220,12 +222,13 @@ function Router() {
       <Route path="/eggs" component={EggsPage} />
       <Route path="/shops" component={ShopsPage} />
       <Route path="/shops/:slug" component={ShopsPage} />
+      <Route path="/sync-devices" component={SyncDevicesPage} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-function App() {
+const App = memo(function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -237,6 +240,6 @@ function App() {
       </TooltipProvider>
     </QueryClientProvider>
   );
-}
+});
 
 export default App;
