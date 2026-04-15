@@ -817,6 +817,10 @@ function JobsTable({
   const [excludeSearch, setExcludeSearch] = useState("");
   const [excludeOpen, setExcludeOpen] = useState(false);
   const excludeRef = useRef<HTMLDivElement>(null);
+  const [includedJobs, setIncludedJobs] = useState<Set<string>>(new Set());
+  const [includeSearch, setIncludeSearch] = useState("");
+  const [includeOpen, setIncludeOpen] = useState(false);
+  const includeRef = useRef<HTMLDivElement>(null);
   const [favsOnly, setFavsOnly] = useState(false);
   const [compactView, setCompactView] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -839,6 +843,9 @@ function JobsTable({
     const handler = (e: MouseEvent) => {
       if (excludeRef.current && !excludeRef.current.contains(e.target as Node)) {
         setExcludeOpen(false);
+      }
+      if (includeRef.current && !includeRef.current.contains(e.target as Node)) {
+        setIncludeOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -869,6 +876,14 @@ function JobsTable({
   const removeExclude = (name: string) => {
     setExcludedJobs((prev) => { const next = new Set(prev); next.delete(name); return next; });
   };
+  const addInclude = (name: string) => {
+    setIncludedJobs((prev) => new Set([...prev, name]));
+    setIncludeSearch("");
+    setIncludeOpen(false);
+  };
+  const removeInclude = (name: string) => {
+    setIncludedJobs((prev) => { const next = new Set(prev); next.delete(name); return next; });
+  };
 
   const allJobNames = useMemo(() => Object.keys(jobs).sort((a, b) => a.localeCompare(b)), [jobs]);
   const excludeSuggestions = useMemo(() => {
@@ -876,26 +891,34 @@ function JobsTable({
     const q = excludeSearch.toLowerCase();
     return allJobNames.filter((n) => n.toLowerCase().includes(q) && !excludedJobs.has(n)).slice(0, 8);
   }, [excludeSearch, allJobNames, excludedJobs]);
+  const includeSuggestions = useMemo(() => {
+    if (!includeSearch.trim()) return [];
+    const q = includeSearch.toLowerCase();
+    return allJobNames.filter((n) => n.toLowerCase().includes(q) && !includedJobs.has(n)).slice(0, 8);
+  }, [includeSearch, allJobNames, includedJobs]);
 
   const sortedEntries = useMemo(() => {
     const entries = Object.entries(jobs).filter(([name, job]) => {
+      // Always show jobs that are explicitly included (bypasses all other filters)
+      if (includedJobs.has(name)) return true;
+      if (excludedJobs.has(name)) return false;
       if (favsOnly && !favs.has(name)) return false;
       if (genFilter === "1" && job.generation !== 1) return false;
       if (genFilter === "2" && job.generation !== 2) return false;
       if (typeFilter === "combat" && job.type !== "combat") return false;
       if (typeFilter === "non-combat" && job.type !== "non-combat") return false;
-      if (excludedJobs.has(name)) return false;
       if (search && !name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
 
     if (sortCol) {
+      const sortLevel = parseInt(bulkLevelInput) || 1;
       entries.sort(([, a], [, b]) => {
         const getV = (job: Job) => {
-          const rd = Object.values(job.ranks)[0];
+          const rd = job.ranks[bulkRankInput] ?? Object.values(job.ranks)[0];
           const s = rd?.stats[sortCol];
           if (!s) return -Infinity;
-          return sortByGrowth ? s.inc : statAtLevel(s, 1);
+          return sortByGrowth ? s.inc : statAtLevel(s, sortLevel);
         };
         return sortDir === "desc" ? getV(b) - getV(a) : getV(a) - getV(b);
       });
@@ -903,27 +926,31 @@ function JobsTable({
       entries.sort(([a], [b]) => a.localeCompare(b));
     }
     return entries;
-  }, [jobs, genFilter, typeFilter, excludedJobs, favsOnly, favs, search, sortCol, sortDir, sortByGrowth]);
+  }, [jobs, genFilter, typeFilter, includedJobs, excludedJobs, favsOnly, favs, search, sortCol, sortDir, sortByGrowth, bulkRankInput, bulkLevelInput]);
 
   const statRankMaps = useMemo((): Record<string, Record<string, number>> | null => {
     if (!showRankings) return null;
+    const rankLevel = parseInt(bulkLevelInput) || 1;
     const result: Record<string, Record<string, number>> = {};
     for (const stat of STAT_ORDER) {
       const vals = sortedEntries
         .map(([name, job]) => {
-          const rd = Object.values(job.ranks)[0];
+          const rd = job.ranks[bulkRankInput] ?? Object.values(job.ranks)[0];
           const s = rd?.stats[stat];
-          const v = s ? (sortByGrowth ? s.inc : statAtLevel(s, 1)) : -Infinity;
+          const v = s ? (sortByGrowth ? s.inc : statAtLevel(s, rankLevel)) : -Infinity;
           return { name, v };
         })
         .sort((a, b) => b.v - a.v);
-      vals.forEach(({ name }, i) => {
+      let denseRank = 0;
+      let lastV: number | undefined;
+      vals.forEach(({ name, v }) => {
+        if (v !== lastV) { denseRank++; lastV = v; }
         if (!result[name]) result[name] = {};
-        result[name][stat] = i + 1;
+        result[name][stat] = denseRank;
       });
     }
     return result;
-  }, [showRankings, sortedEntries, sortByGrowth]);
+  }, [showRankings, sortedEntries, sortByGrowth, bulkRankInput, bulkLevelInput]);
 
   const SortIcon = ({ col }: { col: string }) => {
     if (sortCol !== col) return <ArrowUpDown className="w-3 h-3 opacity-25" />;
@@ -1033,32 +1060,58 @@ function JobsTable({
         </div>
       </div>
 
+      {/* Include specific jobs */}
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <span className="text-xs font-medium text-muted-foreground shrink-0">Always include:</span>
+        <div ref={includeRef} className="relative shrink-0">
+          <input
+            type="text"
+            value={includeSearch}
+            onChange={(e) => { setIncludeSearch(e.target.value); setIncludeOpen(true); }}
+            onFocus={() => setIncludeOpen(true)}
+            placeholder="Add job to always show…"
+            className="h-7 px-2 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground/50 w-36 focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          {includeOpen && includeSuggestions.length > 0 && (
+            <div className="absolute z-50 top-full mt-1 left-0 w-52 rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+              {includeSuggestions.map((name) => (
+                <button
+                  key={name}
+                  onMouseDown={(e) => { e.preventDefault(); addInclude(name); }}
+                  className="w-full text-left px-3 py-1.5 hover:bg-muted transition-colors text-foreground"
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {[...includedJobs].map((name) => (
+          <span key={name} className="inline-flex items-center gap-1 px-2 h-6 text-xs rounded border border-primary/40 bg-primary/10 text-primary">
+            {name}
+            <button onClick={() => removeInclude(name)} className="hover:text-primary/70 transition-colors">
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        {includedJobs.size > 0 && (
+          <button onClick={() => setIncludedJobs(new Set())} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1">
+            clear all
+          </button>
+        )}
+      </div>
+
       {/* Exclude specific jobs */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <span className="text-xs font-medium text-muted-foreground shrink-0">Exclude:</span>
-        {excludedJobs.size > 0 && (
-          <>
-            {[...excludedJobs].map((name) => (
-              <span key={name} className="inline-flex items-center gap-1 px-2 h-6 text-xs rounded border border-destructive/40 bg-destructive/10 text-destructive">
-                {name}
-                <button onClick={() => removeExclude(name)} className="hover:text-destructive/70 transition-colors">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            ))}
-            <button onClick={() => setExcludedJobs(new Set())} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1">
-              clear all
-            </button>
-          </>
-        )}
-        <div ref={excludeRef} className="relative">
+        <div ref={excludeRef} className="relative shrink-0">
           <input
             type="text"
             value={excludeSearch}
             onChange={(e) => { setExcludeSearch(e.target.value); setExcludeOpen(true); }}
             onFocus={() => setExcludeOpen(true)}
             placeholder="Type a job name to exclude…"
-            className="h-7 px-2 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground/50 w-52 focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-7 px-2 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground/50 w-36 focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {excludeOpen && excludeSuggestions.length > 0 && (
             <div className="absolute z-50 top-full mt-1 left-0 w-52 rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
@@ -1074,12 +1127,25 @@ function JobsTable({
             </div>
           )}
         </div>
+        {[...excludedJobs].map((name) => (
+          <span key={name} className="inline-flex items-center gap-1 px-2 h-6 text-xs rounded border border-destructive/40 bg-destructive/10 text-destructive">
+            {name}
+            <button onClick={() => removeExclude(name)} className="hover:text-destructive/70 transition-colors">
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        {excludedJobs.size > 0 && (
+          <button onClick={() => setExcludedJobs(new Set())} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1">
+            clear all
+          </button>
+        )}
       </div>
 
       {sortCol && !compactView && (
         <div className="mb-3 flex items-center gap-2">
           <p className="text-xs text-muted-foreground">
-            Sorted by <strong className="text-foreground">{sortCol}</strong> - {sortDir === "desc" ? "highest first" : "lowest first"} - {sortByGrowth ? <><strong className="text-foreground">Growth +Lv</strong></> : <>values at <strong className="text-foreground">Lv 1</strong></>}
+            Sorted by <strong className="text-foreground">{sortCol}</strong> - {sortDir === "desc" ? "highest first" : "lowest first"} - {sortByGrowth ? <><strong className="text-foreground">Growth +Lv</strong></> : <>rank <strong className="text-foreground">{bulkRankInput}</strong> at <strong className="text-foreground">Lv {parseInt(bulkLevelInput) || 1}</strong></>}
           </p>
           <button onClick={() => setSortCol("")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-3.5 h-3.5" />
