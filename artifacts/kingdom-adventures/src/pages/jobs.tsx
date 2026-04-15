@@ -4,7 +4,7 @@ import { Link, useParams, useLocation } from "wouter";
 import {
   RefreshCw, Loader2, X,
   Check, Star, Briefcase, ImageIcon, Heart, ArrowUpDown,
-  ArrowUp, ArrowDown, Info, RotateCcw,
+  ArrowUp, ArrowDown, Info, RotateCcw, ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

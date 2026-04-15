@@ -48,8 +48,19 @@ function normalizeCell(v) {
   return null;
 }
 
+// JobGroup flag bitmask:
+//   bit 0 (1)  = Can equip attack magic skill   → skillAccess.attackMagic
+//   bit 1 (2)  = Can equip Recovery magic skill  → skillAccess.recovery
+//   bit 2 (4)  = Can equip Attack skill           → skillAccess.attack
+//   bit 3 (8)  = Can set lookout                  → type = "combat"
+//   bit 4 (16) = cannot select parent job         (structural, skip)
+const JOB_GROUP_INDEX_MAP = {
+  "0": "Monarch", // gen-1 Royal (flag 23, no lookout)
+};
+
 async function main() {
-  const state = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
+  // Strip UTF-8 BOM (EF BB BF) if present before parsing
+  const state = JSON.parse(fs.readFileSync(DATA_FILE, "utf8").replace(/^\uFEFF/, ""));
 
   // ── 1. Profession equipment data ────────────────────────────────────────────
   console.log("Fetching profession equipment sheet…");
@@ -158,7 +169,46 @@ async function main() {
   }
   console.log();
 
-  // ── 4. Save ─────────────────────────────────────────────────────────────────
+  // ── 4. JobGroup: skill access and combat type ───────────────────────────────
+  console.log("Fetching JobGroup sheet…");
+  const jobGroupCsv = fetchWithCurl(
+    "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/export?format=csv&gid=52017777",
+    "/tmp/job_group_fresh.csv"
+  );
+  const jobGroupRows = parseCSV(jobGroupCsv);
+  // Row 0: top header, Row 1: sub-header, Row 2+: data
+  // col[0]=groupIndex, col[1]=name, col[18]=flagInt, col[19]=flagText
+  let jobGroupUpdated = 0;
+  for (const row of jobGroupRows.slice(2)) {
+    if (!row[1] || !row[1].trim()) continue;
+    const groupIdx = row[0].trim();
+    const groupName = row[1].trim();
+    const flagInt = parseInt(row[18], 10);
+    if (isNaN(flagInt)) continue;
+
+    const jobName = JOB_GROUP_INDEX_MAP[groupIdx] ?? JOB_NAME_MAP[groupName] ?? groupName;
+    if (!state.jobs[jobName]) {
+      console.log(`  ⚠ Skip group ${groupIdx} "${groupName}" → "${jobName}" — no match`);
+      continue;
+    }
+
+    state.jobs[jobName].type = (flagInt & 8) !== 0 ? "combat" : "non-combat";
+
+    const skillAccess = {};
+    if (flagInt & 4) skillAccess.attack      = "can";
+    if (flagInt & 1) skillAccess.attackMagic = "can";
+    if (flagInt & 2) skillAccess.recovery    = "can";
+
+    if (Object.keys(skillAccess).length > 0) {
+      state.jobs[jobName].skillAccess = skillAccess;
+    } else {
+      delete state.jobs[jobName].skillAccess;
+    }
+    jobGroupUpdated++;
+  }
+  console.log(`JobGroup updated for ${jobGroupUpdated} jobs.\n`);
+
+  // ── 5. Save ─────────────────────────────────────────────────────────────────
   fs.writeFileSync(DATA_FILE, JSON.stringify(state));
   console.log("✅ ka_shared.json saved successfully.");
 }

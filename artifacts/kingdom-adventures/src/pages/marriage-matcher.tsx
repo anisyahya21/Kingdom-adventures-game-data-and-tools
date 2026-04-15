@@ -469,7 +469,7 @@ function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, o
             <div className="flex gap-2 text-xs text-muted-foreground">
               {maleTotal > 0 && <span><strong className="text-foreground">{maleTotal}</strong> M</span>}
               {femaleTotal > 0 && <span><strong className="text-foreground">{femaleTotal}</strong> F</span>}
-              {unassignedTotal > 0 && <span className="text-amber-600 dark:text-amber-400"><strong>{unassignedTotal}</strong> ?</span>}
+              {unassignedTotal > 0 && <span className="text-amber-600 dark:text-amber-400"><strong>{unassignedTotal}</strong> ⚥</span>}
             </div>
           )}
         </div>
@@ -500,7 +500,7 @@ function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, o
                   <span className="text-sm font-medium truncate">
                     {slot.jobName}
                     {slot.unassigned > 0 && (
-                      <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">?</Badge>
+                      <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">⚥</Badge>
                     )}
                   </span>
                   <CountInput value={slot.males} onCommit={(value) => onUpdate(slot.id, "males", value)} className="h-7 text-center text-sm px-1" />
@@ -1048,7 +1048,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
             />
           ) : (
             <span className="flex items-center gap-1.5 min-w-0">
-              <span className="text-base font-bold text-blue-500 leading-none shrink-0">â</span>
+              <span className="text-base font-bold text-blue-500 leading-none shrink-0">♂</span>
               <span className="font-medium text-sm truncate">{match.maleJob}</span>
               {match.maleWasUnassigned && (
                 <Tooltip>
@@ -1074,7 +1074,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
             />
         ) : (
           <span className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base font-bold text-rose-500 leading-none shrink-0">â</span>
+            <span className="text-base font-bold text-rose-500 leading-none shrink-0">♀</span>
             <span className="font-medium text-sm text-rose-600 dark:text-rose-400 truncate">{match.femaleJob}</span>
             {match.femaleWasUnassigned && (
               <Tooltip>
@@ -1094,7 +1094,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
             </button>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
-            {isLocked ? "Unlock â let algorithm reassign" : "Lock this pair for future calculations"}
+            {isLocked ? "Unlock — let algorithm reassign" : "Lock this pair for future calculations"}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -1144,7 +1144,7 @@ function InfoDialog() {
           </div>
           <div>
             <h3 className="font-semibold text-foreground mb-1">2. Assign to character rank tables</h3>
-            <p>For each character rank (S through D), add the relevant jobs and enter how many <strong>male</strong> / <strong>female</strong> characters you have at that rank. Use <strong>Unassigned</strong> for undecided genders â the algorithm splits them to maximise matches.</p>
+            <p>For each character rank (S through D), add the relevant jobs and enter how many <strong>male</strong> / <strong>female</strong> characters you have at that rank. Use <strong>Unassigned</strong> for undecided genders — the algorithm splits them to maximise matches.</p>
           </div>
           <div>
             <h3 className="font-semibold text-foreground mb-1">3. Compatible pairs & children</h3>
@@ -1275,7 +1275,7 @@ export default function MarriageMatcher() {
   const skipNextRankSlotsEchoRef = useRef(false);
   const rankSlotsPutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ââ State: pairs â loaded from API (community), fallback to localStorage ââ
+  // ââ State: pairs — loaded from API (community), fallback to localStorage ââ
   const [pairsLoadedFromApi, setPairsLoadedFromApi] = useState(false);
   const [pairs, setPairs] = useState<Pair[]>(() => {
     try {
@@ -1375,7 +1375,7 @@ export default function MarriageMatcher() {
       skipNextPairsApiEchoRef.current = true;
       setPairs(apiPairs);
     } else {
-      // API has no pairs yet â push our local pairs up to the backend
+      // API has no pairs yet — push our local pairs up to the backend
       persistPairs(pairsRef.current, "community");
     }
   }, [apiPairs]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1794,9 +1794,9 @@ export default function MarriageMatcher() {
                       <div key={i} className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm">
                         <Badge className={`text-[10px] px-1.5 border ${RANK_STYLE[d.rank].badge}`}>{d.rank}</Badge>
                         <span className="font-semibold text-foreground">{d.jobName}</span>
-                        <span className="text-muted-foreground">â</span>
-                        {d.assignedMales > 0 && <Badge variant="secondary" className="text-xs gap-1"><span className="text-blue-500">â</span>{d.assignedMales}</Badge>}
-                        {d.assignedFemales > 0 && <Badge variant="outline" className="text-xs border-primary/30 text-primary gap-1"><span className="text-rose-500">â</span>{d.assignedFemales}</Badge>}
+                        <span className="text-muted-foreground">→</span>
+                        {d.assignedMales > 0 && <Badge variant="secondary" className="text-xs gap-1"><span className="text-blue-500">♂</span>{d.assignedMales}</Badge>}
+                        {d.assignedFemales > 0 && <Badge variant="outline" className="text-xs border-primary/30 text-primary gap-1"><span className="text-rose-500">♀</span>{d.assignedFemales}</Badge>}
                       </div>
                     ))}
                   </div>
@@ -1821,7 +1821,7 @@ export default function MarriageMatcher() {
                         className={`px-3 h-7 text-xs font-medium transition-colors ${resultTypeFilter === t
                           ? t === "combat" ? "bg-red-500 text-white" : t === "non-combat" ? "bg-sky-500 text-white" : "bg-primary text-primary-foreground"
                           : "bg-background text-muted-foreground hover:text-foreground"}`}>
-                        {t === "all" ? "All" : t === "combat" ? "â Combat" : "ð¿ Non-Combat"}
+                        {t === "all" ? "All" : t === "combat" ? "Combat" : "Non-Combat"}
                       </button>
                     ))}
                   </div>
@@ -1936,11 +1936,11 @@ export default function MarriageMatcher() {
                   <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border space-y-2">
                     {result.unmatchedMale.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><span className="text-blue-500 font-bold">â</span> Unmatched male slots:</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><span className="text-blue-500 font-bold">♂</span> Unmatched male slots:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {result.unmatchedMale.map((u, i) => (
                             <Badge key={i} variant="secondary" className="text-xs gap-1">
-                              <span className="text-blue-500 font-bold">â</span>{u.job}
+                              <span className="text-blue-500 font-bold">♂</span>{u.job}
                               <span className={`text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
                             </Badge>
                           ))}
@@ -1949,11 +1949,11 @@ export default function MarriageMatcher() {
                     )}
                     {result.unmatchedFemale.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><span className="text-rose-500 font-bold">â</span> Unmatched female slots:</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><span className="text-rose-500 font-bold">♀</span> Unmatched female slots:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {result.unmatchedFemale.map((u, i) => (
                             <Badge key={i} variant="outline" className="text-xs text-muted-foreground gap-1">
-                              <span className="text-rose-500 font-bold">â</span>{u.job}
+                              <span className="text-rose-500 font-bold">♀</span>{u.job}
                               <span className={`text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
                             </Badge>
                           ))}
@@ -1990,7 +1990,7 @@ export default function MarriageMatcher() {
 
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-          <span>Match Finder â open source</span>
+          <span>Match Finder — open source</span>
           <a href="https://replit.com" target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1 hover:text-foreground transition-colors">
             <ExternalLink className="w-3 h-3" /> Fork &amp; edit on Replit
