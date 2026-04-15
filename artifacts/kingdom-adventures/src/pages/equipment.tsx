@@ -688,6 +688,16 @@ export default function EquipmentPage() {
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [showHistory, setShowHistory] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) setOpenFilterMenu(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Comparison checkboxes
   const [selectedUids, setSelectedUids] = useState<Set<string>>(new Set());
@@ -766,8 +776,7 @@ export default function EquipmentPage() {
     [items]
   );
   const availableIntValues = useMemo(() => {
-    if (studioFilters.size === 0) return [];
-    const base = items.filter((i) => studioFilters.has(i.crafterStudioLevel));
+    const base = studioFilters.size > 0 ? items.filter((i) => studioFilters.has(i.crafterStudioLevel)) : items;
     return [...new Set(base.map((i) => i.crafterIntelligence).filter((v) => v > 0))].sort((a, b) => a - b);
   }, [items, studioFilters]);
 
@@ -870,7 +879,7 @@ export default function EquipmentPage() {
     return sortDir === "asc" ? <ArrowUp className="w-3 h-3 text-primary shrink-0" /> : <ArrowDown className="w-3 h-3 text-primary shrink-0" />;
   };
 
-  const colCount = 9 + STAT_ORDER.length; // drag, checkbox, icon, name, level, slot, last-edit, craftable, ...stats
+  const colCount = 8 + STAT_ORDER.length; // drag, checkbox, icon, name, level, slot, craftable, ...stats
 
   // Most recent "stat" (base/inc) history entry per item — for the Last Edit column
   const lastStatEdit = useMemo<Record<string, HistoryEntry>>(() => {
@@ -924,12 +933,6 @@ export default function EquipmentPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => exportData(shared)}>
-              <Download className="w-3.5 h-3.5" />Export JSON
-            </Button>
-            <Button variant="outline" size="sm" className={`h-8 gap-1.5 ${showHistory ? "bg-muted" : ""}`} onClick={() => setShowHistory((v) => !v)}>
-              <History className="w-3.5 h-3.5" />History {history.length > 0 && <span className="ml-0.5 text-[10px] bg-primary/10 text-primary px-1 rounded-full">{history.length}</span>}
-            </Button>
             <InfoDialog />
           </div>
         </div>
@@ -1001,6 +1004,7 @@ export default function EquipmentPage() {
               <X className="w-3 h-3" />Clear all
             </Button>
           )}
+
           <div className="ml-auto flex items-center gap-2">
             {dataUpdatedAt && <span className="text-xs text-muted-foreground">Updated {new Date(dataUpdatedAt).toLocaleTimeString()}</span>}
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} className="h-8 gap-2">
@@ -1008,64 +1012,128 @@ export default function EquipmentPage() {
             </Button>
           </div>
         </div>
-        {/* Slot toggle filter */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-2">
-          <span className="text-xs font-medium text-muted-foreground w-8 shrink-0">Slot</span>
-          {CHAR_SLOTS.map((slot) => (
+        {/* Filter dropdowns */}
+        <div ref={filterMenuRef} className="flex flex-wrap items-center gap-2 mb-3">
+          {/* Slot */}
+          <div className="relative">
             <button
-              key={slot}
-              onClick={() => setSlotFilters((prev) => { const next = new Set(prev); next.has(slot) ? next.delete(slot) : next.add(slot); return next; })}
-              className={`px-2.5 h-7 text-xs font-medium rounded border transition-colors ${slotFilters.has(slot) ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setOpenFilterMenu((v) => v === "slot" ? null : "slot")}
+              className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${
+                slotFilters.size > 0 ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"
+              }`}
             >
-              {slot}
+              Slot{slotFilters.size > 0 ? ` (${slotFilters.size})` : ""}
+              <ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "slot" ? "rotate-180" : ""}`} />
             </button>
-          ))}
-        </div>
-        {/* Tier toggle filter */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-2">
-          <span className="text-xs font-medium text-muted-foreground w-8 shrink-0">Tier</span>
-          {EQUIPMENT_RANKS.map((rank) => (
-            <button
-              key={rank}
-              onClick={() => setRankFilters((prev) => { const next = new Set(prev); next.has(rank) ? next.delete(rank) : next.add(rank); return next; })}
-              className={`px-2.5 h-7 text-xs font-medium rounded border transition-colors ${rankFilters.has(rank) ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
-            >
-              {rank}
-            </button>
-          ))}
-        </div>
-        {/* Studio + INT cross-filter */}
-        {allStudioLevels.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 mb-3">
-            <span className="text-xs font-medium text-muted-foreground w-12 shrink-0">Studio</span>
-            {allStudioLevels.map((s) => (
-              <button
-                key={s}
-                onClick={() => {
-                  setStudioFilters((prev) => { const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next; });
-                  setIntFilters(new Set());
-                }}
-                className={`px-2.5 h-7 text-xs font-medium rounded border transition-colors ${studioFilters.has(s) ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
-              >
-                Lv {s}
-              </button>
-            ))}
-            {studioFilters.size > 0 && availableIntValues.length > 0 && (
-              <>
-                <span className="text-xs font-medium text-muted-foreground ml-2 shrink-0">INT</span>
-                {availableIntValues.map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setIntFilters((prev) => { const next = new Set(prev); next.has(v) ? next.delete(v) : next.add(v); return next; })}
-                    className={`px-2.5 h-7 text-xs font-medium rounded border transition-colors ${intFilters.has(v) ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {v}
+            {openFilterMenu === "slot" && (
+              <div className="absolute z-50 top-full mt-1 left-0 min-w-[140px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+                {CHAR_SLOTS.map((slot) => (
+                  <button key={slot} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setSlotFilters((prev) => { const next = new Set(prev); next.has(slot) ? next.delete(slot) : next.add(slot); return next; }); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                    <span className={`w-3.5 h-3.5 shrink-0 ${slotFilters.has(slot) ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                    {slot}
                   </button>
                 ))}
-              </>
+              </div>
             )}
           </div>
-        )}
+          {/* Tier */}
+          <div className="relative">
+            <button
+              onClick={() => setOpenFilterMenu((v) => v === "tier" ? null : "tier")}
+              className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${
+                rankFilters.size > 0 ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Tier{rankFilters.size > 0 ? ` (${rankFilters.size})` : ""}
+              <ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "tier" ? "rotate-180" : ""}`} />
+            </button>
+            {openFilterMenu === "tier" && (
+              <div className="absolute z-50 top-full mt-1 left-0 min-w-[120px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+                {EQUIPMENT_RANKS.map((rank) => (
+                  <button key={rank} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setRankFilters((prev) => { const next = new Set(prev); next.has(rank) ? next.delete(rank) : next.add(rank); return next; }); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                    <span className={`w-3.5 h-3.5 shrink-0 ${rankFilters.has(rank) ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                    {rank}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Craft */}
+          <div className="relative">
+            <button
+              onClick={() => setOpenFilterMenu((v) => v === "craft" ? null : "craft")}
+              className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${
+                craftFilter !== "All" ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {craftFilter === "All" ? "Craftable" : craftFilter}
+              <ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "craft" ? "rotate-180" : ""}`} />
+            </button>
+            {openFilterMenu === "craft" && (
+              <div className="absolute z-50 top-full mt-1 left-0 min-w-[140px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+                {(["All", "Craftable", "Not Craftable"] as const).map((opt) => (
+                  <button key={opt} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setCraftFilter(opt); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                    <span className={`w-3.5 h-3.5 shrink-0 ${craftFilter === opt ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                    {opt === "All" ? "All craftable" : opt}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Studio */}
+          {allStudioLevels.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setOpenFilterMenu((v) => v === "studio" ? null : "studio")}
+                className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${
+                  studioFilters.size > 0 ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Studio{studioFilters.size > 0 ? ` (${studioFilters.size})` : ""}
+                <ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "studio" ? "rotate-180" : ""}`} />
+              </button>
+              {openFilterMenu === "studio" && (
+                <div className="absolute z-50 top-full mt-1 left-0 min-w-[120px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+                  {allStudioLevels.map((s) => (
+                    <button key={s} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setStudioFilters((prev) => { const next = new Set(prev); next.has(s) ? next.delete(s) : next.add(s); return next; }); setIntFilters(new Set()); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                      <span className={`w-3.5 h-3.5 shrink-0 ${studioFilters.has(s) ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                      Lv {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {/* INT (sub-filter, only when studio selected) */}
+          {availableIntValues.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setOpenFilterMenu((v) => v === "int" ? null : "int")}
+                className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${
+                  intFilters.size > 0 ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                INT{intFilters.size > 0 ? ` (${intFilters.size})` : ""}
+                <ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "int" ? "rotate-180" : ""}`} />
+              </button>
+              {openFilterMenu === "int" && (
+                <div className="absolute z-50 top-full mt-1 left-0 min-w-[100px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+                  {availableIntValues.map((v) => (
+                    <button key={v} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setIntFilters((prev) => { const next = new Set(prev); next.has(v) ? next.delete(v) : next.add(v); return next; }); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                      <span className={`w-3.5 h-3.5 shrink-0 ${intFilters.has(v) ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="flex flex-wrap items-center gap-2 mb-4 rounded-lg border border-border bg-muted/30 px-3 py-2">
           <span className="text-xs font-medium text-muted-foreground">Compare at level</span>
@@ -1129,7 +1197,6 @@ export default function EquipmentPage() {
                       <th className="text-left px-2 py-2 font-medium text-muted-foreground whitespace-nowrap">
                         <button onClick={() => handleSort("slot")} className="flex items-center gap-1 hover:text-foreground">Slot <SortIcon col="slot" /></button>
                       </th>
-                      <th className="text-left px-2 py-2 font-medium text-muted-foreground whitespace-nowrap">Last Edit</th>
                       <th className="text-left px-2 py-2 font-medium text-muted-foreground whitespace-nowrap">
                         <div className="flex items-center gap-1">
                           <button onClick={() => handleSort("studioLevel")} className="flex items-center gap-1 hover:text-foreground">Studio Lv <SortIcon col="studioLevel" /></button>
@@ -1232,24 +1299,6 @@ export default function EquipmentPage() {
                               <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
                                 {itemSlot !== " " ? itemSlot : item.sheetSlot || " "}
                               </span>
-                            </td>
-                            <td className="px-2 py-1.5 whitespace-nowrap">
-                              {(() => {
-                                const e = lastStatEdit[item.name];
-                                if (!e) return <span className="text-muted-foreground/30 text-xs">—</span>;
-                                return (
-                                  <button
-                                    onClick={() => setItemHistoryName(item.name)}
-                                    className="text-left hover:text-primary transition-colors"
-                                    title={`See all stat edits for ${item.name}`}
-                                  >
-                                    <span className="text-[10px] leading-tight block">
-                                      <span className="font-medium text-foreground/80 hover:text-primary">{e.userName}</span>
-                                      <br /><span className="text-muted-foreground">{relTime(e.timestamp)}</span>
-                                    </span>
-                                  </button>
-                                );
-                              })()}
                             </td>
                             <td className="px-2 py-1.5">
                               {item.crafterStudioLevel === 0

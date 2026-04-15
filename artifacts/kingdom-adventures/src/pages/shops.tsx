@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
 import {
+  CheckCircle2,
+  ChevronDown,
   Hammer,
   Package,
   Search,
@@ -606,6 +608,16 @@ export default function ShopsPage() {
   const [itemSearch, setItemSearch] = useState("");
   const [furnitureSearch, setFurnitureSearch] = useState("");
   const [studioFilter, setStudioFilter] = useState<Set<number>>(new Set());
+  const [intFilter, setIntFilter] = useState<Set<number>>(new Set());
+  const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) setOpenFilterMenu(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const selectedShop = useMemo(
     () => SHOP_RECORDS.find((shop) => shop.slug === params?.slug) ?? null,
@@ -620,6 +632,7 @@ export default function ShopsPage() {
     else if (selectedShop?.slug === "furniture-shop") setFurnitureSearch(q);
     else setSearch(q);
     setStudioFilter(new Set());
+    setIntFilter(new Set());
   }, [currentUrlSearch, selectedShop?.slug]);
 
   const { data: equipmentRows = [], isLoading: equipmentLoading } = useQuery({
@@ -658,28 +671,28 @@ export default function ShopsPage() {
   }, [craftFilter, dedupedEquipmentRows, rankFilter, search]);
 
   const weaponRows = useMemo(
-    () => filteredEquipment.filter((row) => row.slot === "Weapon" && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
-    [filteredEquipment, studioFilter]
+    () => filteredEquipment.filter((row) => row.slot === "Weapon" && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
+    [filteredEquipment, studioFilter, intFilter]
   );
   const armorRows = useMemo(
-    () => filteredEquipment.filter((row) => ["Head", "Armor", "Shield"].includes(row.slot) && (armorSlotFilter === "All" || row.slot === armorSlotFilter) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
-    [armorSlotFilter, filteredEquipment, studioFilter]
+    () => filteredEquipment.filter((row) => ["Head", "Armor", "Shield"].includes(row.slot) && (armorSlotFilter === "All" || row.slot === armorSlotFilter) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
+    [armorSlotFilter, filteredEquipment, studioFilter, intFilter]
   );
   const accessoryRows = useMemo(
-    () => filteredEquipment.filter((row) => row.slot === "Accessory" && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
-    [filteredEquipment, studioFilter]
+    () => filteredEquipment.filter((row) => row.slot === "Accessory" && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
+    [filteredEquipment, studioFilter, intFilter]
   );
   const filteredSkillRows = useMemo(
-    () => skillRows.filter((row) => matchesQuery(row.name, skillSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
-    [skillRows, skillSearch, studioFilter]
+    () => skillRows.filter((row) => matchesQuery(row.name, skillSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
+    [skillRows, skillSearch, studioFilter, intFilter]
   );
   const filteredItemRows = useMemo(
-    () => itemRows.filter((row) => matchesQuery(row.name, itemSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
-    [itemRows, itemSearch, studioFilter]
+    () => itemRows.filter((row) => matchesQuery(row.name, itemSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
+    [itemRows, itemSearch, studioFilter, intFilter]
   );
   const filteredFurnitureRows = useMemo(
-    () => FURNITURE_ROWS.filter((row) => matchesQuery(row.name, furnitureSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel))),
-    [furnitureSearch, studioFilter]
+    () => FURNITURE_ROWS.filter((row) => matchesQuery(row.name, furnitureSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
+    [furnitureSearch, studioFilter, intFilter]
   );
   const shopStudioLevels = useMemo((): number[] => {
     if (!selectedShop) return [];
@@ -696,26 +709,141 @@ export default function ShopsPage() {
     })();
     return [...new Set(levels.filter((v) => v > 0))].sort((a, b) => a - b);
   }, [selectedShop, dedupedEquipmentRows, skillRows, itemRows]);
-  const toggleStudio = (level: number) => setStudioFilter((prev) => {
+  const availableIntValues = useMemo(() => {
+    if (!selectedShop) return [];
+    type IntRow = { studioLevel: number; craftingIntelligence: number };
+    const allRows: IntRow[] = (() => {
+      switch (selectedShop.slug) {
+        case "weapon-shop": return dedupedEquipmentRows.filter((r) => r.slot === "Weapon");
+        case "armor-shop": return dedupedEquipmentRows.filter((r) => ["Head", "Armor", "Shield"].includes(r.slot));
+        case "accessory-shop": return dedupedEquipmentRows.filter((r) => r.slot === "Accessory");
+        case "skill-shop": return skillRows;
+        case "item-shop": return itemRows;
+        case "furniture-shop": return FURNITURE_ROWS;
+        default: return [];
+      }
+    })();
+    const base = studioFilter.size > 0 ? allRows.filter((r) => studioFilter.has(r.studioLevel)) : allRows;
+    return [...new Set(base.map((r) => r.craftingIntelligence).filter((v) => v > 0))].sort((a, b) => a - b);
+  }, [studioFilter, selectedShop, dedupedEquipmentRows, skillRows, itemRows]);
+  const toggleStudio = (level: number) => {
+    setStudioFilter((prev) => {
+      const next = new Set(prev);
+      next.has(level) ? next.delete(level) : next.add(level);
+      return next;
+    });
+    setIntFilter(new Set());
+  };
+  const toggleInt = (v: number) => setIntFilter((prev) => {
     const next = new Set(prev);
-    next.has(level) ? next.delete(level) : next.add(level);
+    next.has(v) ? next.delete(v) : next.add(v);
     return next;
   });
-  const studioChips = shopStudioLevels.length > 0 ? (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-xs font-medium text-muted-foreground shrink-0">Studio:</span>
-      {shopStudioLevels.map((level) => (
-        <button
-          key={level}
-          onClick={() => toggleStudio(level)}
-          className={`px-2.5 h-7 text-xs font-medium rounded border transition-colors ${studioFilter.has(level) ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
-        >Lv {level}</button>
-      ))}
-      {studioFilter.size > 0 && (
-        <button onClick={() => setStudioFilter(new Set())} className="text-xs text-muted-foreground hover:text-destructive transition-colors px-1">✕ clear</button>
+  const FilterDropdowns = ({ showRank = true, showCraft = true, showArmorSlot = false }: { showRank?: boolean; showCraft?: boolean; showArmorSlot?: boolean }) => (
+    <div ref={filterMenuRef} className="flex flex-wrap items-center gap-2">
+      {showArmorSlot && (
+        <div className="relative">
+          <button onClick={() => setOpenFilterMenu((v) => v === "armorSlot" ? null : "armorSlot")}
+            className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${armorSlotFilter !== "All" ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
+            {armorSlotFilter === "All" ? "Slot" : armorSlotFilter}<ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "armorSlot" ? "rotate-180" : ""}`} />
+          </button>
+          {openFilterMenu === "armorSlot" && (
+            <div className="absolute z-50 top-full mt-1 left-0 min-w-[120px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+              {(["All", "Head", "Armor", "Shield"] as const).map((opt) => (
+                <button key={opt} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setArmorSlotFilter(opt); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                  <span className={`w-3.5 h-3.5 shrink-0 ${armorSlotFilter === opt ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                  {opt === "All" ? "All slots" : opt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {showRank && (
+        <div className="relative">
+          <button onClick={() => setOpenFilterMenu((v) => v === "rank" ? null : "rank")}
+            className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${rankFilter !== "All" ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
+            {rankFilter === "All" ? "Rank" : rankFilter}<ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "rank" ? "rotate-180" : ""}`} />
+          </button>
+          {openFilterMenu === "rank" && (
+            <div className="absolute z-50 top-full mt-1 left-0 min-w-[120px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+              {RANKS.map((rank) => (
+                <button key={rank} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setRankFilter(rank); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                  <span className={`w-3.5 h-3.5 shrink-0 ${rankFilter === rank ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                  {rank === "All" ? "All ranks" : `${rank} rank`}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {showCraft && (
+        <div className="relative">
+          <button onClick={() => setOpenFilterMenu((v) => v === "craft" ? null : "craft")}
+            className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${craftFilter !== "All" ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
+            {craftFilter === "All" ? "Craftable" : craftFilter}<ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "craft" ? "rotate-180" : ""}`} />
+          </button>
+          {openFilterMenu === "craft" && (
+            <div className="absolute z-50 top-full mt-1 left-0 min-w-[140px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+              {CRAFT_FILTERS.map((opt) => (
+                <button key={opt} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setCraftFilter(opt); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                  <span className={`w-3.5 h-3.5 shrink-0 ${craftFilter === opt ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                  {opt === "All" ? "All craftable" : opt}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {shopStudioLevels.length > 0 && (
+        <div className="relative">
+          <button onClick={() => setOpenFilterMenu((v) => v === "studio" ? null : "studio")}
+            className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${studioFilter.size > 0 ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
+            Studio{studioFilter.size > 0 ? ` (${studioFilter.size})` : ""}<ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "studio" ? "rotate-180" : ""}`} />
+          </button>
+          {openFilterMenu === "studio" && (
+            <div className="absolute z-50 top-full mt-1 left-0 min-w-[110px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+              {shopStudioLevels.map((level) => (
+                <button key={level} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); toggleStudio(level); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                  <span className={`w-3.5 h-3.5 shrink-0 ${studioFilter.has(level) ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                  Lv {level}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {availableIntValues.length > 0 && (
+        <div className="relative">
+          <button onClick={() => setOpenFilterMenu((v) => v === "int" ? null : "int")}
+            className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${intFilter.size > 0 ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
+            INT{intFilter.size > 0 ? ` (${intFilter.size})` : ""}<ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "int" ? "rotate-180" : ""}`} />
+          </button>
+          {openFilterMenu === "int" && (
+            <div className="absolute z-50 top-full mt-1 left-0 min-w-[110px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+              {availableIntValues.map((v) => (
+                <button key={v} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); toggleInt(v); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                  <span className={`w-3.5 h-3.5 shrink-0 ${intFilter.has(v) ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                  INT {v}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {(rankFilter !== "All" || craftFilter !== "All" || armorSlotFilter !== "All" || studioFilter.size > 0 || intFilter.size > 0) && (
+        <button onClick={() => { setRankFilter("All"); setCraftFilter("All"); setArmorSlotFilter("All"); setStudioFilter(new Set()); setIntFilter(new Set()); }}
+          className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          ✕ clear
+        </button>
       )}
     </div>
-  ) : null;
+  );
   const selectedShopResults = useMemo(() => {
     switch (selectedShop?.slug) {
       case "weapon-shop":
@@ -825,19 +953,13 @@ export default function ShopsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div className="relative md:col-span-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search weapons..." className="pl-9" />
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search weapons..." className="pl-9 h-9" />
                   </div>
-                  <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                    {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
-                  </select>
-                  <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                    {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
+                  <FilterDropdowns showRank showCraft />
                 </div>
-                {studioChips}
               </CardContent>
             </Card>
 
@@ -859,25 +981,13 @@ export default function ShopsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                  <div className="relative md:col-span-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search armor..." className="pl-9" />
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search armor..." className="pl-9 h-9" />
                   </div>
-                  <select value={armorSlotFilter} onChange={(e) => setArmorSlotFilter(e.target.value as "All" | "Head" | "Armor" | "Shield")} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                    <option value="All">All armor slots</option>
-                    <option value="Head">Head</option>
-                    <option value="Armor">Armor</option>
-                    <option value="Shield">Shield</option>
-                  </select>
-                  <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                    {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
-                  </select>
-                  <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                    {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
+                  <FilterDropdowns showArmorSlot showRank showCraft />
                 </div>
-                {studioChips}
               </CardContent>
             </Card>
 
@@ -899,19 +1009,13 @@ export default function ShopsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div className="relative md:col-span-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search accessories..." className="pl-9" />
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search accessories..." className="pl-9 h-9" />
                   </div>
-                  <select value={rankFilter} onChange={(e) => setRankFilter(e.target.value as (typeof RANKS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                    {RANKS.map((rank) => <option key={rank} value={rank}>{rank === "All" ? "All ranks" : `${rank} rank`}</option>)}
-                  </select>
-                  <select value={craftFilter} onChange={(e) => setCraftFilter(e.target.value as (typeof CRAFT_FILTERS)[number])} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
-                    {CRAFT_FILTERS.map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
+                  <FilterDropdowns showRank showCraft />
                 </div>
-                {studioChips}
               </CardContent>
             </Card>
 
@@ -933,16 +1037,14 @@ export default function ShopsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="relative md:col-span-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input value={skillSearch} onChange={(e) => setSkillSearch(e.target.value)} placeholder="Search skills..." className="pl-9" />
+                    <Input value={skillSearch} onChange={(e) => setSkillSearch(e.target.value)} placeholder="Search skills..." className="pl-9 h-9" />
                   </div>
-                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                    {filteredSkillRows.length} skills
-                  </div>
+                  <FilterDropdowns showRank={false} showCraft={false} />
+                  <span className="text-xs text-muted-foreground">{filteredSkillRows.length} skills</span>
                 </div>
-                {studioChips}
               </CardContent>
             </Card>
 
@@ -964,16 +1066,14 @@ export default function ShopsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="relative md:col-span-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search items..." className="pl-9" />
+                    <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search items..." className="pl-9 h-9" />
                   </div>
-                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                    {filteredItemRows.length} items
-                  </div>
+                  <FilterDropdowns showRank={false} showCraft={false} />
+                  <span className="text-xs text-muted-foreground">{filteredItemRows.length} items</span>
                 </div>
-                {studioChips}
               </CardContent>
             </Card>
 
@@ -995,16 +1095,14 @@ export default function ShopsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="relative md:col-span-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input value={furnitureSearch} onChange={(e) => setFurnitureSearch(e.target.value)} placeholder="Search furniture..." className="pl-9" />
+                    <Input value={furnitureSearch} onChange={(e) => setFurnitureSearch(e.target.value)} placeholder="Search furniture..." className="pl-9 h-9" />
                   </div>
-                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                    {filteredFurnitureRows.length} furniture items
-                  </div>
+                  <FilterDropdowns showRank={false} showCraft={false} />
+                  <span className="text-xs text-muted-foreground">{filteredFurnitureRows.length} furniture items</span>
                 </div>
-                {studioChips}
               </CardContent>
             </Card>
 
