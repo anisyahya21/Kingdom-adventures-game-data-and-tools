@@ -14,9 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const API_URL = (p: string) => `${BASE}/ka-api/ka${p}`;
+import { apiUrl } from "@/lib/api";
 const RANKED_EQUIPMENT_NAME = /^[FSABCDE]\s*\/\s*/i;
 
 // ─── NumInput: local-string-state to prevent typing glitch ────────────────────
@@ -284,7 +282,7 @@ const EMPTY_SHARED: SharedState = {
 
 async function fetchShared(): Promise<SharedState> {
   try {
-    const data = await fetchSharedWithFallback<SharedState>(API_URL("/shared"));
+    const data = await fetchSharedWithFallback<SharedState>(apiUrl("/shared"));
     return { ...EMPTY_SHARED, ...data };
   } catch { return EMPTY_SHARED; }
 }
@@ -292,7 +290,7 @@ async function fetchShared(): Promise<SharedState> {
 type HistoryPayload = Omit<HistoryEntry, "id" | "timestamp">;
 
 async function putShared(endpoint: string, data: unknown, history?: HistoryPayload) {
-  await fetch(API_URL(`/shared/${endpoint}`), {
+  await fetch(apiUrl(`/shared/${endpoint}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data, history }),
@@ -332,7 +330,7 @@ function useShared() {
   }, [invalidate]);
 
   const saveWeaponCategories = useCallback(async (data: string[], history?: HistoryPayload) => {
-    await fetch(API_URL("/shared/weapon-categories"), {
+    await fetch(apiUrl("/shared/weapon-categories"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data, history }),
@@ -342,7 +340,7 @@ function useShared() {
 
   const renameUser = useCallback(async (oldName: string, newName: string) => {
     if (!oldName || !newName || oldName === newName) return;
-    await fetch(API_URL("/shared/rename-user"), {
+    await fetch(apiUrl("/shared/rename-user"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ oldName, newName }),

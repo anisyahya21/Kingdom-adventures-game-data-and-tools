@@ -3,44 +3,10 @@ import { Moon, Sun } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+import { apiUrl } from "@/lib/api";
 
 const LOCAL_DEVICE_ID_KEY = "kaSyncCurrentDeviceId";
 const LOCAL_DEVICE_NAME_KEY = "kaSyncCurrentDeviceName";
-
-function getDevApiBase() {
-	if (typeof window === "undefined") return "";
-
-	const { hostname } = window.location;
-
-	if (hostname === "localhost" || hostname === "127.0.0.1") {
-		return "http://localhost:8080";
-	}
-
-	if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
-		return `http://${hostname}:8080`;
-	}
-
-	return "";
-}
-
-const API = (p: string) => {
-	const path = `/ka-api/ka${p}`;
-
-	if (API_BASE) {
-		return `${API_BASE}${path}`;
-	}
-
-	const devApiBase = getDevApiBase();
-
-	if (devApiBase) {
-		return `${devApiBase}${path}`;
-	}
-
-	return `${BASE}${path}`;
-};
 
 type Device = {
 	id: string;
@@ -142,7 +108,7 @@ export default function SyncDevicesPage() {
 		setIsLoadingDevices(true);
 
 		try {
-			const res = await fetch(API("/sync/devices"));
+			const res = await fetch(apiUrl("/sync/devices"));
 			const data = await readJson<Device[] | ApiError>(res);
 
 			if (!res.ok) {
@@ -202,7 +168,7 @@ export default function SyncDevicesPage() {
 		setMessage("");
 
 		try {
-			const res = await fetch(API("/sync/generate"), {
+			const res = await fetch(apiUrl("/sync/generate"), {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json"
@@ -285,7 +251,7 @@ export default function SyncDevicesPage() {
 		setMessage("");
 
 		try {
-			const res = await fetch(API("/sync/redeem"), {
+			const res = await fetch(apiUrl("/sync/redeem"), {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json"
@@ -338,7 +304,7 @@ export default function SyncDevicesPage() {
 		setMessage("");
 
 		try {
-			const res = await fetch(API(`/sync/device/${id}`), {
+			const res = await fetch(apiUrl(`/sync/device/${id}`), {
 				method: "DELETE"
 			});
 

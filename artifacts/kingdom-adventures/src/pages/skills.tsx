@@ -10,9 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { apiUrl } from "@/lib/api";
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const API = (path: string) => `${BASE}/ka-api/ka${path}`;
 
 type Skill = {
   name: string;
@@ -30,14 +29,14 @@ const EXCLUDED_SKILL_NAMES = new Set(["normal attack", "gun attack", "critical h
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<SharedData>(API("/shared")),
+    queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
     staleTime: 15000,
     refetchInterval: 30000,
   });
 }
 
 async function persistSkills(skills: Record<string, Skill>, userName: string, desc: string) {
-  await fetch(API("/skills"), {
+  await fetch(apiUrl("/skills"), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -338,7 +337,7 @@ export default function SkillsPage() {
         </Card>
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          {Object.keys(skills).length} skill{Object.keys(skills).length !== 1 ? "s" : ""} in database · Base data is shared game data, notes are community-added context
+          {Object.keys(skills).length} skill{Object.keys(skills).length !== 1 ? "s" : ""} in database ï¿½ Base data is shared game data, notes are community-added context
         </p>
       </div>
     </div>

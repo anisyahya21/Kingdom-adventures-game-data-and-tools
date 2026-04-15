@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { apiUrl } from "@/lib/api";
 
 type RawEquipmentItem = {
   uid: string;
@@ -77,8 +78,7 @@ type AnswerResult = {
   options?: string[];
 };
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const API_URL = (p: string) => `${BASE}/ka-api/ka${p}`;
+
 
 const SHEET_ID = "1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk";
 const EQUIPMENT_GID = "123527243";
@@ -520,7 +520,7 @@ async function fetchEquipmentSheet(): Promise<RawEquipmentItem[]> {
 }
 
 async function fetchSharedData(): Promise<SharedData> {
-  return fetchSharedWithFallback<SharedData>(API_URL("/shared"));
+  return fetchSharedWithFallback<SharedData>(apiUrl("/shared"));
 }
 
 function buildEquipmentRecords(sheetItems: RawEquipmentItem[], shared: SharedData): EquipmentRecord[] {

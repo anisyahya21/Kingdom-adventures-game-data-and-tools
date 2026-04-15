@@ -10,9 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const API = (p: string) => `${BASE}/ka-api/ka${p}`;
+import { apiUrl } from "@/lib/api";
 
 
 type MonsterSpawn = { area: string; level: number };
@@ -59,7 +57,7 @@ function useDarkMode() {
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<{ monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest; jobs: Record<string, Job>; overrides?: Record<string, unknown> }>(API("/shared")),
+    queryFn: () => fetchSharedWithFallback<{ monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest; jobs: Record<string, Job>; overrides?: Record<string, unknown> }>(apiUrl("/shared")),
     staleTime: 15000,
     refetchInterval: 30000,
   });

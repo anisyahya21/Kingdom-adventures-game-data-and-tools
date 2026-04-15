@@ -16,9 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { SearchableSelect } from "@/components/searchable-select";
 import { toPng } from "html-to-image";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const API = (path: string) => `${BASE}/ka-api/ka${path}`;
+import { apiUrl } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -178,7 +176,7 @@ function getEquipRuleState(loadout: Loadout, data: SharedData, equipName: string
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<SharedData>(API("/shared")),
+    queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
     staleTime: 15000,
   });
 }
@@ -221,7 +219,7 @@ function useLoadouts(sharedData: SharedData | undefined) {
       setLoadouts(sharedData.loadouts ?? []);
     } else if (loadoutsRef.current.length > 0) {
       // Server has never been synced — push local state as the initial seed
-      fetch(API("/loadouts"), {
+      fetch(apiUrl("/loadouts"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: loadoutsRef.current }),
@@ -238,7 +236,7 @@ function useLoadouts(sharedData: SharedData | undefined) {
     }
     if (loadoutsPutTimerRef.current) clearTimeout(loadoutsPutTimerRef.current);
     loadoutsPutTimerRef.current = setTimeout(() => {
-      fetch(API("/loadouts"), {
+      fetch(apiUrl("/loadouts"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: loadouts }),

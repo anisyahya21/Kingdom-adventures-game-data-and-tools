@@ -22,11 +22,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { apiUrl } from "@/lib/api";
 
 // âââ API ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const API = (p: string) => `${BASE}/ka-api/ka${p}`;
 
 type JobData = {
   generation: 1 | 2;
@@ -50,7 +49,7 @@ function useSharedData() {
       marriageMatcher?: {
         rankSlots: Array<{ id: string; rank: string; jobName: string; males: number; females: number; unassigned: number }>;
       } | null;
-    }>(API("/shared")),
+    }>(apiUrl("/shared")),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
@@ -58,7 +57,7 @@ function useSharedData() {
 
 async function persistPairs(pairs: SharedPair[], userName: string) {
   try {
-    await fetch(API("/pairs"), {
+    await fetch(apiUrl("/pairs"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1413,7 +1412,7 @@ export default function MarriageMatcher() {
       setRankSlots((mm.rankSlots ?? []) as RankSlot[]);
     } else if (rankSlotsRef.current.length > 0) {
       // Server has never been synced — push local state as the initial seed
-      fetch(API("/marriage-matcher/rank-slots"), {
+      fetch(apiUrl("/marriage-matcher/rank-slots"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: rankSlotsRef.current }),
@@ -1430,7 +1429,7 @@ export default function MarriageMatcher() {
     }
     if (rankSlotsPutTimerRef.current) clearTimeout(rankSlotsPutTimerRef.current);
     rankSlotsPutTimerRef.current = setTimeout(() => {
-      fetch(API("/marriage-matcher/rank-slots"), {
+      fetch(apiUrl("/marriage-matcher/rank-slots"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: rankSlots }),
