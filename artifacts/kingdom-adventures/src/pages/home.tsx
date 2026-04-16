@@ -38,6 +38,7 @@ const SOURCE_FILES: Array<{ label: string; path: string; content: string }> = [
 const CREDIT_SOURCES = [
   {
     label: "KA GameData Sheet",
+    by: "minhnim",
     description: "Primary raw game-data sheet used to pull translated website data for jobs, equipment, monsters, conquest, items, and more.",
     href: "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/edit",
   },
@@ -152,6 +153,11 @@ function CreditsDialog({ open, onClose }: { open: boolean; onClose: () => void }
                 <div className="flex items-center gap-2 font-medium text-foreground">
                   <BookOpen className="w-4 h-4 text-primary" />
                   {source.label}
+                  {"by" in source && source.by && (
+                    <span className="ml-1 text-[11px] font-normal text-muted-foreground border border-border rounded px-1.5 py-0.5">
+                      by {source.by}
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   {source.description}

@@ -953,6 +953,13 @@ export default function WorldMapPage() {
         <span className="rounded-full border px-3 py-1 text-xs font-medium">Experimental</span>
       </div>
 
+      <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+        Map data pulled from{" "}
+        <a href="https://docs.google.com/spreadsheets/d/1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A/edit?gid=1473922384#gid=1473922384" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">Map full</a>
+        {" "}by minhnim (Kingdom Adventures EN Sheet) · terrain from{" "}
+        <a href="https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/edit?gid=1631803140#gid=1631803140" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">KA GameData</a>
+      </p>
+
       {!cleanMode && (
         <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
           <CardContent className="p-4 space-y-4">
