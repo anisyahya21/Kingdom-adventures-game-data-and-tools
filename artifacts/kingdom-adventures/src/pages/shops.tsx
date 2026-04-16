@@ -21,6 +21,7 @@ import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS, type ShopRecord, type ShopSlug, type ShopBuilding, type ShopFacility } from "@/lib/shop-utils";
 import { MaterialIcon } from "@/lib/material-icons";
 import { FACILITIES } from "./houses";
+import { FacilityCard } from "./houses";
 
 type EquipmentSlot = "Head" | "Weapon" | "Shield" | "Armor" | "Accessory" | "-";
 type EquipmentRow = {
@@ -412,89 +413,7 @@ function formatUpgTime(seconds: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-function FacilityCard({ f }: { f: FacilityCard }) {
-  const [level, setLevel] = useState(0);
-  const MAX_LEVEL = 99;
-
-  function interp(lv1: number, maxV: number) {
-    if (lv1 === 0 && maxV === 0) return 0;
-    return lv1 + Math.floor((maxV - lv1) * level / MAX_LEVEL);
-  }
-
-  const costs = [
-    { matId: 0, style: "outlined" as const, v: interp(facility.upgGrass,  facility.maxUpgGrass)  },
-    { matId: 1, style: "flat"     as const, v: interp(facility.upgWood,   facility.maxUpgWood)   },
-    { matId: 2, style: "flat"     as const, v: interp(facility.upgFood,   facility.maxUpgFood)   },
-    { matId: 3, style: "crystal"  as const, v: interp(facility.upgOre,    facility.maxUpgOre)    },
-    { matId: 4, style: "flat"     as const, v: interp(facility.upgMystic, facility.maxUpgMystic) },
-  ].filter(c => c.v > 0);
-
-  const minTime = 120;
-  const maxTime = 129600;
-  const upgTime = Math.round(minTime + (maxTime - minTime) * level / MAX_LEVEL);
-
-  const N = level + 1;
-  const q = Math.max(1, Math.floor(N / 3));
-  const items = WORKBENCH_ITEMS.map(([name, ratio]) => ({ name, qty: q * ratio }));
-
-  return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-2 pt-4 px-4">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-semibold leading-tight">{facility.name}</CardTitle>
-          <Badge variant="outline" className="text-[10px] shrink-0 bg-violet-500/10 text-violet-700 border-violet-500/30 dark:text-violet-300">
-            Indoors
-          </Badge>
-        </div>
-        <div className="flex flex-wrap gap-1 mt-1">
-          <Badge variant="outline" className="text-[10px] tabular-nums font-mono">{facility.size}</Badge>
-          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300">Upgradeable</Badge>
-          <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-300">🛒 More items available</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-2">
-        <div className="space-y-1 border-t border-border pt-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium">
-              Upgrade cost (Lv. {level + 1}→{level + 2})
-            </p>
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={() => setLevel(l => Math.max(0, l - 1))}
-                disabled={level === 0}
-                className="w-5 h-5 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >-</button>
-              <span className="text-xs tabular-nums w-7 text-center font-medium">{level + 1}</span>
-              <button
-                onClick={() => setLevel(l => Math.min(MAX_LEVEL, l + 1))}
-                disabled={level === MAX_LEVEL}
-                className="w-5 h-5 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >+</button>
-            </div>
-          </div>
-          {costs.length === 0 ? (
-            <span className="text-[11px] text-muted-foreground italic">Free</span>
-          ) : (
-            <div className="flex flex-wrap gap-2 items-center">
-              {costs.map(c => (
-                <span key={c.matId} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <MaterialIcon id={c.matId} style={c.style} size={18} />
-                  {c.v}
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-            {items.map(({ name, qty }) => (
-              <span key={name} className="text-xs text-muted-foreground">{qty}× {name}</span>
-            ))}
-          </div>
-          <p className="text-xs font-medium text-amber-600 dark:text-amber-400">⏱ {formatUpgTime(upgTime)}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+// FacilityCard is now imported from houses.tsx and should not be redefined here.
 
 
 
