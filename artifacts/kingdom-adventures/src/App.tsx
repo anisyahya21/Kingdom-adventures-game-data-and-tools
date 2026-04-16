@@ -19,6 +19,8 @@ import EggsPage from "@/pages/eggs";
 import ShopsPage from "@/pages/shops";
 import SyncDevicesPage from "@/pages/sync-devices";
 import WorldMapPage from "@/pages/world-map";
+import HousesPage from "@/pages/houses";
+import TownRankPage from "@/pages/town-rank";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
 
@@ -143,6 +145,8 @@ function SiteHeader() {
     { href: "/loadout", label: "Loadout" },
     { href: "/sync-devices", label: "Sync Devices" },
     { href: "/world-map", label: "World Map", beta: true },
+    { href: "/houses", label: "Houses" },
+    { href: "/town-rank", label: "Town Rank" },
   ];
 
   return (
@@ -273,6 +277,8 @@ function Router() {
       <Route path="/shops/:slug" component={ShopsPage} />
       <Route path="/sync-devices" component={SyncDevicesPage} />
       <Route path="/world-map" component={WorldMapPage} />
+      <Route path="/houses" component={HousesPage} />
+      <Route path="/town-rank" component={TownRankPage} />
       <Route component={NotFound} />
     </Switch>
   );

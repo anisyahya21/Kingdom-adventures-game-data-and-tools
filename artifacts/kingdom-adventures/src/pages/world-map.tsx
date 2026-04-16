@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -11,12 +11,79 @@ type TerrainType =
   | "snow"
   | "ground";
 
-type ToolType = "none" | "poi_outline" | "reclaim" | "deploy" | "road";
+type SurveyCategory = "storehouse" | "chaos_stone" | "cash_register" | "dragon_taming";
+type SurveyDef = {
+  id: number; name: string; terrainId: number; minLevel: number;
+  minCost: number; maxCost: number; minHearts: number; maxHearts: number;
+  minRate: number; maxRate: number; minTimeSec: number; maxTimeSec: number;
+  category: SurveyCategory;
+};
+
+// CSV terrain numeric ID → map TerrainType (-1 = any land)
+const SURVEY_TERRAIN_MAP: Partial<Record<number, TerrainType>> = {
+  1: "grass", 2: "grass", 3: "rock", 4: "sand", 5: "snow", 6: "swamp", 7: "volcano", 15: "ground",
+};
+const SURVEY_CAT_COLORS: Record<SurveyCategory, string> = {
+  storehouse: "#3b82f6", chaos_stone: "#a855f7", cash_register: "#f59e0b", dragon_taming: "#ef4444",
+};
+const SURVEY_CAT_LABELS: Record<SurveyCategory, string> = {
+  storehouse: "S", chaos_stone: "C", cash_register: "$", dragon_taming: "D",
+};
+const SURVEY_CAT_NAMES: Record<SurveyCategory, string> = {
+  storehouse: "Storehouse Blueprint", chaos_stone: "Chaos Stone", cash_register: "Cash Register", dragon_taming: "Dragon Taming",
+};
+
+const SURVEY_DEFS: SurveyDef[] = [
+  // ── Storehouses tier 1 (minLevel 45) ───────────────────────────────────────
+  { id:0,  name:"Storehouse Grass Bp",    terrainId:2,  minLevel:45, minCost:0, maxCost:12, minHearts:72,  maxHearts:822,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
+  { id:1,  name:"Storehouse Wood Bp",     terrainId:4,  minLevel:45, minCost:0, maxCost:12, minHearts:72,  maxHearts:822,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
+  { id:2,  name:"Storehouse Food Bp",     terrainId:15, minLevel:45, minCost:0, maxCost:12, minHearts:90,  maxHearts:840,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
+  { id:3,  name:"Storehouse Iron Bp",     terrainId:3,  minLevel:45, minCost:0, maxCost:12, minHearts:78,  maxHearts:828,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
+  { id:4,  name:"Storehouse Magic Bp",    terrainId:7,  minLevel:45, minCost:0, maxCost:12, minHearts:81,  maxHearts:831,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
+  { id:5,  name:"Storehouse Stamina Bp",  terrainId:6,  minLevel:45, minCost:0, maxCost:12, minHearts:79,  maxHearts:829,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
+  { id:6,  name:"Storehouse Treasure Bp", terrainId:5,  minLevel:45, minCost:0, maxCost:12, minHearts:74,  maxHearts:824,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
+  { id:7,  name:"Storehouse Items Bp",    terrainId:1,  minLevel:45, minCost:0, maxCost:12, minHearts:74,  maxHearts:824,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
+  { id:8,  name:"Storehouse Eggs Bp",     terrainId:2,  minLevel:45, minCost:0, maxCost:12, minHearts:74,  maxHearts:824,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
+  // ── Storehouses tier 2 (minLevel 60) ───────────────────────────────────────
+  { id:11, name:"Storehouse Grass Bp T2",    terrainId:6,  minLevel:60, minCost:2, maxCost:48, minHearts:257, maxHearts:1007, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:12, name:"Storehouse Wood Bp T2",     terrainId:2,  minLevel:60, minCost:2, maxCost:48, minHearts:282, maxHearts:1032, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:13, name:"Storehouse Food Bp T2",     terrainId:4,  minLevel:60, minCost:2, maxCost:48, minHearts:260, maxHearts:1010, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:14, name:"Storehouse Iron Bp T2",     terrainId:15, minLevel:60, minCost:2, maxCost:48, minHearts:270, maxHearts:1020, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:15, name:"Storehouse Magic Bp T2",    terrainId:3,  minLevel:60, minCost:2, maxCost:48, minHearts:262, maxHearts:1012, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:16, name:"Storehouse Stamina Bp T2",  terrainId:7,  minLevel:60, minCost:2, maxCost:48, minHearts:247, maxHearts:997,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:17, name:"Storehouse Treasure Bp T2", terrainId:1,  minLevel:60, minCost:2, maxCost:48, minHearts:287, maxHearts:1037, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:18, name:"Storehouse Items Bp T2",    terrainId:3,  minLevel:60, minCost:2, maxCost:48, minHearts:272, maxHearts:1022, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:19, name:"Storehouse Eggs Bp T2",     terrainId:1,  minLevel:60, minCost:2, maxCost:48, minHearts:247, maxHearts:997,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  // ── Storehouses tier 3 (minLevel 90) ───────────────────────────────────────
+  { id:22, name:"Storehouse Grass Bp T3",    terrainId:3,  minLevel:90, minCost:3, maxCost:80, minHearts:580, maxHearts:1330, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:23, name:"Storehouse Wood Bp T3",     terrainId:5,  minLevel:90, minCost:3, maxCost:80, minHearts:530, maxHearts:1280, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:24, name:"Storehouse Food Bp T3",     terrainId:2,  minLevel:90, minCost:3, maxCost:80, minHearts:480, maxHearts:1230, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:25, name:"Storehouse Iron Bp T3",     terrainId:4,  minLevel:90, minCost:3, maxCost:80, minHearts:590, maxHearts:1340, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:26, name:"Storehouse Magic Bp T3",    terrainId:15, minLevel:90, minCost:3, maxCost:80, minHearts:580, maxHearts:1330, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:27, name:"Storehouse Stamina Bp T3",  terrainId:3,  minLevel:90, minCost:3, maxCost:80, minHearts:480, maxHearts:1230, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:28, name:"Storehouse Treasure Bp T3", terrainId:7,  minLevel:90, minCost:3, maxCost:80, minHearts:555, maxHearts:1305, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:29, name:"Storehouse Items Bp T3",    terrainId:6,  minLevel:90, minCost:3, maxCost:80, minHearts:480, maxHearts:1230, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  { id:30, name:"Storehouse Eggs Bp T3",     terrainId:5,  minLevel:90, minCost:3, maxCost:80, minHearts:550, maxHearts:1300, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
+  // ── Chaos Stone ─────────────────────────────────────────────────────────────
+  { id:10, name:"Chaos Stone T1", terrainId:-1, minLevel:45, minCost:0, maxCost:8,  minHearts:87,  maxHearts:837,  minRate:10, maxRate:75, minTimeSec:3600, maxTimeSec:60,    category:"chaos_stone" },
+  { id:21, name:"Chaos Stone T2", terrainId:-1, minLevel:60, minCost:2, maxCost:24, minHearts:257, maxHearts:1007, minRate:10, maxRate:75, minTimeSec:3600, maxTimeSec:14400, category:"chaos_stone" },
+  { id:32, name:"Chaos Stone T3", terrainId:-1, minLevel:90, minCost:3, maxCost:32, minHearts:515, maxHearts:1265, minRate:10, maxRate:75, minTimeSec:3600, maxTimeSec:14400, category:"chaos_stone" },
+  // ── Cash Register ───────────────────────────────────────────────────────────
+  { id:77, name:"Cash Register (Med)",  terrainId:-1, minLevel:30,  minCost:1, maxCost:24, minHearts:240, maxHearts:990,  minRate:10, maxRate:85, minTimeSec:3600, maxTimeSec:14400, category:"cash_register" },
+  { id:76, name:"Cash Register (Easy)", terrainId:-1, minLevel:120, minCost:0, maxCost:8,  minHearts:75,  maxHearts:825,  minRate:10, maxRate:80, minTimeSec:3600, maxTimeSec:14400, category:"cash_register" },
+  { id:78, name:"Cash Register (Hard)", terrainId:-1, minLevel:200, minCost:2, maxCost:48, minHearts:450, maxHearts:1200, minRate:10, maxRate:90, minTimeSec:3600, maxTimeSec:14400, category:"cash_register" },
+  // ── Dragon Taming ───────────────────────────────────────────────────────────
+  { id:80, name:"Dragon Taming (Swamp)", terrainId:6, minLevel:70,  minCost:5, maxCost:24, minHearts:425, maxHearts:1175, minRate:1, maxRate:70, minTimeSec:3600, maxTimeSec:14400, category:"dragon_taming" },
+  { id:79, name:"Dragon Taming (Rock)",  terrainId:3, minLevel:80,  minCost:4, maxCost:20, minHearts:350, maxHearts:1100, minRate:1, maxRate:70, minTimeSec:3600, maxTimeSec:14400, category:"dragon_taming" },
+  { id:81, name:"Dragon Taming (Snow)",  terrainId:5, minLevel:500, minCost:6, maxCost:56, minHearts:500, maxHearts:1250, minRate:1, maxRate:70, minTimeSec:3600, maxTimeSec:14400, category:"dragon_taming" },
+];
+
+type ToolType = "none" | "pen" | "draw_area" | "reclaim" | "deploy" | "road";
 type BrushSize = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
-type DeploymentSize = 1 | 2 | 3 | 4 | 5 | 6;
+type DeploymentSize = 2 | 3 | 4 | 5 | 6;
 type PaintMode = "mark" | "erase";
 type ReclaimMode = "reclaim" | "restore";
-type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water";
+type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water" | "facilities";
 
 type NativeCell = {
   terrain: TerrainType;
@@ -38,6 +105,7 @@ type HistoryState = {
   reclaimed: string[];
   deployed: string[];
   roads: string[];
+  penned: Array<{ k: string; c: string }>;
 };
 
 const TERRAIN_COLORS: Record<TerrainType, string> = {
@@ -50,16 +118,44 @@ const TERRAIN_COLORS: Record<TerrainType, string> = {
   ground: "#c89a00",
 };
 
-const ROAD_COLOR = "rgba(217, 70, 239, 0.45)";
-const ROAD_BORDER = "rgba(217, 70, 239, 0.95)";
+const ROAD_COLOR = "rgba(100, 116, 139, 0.72)";
+const ROAD_BORDER = "rgba(148, 163, 184, 0.95)";
 const DEPLOY_FILL = "rgba(34, 211, 238, 0.24)";
 const DEPLOY_BORDER = "rgba(34, 211, 238, 0.98)";
 const OUTLINE_BORDER = "#2563eb";
 const PREVIEW_ORANGE = "rgba(251,146,60,0.95)";
 const DEFAULT_TILE_SIZE = 6;
-const MIN_TILE_SIZE = 2;
+const MIN_TILE_SIZE = 5;
+const MIN_TILE_SIZE_FULLSCREEN_FILL = true; // enforce fill-screen minimum when fullscreen
 const MAX_TILE_SIZE = 24;
 const STORAGE_PREFIX = "ka-world-map-v6";
+
+// Map facilities: unlocked by clearing a zone with the matching level
+const MAP_FACILITY_UNLOCKS: { name: string; level: number }[] = [
+  { name: "Ranking Board",         level: 2 },
+  { name: "Trophy Room",           level: 3 },
+  { name: "Briefing Room",         level: 5 },
+  { name: "Port",                  level: 7 },
+  { name: "Cabin",                 level: 8 },
+  { name: "Friend Post Office",    level: 10 },
+  { name: "Material Shop",         level: 10 },
+  { name: "Master Smithy",         level: 11 },
+  { name: "Monster Farm",          level: 14 },
+  { name: "Underground Arena",     level: 20 },
+  { name: "Treasure Room",         level: 21 },
+  { name: "Weekly Conquest Bonus", level: 22 },
+  { name: "Movers",                level: 23 },
+  { name: "Friends Agency",        level: 30 },
+  { name: "Equipment Exchange",    level: 34 },
+  { name: "Job Center",            level: 35 },
+  { name: "Trading Post",          level: 40 },
+  { name: "Instructor's Room",     level: 41 },
+  { name: "Port",                  level: 44 },
+  { name: "Monster Fusion Lab",    level: 45 },
+  { name: "Kairo Room",            level: 58 },
+  { name: "Legendary Cave",        level: 120 },
+  { name: "Date Spot",             level: 135 },
+];
 
 const NATIVE_MAP: NativeCell[][] = [
   [{ terrain: "volcano", level: 9999 }, { terrain: "volcano", level: 4800 }, { terrain: "snow", level: 6000 }, { terrain: "snow", level: 2400 }, { terrain: "swamp", level: 5100 }, { terrain: "swamp", level: 1100 }, { terrain: "swamp", level: 888 }, { terrain: "swamp", level: 1020 }, { terrain: "swamp", level: 1600 }, { terrain: "swamp", level: 3200 }],
@@ -73,6 +169,39 @@ const NATIVE_MAP: NativeCell[][] = [
   [{ terrain: "grass", level: 454 }, { terrain: "grass", level: 62 }, { terrain: "grass", level: 33 }, { terrain: "grass", level: 24 }, { terrain: "grass", level: 18 }, { terrain: "grass", level: 11 }, { terrain: "grass", level: 2 }, { terrain: "grass", level: 2 }, { terrain: "ground", level: 1 }, { terrain: "ground", level: 1 }],
   [{ terrain: "grass", level: 777 }, { terrain: "grass", level: 74 }, { terrain: "grass", level: 50 }, { terrain: "grass", level: 48 }, { terrain: "grass", level: 21 }, { terrain: "grass", level: 15 }, { terrain: "grass", level: 5 }, { terrain: "grass", level: 2 }, { terrain: "ground", level: 1 }, { terrain: "ground", level: 1 }]
 ];
+
+// Precompute which facility names belong to each zone (nx,ny).
+// When multiple zones share the same mapUnlock level, facilities are distributed
+// one-to-one across those zones (sorted left-to-right by nx, then ny).
+const ZONE_FACILITY_NAMES: Map<string, string[]> = (() => {
+  const zonesByLevel = new Map<number, { nx: number; ny: number }[]>();
+  for (let ny = 0; ny < 10; ny++) {
+    for (let nx = 0; nx < 10; nx++) {
+      const lv = NATIVE_MAP[ny]?.[nx]?.level;
+      if (lv == null) continue;
+      if (!zonesByLevel.has(lv)) zonesByLevel.set(lv, []);
+      zonesByLevel.get(lv)!.push({ nx, ny });
+    }
+  }
+  const result = new Map<string, string[]>();
+  // Group facilities by level, keeping insertion order
+  const facsByLevel = new Map<number, string[]>();
+  for (const f of MAP_FACILITY_UNLOCKS) {
+    if (!facsByLevel.has(f.level)) facsByLevel.set(f.level, []);
+    facsByLevel.get(f.level)!.push(f.name);
+  }
+  for (const [lv, names] of facsByLevel) {
+    const zones = (zonesByLevel.get(lv) ?? []).slice().sort((a, b) => a.nx - b.nx || a.ny - b.ny);
+    names.forEach((name, i) => {
+      const zone = zones[i % zones.length];
+      if (!zone) return;
+      const key = `${zone.nx},${zone.ny}`;
+      if (!result.has(key)) result.set(key, []);
+      result.get(key)!.push(name);
+    });
+  }
+  return result;
+})();
 
 const FULL_MASK: string[] = [
   "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
@@ -216,12 +345,13 @@ function setToSortedArray(values: Set<string>) {
   return Array.from(values).sort();
 }
 
-function encodeState(outlinedTiles: Set<string>, reclaimedTiles: Set<string>, deployedTiles: Set<string>, roadTiles: Set<string>) {
+function encodeState(outlinedTiles: Set<string>, reclaimedTiles: Set<string>, deployedTiles: Set<string>, roadTiles: Set<string>, penTiles: Map<string, string>) {
   return `KAWM2:${btoa(JSON.stringify({
     o: setToSortedArray(outlinedTiles),
     r: setToSortedArray(reclaimedTiles),
     d: setToSortedArray(deployedTiles),
     roads: setToSortedArray(roadTiles),
+    p: Array.from(penTiles.entries()).map(([k, c]) => ({ k, c })),
   }))}`;
 }
 
@@ -237,6 +367,9 @@ function decodeState(text: string) {
     reclaimed: arrayToSet(parsed?.r),
     deployed: arrayToSet(parsed?.d),
     roads: arrayToSet(parsed?.roads),
+    penned: Array.isArray(parsed?.p)
+      ? (parsed.p as any[]).filter((e) => e && typeof e.k === "string" && typeof e.c === "string")
+      : [],
   };
 }
 
@@ -308,12 +441,13 @@ function getDiamondCoordinates(centerX: number, centerY: number, radius: number,
   return coords;
 }
 
-function snapshot(outlined: Set<string>, reclaimed: Set<string>, deployed: Set<string>, roads: Set<string>): HistoryState {
+function snapshot(outlined: Set<string>, reclaimed: Set<string>, deployed: Set<string>, roads: Set<string>, penned: Map<string, string>): HistoryState {
   return {
     outlined: setToSortedArray(outlined),
     reclaimed: setToSortedArray(reclaimed),
     deployed: setToSortedArray(deployed),
     roads: setToSortedArray(roads),
+    penned: Array.from(penned.entries()).map(([k, c]) => ({ k, c })),
   };
 }
 
@@ -323,35 +457,62 @@ function restoreSnapshot(state: HistoryState) {
     reclaimed: new Set(state.reclaimed),
     deployed: new Set(state.deployed),
     roads: new Set(state.roads),
+    penned: new Map((state.penned ?? []).map((e) => [e.k, e.c])),
   };
-}
-
-function playSoftTick(enabled: boolean) {
-  if (!enabled || typeof window === "undefined") return;
-  try {
-    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.value = 540;
-    gain.gain.value = 0.012;
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.03);
-  } catch {}
 }
 
 function toggleTool(current: ToolType, next: ToolType) {
   return current === next ? "none" : next;
 }
 
+const BRUSH_COLORS = [
+  { label: "Blue (POI)", value: "#2563eb" },
+  { label: "Purple (Road)", value: "#d946ef" },
+  { label: "Cyan (Deploy)", value: "#22d3ee" },
+  { label: "Red", value: "#ef4444" },
+  { label: "Orange", value: "#fb923c" },
+  { label: "Green", value: "#22c55e" },
+  { label: "Yellow", value: "#facc15" },
+  { label: "White", value: "#ffffff" },
+  { label: "Pink", value: "#f472b6" },
+];
+
+const BubbleIconPen = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+  </svg>
+);
+const BubbleIconDrawArea = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <path d="M9 3v18M15 3v18M3 9h18M3 15h18" strokeOpacity="0.5" strokeWidth="1"/>
+  </svg>
+);
+const BubbleIconEraser = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 20H7L3 16l11-11 6 6-3 3"/>
+    <path d="M6.0 20l3-3"/>
+  </svg>
+);
+const BubbleIconRoad = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 21 8 3"/>
+    <path d="M20 21 16 3"/>
+    <path d="M12 8v2"/>
+    <path d="M12 14v2"/>
+  </svg>
+);
+const BubbleIconCursor = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 4l6 18 3-7 7-3L4 4z"/>
+  </svg>
+);
+
 export default function WorldMapPage() {
   const [touchMode, setTouchMode] = useState(false);
   const [activeTool, setActiveTool] = useState<ToolType>("none");
   const [brushSize, setBrushSize] = useState<BrushSize>(1);
+  const [eraserSize, setEraserSize] = useState<BrushSize>(1);
   const [paintMode, setPaintMode] = useState<PaintMode>("mark");
   const [reclaimMode, setReclaimMode] = useState<ReclaimMode>("reclaim");
   const [deploymentSize, setDeploymentSize] = useState<DeploymentSize>(2);
@@ -359,15 +520,20 @@ export default function WorldMapPage() {
   const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
   const [hoveredTile, setHoveredTile] = useState<Tile | null>(null);
   const [outlinedTiles, setOutlinedTiles] = useState<Set<string>>(() => new Set());
+  const [penTiles, setPenTiles] = useState<Map<string, string>>(() => new Map());
   const [reclaimedTiles, setReclaimedTiles] = useState<Set<string>>(() => new Set());
   const [deployedTiles, setDeployedTiles] = useState<Set<string>>(() => new Set());
   const [roadTiles, setRoadTiles] = useState<Set<string>>(() => new Set());
   const [isPainting, setIsPainting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [soundOn, setSoundOn] = useState(false);
   const [cleanMode, setCleanMode] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showMinimap, setShowMinimap] = useState(true);
+  const [minimapCollapsed, setMinimapCollapsed] = useState(false);
   const [minimapCorner, setMinimapCorner] = useState<"left" | "right">("left");
+  const [penColor, setPenColor] = useState(BRUSH_COLORS[0].value);
+  const [drawAreaColor, setDrawAreaColor] = useState(BRUSH_COLORS[0].value);
+  const [recentColors, setRecentColors] = useState<string[]>([]);
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({
     levels: false,
     poi: true,
@@ -376,27 +542,116 @@ export default function WorldMapPage() {
     grid: true,
     roads: true,
     water: true,
+    facilities: false,
   });
   const [historyPast, setHistoryPast] = useState<HistoryState[]>([]);
   const [historyFuture, setHistoryFuture] = useState<HistoryState[]>([]);
   const [isPanning, setIsPanning] = useState(false);
+  const [roadSnapPreview, setRoadSnapPreview] = useState<Set<string>>(new Set());
+  const [drawBubbleOpen, setDrawBubbleOpen] = useState(false);
+  const [drawBubblePos, setDrawBubblePos] = useState({ x: 16, y: 220 });
+  const [showSurveys, setShowSurveys] = useState(false);
+  const [visibleSurveyCats, setVisibleSurveyCats] = useState<Set<SurveyCategory>>(
+    new Set(["storehouse", "chaos_stone", "cash_register", "dragon_taming"])
+  );
+  const [surveyTooltip, setSurveyTooltip] = useState<{ x: number; y: number; items: SurveyDef[] } | null>(null);
+  const [layersDropdownOpen, setLayersDropdownOpen] = useState(false);
+  const [surveysDropdownOpen, setSurveysDropdownOpen] = useState(false);
 
   const viewportRef = useRef<HTMLDivElement>(null);
+  const mapGridRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const lastPaintedKeysRef = useRef<Set<string>>(new Set());
+  const lastTileRef = useRef<Tile | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const minimapCanvasRef = useRef<HTMLCanvasElement>(null);
+  const activePaintPointersRef = useRef<Set<number>>(new Set());
+  const roadSnapStartRef = useRef<{ x: number; y: number } | null>(null);
+  const roadSnapPreviewRef = useRef<Set<string>>(new Set());
+  const activeToolRef = useRef(activeTool);
+  const paintModeRef = useRef(paintMode);
+  const drawBubbleDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
+  const minimapBubbleDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
+  const spaceDownRef = useRef(false);
+  const pendingPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const [minimapBubblePos, setMinimapBubblePos] = useState({ x: 12, y: 12 });
+
+  const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
+  useEffect(() => { paintModeRef.current = paintMode; }, [paintMode]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code === "Space" && !e.repeat && (e.target as HTMLElement).tagName !== "INPUT" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
+        e.preventDefault();
+        spaceDownRef.current = true;
+        if (viewportRef.current) viewportRef.current.style.cursor = "grab";
+      }
+    }
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.code === "Space") {
+        spaceDownRef.current = false;
+        if (viewportRef.current) viewportRef.current.style.cursor = "";
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); };
+  }, []);
+
+  useEffect(() => {
+    function onShortcutKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.code === "Space") return; // handled by space+drag effect
+      // Ctrl/Cmd shortcuts
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ" && !e.shiftKey) {
+        e.preventDefault(); undoRedoRef.current.undo(); return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.code === "KeyY" || (e.code === "KeyZ" && e.shiftKey))) {
+        e.preventDefault(); undoRedoRef.current.redo(); return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.code === "KeyP") { setActiveTool("pen"); setPaintMode("mark"); }
+      if (e.code === "KeyD") { setActiveTool("draw_area"); setPaintMode("mark"); setBrushSize((prev) => Math.max(2, prev) as BrushSize); }
+      if (e.code === "KeyR") { setActiveTool("road"); setPaintMode("mark"); }
+      if (e.code === "KeyE") { setPaintMode((prev) => prev === "erase" ? "mark" : "erase"); }
+      if (e.code === "Escape") { setActiveTool("none"); }
+      if (e.code === "BracketLeft") {
+        if (paintModeRef.current === "erase") setEraserSize((prev) => Math.max(1, prev - 1) as BrushSize);
+        else setBrushSize((prev) => Math.max(1, prev - 1) as BrushSize);
+      }
+      if (e.code === "BracketRight") {
+        if (paintModeRef.current === "erase") setEraserSize((prev) => Math.min(10, prev + 1) as BrushSize);
+        else setBrushSize((prev) => Math.min(10, prev + 1) as BrushSize);
+      }
+    }
+    window.addEventListener("keydown", onShortcutKey);
+    return () => window.removeEventListener("keydown", onShortcutKey);
+  }, []);
+
+  useEffect(() => {
+    function onClickOutside() {
+      setLayersDropdownOpen(false);
+      setSurveysDropdownOpen(false);
+    }
+    document.addEventListener("click", onClickOutside);
+    return () => document.removeEventListener("click", onClickOutside);
+  }, []);
+
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
 
   useEffect(() => {
     setTouchMode(isTouchDevice());
   }, []);
-
-  useEffect(() => {
-    const savedSound = localStorage.getItem(`${STORAGE_PREFIX}:sound`);
-    if (savedSound === "1") setSoundOn(true);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}:sound`, soundOn ? "1" : "0");
-  }, [soundOn]);
 
   useEffect(() => {
     if (!notice) return;
@@ -406,8 +661,24 @@ export default function WorldMapPage() {
 
   useEffect(() => {
     function stopPainting() {
+      // Commit road snap on release
+      if (activeToolRef.current === "road" && paintModeRef.current === "mark") {
+        const keys = roadSnapPreviewRef.current;
+        if (keys.size > 0) {
+          setRoadTiles((prev) => {
+            const next = new Set(prev);
+            keys.forEach((k) => next.add(k));
+            return next;
+          });
+        }
+      }
+      roadSnapStartRef.current = null;
+      roadSnapPreviewRef.current = new Set();
+      setRoadSnapPreview(new Set());
       setIsPainting(false);
       lastPaintedKeysRef.current = new Set();
+      lastTileRef.current = null;
+      activePaintPointersRef.current = new Set();
     }
     function stopPanning() {
       setIsPanning(false);
@@ -415,11 +686,13 @@ export default function WorldMapPage() {
     }
     window.addEventListener("mouseup", stopPainting);
     window.addEventListener("pointerup", stopPainting);
+    window.addEventListener("pointercancel", stopPainting);
     window.addEventListener("mouseup", stopPanning);
     window.addEventListener("pointerup", stopPanning);
     return () => {
       window.removeEventListener("mouseup", stopPainting);
       window.removeEventListener("pointerup", stopPainting);
+      window.removeEventListener("pointercancel", stopPainting);
       window.removeEventListener("mouseup", stopPanning);
       window.removeEventListener("pointerup", stopPanning);
     };
@@ -464,7 +737,7 @@ export default function WorldMapPage() {
       const tile = grid.get(key);
       if (!tile) return;
       if (!isLand(tile)) return;
-      const label = `${tile.terrain} • Lv.${tile.level}`;
+      const label = `${tile.terrain} â€¢ Lv.${tile.level}`;
       counts.set(label, (counts.get(label) ?? 0) + 1);
     });
     return Array.from(counts.entries())
@@ -482,14 +755,21 @@ export default function WorldMapPage() {
     waterBorder: "rgba(255,255,255,0.10)",
   };
   const brushOptions: BrushSize[] = [1,2,3,4,5,6,7,8,9,10];
-  const deploymentOptions: DeploymentSize[] = [1,2,3,4,5,6];
-  const layerOrder: LayerKey[] = ["levels","poi","deployments","reclaimed","grid","roads"];
+  const drawAreaBrushOptions: BrushSize[] = [2,3,4,5,6,7,8,9,10];
+  const deploymentOptions: DeploymentSize[] = [2,3,4,5,6];
+  const layerOrder: LayerKey[] = ["levels","facilities","poi","deployments","reclaimed","grid","roads"];
 
   const previewKeys = useMemo(() => {
+    // Road snap preview is handled separately via roadSnapPreview state
+    if (activeTool === "road" && paintMode === "mark") {
+      return roadSnapPreview;
+    }
     if (!hoveredTile || activeTool === "none") return new Set<string>();
     const coords =
       activeTool === "deploy"
         ? getDiamondCoordinates(hoveredTile.x, hoveredTile.y, deploymentSize, cols, rows)
+        : activeTool === "pen"
+        ? getCenteredSquareCoordinates(hoveredTile.x, hoveredTile.y, paintMode === "erase" ? eraserSize : 1, cols, rows)
         : getCenteredSquareCoordinates(hoveredTile.x, hoveredTile.y, brushSize, cols, rows);
 
     const next = new Set<string>();
@@ -501,10 +781,11 @@ export default function WorldMapPage() {
         next.add(key);
         return;
       }
+      if (activeTool === "pen") { next.add(key); return; } // pen works on all tiles
       if (isLand(tile)) next.add(key);
     });
     return next;
-  }, [hoveredTile, activeTool, deploymentSize, brushSize, cols, rows, grid, reclaimedTiles]);
+  }, [hoveredTile, activeTool, paintMode, deploymentSize, brushSize, eraserSize, cols, rows, grid, reclaimedTiles, roadSnapPreview]);
 
   const previewStats = useMemo(() => {
     if (!hoveredTile || activeTool !== "deploy") return null;
@@ -524,7 +805,7 @@ export default function WorldMapPage() {
   }
 
   function pushHistory() {
-    setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles)]);
+    setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles)]);
     setHistoryFuture([]);
   }
 
@@ -534,13 +815,14 @@ export default function WorldMapPage() {
     setReclaimedTiles(restored.reclaimed);
     setDeployedTiles(restored.deployed);
     setRoadTiles(restored.roads);
+    setPenTiles(restored.penned);
   }
 
   function undo() {
     if (!historyPast.length) return;
     const previous = historyPast[historyPast.length - 1];
     setHistoryPast((prev) => prev.slice(0, -1));
-    setHistoryFuture((prev) => [snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles), ...prev].slice(0, 30));
+    setHistoryFuture((prev) => [snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles), ...prev].slice(0, 30));
     restoreSets(previous);
     flashNotice("Undid last change");
   }
@@ -549,13 +831,17 @@ export default function WorldMapPage() {
     if (!historyFuture.length) return;
     const next = historyFuture[0];
     setHistoryFuture((prev) => prev.slice(1));
-    setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles)]);
+    setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles)]);
     restoreSets(next);
     flashNotice("Redid last change");
   }
 
+  // Keep a stable ref to undo/redo so keyboard handler doesn't need re-registration
+  const undoRedoRef = useRef({ undo, redo });
+  undoRedoRef.current = { undo, redo };
+
   function applyPatchToSet(
-    target: "outline" | "reclaim" | "deploy" | "road",
+    target: "outline" | "pen" | "reclaim" | "deploy" | "road",
     coords: Array<[number, number]>,
     mode: "mark" | "erase" | "reclaim" | "restore"
   ) {
@@ -570,6 +856,19 @@ export default function WorldMapPage() {
           const tile = grid.get(key);
           if (!tile || !isLand(tile)) return;
           if (mode === "mark") next.add(key);
+          else next.delete(key);
+        });
+        return next;
+      });
+    }
+
+    if (target === "pen") {
+      setPenTiles((prev) => {
+        const next = new Map(prev);
+        freshKeys.forEach((key) => {
+          const tile = grid.get(key);
+          if (!tile) return;
+          if (mode === "mark") next.set(key, penColor);
           else next.delete(key);
         });
         return next;
@@ -642,9 +941,12 @@ export default function WorldMapPage() {
     const coords =
       activeTool === "deploy"
         ? getDiamondCoordinates(tile.x, tile.y, deploymentSize, cols, rows)
+        : activeTool === "pen"
+        ? getCenteredSquareCoordinates(tile.x, tile.y, paintMode === "erase" ? eraserSize : 1, cols, rows)
         : getCenteredSquareCoordinates(tile.x, tile.y, brushSize, cols, rows);
 
-    if (activeTool === "poi_outline") applyPatchToSet("outline", coords, paintMode);
+    if (activeTool === "pen") applyPatchToSet("pen", coords, paintMode);
+    if (activeTool === "draw_area") applyPatchToSet("outline", coords, paintMode);
     if (activeTool === "reclaim") applyPatchToSet("reclaim", coords, reclaimMode);
     if (activeTool === "deploy") {
       if (paintMode === "erase") {
@@ -663,11 +965,37 @@ export default function WorldMapPage() {
     if (activeTool === "road") applyPatchToSet("road", coords, paintMode);
   }
 
+  function tilesOnLine(x0: number, y0: number, x1: number, y1: number): Array<[number, number]> {
+    const pts: Array<[number, number]> = [];
+    let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy, cx = x0, cy = y0;
+    for (;;) {
+      pts.push([cx, cy]);
+      if (cx === x1 && cy === y1) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) { err += dy; cx += sx; }
+      if (e2 <= dx) { err += dx; cy += sy; }
+    }
+    return pts;
+  }
+
+  function addRecentColor(color: string) {
+    setRecentColors((prev) => [color, ...prev.filter((c) => c !== color)].slice(0, 5));
+  }
+
   function beginPaint(tile: Tile) {
+    // Road+mark is handled at viewport level (for snap), skip here
+    if (activeTool === "road" && paintMode === "mark") {
+      setSelectedTile(tile);
+      return;
+    }
     if (activeTool !== "none") {
+      if (activeTool === "pen" && paintMode === "mark") addRecentColor(penColor);
+      if (activeTool === "draw_area" && paintMode === "mark") addRecentColor(drawAreaColor);
       pushHistory();
-      playSoftTick(soundOn);
       lastPaintedKeysRef.current = new Set();
+      lastTileRef.current = tile;
       setIsPainting(true);
       handleToolAction(tile);
       return;
@@ -676,8 +1004,151 @@ export default function WorldMapPage() {
   }
 
   function continuePaint(tile: Tile) {
-    if (!isPainting || touchMode || activeTool === "none") return;
-    handleToolAction(tile);
+    if (!isPainting || activeTool === "none") return;
+    const last = lastTileRef.current;
+    if (last && (last.x !== tile.x || last.y !== tile.y)) {
+      const pts = tilesOnLine(last.x, last.y, tile.x, tile.y);
+      for (const [x, y] of pts.slice(1)) {
+        const t = grid.get(keyOf(x, y));
+        if (t) handleToolAction(t);
+      }
+    } else {
+      handleToolAction(tile);
+    }
+    lastTileRef.current = tile;
+  }
+
+  function tileAtPointer(clientX: number, clientY: number): Tile | null {
+    const viewport = viewportRef.current;
+    if (!viewport) return null;
+    const rect = viewport.getBoundingClientRect();
+    const offsetX = clientX - rect.left + viewport.scrollLeft - 8;
+    const offsetY = clientY - rect.top + viewport.scrollTop - 8;
+    const tx = Math.floor(offsetX / tileSizeRef.current);
+    const ty = Math.floor(offsetY / tileSizeRef.current);
+    if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) return null;
+    return grid.get(keyOf(tx, ty)) ?? null;
+  }
+
+  function updateRoadSnap(tile: Tile) {
+    const start = roadSnapStartRef.current;
+    if (!start) return;
+    const dx = tile.x - start.x;
+    const dy = tile.y - start.y;
+    const keys = new Set<string>();
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      const minX = Math.min(start.x, tile.x);
+      const maxX = Math.max(start.x, tile.x);
+      for (let x = minX; x <= maxX; x++) keys.add(keyOf(x, start.y));
+    } else {
+      const minY = Math.min(start.y, tile.y);
+      const maxY = Math.max(start.y, tile.y);
+      for (let y = minY; y <= maxY; y++) keys.add(keyOf(start.x, y));
+    }
+    roadSnapPreviewRef.current = keys;
+    setRoadSnapPreview(new Set(keys));
+  }
+
+  function onViewportPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.button === 2) return;
+    if (spaceDownRef.current) return; // space+drag handled by startPan
+    if (activeTool === "none") {
+      // left-click drag pans; click without drag selects tile
+      e.preventDefault();
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+      setIsPanning(true);
+      panStartRef.current = { x: e.clientX, y: e.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
+      return;
+    }
+    const tile = tileAtPointer(e.clientX, e.clientY);
+    if (!tile) return;
+    e.preventDefault();
+    if (activeTool === "road" && paintMode === "mark") {
+      pushHistory();
+      roadSnapStartRef.current = { x: tile.x, y: tile.y };
+      const startKey = keyOf(tile.x, tile.y);
+      roadSnapPreviewRef.current = new Set([startKey]);
+      setRoadSnapPreview(new Set([startKey]));
+      setIsPainting(true);
+    } else {
+      beginPaint(tile);
+    }
+  }
+
+  function onViewportPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    // Pan is synchronous — no RAF throttle
+    if (panStartRef.current && viewportRef.current) {
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      viewportRef.current.scrollLeft = panStartRef.current.left - dx;
+      viewportRef.current.scrollTop = panStartRef.current.top - dy;
+      return;
+    }
+    // Survey pin hover detection
+    if (showSurveys && viewportRef.current) {
+      const vp = viewportRef.current;
+      const rect = vp.getBoundingClientRect();
+      const canvasX = e.clientX - rect.left + vp.scrollLeft - 8;
+      const canvasY = e.clientY - rect.top + vp.scrollTop - 8;
+      const MARGIN = 8;
+      const PIN_R = Math.max(5, Math.min(14, tileSize * 1.6));
+      let found: SurveyDef[] | null = null;
+      let foundScreenX = 0, foundScreenY = 0;
+      outer: for (let ny = 0; ny < 10; ny++) {
+        for (let nx = 0; nx < 10; nx++) {
+          const native = NATIVE_MAP[ny]?.[nx];
+          if (!native) continue;
+          const matching = SURVEY_DEFS.filter((s) => {
+            if (!visibleSurveyCats.has(s.category)) return false;
+            if (s.terrainId !== -1 && SURVEY_TERRAIN_MAP[s.terrainId] !== native.terrain) return false;
+            return native.level >= s.minLevel;
+          });
+          if (!matching.length) continue;
+          const cats = [...new Set(matching.map((s) => s.category))] as SurveyCategory[];
+          const nCX = Math.floor((Math.floor((nx * cols) / 10) + Math.floor(((nx + 1) * cols) / 10) - 1) / 2);
+          const nCY = Math.floor((Math.floor((ny * rows) / 10) + Math.floor(((ny + 1) * rows) / 10) - 1) / 2);
+          const baseX = nCX * tileSize + MARGIN + tileSize / 2;
+          const baseY = nCY * tileSize + MARGIN + tileSize / 2;
+          const spacing = PIN_R * 2.2;
+          const totalW = (cats.length - 1) * spacing;
+          for (let i = 0; i < cats.length; i++) {
+            const pinX = baseX - totalW / 2 + i * spacing;
+            const pinY = baseY - PIN_R * 3.5;
+            const dist = Math.hypot(canvasX - pinX, canvasY - pinY);
+            if (dist <= PIN_R + 4) {
+              found = matching;
+              foundScreenX = e.clientX;
+              foundScreenY = e.clientY;
+              break outer;
+            }
+          }
+        }
+      }
+      if (found) {
+        setSurveyTooltip({ x: foundScreenX, y: foundScreenY, items: found });
+      } else {
+        setSurveyTooltip(null);
+      }
+    }
+    // Drawing uses RAF throttle
+    pendingPointerRef.current = { x: e.clientX, y: e.clientY };
+    if (rafIdRef.current !== null) return;
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null;
+      const pos = pendingPointerRef.current;
+      if (!pos) return;
+      pendingPointerRef.current = null;
+      const tile = tileAtPointer(pos.x, pos.y);
+      if (!tile) return;
+      setHoveredTile(tile);
+      if (!isPainting) return;
+      if (activeTool === "road" && paintMode === "mark") {
+        updateRoadSnap(tile);
+      } else {
+        continuePaint(tile);
+      }
+    });
   }
 
   function getTileBackground(tile: Tile) {
@@ -694,6 +1165,8 @@ export default function WorldMapPage() {
   function getBoxShadow(tile: Tile) {
     const key = keyOf(tile.x, tile.y);
     const outlined = outlinedTiles.has(key) && layers.poi;
+    const penColor_tile = penTiles.get(key);
+    const penned = !!penColor_tile && layers.poi;
     const deployed = deployedTiles.has(key) && layers.deployments;
     const reclaimed = reclaimedTiles.has(key) && layers.reclaimed;
     const road = roadTiles.has(key) && layers.roads;
@@ -713,19 +1186,25 @@ export default function WorldMapPage() {
     }
 
     if (outlined) {
-      if (!outlinedTiles.has(keyOf(tile.x, tile.y - 1))) parts.push(`inset 0 2px 0 0 ${OUTLINE_BORDER}`);
-      if (!outlinedTiles.has(keyOf(tile.x + 1, tile.y))) parts.push(`inset -2px 0 0 0 ${OUTLINE_BORDER}`);
-      if (!outlinedTiles.has(keyOf(tile.x, tile.y + 1))) parts.push(`inset 0 -2px 0 0 ${OUTLINE_BORDER}`);
-      if (!outlinedTiles.has(keyOf(tile.x - 1, tile.y))) parts.push(`inset 2px 0 0 0 ${OUTLINE_BORDER}`);
+      if (!outlinedTiles.has(keyOf(tile.x, tile.y - 1))) parts.push(`inset 0 2px 0 0 ${drawAreaColor}`);
+      if (!outlinedTiles.has(keyOf(tile.x + 1, tile.y))) parts.push(`inset -2px 0 0 0 ${drawAreaColor}`);
+      if (!outlinedTiles.has(keyOf(tile.x, tile.y + 1))) parts.push(`inset 0 -2px 0 0 ${drawAreaColor}`);
+      if (!outlinedTiles.has(keyOf(tile.x - 1, tile.y))) parts.push(`inset 2px 0 0 0 ${drawAreaColor}`);
+    }
+
+    if (penned) {
+      parts.push(`inset 0 0 0 9999px ${penColor_tile}`);
     }
 
     if (preview) {
-      if (activeTool === "poi_outline") {
+      if (activeTool === "draw_area") {
         parts.push("inset 0 0 0 9999px rgba(251,146,60,0.10)");
         if (!previewKeys.has(keyOf(tile.x, tile.y - 1))) parts.push(`inset 0 2px 0 0 ${PREVIEW_ORANGE}`);
         if (!previewKeys.has(keyOf(tile.x + 1, tile.y))) parts.push(`inset -2px 0 0 0 ${PREVIEW_ORANGE}`);
         if (!previewKeys.has(keyOf(tile.x, tile.y + 1))) parts.push(`inset 0 -2px 0 0 ${PREVIEW_ORANGE}`);
         if (!previewKeys.has(keyOf(tile.x - 1, tile.y))) parts.push(`inset 2px 0 0 0 ${PREVIEW_ORANGE}`);
+      } else if (activeTool === "pen") {
+        parts.push(`inset 0 0 0 9999px ${penColor}88`);
       } else if (activeTool === "deploy") {
         parts.push("inset 0 0 0 9999px rgba(34,211,238,0.12)");
         parts.push(`inset 0 0 0 1px ${DEPLOY_BORDER}`);
@@ -733,7 +1212,7 @@ export default function WorldMapPage() {
         parts.push("inset 0 0 0 9999px rgba(255,255,255,0.12)");
         parts.push("inset 0 0 0 1px rgba(255,255,255,0.92)");
       } else if (activeTool === "road") {
-        parts.push("inset 0 0 0 9999px rgba(217,70,239,0.18)");
+        parts.push("inset 0 0 0 9999px rgba(100,116,139,0.35)");
         parts.push(`inset 0 0 0 1px ${ROAD_BORDER}`);
       }
     }
@@ -747,9 +1226,12 @@ export default function WorldMapPage() {
 
   function getCursor() {
     if (isPanning) return "grabbing";
+    if (spaceDownRef.current) return "grab";
+    if (activeTool === "none") return "grab";
     if (activeTool === "deploy") return "copy";
     if (activeTool === "reclaim") return reclaimMode === "reclaim" ? "cell" : "not-allowed";
-    if (activeTool === "poi_outline") return paintMode === "mark" ? "crosshair" : "alias";
+    if (activeTool === "draw_area") return paintMode === "mark" ? "crosshair" : "alias";
+    if (activeTool === "pen") return paintMode === "mark" ? "crosshair" : "alias";
     if (activeTool === "road") return paintMode === "mark" ? "crosshair" : "alias";
     return "default";
   }
@@ -761,7 +1243,17 @@ export default function WorldMapPage() {
   const tileSizeRef = useRef(tileSize);
   useEffect(() => { tileSizeRef.current = tileSize; }, [tileSize]);
 
-  useEffect(() => {
+  function getMinTileSize() {
+    const vp = viewportRef.current;
+    if (isFullscreen && vp && MIN_TILE_SIZE_FULLSCREEN_FILL) {
+      const fillW = vp.clientWidth / cols;
+      const fillH = vp.clientHeight / rows;
+      return Math.max(MIN_TILE_SIZE, Math.ceil(Math.min(fillW, fillH)));
+    }
+    return MIN_TILE_SIZE;
+  }
+
+  useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     function onWheel(e: WheelEvent) {
@@ -771,7 +1263,7 @@ export default function WorldMapPage() {
       const offsetX = e.clientX - rect.left + viewport!.scrollLeft;
       const offsetY = e.clientY - rect.top + viewport!.scrollTop;
       const zoomFactor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-      const nextTileSize = Math.max(MIN_TILE_SIZE, Math.min(MAX_TILE_SIZE, currentSize * zoomFactor));
+      const nextTileSize = Math.max(getMinTileSize(), Math.min(MAX_TILE_SIZE, currentSize * zoomFactor));
       if (nextTileSize === currentSize) return;
       const scale = nextTileSize / currentSize;
       setTileSize(nextTileSize);
@@ -782,10 +1274,57 @@ export default function WorldMapPage() {
     }
     viewport.addEventListener("wheel", onWheel, { passive: false });
     return () => viewport.removeEventListener("wheel", onWheel);
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    let lastDist = 0;
+    let lastMidX = 0;
+    let lastMidY = 0;
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length !== 2) return;
+      const t0 = e.touches[0], t1 = e.touches[1];
+      lastDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+      lastMidX = (t0.clientX + t1.clientX) / 2;
+      lastMidY = (t0.clientY + t1.clientY) / 2;
+    }
+    function onTouchMove(e: TouchEvent) {
+      if (e.touches.length !== 2) return;
+      e.preventDefault();
+      const t0 = e.touches[0], t1 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+      if (!lastDist) { lastDist = dist; return; }
+      const factor = dist / lastDist;
+      lastDist = dist;
+      const midX = (t0.clientX + t1.clientX) / 2;
+      const midY = (t0.clientY + t1.clientY) / 2;
+      const currentSize = tileSizeRef.current;
+      const rect = viewport!.getBoundingClientRect();
+      const offsetX = midX - rect.left + viewport!.scrollLeft;
+      const offsetY = midY - rect.top + viewport!.scrollTop;
+      const nextTileSize = Math.max(getMinTileSize(), Math.min(MAX_TILE_SIZE, currentSize * factor));
+      if (nextTileSize === currentSize) return;
+      const scale = nextTileSize / currentSize;
+      setTileSize(nextTileSize);
+      requestAnimationFrame(() => {
+        viewport!.scrollLeft = offsetX * scale - (midX - rect.left);
+        viewport!.scrollTop = offsetY * scale - (midY - rect.top);
+      });
+      lastMidX = midX;
+      lastMidY = midY;
+    }
+    viewport.addEventListener("touchstart", onTouchStart, { passive: false });
+    viewport.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => {
+      viewport.removeEventListener("touchstart", onTouchStart);
+      viewport.removeEventListener("touchmove", onTouchMove);
+    };
   }, []);
 
   function startPan(e: React.MouseEvent<HTMLDivElement>) {
-    if (e.button !== 2) return;
+    // right-click or space+drag pan via mouse events
+    if (e.button !== 2 && !spaceDownRef.current) return;
     e.preventDefault();
     const viewport = viewportRef.current;
     if (!viewport) return;
@@ -799,7 +1338,7 @@ export default function WorldMapPage() {
   }
 
   function movePan(e: React.MouseEvent<HTMLDivElement>) {
-    if (!isPanning || !panStartRef.current || !viewportRef.current) return;
+    if (!panStartRef.current || !viewportRef.current) return;
     const dx = e.clientX - panStartRef.current.x;
     const dy = e.clientY - panStartRef.current.y;
     viewportRef.current.scrollLeft = panStartRef.current.left - dx;
@@ -818,7 +1357,7 @@ export default function WorldMapPage() {
 
   async function exportToClipboard() {
     try {
-      const text = encodeState(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles);
+      const text = encodeState(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles);
       await navigator.clipboard.writeText(text);
       flashNotice("Map copied to clipboard");
     } catch {
@@ -839,6 +1378,7 @@ export default function WorldMapPage() {
       setReclaimedTiles(decoded.reclaimed);
       setDeployedTiles(decoded.deployed);
       setRoadTiles(decoded.roads);
+      setPenTiles(new Map((decoded.penned ?? []).map((e) => [e.k, e.c])));
       flashNotice("Map imported from clipboard");
     } catch {
       flashNotice("No data in clipboard");
@@ -846,7 +1386,7 @@ export default function WorldMapPage() {
   }
 
   function saveSlot(slot: number) {
-    const text = encodeState(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles);
+    const text = encodeState(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles);
     localStorage.setItem(`${STORAGE_PREFIX}:slot:${slot}`, text);
     flashNotice(`Saved slot ${slot}`);
   }
@@ -864,6 +1404,7 @@ export default function WorldMapPage() {
       setReclaimedTiles(decoded.reclaimed);
       setDeployedTiles(decoded.deployed);
       setRoadTiles(decoded.roads);
+      setPenTiles(new Map((decoded.penned ?? []).map((e) => [e.k, e.c])));
       flashNotice(`Loaded slot ${slot}`);
     } catch {
       flashNotice(`Slot ${slot} is invalid`);
@@ -873,6 +1414,14 @@ export default function WorldMapPage() {
   function clearSlot(slot: number) {
     localStorage.removeItem(`${STORAGE_PREFIX}:slot:${slot}`);
     flashNotice(`Cleared slot ${slot}`);
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      fullscreenContainerRef.current?.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
   }
 
   function downloadScreenshot() {
@@ -916,12 +1465,16 @@ export default function WorldMapPage() {
           ctx.fillRect(x * scale, y * scale, scale, scale);
         }
         if (layers.poi && outlinedTiles.has(key)) {
-          ctx.strokeStyle = OUTLINE_BORDER;
+          ctx.strokeStyle = drawAreaColor;
           ctx.lineWidth = Math.max(1, Math.floor(scale / 4));
           if (!outlinedTiles.has(keyOf(x, y - 1))) { ctx.beginPath(); ctx.moveTo(x * scale, y * scale); ctx.lineTo((x + 1) * scale, y * scale); ctx.stroke(); }
           if (!outlinedTiles.has(keyOf(x + 1, y))) { ctx.beginPath(); ctx.moveTo((x + 1) * scale, y * scale); ctx.lineTo((x + 1) * scale, (y + 1) * scale); ctx.stroke(); }
           if (!outlinedTiles.has(keyOf(x, y + 1))) { ctx.beginPath(); ctx.moveTo(x * scale, (y + 1) * scale); ctx.lineTo((x + 1) * scale, (y + 1) * scale); ctx.stroke(); }
           if (!outlinedTiles.has(keyOf(x - 1, y))) { ctx.beginPath(); ctx.moveTo(x * scale, y * scale); ctx.lineTo(x * scale, (y + 1) * scale); ctx.stroke(); }
+        }
+        if (layers.poi && penTiles.has(key)) {
+          ctx.fillStyle = penTiles.get(key)!;
+          ctx.fillRect(x * scale, y * scale, scale, scale);
         }
       }
     }
@@ -932,466 +1485,1108 @@ export default function WorldMapPage() {
     link.click();
   }
 
-  return (
-    <main
-      className="max-w-7xl mx-auto px-4 py-6 space-y-6 select-none"
+
+  // â”€â”€ Shared toolbar sections (used in both normal panel and fullscreen sidebar) â”€â”€
+  // ── Canvas rendering ──
+  function drawMap() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const w = Math.round(cols * tileSize);
+    const h = Math.round(rows * tileSize);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, w, h);
+
+    for (let cy = 0; cy < rows; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        const tile = grid.get(keyOf(cx, cy));
+        if (!tile) continue;
+        const key = keyOf(cx, cy);
+        const px = Math.round(cx * tileSize);
+        const py = Math.round(cy * tileSize);
+        const pw = Math.round((cx + 1) * tileSize) - px;
+        const ph = Math.round((cy + 1) * tileSize) - py;
+        const land = isLand(tile);
+
+        ctx.fillStyle = land ? TERRAIN_COLORS[tile.terrain] : currentTheme.water;
+        ctx.fillRect(px, py, pw, ph);
+
+        if (land && layers.levels) {
+          const normalizedLevel = Math.min(tile.level, 6000) / 6000;
+          const levelShade = 0.10 + normalizedLevel * 0.52;
+          ctx.fillStyle = `rgba(37,99,235,${Math.max(0.10, levelShade * 0.42).toFixed(2)})`;
+          ctx.fillRect(px, py, pw, ph);
+          ctx.fillStyle = `rgba(17,24,39,${Math.max(0.16, levelShade * 0.86).toFixed(2)})`;
+          ctx.fillRect(px, py, pw, ph);
+          const nSX = Math.floor((tile.nativeX * cols) / 10);
+          const nEX = Math.floor(((tile.nativeX + 1) * cols) / 10) - 1;
+          const nSY = Math.floor((tile.nativeY * rows) / 10);
+          const nEY = Math.floor(((tile.nativeY + 1) * rows) / 10) - 1;
+          if (cx === nSX || cx === nEX) { ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fillRect(px + pw - 2, py, 2, ph); }
+          if (cy === nSY || cy === nEY) { ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fillRect(px, py + ph - 2, pw, 2); }
+        }
+
+        if (layers.grid) {
+          ctx.strokeStyle = land ? "rgba(0,0,0,0.08)" : currentTheme.waterBorder;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+        }
+
+        if (layers.roads && roadTiles.has(key)) {
+          ctx.fillStyle = ROAD_COLOR;
+          ctx.fillRect(px, py, pw, ph);
+          ctx.strokeStyle = ROAD_BORDER;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+        }
+
+        if (layers.reclaimed && reclaimedTiles.has(key)) {
+          ctx.strokeStyle = "rgba(255,255,255,0.85)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+        }
+
+        if (layers.deployments && deployedTiles.has(key)) {
+          ctx.fillStyle = DEPLOY_FILL;
+          ctx.fillRect(px, py, pw, ph);
+          ctx.strokeStyle = DEPLOY_BORDER;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+        }
+
+        if (layers.poi && outlinedTiles.has(key)) {
+          ctx.strokeStyle = drawAreaColor;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          if (!outlinedTiles.has(keyOf(cx, cy - 1))) { ctx.moveTo(px, py + 1); ctx.lineTo(px + pw, py + 1); }
+          if (!outlinedTiles.has(keyOf(cx + 1, cy))) { ctx.moveTo(px + pw - 1, py); ctx.lineTo(px + pw - 1, py + ph); }
+          if (!outlinedTiles.has(keyOf(cx, cy + 1))) { ctx.moveTo(px, py + ph - 1); ctx.lineTo(px + pw, py + ph - 1); }
+          if (!outlinedTiles.has(keyOf(cx - 1, cy))) { ctx.moveTo(px + 1, py); ctx.lineTo(px + 1, py + ph); }
+          ctx.stroke();
+        }
+
+        if (layers.poi) {
+          const penColorTile = penTiles.get(key);
+          if (penColorTile) { ctx.fillStyle = penColorTile; ctx.fillRect(px, py, pw, ph); }
+        }
+
+        if (previewKeys.has(key)) {
+          if (activeTool === "draw_area") {
+            ctx.fillStyle = "rgba(251,146,60,0.10)";
+            ctx.fillRect(px, py, pw, ph);
+            ctx.strokeStyle = PREVIEW_ORANGE;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (!previewKeys.has(keyOf(cx, cy - 1))) { ctx.moveTo(px, py + 1); ctx.lineTo(px + pw, py + 1); }
+            if (!previewKeys.has(keyOf(cx + 1, cy))) { ctx.moveTo(px + pw - 1, py); ctx.lineTo(px + pw - 1, py + ph); }
+            if (!previewKeys.has(keyOf(cx, cy + 1))) { ctx.moveTo(px, py + ph - 1); ctx.lineTo(px + pw, py + ph - 1); }
+            if (!previewKeys.has(keyOf(cx - 1, cy))) { ctx.moveTo(px + 1, py); ctx.lineTo(px + 1, py + ph); }
+            ctx.stroke();
+          } else if (activeTool === "pen") {
+            ctx.fillStyle = `${penColor}88`;
+            ctx.fillRect(px, py, pw, ph);
+          } else if (activeTool === "deploy") {
+            ctx.fillStyle = "rgba(34,211,238,0.12)";
+            ctx.fillRect(px, py, pw, ph);
+            ctx.strokeStyle = DEPLOY_BORDER;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+          } else if (activeTool === "reclaim") {
+            ctx.fillStyle = "rgba(255,255,255,0.12)";
+            ctx.fillRect(px, py, pw, ph);
+            ctx.strokeStyle = "rgba(255,255,255,0.92)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+          } else if (activeTool === "road") {
+            ctx.fillStyle = "rgba(100,116,139,0.35)";
+            ctx.fillRect(px, py, pw, ph);
+            ctx.strokeStyle = ROAD_BORDER;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+          }
+        }
+
+        if (selectedTile && selectedTile.x === cx && selectedTile.y === cy) {
+          ctx.strokeStyle = "#111827";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+        }
+      }
+    }
+
+    // ── Map facilities ──────────────────────────────────────────────────────────
+    if (layers.facilities && tileSize >= 4) {
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let ny = 0; ny < 10; ny++) {
+        for (let nx = 0; nx < 10; nx++) {
+          const names = ZONE_FACILITY_NAMES.get(`${nx},${ny}`);
+          if (!names?.length) continue;
+          // Zone pixel bounds
+          const nSX = Math.floor((nx * cols) / 10);
+          const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
+          const nSY = Math.floor((ny * rows) / 10);
+          const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
+          const zoneW = (nEX - nSX + 1) * tileSize;
+          const zoneH = (nEY - nSY + 1) * tileSize;
+          const cxPx = nSX * tileSize + zoneW / 2;
+          const cyPx = nSY * tileSize + zoneH / 2;
+          // Fit font: start at ~13% of zone width, shrink until text fits
+          const maxW = zoneW * 0.88;
+          let fSize = Math.max(8, Math.min(44, Math.floor(zoneW * 0.13)));
+          for (const name of names) {
+            ctx.font = `bold ${fSize}px Arial, sans-serif`;
+            while (ctx.measureText(name).width > maxW && fSize > 7) {
+              fSize--;
+              ctx.font = `bold ${fSize}px Arial, sans-serif`;
+            }
+          }
+          ctx.font = `bold ${fSize}px Arial, sans-serif`;
+          const lineH = fSize * 1.35;
+          const totalH = names.length * lineH;
+          let yOff = cyPx - totalH / 2 + lineH / 2;
+          for (const name of names) {
+            ctx.shadowColor = "rgba(0,0,0,0.95)";
+            ctx.shadowBlur = Math.max(3, fSize * 0.45);
+            ctx.fillStyle = "#fde68a";
+            ctx.fillText(name, cxPx, yOff);
+            ctx.shadowBlur = 0;
+            yOff += lineH;
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    // ── Survey pins ────────────────────────────────────────────────────────────
+    if (showSurveys) {
+      const MARGIN = 8;
+      const PIN_R = Math.max(5, Math.min(14, tileSize * 1.6));
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let ny = 0; ny < 10; ny++) {
+        for (let nx = 0; nx < 10; nx++) {
+          const native = NATIVE_MAP[ny]?.[nx];
+          if (!native) continue;
+          const zoneTerrain: TerrainType = native.terrain;
+          const zoneLevel: number = native.level;
+          // Collect matching surveys (filtered by visible cats)
+          const matching = SURVEY_DEFS.filter((s) => {
+            if (!visibleSurveyCats.has(s.category)) return false;
+            if (s.terrainId !== -1 && SURVEY_TERRAIN_MAP[s.terrainId] !== zoneTerrain) return false;
+            return zoneLevel >= s.minLevel;
+          });
+          if (!matching.length) continue;
+          // Deduplicate by category
+          const cats = [...new Set(matching.map((s) => s.category))] as SurveyCategory[];
+          // Zone center in canvas coords
+          const nSX = Math.floor((nx * cols) / 10);
+          const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
+          const nSY = Math.floor((ny * rows) / 10);
+          const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
+          const nCX = Math.floor((nSX + nEX) / 2);
+          const nCY = Math.floor((nSY + nEY) / 2);
+          const baseX = nCX * tileSize + MARGIN + tileSize / 2;
+          const baseY = nCY * tileSize + MARGIN + tileSize / 2;
+          // Spread dots horizontally
+          const spacing = PIN_R * 2.2;
+          const totalW = (cats.length - 1) * spacing;
+          cats.forEach((cat, i) => {
+            const cx2 = baseX - totalW / 2 + i * spacing;
+            const cy2 = baseY - PIN_R * 3.5;
+            const color = SURVEY_CAT_COLORS[cat];
+            // Shadow
+            ctx.shadowColor = "rgba(0,0,0,0.6)";
+            ctx.shadowBlur = 4;
+            // Circle
+            ctx.beginPath();
+            ctx.arc(cx2, cy2, PIN_R, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = "rgba(255,255,255,0.9)";
+            ctx.stroke();
+            // Stem
+            ctx.beginPath();
+            ctx.moveTo(cx2, cy2 + PIN_R);
+            ctx.lineTo(cx2, cy2 + PIN_R + PIN_R * 0.8);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = Math.max(1.5, PIN_R * 0.35);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            // Letter
+            const fsize = Math.max(7, Math.floor(PIN_R * 0.9));
+            ctx.font = `bold ${fsize}px sans-serif`;
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "#fff";
+            ctx.fillText(SURVEY_CAT_LABELS[cat], cx2, cy2);
+          });
+        }
+      }
+      ctx.restore();
+    }
+
+    // ── Level numbers (drawn last so they always appear on top) ────────────────
+    if (layers.levels) {
+      const zonePx = Math.floor((cols / 10) * tileSize);
+      const fontSize = Math.max(14, Math.min(72, Math.floor(zonePx * 0.18)));
+      ctx.save();
+      ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = "rgba(0,0,0,0.98)";
+      ctx.shadowBlur = Math.max(6, fontSize * 0.45);
+      ctx.fillStyle = "#ffffff";
+      for (let ny = 0; ny < 10; ny++) {
+        for (let nx = 0; nx < 10; nx++) {
+          const native = NATIVE_MAP[ny]?.[nx];
+          if (!native) continue;
+          const nSX = Math.floor((nx * cols) / 10);
+          const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
+          const nSY = Math.floor((ny * rows) / 10);
+          const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
+          const cxPx = nSX * tileSize + (nEX - nSX + 1) * tileSize / 2;
+          const cyPx = nSY * tileSize + (nEY - nSY + 1) * tileSize / 2;
+          ctx.fillText(String(native.level), cxPx, cyPx);
+        }
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+  }
+
+  function drawMinimap() {
+    const canvas = minimapCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, cols, rows);
+    for (let cy = 0; cy < rows; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        const tile = grid.get(keyOf(cx, cy));
+        if (!tile) continue;
+        const key = keyOf(cx, cy);
+        const land = isLand(tile);
+        let bg = currentTheme.water;
+        if (land) bg = TERRAIN_COLORS[tile.terrain];
+        if (layers.roads && roadTiles.has(key)) bg = "rgba(100,116,139,0.95)";
+        if (layers.deployments && deployedTiles.has(key)) bg = "rgba(34,211,238,0.9)";
+        if (layers.poi && penTiles.has(key)) bg = penTiles.get(key)!;
+        ctx.fillStyle = bg;
+        ctx.fillRect(cx, cy, 1, 1);
+      }
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { drawMap(); }, [
+    tileSize, outlinedTiles, penTiles, reclaimedTiles, deployedTiles, roadTiles,
+    layers, hoveredTile, selectedTile, activeTool, paintMode, drawAreaColor, penColor, previewKeys,
+    showSurveys, visibleSurveyCats,
+  ]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { drawMinimap(); }, [
+    reclaimedTiles, deployedTiles, roadTiles, penTiles, outlinedTiles, layers,
+  ]);
+
+  const toolbarContent = (
+    <div className="space-y-4">
+      {/* Tools */}
+      <div className="space-y-2">
+        <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Tools</div>
+        <div className="flex flex-col gap-1">
+          <Button size="sm" variant={activeTool === "pen" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "pen"))}>Pen</Button>
+          <Button size="sm" variant={activeTool === "draw_area" ? "default" : "ghost"} className="w-full justify-start" onClick={() => { setActiveTool((prev) => toggleTool(prev, "draw_area")); if (brushSize < 2) setBrushSize(2); }}>Draw area</Button>
+          <Button size="sm" variant={activeTool === "reclaim" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "reclaim"))}>Reclaim land</Button>
+          <Button size="sm" variant={activeTool === "deploy" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "deploy"))}>Deployment mode</Button>
+          <Button size="sm" variant={activeTool === "road" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "road"))}>Roads</Button>
+        </div>
+      </div>
+
+      {/* Undo/Redo */}
+      <div className="flex gap-1">
+        <Button size="sm" variant="outline" className="flex-1" onClick={undo}>Undo</Button>
+        <Button size="sm" variant="outline" className="flex-1" onClick={redo}>Redo</Button>
+      </div>
+
+      {/* Tool sub-options */}
+      {activeTool === "pen" && (
+        <div className="space-y-2">
+          <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Pen color</div>
+          <div className="flex flex-wrap gap-1">
+            {BRUSH_COLORS.map((c) => (
+              <button key={c.value} title={c.label} onClick={() => setPenColor(c.value)} className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110" style={{ background: c.value, borderColor: penColor === c.value ? "#fff" : "transparent" }} />
+            ))}
+          </div>
+          {recentColors.length > 0 && (
+            <>
+              <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Recent</div>
+              <div className="flex flex-wrap gap-1">
+                {recentColors.map((c, i) => (
+                  <button key={i} title={c} onClick={() => setPenColor(c)} className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110" style={{ background: c, borderColor: penColor === c ? "#fff" : "rgba(255,255,255,0.3)" }} />
+                ))}
+              </div>
+            </>
+          )}
+          <div className="flex gap-1">
+            <Button size="sm" variant={paintMode === "mark" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("mark")}>Draw</Button>
+            <Button size="sm" variant={paintMode === "erase" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("erase")}>Erase</Button>
+          </div>
+          {paintMode === "erase" && (
+            <>
+              <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Eraser size</div>
+              <div className="flex flex-wrap gap-1">
+                {brushOptions.map((size) => (
+                  <Button key={size} size="sm" variant={eraserSize === size ? "default" : "outline"} onClick={() => setEraserSize(size)} className="px-2 py-1 text-xs">{size}</Button>
+                ))}
+              </div>
+            </>
+          )}
+          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setPenTiles(new Map()); }}>Clear pen</Button>
+        </div>
+      )}
+
+      {activeTool === "draw_area" && (
+        <div className="space-y-2">
+          <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Area color</div>
+          <div className="flex flex-wrap gap-1">
+            {BRUSH_COLORS.map((c) => (
+              <button key={c.value} title={c.label} onClick={() => setDrawAreaColor(c.value)} className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110" style={{ background: c.value, borderColor: drawAreaColor === c.value ? "#fff" : "transparent" }} />
+            ))}
+          </div>
+          {recentColors.length > 0 && (
+            <>
+              <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Recent</div>
+              <div className="flex flex-wrap gap-1">
+                {recentColors.map((c, i) => (
+                  <button key={i} title={c} onClick={() => setDrawAreaColor(c)} className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110" style={{ background: c, borderColor: drawAreaColor === c ? "#fff" : "rgba(255,255,255,0.3)" }} />
+                ))}
+              </div>
+            </>
+          )}
+          <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Brush size</div>
+          <div className="flex flex-wrap gap-1">
+            {drawAreaBrushOptions.map((size) => (
+              <Button key={size} size="sm" variant={brushSize === size ? "default" : "outline"} onClick={() => setBrushSize(size)} className="px-2 py-1 text-xs">{size}</Button>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            <Button size="sm" variant={paintMode === "mark" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("mark")}>Mark</Button>
+            <Button size="sm" variant={paintMode === "erase" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("erase")}>Erase</Button>
+          </div>
+          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setOutlinedTiles(new Set()); }}>Clear draw area</Button>
+        </div>
+      )}
+
+      {activeTool === "reclaim" && (
+        <div className="space-y-2">
+          <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Brush size</div>
+          <div className="flex flex-wrap gap-1">
+            {brushOptions.map((size) => (
+              <Button key={size} size="sm" variant={brushSize === size ? "default" : "outline"} onClick={() => setBrushSize(size)} className="px-2 py-1 text-xs">{size}</Button>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            <Button size="sm" variant={reclaimMode === "reclaim" ? "default" : "outline"} className="flex-1" onClick={() => setReclaimMode("reclaim")}>Reclaim</Button>
+            <Button size="sm" variant={reclaimMode === "restore" ? "default" : "outline"} className="flex-1" onClick={() => setReclaimMode("restore")}>Restore</Button>
+          </div>
+          <div className="text-xs opacity-60">Cost: {reclaimCost}</div>
+        </div>
+      )}
+
+      {activeTool === "deploy" && (
+        <div className="space-y-2">
+          <div className="flex gap-1">
+            <Button size="sm" variant={paintMode === "mark" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("mark")}>Add</Button>
+            <Button size="sm" variant={paintMode === "erase" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("erase")}>Remove</Button>
+          </div>
+          <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Deployment size</div>
+          <div className="flex flex-wrap gap-1">
+            {deploymentOptions.map((size) => (
+              <Button key={size} size="sm" variant={deploymentSize === size ? "default" : "outline"} onClick={() => setDeploymentSize(size)} className="px-2 py-1 text-xs">{size}</Button>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setDeployedTiles(new Set()); }}>Clear deployments</Button>
+          {previewStats && <div className="text-xs opacity-60">{previewStats.total} tiles, {previewStats.newCoverage} new</div>}
+        </div>
+      )}
+
+      {activeTool === "road" && (
+        <div className="space-y-2">
+          <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Road mode</div>
+          <div className="flex gap-1">
+            <Button size="sm" variant={paintMode === "mark" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("mark")}>Draw</Button>
+            <Button size="sm" variant={paintMode === "erase" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("erase")}>Erase</Button>
+          </div>
+          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setRoadTiles(new Set()); }}>Clear roads</Button>
+        </div>
+      )}
+
+      {/* Layers */}
+      <div className="space-y-2">
+        <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Layers</div>
+        <div className="flex flex-col gap-1">
+          {layerOrder.map((layer) => (
+            <button
+              key={layer}
+              onClick={() => setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))}
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-white/5"
+              style={{ color: layers[layer] ? "#fff" : "rgba(255,255,255,0.35)" }}
+            >
+              <span className="w-3 h-3 rounded-sm border flex-shrink-0" style={{ background: layers[layer] ? "#3b82f6" : "transparent", borderColor: layers[layer] ? "#3b82f6" : "rgba(255,255,255,0.2)" }} />
+              <span className="capitalize">{layer}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Surveys */}
+      <div className="space-y-2">
+        <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Surveys</div>
+        <button
+          onClick={() => setShowSurveys((v) => !v)}
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs w-full transition-colors hover:bg-white/5"
+          style={{ color: showSurveys ? "#fff" : "rgba(255,255,255,0.35)" }}
+        >
+          <span className="w-3 h-3 rounded-sm border flex-shrink-0" style={{ background: showSurveys ? "#3b82f6" : "transparent", borderColor: showSurveys ? "#3b82f6" : "rgba(255,255,255,0.2)" }} />
+          Show survey pins
+        </button>
+        {showSurveys && (
+          <div className="flex flex-col gap-1 pl-1">
+            {(["storehouse", "chaos_stone", "cash_register", "dragon_taming"] as SurveyCategory[]).map((cat) => {
+              const active = visibleSurveyCats.has(cat);
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setVisibleSurveyCats((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(cat)) next.delete(cat); else next.add(cat);
+                    return next;
+                  })}
+                  className="flex items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors hover:bg-white/5"
+                  style={{ color: active ? "#fff" : "rgba(255,255,255,0.35)" }}
+                >
+                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ background: active ? SURVEY_CAT_COLORS[cat] : "rgba(255,255,255,0.1)" }}>
+                    {SURVEY_CAT_LABELS[cat]}
+                  </span>
+                  {SURVEY_CAT_NAMES[cat]}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Zoom */}
+      <div className="space-y-2">
+        <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Zoom</div>
+        <div className="flex gap-1 items-center">
+          <Button size="sm" variant="outline" className="flex-1" onClick={() => setTileSize((prev) => Math.max(getMinTileSize(), prev / 1.12))}>-</Button>
+          <span className="text-xs opacity-60 w-14 text-center">{tileSize.toFixed(1)}px</span>
+          <Button size="sm" variant="outline" className="flex-1" onClick={() => setTileSize((prev) => Math.min(MAX_TILE_SIZE, prev * 1.12))}>+</Button>
+        </div>
+      </div>
+
+      {/* Save slots */}
+      <div className="space-y-2">
+        <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Save slots</div>
+        <div className="flex flex-col gap-1">
+          {[1,2,3].map((slot) => (
+            <div key={slot} className="flex gap-1">
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => saveSlot(slot)}>Save {slot}</Button>
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => loadSlot(slot)}>Load {slot}</Button>
+              <Button size="sm" variant="outline" className="px-2 text-destructive hover:text-destructive" onClick={() => clearSlot(slot)}>×</Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Export / Import / Screenshot */}
+      <div className="space-y-2">
+        <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">File</div>
+        <div className="flex flex-col gap-1">
+          <Button size="sm" variant="outline" className="w-full justify-start" onClick={exportToClipboard}>Export</Button>
+          <Button size="sm" variant="outline" className="w-full justify-start" onClick={importFromClipboard}>Import</Button>
+          <Button size="sm" variant="outline" className="w-full justify-start" onClick={downloadScreenshot}>Screenshot</Button>
+        </div>
+      </div>
+
+    </div>
+  );
+
+  // â”€â”€ Map viewport â”€â”€
+  const mapViewport = (
+    <div
+      className="relative overflow-hidden bg-muted/20"
       style={{
-        background: currentTheme.appBg,
+        height: isFullscreen ? "100%" : cleanMode ? "80vh" : "70vh",
+        width: "100%",
+        borderRadius: isFullscreen ? 0 : undefined,
       }}
     >
+      <div
+        ref={viewportRef}
+        className="absolute inset-0 overflow-auto"
+        style={{
+          cursor: getCursor(),
+          touchAction: "none",
+        }}
+        onMouseDown={startPan}
+        onMouseMove={movePan}
+        onPointerDown={onViewportPointerDown}
+        onPointerMove={onViewportPointerMove}
+        onPointerUp={(e) => {
+          if (activeTool === "none" && panStartRef.current) {
+            const dx = Math.abs(e.clientX - panStartRef.current.x);
+            const dy = Math.abs(e.clientY - panStartRef.current.y);
+            if (dx < 5 && dy < 5) {
+              const tile = tileAtPointer(e.clientX, e.clientY);
+              if (tile) setSelectedTile(tile);
+            }
+          }
+        }}
+        onPointerLeave={() => setHoveredTile(null)}
+        onDoubleClick={(e) => { const t = tileAtPointer(e.clientX, e.clientY); if (t) centerOn(t.x, t.y); }}
+        onContextMenu={(e) => e.preventDefault()}
+        onClick={() => setDrawBubbleOpen(false)}
+      >
+        <canvas
+          ref={canvasRef}
+          style={{ display: "block", margin: "8px" }}
+        />
+      </div>
+      {/* Draw Tool Bubble */}
+      {!cleanMode && (() => {
+        const isRoad = activeTool === "road" && paintMode === "mark";
+        const isPen = activeTool === "pen" && paintMode === "mark";
+        const isDrawArea = activeTool === "draw_area" && paintMode === "mark";
+        const isErase = paintMode === "erase" && activeTool !== "none";
+        const isNone = activeTool === "none";
+
+        const eraseTargetLabel = activeTool === "pen" ? "Pen" : activeTool === "draw_area" ? "Area" : activeTool === "road" ? "Road" : activeTool === "deploy" ? "Deploy" : activeTool;
+        const toolName = isNone ? "No tool" : isErase ? `Erase ${eraseTargetLabel}` : isRoad ? "Road" : isPen ? "Pen" : isDrawArea ? "Draw Area" : activeTool;
+
+        const bubbleIcon = isNone ? <BubbleIconCursor /> : isRoad ? <BubbleIconRoad /> : isErase ? <BubbleIconEraser /> : isDrawArea ? <BubbleIconDrawArea /> : <BubbleIconPen />;
+
+        return (
+          <div
+            className="absolute z-50 flex items-center gap-2"
+            style={{ left: drawBubblePos.x, top: drawBubblePos.y }}
+          >
+            <div className="relative flex-shrink-0 group">
+              <button
+                title={toolName}
+                className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-2xl backdrop-blur select-none transition-transform active:scale-95"
+                style={{ background: !isNone ? "rgba(37,99,235,0.82)" : "rgba(15,23,42,0.88)", borderColor: !isNone ? "#60a5fa" : "rgba(255,255,255,0.22)", color: "#fff", cursor: "grab" }}
+                onPointerDown={(e) => {
+                  if (e.button === 2) return;
+                  e.stopPropagation();
+                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                  drawBubbleDragRef.current = { startX: e.clientX, startY: e.clientY, startPosX: drawBubblePos.x, startPosY: drawBubblePos.y };
+                }}
+                onPointerMove={(e) => {
+                  const drag = drawBubbleDragRef.current;
+                  if (!drag) return;
+                  e.stopPropagation();
+                  const dx = e.clientX - drag.startX;
+                  const dy = e.clientY - drag.startY;
+                  if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+                    setDrawBubblePos({ x: drag.startPosX + dx, y: drag.startPosY + dy });
+                  }
+                }}
+                onPointerUp={(e) => {
+                  const drag = drawBubbleDragRef.current;
+                  const wasDrag = drag && (Math.abs(e.clientX - drag.startX) > 4 || Math.abs(e.clientY - drag.startY) > 4);
+                  drawBubbleDragRef.current = null;
+                  if (!wasDrag) setDrawBubbleOpen((prev) => !prev);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {bubbleIcon}
+              </button>
+              {!drawBubbleOpen && (
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-xs font-semibold shadow-lg pointer-events-none whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "rgba(15,23,42,0.92)", color: "#fff", border: "1px solid rgba(255,255,255,0.15)" }}>
+                  {toolName}
+                </div>
+              )}
+              {isRoad && isPainting && roadSnapPreview.size > 0 && (
+                <div className="absolute -top-6 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-xs font-bold shadow-lg pointer-events-none whitespace-nowrap" style={{ background: "rgba(15,23,42,0.92)", color: "#94a3b8", border: "1px solid #94a3b8" }}>
+                  {roadSnapPreview.size}
+                </div>
+              )}
+              {isErase && (
+                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-[10px] font-bold shadow-lg pointer-events-none whitespace-nowrap" style={{ background: "rgba(239,68,68,0.85)", color: "#fff", border: "1px solid #ef4444" }}>
+                  {eraseTargetLabel} {eraserSize}
+                </div>
+              )}
+            </div>
+            {drawBubbleOpen && (
+              <div className="flex flex-row gap-2 items-center" onClick={(e) => e.stopPropagation()}>
+                <button
+                  title="Pan (no tool)"
+                  onClick={() => { setActiveTool("none"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
+                  className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
+                  style={{ background: isNone ? "rgba(37,99,235,0.85)" : "rgba(15,23,42,0.88)", borderColor: isNone ? "#2563eb" : "rgba(255,255,255,0.18)", color: isNone ? "#fff" : "rgba(255,255,255,0.75)" }}
+                ><BubbleIconCursor /></button>
+                <button
+                  title="Pen"
+                  onClick={() => { setActiveTool("pen"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
+                  className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
+                  style={{ background: isPen ? "rgba(37,99,235,0.85)" : "rgba(15,23,42,0.88)", borderColor: isPen ? "#2563eb" : "rgba(255,255,255,0.18)", color: isPen ? "#fff" : "rgba(255,255,255,0.75)" }}
+                ><BubbleIconPen /></button>
+                <button
+                  title="Draw area"
+                  onClick={() => { setActiveTool("draw_area"); setPaintMode("mark"); if (brushSize < 2) setBrushSize(2); setDrawBubbleOpen(false); }}
+                  className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
+                  style={{ background: isDrawArea ? "rgba(37,99,235,0.85)" : "rgba(15,23,42,0.88)", borderColor: isDrawArea ? "#2563eb" : "rgba(255,255,255,0.18)", color: isDrawArea ? "#fff" : "rgba(255,255,255,0.75)" }}
+                ><BubbleIconDrawArea /></button>
+                <button
+                  title="Eraser"
+                  onClick={() => { if (activeTool !== "none") setPaintMode("erase"); setDrawBubbleOpen(false); }}
+                  className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
+                  style={{ background: isErase ? "rgba(239,68,68,0.75)" : "rgba(15,23,42,0.88)", borderColor: isErase ? "#ef4444" : "rgba(255,255,255,0.18)", color: isErase ? "#fff" : "rgba(255,255,255,0.75)" }}
+                ><BubbleIconEraser /></button>
+                <button
+                  title="Road (straight snap)"
+                  onClick={() => { setActiveTool("road"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
+                  className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
+                  style={{ background: isRoad ? "rgba(100,116,139,0.85)" : "rgba(15,23,42,0.88)", borderColor: isRoad ? "#94a3b8" : "rgba(255,255,255,0.18)", color: isRoad ? "#fff" : "rgba(255,255,255,0.75)" }}
+                ><BubbleIconRoad /></button>
+              </div>
+            )}
+            {drawBubbleOpen && isErase && (
+              <div className="flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
+                {/* Layer selector */}
+                <div className="flex flex-row gap-1 items-center">
+                  {(["pen","draw_area","road"] as const).map((layer) => {
+                    const label = layer === "pen" ? "Pen" : layer === "draw_area" ? "Area" : "Road";
+                    const active = activeTool === layer;
+                    return (
+                      <button
+                        key={layer}
+                        title={`Erase ${label} layer`}
+                        onClick={() => setActiveTool(layer)}
+                        className="h-7 px-2.5 rounded-full border-2 flex items-center justify-center text-[11px] font-bold shadow-lg backdrop-blur transition-all"
+                        style={{ background: active ? "rgba(239,68,68,0.85)" : "rgba(15,23,42,0.75)", borderColor: active ? "#ef4444" : "rgba(255,255,255,0.18)", color: "#fff" }}
+                      >{label}</button>
+                    );
+                  })}
+                </div>
+                {/* Size chips */}
+                <div className="flex flex-row gap-1 items-center">
+                  {([1,2,3,4,5,6,7,8,9,10] as BrushSize[]).map((s) => (
+                    <button
+                      key={s}
+                      title={`Eraser size ${s}`}
+                      onClick={() => setEraserSize(s)}
+                      className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-bold shadow-lg backdrop-blur transition-all"
+                      style={{ background: eraserSize === s ? "rgba(239,68,68,0.85)" : "rgba(15,23,42,0.75)", borderColor: eraserSize === s ? "#ef4444" : "rgba(255,255,255,0.18)", color: "#fff" }}
+                    >{s}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Survey tooltip */}
+      {surveyTooltip && showSurveys && (() => {
+        const byCategory = new Map<SurveyCategory, SurveyDef[]>();
+        surveyTooltip.items.forEach((s) => {
+          if (!byCategory.has(s.category)) byCategory.set(s.category, []);
+          byCategory.get(s.category)!.push(s);
+        });
+        // Compute position relative to the outer wrapper
+        const outerEl = viewportRef.current?.parentElement;
+        const outerRect = outerEl?.getBoundingClientRect();
+        const tx = outerRect ? surveyTooltip.x - outerRect.left + 14 : surveyTooltip.x;
+        const ty = outerRect ? surveyTooltip.y - outerRect.top - 8 : surveyTooltip.y;
+        return (
+          <div
+            className="absolute z-[60] pointer-events-none rounded-xl border shadow-2xl text-xs"
+            style={{ left: tx, top: ty, transform: "translateY(-100%)", background: "rgba(10,14,26,0.96)", borderColor: "rgba(255,255,255,0.12)", color: "#e2e8f0", minWidth: 200, maxWidth: 280, padding: "10px 12px" }}
+          >
+            {[...byCategory.entries()].map(([cat, items]) => (
+              <div key={cat} className="mb-2 last:mb-0">
+                <div className="font-bold mb-1 flex items-center gap-1.5" style={{ color: SURVEY_CAT_COLORS[cat] }}>
+                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ background: SURVEY_CAT_COLORS[cat] }}>{SURVEY_CAT_LABELS[cat]}</span>
+                  {SURVEY_CAT_NAMES[cat]}
+                </div>
+                {items.map((s) => (
+                  <div key={s.id} className="ml-5 mb-0.5 opacity-85">
+                    <span className="font-medium">{s.name}</span>
+                    <span className="opacity-60 ml-1">(Lv {s.minLevel}+)</span>
+                    <div className="opacity-60 text-[10px]">
+                      {s.minCost === s.maxCost ? (s.minCost === 0 ? "Free" : `${s.minCost}💎`) : `${s.minCost}–${s.maxCost}💎`}
+                      {" · "}
+                      {s.minRate}–{s.maxRate}% success
+                      {" · "}
+                      {s.minTimeSec < 3600 ? `${s.minTimeSec/60}m` : `${s.minTimeSec/3600}h`}–{s.maxTimeSec < 3600 ? `${s.maxTimeSec/60}m` : `${s.maxTimeSec/3600}h`}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {showMinimap && !cleanMode && (
+        minimapCollapsed ? (
+          /* Collapsed: draggable floating icon button */
+          <button
+            className="absolute z-30 w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur hover:scale-105"
+            style={{ left: minimapBubblePos.x, top: minimapBubblePos.y, background: currentTheme.panelBg, borderColor: currentTheme.panelBorder, cursor: "grab", touchAction: "none" }}
+            title="Show minimap"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+              minimapBubbleDragRef.current = { startX: e.clientX, startY: e.clientY, startPosX: minimapBubblePos.x, startPosY: minimapBubblePos.y };
+            }}
+            onPointerMove={(e) => {
+              const drag = minimapBubbleDragRef.current;
+              if (!drag) return;
+              e.stopPropagation();
+              setMinimapBubblePos({ x: drag.startPosX + (e.clientX - drag.startX), y: drag.startPosY + (e.clientY - drag.startY) });
+            }}
+            onPointerUp={(e) => {
+              const drag = minimapBubbleDragRef.current;
+              const wasDrag = drag && (Math.abs(e.clientX - drag.startX) > 4 || Math.abs(e.clientY - drag.startY) > 4);
+              minimapBubbleDragRef.current = null;
+              if (!wasDrag) setMinimapCollapsed(false);
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7l6 3 6-3 6 3v10l-6-3-6 3-6-3V7z"/>
+              <path d="M9 10v10M15 7v10"/>
+            </svg>
+          </button>
+        ) : (
+          /* Expanded: full minimap panel */
+          <div className={`absolute top-3 z-30 rounded-xl border p-2 backdrop-blur ${minimapCorner === "left" ? "left-3" : "right-3"}`} style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-[10px] uppercase tracking-wide opacity-70">Minimap</div>
+              <div className="flex gap-1">
+                <button className="w-5 h-5 rounded flex items-center justify-center text-xs hover:bg-white/10 opacity-60 hover:opacity-100 transition-all" onClick={() => setMinimapCorner((prev) => (prev === "left" ? "right" : "left"))} title="Move minimap">
+                  {minimapCorner === "left" ? "\u2197" : "\u2196"}
+                </button>
+                <button className="w-5 h-5 rounded flex items-center justify-center text-sm font-bold hover:bg-white/10 opacity-60 hover:opacity-100 transition-all" onClick={() => setMinimapCollapsed(true)} title="Collapse minimap">
+                  &minus;
+                </button>
+              </div>
+            </div>
+            <div className="relative" style={{ width: Math.max(120, cols), height: Math.max(118, rows) }}>
+              <canvas
+                ref={minimapCanvasRef}
+                width={cols}
+                height={rows}
+                style={{ display: "block", cursor: "crosshair" }}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  centerOn(Math.floor(e.clientX - rect.left), Math.floor(e.clientY - rect.top));
+                }}
+              />
+              {viewportRef.current && (
+                <div className="absolute border border-white/80 pointer-events-none" style={{ left: viewportRef.current.scrollLeft / Math.max(1, tileSize), top: viewportRef.current.scrollTop / Math.max(1, tileSize), width: Math.max(8, viewportRef.current.clientWidth / Math.max(1, tileSize)), height: Math.max(8, viewportRef.current.clientHeight / Math.max(1, tileSize)) }} />
+              )}
+            </div>
+          </div>
+        )
+      )}
+
+      {activeTool === "road" && paintMode === "mark" && isPainting && roadSnapPreview.size > 0 && (
+        <div className="absolute bottom-3 left-0 right-0 z-50 flex justify-center pointer-events-none">
+          <div className="rounded-full px-4 py-1.5 text-sm font-bold shadow-2xl backdrop-blur" style={{ background: "rgba(15,23,42,0.94)", color: "#94a3b8", border: "1.5px solid #64748b" }}>
+            ðŸ›£ï¸ {roadSnapPreview.size} tile{roadSnapPreview.size !== 1 ? "s" : ""}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <>
       {notice && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center pointer-events-none">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
           <div className="rounded-xl border px-5 py-3 text-sm shadow-2xl bg-background/95 backdrop-blur text-foreground">
             {notice}
           </div>
         </div>
       )}
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold">World map (Beta)</h1>
-        <span className="rounded-full border px-3 py-1 text-xs font-medium">Beta</span>
-        <span className="rounded-full border px-3 py-1 text-xs font-medium">Experimental</span>
-      </div>
-
-      <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
-        Map data pulled from{" "}
-        <a href="https://docs.google.com/spreadsheets/d/1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A/edit?gid=1473922384#gid=1473922384" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">Map full</a>
-        {" "}by minhnim (Kingdom Adventures EN Sheet) · terrain from{" "}
-        <a href="https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/edit?gid=1631803140#gid=1631803140" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">KA GameData</a>
-      </p>
-
-      {!cleanMode && (
-        <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
-          <CardContent className="p-4 space-y-4">
-            <div className="text-sm opacity-80">
-              Smoother planner pass: minimap, wheel zoom, right-drag pan, undo/redo, toggle tools, layers, save slots, themes, roads, and cleaner deployment behavior.
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button variant={activeTool === "none" ? "default" : "outline"} onClick={() => setActiveTool("none")}>No tool</Button>
-              <Button variant={activeTool === "poi_outline" ? "default" : "outline"} onClick={() => setActiveTool((prev) => toggleTool(prev, "poi_outline"))}>POI outline</Button>
-              <Button variant={activeTool === "reclaim" ? "default" : "outline"} onClick={() => setActiveTool((prev) => toggleTool(prev, "reclaim"))}>Reclaim land</Button>
-              <Button variant={activeTool === "deploy" ? "default" : "outline"} onClick={() => setActiveTool((prev) => toggleTool(prev, "deploy"))}>Deployment mode</Button>
-              <Button variant={activeTool === "road" ? "default" : "outline"} onClick={() => setActiveTool((prev) => toggleTool(prev, "road"))}>Roads</Button>
-              <Button variant="outline" onClick={undo}>Undo</Button>
-              <Button variant="outline" onClick={redo}>Redo</Button>
-            </div>
-
-            {activeTool === "poi_outline" && (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-xs opacity-70">Brush size</span>
-                  {brushOptions.map((size) => (
-                    <Button key={size} variant={brushSize === size ? "default" : "outline"} onClick={() => setBrushSize(size)}>
-                      {size}×{size}
-                    </Button>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant={paintMode === "mark" ? "default" : "outline"} onClick={() => setPaintMode("mark")}>Mark</Button>
-                  <Button variant={paintMode === "erase" ? "default" : "outline"} onClick={() => setPaintMode("erase")}>Eraser</Button>
-                  <Button variant="outline" onClick={() => { pushHistory(); setOutlinedTiles(new Set()); }}>Clear markings</Button>
-                </div>
-              </div>
-            )}
-
-            {activeTool === "reclaim" && (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-xs opacity-70">Brush size</span>
-                  {brushOptions.map((size) => (
-                    <Button key={size} variant={brushSize === size ? "default" : "outline"} onClick={() => setBrushSize(size)}>
-                      {size}×{size}
-                    </Button>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant={reclaimMode === "reclaim" ? "default" : "outline"} onClick={() => setReclaimMode("reclaim")}>Reclaim</Button>
-                  <Button variant={reclaimMode === "restore" ? "default" : "outline"} onClick={() => setReclaimMode("restore")}>Restore water</Button>
-                  <span className="text-xs opacity-70 self-center">Estimated reclaim cost: {reclaimCost}</span>
-                </div>
-              </div>
-            )}
-
-            {activeTool === "deploy" && (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <Button variant={paintMode === "mark" ? "default" : "outline"} onClick={() => setPaintMode("mark")}>Add deployment</Button>
-                  <Button variant={paintMode === "erase" ? "default" : "outline"} onClick={() => setPaintMode("erase")}>Remove deployment</Button>
-                  <Button variant="outline" onClick={() => { pushHistory(); setDeployedTiles(new Set()); }}>Clear deployments</Button>
-                </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-xs opacity-70">Deployment size</span>
-                  {deploymentOptions.map((size) => (
-                    <Button key={size} variant={deploymentSize === size ? "default" : "outline"} onClick={() => setDeploymentSize(size)}>
-                      {size}
-                    </Button>
-                  ))}
-                </div>
-                {previewStats && (
-                  <div className="text-xs opacity-70">
-                    Current preview covers {previewStats.total} land tiles, {previewStats.newCoverage} new.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTool === "road" && (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-xs opacity-70">Brush size</span>
-                  {brushOptions.map((size) => (
-                    <Button key={size} variant={brushSize === size ? "default" : "outline"} onClick={() => setBrushSize(size)}>
-                      {size}×{size}
-                    </Button>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant={paintMode === "mark" ? "default" : "outline"} onClick={() => setPaintMode("mark")}>Draw roads</Button>
-                  <Button variant={paintMode === "erase" ? "default" : "outline"} onClick={() => setPaintMode("erase")}>Erase roads</Button>
-                  <Button variant="outline" onClick={() => { pushHistory(); setRoadTiles(new Set()); }}>Clear roads</Button>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-2 items-center">
-              <Button variant="outline" onClick={downloadScreenshot}>Screenshot</Button>
-              <Button variant="outline" onClick={() => setCleanMode((prev) => !prev)}>{cleanMode ? "Exit screenshot mode" : "Enter screenshot mode"}</Button>
-              <Button variant="outline" onClick={exportToClipboard}>Export</Button>
-              <Button variant="outline" onClick={importFromClipboard}>Import</Button>
-            </div>
-
-            <div className="flex flex-wrap gap-2 items-center">
-              <Button variant={soundOn ? "default" : "outline"} onClick={() => setSoundOn((prev) => !prev)}>{soundOn ? "Sound on" : "Sound off"}</Button>
-              <Button variant={showMinimap ? "default" : "outline"} onClick={() => setShowMinimap((prev) => !prev)}>{showMinimap ? "Hide minimap" : "Show minimap"}</Button>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-xs uppercase tracking-wide opacity-70">Layers</div>
-              <div className="flex flex-wrap gap-2">
-                {layerOrder.map((layer) => (
-                  <Button
-                    key={layer}
-                    variant={layers[layer] ? "default" : "outline"}
-                    onClick={() => setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))}
-                  >
-                    {layer}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-xs uppercase tracking-wide opacity-70">Save slots</div>
-              <div className="flex flex-wrap gap-2">
-                {[1,2,3].map((slot) => (
-                  <div key={slot} className="flex gap-1">
-                    <Button variant="outline" onClick={() => saveSlot(slot)}>Save {slot}</Button>
-                    <Button variant="outline" onClick={() => loadSlot(slot)}>Load {slot}</Button>
-                    <Button variant="outline" onClick={() => clearSlot(slot)}>Clear</Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className={cleanMode ? "" : "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]"}>
-        <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }} className={cleanMode ? "col-span-full" : ""}>
-          <CardContent className="p-4">
-            <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <div className="font-semibold">Tile map planner</div>
-                <div className="text-sm opacity-70">
-                  Mouse wheel zooms. Right-drag pans. Double-click centers. Click and drag paints.
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                {cleanMode && (
-                  <button
-                    onClick={() => setCleanMode(false)}
-                    className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-colors"
-                  >
-                    <span className="text-base leading-none">✕</span> Exit screenshot mode
-                  </button>
-                )}
-                <div className="text-xs opacity-70">{cols} × {rows} tiles</div>
-              </div>
-            </div>
-
-            <div
-              ref={viewportRef}
-              className="relative overflow-auto rounded-xl border bg-muted/20"
-              style={{
-                height: cleanMode ? "80vh" : "70vh",
-                cursor: getCursor(),
-              }}
-              onMouseDown={startPan}
-              onMouseMove={movePan}
-              onContextMenu={(e) => e.preventDefault()}
-            >
-
-              {!cleanMode && (
-                <div className={`absolute top-3 z-40 flex flex-col gap-2 ${minimapCorner === "left" ? "right-3" : "left-3"}`}>
-                  <div className="rounded-xl border backdrop-blur p-2 flex flex-col gap-2" style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
-                    <Button size="icon" variant="outline" onClick={() => setTileSize((prev) => Math.min(MAX_TILE_SIZE, prev * 1.12))}>+</Button>
-                    <Button size="icon" variant="outline" onClick={() => setTileSize((prev) => Math.max(MIN_TILE_SIZE, prev / 1.12))}>−</Button>
-                    <div className="text-[10px] text-center opacity-70">{tileSize.toFixed(1)} px</div>
-                  </div>
-
-                  <div className="rounded-xl border backdrop-blur p-2 grid grid-cols-3 gap-1" style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
-                    <div />
-                    <Button size="icon" variant="outline" onClick={() => panBy(0, -180)}>↑</Button>
-                    <div />
-                    <Button size="icon" variant="outline" onClick={() => panBy(-180, 0)}>←</Button>
-                    <Button size="icon" variant="outline" onClick={() => centerOn(Math.floor(cols / 2), Math.floor(rows / 2))}>•</Button>
-                    <Button size="icon" variant="outline" onClick={() => panBy(180, 0)}>→</Button>
-                    <div />
-                    <Button size="icon" variant="outline" onClick={() => panBy(0, 180)}>↓</Button>
-                    <div />
-                  </div>
-                </div>
-              )}
-
-              {showMinimap && !cleanMode && (
-                <div
-                  className={`absolute top-3 z-30 rounded-xl border p-2 backdrop-blur ${minimapCorner === "left" ? "left-3" : "right-3"}`}
-                  style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}
+      {/* â”€â”€ FULLSCREEN CONTAINER â”€â”€ */}
+      <div
+        ref={fullscreenContainerRef}
+        className={isFullscreen ? "fixed inset-0 z-[9990] flex overflow-hidden" : ""}
+        style={isFullscreen ? { background: currentTheme.appBg } : {}}
+      >
+        {/* Left toolbar â€” only in fullscreen */}
+        {isFullscreen && (
+          <div
+            className="h-full overflow-y-auto flex-shrink-0 border-r"
+            style={{ width: 240, background: "rgba(10,15,30,0.98)", borderColor: currentTheme.panelBorder }}
+          >
+            <div className="p-3 space-y-1 border-b sticky top-0 z-10" style={{ borderColor: currentTheme.panelBorder, background: "rgba(10,15,30,0.98)" }}>
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-sm">World Map</span>
+                <button
+                  onClick={toggleFullscreen}
+                  className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors"
+                  title="Exit fullscreen"
                 >
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="text-[10px] uppercase tracking-wide opacity-70">Minimap</div>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-6 w-6 text-xs"
-                      onClick={() => setMinimapCorner((prev) => (prev === "left" ? "right" : "left"))}
-                      title={minimapCorner === "left" ? "Snap minimap top right" : "Snap minimap top left"}
-                    >
-                      {minimapCorner === "left" ? "↗" : "↖"}
-                    </Button>
-                  </div>
-                  <div
-                    className="relative"
-                    style={{ width: Math.max(120, cols), height: Math.max(118, rows) }}
-                  >
-                    {Array.from({ length: rows }).map((_, y) =>
-                      Array.from({ length: cols }).map((__, x) => {
-                        const tile = grid.get(keyOf(x, y));
-                        if (!tile) return null;
-                        const key = keyOf(x, y);
-                        let bg = currentTheme.water;
-                        if (isLand(tile)) bg = TERRAIN_COLORS[tile.terrain];
-                        if (layers.roads && roadTiles.has(key)) bg = "rgba(217,70,239,0.9)";
-                        if (layers.deployments && deployedTiles.has(key)) bg = "rgba(34,211,238,0.9)";
-                        return (
-                          <button
-                            key={`mini-${x}-${y}`}
-                            type="button"
-                            onClick={() => centerOn(x, y)}
-                            className="absolute p-0 m-0 border-0"
-                            style={{
-                              left: x,
-                              top: y,
-                              width: 1,
-                              height: 1,
-                              backgroundColor: bg,
-                            }}
-                          />
-                        );
-                      })
-                    )}
-                    {viewportRef.current && (
-                      <div
-                        className="absolute border border-white/80 pointer-events-none"
-                        style={{
-                          left: viewportRef.current.scrollLeft / Math.max(1, tileSize),
-                          top: viewportRef.current.scrollTop / Math.max(1, tileSize),
-                          width: Math.max(8, viewportRef.current.clientWidth / Math.max(1, tileSize)),
-                          height: Math.max(8, viewportRef.current.clientHeight / Math.max(1, tileSize)),
-                        }}
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div
-                className="grid gap-0"
-                style={{
-                  gridTemplateColumns: `repeat(${cols}, ${tileSize}px)`,
-                  width: `${cols * tileSize}px`,
-                  padding: "8px",
-                }}
-              >
-                {Array.from({ length: rows }).map((_, y) =>
-                  Array.from({ length: cols }).map((__, x) => {
-                    const tile = grid.get(keyOf(x, y));
-                    if (!tile) return null;
-                    const tileKey = keyOf(x, y);
-                    const land = isLand(tile);
-                    const showTerrain = true;
-                    const normalizedLevel = land ? Math.min(tile.level, 6000) / 6000 : 0;
-                    const levelShade = land ? 0.10 + normalizedLevel * 0.52 : 0;
-                    const baseColor = getTileBackground(tile);
-                    const nativeStartX = Math.floor((tile.nativeX * cols) / 10);
-                    const nativeEndX = Math.floor(((tile.nativeX + 1) * cols) / 10) - 1;
-                    const nativeStartY = Math.floor((tile.nativeY * rows) / 10);
-                    const nativeEndY = Math.floor(((tile.nativeY + 1) * rows) / 10) - 1;
-                    const nativeCenterX = Math.floor((nativeStartX + nativeEndX) / 2);
-                    const nativeCenterY = Math.floor((nativeStartY + nativeEndY) / 2);
-                    const showNativeLabel =
-                      land &&
-                      layers.levels &&
-                      tileSize >= 7 &&
-                      x === nativeCenterX &&
-                      y === nativeCenterY;
-                    const levelText = showNativeLabel ? String(tile.level) : "";
-
-                    return (
-                      <button
-                        key={tileKey}
-                        type="button"
-                        onMouseEnter={() => {
-                          setHoveredTile(tile);
-                          continuePaint(tile);
-                        }}
-                        onMouseLeave={() => {
-                          if (!touchMode) setHoveredTile(null);
-                        }}
-                        onMouseDown={(e) => {
-                          if (e.button !== 0) return;
-                          beginPaint(tile);
-                        }}
-                        onClick={() => {
-                          if (touchMode) beginPaint(tile);
-                        }}
-                        onDoubleClick={() => centerOn(tile.x, tile.y)}
-                        className="relative flex items-center justify-center transition-colors"
-                        style={{
-                          width: tileSize,
-                          height: tileSize,
-                          backgroundColor: baseColor,
-                          border: layers.grid
-                            ? `1px solid ${land ? "rgba(0,0,0,0.08)" : currentTheme.waterBorder}`
-                            : "1px solid transparent",
-                          boxShadow: getBoxShadow(tile),
-                          color: getTileTextColor(tile),
-                          fontSize: Math.max(8, Math.floor(tileSize * 0.42)),
-                          lineHeight: 1,
-                        }}
-                      >
-                        {land && layers.levels && (
-                          <>
-                            <span
-                              className="absolute inset-0 pointer-events-none"
-                              style={{
-                                background: `linear-gradient(135deg, rgba(37,99,235,${Math.max(0.10, levelShade * 0.42)}) 0%, rgba(17,24,39,${Math.max(0.16, levelShade * 0.86)}) 100%)`,
-                              }}
-                            />
-                            {(x === nativeStartX || x === nativeEndX) && (
-                              <span className="absolute inset-y-0 right-0 w-[2px] bg-black/45 pointer-events-none" />
-                            )}
-                            {(y === nativeStartY || y === nativeEndY) && (
-                              <span className="absolute inset-x-0 bottom-0 h-[2px] bg-black/45 pointer-events-none" />
-                            )}
-                          </>
-                        )}
-                        {levelText && (
-                          <span
-                            className="relative z-10 font-bold rounded-sm px-[2px] py-[1px]"
-                            style={{
-                              fontSize: Math.max(10, Math.floor(tileSize * 0.9)),
-                              lineHeight: 1,
-                              color: "#ffffff",
-                              WebkitTextStroke: "1px rgba(15,23,42,0.95)",
-                              textShadow: "0 1px 2px rgba(0,0,0,0.75)",
-                              background: "rgba(15,23,42,0.18)",
-                            }}
-                          >
-                            {levelText}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/>
+                    <path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
+                  </svg>
+                </button>
               </div>
+              <div className="text-[10px] opacity-40">{cols} Ã— {rows} tiles</div>
             </div>
-          </CardContent>
-        </Card>
-
-        {!cleanMode && (
-          <div className="space-y-6">
-            <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
-              <CardContent className="p-4 space-y-3">
-                <div className="font-semibold">Tile info</div>
-                {visibleInfoTile ? (
-                  <div className="space-y-2 text-sm">
-                    {isLand(visibleInfoTile) ? (
-                      <>
-                        <div>Biome: <span className="capitalize">{visibleInfoTile.terrain}</span></div>
-                        <div>Level: {visibleInfoTile.level}</div>
-                      </>
-                    ) : (
-                      <>
-                        <div>Biome: Water</div>
-                        <div>Level: —</div>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-sm opacity-70">Hover or tap a tile.</div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
-              <CardContent className="p-4 space-y-3">
-                <div className="font-semibold">Deployment coverage</div>
-                <div className="pt-2 space-y-2">
-                  <div className="text-xs uppercase tracking-wide opacity-70">By biome + level</div>
-                  {deploymentCoverageByBiomeLevel.length > 0 ? (
-                    <div className="space-y-1 max-h-48 overflow-auto pr-1">
-                      {deploymentCoverageByBiomeLevel.map((entry) => (
-                        <div key={entry.label} className="flex items-center justify-between gap-2 text-sm rounded-md border px-2 py-1">
-                          <span className="truncate capitalize">{entry.label}</span>
-                          <span className="text-xs opacity-70">{entry.count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-sm opacity-70">No deployments placed.</div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
-              <CardContent className="p-4 space-y-3">
-                <div className="font-semibold">Legend</div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 rounded-sm border" style={{ backgroundColor: currentTheme.water }} />
-                      <span>water</span>
-                    </div>
-                  </div>
-                  {(["grass", "sand", "swamp", "rock", "snow", "volcano", "ground"] as TerrainType[]).map((terrain) => (
-                    <div key={terrain} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <div className="h-4 w-4 rounded-sm border" style={{ backgroundColor: TERRAIN_COLORS[terrain] }} />
-                        <span className="capitalize">{terrain}</span>
-                      </div>
-                      <span className="text-xs opacity-70">{effectiveTerrainCounts[terrain]}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="p-3">
+              {toolbarContent}
+            </div>
           </div>
         )}
+
+        {/* Main content area */}
+        <div className={isFullscreen ? "flex-1 h-full overflow-hidden" : ""}>
+          {/* Normal page layout */}
+          {!isFullscreen && (
+            <main className="max-w-7xl mx-auto px-4 py-6 space-y-6 select-none" style={{ background: currentTheme.appBg }}>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl font-bold">World map (Beta)</h1>
+                <span className="rounded-full border px-3 py-1 text-xs font-medium">Beta</span>
+                <span className="rounded-full border px-3 py-1 text-xs font-medium">Experimental</span>
+              </div>
+
+              <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+                Map data pulled from{" "}
+                <a href="https://docs.google.com/spreadsheets/d/1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A/edit?gid=1473922384#gid=1473922384" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">Map full</a>
+                {" "}by minhnim (Kingdom Adventures EN Sheet) Â· terrain from{" "}
+                <a href="https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/edit?gid=1631803140#gid=1631803140" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">KA GameData</a>
+              </p>
+
+              {!cleanMode && (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2" style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
+                  {/* Tools */}
+                  <Button size="sm" variant={activeTool === "none" ? "default" : "ghost"} onClick={() => setActiveTool("none")}>Pan</Button>
+                  <Button size="sm" variant={activeTool === "pen" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "pen"))}>Pen</Button>
+                  <Button size="sm" variant={activeTool === "draw_area" ? "default" : "ghost"} onClick={() => { setActiveTool((prev) => toggleTool(prev, "draw_area")); if (brushSize < 2) setBrushSize(2); }}>Area</Button>
+                  <Button size="sm" variant={activeTool === "reclaim" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "reclaim"))}>Reclaim</Button>
+                  <Button size="sm" variant={activeTool === "deploy" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "deploy"))}>Deploy</Button>
+                  <Button size="sm" variant={activeTool === "road" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "road"))}>Roads</Button>
+                  <span className="w-px h-5 bg-border mx-1" />
+                  {/* Undo / Redo */}
+                  <Button size="sm" variant="ghost" onClick={undo}>↩ Undo</Button>
+                  <Button size="sm" variant="ghost" onClick={redo}>↪ Redo</Button>
+                  <span className="w-px h-5 bg-border mx-1" />
+                  {/* Actions */}
+                  <Button size="sm" variant="ghost" onClick={exportToClipboard}>Export</Button>
+                  <Button size="sm" variant="ghost" onClick={importFromClipboard}>Import</Button>
+                  <Button size="sm" variant="ghost" onClick={downloadScreenshot}>Screenshot</Button>
+                  <Button size="sm" variant={showMinimap ? "default" : "ghost"} onClick={() => setShowMinimap((prev) => !prev)}>Minimap</Button>
+                  <span className="w-px h-5 bg-border mx-1" />
+                  {/* Layers dropdown */}
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      size="sm"
+                      variant={layersDropdownOpen ? "default" : "ghost"}
+                      onClick={() => { setLayersDropdownOpen((v) => !v); setSurveysDropdownOpen(false); }}
+                    >
+                      Layers ▾
+                    </Button>
+                    {layersDropdownOpen && (
+                      <div
+                        className="absolute top-full left-0 mt-1 z-50 rounded-xl border shadow-2xl py-1 min-w-[150px]"
+                        style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}
+                      >
+                        {layerOrder.map((layer) => (
+                          <button
+                            key={layer}
+                            onClick={() => setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))}
+                            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/5 transition-colors"
+                            style={{ color: layers[layer] ? "#fff" : "rgba(255,255,255,0.4)" }}
+                          >
+                            <span className="w-3 h-3 rounded-sm border flex-shrink-0" style={{ background: layers[layer] ? "#3b82f6" : "transparent", borderColor: layers[layer] ? "#3b82f6" : "rgba(255,255,255,0.2)" }} />
+                            <span className="capitalize">{layer}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Surveys dropdown */}
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      size="sm"
+                      variant={surveysDropdownOpen || showSurveys ? "default" : "ghost"}
+                      onClick={() => { setSurveysDropdownOpen((v) => !v); setLayersDropdownOpen(false); }}
+                    >
+                      Surveys ▾
+                    </Button>
+                    {surveysDropdownOpen && (
+                      <div
+                        className="absolute top-full left-0 mt-1 z-50 rounded-xl border shadow-2xl py-1 min-w-[190px]"
+                        style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}
+                      >
+                        {/* Master toggle */}
+                        <button
+                          onClick={() => setShowSurveys((v) => !v)}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/5 transition-colors border-b mb-1"
+                          style={{ color: showSurveys ? "#fff" : "rgba(255,255,255,0.4)", borderColor: "rgba(255,255,255,0.08)" }}
+                        >
+                          <span className="w-3 h-3 rounded-sm border flex-shrink-0" style={{ background: showSurveys ? "#3b82f6" : "transparent", borderColor: showSurveys ? "#3b82f6" : "rgba(255,255,255,0.2)" }} />
+                          Show survey pins
+                        </button>
+                        {(["storehouse", "chaos_stone", "cash_register", "dragon_taming"] as SurveyCategory[]).map((cat) => {
+                          const active = visibleSurveyCats.has(cat);
+                          return (
+                            <button
+                              key={cat}
+                              onClick={() => setVisibleSurveyCats((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(cat)) next.delete(cat); else next.add(cat);
+                                return next;
+                              })}
+                              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-white/5 transition-colors"
+                              style={{ color: active ? "#fff" : "rgba(255,255,255,0.4)" }}
+                            >
+                              <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ background: active ? SURVEY_CAT_COLORS[cat] : "rgba(255,255,255,0.1)" }}>
+                                {SURVEY_CAT_LABELS[cat]}
+                              </span>
+                              {SURVEY_CAT_NAMES[cat]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className={cleanMode ? "" : "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]"}>
+                <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }} className={cleanMode ? "col-span-full" : ""}>
+                  <CardContent className="p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <div className="font-semibold">Tile map planner</div>
+                        <div className="text-sm opacity-70">Wheel zooms &middot; right-drag pans &middot; click+drag paints</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {cleanMode && (
+                          <button onClick={() => setCleanMode(false)} className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-border bg-background hover:bg-muted transition-colors">
+                            <span className="text-base leading-none">&times;</span> Exit screenshot mode
+                          </button>
+                        )}
+                        <div className="text-xs opacity-70">{cols} &times; {rows}</div>
+                        <button
+                          onClick={toggleFullscreen}
+                          className="flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs hover:bg-white/5 transition-colors"
+                          style={{ borderColor: currentTheme.panelBorder }}
+                          title="Enter fullscreen"
+                        >
+                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 8V5a2 2 0 0 1 2-2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/>
+                            <path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/>
+                          </svg>
+                          Fullscreen
+                        </button>
+                      </div>
+                    </div>
+                    {mapViewport}
+                  </CardContent>
+                </Card>
+
+                {!cleanMode && (
+                  <div className="space-y-6">
+                    <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="font-semibold">Tile info</div>
+                        {visibleInfoTile ? (
+                          <div className="space-y-2 text-sm">
+                            {isLand(visibleInfoTile) ? (
+                              <>
+                                <div>Biome: <span className="capitalize">{visibleInfoTile.terrain}</span></div>
+                                <div>Level: {visibleInfoTile.level}</div>
+                              </>
+                            ) : (
+                              <>
+                                <div>Biome: Water</div>
+                                <div>Level: â€”</div>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-sm opacity-70">Hover or tap a tile.</div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="font-semibold">Deployment coverage</div>
+                        <div className="pt-2 space-y-2">
+                          <div className="text-xs uppercase tracking-wide opacity-70">By biome + level</div>
+                          {deploymentCoverageByBiomeLevel.length > 0 ? (
+                            <div className="space-y-1 max-h-48 overflow-auto pr-1">
+                              {deploymentCoverageByBiomeLevel.map((entry) => (
+                                <div key={entry.label} className="flex items-center justify-between gap-2 text-sm rounded-md border px-2 py-1">
+                                  <span className="truncate capitalize">{entry.label}</span>
+                                  <span className="text-xs opacity-70">{entry.count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-sm opacity-70">No deployments placed.</div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="font-semibold">Legend</div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <div className="h-4 w-4 rounded-sm border" style={{ backgroundColor: currentTheme.water }} />
+                              <span>water</span>
+                            </div>
+                          </div>
+                          {(["grass", "sand", "swamp", "rock", "snow", "volcano", "ground"] as TerrainType[]).map((terrain) => (
+                            <div key={terrain} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <div className="h-4 w-4 rounded-sm border" style={{ backgroundColor: TERRAIN_COLORS[terrain] }} />
+                                <span className="capitalize">{terrain}</span>
+                              </div>
+                              <span className="text-xs opacity-70">{effectiveTerrainCounts[terrain]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            </main>
+          )}
+
+          {/* Fullscreen map â€” takes entire right area */}
+          {isFullscreen && (
+            <div className="w-full h-full select-none">
+              {mapViewport}
+            </div>
+          )}
+        </div>
       </div>
-    </main>
+    </>
   );
 }

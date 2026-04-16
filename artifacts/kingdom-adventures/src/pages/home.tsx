@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link, useLocation } from "wouter";
-import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, Egg, Store } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, Egg, Store, Home as HomeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -242,6 +242,14 @@ const BUILT_IN_TOOLS = [
     icon: <Store className="w-6 h-6 text-indigo-500" />,
     badge: "Shops",
     badgeColor: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300",
+  },
+  {
+    slug: "/houses",
+    title: "Houses & Facilities",
+    description: "Browse all facilities by category — Environment, Materials, Amenity, Indoors, and Map-unlocked. See upgrade costs and timers at any level, plus land plot types.",
+    icon: <HomeIcon className="w-6 h-6 text-lime-500" />,
+    badge: "Buildings",
+    badgeColor: "bg-lime-100 text-lime-700 border-lime-200 dark:bg-lime-950 dark:text-lime-300",
   },
 ];
 
