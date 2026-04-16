@@ -175,10 +175,10 @@ interface CustomProject {
 const BUILT_IN_TOOLS = [
   {
     slug: "/match-finder",
-    title: "Match Finder",
-    description: "Find optimal job pairings using bipartite matching. Add jobs to ranks, define compatible pairs, and let the algorithm calculate the best matches.",
+    title: "Match Finder & Marriage Sim",
+    description: "Three tools in one: Match Finder — add your owned jobs and let the algorithm calculate optimal pairs. Marriage Simulator — pick parents and see your child's full max stats. Pairing Data — browse the full compatibility table.",
     icon: <Heart className="w-6 h-6 text-rose-500" />,
-    badge: "Matching",
+    badge: "Marriage",
     badgeColor: "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300",
   },
   {

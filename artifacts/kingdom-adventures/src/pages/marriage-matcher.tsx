@@ -1,11 +1,11 @@
 ﻿import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import {
   Plus, Trash2, Zap, RefreshCw, HelpCircle, ArrowLeftRight,
   X, Lock, LockOpen, Loader2, AlertTriangle, ExternalLink,
-  Info, Star, Baby, Filter,
+  Info, Star, Baby, Filter, Heart, BarChart2, BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,18 +27,21 @@ import { apiUrl } from "@/lib/api";
 // âââ API ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 
+type StatEntry = { base: number; inc: number; maxLevel?: number };
+type RankEntry = { stats: Record<string, StatEntry> };
+
 type JobData = {
   generation: 1 | 2;
   type?: "combat" | "non-combat";
   icon?: string;
-  ranks: Record<string, unknown>;
+  ranks: Record<string, RankEntry>;
   shield?: "can" | "cannot";
   weaponEquip?: Record<string, "can" | "cannot" | "weak">;
   skillAccess?: { attack?: "can" | "cannot"; casting?: "can" | "cannot" };
   skills: string[];
 };
 
-type SharedPair = { id: string; jobA: string; jobB: string; children: string[] };
+type SharedPair = { id: string; jobA: string; jobB: string; children: string[]; affinityNum?: number };
 
 function useSharedData() {
   return useQuery({
@@ -121,6 +124,7 @@ interface Pair {
   jobB: string;
   children: string[];
   affinity?: string;
+  affinityNum?: number;
 }
 
 const AFFINITY_STYLE: Record<string, string> = {
@@ -1168,9 +1172,295 @@ function InfoDialog() {
 }
 
 // âââ Main Component âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── Marriage Simulator ───────────────────────────────────────────────────────
+
+const SIM_RANKS = ["D", "C", "B", "A", "S"] as const;
+type SimRank = typeof SIM_RANKS[number];
+
+const CHILD_RANK_MATRIX: Record<SimRank, Record<SimRank, SimRank>> = {
+  D: { D: "D", C: "D", B: "D", A: "D", S: "D" },
+  C: { D: "D", C: "C", B: "C", A: "C", S: "B" },
+  B: { D: "D", C: "C", B: "B", A: "A", S: "A" },
+  A: { D: "D", C: "B", B: "A", A: "S", S: "S" },
+  S: { D: "D", C: "B", B: "A", A: "S", S: "S" },
+};
+
+const SAME_RANK_BONUS: Record<SimRank, number> = { D: 1, C: 2, B: 3, A: 4, S: 5 };
+
+const AFFINITY_NUM_TO_LETTER: Record<number, string> = {
+  100: "A", 95: "B", 90: "B", 80: "C", 75: "D", 70: "D", 65: "E", 60: "E",
+};
+
+const SIM_STATS: Array<{ key: string; label: string }> = [
+  { key: "HP",           label: "HP"    },
+  { key: "MP",           label: "MP"    },
+  { key: "Vigor",        label: "Vigor" },
+  { key: "Attack",       label: "ATK"   },
+  { key: "Defence",      label: "DEF"   },
+  { key: "Speed",        label: "SPD"   },
+  { key: "Luck",         label: "LCK"   },
+  { key: "Intelligence", label: "INT"   },
+  { key: "Dexterity",    label: "DEX"   },
+  { key: "Gather",       label: "CONS"  },
+  { key: "Move",         label: "MOVE"  },
+  { key: "Heart",        label: "Heart" },
+];
+
+interface SimResult {
+  childJob: string;
+  childRank: SimRank;
+  affinityLetter: string;
+  affinityNum: number;
+  childAwakening: number;
+  stats: Array<{ key: string; label: string; base: number; inc: number; maxLevel: number | null; maxValue: number | null }>;
+}
+
+type StatData = { base: number; inc: number; maxLevel?: number };
+
+function calcSim(
+  fatherJob: string, motherJob: string,
+  fatherRank: SimRank, motherRank: SimRank,
+  fatherAwk: number, motherAwk: number,
+  pairs: Pair[],
+  jobs: Record<string, JobData>,
+): SimResult | { error: string } {
+  const pair = pairs.find((p) => pairKey(p.jobA, p.jobB) === pairKey(fatherJob, motherJob));
+  if (!pair) return { error: "This pair has no compatible marriage data." };
+
+  const childJobName =
+    normJob(fatherJob) === "monarch" || normJob(motherJob) === "monarch"
+      ? "Royal" : pair.children[0] ?? null;
+  if (!childJobName) return { error: "No child job found for this pair." };
+
+  const childRank = CHILD_RANK_MATRIX[fatherRank]?.[motherRank];
+  if (!childRank) return { error: "Could not determine child rank." };
+
+  const affinityNum = (pair as any).affinityNum as number | undefined;
+  if (!affinityNum) return { error: "Affinity number missing — re-run the migration script." };
+  const affinityLetter = AFFINITY_NUM_TO_LETTER[affinityNum] ?? pair.affinity ?? "?";
+
+  const sameRankBonus = fatherRank === motherRank ? SAME_RANK_BONUS[fatherRank] : 0;
+  const childAwakening = Math.floor((affinityNum * (fatherAwk + motherAwk + sameRankBonus)) / 100);
+
+  const childRankData = (jobs[childJobName]?.ranks as Record<string, { stats: Record<string, StatData> }>)?.[childRank];
+
+  const stats = SIM_STATS.map(({ key, label }) => {
+    const stat = childRankData?.stats?.[key];
+    if (!stat) return { key, label, base: 0, inc: 0, maxLevel: null, maxValue: null };
+    const baseMaxLevel = stat.maxLevel ?? null;
+    const maxLevel = baseMaxLevel !== null ? baseMaxLevel + 30 * childAwakening : null;
+    const maxValue = maxLevel !== null ? stat.base + stat.inc * (maxLevel - 1) : null;
+    return { key, label, base: stat.base, inc: stat.inc, maxLevel, maxValue };
+  });
+
+  return { childJob: childJobName, childRank, affinityLetter, affinityNum, childAwakening, stats };
+}
+
+const SIM_RANK_STYLE: Record<SimRank, string> = {
+  S: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700",
+  A: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700",
+  B: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700",
+  C: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700",
+  D: "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+};
+
+function SimTab({
+  pairs, jobs, firstGenJobNames,
+}: {
+  pairs: Pair[];
+  jobs: Record<string, JobData>;
+  firstGenJobNames: string[];
+}) {
+  const [fatherJob, setFatherJob] = useState("");
+  const [motherJob, setMotherJob] = useState("");
+  const [fatherRank, setFatherRank] = useState<SimRank>("S");
+  const [motherRank, setMotherRank] = useState<SimRank>("S");
+  const [fatherAwk, setFatherAwk] = useState(0);
+  const [motherAwk, setMotherAwk] = useState(0);
+
+  const jobOptions = firstGenJobNames.map((n) => ({ value: n, label: n }));
+
+  const result = useMemo(() => {
+    if (!fatherJob || !motherJob) return null;
+    return calcSim(fatherJob, motherJob, fatherRank, motherRank, fatherAwk, motherAwk, pairs, jobs);
+  }, [fatherJob, motherJob, fatherRank, motherRank, fatherAwk, motherAwk, pairs, jobs]);
+
+  function AwkInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+    const [local, setLocal] = useState(String(value));
+    const [focused, setFocused] = useState(false);
+    useEffect(() => { if (!focused) setLocal(String(value)); }, [value, focused]);
+    return (
+      <Input type="text" inputMode="numeric" value={local} placeholder="0"
+        onFocus={(e) => { setFocused(true); e.currentTarget.select(); }}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => { setFocused(false); const n = parseInt(local); onChange(isNaN(n) ? 0 : Math.max(0, n)); }}
+        onKeyDown={(e) => { if (e.key === "Enter") { const n = parseInt(local); onChange(isNaN(n) ? 0 : Math.max(0, n)); e.currentTarget.blur(); } }}
+        className="h-8 text-center text-sm"
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Parents</CardTitle>
+          <CardDescription className="text-xs">Only 1st generation (Non-Marriage) jobs can marry in the game.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold text-blue-500 leading-none">♂</span>
+                <span className="text-sm font-semibold">Father</span>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Job</label>
+                <SearchableSelect value={fatherJob} onChange={(v) => setFatherJob(v ?? "")} options={jobOptions} placeholder="Select father's job…" triggerClassName="h-8 text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Rank</label>
+                  <div className="flex rounded-md overflow-hidden border border-input">
+                    {SIM_RANKS.map((r) => (
+                      <button key={r} onClick={() => setFatherRank(r)}
+                        className={`flex-1 h-8 text-xs font-bold transition-colors ${fatherRank === r ? SIM_RANK_STYLE[r] + " border" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                      >{r}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Awakening</label>
+                  <AwkInput value={fatherAwk} onChange={setFatherAwk} />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold text-rose-500 leading-none">♀</span>
+                <span className="text-sm font-semibold">Mother</span>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Job</label>
+                <SearchableSelect value={motherJob} onChange={(v) => setMotherJob(v ?? "")} options={jobOptions} placeholder="Select mother's job…" triggerClassName="h-8 text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Rank</label>
+                  <div className="flex rounded-md overflow-hidden border border-input">
+                    {SIM_RANKS.map((r) => (
+                      <button key={r} onClick={() => setMotherRank(r)}
+                        className={`flex-1 h-8 text-xs font-bold transition-colors ${motherRank === r ? SIM_RANK_STYLE[r] + " border" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                      >{r}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Awakening</label>
+                  <AwkInput value={motherAwk} onChange={setMotherAwk} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {!fatherJob || !motherJob ? (
+        <Card className="shadow-sm border-dashed">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Select both parents above to see the simulation result.
+          </CardContent>
+        </Card>
+      ) : result && "error" in result ? (
+        <Card className="shadow-sm border-destructive/40">
+          <CardContent className="py-8 text-center">
+            <p className="text-sm text-destructive">{result.error}</p>
+          </CardContent>
+        </Card>
+      ) : result ? (
+        <div className="space-y-4">
+          <Card className="shadow-sm border-primary/20">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <Baby className="w-4 h-4 text-violet-500" />
+                <CardTitle className="text-base">Child Summary</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Compatibility</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-sm font-bold px-2 py-0.5 rounded border ${AFFINITY_STYLE[result.affinityLetter] ?? "bg-muted border-border text-foreground"}`}>
+                      {result.affinityLetter}
+                    </span>
+                    <span className="text-xs text-muted-foreground">({result.affinityNum}%)</span>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Child Job</p>
+                  <p className="text-sm font-semibold">{result.childJob}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Child Rank</p>
+                  <Badge className={`text-sm font-bold px-2.5 py-0.5 border ${SIM_RANK_STYLE[result.childRank]}`}>{result.childRank}</Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Child Awakening</p>
+                  <p className="text-sm font-semibold">{result.childAwakening}</p>
+                  {fatherRank === motherRank && (
+                    <p className="text-[10px] text-muted-foreground">+{SAME_RANK_BONUS[fatherRank]} same-rank bonus</p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-muted-foreground" />
+                Child Stats — {result.childJob} at Rank {result.childRank}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                At awakening {result.childAwakening}. Max Level = base max level + 30 × awakening.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <div className="grid grid-cols-[80px_1fr_1fr_1fr_1fr] bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-[400px]">
+                  <span>Stat</span><span className="text-right">Base Val</span><span className="text-right">Growth</span><span className="text-right">Max Lvl</span><span className="text-right">Max Val</span>
+                </div>
+                {result.stats.map((s) => (
+                  <div key={s.key} className="grid grid-cols-[80px_1fr_1fr_1fr_1fr] px-4 py-2 text-sm border-b border-border last:border-0 hover:bg-muted/20 transition-colors min-w-[400px]">
+                    <span className="font-medium">{s.label}</span>
+                    <span className="text-right text-muted-foreground">{s.base}</span>
+                    <span className="text-right text-muted-foreground">{s.inc}</span>
+                    <span className="text-right font-medium">{s.maxLevel !== null ? s.maxLevel : <span className="text-muted-foreground/40">—</span>}</span>
+                    <span className="text-right font-semibold text-primary">{s.maxValue !== null ? s.maxValue.toLocaleString() : <span className="text-muted-foreground/40">—</span>}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type ActiveTab = "finder" | "simulator" | "data";
+
 export default function MarriageMatcher() {
   // -- API data --
   const { data: sharedData, isLoading: jobsLoading } = useSharedData();
+
+  // -- Tab state (read/write from URL: ?tab=finder|simulator|data) --
+  const search = useSearch();
+  const urlTab = new URLSearchParams(search).get("tab") as ActiveTab | null;
+  const [activeTab, setActiveTab] = useState<ActiveTab>(
+    urlTab === "simulator" || urlTab === "data" ? urlTab : "finder",
+  );
 
   const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_marriage", "");
   const [showNote, setShowNote] = useState(false);
@@ -1657,12 +1947,12 @@ export default function MarriageMatcher() {
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 py-10">
         {/* Header */}
-        <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="mb-6 flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-foreground tracking-tight">Match Finder</h1>
+              <h1 className="text-3xl font-bold text-foreground tracking-tight">Match Finder &amp; Marriage Sim</h1>
               <p className="mt-1 text-muted-foreground text-sm max-w-xl">
-                Set your rank slots, choose your affinity and child targets, and let the planner find the best matches.
+                Find optimal job pairings, simulate a marriage and see child stats, or browse the full compatibility data.
               </p>
             </div>
           </div>
@@ -1687,6 +1977,31 @@ export default function MarriageMatcher() {
             />
           </div>
         )}
+
+        {/* Tab nav */}
+        <div className="flex gap-1 mb-6 border-b border-border pb-0">
+          {([
+            { key: "finder",    icon: Heart,     label: "Match Finder" },
+            { key: "simulator", icon: Baby,       label: "Marriage Simulator" },
+            { key: "data",      icon: BarChart2,  label: "Compatibility Data" },
+          ] as const).map(({ key, icon: Icon, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                activeTab === key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Finder tab ──────────────────────────────────────────────── */}
+        {activeTab === "finder" && (<>
 
         {/* Jobs Panel */}
         <div className="mb-6">
@@ -1979,18 +2294,31 @@ export default function MarriageMatcher() {
           </div>
         )}
 
-        <div className="mt-6">
+        </>)}
+        {/* ── END Finder tab ─────────────────────────────────────────── */}
+
+        {/* ── Simulator tab ──────────────────────────────────────────── */}
+        {activeTab === "simulator" && (
+          <SimTab
+            pairs={apiPairs ?? pairs}
+            jobs={sharedData?.jobs ?? {}}
+            firstGenJobNames={sortedJobNames}
+          />
+        )}
+
+        {/* ── Data tab ───────────────────────────────────────────────── */}
+        {activeTab === "data" && (
           <PairsPanel
             pairs={pairs}
             jobTypeMap={jobTypeMap}
             jobGenMap={jobGenMap}
             allJobNames={allJobNames}
           />
-        </div>
+        )}
 
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-          <span>Match Finder — open source</span>
+          <span>Match Finder &amp; Marriage Sim — open source</span>
           <a href="https://replit.com" target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1 hover:text-foreground transition-colors">
             <ExternalLink className="w-3 h-3" /> Fork &amp; edit on Replit
