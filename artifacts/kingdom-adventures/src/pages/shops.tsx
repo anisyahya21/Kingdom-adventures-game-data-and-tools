@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS, type ShopRecord, type ShopSlug, type ShopBuilding, type ShopFacility } from "@/lib/shop-utils";
 import { MaterialIcon } from "@/lib/material-icons";
-import { FACILITIES, FacilityCard } from "./houses";
+import { FACILITIES } from "./houses";
 
 type EquipmentSlot = "Head" | "Weapon" | "Shield" | "Armor" | "Accessory" | "-";
 type EquipmentRow = {
