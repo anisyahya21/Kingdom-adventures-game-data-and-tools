@@ -43,7 +43,7 @@ export function SearchableSelect({
     : options;
   const useSimpleSelect = searchThreshold !== null && options.length <= searchThreshold;
 
-  const openDrop = () => {
+  const updateDropPos = () => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
@@ -57,6 +57,11 @@ export function SearchableSelect({
         : { top: rect.bottom + 2 }),
       zIndex: 9999,
     });
+  };
+
+  const openDrop = () => {
+    if (!triggerRef.current) return;
+    updateDropPos();
     setOpen(true);
     setQuery("");
     setTimeout(() => searchRef.current?.focus(), 15);
@@ -76,9 +81,13 @@ export function SearchableSelect({
     };
     document.addEventListener("mousedown", close);
     document.addEventListener("keydown", esc);
+    window.addEventListener("scroll", updateDropPos, true);
+    window.addEventListener("resize", updateDropPos);
     return () => {
       document.removeEventListener("mousedown", close);
       document.removeEventListener("keydown", esc);
+      window.removeEventListener("scroll", updateDropPos, true);
+      window.removeEventListener("resize", updateDropPos);
     };
   }, [open]);
 
