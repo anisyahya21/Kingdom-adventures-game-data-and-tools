@@ -109,6 +109,31 @@ function BandPill({ band }: { band: EggBand }) {
   return <Badge variant="outline" className={BAND_STYLE[band]}>{band}</Badge>;
 }
 
+const BAND_FILL_COLOR: Record<Exclude<EggBand, "None">, string> = {
+  Low: "bg-rose-500/60",
+  Medium: "bg-amber-500/60",
+  High: "bg-emerald-500/60",
+  Over: "bg-rose-500/60",
+};
+
+const BAND_ORDER: Exclude<EggBand, "None">[] = ["Low", "Medium", "High", "Over"];
+
+function getBandFillPct(
+  band: Exclude<EggBand, "None">,
+  currentTotal: number,
+  thresholds: Record<Exclude<EggBand, "None">, number | null>
+): number {
+  const min = thresholds[band];
+  if (min === null) return 0;
+  const bandIndex = BAND_ORDER.indexOf(band);
+  const nextBand = BAND_ORDER[bandIndex + 1] as Exclude<EggBand, "None"> | undefined;
+  const max = nextBand ? thresholds[nextBand] : null;
+  if (max === null || max === undefined) return currentTotal >= min ? 1 : 0;
+  if (currentTotal < min) return 0;
+  if (currentTotal >= max) return 1;
+  return (currentTotal - min) / (max - min);
+}
+
 function BandProgress({
   currentBand,
   thresholds,
@@ -118,25 +143,44 @@ function BandProgress({
   thresholds: Record<Exclude<EggBand, "None">, number | null>;
   currentTotal: number;
 }) {
-  const steps: Array<{ band: Exclude<EggBand, "None">; label: string }> = [
-    { band: "Low", label: "Low" },
-    { band: "Medium", label: "Medium" },
-    { band: "High", label: "High" },
-    { band: "Over", label: "Over" },
-  ];
+  const currentIndex = currentBand === "None" ? -1 : BAND_ORDER.indexOf(currentBand);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-      {steps.map((step) => {
-        const isActive = currentBand === step.band;
+      {BAND_ORDER.map((band, idx) => {
+        const isActive = band === currentBand;
+        const isPast = idx < currentIndex;
+        const fillPct = isActive
+          ? getBandFillPct(band, currentTotal, thresholds)
+          : isPast
+          ? 1
+          : 0;
+
         return (
           <div
-            key={step.band}
-            className={`rounded-lg border px-3 py-2 ${isActive ? BAND_STYLE[step.band] : "border-border/60 bg-muted/20 text-muted-foreground"}`}
+            key={band}
+            className={`rounded-lg border px-3 py-2 relative overflow-hidden ${
+              isActive
+                ? BAND_STYLE[band]
+                : isPast
+                ? "border-border/40 bg-muted/10 text-muted-foreground"
+                : "border-border/30 bg-muted/10 text-muted-foreground/50"
+            }`}
           >
-            <div className="text-[11px] uppercase tracking-wide">{step.label}</div>
-            <div className="text-sm font-semibold">{thresholds[step.band] ?? "-"}</div>
-            {isActive && <div className="text-[11px] mt-1">Current total {currentTotal}</div>}
+            {/* fill bar */}
+            <div
+              className={`absolute inset-0 transition-all duration-200 ${
+                isActive || isPast ? BAND_FILL_COLOR[band] : ""
+              }`}
+              style={{ width: `${Math.round(fillPct * 100)}%`, opacity: 0.25 }}
+            />
+            <div className="relative z-10">
+              <div className="text-[11px] uppercase tracking-wide">{band}</div>
+              <div className="text-sm font-semibold">{thresholds[band] ?? "-"}</div>
+              {isActive && (
+                <div className="text-[11px] mt-0.5">{Math.round(fillPct * 100)}%</div>
+              )}
+            </div>
           </div>
         );
       })}
@@ -544,7 +588,11 @@ export default function EggsPage() {
                                       type="number"
                                       min={0}
                                       value={targetFeedInputs[item.name] ?? String(quantity)}
-                                      onChange={(e) => updateFeedQuantityInput(setTargetFeedInputs, item.name, e.target.value)}
+                                      onChange={(e) => {
+                                        updateFeedQuantityInput(setTargetFeedInputs, item.name, e.target.value);
+                                        const parsed = Math.max(0, Number.parseInt(e.target.value, 10) || 0);
+                                        setTargetFeedState((current) => ({ ...current, [item.name]: parsed }));
+                                      }}
                                       onBlur={(e) => commitFeedQuantity(setTargetFeedState, setTargetFeedInputs, item.name, e.target.value)}
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
