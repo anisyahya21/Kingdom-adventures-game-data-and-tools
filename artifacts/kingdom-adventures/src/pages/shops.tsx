@@ -18,7 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { localSharedData } from "@/lib/local-shared-data";
-import { SHOP_RECORDS, type ShopRecord, type ShopSlug } from "@/lib/shop-utils";
+import { SHOP_RECORDS, type ShopRecord, type ShopSlug, type ShopBuilding, type ShopFacility } from "@/lib/shop-utils";
+import { MaterialIcon } from "@/lib/material-icons";
 
 type EquipmentSlot = "Head" | "Weapon" | "Shield" | "Armor" | "Accessory" | "-";
 type EquipmentRow = {
@@ -309,12 +310,199 @@ function ShopTabs({ currentSlug }: { currentSlug?: ShopSlug }) {
   );
 }
 
+const BUILDING_COST_ICONS: { field: keyof ShopBuilding; matId: number; style: "flat" | "outlined" | "crystal" }[] = [
+  { field: "grass",  matId: 0, style: "outlined" },
+  { field: "wood",   matId: 1, style: "flat" },
+  { field: "food",   matId: 2, style: "flat" },
+  { field: "ore",    matId: 3, style: "crystal" },
+  { field: "mystic", matId: 4, style: "flat" },
+];
+const PLOT_TILES: Record<string, string> = { S: "6×6", M: "6×8", L: "8×8", XL: "8×10" };
+const PLOT_SIZES = ["S", "M", "L", "XL"] as const;
+
+function BuildingSlotRow({ label, values, highlight }: { label: string; values: [number,number,number,number]; highlight?: boolean }) {
+  const allZero = values.every(v => v === 0);
+  return (
+    <tr className={allZero ? "opacity-30" : ""}>
+      <td className={`pr-2 py-0.5 text-[11px] whitespace-nowrap ${highlight ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+        {label}
+      </td>
+      {values.map((v, i) => (
+        <td key={i} className={`text-center px-2 py-0.5 text-xs tabular-nums ${highlight && v > 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+          {v === 0 ? "×" : v}
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+function ShopBuildingPanel({ shop }: { shop: ShopRecord }) {
+  const b = shop.building;
+  if (!b) return null;
+
+  const costs = BUILDING_COST_ICONS.filter(c => (b[c.field] as number) > 0);
+
+  return (
+    <Card className="flex flex-col">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-sm font-semibold leading-tight">{shop.title}</CardTitle>
+          <Badge variant="outline" className="text-[10px] shrink-0 bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-300">
+            Shop
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 space-y-3">
+        {costs.length === 0 ? (
+          <span className="text-[11px] text-muted-foreground italic">Free to build</span>
+        ) : (
+          <div className="flex flex-wrap gap-2 items-center">
+            {costs.map(c => (
+              <span key={c.field} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <MaterialIcon id={c.matId} style={c.style} size={18} />
+                {b[c.field] as number}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="pr-2 text-left text-[10px] font-medium text-muted-foreground/60 pb-1"></th>
+                {PLOT_SIZES.map(s => (
+                  <th key={s} className="text-center px-2 text-[10px] font-semibold text-muted-foreground pb-1">
+                    <div>{s}</div>
+                    <div className="font-normal text-muted-foreground/50 text-[9px] tabular-nums">{PLOT_TILES[s]}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <BuildingSlotRow label="Indoor slots" values={b.cap} />
+              <BuildingSlotRow label="Beds"         values={b.beds} highlight />
+              {b.store.some(v => v > 0) && (
+                <BuildingSlotRow label="Shelves"    values={b.store} highlight />
+              )}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Workbench item costs: all shop workbenches use item group 9
+// qty = max(1, floor(N/3)), where N = level (1-indexed)
+const WORKBENCH_ITEMS: [string, number][] = [
+  ["Large Nail", 3],
+  ["Iron Ore",   2],
+  ["Pretty Cloth", 1],
+  ["Copper Coin", 3],
+];
+
+function formatUpgTime(seconds: number): string {
+  if (seconds <= 0) return "0s";
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  const totalMinutes = Math.round(seconds / 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+function WorkbenchCard({ facility }: { facility: ShopFacility }) {
+  const [level, setLevel] = useState(0);
+  const MAX_LEVEL = 99;
+
+  function interp(lv1: number, maxV: number) {
+    if (lv1 === 0 && maxV === 0) return 0;
+    return lv1 + Math.floor((maxV - lv1) * level / MAX_LEVEL);
+  }
+
+  const costs = [
+    { matId: 0, style: "outlined" as const, v: interp(facility.upgGrass,  facility.maxUpgGrass)  },
+    { matId: 1, style: "flat"     as const, v: interp(facility.upgWood,   facility.maxUpgWood)   },
+    { matId: 2, style: "flat"     as const, v: interp(facility.upgFood,   facility.maxUpgFood)   },
+    { matId: 3, style: "crystal"  as const, v: interp(facility.upgOre,    facility.maxUpgOre)    },
+    { matId: 4, style: "flat"     as const, v: interp(facility.upgMystic, facility.maxUpgMystic) },
+  ].filter(c => c.v > 0);
+
+  const minTime = 120;
+  const maxTime = 129600;
+  const upgTime = Math.round(minTime + (maxTime - minTime) * level / MAX_LEVEL);
+
+  const N = level + 1;
+  const q = Math.max(1, Math.floor(N / 3));
+  const items = WORKBENCH_ITEMS.map(([name, ratio]) => ({ name, qty: q * ratio }));
+
+  return (
+    <Card className="flex flex-col">
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-sm font-semibold leading-tight">{facility.name}</CardTitle>
+          <Badge variant="outline" className="text-[10px] shrink-0 bg-violet-500/10 text-violet-700 border-violet-500/30 dark:text-violet-300">
+            Indoors
+          </Badge>
+        </div>
+        <div className="flex flex-wrap gap-1 mt-1">
+          <Badge variant="outline" className="text-[10px] tabular-nums font-mono">{facility.size}</Badge>
+          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300">Upgradeable</Badge>
+          <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-300">🛒 More items available</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 space-y-2">
+        <div className="space-y-1 border-t border-border pt-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium">
+              Upgrade cost (Lv. {level + 1}→{level + 2})
+            </p>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => setLevel(l => Math.max(0, l - 1))}
+                disabled={level === 0}
+                className="w-5 h-5 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >-</button>
+              <span className="text-xs tabular-nums w-7 text-center font-medium">{level + 1}</span>
+              <button
+                onClick={() => setLevel(l => Math.min(MAX_LEVEL, l + 1))}
+                disabled={level === MAX_LEVEL}
+                className="w-5 h-5 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >+</button>
+            </div>
+          </div>
+          {costs.length === 0 ? (
+            <span className="text-[11px] text-muted-foreground italic">Free</span>
+          ) : (
+            <div className="flex flex-wrap gap-2 items-center">
+              {costs.map(c => (
+                <span key={c.matId} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <MaterialIcon id={c.matId} style={c.style} size={18} />
+                  {c.v}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+            {items.map(({ name, qty }) => (
+              <span key={name} className="text-xs text-muted-foreground">{qty}× {name}</span>
+            ))}
+          </div>
+          <p className="text-xs font-medium text-amber-600 dark:text-amber-400">⏱ {formatUpgTime(upgTime)}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+
 function ShopOwnerLink({ owner }: { owner: string }) {
   return (
     <Link href={`/jobs/${encodeURIComponent(owner)}`}>
       <button
         onClick={(e) => e.stopPropagation()}
-        className="font-medium text-foreground hover:text-primary transition-colors"
+        className="font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500 dark:hover:text-purple-300 transition-colors"
       >
         {owner}
       </button>
@@ -577,8 +765,7 @@ function ResearchShopView({ shop }: { shop: ShopRecord }) {
             <ShopOwnerLink owner={shop.owner} />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground">Current source</div>
-            <div className="font-medium text-foreground">{shop.dataSource}</div>
+
           </div>
         </CardContent>
       </Card>
@@ -908,7 +1095,7 @@ export default function ShopsPage() {
                   <CardDescription className="text-xs leading-relaxed">{shop.description}</CardDescription>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <ShopOwnerLink owner={shop.owner} />
-                    <span>{shop.dataSource}</span>
+
                   </div>
                 </CardContent>
               </Card>
@@ -925,6 +1112,11 @@ export default function ShopsPage() {
         <ShopHeader selectedShop={selectedShop} />
         <ShopTabs currentSlug={selectedShop.slug} />
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <ShopBuildingPanel shop={selectedShop} />
+          {selectedShop.workbench && <WorkbenchCard facility={selectedShop.workbench} />}
+        </div>
+
         <Card className="shadow-sm mb-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Owner & Scope</CardTitle>
@@ -932,8 +1124,7 @@ export default function ShopsPage() {
           <CardContent className="flex flex-wrap items-center gap-3 text-sm">
             <span className="text-muted-foreground">Owner:</span>
             <ShopOwnerLink owner={selectedShop.owner} />
-            <span className="text-muted-foreground">Source:</span>
-            <span className="font-medium text-foreground">{selectedShop.dataSource}</span>
+
             {selectedShopResults !== null && (
               <>
                 <span className="text-muted-foreground">Results:</span>
