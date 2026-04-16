@@ -463,13 +463,13 @@ const FACILITIES: Facility[] = [
     minHp: 10, maxHp: 510, validRange:  0, canUpgrade: true },
   { id: 45,  name: "Mine: Ore",                tab: "materials",  size: "2×2",
     minGrass:  0, minWood:  3, minFood:  0, minOre:  5, minMystic:  0,
-    maxGrass:  0, maxWood: 27, maxFood:  0, maxOre: 35, maxMystic:  0,
+    maxGrass:  0, maxWood: 27, maxFood:  0, maxOre:  35, maxMystic:  0,
     upgGrass:  0, upgWood:  3, upgFood:  0, upgOre:  5, upgMystic:  0,
     maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 80, maxUpgMystic: 8,
     minHp: 10, maxHp: 510, validRange:  0, canUpgrade: true },
   { id: 46,  name: "Mine: Mystic Ore",         tab: "materials",  size: "2×2",
     minGrass:  0, minWood:  0, minFood:  0, minOre:  5, minMystic:  8,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre: 35, maxMystic: 48,
+    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  35, maxMystic:  48,
     upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  5, upgMystic:  8,
     maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 80, maxUpgMystic: 85,
     minHp: 10, maxHp: 510, validRange:  0, canUpgrade: true },
@@ -1424,10 +1424,7 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
     <Card className="flex flex-col">
       <CardHeader className="pb-2 pt-4 px-4">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-semibold leading-tight">{f.name}</CardTitle>
-          <Badge variant="outline" className={`text-[10px] shrink-0 ${FACILITY_TAB_STYLE[f.tab]}`}>
-            {tabLabel}
-          </Badge>
+            <CardTitle className="text-sm font-semibold leading-tight">{f.name}</CardTitle>
         </div>
         {(f.canUpgrade || f.validRange > 0 || f.mapUnlock !== undefined) && (
           <div className="flex flex-wrap gap-1 mt-1">
@@ -1758,3 +1755,5 @@ export default function HousesPage() {
     </div>
   );
 }
+
+export { FacilityCard, FACILITIES };

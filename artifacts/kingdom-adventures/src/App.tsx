@@ -144,9 +144,9 @@ function SiteHeader() {
     { href: "/match-finder", label: "Match Finder" },
     { href: "/loadout", label: "Loadout" },
     { href: "/sync-devices", label: "Sync Devices" },
-    { href: "/world-map", label: "World Map", beta: true },
     { href: "/houses", label: "Houses" },
     { href: "/town-rank", label: "Town Rank" },
+    { href: "/world-map", label: "World Map", beta: true },
   ];
 
   return (

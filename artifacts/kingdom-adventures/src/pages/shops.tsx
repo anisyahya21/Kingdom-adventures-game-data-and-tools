@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS, type ShopRecord, type ShopSlug, type ShopBuilding, type ShopFacility } from "@/lib/shop-utils";
 import { MaterialIcon } from "@/lib/material-icons";
+import { FACILITIES, FacilityCard } from "./houses";
 
 type EquipmentSlot = "Head" | "Weapon" | "Shield" | "Armor" | "Accessory" | "-";
 type EquipmentRow = {
@@ -411,7 +412,7 @@ function formatUpgTime(seconds: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-function WorkbenchCard({ facility }: { facility: ShopFacility }) {
+function FacilityCard({ f }: { f: FacilityCard }) {
   const [level, setLevel] = useState(0);
   const MAX_LEVEL = 99;
 
@@ -1114,7 +1115,12 @@ export default function ShopsPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <ShopBuildingPanel shop={selectedShop} />
-          {selectedShop.workbench && <WorkbenchCard facility={selectedShop.workbench} />}
+          {selectedShop.workbench && (
+            (() => {
+              const facility = FACILITIES.find(f => f.id === selectedShop.workbench?.id);
+              return facility ? <FacilityCard f={facility} /> : null;
+            })()
+          )}
         </div>
 
         <Card className="shadow-sm mb-4">
