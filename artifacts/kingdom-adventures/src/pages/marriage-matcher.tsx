@@ -596,6 +596,7 @@ interface PairsPanelProps {
 
 function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelProps) {
   const [pairAffinityFilter, setPairAffinityFilter] = useState<Set<string>>(new Set(["A", "B", "C", "D", "E"]));
+  const [pairParentTypeFilter, setPairParentTypeFilter] = useState<ChildTypeFilter>("all");
   const [pairChildTypeFilter, setPairChildTypeFilter] = useState<ChildTypeFilter>("all");
   const [pairExclusiveFilter, setPairExclusiveFilter] = useState<ExclusiveFilter>("all");
   const [includeParentInheritance, setIncludeParentInheritance] = useState(true);
@@ -619,6 +620,16 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
         normJob(p.jobA) === normJob(pairParentFilter) ||
         normJob(p.jobB) === normJob(pairParentFilter);
       if (!parentMatch) return false;
+    }
+
+    if (pairParentTypeFilter !== "all") {
+      // Parent-type filtering depends on the current jobTypeMap. See
+      // data/sheet-research/notes/job-notes.md for the current CSV-vs-app
+      // classification findings and known mismatches.
+      const parentTypeMatch =
+        jobTypeMap[p.jobA] === pairParentTypeFilter &&
+        jobTypeMap[p.jobB] === pairParentTypeFilter;
+      if (!parentTypeMatch) return false;
     }
 
     if (pairChildFilter !== "all") {
@@ -693,6 +704,29 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground font-medium shrink-0">Parent type:</span>
+            <div className="flex rounded-md overflow-hidden border border-input">
+              {(["all", "combat", "non-combat"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setPairParentTypeFilter(mode)}
+                  className={`px-2.5 h-7 text-[11px] font-medium transition-colors ${
+                    pairParentTypeFilter === mode
+                      ? mode === "combat"
+                        ? "bg-red-500 text-white"
+                        : mode === "non-combat"
+                          ? "bg-sky-500 text-white"
+                          : "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {mode === "all" ? "All" : mode === "combat" ? "Combat" : "Non-Combat"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-muted-foreground font-medium shrink-0">Child type:</span>
             <div className="flex rounded-md overflow-hidden border border-input">
               {(["all", "combat", "non-combat"] as const).map((mode) => (
@@ -759,7 +793,7 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
             <span className="text-xs text-muted-foreground">
               Showing {filtered.length} of {pairs.length} pairs.
             </span>
-            {(pairParentFilter !== "all" || pairChildFilter !== "all") && (
+            {(pairParentFilter !== "all" || pairChildFilter !== "all" || pairParentTypeFilter !== "all") && (
               <Button
                 type="button"
                 variant="ghost"
@@ -767,10 +801,11 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
                 onClick={() => {
                   setPairParentFilter("all");
                   setPairChildFilter("all");
+                  setPairParentTypeFilter("all");
                 }}
                 className="h-6 px-2 text-xs"
               >
-                Clear parent/child
+                Clear parent filters
               </Button>
             )}
           </div>

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link, useLocation } from "wouter";
-import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, Egg, Store, Home as HomeIcon } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, Egg, Store, Home as HomeIcon, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -251,6 +251,14 @@ const BUILT_IN_TOOLS = [
     badge: "Buildings",
     badgeColor: "bg-lime-100 text-lime-700 border-lime-200 dark:bg-lime-950 dark:text-lime-300",
   },
+  {
+    slug: "/gacha-events",
+    title: "Gacha Events",
+    description: "Track the confirmed gacha schedule for featured S-rank jobs, high-tier facilities, and recurring Kairo weapon windows with durations and live countdowns.",
+    icon: <CalendarDays className="w-6 h-6 text-pink-500" />,
+    badge: "Events",
+    badgeColor: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-950 dark:text-pink-300",
+  },
 ];
 
 function generateId() { return Math.random().toString(36).slice(2, 9); }
@@ -304,6 +312,23 @@ export default function Home() {
             </div>
             <div className="mt-2 text-sm opacity-75">
               Tile map planner with hover info on PC, tap info on mobile, and tool/highlight/deployment modes.
+            </div>
+          </button>
+        </Link>
+
+        <Link href="/map-2-testing">
+          <button className="w-full text-left rounded-2xl border p-4 mb-8 hover:bg-muted/40">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="font-semibold">Map 2 Testing</div>
+              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-orange-400 border-orange-400">
+                Beta
+              </span>
+              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">
+                Testing
+              </span>
+            </div>
+            <div className="mt-2 text-sm opacity-75">
+              Safe duplicate of the World Map page for experimenting with MapChip, Terrain, Survey, Map, and full-map integration.
             </div>
           </button>
         </Link>

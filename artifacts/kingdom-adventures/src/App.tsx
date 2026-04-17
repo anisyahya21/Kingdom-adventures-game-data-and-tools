@@ -19,8 +19,10 @@ import EggsPage from "@/pages/eggs";
 import ShopsPage from "@/pages/shops";
 import SyncDevicesPage from "@/pages/sync-devices";
 import WorldMapPage from "@/pages/world-map";
+import Map2TestingPage from "@/pages/map-2-testing";
 import HousesPage from "@/pages/houses";
 import TownRankPage from "@/pages/town-rank";
+import GachaEventsPage from "@/pages/gacha-events";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
 
@@ -145,8 +147,10 @@ function SiteHeader() {
     { href: "/loadout", label: "Loadout" },
     { href: "/sync-devices", label: "Sync Devices" },
     { href: "/houses", label: "Houses" },
+    { href: "/gacha-events", label: "Gacha Events" },
     { href: "/town-rank", label: "Town Rank" },
     { href: "/world-map", label: "World Map", beta: true },
+    { href: "/map-2-testing", label: "Map 2 Testing", beta: true },
   ];
 
   return (
@@ -277,7 +281,9 @@ function Router() {
       <Route path="/shops/:slug" component={ShopsPage} />
       <Route path="/sync-devices" component={SyncDevicesPage} />
       <Route path="/world-map" component={WorldMapPage} />
+      <Route path="/map-2-testing" component={Map2TestingPage} />
       <Route path="/houses" component={HousesPage} />
+      <Route path="/gacha-events" component={GachaEventsPage} />
       <Route path="/town-rank" component={TownRankPage} />
       <Route component={NotFound} />
     </Switch>
