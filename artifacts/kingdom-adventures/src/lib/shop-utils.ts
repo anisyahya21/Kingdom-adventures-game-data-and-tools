@@ -9,6 +9,22 @@ export type ShopBuilding = {
   store: [number, number, number, number];
 };
 
+export type ShopFacility = {
+  id: number;
+  name: string;
+  size: string;
+  upgGrass: number;
+  upgWood: number;
+  upgFood: number;
+  upgOre: number;
+  upgMystic: number;
+  maxUpgGrass: number;
+  maxUpgWood: number;
+  maxUpgFood: number;
+  maxUpgOre: number;
+  maxUpgMystic: number;
+};
+
 export type ShopSlug =
   | "weapon-shop"
   | "armor-shop"

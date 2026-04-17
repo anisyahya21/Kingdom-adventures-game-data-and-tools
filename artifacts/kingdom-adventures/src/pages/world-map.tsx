@@ -528,6 +528,7 @@ export default function WorldMapPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [cleanMode, setCleanMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreenFallback, setIsFullscreenFallback] = useState(false);
   const [showMinimap, setShowMinimap] = useState(true);
   const [minimapCollapsed, setMinimapCollapsed] = useState(false);
   const [minimapCorner, setMinimapCorner] = useState<"left" | "right">("left");
@@ -643,11 +644,11 @@ export default function WorldMapPage() {
 
   useEffect(() => {
     function onFsChange() {
-      setIsFullscreen(!!document.fullscreenElement);
+      setIsFullscreen(!!document.fullscreenElement || isFullscreenFallback);
     }
     document.addEventListener("fullscreenchange", onFsChange);
     return () => document.removeEventListener("fullscreenchange", onFsChange);
-  }, []);
+  }, [isFullscreenFallback]);
 
   useEffect(() => {
     setTouchMode(isTouchDevice());
@@ -1417,10 +1418,25 @@ export default function WorldMapPage() {
   }
 
   function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      fullscreenContainerRef.current?.requestFullscreen().catch(() => {});
+    if (!document.fullscreenElement && !isFullscreenFallback) {
+      const requestFullscreen = fullscreenContainerRef.current?.requestFullscreen?.bind(fullscreenContainerRef.current);
+      if (requestFullscreen) {
+        requestFullscreen().catch(() => {
+          setIsFullscreenFallback(true);
+          setIsFullscreen(true);
+        });
+      } else {
+        setIsFullscreenFallback(true);
+        setIsFullscreen(true);
+      }
+    } else if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {
+        setIsFullscreenFallback(false);
+        setIsFullscreen(false);
+      });
     } else {
-      document.exitFullscreen().catch(() => {});
+      setIsFullscreenFallback(false);
+      setIsFullscreen(false);
     }
   }
 

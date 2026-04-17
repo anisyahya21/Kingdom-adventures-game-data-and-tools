@@ -1564,6 +1564,7 @@ export default function MarriageMatcher() {
   const rankSlotsHydratedRef = useRef(false);
   const skipNextRankSlotsEchoRef = useRef(false);
   const rankSlotsPutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enablePlannerServerSync = false;
 
   // ââ State: pairs — loaded from API (community), fallback to localStorage ââ
   const [pairsLoadedFromApi, setPairsLoadedFromApi] = useState(false);
@@ -1678,6 +1679,7 @@ export default function MarriageMatcher() {
   // and is authoritative — even if rankSlots is empty (means user deleted everything).
   // Only push local state when the server has NEVER been initialized (marriageMatcher === null).
   useEffect(() => {
+    if (!enablePlannerServerSync) return;
     if (rankSlotsHydratedRef.current) return;
     if (!sharedData) return; // still loading
     rankSlotsHydratedRef.current = true;
@@ -1694,10 +1696,11 @@ export default function MarriageMatcher() {
         body: JSON.stringify({ data: rankSlotsRef.current }),
       }).catch(() => {});
     }
-  }, [sharedData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enablePlannerServerSync, sharedData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced PUT: push rankSlots to server on every user change (after hydration)
   useEffect(() => {
+    if (!enablePlannerServerSync) return;
     if (!rankSlotsHydratedRef.current) return;
     if (skipNextRankSlotsEchoRef.current) {
       skipNextRankSlotsEchoRef.current = false;
@@ -1714,7 +1717,7 @@ export default function MarriageMatcher() {
     return () => {
       if (rankSlotsPutTimerRef.current) clearTimeout(rankSlotsPutTimerRef.current);
     };
-  }, [rankSlots]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enablePlannerServerSync, rankSlots]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     localStorage.setItem("ka_mf_pairs", JSON.stringify(pairs));

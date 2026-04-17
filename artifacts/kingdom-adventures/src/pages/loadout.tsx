@@ -240,6 +240,16 @@ function useLoadouts(sharedData: SharedData | undefined) {
   return { loadouts, save };
 }
 
+function usePrivateLoadouts() {
+  const [loadouts, setLoadouts] = useLocalFeature<Loadout[]>("ka_loadouts", []);
+
+  const save = useCallback((next: Loadout[]) => {
+    setLoadouts(next);
+  }, [setLoadouts]);
+
+  return { loadouts, save };
+}
+
 // ─── Stat Calculators ─────────────────────────────────────────────────────────
 
 function getStatLevel(loadout: Loadout, k: string): number {
@@ -302,7 +312,7 @@ function ScreenshotCard({ loadout, stats }: { loadout: Loadout; stats: Record<st
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 2 }}>{loadout.name || "Loadout"}</div>
           <div style={{ fontSize: 12, color: "#94a3b8" }}>
-            {loadout.jobName || "No job"} {loadout.rank ? `· Rank ${loadout.rank}` : ""} {loadout.level > 1 ? `· Lv ${loadout.level}` : ""}
+            {loadout.jobName || "No job"} {loadout.rank ? `· Rank ${loadout.rank}` : ""} {(loadout.level ?? 1) > 1 ? `· Lv ${loadout.level}` : ""}
           </div>
         </div>
         <div style={{ fontSize: 10, color: "#64748b" }}>Kingdom Adventures</div>
@@ -786,7 +796,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 
 export default function LoadoutPage() {
   const { data, isLoading } = useSharedData();
-  const { loadouts, save } = useLoadouts(data);
+  const { loadouts, save } = usePrivateLoadouts();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_loadout", "");
   const [showNote, setShowNote] = useState(false);
@@ -1004,4 +1014,3 @@ export default function LoadoutPage() {
     </div>
   );
 }
-

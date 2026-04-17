@@ -99,7 +99,7 @@ type SharedState = {
   skills: Record<string, Skill>;
   loadouts: Loadout[];
   loadoutsUpdatedAt: number | null;
-  syncedDevices: Array<{ id: string; name: string; createdAt: number }>;
+  syncedDevices: Array<{ id: string; name: string; createdAt: number; syncGroupId?: string }>;
 };
 
 const DEFAULT_STATE: SharedState = {
@@ -164,6 +164,8 @@ const router = Router();
 
 const syncCodes = new Map<string, { expiresAt: number; sourceDeviceId: string }>();
 
+type SyncedDevice = SharedState["syncedDevices"][number];
+
 function generateSyncCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
@@ -171,6 +173,26 @@ function generateSyncCode(): string {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
   return code;
+}
+
+function normalizeSyncedDevices(devices: SharedState["syncedDevices"]): SyncedDevice[] {
+  return devices.map((device) => ({
+    id: device.id,
+    name: device.name,
+    createdAt: device.createdAt,
+    syncGroupId: device.syncGroupId || device.id,
+  }));
+}
+
+function findDeviceById(devices: SyncedDevice[], id?: string | null): SyncedDevice | undefined {
+  if (!id) return undefined;
+  return devices.find((device) => device.id === id);
+}
+
+function getGroupDevices(devices: SyncedDevice[], groupId: string): SyncedDevice[] {
+  return devices
+    .filter((device) => device.syncGroupId === groupId)
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 // ─── Equipment shared state ────────────────────────────────────────────────────
@@ -241,7 +263,7 @@ router.post("/ka/shared/rename-user", (req, res) => {
   const state = readState();
   state.history = state.history.map((e) => e.userName === oldName ? { ...e, userName: newName } : e);
   writeState(state);
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 // ─── Monsters ─────────────────────────────────────────────────────────────────
@@ -353,28 +375,38 @@ router.put("/ka/loadouts", (req, res) => {
 
 router.get("/ka/sync/devices", (_req, res) => {
   const state = readState();
-  const devices = [...state.syncedDevices].sort((a, b) => b.createdAt - a.createdAt);
-  res.json(devices);
+  const currentDeviceId = typeof _req.query.currentDeviceId === "string" ? _req.query.currentDeviceId : "";
+  const devices = normalizeSyncedDevices(state.syncedDevices);
+  const currentDevice = findDeviceById(devices, currentDeviceId);
+  if (!currentDevice) {
+    return res.json([]);
+  }
+
+  const groupDevices = getGroupDevices(devices, currentDevice.syncGroupId || currentDevice.id);
+  return res.json(groupDevices);
 });
 
 router.post("/ka/sync/generate", (req, res) => {
   const { name, currentDeviceId } = req.body as { name?: string; currentDeviceId?: string | null };
   const state = readState();
+  const devices = normalizeSyncedDevices(state.syncedDevices);
 
-  const existing = currentDeviceId ? state.syncedDevices.find((d) => d.id === currentDeviceId) : undefined;
-  let device: { id: string; name: string; createdAt: number };
+  const existing = findDeviceById(devices, currentDeviceId);
+  let device: SyncedDevice;
   if (!existing) {
     device = {
       id: crypto.randomUUID(),
       name: (name ?? "").trim() || "Unnamed Device",
       createdAt: Date.now(),
+      syncGroupId: crypto.randomUUID(),
     };
-    state.syncedDevices.push(device);
+    devices.push(device);
   } else {
     device = typeof name === "string" && name.trim()
       ? { ...existing, name: name.trim() }
       : existing;
-    state.syncedDevices = state.syncedDevices.map((d) => (d.id === device.id ? device : d));
+    const index = devices.findIndex((entry) => entry.id === device.id);
+    devices[index] = device;
   }
 
   let code = generateSyncCode();
@@ -384,6 +416,7 @@ router.post("/ka/sync/generate", (req, res) => {
 
   const expiresAt = Date.now() + 5 * 60 * 1000;
   syncCodes.set(code, { expiresAt, sourceDeviceId: device.id });
+  state.syncedDevices = devices;
   writeState(state);
 
   res.json({
@@ -412,41 +445,40 @@ router.post("/ka/sync/redeem", (req, res) => {
   }
 
   const state = readState();
+  const devices = normalizeSyncedDevices(state.syncedDevices);
+  const sourceDevice = findDeviceById(devices, record.sourceDeviceId);
+  if (!sourceDevice) {
+    syncCodes.delete(normalizedCode);
+    return res.status(400).json({ ok: false, error: "That code is no longer valid." });
+  }
 
-  const existing = currentDeviceId ? state.syncedDevices.find((d) => d.id === currentDeviceId) : undefined;
-  let device: { id: string; name: string; createdAt: number };
+  const existing = findDeviceById(devices, currentDeviceId);
+  let device: SyncedDevice;
   if (!existing) {
     device = {
       id: crypto.randomUUID(),
       name: (name ?? "").trim() || "Unnamed Device",
       createdAt: Date.now(),
+      syncGroupId: sourceDevice.syncGroupId || sourceDevice.id,
     };
   } else {
     device = typeof name === "string" && name.trim()
-      ? { ...existing, name: name.trim() }
-      : existing;
+      ? { ...existing, name: name.trim(), syncGroupId: sourceDevice.syncGroupId || sourceDevice.id }
+      : { ...existing, syncGroupId: sourceDevice.syncGroupId || sourceDevice.id };
   }
 
-  const upsert = (d: { id: string; name: string; createdAt: number }) => {
-    const idx = state.syncedDevices.findIndex((x) => x.id === d.id);
-    if (idx >= 0) state.syncedDevices[idx] = d;
-    else state.syncedDevices.push(d);
+  const upsert = (d: SyncedDevice) => {
+    const idx = devices.findIndex((x) => x.id === d.id);
+    if (idx >= 0) devices[idx] = d;
+    else devices.push(d);
   };
 
   upsert(device);
-
-  if (!state.syncedDevices.find((d) => d.id === record.sourceDeviceId)) {
-    state.syncedDevices.push({
-      id: record.sourceDeviceId,
-      name: "Source Device",
-      createdAt: Date.now(),
-    });
-  }
-
   syncCodes.delete(normalizedCode);
+  state.syncedDevices = devices;
   writeState(state);
 
-  res.json({
+  return res.json({
     ok: true,
     message: "Device linked successfully.",
     currentDeviceId: device.id,
@@ -456,9 +488,22 @@ router.post("/ka/sync/redeem", (req, res) => {
 
 router.delete("/ka/sync/device/:id", (req, res) => {
   const state = readState();
-  state.syncedDevices = state.syncedDevices.filter((d) => d.id !== req.params.id);
+  const currentDeviceId = typeof req.query.currentDeviceId === "string" ? req.query.currentDeviceId : "";
+  const devices = normalizeSyncedDevices(state.syncedDevices);
+  const currentDevice = findDeviceById(devices, currentDeviceId);
+  const targetDevice = findDeviceById(devices, req.params.id);
+
+  if (!currentDevice || !targetDevice) {
+    return res.status(404).json({ error: "Device not found." });
+  }
+
+  if ((currentDevice.syncGroupId || currentDevice.id) !== (targetDevice.syncGroupId || targetDevice.id)) {
+    return res.status(403).json({ error: "You can only remove devices from your linked group." });
+  }
+
+  state.syncedDevices = devices.filter((device) => device.id !== req.params.id);
   writeState(state);
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 export default router;

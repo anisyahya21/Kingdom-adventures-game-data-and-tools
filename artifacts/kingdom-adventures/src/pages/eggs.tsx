@@ -69,7 +69,7 @@ function sortFeedItemsForStat(items: EggFeedItem[], stat: EggStat): EggFeedItem[
 
 function getFeedRows(feedState: FeedState, allItems: EggFeedItem[]) {
   return Object.entries(feedState)
-    .filter(([, quantity]) => quantity > 0)
+    .filter(([, quantity]) => quantity >= 0)
     .map(([name, quantity]) => {
       const item = allItems.find((entry) => entry.name === name);
       return item ? { item, quantity } : null;
@@ -589,8 +589,12 @@ export default function EggsPage() {
                                       min={0}
                                       value={targetFeedInputs[item.name] ?? String(quantity)}
                                       onChange={(e) => {
-                                        updateFeedQuantityInput(setTargetFeedInputs, item.name, e.target.value);
-                                        const parsed = Math.max(0, Number.parseInt(e.target.value, 10) || 0);
+                                        const nextValue = e.target.value;
+                                        updateFeedQuantityInput(setTargetFeedInputs, item.name, nextValue);
+                                        if (nextValue.trim() === "") {
+                                          return;
+                                        }
+                                        const parsed = Math.max(0, Number.parseInt(nextValue, 10) || 0);
                                         setTargetFeedState((current) => ({ ...current, [item.name]: parsed }));
                                       }}
                                       onBlur={(e) => commitFeedQuantity(setTargetFeedState, setTargetFeedInputs, item.name, e.target.value)}

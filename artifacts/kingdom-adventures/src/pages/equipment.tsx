@@ -1286,7 +1286,9 @@ export default function EquipmentPage() {
                                   : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />}
                                 <span className={isExpanded ? "text-primary underline underline-offset-2 decoration-primary/40" : ""}>{item.name}</span>
                                 {allItemStatsFilled(item, overrides) && (
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 ml-0.5" title="All stats have been contributed" />
+                                  <span title="All stats have been contributed">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 ml-0.5" />
+                                  </span>
                                 )}
                               </button>
                             </td>
@@ -1473,10 +1475,11 @@ export default function EquipmentPage() {
                                 {item.name}
                               </span>
                               {allItemStatsFilled(item, overrides) && (
-                                <CheckCircle2
-                                  className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 ml-0.5"
-                                  title="All stats have been contributed"
-                                />
+                                <span title="All stats have been contributed">
+                                  <CheckCircle2
+                                    className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 ml-0.5"
+                                  />
+                                </span>
                               )}
                             </button>
 
@@ -1719,7 +1722,6 @@ export default function EquipmentPage() {
     </div>
   );
 }
-
 
 
 

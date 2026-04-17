@@ -90,7 +90,12 @@ export default function SyncDevicesPage() {
 		setIsLoadingDevices(true);
 
 		try {
-			const res = await fetch(apiUrl("/sync/devices"));
+			const url = new URL(apiUrl("/sync/devices"), window.location.origin);
+			if (currentDeviceId) {
+				url.searchParams.set("currentDeviceId", currentDeviceId);
+			}
+
+			const res = await fetch(url.toString());
 			const data = await readJson<Device[] | ApiError>(res);
 
 			if (!res.ok) {
@@ -107,7 +112,7 @@ export default function SyncDevicesPage() {
 
 	useEffect(() => {
 		loadDevices();
-	}, []);
+	}, [currentDeviceId]);
 
 	useEffect(() => {
 		if (!expiresAt) return;
@@ -281,12 +286,21 @@ export default function SyncDevicesPage() {
 	}
 
 	async function removeDevice(id: string) {
+		if (!currentDeviceId) {
+			setError("This device is not linked yet.");
+			setMessage("");
+			return;
+		}
+
 		setRemovingId(id);
 		setError("");
 		setMessage("");
 
 		try {
-			const res = await fetch(apiUrl(`/sync/device/${id}`), {
+			const url = new URL(apiUrl(`/sync/device/${id}`), window.location.origin);
+			url.searchParams.set("currentDeviceId", currentDeviceId);
+
+			const res = await fetch(url.toString(), {
 				method: "DELETE"
 			});
 
