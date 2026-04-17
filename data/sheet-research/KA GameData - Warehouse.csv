@@ -1,0 +1,21 @@
+id,materialType,dataStructure,capacity,flag,flag
+0,1,0,5,0,
+1,2,0,5,0,
+2,3,0,5,0,
+3,4,0,5,0,
+4,5,0,5,0,
+5,6,0,5,0,
+6,7,1,4,0,
+7,8,1,10,0,
+8,7,1,10,0,
+9,8,1,10,0,
+10,9,1,4,0,
+11,1,0,100,3,"display stock, hide contents"
+12,2,0,100,3,"display stock, hide contents"
+13,3,0,100,3,"display stock, hide contents"
+14,4,0,100,3,"display stock, hide contents"
+15,5,0,100,3,"display stock, hide contents"
+16,6,0,150,3,"display stock, hide contents"
+17,7,1,50,3,"display stock, hide contents"
+18,8,1,300,3,"display stock, hide contents"
+19,9,1,50,3,"display stock, hide contents"

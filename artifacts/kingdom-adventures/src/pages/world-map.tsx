@@ -157,6 +157,7 @@ const MAP_FACILITY_UNLOCKS: { name: string; level: number }[] = [
   { name: "Date Spot",             level: 135 },
 ];
 
+
 const NATIVE_MAP: NativeCell[][] = [
   [{ terrain: "volcano", level: 9999 }, { terrain: "volcano", level: 4800 }, { terrain: "snow", level: 6000 }, { terrain: "snow", level: 2400 }, { terrain: "swamp", level: 5100 }, { terrain: "swamp", level: 1100 }, { terrain: "swamp", level: 888 }, { terrain: "swamp", level: 1020 }, { terrain: "swamp", level: 1600 }, { terrain: "swamp", level: 3200 }],
   [{ terrain: "volcano", level: 525 }, { terrain: "volcano", level: 250 }, { terrain: "snow", level: 208 }, { terrain: "snow", level: 320 }, { terrain: "swamp", level: 225 }, { terrain: "swamp", level: 120 }, { terrain: "swamp", level: 112 }, { terrain: "swamp", level: 69 }, { terrain: "swamp", level: 85 }, { terrain: "swamp", level: 162 }],
@@ -654,6 +655,7 @@ export default function WorldMapPage() {
     setTouchMode(isTouchDevice());
   }, []);
 
+
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(null), 1800);
@@ -700,6 +702,7 @@ export default function WorldMapPage() {
   }, []);
 
   const { grid, rows, cols, terrainCounts: baseTerrainCounts } = useMemo(() => buildTiles(), []);
+
 
   const isLand = (tile: Tile) => tile.buildable || reclaimedTiles.has(keyOf(tile.x, tile.y));
 

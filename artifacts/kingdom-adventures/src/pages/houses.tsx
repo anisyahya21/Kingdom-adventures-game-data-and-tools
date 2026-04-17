@@ -1,5 +1,6 @@
 ﻿import { useState } from "react";
 import { Home, Search } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -93,11 +94,88 @@ const GROUP_STYLE: Record<BuildingGroup, string> = {
   special: "bg-purple-500/10 text-purple-600 border-purple-500/30 dark:text-purple-300",
 };
 
-type PageTab = "houses" | "facilities";
+type PageTab = "houses" | "facilities" | "wairo_dungeon";
 const PAGE_TABS: { key: PageTab; label: string }[] = [
   { key: "houses",     label: "Houses & Plots" },
   { key: "facilities", label: "Facilities" },
+  { key: "wairo_dungeon", label: "Wairo Dungeon" },
 ];
+
+type WairoDungeonEntry = { day: number; hour: number };
+type WairoDungeonSpawn = WairoDungeonEntry & { startsAt: Date; endsAt: Date };
+
+// Source notes: see data/sheet-research/wairo-dungeon.md
+const WAIRO_DUNGEON_SCHEDULE: WairoDungeonEntry[] = [
+  { day: 1, hour: 9 }, { day: 1, hour: 13 }, { day: 1, hour: 18 },
+  { day: 2, hour: 15 }, { day: 2, hour: 23 },
+  { day: 3, hour: 12 }, { day: 3, hour: 17 },
+  { day: 4, hour: 19 },
+  { day: 5, hour: 21 }, { day: 5, hour: 6 },
+  { day: 6, hour: 8 },
+  { day: 7, hour: 12 },
+  { day: 8, hour: 14 },
+  { day: 9, hour: 19 },
+  { day: 10, hour: 22 },
+  { day: 11, hour: 21 },
+  { day: 12, hour: 16 },
+  { day: 13, hour: 11 },
+  { day: 14, hour: 19 },
+  { day: 15, hour: 20 },
+  { day: 16, hour: 8 },
+  { day: 17, hour: 16 },
+  { day: 18, hour: 20 },
+  { day: 19, hour: 22 },
+  { day: 20, hour: 1 },
+  { day: 21, hour: 17 },
+  { day: 22, hour: 16 },
+  { day: 23, hour: 19 },
+  { day: 24, hour: 11 },
+  { day: 25, hour: 23 },
+  { day: 26, hour: 0 },
+  { day: 27, hour: 11 },
+  { day: 28, hour: 16 },
+  { day: 29, hour: 14 },
+  { day: 30, hour: 15 }, { day: 30, hour: 22 },
+  { day: 31, hour: 10 }, { day: 31, hour: 21 },
+];
+
+function toJstDate(year: number, monthIndex: number, day: number, hour: number): Date {
+  return new Date(Date.UTC(year, monthIndex, day, hour - 9, 0, 0, 0));
+}
+
+function buildMonthlyWairoSchedule(base: Date): WairoDungeonSpawn[] {
+  const entries: WairoDungeonSpawn[] = [];
+  for (const entry of WAIRO_DUNGEON_SCHEDULE) {
+    const startsAt = toJstDate(base.getFullYear(), base.getMonth(), entry.day, entry.hour);
+    if (startsAt.getMonth() !== base.getMonth()) continue;
+    entries.push({ ...entry, startsAt, endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000) });
+  }
+  return entries.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+}
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "Starting now";
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+function formatElapsed(ms: number): string {
+  if (ms <= 0) return "0s";
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
 
 // field ? matId ? icon style  (see CSV column reference comment above)
 const COST_ICONS: { field: keyof Building; matId: number; style: "flat" | "outlined" | "crystal" }[] = [
@@ -1365,6 +1443,40 @@ function facilityGain(id: number, canUpgrade: boolean): FacilityGain | null {
   return FACILITY_GAIN[id] ?? "hp";
 }
 
+// From KA GameData - Warehouse.csv, matched to facility ids via Facility_lookup.csv dataId.
+const FACILITY_STORAGE_CAPACITY: Partial<Record<number, string>> = {
+  // Source notes: see data/sheet-research/facility-notes.md
+  // Confirmed in-game behavior:
+  // - low-tier storehouses display 4x the raw Warehouse.csv capacity
+  // - HG storehouses match Warehouse.csv directly
+  // - coin boxes are effectively unlimited for the player
+  33: "20",
+  34: "20",
+  35: "20",
+  36: "20",
+  37: "20",
+  38: "40",
+  39: "20",
+  40: "16",
+  183: "Unlimited",
+  184: "Unlimited",
+  206: "100",
+  207: "100",
+  208: "100",
+  209: "100",
+  210: "100",
+  211: "150",
+  212: "50",
+  213: "300",
+  214: "50",
+};
+
+const MATERIAL_STOREHOUSE_IDS = new Set([
+  33, 34, 35, 36, 37, 38, 39, 40,
+  183, 184,
+  206, 207, 208, 209, 210, 211, 212, 213, 214,
+]);
+
 function formatUpgTime(seconds: number): string {
   if (seconds <= 0) return "0s";
   if (seconds < 60) return `${seconds}s`;
@@ -1373,6 +1485,54 @@ function formatUpgTime(seconds: number): string {
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+function formatHoursMinutes(seconds: number): string {
+  const totalMinutes = Math.round(seconds / 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h <= 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+function calcEnergyMineTimeToFill(level: number): number {
+  const clampedLevel = Math.max(1, Math.min(100, level));
+  const levelOffset = clampedLevel - 1;
+  const capacity = 50 + ((1000 - 50) / 99) * levelOffset;
+  const fullTimeSeconds = 6000 + ((60000 - 6000) / 99) * levelOffset;
+  const timeTo50Seconds = fullTimeSeconds * 50 / capacity;
+  return Math.max(3000, timeTo50Seconds);
+}
+
+function MaterialFacilitySection({
+  title,
+  facilities,
+  timeDiscount,
+  resourceDiscount,
+}: {
+  title: string;
+  facilities: Facility[];
+  timeDiscount: number;
+  resourceDiscount: number;
+}) {
+  if (facilities.length === 0) return null;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="h-px flex-1 bg-border" />
+        <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {title}
+        </h3>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {facilities.map(f => f.id === 17
+          ? <TownHallCard key={f.id} f={f} timeDiscount={timeDiscount} resourceDiscount={resourceDiscount} />
+          : <FacilityCard key={f.id} f={f} timeDiscount={timeDiscount} resourceDiscount={resourceDiscount} />
+        )}
+      </div>
+    </div>
+  );
 }
 
 function FacilityCosts({ g, w, f, o, m }: { g: number; w: number; f: number; o: number; m: number }) {
@@ -1400,6 +1560,7 @@ function FacilityCosts({ g, w, f, o, m }: { g: number; w: number; f: number; o: 
 function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facility; timeDiscount?: number; resourceDiscount?: number }) {
   const [level, setLevel] = useState(0);
   const MAX_LEVEL = 99; // max upgrade level is 100; slider 0..99 = lv1..lv100
+  const displayLevel = level + 1;
 
   function interp(lv1: number, maxV: number) {
     if (lv1 === 0 && maxV === 0) return 0;
@@ -1415,6 +1576,8 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
   const minTime = Math.round(120 * (1 - timeDiscount));
   const maxTime = Math.round(129600 * (1 - timeDiscount));
   const upgTime = Math.round(minTime + (maxTime - minTime) * level / MAX_LEVEL);
+  const energyMineTimeToFill = f.id === 47 ? calcEnergyMineTimeToFill(displayLevel) : null;
+  const storageCapacity = FACILITY_STORAGE_CAPACITY[f.id] ?? null;
 
   const hasUpg   = f.canUpgrade && (f.upgGrass > 0 || f.upgWood > 0 || f.upgFood > 0 || f.upgOre > 0 || f.upgMystic > 0
                                   || f.maxUpgGrass > 0 || f.maxUpgWood > 0 || f.maxUpgFood > 0 || f.maxUpgOre > 0 || f.maxUpgMystic > 0);
@@ -1466,6 +1629,16 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
             🌾 Harvests per planting: <span className="font-medium text-foreground">
               {f.minUseCount + Math.floor((f.maxUseCount - f.minUseCount) * level / MAX_LEVEL)}
             </span>
+          </p>
+        )}
+        {energyMineTimeToFill != null && (
+          <p className="text-xs text-muted-foreground">
+            ⚡ Time to fill: <span className="font-medium text-foreground">{formatHoursMinutes(energyMineTimeToFill)}</span>
+          </p>
+        )}
+        {storageCapacity != null && (
+          <p className="text-xs text-muted-foreground">
+            📦 Capacity: <span className="font-medium text-foreground">{storageCapacity}</span>
           </p>
         )}
         {hasUpg && (
@@ -1598,12 +1771,43 @@ export default function HousesPage() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<PageTab>("houses");
   const [facilityTab, setFacilityTab] = useState<FacilityTab>("env");
+  const [now, setNow] = useState(() => new Date());
+  const [wairoDemoActive, setWairoDemoActive] = useState(false);
   const [knowHow, setKnowHow] = useState(0);
   const [craftsman, setCraftsman] = useState(0);
   const timeDiscount = knowHow * 0.05;
   const resourceDiscount = craftsman * 0.05;
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const q = query.trim().toLowerCase();
+  const wairoSchedule = useMemo(() => buildMonthlyWairoSchedule(now), [now]);
+  const nextWairoSpawn = useMemo(() => {
+    const currentMonthUpcoming = wairoSchedule.find((entry) => entry.startsAt.getTime() > now.getTime());
+    if (currentMonthUpcoming) return currentMonthUpcoming;
+    const nextMonthBase = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return buildMonthlyWairoSchedule(nextMonthBase)[0] ?? null;
+  }, [now, wairoSchedule]);
+  const wairoScheduleByDay = useMemo(() => {
+    const grouped = new Map<number, WairoDungeonSpawn[]>();
+    for (const entry of wairoSchedule) {
+      if (!grouped.has(entry.day)) grouped.set(entry.day, []);
+      grouped.get(entry.day)!.push(entry);
+    }
+    return Array.from(grouped.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([day, entries]) => ({ day, entries }));
+  }, [wairoSchedule]);
+  const demoActiveSpawn = useMemo(() => {
+    const basis = nextWairoSpawn ?? wairoSchedule[0];
+    if (!basis) return null;
+    const startsAt = new Date(now.getTime() - 20 * 60 * 1000);
+    const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
+    return { ...basis, startsAt, endsAt };
+  }, [nextWairoSpawn, now, wairoSchedule]);
 
   // All current buildings are plots × they all appear in the Houses & Plots tab.
   // Facilities (walls, gates, roads, torches, townhall×) are non-plot infrastructure
@@ -1723,6 +1927,26 @@ export default function HousesPage() {
                   </p>
                 </div>
               );
+            if (facilityTab === "materials") {
+              const storehouses = shown.filter(f => MATERIAL_STOREHOUSE_IDS.has(f.id));
+              const production = shown.filter(f => !MATERIAL_STOREHOUSE_IDS.has(f.id));
+              return (
+                <div className="space-y-6">
+                  <MaterialFacilitySection
+                    title="Storehouse"
+                    facilities={storehouses}
+                    timeDiscount={timeDiscount}
+                    resourceDiscount={resourceDiscount}
+                  />
+                  <MaterialFacilitySection
+                    title="Production"
+                    facilities={production}
+                    timeDiscount={timeDiscount}
+                    resourceDiscount={resourceDiscount}
+                  />
+                </div>
+              );
+            }
             return (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {shown.map(f => f.id === 17
@@ -1732,6 +1956,107 @@ export default function HousesPage() {
               </div>
             );
           })()}
+        </div>
+      ) : tab === "wairo_dungeon" ? (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="space-y-1">
+                <div className="font-semibold">Wairo Dungeon schedule</div>
+                <div className="text-sm text-muted-foreground">
+                  Spawn times are shown in your local time based on the source schedule. Each dungeon lasts 1 hour.
+                </div>
+              </div>
+              <div className="space-y-2">
+                {wairoScheduleByDay.map(({ day, entries }) => {
+                  const firstEntry = entries[0];
+                  const isPast = entries.every((entry) => entry.endsAt.getTime() <= now.getTime());
+                  const activeEntry = entries.find((entry) => entry.startsAt.getTime() <= now.getTime() && now.getTime() < entry.endsAt.getTime());
+                  const demoEntry = wairoDemoActive && demoActiveSpawn != null && demoActiveSpawn.day === day ? demoActiveSpawn : null;
+                  const highlightedEntry = activeEntry ?? demoEntry ?? null;
+                  const isActive = highlightedEntry != null;
+                  return (
+                    <div
+                      key={day}
+                      className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
+                        isActive ? "border-green-500/40 bg-green-500/5" : ""
+                      }`}
+                    >
+                      <div>
+                        <div className="font-medium">
+                          Day {day} · {firstEntry.startsAt.toLocaleString([], { weekday: "short" })}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {entries.map((entry) => entry.startsAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })).join(" · ")}
+                        </div>
+                      </div>
+                      <div className={`text-right text-xs ${isPast ? "text-muted-foreground" : ""}`}>
+                        {isActive ? <div className="font-medium text-green-600 dark:text-green-400">Live now</div> : isPast ? <div>Ended</div> : <div className="font-medium">Upcoming</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <div className="font-semibold">Next spawn</div>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={wairoDemoActive}
+                    onChange={(e) => setWairoDemoActive(e.target.checked)}
+                  />
+                  Demo active dungeon state
+                </label>
+                {nextWairoSpawn ? (
+                  <>
+                    <div className="text-sm">
+                      <div className="font-medium">Day {nextWairoSpawn.day} · {nextWairoSpawn.startsAt.toLocaleString([], { month: "short", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" })}</div>
+                    </div>
+                    <div className="rounded-lg border px-3 py-2 text-sm">
+                      <div className="text-xs uppercase tracking-widest text-muted-foreground">Countdown</div>
+                      <div className="text-lg font-semibold tabular-nums">{formatCountdown(nextWairoSpawn.startsAt.getTime() - now.getTime())}</div>
+                    </div>
+                    {wairoDemoActive && demoActiveSpawn && (
+                      <div className="rounded-lg border border-green-500/40 bg-green-500/5 px-3 py-3 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="font-medium">Demo: active now</div>
+                            <div className="text-xs text-muted-foreground">This is a preview of the live dungeon state.</div>
+                          </div>
+                          <div className="text-sm font-medium text-green-600 dark:text-green-400">Live now</div>
+                        </div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <div className="rounded-md border px-3 py-2">
+                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Despawns in</div>
+                            <div className="font-semibold tabular-nums">{formatCountdown(demoActiveSpawn.endsAt.getTime() - now.getTime())}</div>
+                          </div>
+                          <div className="rounded-md border px-3 py-2">
+                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Active for</div>
+                            <div className="font-semibold tabular-nums">{formatElapsed(now.getTime() - demoActiveSpawn.startsAt.getTime())}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-sm text-muted-foreground">No future spawn found.</div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 space-y-2 text-sm text-muted-foreground">
+                <div className="font-semibold text-foreground">Notes</div>
+                <div>The first day of the month has three spawns in the source data.</div>
+                <div>Days 30 and 31 can also have multiple spawns when those dates exist in the month.</div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

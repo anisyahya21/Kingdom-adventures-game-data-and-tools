@@ -1,0 +1,138 @@
+,,,,,,,,,,,,,,,,,,,,,prices,,,,,,,,,,,,,
+,,category,type,value,count,shootingRange,searchingRange,range,minMp,maxMp,motion,requiredEquipType,res,img,seb,impactImg,impactSeb,iconU,iconV,currency,,,,copperCoinExchangeRateNum,craftTermStudioLevel,craftTermIntelligence,craftTimeSeconds,,nameText,nameArg,explainText,explainArg,flag,flag
+0,Not used,0,0,0,1,1,0,1,0,0,4,-1,28,-1,0,-1,0,4,0,15,2,1,4995,-1,999,24975,204,Not used,Normal Attack,未使用,Normal Attack,未使用,24,"For Battle, Opponent appoint"
+1,Not used,0,0,0,1,1,0,1,0,0,11,8,28,27,27,47,0,4,0,15,2,1,4995,-1,999,24975,204,Not used,Bow Attack,未使用,Bow Attack,未使用,16408,"For Battle, Opponent appoint, For bow normal attack"
+2,Not used,0,0,0,1,1,0,1,0,0,10,7,28,34,27,0,0,4,0,15,2,1,4995,-1,999,24975,204,Not used,Gun Attack,未使用,Gun Attack,未使用,32792,"For Battle, Opponent appoint, For gun normal attack"
+3,Not used,0,0,0,1,1,0,1,0,0,4,-1,28,-1,0,-1,0,5,0,15,2,1,4995,-1,999,24975,204,Not used,Critical Hit,未使用,Critical Hit,未使用,24,"For Battle, Opponent appoint"
+4,Not used,0,11,90,1,2,0,1,4,48,11,8,28,27,27,47,0,4,0,15,2,1,75,15,3,75,4,Not used,Arrow Rain,未使用,Shoots a bunch of arrows.,未使用,794,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack"
+5,Not used,0,1,150,1,2,0,1,6,72,31,-1,28,28,27,20,0,2,0,15,2,1,25,15,1,0,4,未使用,Fire Magic <0>,Ⅰ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+6,Not used,0,1,165,1,3,0,2,10,120,31,-1,28,28,27,20,0,2,0,15,2,1,125,15,5,125,6,未使用,Fire Magic <0>,Ⅱ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+7,Not used,0,1,180,1,4,0,2,18,216,31,-1,28,28,27,20,0,2,0,15,2,3,250,15,10,250,6,未使用,Fire Magic <0>,Ⅲ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+8,Not used,0,1,200,1,5,0,3,24,288,31,-1,28,28,27,20,0,2,0,15,2,6,500,15,20,500,8,未使用,Fire Magic <0>,Ⅳ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+9,Not used,0,1,240,1,6,0,3,30,360,31,-1,28,28,27,20,0,2,0,15,2,1,1250,5,50,1250,14,未使用,Fire Magic <0>,Ⅴ,Attack with a magic spell.,未使用,70936,"For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+10,Not used,0,1,150,1,2,0,1,6,72,31,-1,28,29,27,21,0,0,0,15,2,1,50,15,2,50,4,未使用,Ice Magic <0>,Ⅰ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+11,Not used,0,1,165,1,3,0,2,10,120,31,-1,28,29,27,21,0,0,0,15,2,1,150,15,6,150,6,未使用,Ice Magic <0>,Ⅱ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+12,Not used,0,1,180,1,4,0,2,18,216,31,-1,28,29,27,21,0,0,0,15,2,3,300,15,12,300,6,未使用,Ice Magic <0>,Ⅲ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+13,Not used,0,1,200,1,5,0,3,24,288,31,-1,28,29,27,21,0,0,0,15,2,7,600,10,24,600,8,未使用,Ice Magic <0>,Ⅳ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+14,Not used,0,1,240,1,6,0,3,30,360,31,-1,28,29,27,21,0,0,0,15,2,1,1375,5,55,1375,16,未使用,Ice Magic <0>,Ⅴ,Attack with a magic spell.,未使用,70936,"For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+15,Not used,0,1,150,1,2,0,1,6,72,31,-1,28,30,27,22,0,1,0,15,2,1,75,15,3,75,4,未使用,Lightning Magic <0>,Ⅰ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+16,Not used,0,1,165,1,3,0,2,10,120,31,-1,28,30,27,22,0,1,0,15,2,4,375,15,15,375,8,未使用,Lightning Magic <0>,Ⅱ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+17,Not used,0,1,180,1,4,0,2,18,216,31,-1,28,30,27,22,0,1,0,15,2,7,625,10,25,625,10,未使用,Lightning Magic <0>,Ⅲ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+18,Not used,0,1,200,1,5,0,3,24,288,31,-1,28,30,27,22,0,1,0,15,2,12,1000,10,40,1000,12,未使用,Lightning Magic <0>,Ⅳ,Attack with a magic spell.,未使用,70938,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+19,Not used,0,1,240,1,6,0,3,30,360,31,-1,28,30,27,22,0,1,0,15,2,1,1500,5,60,1500,16,未使用,Lightning Magic <0>,Ⅴ,Attack with a magic spell.,未使用,70936,"For Battle, Opponent appoint, Invocation rate settable, Attack Magic, Type Dupllicate OK, Monster equippable"
+20,Not used,0,18,50,1,1,0,1,7,84,4,-1,28,-1,0,-1,0,4,0,15,2,3,250,15,10,250,6,Not used,Half Reflect,未使用,Deal 50% of damage received back to the enemy.,未使用,70458,"Craftable, For Battle, Opponent appoint, Invoke when defence, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+21,Not used,0,18,100,1,1,0,1,12,144,4,-1,28,-1,0,-1,0,4,0,15,2,1,625,10,25,625,10,Not used,Full Reflect,未使用,Deal 100% of damage received back to the enemy.,未使用,70456,"For Battle, Opponent appoint, Invoke when defence, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+22,未使用,0,19,0,2,1,0,1,6,72,4,-1,28,-1,0,-1,0,4,0,15,2,2,200,15,8,200,6,未使用,<0>-Hit Attack,2,<0> consecutive attacks.,2,70426,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+23,未使用,0,19,0,3,1,0,1,10,120,4,-1,28,-1,0,-1,0,4,0,15,2,5,450,15,18,450,8,未使用,<0>-Hit Attack,3,<0> consecutive attacks.,3,70426,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+24,未使用,0,19,0,4,1,0,1,16,192,4,-1,28,-1,0,-1,0,4,0,15,2,8,700,10,28,700,10,未使用,<0>-Hit Attack,4,<0> consecutive attacks.,4,70426,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+25,未使用,0,19,0,5,1,0,1,20,240,4,-1,28,-1,0,-1,0,4,0,15,2,11,950,10,38,950,12,未使用,<0>-Hit Attack,5,<0> consecutive attacks.,5,70426,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+26,Not used,0,20,0,1,1,0,1,10,120,4,-1,28,-1,0,-1,0,4,0,15,2,4,350,15,14,350,6,Not used,Counter,未使用,Counterattack immediately after an enemy's attack.,未使用,70458,"Craftable, For Battle, Opponent appoint, Invoke when defence, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+27,Not used,0,21,50,1,1,0,1,3,36,4,-1,28,-1,0,-1,0,4,0,15,2,1,100,15,4,100,4,Not used,Parry,未使用,Reduce damage taken from an enemy's attack.,未使用,70442,"Craftable, For Battle, Invoke when defence, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+28,Not used,0,24,100,1,1,0,1,6,72,4,-1,28,-1,0,-1,0,4,0,15,2,3,250,15,10,250,6,Not used,Perfect Dodge,未使用,Dodge all enemies' attacks when activated.,未使用,70442,"Craftable, For Battle, Invoke when defence, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+29,Not used,0,22,40,1,1,0,1,8,96,4,-1,28,-1,0,-1,0,4,0,15,2,1,150,15,6,150,6,Not used,Dodge UP,未使用,Increases chances of dodging enemy attacks for a short time.,未使用,70602,"Craftable, For Battle, Invoke when attack, Keep fixed turns, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+30,Not used,0,23,30,1,1,0,1,8,96,4,-1,28,-1,0,-1,0,4,0,15,2,2,225,15,9,225,6,Not used,Critical UP,未使用,Increases chances of landing critical hits for a short time.,未使用,66506,"Craftable, For Battle, Invoke when attack, Keep fixed turns, Invocation rate settable, Attack, Monster equippable"
+31,未使用,0,26,0,1,3,0,1,7,84,4,-1,28,-1,0,46,0,4,0,15,2,3,300,15,12,300,6,未使用,Direct Attack <0>,Ⅰ,A <0>-row attack in a straight line.,3,70410,"Craftable, For Battle, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+32,未使用,0,26,0,1,5,0,1,10,120,4,-1,28,-1,0,46,0,4,0,15,2,1,500,15,20,500,8,未使用,Direct Attack <0>,Ⅱ,A <0>-row attack in a straight line.,5,70408,"For Battle, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+33,未使用,0,27,0,1,1,0,1,18,216,4,-1,28,-1,0,46,0,4,0,15,2,5,400,15,16,400,8,未使用,Area Attack <0>,Ⅰ,A <0>-row area attack.,1,70410,"Craftable, For Battle, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+34,未使用,0,27,0,1,1,0,2,28,336,4,-1,28,-1,0,46,0,4,0,15,2,7,600,10,24,600,8,未使用,Area Attack <0>,Ⅱ,A <0>-row area attack.,2,70410,"Craftable, For Battle, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+35,未使用,0,27,0,1,1,0,3,36,432,4,-1,28,-1,0,46,0,4,0,15,2,1,800,10,32,800,10,未使用,Area Attack <0>,Ⅲ,A <0>-row area attack.,3,70408,"For Battle, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+36,Not used,0,11,150,3,1,0,2,10,120,11,8,28,27,27,47,0,4,0,15,2,1,275,15,11,275,6,Not used,Myriad Arrows,未使用,Attack a wide area with a bow.,未使用,4889,"Multi, For Battle, Opponent appoint, Invocation rate settable, Attack, Type Dupllicate OK"
+37,未使用,1,2,15,1,5,0,1,12,144,31,-1,28,31,27,-1,0,3,0,15,2,1,125,15,5,125,6,未使用,Heal <0>,Maddy,Recover HP by <0>%.,15,71962,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Recovery magic, Type Dupllicate OK, Monster equippable"
+38,未使用,1,2,35,1,5,0,2,20,240,31,-1,28,31,27,-1,0,3,0,15,2,4,375,15,15,375,8,未使用,Heal <0>,M,Recover HP by <0>%.,35,71962,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Recovery magic, Type Dupllicate OK, Monster equippable"
+39,未使用,1,2,65,1,5,0,3,35,420,31,-1,28,31,27,-1,0,3,0,15,2,10,875,10,35,875,12,未使用,Heal <0>,L,Recover HP by <0>%.,65,71962,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Recovery magic, Type Dupllicate OK, Monster equippable"
+40,未使用,1,15,50,1,5,0,1,35,420,31,-1,28,31,27,-1,0,3,0,15,2,4,350,15,14,350,6,未使用,Revive <0>%,50,Revive an ally with <0>% HP.,50,71962,"Craftable, For Battle, Opponent appoint, Invocation rate settable, Recovery magic, Type Dupllicate OK, Monster equippable"
+41,未使用,1,15,100,1,5,0,1,60,720,31,-1,28,31,27,-1,0,3,0,15,2,1,1000,10,40,1000,12,未使用,Revive <0>%,100,Revive an ally with <0>% HP.,100,71960,"For Battle, Opponent appoint, Invocation rate settable, Recovery magic, Type Dupllicate OK, Monster equippable"
+42,Not used,2,5,200,1,1,0,1,0,0,4,-1,28,-1,0,-1,0,5,0,15,2,1,25,15,1,0,4,Not used,Agriculturist,未使用,Helps grow better crops in fields.,未使用,2,Craftable
+43,Not used,2,6,200,1,1,0,1,0,0,4,-1,28,-1,0,-1,0,5,0,15,2,1,25,15,1,0,4,Not used,Construction Chief,未使用,Construction will be successful no matter how many builders.,未使用,2,Craftable
+44,Not used,2,3,5,1,1,0,1,0,0,4,-1,28,-1,0,-1,0,5,0,15,2,2,225,15,9,225,6,Not used,Thief,未使用,Sometimes causes a treasure chest to appear when attacking.,未使用,65538,"Craftable, Monster equippable"
+45,Not used,2,4,0,1,1,0,1,0,0,4,-1,28,-1,0,-1,0,5,0,15,2,1,75,15,3,75,4,Not used,Culinarian,未使用,Produce items at restaurants etc.,未使用,2,Craftable
+46,Not used,2,7,200,1,1,0,1,0,0,5,-1,28,-1,0,-1,0,5,0,15,2,2,200,15,8,200,6,Not used,Transport Corps,未使用,Allows you to move materials between different towns.,未使用,2,Craftable
+47,Not used,2,12,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,150,15,6,150,6,Not used,Research,未使用,Allows you to perform research.,未使用,2,Craftable
+48,未使用,2,12,5,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,3,300,15,12,300,6,未使用,Research <0>,Ⅱ,Reduces research time by <0>%,5,2,Craftable
+49,未使用,2,12,10,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,5,450,15,18,450,8,未使用,Research <0>,Ⅲ,Reduces research time by <0>%,10,2,Craftable
+50,未使用,2,12,25,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,7,600,10,24,600,8,未使用,Research <0>,Ⅳ,Reduces research time by <0>%,25,2,Craftable
+51,未使用,2,12,30,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,10,800,10,32,800,10,未使用,Research <0>,Ⅴ,Reduces research time by <0>%,30,2,Craftable
+52,Not used,2,13,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,100,15,4,100,4,Not used,Ranch Know-How,未使用,Allows you to catch animals and raise them on the farm.,未使用,2,Craftable
+53,Not used,2,14,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,50,15,2,50,4,Not used,Treasure Analysis,未使用,Allows you to extract the contents of treasure chests.,未使用,2,Craftable
+54,Not used,2,16,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,2,175,15,7,175,6,Not used,Craftsmanship,未使用,Allows you to create products for tourists in a workshop.,未使用,2,Craftable
+55,未使用,2,16,5,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,3,250,15,10,250,6,未使用,Craftsmanship <0>,Ⅱ,Reduces crafting time by <0>%,5,2,Craftable
+56,未使用,2,16,10,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,4,375,15,15,375,8,未使用,Craftsmanship <0>,Ⅲ,Reduces crafting time by <0>%,10,2,Craftable
+57,未使用,2,16,25,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,6,500,15,20,500,8,未使用,Craftsmanship <0>,Ⅳ,Reduces crafting time by <0>%,25,2,Craftable
+58,未使用,2,16,30,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,7,625,10,25,625,10,未使用,Craftsmanship <0>,Ⅴ,Reduces crafting time by <0>%,30,2,Craftable
+59,Not used,2,28,0,1,1,0,1,7,84,0,-1,28,-1,0,-1,0,5,0,15,2,3,600,10,20,500,8,未使用,Instant <0>,Construction,Complete construction instantly.,未使用,258,"Craftable, Invocation rate settable"
+60,Not used,2,29,0,1,1,0,1,9,108,0,-1,28,-1,0,-1,0,5,0,15,2,5,1050,5,35,875,12,未使用,Instant <0>,Workshop,Complete production instantly.,未使用,258,"Craftable, Invocation rate settable"
+61,Not used,2,30,0,1,1,0,1,12,144,0,-1,28,-1,0,-1,0,5,0,15,2,6,1200,5,40,1000,12,Not used,Insta-Move,未使用,Occasionally move to your destination instantly.,未使用,258,"Craftable, Invocation rate settable"
+62,Not used,2,31,0,1,1,0,1,5,60,0,-1,28,-1,0,-1,0,5,0,15,2,1,240,15,8,200,6,未使用,Instant <0>,Weeding,Complete harvesting natural resources instantly.,未使用,258,"Craftable, Invocation rate settable"
+63,Not used,2,32,0,1,1,0,1,10,120,0,-1,28,-1,0,-1,0,5,0,15,2,3,720,10,24,600,8,未使用,Instant <0>,Treasure Analysis,Complete treasure chest analysis instantly.,未使用,258,"Craftable, Invocation rate settable"
+64,Not used,2,9,1,1,1,0,1,0,0,2,-1,28,-1,0,-1,0,5,0,15,2,2,480,15,16,400,8,Not used,Move Speed UP,未使用,Increases walking speed.,未使用,2,Craftable
+65,Not used,2,33,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,5,1020,5,34,850,10,Not used,All-Out Sprint,未使用,Always dash.,未使用,2,Craftable
+66,Not used,2,34,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,240,15,8,200,6,Not used,Miner,未使用,Allows you to mine.,未使用,2,Craftable
+67,Not used,2,35,2,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,2,540,10,18,450,8,未使用,Deployment Range <0>,Ⅰ,Increases questing range a little.,未使用,2,Craftable
+68,Not used,2,35,4,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,5,1050,5,35,875,12,未使用,Deployment Range <0>,Ⅱ,Significantly increases questing range.,未使用,2,Craftable
+69,Not used,2,36,1,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,360,15,12,300,6,Not used,De-Fogger,未使用,Dispel fog over a wider area.,未使用,2,Craftable
+70,Not used,2,37,25,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,2,450,15,15,375,8,未使用,Experience UP <0>,Ⅰ,Increases EXP gained from battles a little.,未使用,4098,"Craftable, Type Dupllicate OK"
+71,Not used,2,37,50,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,4,900,10,30,750,10,未使用,Experience UP <0>,Ⅱ,Increases EXP gained from battles.,未使用,4098,"Craftable, Type Dupllicate OK"
+72,Not used,2,37,75,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,9,1800,5,60,1500,16,未使用,Experience UP <0>,Ⅲ,Significantly increases EXP gained from battles.,未使用,4098,"Craftable, Type Dupllicate OK"
+73,Not used,2,38,5,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,2,480,15,16,400,8,未使用,Deployment Discount <0>,Ⅰ,Decreases Energy consumed during quests a little.,未使用,2,Craftable
+74,Not used,2,38,10,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,5,960,10,32,800,10,未使用,Deployment Discount <0>,Ⅱ,Significantly decreases Energy consumed during quests.,未使用,2,Craftable
+75,未使用,2,39,5,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,3,0,15,2,1,270,15,9,225,6,未使用,Auto Recovery <0>,HP,Steadily recover <0>,HP while walking.,2,Craftable
+76,未使用,2,40,5,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,3,0,15,2,2,390,15,13,325,6,未使用,Auto Recovery <0>,MP,Steadily recover <0>,MP while walking.,2,Craftable
+77,未使用,2,41,5,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,3,0,15,2,3,600,10,20,500,8,未使用,Auto Recovery <0>,Vigor,Steadily recover <0>,Vigor while walking.,2,Craftable
+78,Not used,2,42,20,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,3,0,15,2,1,90,15,3,75,4,未使用,Facility Rec. UP <0>,HP,Increases HP recovered when using facilities.,未使用,2,Craftable
+79,Not used,2,43,20,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,3,0,15,2,1,180,15,6,150,6,未使用,Facility Rec. UP <0>,Vigor,Increases Vigor recovered when using facilities.,未使用,2,Craftable
+80,Not used,2,44,20,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,3,0,15,2,1,240,15,8,200,6,未使用,Facility Rec. UP <0>,MP,Increases MP recovered when using facilities.,未使用,2,Craftable
+81,Not used,2,45,25,1,1,0,1,50,600,0,-1,28,-1,0,-1,0,3,0,15,2,3,720,10,24,600,8,Not used,Stubborn,未使用,"When mortally wounded, auto-revives at the cost of own MP.",未使用,8194,"Craftable, Force Invocation"
+82,未使用,2,48,1,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,1,100,15,4,100,4,未使用,<0> Resistance,Sword,Negates weakness against <0>-type weapons.,Sword,4098,"Craftable, Type Dupllicate OK"
+83,未使用,2,48,2,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,1,150,15,6,150,6,未使用,<0> Resistance,Staff,Negates weakness against <0>-type weapons.,Staff,4098,"Craftable, Type Dupllicate OK"
+84,未使用,2,48,3,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,2,200,15,8,200,6,未使用,<0> Resistance,Axe,Negates weakness against <0>-type weapons.,Axe,4098,"Craftable, Type Dupllicate OK"
+85,未使用,2,48,4,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,3,250,15,10,250,6,未使用,<0> Resistance,Spear,Negates weakness against <0>-type weapons.,Spear,4098,"Craftable, Type Dupllicate OK"
+86,未使用,2,48,5,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,1,50,15,2,50,4,未使用,<0> Resistance,Hammer,Negates weakness against <0>-type weapons.,Hammer,4098,"Craftable, Type Dupllicate OK"
+87,未使用,2,48,6,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,1,25,15,1,0,4,未使用,<0> Resistance,Club,Negates weakness against <0>-type weapons.,Club,4098,"Craftable, Type Dupllicate OK"
+88,未使用,2,48,7,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,6,500,15,20,500,8,未使用,<0> Resistance,Gun,Negates weakness against <0>-type weapons.,Gun,4098,"Craftable, Type Dupllicate OK"
+89,未使用,2,48,8,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,7,625,10,25,625,10,未使用,<0> Resistance,Bow,Negates weakness against <0>-type weapons.,Bow,4098,"Craftable, Type Dupllicate OK"
+90,未使用,2,48,9,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,2,225,15,9,225,6,未使用,<0> Resistance,Book,Negates weakness against <0>-type weapons.,Book,4098,"Craftable, Type Dupllicate OK"
+91,Not used,2,48,11,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,5,400,15,16,400,8,未使用,Shield Resistance,未使用,Negates weakness against <0>-type weapons.,Shield,4098,"Craftable, Type Dupllicate OK"
+92,Not used,2,46,0,1,1,0,1,3,36,0,-1,28,-1,0,-1,0,5,0,15,2,4,350,15,14,350,6,Not used,Stealth,未使用,Dispelling fog will not attract monsters.,未使用,258,"Craftable, Invocation rate settable"
+93,Not used,2,47,0,1,1,0,1,3,36,0,-1,28,-1,0,-1,0,5,0,15,2,1,100,15,4,100,4,Not used,Instinct,未使用,Digging will not attract monsters.,未使用,258,"Craftable, Invocation rate settable"
+94,Not used,2,49,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,350,15,5,125,6,Not used,Strategic Retreat,未使用,Picking up items will end a battle.,未使用,2,Craftable
+95,Not used,2,50,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,210,15,3,75,4,Not used,Battle Maniac,未使用,Won't pick up items during quests.,未使用,2,Craftable
+96,Not used,2,51,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,7000,5,100,2500,24,Not used,House-sitter,Not used,未使用,未使用,0,
+97,Not used,2,52,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,420,15,6,150,6,Not used,Round Trip,未使用,Return to town after exploring all available quest areas.,未使用,2,Craftable
+98,Not used,2,53,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,7000,5,100,2500,24,Not used,Rambler,Not used,未使用,未使用,0,
+99,Not used,2,54,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,7000,5,100,2500,24,Not used,Naturalist,Not used,未使用,未使用,0,
+100,Not used,2,55,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,7000,5,100,2500,24,Not used,Traveler,Not used,未使用,未使用,0,
+101,Not used,2,56,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,2,560,10,8,200,6,Not used,Aid Specialist,未使用,Unable to fight during enemy attacks.,未使用,2,Craftable
+102,Not used,2,57,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,70,15,1,0,4,Not used,Domestic Production,未使用,Makes it easier to collect materials within your territory.,未使用,2,Craftable
+103,Not used,2,58,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,7000,5,100,2500,24,Not used,Countryside Fanatic,Not used,未使用,未使用,0,
+104,Not used,2,59,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,7000,5,100,2500,24,Not used,Well-Prepared,Not used,未使用,未使用,0,
+105,Not used,2,60,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,2,490,15,7,175,6,Not used,Leading the Charge,未使用,Stands in the front line in boss battles.,未使用,65538,"Craftable, Monster equippable"
+106,Not used,2,60,1,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,210,15,3,75,4,Not used,Daring Charge,未使用,Stands directly in front of the boss in boss battles.,未使用,65538,"Craftable, Monster equippable"
+107,Not used,2,60,4,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,350,15,5,125,6,Not used,Backup,未使用,Stays at the back in boss battles.,未使用,65538,"Craftable, Monster equippable"
+108,Not used,0,23,50,1,1,0,1,15,180,4,-1,28,-1,0,-1,0,4,0,15,2,1,1250,5,50,1250,14,Not used,Critical UP+,未使用,Increases chances of landing critical hits for a short time.,未使用,66504,"For Battle, Invoke when attack, Keep fixed turns, Invocation rate settable, Attack, Monster equippable"
+109,未使用,0,19,0,6,1,0,1,12,144,4,-1,28,-1,0,-1,0,4,0,15,2,1,1750,5,70,1750,18,未使用,<0>-Hit Attack,6,<0> consecutive attacks.,6,70424,"For Battle, Opponent appoint, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+110,未使用,0,19,0,7,1,0,1,16,192,4,-1,28,-1,0,-1,0,4,0,15,2,1,1750,5,70,1750,18,未使用,<0>-Hit Attack,7,<0> consecutive attacks.,7,70424,"For Battle, Opponent appoint, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable"
+111,Not used,2,62,30,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,3,55,-1,11,275,6,未使用,Skilled Craftsman <0>,Ⅰ,Spends more time in workshops.,未使用,2,Craftable
+112,Not used,2,62,100,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,5,90,-1,18,450,8,未使用,Skilled Craftsman <0>,Ⅱ,Spends a lot more time in workshops.,未使用,2,Craftable
+113,未使用,0,66,10,1,1,0,1,25,300,31,-1,28,-1,0,47,0,4,0,15,2,1,625,-1,125,3125,30,未使用,Armor Breaker <0>,Ⅰ,Lowers enemies' DEF by <0>%,10,463624,"For Battle, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable, Invalid for ally, Buff"
+114,未使用,0,66,25,1,1,0,1,35,420,31,-1,28,-1,0,47,0,4,0,15,2,1,625,-1,125,3125,30,未使用,Armor Breaker <0>,Ⅱ,Lowers enemies' DEF by <0>%,25,463624,"For Battle, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable, Invalid for ally, Buff"
+115,未使用,0,66,25,1,1,0,2,40,480,31,-1,28,-1,0,47,0,4,0,15,2,1,625,-1,125,3125,30,未使用,Armor Breaker <0>,Ⅲ,Lowers enemies' DEF by <0>%,25,463624,"For Battle, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable, Invalid for ally, Buff"
+116,未使用,0,66,30,1,1,0,3,50,600,31,-1,28,-1,0,47,0,4,0,15,2,1,625,-1,125,3125,30,未使用,Armor Breaker <0>,Ⅳ,Lowers enemies' DEF by <0>%,30,463624,"For Battle, Invocation rate settable, Attack, Type Dupllicate OK, Monster equippable, Invalid for ally, Buff"
+117,Not used,0,67,15,1,1,0,1,10,120,31,-1,28,-1,0,13,0,4,0,15,2,1,625,-1,125,3125,30,未使用,Sandman <0>,Ⅰ,Puts enemies to sleep for a short time.,未使用,459528,"For Battle, Invocation rate settable, Attack, Monster equippable, Invalid for ally, Buff"
+118,Not used,0,67,10,1,1,0,2,25,300,31,-1,28,-1,0,13,0,4,0,15,2,1,625,-1,125,3125,30,未使用,Sandman <0>,Ⅱ,Puts enemies to sleep for a short time.,未使用,459528,"For Battle, Invocation rate settable, Attack, Monster equippable, Invalid for ally, Buff"
+119,Not used,0,67,5,1,1,0,3,40,480,31,-1,28,-1,0,13,0,4,0,15,2,1,625,-1,125,3125,30,未使用,Sandman <0>,Ⅲ,Puts enemies to sleep for a short time.,未使用,459528,"For Battle, Invocation rate settable, Attack, Monster equippable, Invalid for ally, Buff"
+120,Not used,0,0,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,1,4995,-1,999,24975,204,Not used,Skill,未使用,Skill,未使用,0,
+121,Not used,0,0,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,1,4995,-1,999,24975,204,Not used,Skill,未使用,Skill,未使用,0,
+122,Not used,0,0,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,1,4995,-1,999,24975,204,Not used,Skill,未使用,Skill,未使用,0,
+123,Not used,0,0,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,4,0,15,2,1,4995,-1,999,24975,204,Not used,Skill,未使用,Skill,未使用,0,
+124,未使用,2,61,10,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,525,-1,105,2625,26,未使用,Guerilla <0>,Ⅰ,Patrols a <0>-square area around town at own initiative.,10,0,
+125,未使用,2,61,20,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,600,-1,120,3000,28,未使用,Guerilla <0>,Ⅱ,Patrols a <0>-square area around town at own initiative.,20,0,
+126,未使用,2,61,30,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,9,0,15,2,1,750,-1,150,3750,34,未使用,Guerilla <0>,Ⅲ,Patrols a <0>-square area around town at own initiative.,30,0,
+127,Not used,2,63,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,250,-1,50,1250,14,未使用,Art <0>,Ⅰ,Allows you to create products at a studio.,未使用,0,
+128,Not used,2,63,5,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,400,-1,80,2000,20,未使用,Art <0>,Ⅱ,Makes item creation at a studio a little quicker.,未使用,0,
+129,Not used,2,63,10,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,600,-1,120,3000,28,未使用,Art <0>,Ⅲ,Makes item creation at a studio quicker.,未使用,0,
+130,Not used,2,63,25,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,750,-1,150,3750,34,未使用,Art <0>,Ⅳ,Makes item creation at a studio a lot quicker.,未使用,0,
+131,Not used,2,63,30,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,1000,-1,200,5000,44,未使用,Art <0>,Ⅴ,Makes item creation at a studio significantly quicker.,未使用,0,
+132,Not used,2,64,0,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,1,250,-1,50,1250,14,Not used,Capture,未使用,Allows you to capture wild animals.,未使用,0,
+133,Not used,2,65,3,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,12,200,-1,40,1000,12,未使用,Chat <0>,Ⅰ,Makes it a little easier to build affection.,未使用,2,Craftable
+134,Not used,2,65,5,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,15,250,-1,50,1250,14,未使用,Chat <0>,Ⅱ,Makes it easier to build affection.,未使用,2,Craftable
+135,Not used,2,65,8,1,1,0,1,0,0,0,-1,28,-1,0,-1,0,5,0,15,2,18,300,-1,60,1500,16,未使用,Chat <0>,Ⅲ,Makes it much easier to build affection.,未使用,2,Craftable

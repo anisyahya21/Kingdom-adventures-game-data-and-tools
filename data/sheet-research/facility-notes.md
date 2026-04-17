@@ -211,6 +211,58 @@ Notable flag values observed:
 | 213 | HG Item Storehouse | 3 grass, 3 ore | 30 grass, 21 ore | 5 |
 | 214 | HG Egg Storehouse | 2 grass, 2 food | 20 grass, 16 food | 5 |
 
+### Storage Capacity Mapping (Facility_lookup.csv + Warehouse.csv)
+
+This section is important for rebuilding the Houses/Facilities page from raw CSVs.
+
+#### How to connect the sheets
+- `Facility_lookup.csv`
+  - Storehouses use facility `type = 17`
+  - Coin boxes use facility `type = 79`
+  - `dataId` points into `Warehouse.csv`
+- `Warehouse.csv`
+  - `capacity` is the key storage amount used by the website
+  - `flag = 3` rows are labeled `display stock, hide contents`
+
+#### Confirmed mappings
+| Facility ID | Facility name | Facility type | dataId | Warehouse capacity | Website display |
+|-------------|---------------|---------------|--------|--------------------|-----------------|
+| 33 | Grass Storehouse | 17 | 0 | 5 | 20 |
+| 34 | Food Storehouse | 17 | 2 | 5 | 20 |
+| 35 | Wood Storehouse | 17 | 1 | 5 | 20 |
+| 36 | Ore Storehouse | 17 | 3 | 5 | 20 |
+| 37 | Mystic Ore Storehouse | 17 | 4 | 5 | 20 |
+| 38 | Item Storehouse | 17 | 7 | 10 | 40 |
+| 39 | Energy Storehouse | 17 | 5 | 5 | 20 |
+| 40 | Treasure Storehouse | 17 | 6 | 4 | 16 |
+| 183 | Copper Coin Box | 79 | 12 | 100 | Unlimited |
+| 184 | Silver Coin Box | 79 | 13 | 100 | Unlimited |
+| 206 | HG Grass Storehouse | 17 | 11 | 100 | 100 |
+| 207 | HG Wood Storehouse | 17 | 12 | 100 | 100 |
+| 208 | HG Food Storehouse | 17 | 13 | 100 | 100 |
+| 209 | HG Ore Storehouse | 17 | 14 | 100 | 100 |
+| 210 | HG Mystic Storehouse | 17 | 15 | 100 | 100 |
+| 211 | HG Energy Storehouse | 17 | 16 | 150 | 150 |
+| 212 | HG Treasure Storehouse | 17 | 17 | 50 | 50 |
+| 213 | HG Item Storehouse | 17 | 18 | 300 | 300 |
+| 214 | HG Egg Storehouse | 17 | 19 | 50 | 50 |
+
+#### Current interpretation status
+- HG storehouses match the raw `Warehouse.csv` capacity directly.
+- Coin boxes do **not** use the raw warehouse value as the player-facing limit; in-game they behave as unlimited.
+- Standard low-tier storehouses do **not** match the raw `Warehouse.csv` value directly.
+  - Their in-game capacity is exactly `4x` the raw warehouse value.
+  - Example: Grass Storehouse uses warehouse row `0`, which has `capacity = 5`, but the game-facing storage is `20`.
+
+#### Important warning for future rebuilds
+- Do **not** assume every `2x2` storehouse should be multiplied by 4.
+- That rule matches the low-tier storehouses above, but it does **not** match HG storehouses, which are also `2x2`.
+- The sheets clearly separate low-tier and HG storage into different row groups, but the exact internal rule is still not fully understood.
+- Until a better column/flag explanation is discovered, the safest rebuild path is:
+  - use the confirmed table above
+  - preserve the distinction between low-tier, HG, and coin storage
+  - treat the low-tier `x4` behavior as a confirmed display interpretation, not a universal CSV rule
+
 ### Production
 | ID | Name | Min Cost | Max Cost | HP | Build time | levelupGroup |
 |----|------|----------|----------|-----|-----------|-------------|
@@ -258,6 +310,51 @@ Notable flag values observed:
 - Non-zero = radius of territory expansion in tiles
 - Town Hall base range = 15 tiles
 - Town Hall expands +territory every 10 levels (confirmed in-game)
+
+---
+
+## Energy Mine fill-time discovery
+
+This section documents how the website should calculate the player-facing
+`Time to fill` for `Mine: Energy` on the Houses/Facilities page.
+
+### Raw CSV values
+From `Facility_lookup.csv` / `Facility.csv` for facility `47`:
+- `minProductCapacity = 50`
+- `maxProductCapacity = 1000`
+- `minProductTimeSeconds = 6000`
+- `maxProductTimeSeconds = 60000`
+
+### Confirmed interpretation
+- The game appears to scale both capacity and full refill time linearly by level.
+- The useful displayed timer is the time to reach `50 energy`, not necessarily the time to reach full raw max capacity.
+- That `time to 50` is derived proportionally from the mine's current scaled capacity and scaled full refill time.
+
+For level `L` from `1` to `100`:
+
+`capacity(L) = 50 + (1000 - 50) / 99 * (L - 1)`
+
+`fullTime(L) = 6000 + (60000 - 6000) / 99 * (L - 1)`
+
+`timeTo50(L) = fullTime(L) * 50 / capacity(L)`
+
+### Confirmed display behavior
+- This formula matches observed in-game values closely at low and mid levels.
+- Example checks:
+  - Level 1: about `1h 39m`
+  - Level 2: about `1h 31m`
+  - Level 28: about `55m`
+- Once the mine reaches the point where 50 energy is obtained in `50 minutes`, higher levels do **not** reduce the displayed time further.
+- The first level where this happens is approximately level `37`.
+- So the website should clamp the displayed `Time to fill` to `50m` for level `37+`.
+
+### Important rebuild note
+- Do **not** treat Energy Mine time as a fixed table.
+- Do **not** assume the displayed timer is full refill to max capacity.
+- Current website rule:
+  - calculate `timeTo50(L)` from the interpolated CSV values
+  - display in hours/minutes
+  - clamp to `50m` once the threshold is reached
 
 ### HP
 - minHp = HP at level 1 (freshly built)

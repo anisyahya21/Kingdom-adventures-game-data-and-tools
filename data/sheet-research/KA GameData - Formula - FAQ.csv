@@ -1,0 +1,326 @@
+,,,,,,,,,,,
+"If you want to use this Game Data dump somewhere else, don't forget to give credits to me (user /u/minhnim in Discord & Reddit), many thanks :)",,,,,,,,,,,
+,,,,,,,,,,,
+Place holder for how to exploit this data sheet: ....,,,,,,,,,,,
+"These sheets are raw data from the game dump, so it is guaranteed to be accurate to game mechanism",,,,,,,,,,,
+,,,,,,,,,,,
+Useful sheets:,,,,,,,,,,,
+,Sheet name,Description,,,,,,,,,
+,Simulation - Marriage,"99% exact game mechanic guaranteed, even for E-compatible couples",,,,,,,,,
+,Gacha*** ,"Intro purpose, e.g: GachaJob for job pulls, Gacha Equip for weapons pulls",,,,,,,,,
+,Monster ,"monster's stats and pet's stats, eggs informations, also contains zoo animals and Chicken/Pigs/Cows",,,,,,,,,
+,Treasure_lookup ,"Treasures information and rate, especially Kairo and Wairo Dungeon",,,,,,,,,
+,Facility_lookup ,"Facility/Room lookup, also contains Artisan's unlock information for furnitures",,,,,,,,,
+,Item ,"Item unlock information, e.g Apple, ...",,,,,,,,,
+,Equip,weapons/shields/accessories/hats information and unlock condition,,,,,,,,,
+,Campaign_lookup ,weekly conquest information,,,,,,,,,
+,Collection,"Museum, Aquarium and Insectarium unlock condition",,,,,,,,,
+,Survey,"survey information, e.g Scholar, Reclaim Land, ...",,,,,,,,,
+,Guerrilla,Wairo dungeon appearing time,,,,,,,,,
+,House,Inn/House/Mansion/Monster Room information,,,,,,,,,
+,Job,job stats,,,,,,,,,
+,JobGroup,job group information (e.g skills compatibility),,,,,,,,,
+,JobPair_lookup,couple compatibility and children,,,,,,,,,
+,Research,,,,,,,,,,
+,Skill,skills' stats and unlock information,,,,,,,,,
+,SpecialBoss,Kairo and Wairo Dungeon informations,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+Job day in Job Center,,,,,,,,,,,
+,"The formula is JobGroup's id modulo by 7. E.g: Merchant's jobgroup is 1, modulo 7 gives 1, so it is Monday",,,,,,,,,,
+,"Another example: Cook's jobgroup is 7, modulo 7 gives 0, so it will appear on Sunday",,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+Apple lacking issue,,,,,,,,,,,
+,"Orchard with 1 or 2 Double beds, no indoor facility, residents should have INT between 120 and 149 for Apple production",,,,,,,,,,
+,Upgrade Monster Feed a little bit but not too much if you want to farm zoo animal in late game,,,,,,,,,,
+,"(higher level Monster Feed will spawn more animals, but higher level will take long time to finish so if you want to capture animals for zoo, it might take long time to spawn another zoo animal)
+Furthermore, don't deploy Monster Feed on Wasteland, check the data sheet for Cow/Pig spawn location
+Chicken gives less Food than Pig and Pig gives less food than Cow
+( check Monster tab, id 124-130 for Chicken/Pig/Cow information)",,,,,,,,,,
+,,,,,,,,,,,
+Foods issue,,,,,,,,,,,
+,Lots of residents with Rancher skill equipped + high level Monster Feed,,,,,,,,,,
+,,,,,,,,,,,
+Damage calculation:,,,,,,,,,,,
+,,,,,,,,,,,
+,1) Calculate crit_rate:,,,,,,,,,,
+,,base crit rate followed a well defined table in function of Attacker's luck:,,,,,,,,,
+,,,luck,crit rate,e.g,,,,,,
+,,,0...99,10..20,"at 0 luck, unmodified crit rate is 10%, at 99, it is 20%",,,,,,
+,,,100..999,21..35,,,,,,,
+,,,1000..99999,36..75,,,,,,,
+,,"then if this attack is a skill, there is a modifier: crit_rate * (100 + skill's value) / 100 , skill's value is taken from value column in Skill's tab",,,,,,,,,
+,,then roll a number between 0 and 100 to see if atk is critical,,,,,,,,,
+,"2) if crit miss, calculate hit_rate, else go to 3",,,,,,,,,,
+,,"Hit rate = 150 + attackerDexterity - defenderAgility / 5 - defenderLuck / 5 , capped between 5 and 97 ( min =5, max=97) , Agility is called Speed in game",,,,,,,,,
+,,"then if this attack is a skill, there is a modifier: hit_rate * (100 - skill's value) / 100 , skill's value is taken from value column in Skill's tab",,,,,,,,,
+,,"roll dice 1d100, if less than hit_rate then it is a hit",,,,,,,,,
+,3) Calculate damage,,,,,,,,,,
+,,"Magic attack is only skill with type column == 1 in Skill tab (only Fire, Ice, Lightning skills at the moment)",,,,,,,,,
+,,"Atk's attack atk_Atk = INT if magic attack else ATK stat, Monster doesn't have INT, its INT is calculated as monster' Dex/2",,,,,,,,,
+,,"Defender'defense def_Def = DEF stat, if it is under Armor breaker's effect (DEF Down), its def_Def = def_Def * (100 - skill's value) / 100",,,,,,,,,
+,,"if critical, defender's defense is further modified (devided by 8): def_Def = def_Def / 8",,,,,,,,,
+,,"damage = atk_Atk * random(80,120) / 100 , minimum = 1",,,,,,,,,
+,,"damage = damage - def_Def * random (70,90) /100",,,,,,,,,
+,,"if damage <=5: damage = random (1,10)",,,,,,,,,
+,,"if weapon has advantage on that particular map's spot, damage = damage * 1.5",,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+Exps gain,"exp gained depends on defeated monster, each monster provides different kind of exp on particular stats. Check ""exps"" column on ""Monster"" tab",,,,,,,,,,
+,"Once defeated, system will choose randomly one stat between multiple stat that monster provides exp",,,,,,,,,,
+,"Then exp gain is: 30 * multiplier * monster's level /100, with multiplier is value of chosen exp stat above",,,,,,,,,,
+,"This will further be modified by other bonus like Exp I, II, III skills",,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+Exp UP,given raw exp by killing monster (check exps column in Monster tab),,,,,,,,,,
+,for each skill Exp UP: exp = exp * ( skill_value + 100 ) / 100; round down after ech calculation,,,,,,,,,,
+,so unit with 3 skills: exp ~ exp * 1.25 * 1.5 *1.75 ~ 3.28 times,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+Decision to cast skills for each turn in battle,"- Search for skill from 1st slot to last slot:
+  + check if skill is useable:
+    * to decide if skill useable: it checks skill's category, skill's type and skill's weapons:
+            If if is activity skill category, then nope.
+            If not enough MP then nope.
+            If it is attack skill and skill has weapon's type then check equipped weapon, it it doesn't match then nope. AA3 doesn't weapon's type so Bow or not doesn't matter.
+            If it is recovery skill then check current user's HP if it maxed then nope.
+            If it is revival skill then check unit's HP, if it is bigger than 0 then nope.
+           if skill is invoking then nope
+            if it is neither Line Attack, Area Attack or Debuff then YES
+           else if it is in front row: check if there is any one in skill's range (skill's range from Skill tab), if noone then nope, else YES
+           else: NOPE 
+  + if skill is useable then throw dice to know if it can be casted, if not, go to next slot <= slot in first position got better chance to be casted than last position
+
+So only Line Attack, Area Attack and Debuff need to be in front line, any thing else could be done from range",,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+Attack frame during battle,,,,,,,,,,,
+,"unit's speed decideds the unit's attack frame, which is around 30 * (speed / 25) ^ (-0.362), the higher speed is, the lower attack frame will be, so unit will do action faster
+base on this formula, unit at 6000 speed ( doable for 999 level unit) will attack around two times faster than unit at 1000 speed",,,,,,,,,,
+,"You see the effect better with Legendary Cave where time gauge is stopped during attack action, till monster level 1000, monsters have around 600-1000 speed, and if your royal has 5000-6000 speed, your Royal will attack at least two times.",,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+Marriage/Give birth calculation:,,,,,,,,,,,
+,"Give birth is decided at the moment of clicking on the crib, not the moment of clicking on DayCare center later",,,,,,,,,,
+,"0) The compatibility showed on Date spot (A,B,C,D,E) is calculated: rank = (affinity - 50) / 10, round down,  which gives 1.. 5 corresponds to E .. A",,,,,,,,,,
+,,"This gives a general idea about affinity, but the exact malus must be calculated with the formula below. Because lower than A compatibility may match two affinities, e.g: B rank compatibility can have affinity of 90 and 95 with different malus",,,,,,,,,
+,,,,,,,,,,,
+,"1) Calculate child rank: look up table, capped between D and S (even if there is F in table, it will be D rank child)",,,,,,,,,,
+,,father\mother rank,F,E,D,C,B,A,S,,
+,,F,F,F,F,F,F,F,F,,
+,,E,F,F,F,F,F,F,F,,
+,,D,F,F,C,C,C,B,B,,
+,,C,F,F,C,B,B,B,A,,
+,,B,F,F,C,B,A,A,A,,
+,,A,F,F,B,B,A,S,S,,
+,,S,F,F,B,A,A,S,S,,
+,,,,,,,,,,,
+,2) Calculate child awakening:,,,,,,,,,,
+,,Bonus awakening (same rank bonus),,,,,,,,,
+,,father\mother rank,F,E,D,C,B,A,S,,
+,,F,-2,-2,-2,-2,-2,-2,-2,,
+,,E,-2,-2,-2,-2,-2,-2,-2,,
+,,D,-2,-2,-1,-2,-2,-2,-2,,
+,,C,-2,-2,-2,0,-2,-2,-2,,
+,,B,-2,-2,-2,-2,1,-2,-2,,
+,,A,-2,-2,-2,-2,-2,2,-2,,
+,,S,-2,-2,-2,-2,-2,-2,3,,
+,,,,,,,,,,,
+,,"Awakening is calculated from formula:  (father's awakening + 1 + mother's awakening + 1 + bonus_awakening) * affinity / 100, round down
+   affinity is defaulted to 50 if there is no affinity in JobPair tab in data sheet, there are several ones in sheet: 60, 65, 70, 75, 80, 90, 95, 100
+   bonus awakening is: same rank bonus, if it is D then bonus = -1  ... 3 for S. if mismatch, that is a -2 to awakening
+   so effectively the malus of bad affinity is the affinity / 100, with the bad effect of round down
+  (e.g  awakening for S couple 14 and  14 awakening with 100% affinity is : 100 * (14 + 1 + 14 + 1 + 3) /100 = 33 )
+  for S couple 14 and 14 with 60 affinity (e.g: Royal with Samurai, E compatibility): 60 * ( 14+1+14+1+3)/100 = 19.8, round down to 19",,,,,,,,,"The exact formula for awakening is calculated as: Affinity * ( father's awakening + mother's awakening + 2 + bonus_awakening) / 100 , rounded down
+Affinity is an internal parameter between two job, for A compatibility, it is 100, for B, it can be 90 or 95 depends on job pair ... 60 or 65 for E.
+Bonus_awakening is same rank bonus (-1 for a pair of D ... 3 for a pair of S), if mismatch, that is a -2.
+So for a couple of S with A compatibility with 15 and 14 awakening, that is 100 * ( 14 + 15 + 2 + 3) /100 = 33
+for a couple of S with E compatibility with 14 and 14 awakening, supposed 60 affinity, that is 60 * (14 + 15 +2 +3) / 100 = 19.8, round down to 19 awakening.
+Because of multiplication/division, the compatibility penalty isn't a fixed value."
+,,Gender is random,,,,,,,,,
+,,"stat is also random based on awakening, and there are 3 random sets, 1 for choosing father job, 1 for mother job and one for pair job",,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+egg's rank,"egg_rank = defeated monster's level * random(80,120) / 100 / random (8,12), round down after each division, capped between 1 and 500. So for monster 3210, max egg rank is 3210 * 120 / 8 / 100 ~ 481",,,,,,,,,,
+,"each egg has a level (so if it is hatched, that will be pet's level too): egg's level is random between 1 and egg's rank/2",,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+Monster's hatch possibility,,,,,,,,,,,
+,"given min, max hatch basis column in Monster's tab and current_value in that monster's category (Atk, Def, Balance, Special)",,,,,,,,,,
+,value = (current_value - min) / (max -min) * 100,,,,,,,,,,
+,if value < 0: none,,,,,,,,,,
+,"if value < 30 : low possibility, rate = 5",,,,,,,,,,
+,"if 30 <= value < 85 : medium possibility, rate = 30",,,,,,,,,,
+,"if 85<=value <= 100: high possibility, rate = 60",,,,,,,,,,
+,"if value > 100: low possibility, rate =5",,,,,,,,,,
+,,,,,,,,,,,
+Recovery:,the reason why residents comes back to battle with only 1 HP:,,,,,,,,,,
+,1) Search for HP recovery facilities,,,,,,,,,,
+,2) Get the one highest priority facility in list <= I didnt check if it omits already occupied facility,,,,,,,,,,
+,"3) Try to assign to that facility, if it fails => abort",,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+"Battle order (front row, back row):",,,,,,,,,,,
+,"order depends on two factor:
+
+- priority, firstly lookup from internal table and then modified by skill (backup +4, daring charge+2), and by additional param OwnerPlayer (??) +2
+- and DEF stat.
+
+I didn't check how these two factor play together to give exact idea how a pawn be placed in front or back, but I supposed that even with backup, if unit has his DEF high enough to compensate the priority, he will still be put in front",,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+In game day,,,,,,,,,,,
+,"1 in-game day: it has the same system with hour, seconds as in-real-life
+
+AT 6AM, it is considered early morning
+
+7AM: morning
+
+8AM- 3PM: daytime
+
+4PM-6PM: evening
+
+7PM-8PM: night
+
+9PM-5PM: midnight
+
+Sleep time is between 8PM-5PM (included). If there is a decision loop falling inside this time, they will go to sleep.
+
+The base time for crafting is 4 in-game hour per day. With Skilled Craftsman II, it is extended to 8 hour, if you excluded lag time and various decision time, they don't have much time to do anything else. Unless they finish their craft (no more shelves to fill), then their craft time is finished, no more check till next day.
+
+If I get it right, the skill with station (mining, wagon cart, shop's station) get priority over other skills",,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+"Farming Chaos stones,  e.g: 1 ninja awakening 14 on 6 chaos stones level 3200: https://youtu.be/7cwHFVK6kPs",,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,Legend:,,,
+,,,,,,,,"Blue: The tile where no unit/monster can stand on (they can walk by, but in no way they can stay there), e.g: tile with sign board or cave or building (Trading Post for example)",,,
+,,,,,,,,Yellow: Chaos stones,,,
+,,,,,,,,White: Tiles where unit/monster can stand on,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,Principle:,,,
+,,,,,,,,"AI will search for a nearby tile they can stay in a radius of 3-4 tiles around them, so they will walk there next ",,,
+,,,,,,,,"As the only space available is the closed space at the center, they will be nuked there with AoE (or with a simple Bow as it is has effect of multi-hit)",,,
+,,,,,,,,"It seems there is a hard limit of number of monster on one tile, but that is a no problem,  as soon monsters are killed, monster from outside will come there",,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,"You don't need to build signs on that area level, only where chaos stones position count for monster's level",,,
+,,,,,,,,"so for map area with little land, like 3200, you can try this:",,,
+,,,,,,,,"          TTTTTTTTTTTTT
+          TTTTTTTTTTTTT
+          TTTTTTTTTTTTT
+          TTXXXXTXXTTTT
+          TTXXXX XXTTTT
+          TTXXXX XXTTTT
+          TTXXXXTXXTTTT    <= 3200 area
+          TTTTTTTTTTTTT    <= other level area
+          TTTTTTTTTTTTT
+          TTTTTTTTTTTTT
+other area ^^ 3200 area",,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,Credit of image and this method to Alfie ( /u/lr880618 ) and Chinese community,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+"Gear and skills (standards, easy to get)",,,,,,,,,,,
+,1) farming chaos stones:,,,,,,,,,,
+,,"Gear: Bow (S/ Champion Bow from Equipment Gacha, A/Swift Bow from Saturday S rank event) due to its effect of multi-hit in closed space, Ninja HeadBand, Kairo shield, Purple Cape, Red ribbon",,,,,,,,,
+,,"skills: Stubborn is a must, then 1 AoE skill (best with Myriad Arrow from farming Wairo easiest level, Area Attack is less efficient because Myriad Arrow is multihit AoE with less MP while Area Attack is only 1 hit AoE)",,,,,,,,,
+,,"Exp I, II, III for 3.28 times Exp",,,,,,,,,
+,,Shield and Bow resistance if weakness,,,,,,,,,
+,,"Nice to have: Perfect Dodge for survival, Full Reflect, Facility Rec Up MP (because full recovery in Bath check for full HP to stop using facility, so sometime MP isn't full yet when residents exit Recovery Facility if Recovery Facility has HP recovery better than MP recovery)",,,,,,,,,
+,,"For defense vs raid during full moon, there are two main strategies:",,,,,,,,,
+,,"- either build towns far from farms, e.g: my town at original position and another town at map level 70 doesn't get attacked at all by farm at 3200, it seems that the safe distance is 125
+- or build a layer of lure around windmill, then another layer of wall around all that. All of these should be leveled up, and equip everyone to fight",,,,,,,,,
+,,,,,,,,,,,
+,,"A must is Stubborn skill, without it, that won't work
+Another important skill to have is Myriad Arrow. Area attack would work but less efficient and costs 3 times MP of Myriad Arrow, so resident couldn't be lower level/awakening than having Myriad Arrow, 
+Fighter set with MP priority (Ninja head, A/Swift Bow, Kairo shield, Purple Cape, Red Ribbon)
+For reason of MP consumption of Stubborn, Kairo shield instead of Wairo shield, shield resistance if Weak, Facility MP recover UP
+Another nice to have: Perfect dodge, Full Reflect, EXP I II III",,,,,,,,,
+,,,,,,,,,,,
+,2) Residents (dumb D labor or C from marriage of 2 D rank with A compatibility): I breed mostly D/ Monk with D/Champion => 1 awakening C/Champion or 1 awakening C/ Berserker due to their tanky stats,,,,,,,,,,
+,,"Due to damage calculation, 0 awakening D rank can hit 3200 monster with maximum 10 damage and they miss alot, but it can do 1200+ damage to 3200 monster with crit, so crit is important
+5-6 D rank can beat in average 1 3200 monster",,,,,,,,,
+,,"Everyone, except Mage, either fighter town or not, have fighter set (Ninja head, A/ rank weapons or C/Silver Scapel, Wairo/Kairo Shield, Purple Cape, Red Ribborn), then the must skill is Stubborn,  another nice to have is Move Spped Up, All Out Sprint, Facility MP Recovery UP",,,,,,,,,
+,,"Have lots of Recovery Room (Monk room, due to its bigger recovery than Hospital), Rej Spring and Bath, because they will die alot once you farm 3200 level",,,,,,,,,
+,,"Have several activity skill: mix of Construction Chief, Ranch Know How, Treasure Analysis, Agriculturist",,,,,,,,,
+,,"If you have several choice of weapons from S/ daily rank rewards (Emerald Clubs, Sword ...) prefer sth with Luck, for crit purpose, speed is less important",,,,,,,,,
+,,Equip one of multihit skill so they can solo better vs high level monster (e.g: 5-hit skill),,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,"3) Mage for copper town: 1500INT if you want Chat III in your copper town, but it isn't a must, with over 10 copper skill, you can still gain easily over 10K-30K coin/hour",,,,,,,,,,
+,,"Gears: INT set: weapons (Lightining/Ancient staves from shop or Light Staff from S/ rank daily), Mage Hat (from shop), Kairo shield (due to MP usage of Instant Workshop), Leather Armor/Dress (from shops), Magic Pendant/Silver Ring (from shops)",,,,,,,,,
+,,"Skills: Craftsmanship V, Instant Workshop, Skilled Craftman II (double working time from 4 to 8 hour), Move Speed Up, All Out Sprint, Domestic Production (so they won't go out of town, beside rescuing, this is better than Strategic Retreat), Aid Specialist (if near Chaos/Cave),",,,,,,,,,
+,,"nice to have:  Shield Resistance (due to Kairo shield), Auto Recovery MP and Facility Recovery MP up
+ because by defaut, when mage sleep, they will recover Vigor, unless the work1 (an internal parameter of AI) is set to MP, the exact mechanism how to trigger the work1 to MP isn't decoded",,,,,,,,,
+,,"Nice to install Black Mat inside shop, as it is the fastest floor ingame, even faster than Road",,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,4) PvP,Stubborn doesn't work in PvP/Boss Conquest !!!,,,,,,,,,
+,,"Revive 50%, 100% for each unit is recommended",,,,,,,,,
+,,"For very high rank PvP where battble draw over several minutes, Myriad Arrow is better than Area Attack III because of lesser MP consumption",,,,,,,,,
+,,"Myriad Arrow in PvP is a multihit 2x2 range damage, so it is subpar compared to Area Attack III if battle could be finished fast",,,,,,,,,
+,,,,,,,,,,,
+,,Bow build with Myriad Arrow,,,,,,,,,
+,,Heal L is recommended but less important than revive 50/100%,,,,,,,,,
+,,"Nice to have: Full Reflect, Perfect Dodge",,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+Tips & Trick:,,,,,,,,,,,
+,"Exploit to fill water without using Reclaim Land: work well with water body near map level 33, not so well for water near map border due to limit",,,,,,,,,,
+,,Use unit to build raft on water,,,,,,,,,
+,,"Build available TownHall over raft to convert raft to land (iron it), begin from edge where there are available land",,,,,,,,,
+,,Remove TownHall,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+FAQ,"MP consumption: depends on average level, so no needs to increase 5-stat if you don't want to. The MP will vary between MP min and max (check the Skill tab), I didn't check if it increases linearly or follows a curve, but I doubt it is mostly linear",,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,Chaos stones location:,,,,,,,,,,
+,,"There are 3 area for chaos stones (2 at each area for a total of 6 foundable from survey):
+- volcano tile of at least level 45 (so at early game, you can find it on volcano tile at level 75)
+- sand tile of at least level 60 (so you can begin to find it on first map extension, area 76 or 92)
+- grass tile of at least level 90 (you need to wait till 3rd map extension, area 454, 777)",,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,Shining monster and eggs: every 30 monster of same type defeated will generate a shining monster of same type and 10 levels higher than the last defeated. Defeat it will generate eggs with ranks and levels random (formula provided above),,,,,,,,,,
+,,,,,,,,,,,
+,"The chaos stones 's duration is 12 in-game months (1 in-game year). Once it reach the 13th months, it will need orange. It seems that 1 in-game day = 1 in-game month. Depends on lags, for one normal game where 1 in-game day is around 4 mins, 12 in-game month should be around 48 mins",,,,,,,,,,
+,,,,,,,,,,,
+,"Cave doesn't spawn any monster during night: The algorithm in game is that each night, they will begin by spawn chaos stones monster then they will try to spawn normal cave.
+There is a check in normal cave spawn though, it first look up the maxEnemies column in Rank tab (higher your rank, the more monster can be spawned), if limit has been reached, normal cave won't spawn more enemies.
+There is another particular point with normal cave is that it will try to spawn monster every 3 hour during night (so in around three waves), if you can kill monster to go under the limit before each check",,,,,,,,,,

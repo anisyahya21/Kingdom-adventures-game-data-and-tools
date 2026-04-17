@@ -1,0 +1,63 @@
+,,,,,,,rankRates,,,,,,numOfOccurrence,,,,,
+id,startMonth,startDate,finishMonth,finishDate,explain,groupRateTable,,,,,,groupSRankExtraRate,,,,,,
+0,1,1,12,31,Get D-A Grade weapons!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,n/a,5,29310,50539,15092,5059,0
+1,1,5,1,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27958,48477,14606,8959,0
+2,1,20,1,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,28187,48084,14708,9021,0
+3,2,5,2,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27945,48485,14605,8965,0
+4,2,20,2,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,28114,48289,14665,8932,0
+5,3,5,3,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27957,48348,14612,9083,0
+6,3,20,3,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27699,48544,14735,9022,0
+7,4,5,4,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27967,48457,14581,8995,0
+8,4,20,4,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,28122,48477,14525,8876,0
+9,5,5,5,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27859,48492,14685,8964,0
+10,5,20,5,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27945,48350,14654,9051,0
+11,6,5,6,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27914,48614,14522,8950,0
+12,6,20,6,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27984,48393,14635,8988,0
+13,7,5,7,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,28042,48400,14515,9043,0
+14,7,20,7,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27955,48523,14508,9014,0
+15,8,5,8,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27936,48567,14654,8843,0
+16,8,20,8,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27932,48336,14549,9183,0
+17,9,5,9,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,28129,48298,14451,9122,0
+18,9,20,9,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27944,48302,14678,9076,0
+19,10,5,10,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27787,48581,14516,9116,0
+20,10,20,10,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27862,48548,14528,9062,0
+21,11,5,11,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,28115,48163,14624,9098,0
+22,11,20,11,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27917,48510,14529,9044,0
+23,12,5,12,10,Get D-A Grade weapons. The Kairo Series will appear until the 10th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,27988,48461,14544,9007,0
+24,12,20,12,25,Get D-A Grade weapons. The Kairo Series will appear until the 25th!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8<br>11,200",4,500,300,150,0,n/a,5,28045,48430,14592,8933,0
+25,1,1,1,1,Daily Bonus: A Chance to Get S-Grade Staves!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"1,15",5,27696,48526,14403,4893,4482
+26,1,14,1,14,Daily Bonus: A Chance to Get S-Grade Clubs!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"2,15",5,27613,48439,14420,4768,4760
+27,1,28,1,28,Daily Bonus: A Chance to Get S-Grade Spears!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"3,6<br>4,6",5,28133,48775,14540,4773,3779
+28,2,1,2,1,Daily Bonus: A Chance to Get S-Grade Hammers!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"5,15",5,27778,48557,14306,4740,4619
+29,2,14,2,14,Daily Bonus: A Chance to Get S-Grade Swords!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"6,15",5,27722,48457,14443,4745,4633
+30,2,28,2,28,Daily Bonus: A Chance to Get S-Grade Guns!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"8,15",5,28044,48128,14437,4786,4605
+31,3,1,3,1,Daily Bonus: A Chance to Get S-Grade Bows!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"9,15",5,27852,48094,14519,4796,4739
+32,3,14,3,14,Daily Bonus: A Chance to Get S-Grade Axes!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"10,15",5,27859,48348,14515,4694,4584
+33,3,28,3,28,Daily Bonus: A Chance to Get S-Grade Staves!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"1,15",5,27888,48185,14546,4684,4697
+34,4,1,4,1,Daily Bonus: A Chance to Get S-Grade Clubs!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"2,15",5,27968,48006,14476,4801,4749
+35,4,14,4,14,Daily Bonus: A Chance to Get S-Grade Spears!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"3,6<br>4,6",5,28099,48795,14634,4758,3714
+36,4,28,4,28,Daily Bonus: A Chance to Get S-Grade Hammers!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"5,15",5,27677,48375,14522,4818,4608
+37,5,1,5,1,Daily Bonus: A Chance to Get S-Grade Swords!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"6,15",5,28014,48099,14560,4603,4724
+38,5,14,5,14,Daily Bonus: A Chance to Get S-Grade Guns!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"8,15",5,27891,48227,14345,4770,4767
+39,5,28,5,28,Daily Bonus: A Chance to Get S-Grade Bows!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"9,15",5,27603,48420,14482,4732,4763
+40,6,1,6,1,Daily Bonus: A Chance to Get S-Grade Axes!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"10,15",5,27850,48382,14380,4798,4590
+41,6,14,6,14,Daily Bonus: A Chance to Get S-Grade Staves!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"1,15",5,28074,48099,14495,4714,4618
+42,6,28,6,28,Daily Bonus: A Chance to Get S-Grade Clubs!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"2,15",5,27845,48157,14544,4714,4740
+43,7,1,7,1,Daily Bonus: A Chance to Get S-Grade Spears!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"3,6<br>4,6",5,27955,48795,14595,4889,3766
+44,7,14,7,14,Daily Bonus: A Chance to Get S-Grade Hammers!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"5,15",5,27902,48186,14548,4686,4678
+45,7,28,7,28,Daily Bonus: A Chance to Get S-Grade Swords!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"6,15",5,27925,48141,14433,4709,4792
+46,8,1,8,1,Daily Bonus: A Chance to Get S-Grade Guns!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"8,15",5,27608,48350,14489,4766,4787
+47,8,14,8,14,Daily Bonus: A Chance to Get S-Grade Bows!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"9,15",5,27827,48101,14503,4796,4773
+48,8,28,8,28,Daily Bonus: A Chance to Get S-Grade Axes!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"10,15",5,27944,48061,14437,4875,4683
+49,9,1,9,1,Daily Bonus: A Chance to Get S-Grade Staves!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"1,15",5,27895,48190,14502,4710,4703
+50,9,14,9,14,Daily Bonus: A Chance to Get S-Grade Clubs!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"2,15",5,27810,48150,14594,4780,4666
+51,9,28,9,28,Daily Bonus: A Chance to Get S-Grade Spears!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"3,6<br>4,6",5,28182,48734,14613,4761,3710
+52,10,1,10,1,Daily Bonus: A Chance to Get S-Grade Hammers!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"5,15",5,27544,48504,14583,4763,4606
+53,10,14,10,14,Daily Bonus: A Chance to Get S-Grade Swords!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"6,15",5,27772,48482,14166,4913,4667
+54,10,28,10,28,Daily Bonus: A Chance to Get S-Grade Guns!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"8,15",5,27605,48227,14706,4807,4655
+55,11,1,11,1,Daily Bonus: A Chance to Get S-Grade Bows!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"9,15",5,27847,48418,14338,4749,4648
+56,11,14,11,14,Daily Bonus: A Chance to Get S-Grade Axes!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"10,15",5,27755,48421,14340,4890,4594
+57,11,28,11,28,Daily Bonus: A Chance to Get S-Grade Staves!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"1,15",5,27900,48042,14613,4732,4713
+58,12,1,12,1,Daily Bonus: A Chance to Get S-Grade Clubs!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"2,15",5,27706,48276,14618,4647,4753
+59,12,14,12,14,Daily Bonus: A Chance to Get S-Grade Hammers!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"5,15",5,27855,48191,14506,4720,4728
+60,12,28,12,28,Daily Bonus: A Chance to Get S-Grade Swords!,"1,34<br>2,51<br>3,17<br>4,8<br>5,17<br>6,102<br>7,8<br>8,8<br>9,8<br>10,8",4,500,300,150,0,"6,15",5,27667,48336,14554,4719,4724
