@@ -166,17 +166,6 @@ function formatCountdown(ms: number): string {
   return `${seconds}s`;
 }
 
-function formatElapsed(ms: number): string {
-  if (ms <= 0) return "0s";
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
-}
-
 // field ? matId ? icon style  (see CSV column reference comment above)
 const COST_ICONS: { field: keyof Building; matId: number; style: "flat" | "outlined" | "crystal" }[] = [
   { field: "grass",  matId: 0, style: "outlined" },
@@ -1772,7 +1761,6 @@ export default function HousesPage() {
   const [tab, setTab] = useState<PageTab>("houses");
   const [facilityTab, setFacilityTab] = useState<FacilityTab>("env");
   const [now, setNow] = useState(() => new Date());
-  const [wairoDemoActive, setWairoDemoActive] = useState(false);
   const [knowHow, setKnowHow] = useState(0);
   const [craftsman, setCraftsman] = useState(0);
   const timeDiscount = knowHow * 0.05;
@@ -1801,13 +1789,6 @@ export default function HousesPage() {
       .sort((a, b) => a[0] - b[0])
       .map(([day, entries]) => ({ day, entries }));
   }, [wairoSchedule]);
-  const demoActiveSpawn = useMemo(() => {
-    const basis = nextWairoSpawn ?? wairoSchedule[0];
-    if (!basis) return null;
-    const startsAt = new Date(now.getTime() - 20 * 60 * 1000);
-    const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
-    return { ...basis, startsAt, endsAt };
-  }, [nextWairoSpawn, now, wairoSchedule]);
 
   // All current buildings are plots × they all appear in the Houses & Plots tab.
   // Facilities (walls, gates, roads, torches, townhall×) are non-plot infrastructure
@@ -1971,10 +1952,7 @@ export default function HousesPage() {
                 {wairoScheduleByDay.map(({ day, entries }) => {
                   const firstEntry = entries[0];
                   const isPast = entries.every((entry) => entry.endsAt.getTime() <= now.getTime());
-                  const activeEntry = entries.find((entry) => entry.startsAt.getTime() <= now.getTime() && now.getTime() < entry.endsAt.getTime());
-                  const demoEntry = wairoDemoActive && demoActiveSpawn != null && demoActiveSpawn.day === day ? demoActiveSpawn : null;
-                  const highlightedEntry = activeEntry ?? demoEntry ?? null;
-                  const isActive = highlightedEntry != null;
+                  const isActive = entries.some((entry) => entry.startsAt.getTime() <= now.getTime() && now.getTime() < entry.endsAt.getTime());
                   return (
                     <div
                       key={day}
@@ -2004,14 +1982,6 @@ export default function HousesPage() {
             <Card>
               <CardContent className="p-4 space-y-3">
                 <div className="font-semibold">Next spawn</div>
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={wairoDemoActive}
-                    onChange={(e) => setWairoDemoActive(e.target.checked)}
-                  />
-                  Demo active dungeon state
-                </label>
                 {nextWairoSpawn ? (
                   <>
                     <div className="text-sm">
@@ -2021,27 +1991,6 @@ export default function HousesPage() {
                       <div className="text-xs uppercase tracking-widest text-muted-foreground">Countdown</div>
                       <div className="text-lg font-semibold tabular-nums">{formatCountdown(nextWairoSpawn.startsAt.getTime() - now.getTime())}</div>
                     </div>
-                    {wairoDemoActive && demoActiveSpawn && (
-                      <div className="rounded-lg border border-green-500/40 bg-green-500/5 px-3 py-3 text-sm">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="font-medium">Demo: active now</div>
-                            <div className="text-xs text-muted-foreground">This is a preview of the live dungeon state.</div>
-                          </div>
-                          <div className="text-sm font-medium text-green-600 dark:text-green-400">Live now</div>
-                        </div>
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          <div className="rounded-md border px-3 py-2">
-                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Despawns in</div>
-                            <div className="font-semibold tabular-nums">{formatCountdown(demoActiveSpawn.endsAt.getTime() - now.getTime())}</div>
-                          </div>
-                          <div className="rounded-md border px-3 py-2">
-                            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Active for</div>
-                            <div className="font-semibold tabular-nums">{formatElapsed(now.getTime() - demoActiveSpawn.startsAt.getTime())}</div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </>
                 ) : (
                   <div className="text-sm text-muted-foreground">No future spawn found.</div>
