@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
 import { Home, Search } from "lucide-react";
 import { useEffect, useMemo } from "react";
+import { useSearch } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -94,77 +95,11 @@ const GROUP_STYLE: Record<BuildingGroup, string> = {
   special: "bg-purple-500/10 text-purple-600 border-purple-500/30 dark:text-purple-300",
 };
 
-type PageTab = "houses" | "facilities" | "wairo_dungeon";
+type PageTab = "houses" | "facilities";
 const PAGE_TABS: { key: PageTab; label: string }[] = [
   { key: "houses",     label: "Houses & Plots" },
   { key: "facilities", label: "Facilities" },
-  { key: "wairo_dungeon", label: "Wairo Dungeon" },
 ];
-
-type WairoDungeonEntry = { day: number; hour: number };
-type WairoDungeonSpawn = WairoDungeonEntry & { startsAt: Date; endsAt: Date };
-
-// Source notes: see data/sheet-research/wairo-dungeon.md
-const WAIRO_DUNGEON_SCHEDULE: WairoDungeonEntry[] = [
-  { day: 1, hour: 9 }, { day: 1, hour: 13 }, { day: 1, hour: 18 },
-  { day: 2, hour: 15 }, { day: 2, hour: 23 },
-  { day: 3, hour: 12 }, { day: 3, hour: 17 },
-  { day: 4, hour: 19 },
-  { day: 5, hour: 21 }, { day: 5, hour: 6 },
-  { day: 6, hour: 8 },
-  { day: 7, hour: 12 },
-  { day: 8, hour: 14 },
-  { day: 9, hour: 19 },
-  { day: 10, hour: 22 },
-  { day: 11, hour: 21 },
-  { day: 12, hour: 16 },
-  { day: 13, hour: 11 },
-  { day: 14, hour: 19 },
-  { day: 15, hour: 20 },
-  { day: 16, hour: 8 },
-  { day: 17, hour: 16 },
-  { day: 18, hour: 20 },
-  { day: 19, hour: 22 },
-  { day: 20, hour: 1 },
-  { day: 21, hour: 17 },
-  { day: 22, hour: 16 },
-  { day: 23, hour: 19 },
-  { day: 24, hour: 11 },
-  { day: 25, hour: 23 },
-  { day: 26, hour: 0 },
-  { day: 27, hour: 11 },
-  { day: 28, hour: 16 },
-  { day: 29, hour: 14 },
-  { day: 30, hour: 15 }, { day: 30, hour: 22 },
-  { day: 31, hour: 10 }, { day: 31, hour: 21 },
-];
-
-function toJstDate(year: number, monthIndex: number, day: number, hour: number): Date {
-  return new Date(Date.UTC(year, monthIndex, day, hour - 9, 0, 0, 0));
-}
-
-function buildMonthlyWairoSchedule(base: Date): WairoDungeonSpawn[] {
-  const entries: WairoDungeonSpawn[] = [];
-  for (const entry of WAIRO_DUNGEON_SCHEDULE) {
-    const startsAt = toJstDate(base.getFullYear(), base.getMonth(), entry.day, entry.hour);
-    if (startsAt.getMonth() !== base.getMonth()) continue;
-    entries.push({ ...entry, startsAt, endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000) });
-  }
-  return entries.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
-}
-
-function formatCountdown(ms: number): string {
-  if (ms <= 0) return "Starting now";
-  const totalSeconds = Math.floor(ms / 1000);
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
-}
 
 // field ? matId ? icon style  (see CSV column reference comment above)
 const COST_ICONS: { field: keyof Building; matId: number; style: "flat" | "outlined" | "crystal" }[] = [
@@ -1757,38 +1692,24 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
 // -- Page ----------------------------------------------------------------------
 
 export default function HousesPage() {
+  const search = useSearch();
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<PageTab>("houses");
   const [facilityTab, setFacilityTab] = useState<FacilityTab>("env");
-  const [now, setNow] = useState(() => new Date());
   const [knowHow, setKnowHow] = useState(0);
   const [craftsman, setCraftsman] = useState(0);
   const timeDiscount = knowHow * 0.05;
   const resourceDiscount = craftsman * 0.05;
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
+    const params = new URLSearchParams(search);
+    const nextTab = params.get("tab");
+    if (nextTab === "houses" || nextTab === "facilities") {
+      setTab(nextTab);
+    }
+  }, [search]);
 
   const q = query.trim().toLowerCase();
-  const wairoSchedule = useMemo(() => buildMonthlyWairoSchedule(now), [now]);
-  const nextWairoSpawn = useMemo(() => {
-    const currentMonthUpcoming = wairoSchedule.find((entry) => entry.startsAt.getTime() > now.getTime());
-    if (currentMonthUpcoming) return currentMonthUpcoming;
-    const nextMonthBase = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    return buildMonthlyWairoSchedule(nextMonthBase)[0] ?? null;
-  }, [now, wairoSchedule]);
-  const wairoScheduleByDay = useMemo(() => {
-    const grouped = new Map<number, WairoDungeonSpawn[]>();
-    for (const entry of wairoSchedule) {
-      if (!grouped.has(entry.day)) grouped.set(entry.day, []);
-      grouped.get(entry.day)!.push(entry);
-    }
-    return Array.from(grouped.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([day, entries]) => ({ day, entries }));
-  }, [wairoSchedule]);
 
   // All current buildings are plots × they all appear in the Houses & Plots tab.
   // Facilities (walls, gates, roads, torches, townhall×) are non-plot infrastructure
@@ -1812,22 +1733,28 @@ export default function HousesPage() {
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-1">
+      <div className="flex flex-col gap-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           {PAGE_TABS.map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+              className={`rounded-xl border px-5 py-4 text-left transition-all ${
                 tab === t.key
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/70"
+                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                  : "bg-muted/30 text-foreground border-border hover:bg-muted/60"
               }`}
             >
-              {t.label}
+              <div className="text-base font-semibold">{t.label}</div>
+              <div className={`mt-1 text-xs leading-relaxed ${tab === t.key ? "text-primary-foreground/85" : "text-muted-foreground"}`}>
+                {t.key === "houses"
+                  ? "Plots, building types, capacity, beds, shelves, and monster room slots."
+                  : "Town facilities, indoor objects, map unlocks, upgrade costs, and utility structures."}
+              </div>
             </button>
           ))}
         </div>
+
         <div className="relative sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -1937,75 +1864,6 @@ export default function HousesPage() {
               </div>
             );
           })()}
-        </div>
-      ) : tab === "wairo_dungeon" ? (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <Card>
-            <CardContent className="p-4 space-y-4">
-              <div className="space-y-1">
-                <div className="font-semibold">Wairo Dungeon schedule</div>
-                <div className="text-sm text-muted-foreground">
-                  Spawn times are shown in your local time based on the source schedule. Each dungeon lasts 1 hour.
-                </div>
-              </div>
-              <div className="space-y-2">
-                {wairoScheduleByDay.map(({ day, entries }) => {
-                  const firstEntry = entries[0];
-                  const isPast = entries.every((entry) => entry.endsAt.getTime() <= now.getTime());
-                  const isActive = entries.some((entry) => entry.startsAt.getTime() <= now.getTime() && now.getTime() < entry.endsAt.getTime());
-                  return (
-                    <div
-                      key={day}
-                      className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
-                        isActive ? "border-green-500/40 bg-green-500/5" : ""
-                      }`}
-                    >
-                      <div>
-                        <div className="font-medium">
-                          Day {day} · {firstEntry.startsAt.toLocaleString([], { weekday: "short" })}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {entries.map((entry) => entry.startsAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })).join(" · ")}
-                        </div>
-                      </div>
-                      <div className={`text-right text-xs ${isPast ? "text-muted-foreground" : ""}`}>
-                        {isActive ? <div className="font-medium text-green-600 dark:text-green-400">Live now</div> : isPast ? <div>Ended</div> : <div className="font-medium">Upcoming</div>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="p-4 space-y-3">
-                <div className="font-semibold">Next spawn</div>
-                {nextWairoSpawn ? (
-                  <>
-                    <div className="text-sm">
-                      <div className="font-medium">Day {nextWairoSpawn.day} · {nextWairoSpawn.startsAt.toLocaleString([], { month: "short", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" })}</div>
-                    </div>
-                    <div className="rounded-lg border px-3 py-2 text-sm">
-                      <div className="text-xs uppercase tracking-widest text-muted-foreground">Countdown</div>
-                      <div className="text-lg font-semibold tabular-nums">{formatCountdown(nextWairoSpawn.startsAt.getTime() - now.getTime())}</div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-sm text-muted-foreground">No future spawn found.</div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4 space-y-2 text-sm text-muted-foreground">
-                <div className="font-semibold text-foreground">Notes</div>
-                <div>The first day of the month has three spawns in the source data.</div>
-                <div>Days 30 and 31 can also have multiple spawns when those dates exist in the month.</div>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

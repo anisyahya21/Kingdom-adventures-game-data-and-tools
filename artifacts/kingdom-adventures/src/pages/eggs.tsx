@@ -466,9 +466,41 @@ export default function EggsPage() {
         ) : (
           <>
             <Tabs value={mode} onValueChange={(value) => setMode(value as "target" | "existing")}>
-              <TabsList className="mb-4 flex-wrap h-auto">
-                <TabsTrigger value="target">I Want This Pet</TabsTrigger>
-                <TabsTrigger value="existing">I Have This Egg</TabsTrigger>
+              <TabsList className="mb-4 grid h-auto grid-cols-1 gap-3 bg-transparent p-0 sm:grid-cols-2">
+                <TabsTrigger
+                  value="target"
+                  className={`h-auto rounded-xl border px-5 py-4 text-left transition-all ${
+                    mode === "target"
+                      ? "border-primary bg-primary text-primary-foreground shadow-md"
+                      : "border-border bg-muted/30 text-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  <div className="w-full text-left">
+                    <div className="text-base font-semibold">I Want This Pet</div>
+                    <div className={`mt-1 text-xs leading-relaxed ${
+                      mode === "target" ? "text-primary-foreground/85" : "text-muted-foreground"
+                    }`}>
+                      Start from the pet you want and build the feeding plan needed to reach it.
+                    </div>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="existing"
+                  className={`h-auto rounded-xl border px-5 py-4 text-left transition-all ${
+                    mode === "existing"
+                      ? "border-primary bg-primary text-primary-foreground shadow-md"
+                      : "border-border bg-muted/30 text-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  <div className="w-full text-left">
+                    <div className="text-base font-semibold">I Have This Egg</div>
+                    <div className={`mt-1 text-xs leading-relaxed ${
+                      mode === "existing" ? "text-primary-foreground/85" : "text-muted-foreground"
+                    }`}>
+                      Start from your current egg and see what pets it can realistically reach.
+                    </div>
+                  </div>
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="target" className="mt-0 space-y-4">

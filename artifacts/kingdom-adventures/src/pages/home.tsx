@@ -1,14 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, Egg, Store, Home as HomeIcon, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { localSharedData } from "@/lib/local-shared-data";
-import { SHOP_RECORDS } from "@/lib/shop-utils";
 
 import srcHome from "./home.tsx?raw";
 import srcEquipment from "./equipment.tsx?raw";
@@ -23,16 +21,16 @@ import srcSourceViewer from "../components/source-viewer.tsx?raw";
 import AskDatabaseWidget from "@/components/AskDatabaseWidget";
 
 const SOURCE_FILES: Array<{ label: string; path: string; content: string }> = [
-  { label: "App.tsx",                path: "src/App.tsx",                          content: srcApp },
-  { label: "home.tsx",               path: "src/pages/home.tsx",                   content: srcHome },
-  { label: "equipment.tsx",          path: "src/pages/equipment.tsx",              content: srcEquipment },
-  { label: "jobs.tsx",               path: "src/pages/jobs.tsx",                   content: srcJobs },
-  { label: "marriage-matcher.tsx",   path: "src/pages/marriage-matcher.tsx",       content: srcMatcher },
-  { label: "monsters.tsx",           path: "src/pages/monsters.tsx",               content: srcMonsters },
-  { label: "skills.tsx",             path: "src/pages/skills.tsx",                 content: srcSkills },
-  { label: "loadout.tsx",            path: "src/pages/loadout.tsx",                content: srcLoadout },
-  { label: "shops.tsx",              path: "src/pages/shops.tsx",                  content: srcShops },
-  { label: "source-viewer.tsx",      path: "src/components/source-viewer.tsx",     content: srcSourceViewer },
+  { label: "App.tsx", path: "src/App.tsx", content: srcApp },
+  { label: "home.tsx", path: "src/pages/home.tsx", content: srcHome },
+  { label: "equipment.tsx", path: "src/pages/equipment.tsx", content: srcEquipment },
+  { label: "jobs.tsx", path: "src/pages/jobs.tsx", content: srcJobs },
+  { label: "marriage-matcher.tsx", path: "src/pages/marriage-matcher.tsx", content: srcMatcher },
+  { label: "monsters.tsx", path: "src/pages/monsters.tsx", content: srcMonsters },
+  { label: "skills.tsx", path: "src/pages/skills.tsx", content: srcSkills },
+  { label: "loadout.tsx", path: "src/pages/loadout.tsx", content: srcLoadout },
+  { label: "shops.tsx", path: "src/pages/shops.tsx", content: srcShops },
+  { label: "source-viewer.tsx", path: "src/components/source-viewer.tsx", content: srcSourceViewer },
 ];
 
 const CREDIT_SOURCES = [
@@ -49,12 +47,12 @@ const CREDIT_SOURCES = [
   },
   {
     label: "Kairosoft Fandom",
-    description: "General Kingdom Adventurers reference used to cross-check mechanics and player-facing data.",
+    description: "General Kingdom Adventures reference used to cross-check mechanics and player-facing data.",
     href: "https://kairosoft.fandom.com/wiki/Category:Kingdom_Adventurers",
   },
   {
     label: "Kairosoft Wiki.gg",
-    description: "General Kingdom Adventurers reference used alongside the data sheets for validation and understanding.",
+    description: "General Kingdom Adventures reference used alongside the data sheets for validation and understanding.",
     href: "https://kairosoft.wiki.gg/wiki/Kingdom_Adventurers",
   },
 ] as const;
@@ -70,7 +68,7 @@ function SourceViewerDialog({ open, onClose }: { open: boolean; onClose: () => v
   };
 
   const copyAll = async () => {
-    const all = SOURCE_FILES.map(f =>
+    const all = SOURCE_FILES.map((f) =>
       `// ${"=".repeat(60)}\n// FILE: ${f.path}\n// ${"=".repeat(60)}\n\n${f.content}`
     ).join("\n\n");
     await navigator.clipboard.writeText(all);
@@ -83,7 +81,7 @@ function SourceViewerDialog({ open, onClose }: { open: boolean; onClose: () => v
       <DialogContent className="max-w-6xl h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
         <DialogHeader className="px-5 py-3 border-b border-border shrink-0">
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="text-sm font-semibold">Project Source Code — {SOURCE_FILES.length} files</DialogTitle>
+            <DialogTitle className="text-sm font-semibold">Project Source Code - {SOURCE_FILES.length} files</DialogTitle>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={copyFile} className="gap-1.5 h-7 text-xs">
                 {copied === "file" ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
@@ -103,26 +101,20 @@ function SourceViewerDialog({ open, onClose }: { open: boolean; onClose: () => v
               <button
                 key={f.path}
                 onClick={() => setSelected(i)}
-                className={`px-3 py-1.5 text-left text-xs truncate transition-colors ${
-                  selected === i
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                }`}
+                className={`px-3 py-1.5 text-left text-xs truncate transition-colors ${selected === i ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
               >
                 {f.label}
               </button>
             ))}
             <p className="px-3 py-2 mt-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border shrink-0">Backend (API Server)</p>
             <p className="px-3 py-1.5 text-xs text-muted-foreground/60 italic">See artifacts/api-server/src/</p>
-            <p className="px-3 pb-3 text-[10px] text-muted-foreground/60">app.ts · routes/ka.ts</p>
+            <p className="px-3 pb-3 text-[10px] text-muted-foreground/60">app.ts - routes/ka.ts</p>
           </div>
           <div className="flex-1 overflow-auto bg-muted/20">
             <div className="px-3 py-2 border-b border-border bg-muted/40 sticky top-0 z-10">
               <span className="text-[10px] font-mono text-muted-foreground">{SOURCE_FILES[selected].path}</span>
             </div>
-            <pre className="p-4 text-[11px] font-mono leading-relaxed whitespace-pre text-foreground">
-              {SOURCE_FILES[selected].content}
-            </pre>
+            <pre className="p-4 text-[11px] font-mono leading-relaxed whitespace-pre text-foreground">{SOURCE_FILES[selected].content}</pre>
           </div>
         </div>
       </DialogContent>
@@ -153,15 +145,13 @@ function CreditsDialog({ open, onClose }: { open: boolean; onClose: () => void }
                 <div className="flex items-center gap-2 font-medium text-foreground">
                   <BookOpen className="w-4 h-4 text-primary" />
                   {source.label}
-                  {"by" in source && source.by && (
+                  {"by" in source && source.by ? (
                     <span className="ml-1 text-[11px] font-normal text-muted-foreground border border-border rounded px-1.5 py-0.5">
                       by {source.by}
                     </span>
-                  )}
+                  ) : null}
                 </div>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {source.description}
-                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{source.description}</p>
               </a>
             ))}
           </div>
@@ -182,7 +172,7 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/match-finder",
     title: "Match Finder & Marriage Sim",
-    description: "Three tools in one: Match Finder — add your owned jobs and let the algorithm calculate optimal pairs. Marriage Simulator — pick parents and see your child's full max stats. Pairing Data — browse the full compatibility table.",
+    description: "Three tools in one: Match Finder, Marriage Simulator, and Pairing Data.",
     icon: <Heart className="w-6 h-6 text-rose-500" />,
     badge: "Marriage",
     badgeColor: "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300",
@@ -190,23 +180,15 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/equipment",
     title: "Equipment Stats",
-    description: "Browse and compare equipment stats at any level. Build your character loadout and see total stats — data pulled live from Google Sheets.",
+    description: "Browse and compare equipment stats at any level.",
     icon: <Sword className="w-6 h-6 text-amber-500" />,
     badge: "Stats",
     badgeColor: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300",
   },
   {
-    slug: "/monsters",
-    title: "Monsters & Weekly Conquest",
-    description: "Community monster database with spawn locations. See this week's 5 conquest targets, where to find them, and what rewards are up for grabs.",
-    icon: <Skull className="w-6 h-6 text-violet-500" />,
-    badge: "Monsters",
-    badgeColor: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300",
-  },
-  {
     slug: "/jobs",
     title: "Job Database",
-    description: "Explore all jobs with their stats, ranks, and equipment restrictions. Click any job to see full details, skills, equipment loadouts, and marriage compatibility.",
+    description: "Explore all jobs with stats, ranks, and restrictions.",
     icon: <Briefcase className="w-6 h-6 text-sky-500" />,
     badge: "Jobs",
     badgeColor: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300",
@@ -214,7 +196,7 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/skills",
     title: "Skills Database",
-    description: "Community-editable list of all skills with studio level, crafting intelligence, buy price, and sell price.",
+    description: "Community-editable list of skills and related data.",
     icon: <BookOpen className="w-6 h-6 text-emerald-500" />,
     badge: "Skills",
     badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
@@ -222,15 +204,15 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/loadout",
     title: "Loadout Builder",
-    description: "Build character loadouts combining jobs, equipment, and skills. Calculate total stats at any level and export a screenshot to share.",
+    description: "Build character loadouts and calculate total stats.",
     icon: <Package className="w-6 h-6 text-orange-500" />,
     badge: "Builder",
     badgeColor: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300",
   },
   {
-    slug: "/eggs",
-    title: "Eggs & Pets",
-    description: "Plan egg hatches from either direction: target a monster outcome first or start from the egg you already have.",
+    slug: "/eggs-pets-monsters",
+    title: "Eggs, Pets & Monsters",
+    description: "Landing page for Eggs & Pets and the Monsters & Pets database split.",
     icon: <Egg className="w-6 h-6 text-yellow-500" />,
     badge: "Planner",
     badgeColor: "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300",
@@ -238,7 +220,7 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/shops",
     title: "Shops",
-    description: "Browse shop systems by type and start drilling into weapon, armor, accessory, item, furniture, restaurant, and skill shops.",
+    description: "Browse shop systems by type and drill into each shop.",
     icon: <Store className="w-6 h-6 text-indigo-500" />,
     badge: "Shops",
     badgeColor: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300",
@@ -246,29 +228,29 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/houses",
     title: "Houses & Facilities",
-    description: "Browse all facilities by category — Environment, Materials, Amenity, Indoors, and Map-unlocked. See upgrade costs and timers at any level, plus land plot types.",
+    description: "Facilities, plots, map unlocks, and building-related references.",
     icon: <HomeIcon className="w-6 h-6 text-lime-500" />,
     badge: "Buildings",
     badgeColor: "bg-lime-100 text-lime-700 border-lime-200 dark:bg-lime-950 dark:text-lime-300",
   },
   {
-    slug: "/gacha-events",
-    title: "Gacha Events",
-    description: "Track the confirmed gacha schedule for featured S-rank jobs, high-tier facilities, and recurring Kairo weapon windows with durations and live countdowns.",
+    slug: "/timed-events",
+    title: "Events",
+    description: "Weekly Conquest, Gacha Events, Wario Dungeon, Kairo Room, and Job Center.",
     icon: <CalendarDays className="w-6 h-6 text-pink-500" />,
     badge: "Events",
     badgeColor: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-950 dark:text-pink-300",
   },
 ];
 
-function generateId() { return Math.random().toString(36).slice(2, 9); }
+function generateId() {
+  return Math.random().toString(36).slice(2, 9);
+}
 
 export default function Home() {
-  const [, navigate] = useLocation();
   const [srcOpen, setSrcOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [customProjects, setCustomProjects] = useLocalFeature<CustomProject[]>("ka_custom_projects", []);
-
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -284,7 +266,10 @@ export default function Home() {
       ...customProjects,
       { id: generateId(), title: newTitle.trim(), description: newDesc.trim(), url: newUrl.trim() },
     ]);
-    setNewTitle(""); setNewDesc(""); setNewUrl(""); setAdding(false);
+    setNewTitle("");
+    setNewDesc("");
+    setNewUrl("");
+    setAdding(false);
   };
 
   const removeProject = (id: string) => saveProjects(customProjects.filter((p) => p.id !== id));
@@ -295,7 +280,7 @@ export default function Home() {
         <div className="flex items-start justify-between mb-10 gap-4">
           <div className="min-w-0">
             <h1 className="text-4xl font-bold text-foreground tracking-tight">Kingdom Adventures</h1>
-            <p className="mt-2 text-muted-foreground">Tools &amp; resources for Kingdom Adventures players.</p>
+            <p className="mt-2 text-muted-foreground">Tools & resources for Kingdom Adventures players.</p>
           </div>
         </div>
 
@@ -303,12 +288,8 @@ export default function Home() {
           <button className="w-full text-left rounded-2xl border p-4 mb-8 hover:bg-muted/40">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="font-semibold">World map (Beta)</div>
-              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-orange-400 border-orange-400">
-                Beta
-              </span>
-              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">
-                Experimental
-              </span>
+              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-orange-400 border-orange-400">Beta</span>
+              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">Experimental</span>
             </div>
             <div className="mt-2 text-sm opacity-75">
               Tile map planner with hover info on PC, tap info on mobile, and tool/highlight/deployment modes.
@@ -320,12 +301,8 @@ export default function Home() {
           <button className="w-full text-left rounded-2xl border p-4 mb-8 hover:bg-muted/40">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="font-semibold">Map 2 Testing</div>
-              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-orange-400 border-orange-400">
-                Beta
-              </span>
-              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">
-                Testing
-              </span>
+              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-orange-400 border-orange-400">Beta</span>
+              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">Testing</span>
             </div>
             <div className="mt-2 text-sm opacity-75">
               Safe duplicate of the World Map page for experimenting with MapChip, Terrain, Survey, Map, and full-map integration.
@@ -377,8 +354,7 @@ export default function Home() {
                   <CardContent className="space-y-2">
                     {p.description && <CardDescription className="text-xs">{p.description}</CardDescription>}
                     {p.url && (
-                      <a href={p.url} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                      <a href={p.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
                         <ExternalLink className="w-3 h-3" /> Open project
                       </a>
                     )}
@@ -414,7 +390,7 @@ export default function Home() {
         )}
 
         <div className="mt-12 pt-6 border-t border-border text-xs text-muted-foreground flex items-center justify-between gap-4 flex-wrap">
-          <span>Kingdom Adventures — open source tools</span>
+          <span>Kingdom Adventures - open source tools</span>
           <div className="flex items-center gap-4">
             <button onClick={() => setCreditsOpen(true)} className="flex items-center gap-1 hover:text-foreground transition-colors">
               <BookOpen className="w-3 h-3" /> Credits

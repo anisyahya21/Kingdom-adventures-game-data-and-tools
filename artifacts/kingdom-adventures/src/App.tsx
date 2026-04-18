@@ -16,6 +16,7 @@ import JobsPage from "@/pages/jobs";
 import SkillsPage from "@/pages/skills";
 import LoadoutPage from "@/pages/loadout";
 import EggsPage from "@/pages/eggs";
+import EggsPetsMonstersPage from "@/pages/eggs-pets-monsters";
 import ShopsPage from "@/pages/shops";
 import SyncDevicesPage from "@/pages/sync-devices";
 import WorldMapPage from "@/pages/world-map";
@@ -23,12 +24,24 @@ import Map2TestingPage from "@/pages/map-2-testing";
 import HousesPage from "@/pages/houses";
 import TownRankPage from "@/pages/town-rank";
 import GachaEventsPage from "@/pages/gacha-events";
+import TimedEventsPage from "@/pages/timed-events";
+import MonstersPetsPage from "@/pages/monsters-pets";
+import WeeklyConquestPage from "@/pages/weekly-conquest";
+import WarioDungeonPage from "@/pages/wario-dungeon";
+import MonsterPetStatsPage from "@/pages/monster-pet-stats";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
 
 const queryClient = new QueryClient();
 
 type GlobalSearchEntry = { label: string; subtitle: string; href: string };
+type NavLink = { href: string; label: string; beta?: boolean };
+type NavSection = {
+  title: string;
+  primary?: NavLink;
+  children?: NavLink[];
+  note?: string;
+};
 
 const FURNITURE_SEARCH_ROWS = [
   "Candle","Kitchen Shelves","Desk","Red Carpet","Decorative Plant","Dining Table","Study Desk",
@@ -105,7 +118,7 @@ function SiteHeader() {
     );
 
     Object.keys(shared.monsters ?? {}).forEach((name) =>
-      entries.push({ label: name, subtitle: "Monster Database", href: "/monsters" })
+      entries.push({ label: name, subtitle: "Monster Spawns", href: "/monster-spawns" })
     );
 
     Object.keys(shared.skills ?? {}).forEach((name) =>
@@ -135,22 +148,62 @@ function SiteHeader() {
     ).slice(0, 8);
   }, [query, searchEntries]);
 
-  const links = [
-    { href: "/", label: "Home" },
-    { href: "/jobs", label: "Jobs" },
-    { href: "/equipment", label: "Equipment" },
-    { href: "/monsters", label: "Monsters" },
-    { href: "/skills", label: "Skills" },
-    { href: "/eggs", label: "Eggs & Pets" },
-    { href: "/shops", label: "Shops" },
-    { href: "/match-finder", label: "Match Finder" },
-    { href: "/loadout", label: "Loadout" },
-    { href: "/sync-devices", label: "Sync Devices" },
-    { href: "/houses", label: "Houses" },
-    { href: "/gacha-events", label: "Gacha Events" },
-    { href: "/town-rank", label: "Town Rank" },
-    { href: "/world-map", label: "World Map", beta: true },
-    { href: "/map-2-testing", label: "Map 2 Testing", beta: true },
+  const navSections: NavSection[] = [
+    {
+      title: "Browse",
+      children: [
+        { href: "/", label: "Home" },
+        { href: "/jobs", label: "Jobs" },
+        { href: "/equipment", label: "Equipment" },
+        { href: "/skills", label: "Skills" },
+        { href: "/loadout", label: "Loadout Builder" },
+        { href: "/match-finder", label: "Match Finder" },
+        { href: "/town-rank", label: "Town Rank" },
+      ],
+      note: "Match Finder includes marriage matching and marriage sim tools.",
+    },
+    {
+      title: "Eggs, Pets & Monsters",
+      primary: { href: "/eggs-pets-monsters", label: "Eggs, Pets & Monsters" },
+      children: [
+        { href: "/eggs", label: "Eggs & Pets" },
+        { href: "/monsters-pets", label: "Monsters & Pets" },
+      ],
+    },
+    {
+      title: "Shops",
+      primary: { href: "/shops", label: "Shops" },
+      children: SHOP_RECORDS.map((shop) => ({
+        href: `/shops/${shop.slug}`,
+        label: shop.shortTitle,
+      })),
+    },
+    {
+      title: "Facilities",
+      primary: { href: "/houses", label: "Houses & Facilities" },
+    },
+    {
+      title: "Events",
+      primary: { href: "/timed-events", label: "Events" },
+      children: [
+        { href: "/weekly-conquest", label: "Weekly Conquest" },
+        { href: "/gacha-events", label: "Gacha Events" },
+        { href: "/wario-dungeon", label: "Wario Dungeon" },
+        { href: "/timed-events", label: "Kairo Room" },
+        { href: "/timed-events", label: "Job Center" },
+      ],
+    },
+    {
+      title: "Maps",
+      children: [
+        { href: "/world-map", label: "World Map", beta: true },
+        { href: "/map-2-testing", label: "Map 2 Testing", beta: true },
+      ],
+    },
+    {
+      title: "Device",
+      children: [{ href: "/sync-devices", label: "Sync Devices" }],
+    },
   ];
 
   return (
@@ -164,25 +217,57 @@ function SiteHeader() {
             </Button>
 
             {menuOpen && (
-              <div className="absolute left-4 top-full mt-2 z-50 w-72">
+              <div className="absolute left-4 top-full mt-2 z-50 w-72 max-h-[min(80vh,42rem)] overflow-y-auto">
                 <Card>
-                  <CardContent className="p-3 space-y-2">
-                    {links.map((link) => (
-                      <button
-                        key={link.href}
-                        onClick={() => {
-                          navigate(link.href);
-                          setMenuOpen(false);
-                        }}
-                        className="w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted/40"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          {link.label}
-                          {(link as { beta?: boolean }).beta && (
-                            <span className="text-[10px] font-semibold text-orange-400">BETA</span>
-                          )}
-                        </span>
-                      </button>
+                  <CardContent className="p-3 space-y-3">
+                    {navSections.map((section) => (
+                      <div key={section.title} className="space-y-1.5">
+                        <div className="px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+                          {section.title}
+                        </div>
+                        {section.primary && (
+                          <button
+                            onClick={() => {
+                              navigate(section.primary!.href);
+                              setMenuOpen(false);
+                            }}
+                            className="w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted/40"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              {section.primary.label}
+                              {section.primary.beta && (
+                                <span className="text-[10px] font-semibold text-orange-400">BETA</span>
+                              )}
+                            </span>
+                          </button>
+                        )}
+                        {section.note && (
+                          <div className="px-1 text-[11px] leading-relaxed text-muted-foreground/75">
+                            {section.note}
+                          </div>
+                        )}
+                        {section.children && (
+                          <div className="flex flex-wrap gap-1.5 px-0.5">
+                            {section.children.map((link) => (
+                              <button
+                                key={`${section.title}-${link.href}-${link.label}`}
+                                onClick={() => {
+                                  navigate(link.href);
+                                  setMenuOpen(false);
+                                }}
+                                className="rounded-md border px-2.5 py-1.5 text-[11px] hover:bg-muted/40"
+                              >
+                                <span className="flex items-center gap-1">
+                                  {link.label}
+                                  {link.beta && (
+                                    <span className="text-[9px] font-semibold text-orange-400">BETA</span>
+                                  )}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </CardContent>
                 </Card>
@@ -198,9 +283,9 @@ function SiteHeader() {
         </div>
 
         <Link href="/">
-          <button className="text-sm font-semibold truncate">
+          <a className="text-sm font-semibold truncate hover:opacity-80 transition-opacity" title="Go to home page">
             Kingdom Adventures
-          </button>
+          </a>
         </Link>
 
         <div className="flex items-center gap-0.5">
@@ -272,17 +357,24 @@ function Router() {
       <Route path="/match-finder" component={MarriageMatcher} />
       <Route path="/equipment" component={EquipmentPage} />
       <Route path="/monsters" component={MonstersPage} />
+      <Route path="/weekly-conquest" component={WeeklyConquestPage} />
       <Route path="/jobs" component={JobsPage} />
       <Route path="/jobs/:name" component={JobsPage} />
       <Route path="/skills" component={SkillsPage} />
       <Route path="/loadout" component={LoadoutPage} />
+      <Route path="/eggs-pets-monsters" component={EggsPetsMonstersPage} />
       <Route path="/eggs" component={EggsPage} />
+      <Route path="/monsters-pets" component={MonstersPetsPage} />
+      <Route path="/monster-spawns" component={MonstersPage} />
+      <Route path="/monster-pet-stats" component={MonsterPetStatsPage} />
       <Route path="/shops" component={ShopsPage} />
       <Route path="/shops/:slug" component={ShopsPage} />
       <Route path="/sync-devices" component={SyncDevicesPage} />
       <Route path="/world-map" component={WorldMapPage} />
       <Route path="/map-2-testing" component={Map2TestingPage} />
       <Route path="/houses" component={HousesPage} />
+      <Route path="/timed-events" component={TimedEventsPage} />
+      <Route path="/wario-dungeon" component={WarioDungeonPage} />
       <Route path="/gacha-events" component={GachaEventsPage} />
       <Route path="/town-rank" component={TownRankPage} />
       <Route component={NotFound} />

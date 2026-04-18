@@ -1,6 +1,10 @@
 ﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
+import { apiUrl } from "@/lib/api";
 
 type TerrainType =
   | "grass"
@@ -83,7 +87,11 @@ type BrushSize = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type DeploymentSize = 2 | 3 | 4 | 5 | 6;
 type PaintMode = "mark" | "erase";
 type ReclaimMode = "reclaim" | "restore";
-type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water" | "facilities";
+type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water" | "facilities" | "weekly_conquest";
+type MonsterSpawn = { area: string; level: number };
+type Monster = { icon?: string; spawns: MonsterSpawn[] };
+type WeeklyReward = { jobName: string; jobRank: string; diamonds: number; equipment: string };
+type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; updatedBy?: string; updatedAt?: number } | null;
 
 type NativeCell = {
   terrain: TerrainType;
@@ -122,6 +130,8 @@ const ROAD_COLOR = "rgba(100, 116, 139, 0.72)";
 const ROAD_BORDER = "rgba(148, 163, 184, 0.95)";
 const DEPLOY_FILL = "rgba(34, 211, 238, 0.24)";
 const DEPLOY_BORDER = "rgba(34, 211, 238, 0.98)";
+const WEEKLY_CONQUEST_FILL = "rgba(245, 158, 11, 0.34)";
+const WEEKLY_CONQUEST_BORDER = "rgba(251, 191, 36, 0.98)";
 const OUTLINE_BORDER = "#2563eb";
 const PREVIEW_ORANGE = "rgba(251,146,60,0.95)";
 const DEFAULT_TILE_SIZE = 6;
@@ -129,6 +139,29 @@ const MIN_TILE_SIZE = 5;
 const MIN_TILE_SIZE_FULLSCREEN_FILL = true; // enforce fill-screen minimum when fullscreen
 const MAX_TILE_SIZE = 24;
 const STORAGE_PREFIX = "ka-world-map-v6";
+const AREA_TERRAIN_MAP: Record<string, TerrainType> = {
+  grass: "grass",
+  plains: "grass",
+  desert: "sand",
+  sand: "sand",
+  swamp: "swamp",
+  rock: "rock",
+  snow: "snow",
+  lava: "volcano",
+  volcano: "volcano",
+  ground: "ground",
+};
+const LAYER_LABELS: Record<LayerKey, string> = {
+  levels: "Levels",
+  weekly_conquest: "Weekly Conquest",
+  facilities: "Facilities",
+  poi: "POI",
+  deployments: "Deployments",
+  reclaimed: "Reclaimed",
+  grid: "Grid",
+  roads: "Roads",
+  water: "Water",
+};
 
 // Map facilities: unlocked by clearing a zone with the matching level
 const MAP_FACILITY_UNLOCKS: { name: string; level: number }[] = [
@@ -415,6 +448,32 @@ function buildTiles() {
   return { grid, rows, cols, terrainCounts };
 }
 
+function useWeeklyConquestMapData() {
+  const sharedQuery = useQuery({
+    queryKey: ["ka-shared"],
+    queryFn: () => fetchSharedWithFallback<{ monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest }>(apiUrl("/shared")),
+    staleTime: 15000,
+    refetchInterval: 30000,
+  });
+
+  const conquestTimelineQuery = useQuery({
+    queryKey: ["weekly-conquest-automatic"],
+    queryFn: () => fetchAutomaticWeeklyConquestTimeline(undefined, 4),
+    staleTime: 15 * 60 * 1000,
+    refetchInterval: 15 * 60 * 1000,
+  });
+
+  const monsters = sharedQuery.data?.monsters ?? {};
+  const fallbackWeeklyConquest = sharedQuery.data?.weeklyConquest ?? null;
+  const currentAutomaticConquest =
+    conquestTimelineQuery.data?.entries.find((entry) => entry.id === conquestTimelineQuery.data.currentId) ?? null;
+  const weeklyConquest = currentAutomaticConquest
+    ? { monsters: currentAutomaticConquest.monsters, reward: currentAutomaticConquest.reward }
+    : fallbackWeeklyConquest;
+
+  return { monsters, weeklyConquest };
+}
+
 function getCenteredSquareCoordinates(centerX: number, centerY: number, size: number, cols: number, rows: number) {
   const coords: Array<[number, number]> = [];
   const left = Math.floor((size - 1) / 2);
@@ -545,6 +604,7 @@ export default function WorldMapPage() {
     roads: true,
     water: true,
     facilities: false,
+    weekly_conquest: false,
   });
   const [historyPast, setHistoryPast] = useState<HistoryState[]>([]);
   const [historyFuture, setHistoryFuture] = useState<HistoryState[]>([]);
@@ -702,6 +762,7 @@ export default function WorldMapPage() {
   }, []);
 
   const { grid, rows, cols, terrainCounts: baseTerrainCounts } = useMemo(() => buildTiles(), []);
+  const { monsters: conquestMonsters, weeklyConquest } = useWeeklyConquestMapData();
 
 
   const isLand = (tile: Tile) => tile.buildable || reclaimedTiles.has(keyOf(tile.x, tile.y));
@@ -761,7 +822,59 @@ export default function WorldMapPage() {
   const brushOptions: BrushSize[] = [1,2,3,4,5,6,7,8,9,10];
   const drawAreaBrushOptions: BrushSize[] = [2,3,4,5,6,7,8,9,10];
   const deploymentOptions: DeploymentSize[] = [2,3,4,5,6];
-  const layerOrder: LayerKey[] = ["levels","facilities","poi","deployments","reclaimed","grid","roads"];
+  const layerOrder: LayerKey[] = ["levels","weekly_conquest","facilities","poi","deployments","reclaimed","grid","roads"];
+
+  const weeklyConquestSpawnKeys = useMemo(() => {
+    if (!weeklyConquest?.monsters?.length) return new Set<string>();
+    const spawnKeys = new Set<string>();
+    for (const monsterName of weeklyConquest.monsters) {
+      const monster = conquestMonsters[monsterName];
+      if (!monster?.spawns?.length) continue;
+      for (const spawn of monster.spawns) {
+        const terrain = AREA_TERRAIN_MAP[spawn.area.trim().toLowerCase()];
+        if (!terrain || !Number.isFinite(spawn.level)) continue;
+        spawnKeys.add(`${terrain}|${spawn.level}`);
+      }
+    }
+    return spawnKeys;
+  }, [conquestMonsters, weeklyConquest]);
+
+  const weeklyConquestTileKeys = useMemo(() => {
+    if (weeklyConquestSpawnKeys.size === 0) return new Set<string>();
+    const keys = new Set<string>();
+    grid.forEach((tile, key) => {
+      if (!isLand(tile)) return;
+      if (weeklyConquestSpawnKeys.has(`${tile.terrain}|${tile.level}`)) keys.add(key);
+    });
+    return keys;
+  }, [grid, reclaimedTiles, weeklyConquestSpawnKeys]);
+
+  const weeklyConquestZoneLabels = useMemo(() => {
+    const labels = new Map<string, string[]>();
+    if (!weeklyConquest?.monsters?.length) return labels;
+
+    for (let ny = 0; ny < 10; ny += 1) {
+      for (let nx = 0; nx < 10; nx += 1) {
+        const native = NATIVE_MAP[ny]?.[nx];
+        if (!native) continue;
+        const zoneMatches: string[] = [];
+
+        for (const monsterName of weeklyConquest.monsters) {
+          const monster = conquestMonsters[monsterName];
+          if (!monster?.spawns?.length) continue;
+          const matchesZone = monster.spawns.some((spawn) => {
+            const terrain = AREA_TERRAIN_MAP[spawn.area.trim().toLowerCase()];
+            return terrain === native.terrain && spawn.level === native.level;
+          });
+          if (matchesZone) zoneMatches.push(monsterName);
+        }
+
+        if (zoneMatches.length > 0) labels.set(`${nx},${ny}`, zoneMatches);
+      }
+    }
+
+    return labels;
+  }, [conquestMonsters, weeklyConquest]);
 
   const previewKeys = useMemo(() => {
     // Road snap preview is handled separately via roadSnapPreview state
@@ -1174,6 +1287,7 @@ export default function WorldMapPage() {
     const deployed = deployedTiles.has(key) && layers.deployments;
     const reclaimed = reclaimedTiles.has(key) && layers.reclaimed;
     const road = roadTiles.has(key) && layers.roads;
+    const weeklyConquestTile = weeklyConquestTileKeys.has(key) && layers.weekly_conquest;
     const preview = previewKeys.has(key);
     const parts: string[] = [];
 
@@ -1187,6 +1301,11 @@ export default function WorldMapPage() {
     if (deployed) {
       parts.push(`inset 0 0 0 9999px ${DEPLOY_FILL}`);
       parts.push(`inset 0 0 0 1px ${DEPLOY_BORDER}`);
+    }
+
+    if (weeklyConquestTile) {
+      parts.push(`inset 0 0 0 9999px ${WEEKLY_CONQUEST_FILL}`);
+      parts.push(`inset 0 0 0 1px ${WEEKLY_CONQUEST_BORDER}`);
     }
 
     if (outlined) {
@@ -1483,6 +1602,13 @@ export default function WorldMapPage() {
           ctx.fillStyle = DEPLOY_FILL;
           ctx.fillRect(x * scale, y * scale, scale, scale);
         }
+        if (layers.weekly_conquest && weeklyConquestTileKeys.has(key)) {
+          ctx.fillStyle = WEEKLY_CONQUEST_FILL;
+          ctx.fillRect(x * scale, y * scale, scale, scale);
+          ctx.strokeStyle = WEEKLY_CONQUEST_BORDER;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x * scale + 0.5, y * scale + 0.5, scale - 1, scale - 1);
+        }
         if (layers.poi && outlinedTiles.has(key)) {
           ctx.strokeStyle = drawAreaColor;
           ctx.lineWidth = Math.max(1, Math.floor(scale / 4));
@@ -1573,6 +1699,14 @@ export default function WorldMapPage() {
           ctx.fillStyle = DEPLOY_FILL;
           ctx.fillRect(px, py, pw, ph);
           ctx.strokeStyle = DEPLOY_BORDER;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+        }
+
+        if (layers.weekly_conquest && weeklyConquestTileKeys.has(key)) {
+          ctx.fillStyle = WEEKLY_CONQUEST_FILL;
+          ctx.fillRect(px, py, pw, ph);
+          ctx.strokeStyle = WEEKLY_CONQUEST_BORDER;
           ctx.lineWidth = 1;
           ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
         }
@@ -1676,6 +1810,57 @@ export default function WorldMapPage() {
             ctx.fillText(name, cxPx, yOff);
             ctx.shadowBlur = 0;
             yOff += lineH;
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    if (layers.weekly_conquest && tileSize >= 4) {
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let ny = 0; ny < 10; ny++) {
+        for (let nx = 0; nx < 10; nx++) {
+          const names = weeklyConquestZoneLabels.get(`${nx},${ny}`);
+          if (!names?.length) continue;
+          const nSX = Math.floor((nx * cols) / 10);
+          const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
+          const nSY = Math.floor((ny * rows) / 10);
+          const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
+          const zoneW = (nEX - nSX + 1) * tileSize;
+          const zoneH = (nEY - nSY + 1) * tileSize;
+          const cxPx = nSX * tileSize + zoneW / 2;
+          const cyPx = nSY * tileSize + zoneH / 2 + Math.max(12, zoneH * 0.16);
+          const maxW = zoneW * 0.84;
+          let fSize = Math.max(7, Math.min(24, Math.floor(zoneW * 0.09)));
+
+          for (const name of names) {
+            ctx.font = `bold ${fSize}px Arial, sans-serif`;
+            while (ctx.measureText(name).width > maxW && fSize > 6) {
+              fSize -= 1;
+              ctx.font = `bold ${fSize}px Arial, sans-serif`;
+            }
+          }
+
+          ctx.font = `bold ${fSize}px Arial, sans-serif`;
+          const lineH = Math.max(fSize * 1.15, 8);
+          const totalH = names.length * lineH;
+          let yOff = cyPx - totalH / 2 + lineH / 2;
+
+          for (const name of names.slice(0, 3)) {
+            ctx.shadowColor = "rgba(0,0,0,0.98)";
+            ctx.shadowBlur = Math.max(3, fSize * 0.45);
+            ctx.fillStyle = "#fde68a";
+            ctx.fillText(name, cxPx, yOff);
+            ctx.shadowBlur = 0;
+            yOff += lineH;
+          }
+
+          if (names.length > 3) {
+            ctx.font = `bold ${Math.max(6, fSize - 1)}px Arial, sans-serif`;
+            ctx.fillStyle = "#fef3c7";
+            ctx.fillText(`+${names.length - 3} more`, cxPx, yOff);
           }
         }
       }
@@ -1796,6 +1981,7 @@ export default function WorldMapPage() {
         if (land) bg = TERRAIN_COLORS[tile.terrain];
         if (layers.roads && roadTiles.has(key)) bg = "rgba(100,116,139,0.95)";
         if (layers.deployments && deployedTiles.has(key)) bg = "rgba(34,211,238,0.9)";
+        if (layers.weekly_conquest && weeklyConquestTileKeys.has(key)) bg = "rgba(245,158,11,0.9)";
         if (layers.poi && penTiles.has(key)) bg = penTiles.get(key)!;
         ctx.fillStyle = bg;
         ctx.fillRect(cx, cy, 1, 1);
@@ -1807,12 +1993,12 @@ export default function WorldMapPage() {
   useEffect(() => { drawMap(); }, [
     tileSize, outlinedTiles, penTiles, reclaimedTiles, deployedTiles, roadTiles,
     layers, hoveredTile, selectedTile, activeTool, paintMode, drawAreaColor, penColor, previewKeys,
-    showSurveys, visibleSurveyCats,
+    showSurveys, visibleSurveyCats, weeklyConquestTileKeys,
   ]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { drawMinimap(); }, [
-    reclaimedTiles, deployedTiles, roadTiles, penTiles, outlinedTiles, layers,
+    reclaimedTiles, deployedTiles, roadTiles, penTiles, outlinedTiles, layers, weeklyConquestTileKeys,
   ]);
 
   const toolbarContent = (
@@ -1960,7 +2146,7 @@ export default function WorldMapPage() {
               style={{ color: layers[layer] ? "#fff" : "rgba(255,255,255,0.35)" }}
             >
               <span className="w-3 h-3 rounded-sm border flex-shrink-0" style={{ background: layers[layer] ? "#3b82f6" : "transparent", borderColor: layers[layer] ? "#3b82f6" : "rgba(255,255,255,0.2)" }} />
-              <span className="capitalize">{layer}</span>
+              <span>{LAYER_LABELS[layer]}</span>
             </button>
           ))}
         </div>
@@ -2436,7 +2622,7 @@ export default function WorldMapPage() {
                             style={{ color: layers[layer] ? "#fff" : "rgba(255,255,255,0.4)" }}
                           >
                             <span className="w-3 h-3 rounded-sm border flex-shrink-0" style={{ background: layers[layer] ? "#3b82f6" : "transparent", borderColor: layers[layer] ? "#3b82f6" : "rgba(255,255,255,0.2)" }} />
-                            <span className="capitalize">{layer}</span>
+                            <span>{LAYER_LABELS[layer]}</span>
                           </button>
                         ))}
                       </div>
