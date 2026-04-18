@@ -6,6 +6,7 @@ import {
   Plus, Trash2, Zap, RefreshCw, HelpCircle, ArrowLeftRight,
   X, Lock, LockOpen, Loader2, AlertTriangle, ExternalLink,
   Info, Star, Baby, Filter, Heart, BarChart2, BookOpen,
+  Download, Upload, Check, Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -344,6 +345,98 @@ function findOptimalMatching(slots: RankSlot[], pairs: Pair[], lockedPairs: Lock
 
 function generateId() { return Math.random().toString(36).slice(2, 9); }
 function makePair(a: string, b: string): Pair { return { id: generateId(), jobA: a, jobB: b, children: [] }; }
+
+type PlannerBackup = {
+  version: 1;
+  exportedAt: string;
+  rankSlots: RankSlot[];
+  lockedPairs: LockedPair[];
+  desiredChildren: string[];
+};
+
+function isRank(value: unknown): value is Rank {
+  return typeof value === "string" && RANKS.includes(value as Rank);
+}
+
+function isRankSlot(value: unknown): value is RankSlot {
+  if (!value || typeof value !== "object") return false;
+  const slot = value as Partial<RankSlot>;
+  return typeof slot.id === "string"
+    && isRank(slot.rank)
+    && typeof slot.jobName === "string"
+    && typeof slot.males === "number"
+    && typeof slot.females === "number"
+    && typeof slot.unassigned === "number";
+}
+
+function isLockedPair(value: unknown): value is LockedPair {
+  if (!value || typeof value !== "object") return false;
+  const pair = value as Partial<LockedPair>;
+  return typeof pair.id === "string"
+    && typeof pair.maleJob === "string"
+    && typeof pair.femaleJob === "string"
+    && isRank(pair.rank);
+}
+
+function isPlannerBackup(value: unknown): value is PlannerBackup {
+  if (!value || typeof value !== "object") return false;
+  const backup = value as Partial<PlannerBackup>;
+  return backup.version === 1
+    && typeof backup.exportedAt === "string"
+    && Array.isArray(backup.rankSlots)
+    && backup.rankSlots.every(isRankSlot)
+    && Array.isArray(backup.lockedPairs)
+    && backup.lockedPairs.every(isLockedPair)
+    && Array.isArray(backup.desiredChildren)
+    && backup.desiredChildren.every((child) => typeof child === "string");
+}
+
+function consumeMatchFromSlots(slots: RankSlot[], match: MatchResult): RankSlot[] {
+  let maleTaken = false;
+  let femaleTaken = false;
+  const maleJobKey = normJob(match.maleJob);
+  const femaleJobKey = normJob(match.femaleJob);
+
+  const next = slots.map((slot) => {
+    const slotJobKey = normJob(slot.jobName);
+    if (slot.rank !== match.rank || (slotJobKey !== maleJobKey && slotJobKey !== femaleJobKey)) {
+      return slot;
+    }
+
+    let updated = slot;
+    const isMaleSlot = slotJobKey === maleJobKey;
+    const isFemaleSlot = slotJobKey === femaleJobKey;
+
+    if (isMaleSlot && !maleTaken) {
+      if (match.maleWasUnassigned) {
+        if (updated.unassigned > 0) {
+          updated = { ...updated, unassigned: updated.unassigned - 1 };
+          maleTaken = true;
+        }
+      } else if (updated.males > 0) {
+        updated = { ...updated, males: updated.males - 1 };
+        maleTaken = true;
+      }
+    }
+
+    if (isFemaleSlot && !femaleTaken) {
+      if (match.femaleWasUnassigned) {
+        if (updated.unassigned > 0) {
+          updated = { ...updated, unassigned: updated.unassigned - 1 };
+          femaleTaken = true;
+        }
+      } else if (updated.females > 0) {
+        updated = { ...updated, females: updated.females - 1 };
+        femaleTaken = true;
+      }
+    }
+
+    return updated;
+  });
+
+  if (!maleTaken || !femaleTaken) return slots;
+  return next.filter((slot) => slot.males + slot.females + slot.unassigned > 0);
+}
 
 function buildPossibleChildren(
   jobA: string,
@@ -1050,13 +1143,14 @@ interface MatchRowProps {
   rankJobNames: string[];
   pairs: Pair[];
   desiredChildren: string[];
+  onMarkMarried: (match: MatchResult) => void;
   onLock: (id: string) => void;
   onUnlock: (id: string) => void;
   onChangeMale: (id: string, job: string) => void;
   onChangeFemale: (id: string, job: string) => void;
 }
 
-function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, onUnlock, onChangeMale, onChangeFemale }: MatchRowProps) {
+function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMarried, onLock, onUnlock, onChangeMale, onChangeFemale }: MatchRowProps) {
   const isLocked = match.locked;
 
   const possibleChildren = useMemo(() => getPossibleChildren(match, pairs), [match, pairs]);
@@ -1154,6 +1248,18 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onLock, 
           })}
         </div>
       )}
+
+      <div className="mt-2 flex justify-end pl-7">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1.5 text-xs"
+          onClick={() => onMarkMarried(match)}
+        >
+          <Check className="w-3.5 h-3.5" />
+          Mark as married
+        </Button>
+      </div>
     </div>
   );
 }
@@ -1793,6 +1899,8 @@ export default function MarriageMatcher() {
   const [result, setResult] = useState<OptimalResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isStale, setIsStale] = useState(false);
+  const [backupText, setBackupText] = useState("");
+  const [backupStatus, setBackupStatus] = useState<string | null>(null);
 
   const markStale = useCallback(() => setIsStale(true), []);
 
@@ -1909,6 +2017,75 @@ export default function MarriageMatcher() {
     setDesiredChildren([]);
   }, []);
 
+  const exportBackup = useCallback(() => {
+    const payload: PlannerBackup = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      rankSlots,
+      lockedPairs,
+      desiredChildren,
+    };
+    const serialized = JSON.stringify(payload, null, 2);
+    setBackupText(serialized);
+    setBackupStatus("Backup generated. This is only a temporary fail-safe while the matcher is still being built out.");
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(serialized).catch(() => {});
+    }
+  }, [desiredChildren, lockedPairs, rankSlots]);
+
+  const copyBackup = useCallback(() => {
+    if (!backupText.trim()) {
+      setBackupStatus("Nothing to copy yet. Export your current inputs first or paste a backup.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(backupText)
+        .then(() => setBackupStatus("Backup text copied."))
+        .catch(() => setBackupStatus("Could not copy automatically. You can still copy the text manually."));
+      return;
+    }
+    setBackupStatus("Clipboard copy is not available here. You can still copy the text manually.");
+  }, [backupText]);
+
+  const importBackup = useCallback(() => {
+    try {
+      const parsed: unknown = JSON.parse(backupText);
+      if (!isPlannerBackup(parsed)) {
+        setBackupStatus("That text is not a valid Match Finder backup.");
+        return;
+      }
+      setRankSlots(parsed.rankSlots);
+      setLockedPairs(parsed.lockedPairs);
+      setDesiredChildren(parsed.desiredChildren);
+      setResult(null);
+      setIsStale(false);
+      setBackupStatus(`Imported backup from ${new Date(parsed.exportedAt).toLocaleString()}.`);
+    } catch {
+      setBackupStatus("Could not import that backup. Paste the full exported text and try again.");
+    }
+  }, [backupText, setRankSlots]);
+
+  const markMatchAsMarried = useCallback((match: MatchResult) => {
+    let applied = false;
+    setRankSlots((prev) => {
+      const next = consumeMatchFromSlots(prev, match);
+      applied = next !== prev;
+      return next;
+    });
+    if (!applied) {
+      setBackupStatus("Could not consume that pair from your current inputs. The counts may already have changed.");
+      return;
+    }
+
+    setLockedPairs((prev) => prev.filter((pair) => pair.id !== match.id));
+    setResult((prev) => prev ? {
+      ...prev,
+      matches: prev.matches.filter((entry) => entry.id !== match.id),
+    } : prev);
+    setIsStale(true);
+    setBackupStatus(`Marked ${match.maleJob} + ${match.femaleJob} as married and removed them from the inputs above.`);
+  }, [setRankSlots]);
+
   // ââ Calculate ââ
   const calculate = useCallback(() => {
     setIsCalculating(true);
@@ -2005,6 +2182,10 @@ export default function MarriageMatcher() {
           </div>
         </div>
 
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50/70 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+          <strong className="text-foreground dark:text-red-200">Warning:</strong> marriage is forever in Kingdom Adventures. You cannot unmarry or divorce, so double-check pairs before committing in-game. Do not marry your Monarch until you completely understand the marriage mechanics, and it is strongly worth asking the community before committing to a Monarch marriage.
+        </div>
+
         {showNote && (
           <div className="mb-4">
             <textarea
@@ -2015,6 +2196,39 @@ export default function MarriageMatcher() {
             />
           </div>
         )}
+
+        <Card className="mb-4 border-amber-300/60 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Temporary Export / Import Failsafe</CardTitle>
+            <CardDescription className="text-xs">
+              The site already remembers your Match Finder inputs. These buttons are just a backup so you do not have to redo everything while this part of the site is still work in progress.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground space-y-1.5">
+              <p><strong className="text-foreground">How to use Export:</strong> click <strong>Export current inputs</strong>, then save the generated text somewhere safe like a note, text file, or message to yourself.</p>
+              <p><strong className="text-foreground">How to use Import:</strong> paste that saved text back into the box here, then click <strong>Import pasted backup</strong> to restore your Match Finder inputs.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={exportBackup} className="gap-2">
+                <Upload className="w-4 h-4" /> Export current inputs
+              </Button>
+              <Button variant="outline" size="sm" onClick={importBackup} className="gap-2">
+                <Download className="w-4 h-4" /> Import pasted backup
+              </Button>
+              <Button variant="outline" size="sm" onClick={copyBackup} className="gap-2">
+                <Copy className="w-4 h-4" /> Copy backup text
+              </Button>
+            </div>
+            <textarea
+              value={backupText}
+              onChange={(e) => setBackupText(e.target.value)}
+              placeholder="Exported backup text will appear here. You can also paste a backup here to restore it."
+              className="min-h-[140px] w-full rounded-md border border-border bg-background px-3 py-2 text-xs font-mono text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {backupStatus && <p className="text-xs text-muted-foreground">{backupStatus}</p>}
+          </CardContent>
+        </Card>
 
         {/* Tab nav */}
         <div className="flex gap-1 mb-6 border-b border-border pb-0">
@@ -2274,6 +2488,7 @@ export default function MarriageMatcher() {
                                 rankJobNames={allJobsForRank.length > 0 ? allJobsForRank : sortedJobNames}
                                 pairs={pairs}
                                 desiredChildren={desiredChildren}
+                                onMarkMarried={markMatchAsMarried}
                                 onLock={lockMatch} onUnlock={unlockMatch}
                                 onChangeMale={changeLockedMale} onChangeFemale={changeLockedFemale}
                               />

@@ -29,6 +29,11 @@ import MonstersPetsPage from "@/pages/monsters-pets";
 import WeeklyConquestPage from "@/pages/weekly-conquest";
 import WarioDungeonPage from "@/pages/wario-dungeon";
 import MonsterPetStatsPage from "@/pages/monster-pet-stats";
+import DailyRankRewardsPage from "@/pages/daily-rank-rewards";
+import JobCenterPage from "@/pages/job-center";
+import KairoRoomPage from "@/pages/kairo-room";
+import PlaythroughGuidePage from "@/pages/playthrough-guide";
+import GuidesPage from "@/pages/guides";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
 
@@ -159,8 +164,14 @@ function SiteHeader() {
         { href: "/loadout", label: "Loadout Builder" },
         { href: "/match-finder", label: "Match Finder" },
         { href: "/town-rank", label: "Town Rank" },
+        { href: "/guides", label: "Guides" },
       ],
       note: "Match Finder includes marriage matching and marriage sim tools.",
+    },
+    {
+      title: "Guides",
+      primary: { href: "/guides", label: "Guides" },
+      children: [{ href: "/playthrough-guide", label: "Playthrough Guide by Jaza" }],
     },
     {
       title: "Eggs, Pets & Monsters",
@@ -189,8 +200,9 @@ function SiteHeader() {
         { href: "/weekly-conquest", label: "Weekly Conquest" },
         { href: "/gacha-events", label: "Gacha Events" },
         { href: "/wario-dungeon", label: "Wario Dungeon" },
-        { href: "/timed-events", label: "Kairo Room" },
-        { href: "/timed-events", label: "Job Center" },
+        { href: "/daily-rank-rewards", label: "Daily Rank Rewards" },
+        { href: "/kairo-room", label: "Kairo Room" },
+        { href: "/job-center", label: "Job Center" },
       ],
     },
     {
@@ -375,8 +387,13 @@ function Router() {
       <Route path="/houses" component={HousesPage} />
       <Route path="/timed-events" component={TimedEventsPage} />
       <Route path="/wario-dungeon" component={WarioDungeonPage} />
+      <Route path="/daily-rank-rewards" component={DailyRankRewardsPage} />
+      <Route path="/job-center" component={JobCenterPage} />
+      <Route path="/kairo-room" component={KairoRoomPage} />
       <Route path="/gacha-events" component={GachaEventsPage} />
       <Route path="/town-rank" component={TownRankPage} />
+      <Route path="/guides" component={GuidesPage} />
+      <Route path="/playthrough-guide" component={PlaythroughGuidePage} />
       <Route component={NotFound} />
     </Switch>
   );

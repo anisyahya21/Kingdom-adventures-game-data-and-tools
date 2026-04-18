@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { CalendarDays, Clock3, Gem, Trophy, Wand2 } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -26,22 +26,29 @@ const EVENT_CARDS = [
     badge: "Live",
   },
   {
-    href: "/timed-events",
-    title: "Kairo Room",
-    description: "Research still needed before this becomes a full event page.",
-    icon: Wand2,
-    badge: "Research",
-    disabled: true,
+    href: "/daily-rank-rewards",
+    title: "Daily Rank Rewards",
+    description: "Daily ranking board reward tables for S and A rank, grouped by weekday.",
+    icon: Award,
+    badge: "Draft",
   },
   {
-    href: "/timed-events",
+    href: "/kairo-room",
+    title: "Kairo Room",
+    description: "Active days, challenge names, and first-draft equipment box rewards from the EN sheet.",
+    icon: Wand2,
+    badge: "Draft",
+  },
+  {
+    href: "/job-center",
     title: "Job Center",
-    description: "Research still needed before this becomes a full event page.",
-    icon: CalendarDays,
-    badge: "Research",
-    disabled: true,
+    description: "Weekly profession rotation by day, using the EN sheet as a readable first pass.",
+    icon: BriefcaseBusiness,
+    badge: "Draft",
   },
 ];
+
+type EventCard = (typeof EVENT_CARDS)[number] & { disabled?: boolean };
 
 export default function TimedEventsPage() {
   return (
@@ -57,7 +64,7 @@ export default function TimedEventsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {EVENT_CARDS.map((card) => {
+        {(EVENT_CARDS as EventCard[]).map((card) => {
           const content = (
             <Card className={`h-full shadow-sm transition-all ${card.disabled ? "opacity-75" : "hover:shadow-md hover:border-primary/30 cursor-pointer"}`}>
               <CardHeader className="pb-2">

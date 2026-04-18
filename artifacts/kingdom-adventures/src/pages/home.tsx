@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link } from "wouter";
-import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, Egg, Store, Home as HomeIcon, CalendarDays } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, Egg, Store, Home as HomeIcon, CalendarDays, BookMarked } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -44,6 +44,12 @@ const CREDIT_SOURCES = [
     label: "Kingdom Adventures EN Sheet",
     description: "Reference and translation sheet used to understand systems like pets, eggs, and other player-facing game mechanics.",
     href: "https://docs.google.com/spreadsheets/d/1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A/edit",
+  },
+  {
+    label: "Playthrough Guide",
+    by: "Jaza",
+    description: "Community-written Kingdom Adventures progression guide that we adapted into the website-styled guide page.",
+    href: "https://docs.google.com/document/d/1HDY-6lgFfjIX9KfzmuBrR4xsSMWGXKViccsGQJ_o5yE/edit",
   },
   {
     label: "Kairosoft Fandom",
@@ -240,6 +246,14 @@ const BUILT_IN_TOOLS = [
     icon: <CalendarDays className="w-6 h-6 text-pink-500" />,
     badge: "Events",
     badgeColor: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-950 dark:text-pink-300",
+  },
+  {
+    slug: "/guides",
+    title: "Guides",
+    description: "Community-written guides collected in one place, starting with Jaza's playthrough guide.",
+    icon: <BookMarked className="w-6 h-6 text-violet-500" />,
+    badge: "Guides",
+    badgeColor: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300",
   },
 ];
 

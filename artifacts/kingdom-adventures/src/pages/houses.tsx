@@ -229,6 +229,12 @@ const FACILITIES: Facility[] = [
     upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
     maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
     minHp: 10, maxHp: 510, validRange: 0, canUpgrade: true },
+  { id: 191, name: "Chaos Stone",                  tab: "env",  size: "2×2",
+    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
+    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
+    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
+    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
+    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: false },
   { id: 76 , name: "Simple Stove",                  tab: "amenity",  size: "",
     minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
     maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
@@ -1565,6 +1571,11 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
             📦 Capacity: <span className="font-medium text-foreground">{storageCapacity}</span>
           </p>
         )}
+        {f.id === 191 && (
+          <div className="rounded-md border border-red-300 bg-red-50/70 px-3 py-2 text-xs text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+            <strong className="text-foreground dark:text-red-200">Warning:</strong> when removing a Chaos Stone, pay the 50 diamonds or it will be lost permanently. Losing one permanently is bad enough that many players would rather restart than accept it.
+          </div>
+        )}
         {hasUpg && (
           <div className="space-y-1 border-t border-border pt-2 mt-1">
             <div className="flex items-center justify-between gap-2">
@@ -1706,6 +1717,20 @@ export default function HousesPage() {
     const nextTab = params.get("tab");
     if (nextTab === "houses" || nextTab === "facilities") {
       setTab(nextTab);
+    }
+    const nextFacilityTab = params.get("facilityTab");
+    if (
+      nextFacilityTab === "env" ||
+      nextFacilityTab === "materials" ||
+      nextFacilityTab === "amenity" ||
+      nextFacilityTab === "indoors" ||
+      nextFacilityTab === "map"
+    ) {
+      setFacilityTab(nextFacilityTab);
+    }
+    const nextQuery = params.get("search");
+    if (nextQuery !== null) {
+      setQuery(nextQuery);
     }
   }, [search]);
 

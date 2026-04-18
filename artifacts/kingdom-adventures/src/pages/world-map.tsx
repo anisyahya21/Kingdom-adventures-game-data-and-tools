@@ -82,16 +82,17 @@ const SURVEY_DEFS: SurveyDef[] = [
   { id:81, name:"Dragon Taming (Snow)",  terrainId:5, minLevel:500, minCost:6, maxCost:56, minHearts:500, maxHearts:1250, minRate:1, maxRate:70, minTimeSec:3600, maxTimeSec:14400, category:"dragon_taming" },
 ];
 
-type ToolType = "none" | "pen" | "draw_area" | "reclaim" | "deploy" | "road";
+type ToolType = "none" | "pen" | "draw_area" | "reclaim" | "deploy" | "road" | "chaos_setup";
 type BrushSize = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type DeploymentSize = 2 | 3 | 4 | 5 | 6;
 type PaintMode = "mark" | "erase";
 type ReclaimMode = "reclaim" | "restore";
-type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water" | "facilities" | "weekly_conquest";
+type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water" | "facilities" | "weekly_conquest" | "chaos_setup";
 type MonsterSpawn = { area: string; level: number };
 type Monster = { icon?: string; spawns: MonsterSpawn[] };
 type WeeklyReward = { jobName: string; jobRank: string; diamonds: number; equipment: string };
 type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; updatedBy?: string; updatedAt?: number } | null;
+type ChaosSetupPiece = "info_board" | "chaos_stone";
 
 type NativeCell = {
   terrain: TerrainType;
@@ -114,6 +115,7 @@ type HistoryState = {
   deployed: string[];
   roads: string[];
   penned: Array<{ k: string; c: string }>;
+  chaosSetup: Array<{ k: string; piece: ChaosSetupPiece }>;
 };
 
 const TERRAIN_COLORS: Record<TerrainType, string> = {
@@ -132,6 +134,9 @@ const DEPLOY_FILL = "rgba(34, 211, 238, 0.24)";
 const DEPLOY_BORDER = "rgba(34, 211, 238, 0.98)";
 const WEEKLY_CONQUEST_FILL = "rgba(245, 158, 11, 0.34)";
 const WEEKLY_CONQUEST_BORDER = "rgba(251, 191, 36, 0.98)";
+const RECLAIMED_FILL = "rgba(56, 189, 248, 0.18)";
+const RECLAIMED_BORDER = "rgba(14, 165, 233, 0.98)";
+const RECLAIMED_STRIPE = "rgba(2, 132, 199, 0.6)";
 const OUTLINE_BORDER = "#2563eb";
 const PREVIEW_ORANGE = "rgba(251,146,60,0.95)";
 const DEFAULT_TILE_SIZE = 6;
@@ -154,6 +159,7 @@ const AREA_TERRAIN_MAP: Record<string, TerrainType> = {
 const LAYER_LABELS: Record<LayerKey, string> = {
   levels: "Levels",
   weekly_conquest: "Weekly Conquest",
+  chaos_setup: "Chaos Setup",
   facilities: "Facilities",
   poi: "POI",
   deployments: "Deployments",
@@ -379,20 +385,29 @@ function setToSortedArray(values: Set<string>) {
   return Array.from(values).sort();
 }
 
-function encodeState(outlinedTiles: Set<string>, reclaimedTiles: Set<string>, deployedTiles: Set<string>, roadTiles: Set<string>, penTiles: Map<string, string>) {
-  return `KAWM2:${btoa(JSON.stringify({
+function encodeState(
+  outlinedTiles: Set<string>,
+  reclaimedTiles: Set<string>,
+  deployedTiles: Set<string>,
+  roadTiles: Set<string>,
+  penTiles: Map<string, string>,
+  chaosSetupTiles: Map<string, ChaosSetupPiece>
+) {
+  return `KAWM3:${btoa(JSON.stringify({
     o: setToSortedArray(outlinedTiles),
     r: setToSortedArray(reclaimedTiles),
     d: setToSortedArray(deployedTiles),
     roads: setToSortedArray(roadTiles),
     p: Array.from(penTiles.entries()).map(([k, c]) => ({ k, c })),
+    cs: Array.from(chaosSetupTiles.entries()).map(([k, piece]) => ({ k, piece })),
   }))}`;
 }
 
 function decodeState(text: string) {
   const raw = text.trim();
   let parsed: any;
-  if (raw.startsWith("KAWM2:")) parsed = JSON.parse(atob(raw.slice(6)));
+  if (raw.startsWith("KAWM3:")) parsed = JSON.parse(atob(raw.slice(6)));
+  else if (raw.startsWith("KAWM2:")) parsed = JSON.parse(atob(raw.slice(6)));
   else if (raw.startsWith("KAWM1:")) parsed = JSON.parse(atob(raw.slice(6)));
   else parsed = JSON.parse(raw);
 
@@ -403,6 +418,9 @@ function decodeState(text: string) {
     roads: arrayToSet(parsed?.roads),
     penned: Array.isArray(parsed?.p)
       ? (parsed.p as any[]).filter((e) => e && typeof e.k === "string" && typeof e.c === "string")
+      : [],
+    chaosSetup: Array.isArray(parsed?.cs)
+      ? (parsed.cs as any[]).filter((e) => e && typeof e.k === "string" && (e.piece === "info_board" || e.piece === "chaos_stone"))
       : [],
   };
 }
@@ -501,13 +519,21 @@ function getDiamondCoordinates(centerX: number, centerY: number, radius: number,
   return coords;
 }
 
-function snapshot(outlined: Set<string>, reclaimed: Set<string>, deployed: Set<string>, roads: Set<string>, penned: Map<string, string>): HistoryState {
+function snapshot(
+  outlined: Set<string>,
+  reclaimed: Set<string>,
+  deployed: Set<string>,
+  roads: Set<string>,
+  penned: Map<string, string>,
+  chaosSetup: Map<string, ChaosSetupPiece>
+): HistoryState {
   return {
     outlined: setToSortedArray(outlined),
     reclaimed: setToSortedArray(reclaimed),
     deployed: setToSortedArray(deployed),
     roads: setToSortedArray(roads),
     penned: Array.from(penned.entries()).map(([k, c]) => ({ k, c })),
+    chaosSetup: Array.from(chaosSetup.entries()).map(([k, piece]) => ({ k, piece })),
   };
 }
 
@@ -518,11 +544,33 @@ function restoreSnapshot(state: HistoryState) {
     deployed: new Set(state.deployed),
     roads: new Set(state.roads),
     penned: new Map((state.penned ?? []).map((e) => [e.k, e.c])),
+    chaosSetup: new Map((state.chaosSetup ?? []).map((e) => [e.k, e.piece])),
   };
 }
 
 function toggleTool(current: ToolType, next: ToolType) {
   return current === next ? "none" : next;
+}
+
+function getChaosSetupFootprint(x: number, y: number, piece: ChaosSetupPiece, cols: number, rows: number): string[] {
+  if (piece === "info_board") {
+    if (x < 0 || y < 0 || x >= cols || y >= rows) return [];
+    return [keyOf(x, y)];
+  }
+  if (x < 0 || y < 0 || x + 1 >= cols || y + 1 >= rows) return [];
+  return [
+    keyOf(x, y),
+    keyOf(x + 1, y),
+    keyOf(x, y + 1),
+    keyOf(x + 1, y + 1),
+  ];
+}
+
+function getChaosSetupFootprintCoords(x: number, y: number, piece: ChaosSetupPiece, cols: number, rows: number): Array<[number, number]> {
+  return getChaosSetupFootprint(x, y, piece, cols, rows).map((key) => {
+    const [px, py] = key.split(",").map(Number);
+    return [px, py];
+  });
 }
 
 const BRUSH_COLORS = [
@@ -581,6 +629,7 @@ export default function WorldMapPage() {
   const [hoveredTile, setHoveredTile] = useState<Tile | null>(null);
   const [outlinedTiles, setOutlinedTiles] = useState<Set<string>>(() => new Set());
   const [penTiles, setPenTiles] = useState<Map<string, string>>(() => new Map());
+  const [chaosSetupTiles, setChaosSetupTiles] = useState<Map<string, ChaosSetupPiece>>(() => new Map());
   const [reclaimedTiles, setReclaimedTiles] = useState<Set<string>>(() => new Set());
   const [deployedTiles, setDeployedTiles] = useState<Set<string>>(() => new Set());
   const [roadTiles, setRoadTiles] = useState<Set<string>>(() => new Set());
@@ -595,6 +644,7 @@ export default function WorldMapPage() {
   const [penColor, setPenColor] = useState(BRUSH_COLORS[0].value);
   const [drawAreaColor, setDrawAreaColor] = useState(BRUSH_COLORS[0].value);
   const [recentColors, setRecentColors] = useState<string[]>([]);
+  const [chaosSetupPiece, setChaosSetupPiece] = useState<ChaosSetupPiece>("info_board");
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({
     levels: false,
     poi: true,
@@ -605,6 +655,7 @@ export default function WorldMapPage() {
     water: true,
     facilities: false,
     weekly_conquest: false,
+    chaos_setup: true,
   });
   const [historyPast, setHistoryPast] = useState<HistoryState[]>([]);
   const [historyFuture, setHistoryFuture] = useState<HistoryState[]>([]);
@@ -822,7 +873,7 @@ export default function WorldMapPage() {
   const brushOptions: BrushSize[] = [1,2,3,4,5,6,7,8,9,10];
   const drawAreaBrushOptions: BrushSize[] = [2,3,4,5,6,7,8,9,10];
   const deploymentOptions: DeploymentSize[] = [2,3,4,5,6];
-  const layerOrder: LayerKey[] = ["levels","weekly_conquest","facilities","poi","deployments","reclaimed","grid","roads"];
+  const layerOrder: LayerKey[] = ["levels","weekly_conquest","chaos_setup","facilities","poi","deployments","reclaimed","grid","roads"];
 
   const weeklyConquestSpawnKeys = useMemo(() => {
     if (!weeklyConquest?.monsters?.length) return new Set<string>();
@@ -885,6 +936,8 @@ export default function WorldMapPage() {
     const coords =
       activeTool === "deploy"
         ? getDiamondCoordinates(hoveredTile.x, hoveredTile.y, deploymentSize, cols, rows)
+        : activeTool === "chaos_setup"
+        ? getChaosSetupFootprintCoords(hoveredTile.x, hoveredTile.y, chaosSetupPiece, cols, rows)
         : activeTool === "pen"
         ? getCenteredSquareCoordinates(hoveredTile.x, hoveredTile.y, paintMode === "erase" ? eraserSize : 1, cols, rows)
         : getCenteredSquareCoordinates(hoveredTile.x, hoveredTile.y, brushSize, cols, rows);
@@ -898,11 +951,15 @@ export default function WorldMapPage() {
         next.add(key);
         return;
       }
+      if (activeTool === "chaos_setup") {
+        if (isLand(tile)) next.add(key);
+        return;
+      }
       if (activeTool === "pen") { next.add(key); return; } // pen works on all tiles
       if (isLand(tile)) next.add(key);
     });
     return next;
-  }, [hoveredTile, activeTool, paintMode, deploymentSize, brushSize, eraserSize, cols, rows, grid, reclaimedTiles, roadSnapPreview]);
+  }, [hoveredTile, activeTool, paintMode, deploymentSize, brushSize, eraserSize, cols, rows, grid, reclaimedTiles, roadSnapPreview, chaosSetupPiece]);
 
   const previewStats = useMemo(() => {
     if (!hoveredTile || activeTool !== "deploy") return null;
@@ -922,7 +979,7 @@ export default function WorldMapPage() {
   }
 
   function pushHistory() {
-    setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles)]);
+    setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles)]);
     setHistoryFuture([]);
   }
 
@@ -933,13 +990,14 @@ export default function WorldMapPage() {
     setDeployedTiles(restored.deployed);
     setRoadTiles(restored.roads);
     setPenTiles(restored.penned);
+    setChaosSetupTiles(restored.chaosSetup);
   }
 
   function undo() {
     if (!historyPast.length) return;
     const previous = historyPast[historyPast.length - 1];
     setHistoryPast((prev) => prev.slice(0, -1));
-    setHistoryFuture((prev) => [snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles), ...prev].slice(0, 30));
+    setHistoryFuture((prev) => [snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles), ...prev].slice(0, 30));
     restoreSets(previous);
     flashNotice("Undid last change");
   }
@@ -948,7 +1006,7 @@ export default function WorldMapPage() {
     if (!historyFuture.length) return;
     const next = historyFuture[0];
     setHistoryFuture((prev) => prev.slice(1));
-    setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles)]);
+    setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles)]);
     restoreSets(next);
     flashNotice("Redid last change");
   }
@@ -958,10 +1016,49 @@ export default function WorldMapPage() {
   undoRedoRef.current = { undo, redo };
 
   function applyPatchToSet(
-    target: "outline" | "pen" | "reclaim" | "deploy" | "road",
+    target: "outline" | "pen" | "chaos_setup" | "reclaim" | "deploy" | "road",
     coords: Array<[number, number]>,
     mode: "mark" | "erase" | "reclaim" | "restore"
   ) {
+    if (target === "chaos_setup") {
+      const anchor = coords[0];
+      if (!anchor) return;
+      const anchorKey = keyOf(anchor[0], anchor[1]);
+      const historyKey = `chaos:${anchorKey}`;
+      if (lastPaintedKeysRef.current.has(historyKey)) return;
+
+      setChaosSetupTiles((prev) => {
+        const next = new Map(prev);
+
+        if (mode === "mark") {
+          const footprint = getChaosSetupFootprint(anchor[0], anchor[1], chaosSetupPiece, cols, rows);
+          if (!footprint.length) return prev;
+          const canPlace = footprint.every((footKey) => {
+            const tile = grid.get(footKey);
+            return !!tile && isLand(tile);
+          });
+          if (!canPlace) return prev;
+          next.set(anchorKey, chaosSetupPiece);
+          return next;
+        }
+
+        let removed = false;
+        prev.forEach((piece, placedKey) => {
+          if (removed) return;
+          const [px, py] = placedKey.split(",").map(Number);
+          const footprint = getChaosSetupFootprint(px, py, piece, cols, rows);
+          if (footprint.includes(anchorKey)) {
+            next.delete(placedKey);
+            removed = true;
+          }
+        });
+        return next;
+      });
+
+      lastPaintedKeysRef.current.add(historyKey);
+      return;
+    }
+
     const keys = coords.map(([x, y]) => keyOf(x, y));
     const freshKeys = keys.filter((key) => !lastPaintedKeysRef.current.has(key));
     if (!freshKeys.length) return;
@@ -1058,11 +1155,14 @@ export default function WorldMapPage() {
     const coords =
       activeTool === "deploy"
         ? getDiamondCoordinates(tile.x, tile.y, deploymentSize, cols, rows)
+        : activeTool === "chaos_setup"
+        ? getChaosSetupFootprintCoords(tile.x, tile.y, chaosSetupPiece, cols, rows)
         : activeTool === "pen"
         ? getCenteredSquareCoordinates(tile.x, tile.y, paintMode === "erase" ? eraserSize : 1, cols, rows)
         : getCenteredSquareCoordinates(tile.x, tile.y, brushSize, cols, rows);
 
     if (activeTool === "pen") applyPatchToSet("pen", coords, paintMode);
+    if (activeTool === "chaos_setup") applyPatchToSet("chaos_setup", coords, paintMode);
     if (activeTool === "draw_area") applyPatchToSet("outline", coords, paintMode);
     if (activeTool === "reclaim") applyPatchToSet("reclaim", coords, reclaimMode);
     if (activeTool === "deploy") {
@@ -1296,7 +1396,10 @@ export default function WorldMapPage() {
       parts.push(`inset 0 0 0 1px ${ROAD_BORDER}`);
     }
 
-    if (reclaimed) parts.push("inset 0 0 0 1px rgba(255,255,255,0.85)");
+    if (reclaimed) {
+      parts.push(`inset 0 0 0 9999px ${RECLAIMED_FILL}`);
+      parts.push(`inset 0 0 0 1px ${RECLAIMED_BORDER}`);
+    }
 
     if (deployed) {
       parts.push(`inset 0 0 0 9999px ${DEPLOY_FILL}`);
@@ -1337,6 +1440,9 @@ export default function WorldMapPage() {
       } else if (activeTool === "road") {
         parts.push("inset 0 0 0 9999px rgba(100,116,139,0.35)");
         parts.push(`inset 0 0 0 1px ${ROAD_BORDER}`);
+      } else if (activeTool === "chaos_setup") {
+        parts.push("inset 0 0 0 9999px rgba(250,204,21,0.16)");
+        parts.push("inset 0 0 0 1px rgba(250,204,21,0.85)");
       }
     }
 
@@ -1352,6 +1458,7 @@ export default function WorldMapPage() {
     if (spaceDownRef.current) return "grab";
     if (activeTool === "none") return "grab";
     if (activeTool === "deploy") return "copy";
+    if (activeTool === "chaos_setup") return paintMode === "mark" ? "copy" : "alias";
     if (activeTool === "reclaim") return reclaimMode === "reclaim" ? "cell" : "not-allowed";
     if (activeTool === "draw_area") return paintMode === "mark" ? "crosshair" : "alias";
     if (activeTool === "pen") return paintMode === "mark" ? "crosshair" : "alias";
@@ -1480,7 +1587,7 @@ export default function WorldMapPage() {
 
   async function exportToClipboard() {
     try {
-      const text = encodeState(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles);
+      const text = encodeState(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles);
       await navigator.clipboard.writeText(text);
       flashNotice("Map copied to clipboard");
     } catch {
@@ -1502,6 +1609,7 @@ export default function WorldMapPage() {
       setDeployedTiles(decoded.deployed);
       setRoadTiles(decoded.roads);
       setPenTiles(new Map((decoded.penned ?? []).map((e) => [e.k, e.c])));
+      setChaosSetupTiles(new Map((decoded.chaosSetup ?? []).map((e) => [e.k, e.piece])));
       flashNotice("Map imported from clipboard");
     } catch {
       flashNotice("No data in clipboard");
@@ -1509,7 +1617,7 @@ export default function WorldMapPage() {
   }
 
   function saveSlot(slot: number) {
-    const text = encodeState(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles);
+    const text = encodeState(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles);
     localStorage.setItem(`${STORAGE_PREFIX}:slot:${slot}`, text);
     flashNotice(`Saved slot ${slot}`);
   }
@@ -1528,6 +1636,7 @@ export default function WorldMapPage() {
       setDeployedTiles(decoded.deployed);
       setRoadTiles(decoded.roads);
       setPenTiles(new Map((decoded.penned ?? []).map((e) => [e.k, e.c])));
+      setChaosSetupTiles(new Map((decoded.chaosSetup ?? []).map((e) => [e.k, e.piece])));
       flashNotice(`Loaded slot ${slot}`);
     } catch {
       flashNotice(`Slot ${slot} is invalid`);
@@ -1594,6 +1703,21 @@ export default function WorldMapPage() {
           ctx.strokeRect(x * scale, y * scale, scale, scale);
         }
 
+        if (layers.reclaimed && reclaimedTiles.has(key)) {
+          ctx.fillStyle = RECLAIMED_FILL;
+          ctx.fillRect(x * scale, y * scale, scale, scale);
+          ctx.strokeStyle = RECLAIMED_BORDER;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x * scale + 0.5, y * scale + 0.5, scale - 1, scale - 1);
+          ctx.strokeStyle = RECLAIMED_STRIPE;
+          ctx.beginPath();
+          ctx.moveTo(x * scale, y * scale + scale * 0.7);
+          ctx.lineTo(x * scale + scale * 0.7, y * scale);
+          ctx.moveTo(x * scale + scale * 0.3, y * scale + scale);
+          ctx.lineTo(x * scale + scale, y * scale + scale * 0.3);
+          ctx.stroke();
+        }
+
         if (layers.roads && roadTiles.has(key)) {
           ctx.fillStyle = ROAD_COLOR;
           ctx.fillRect(x * scale, y * scale, scale, scale);
@@ -1622,6 +1746,34 @@ export default function WorldMapPage() {
           ctx.fillRect(x * scale, y * scale, scale, scale);
         }
       }
+    }
+
+    if (layers.chaos_setup) {
+      chaosSetupTiles.forEach((piece, placedKey) => {
+        const [x, y] = placedKey.split(",").map(Number);
+        const px = x * scale;
+        const py = y * scale;
+        if (piece === "info_board") {
+          ctx.fillStyle = "#8b5a2b";
+          ctx.fillRect(px + scale * 0.44, py + scale * 0.45, Math.max(1, scale * 0.12), scale * 0.45);
+          ctx.fillStyle = "#d4a95f";
+          ctx.fillRect(px + scale * 0.18, py + scale * 0.12, scale * 0.64, scale * 0.36);
+          ctx.strokeStyle = "#8b5a2b";
+          ctx.lineWidth = Math.max(1, scale * 0.05);
+          ctx.strokeRect(px + scale * 0.18, py + scale * 0.12, scale * 0.64, scale * 0.36);
+        } else {
+          ctx.fillStyle = "#6b7280";
+          ctx.beginPath();
+          ctx.moveTo(px + scale, py + scale);
+          ctx.lineTo(px + scale * 1.75, py + scale * 0.95);
+          ctx.lineTo(px + scale * 1.55, py + scale * 0.2);
+          ctx.lineTo(px + scale, py + scale * 0.05);
+          ctx.lineTo(px + scale * 0.4, py + scale * 0.4);
+          ctx.lineTo(px + scale * 0.1, py + scale);
+          ctx.closePath();
+          ctx.fill();
+        }
+      });
     }
 
     const link = document.createElement("a");
@@ -1690,9 +1842,18 @@ export default function WorldMapPage() {
         }
 
         if (layers.reclaimed && reclaimedTiles.has(key)) {
-          ctx.strokeStyle = "rgba(255,255,255,0.85)";
+          ctx.fillStyle = RECLAIMED_FILL;
+          ctx.fillRect(px, py, pw, ph);
+          ctx.strokeStyle = RECLAIMED_BORDER;
           ctx.lineWidth = 1;
           ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+          ctx.strokeStyle = RECLAIMED_STRIPE;
+          ctx.beginPath();
+          ctx.moveTo(px, py + ph * 0.72);
+          ctx.lineTo(px + pw * 0.72, py);
+          ctx.moveTo(px + pw * 0.28, py + ph);
+          ctx.lineTo(px + pw, py + ph * 0.28);
+          ctx.stroke();
         }
 
         if (layers.deployments && deployedTiles.has(key)) {
@@ -1725,6 +1886,14 @@ export default function WorldMapPage() {
         if (layers.poi) {
           const penColorTile = penTiles.get(key);
           if (penColorTile) { ctx.fillStyle = penColorTile; ctx.fillRect(px, py, pw, ph); }
+        }
+
+        if (previewKeys.has(key) && activeTool === "chaos_setup") {
+          ctx.fillStyle = "rgba(250,204,21,0.16)";
+          ctx.fillRect(px, py, pw, ph);
+          ctx.strokeStyle = "rgba(250,204,21,0.85)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
         }
 
         if (previewKeys.has(key)) {
@@ -1769,6 +1938,38 @@ export default function WorldMapPage() {
           ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
         }
       }
+    }
+
+    if (layers.chaos_setup) {
+      chaosSetupTiles.forEach((piece, placedKey) => {
+        const [x, y] = placedKey.split(",").map(Number);
+        const px = x * tileSize;
+        const py = y * tileSize;
+        if (piece === "info_board") {
+          ctx.fillStyle = "#8b5a2b";
+          ctx.fillRect(px + tileSize * 0.44, py + tileSize * 0.45, Math.max(1, tileSize * 0.12), tileSize * 0.45);
+          ctx.fillStyle = "#d4a95f";
+          ctx.fillRect(px + tileSize * 0.18, py + tileSize * 0.12, tileSize * 0.64, tileSize * 0.36);
+          ctx.strokeStyle = "#8b5a2b";
+          ctx.lineWidth = Math.max(1, tileSize * 0.05);
+          ctx.strokeRect(px + tileSize * 0.18, py + tileSize * 0.12, tileSize * 0.64, tileSize * 0.36);
+        } else {
+          ctx.fillStyle = "#9ca3af";
+          ctx.beginPath();
+          ctx.moveTo(px + tileSize, py + tileSize * 1.95);
+          ctx.lineTo(px + tileSize * 1.8, py + tileSize * 1.85);
+          ctx.lineTo(px + tileSize * 1.65, py + tileSize * 0.9);
+          ctx.lineTo(px + tileSize * 1.3, py + tileSize * 0.2);
+          ctx.lineTo(px + tileSize * 0.75, py + tileSize * 0.45);
+          ctx.lineTo(px + tileSize * 0.3, py + tileSize * 1.1);
+          ctx.lineTo(px + tileSize * 0.15, py + tileSize * 1.95);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = "#4b5563";
+          ctx.lineWidth = Math.max(1, tileSize * 0.06);
+          ctx.stroke();
+        }
+      });
     }
 
     // ── Map facilities ──────────────────────────────────────────────────────────
@@ -1983,22 +2184,30 @@ export default function WorldMapPage() {
         if (layers.deployments && deployedTiles.has(key)) bg = "rgba(34,211,238,0.9)";
         if (layers.weekly_conquest && weeklyConquestTileKeys.has(key)) bg = "rgba(245,158,11,0.9)";
         if (layers.poi && penTiles.has(key)) bg = penTiles.get(key)!;
+        if (layers.reclaimed && reclaimedTiles.has(key)) bg = "#8fd3ff";
         ctx.fillStyle = bg;
         ctx.fillRect(cx, cy, 1, 1);
       }
+    }
+    if (layers.chaos_setup) {
+      chaosSetupTiles.forEach((piece, placedKey) => {
+        const [x, y] = placedKey.split(",").map(Number);
+        ctx.fillStyle = piece === "info_board" ? "#d4a95f" : "#6b7280";
+        ctx.fillRect(x, y, piece === "info_board" ? 1 : 2, piece === "info_board" ? 1 : 2);
+      });
     }
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { drawMap(); }, [
-    tileSize, outlinedTiles, penTiles, reclaimedTiles, deployedTiles, roadTiles,
+    tileSize, outlinedTiles, penTiles, chaosSetupTiles, reclaimedTiles, deployedTiles, roadTiles,
     layers, hoveredTile, selectedTile, activeTool, paintMode, drawAreaColor, penColor, previewKeys,
     showSurveys, visibleSurveyCats, weeklyConquestTileKeys,
   ]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { drawMinimap(); }, [
-    reclaimedTiles, deployedTiles, roadTiles, penTiles, outlinedTiles, layers, weeklyConquestTileKeys,
+    reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles, outlinedTiles, layers, weeklyConquestTileKeys,
   ]);
 
   const toolbarContent = (
@@ -2009,6 +2218,7 @@ export default function WorldMapPage() {
         <div className="flex flex-col gap-1">
           <Button size="sm" variant={activeTool === "pen" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "pen"))}>Pen</Button>
           <Button size="sm" variant={activeTool === "draw_area" ? "default" : "ghost"} className="w-full justify-start" onClick={() => { setActiveTool((prev) => toggleTool(prev, "draw_area")); if (brushSize < 2) setBrushSize(2); }}>Draw area</Button>
+          <Button size="sm" variant={activeTool === "chaos_setup" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "chaos_setup"))}>Chaos setup</Button>
           <Button size="sm" variant={activeTool === "reclaim" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "reclaim"))}>Reclaim land</Button>
           <Button size="sm" variant={activeTool === "deploy" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "deploy"))}>Deployment mode</Button>
           <Button size="sm" variant={activeTool === "road" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "road"))}>Roads</Button>
@@ -2087,6 +2297,24 @@ export default function WorldMapPage() {
             <Button size="sm" variant={paintMode === "erase" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("erase")}>Erase</Button>
           </div>
           <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setOutlinedTiles(new Set()); }}>Clear draw area</Button>
+        </div>
+      )}
+
+      {activeTool === "chaos_setup" && (
+        <div className="space-y-2">
+          <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Piece</div>
+          <div className="flex gap-1">
+            <Button size="sm" variant={chaosSetupPiece === "info_board" ? "default" : "outline"} className="flex-1" onClick={() => setChaosSetupPiece("info_board")}>Info Board</Button>
+            <Button size="sm" variant={chaosSetupPiece === "chaos_stone" ? "default" : "outline"} className="flex-1" onClick={() => setChaosSetupPiece("chaos_stone")}>Chaos Stone</Button>
+          </div>
+          <div className="flex gap-1">
+            <Button size="sm" variant={paintMode === "mark" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("mark")}>Place</Button>
+            <Button size="sm" variant={paintMode === "erase" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("erase")}>Remove</Button>
+          </div>
+          <div className="text-xs opacity-60">
+            Drag to place multiple pieces. Chaos Stone places as a 2×2 footprint.
+          </div>
+          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setChaosSetupTiles(new Map()); }}>Clear chaos setup</Button>
         </div>
       )}
 
@@ -2272,11 +2500,22 @@ export default function WorldMapPage() {
         const isRoad = activeTool === "road" && paintMode === "mark";
         const isPen = activeTool === "pen" && paintMode === "mark";
         const isDrawArea = activeTool === "draw_area" && paintMode === "mark";
+        const isChaosSetup = activeTool === "chaos_setup" && paintMode === "mark";
         const isErase = paintMode === "erase" && activeTool !== "none";
         const isNone = activeTool === "none";
 
-        const eraseTargetLabel = activeTool === "pen" ? "Pen" : activeTool === "draw_area" ? "Area" : activeTool === "road" ? "Road" : activeTool === "deploy" ? "Deploy" : activeTool;
-        const toolName = isNone ? "No tool" : isErase ? `Erase ${eraseTargetLabel}` : isRoad ? "Road" : isPen ? "Pen" : isDrawArea ? "Draw Area" : activeTool;
+        const eraseTargetLabel = activeTool === "pen"
+          ? "Pen"
+          : activeTool === "draw_area"
+          ? "Area"
+          : activeTool === "road"
+          ? "Road"
+          : activeTool === "deploy"
+          ? "Deploy"
+          : activeTool === "chaos_setup"
+          ? "Chaos Setup"
+          : activeTool;
+        const toolName = isNone ? "No tool" : isErase ? `Erase ${eraseTargetLabel}` : isRoad ? "Road" : isPen ? "Pen" : isDrawArea ? "Draw Area" : isChaosSetup ? `CS (${chaosSetupPiece === "info_board" ? "Info Board" : "Chaos Stone"})` : activeTool;
 
         const bubbleIcon = isNone ? <BubbleIconCursor /> : isRoad ? <BubbleIconRoad /> : isErase ? <BubbleIconEraser /> : isDrawArea ? <BubbleIconDrawArea /> : <BubbleIconPen />;
 
@@ -2353,6 +2592,24 @@ export default function WorldMapPage() {
                   style={{ background: isDrawArea ? "rgba(37,99,235,0.85)" : "rgba(15,23,42,0.88)", borderColor: isDrawArea ? "#2563eb" : "rgba(255,255,255,0.18)", color: isDrawArea ? "#fff" : "rgba(255,255,255,0.75)" }}
                 ><BubbleIconDrawArea /></button>
                 <button
+                  title="CS"
+                  onClick={() => { setActiveTool("chaos_setup"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
+                  className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
+                  style={{ background: isChaosSetup ? "rgba(217,119,6,0.88)" : "rgba(15,23,42,0.88)", borderColor: isChaosSetup ? "#f59e0b" : "rgba(255,255,255,0.18)", color: isChaosSetup ? "#fff" : "rgba(255,255,255,0.75)" }}
+                >
+                  <span className="text-[10px] font-bold">CS</span>
+                </button>
+                {isChaosSetup && (
+                  <button
+                    title={chaosSetupPiece === "info_board" ? "Switch to Chaos Stone" : "Switch to Info Board"}
+                    onClick={() => setChaosSetupPiece((prev) => prev === "info_board" ? "chaos_stone" : "info_board")}
+                    className="h-9 px-2.5 rounded-full border-2 flex items-center justify-center text-[10px] font-bold shadow-xl backdrop-blur transition-all"
+                    style={{ background: "rgba(15,23,42,0.88)", borderColor: "rgba(255,255,255,0.18)", color: "#fff" }}
+                  >
+                    {chaosSetupPiece === "info_board" ? "Board" : "Stone"}
+                  </button>
+                )}
+                <button
                   title="Eraser"
                   onClick={() => { if (activeTool !== "none") setPaintMode("erase"); setDrawBubbleOpen(false); }}
                   className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
@@ -2370,8 +2627,8 @@ export default function WorldMapPage() {
               <div className="flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
                 {/* Layer selector */}
                 <div className="flex flex-row gap-1 items-center">
-                  {(["pen","draw_area","road"] as const).map((layer) => {
-                    const label = layer === "pen" ? "Pen" : layer === "draw_area" ? "Area" : "Road";
+                  {(["pen","draw_area","road","chaos_setup"] as const).map((layer) => {
+                    const label = layer === "pen" ? "Pen" : layer === "draw_area" ? "Area" : layer === "road" ? "Road" : "CS";
                     const active = activeTool === layer;
                     return (
                       <button
