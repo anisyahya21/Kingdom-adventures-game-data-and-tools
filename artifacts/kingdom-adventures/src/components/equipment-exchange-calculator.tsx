@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
@@ -146,7 +146,21 @@ export default function EquipmentExchangeCalculator() {
   const [currentLevel, setCurrentLevel] = useState(1);
   const [targetLevel, setTargetLevel] = useState(99);
   const [sourceQuery, setSourceQuery] = useState("");
+  const [sourceRankFilters, setSourceRankFilters] = useState<Set<string>>(new Set());
+  const [sourceGivesFilters, setSourceGivesFilters] = useState<Set<string>>(new Set());
+  const [givesDropdownOpen, setGivesDropdownOpen] = useState(false);
+  const givesDropdownRef = useRef<HTMLDivElement>(null);
   const [currentPriceInputs, setCurrentPriceInputs] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (givesDropdownRef.current && !givesDropdownRef.current.contains(e.target as Node)) {
+        setGivesDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
   const [funFactRanks, setFunFactRanks] = useState<Set<string>>(new Set(RANK_TOGGLES));
 
   useEffect(() => {
@@ -276,13 +290,18 @@ export default function EquipmentExchangeCalculator() {
   }, [autoNeededKairo, requirementMode, selectedEquipment]);
 
   const entries = useMemo(
-    () => (EQUIPMENT_EXCHANGE_ROWS as readonly ExchangeRow[]).filter((entry) => entry.outputName === target && entry.tradable),
-    [target],
+    () => (EQUIPMENT_EXCHANGE_ROWS as readonly ExchangeRow[]).filter((entry) => entry.tradable),
+    [],
+  );
+
+  const routeEntries = useMemo(
+    () => entries.filter((entry) => entry.outputName === target),
+    [entries, target],
   );
 
   const parsedCurrentPrices = useMemo(() => {
     const parsed: Record<number, number> = {};
-    for (const entry of entries) {
+    for (const entry of routeEntries) {
       const raw = currentPriceInputs[entry.inputId];
       if (raw == null || raw.trim() === "") continue;
       const next = Number(raw);
@@ -291,17 +310,20 @@ export default function EquipmentExchangeCalculator() {
       }
     }
     return parsed;
-  }, [currentPriceInputs, entries]);
+  }, [currentPriceInputs, routeEntries]);
 
   const filteredEntries = useMemo(() => {
+    let result = entries;
+    if (sourceRankFilters.size > 0) result = result.filter((e) => sourceRankFilters.has(e.rankLabel));
+    if (sourceGivesFilters.size > 0) result = result.filter((e) => sourceGivesFilters.has(e.outputName));
     const q = sourceQuery.trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter((entry) => entry.inputName.toLowerCase().includes(q));
-  }, [entries, sourceQuery]);
+    if (q) result = result.filter((e) => e.inputName.toLowerCase().includes(q));
+    return result;
+  }, [entries, sourceQuery, sourceRankFilters, sourceGivesFilters]);
 
   const route = useMemo(() => {
     const safeTargetCount = Math.max(0, targetCount);
-    const states = entries.map((entry) => ({
+    const states = routeEntries.map((entry) => ({
       entry,
       currentExchange: parsedCurrentPrices[entry.inputId] ?? entry.startPrice,
       used: 0,
@@ -317,7 +339,7 @@ export default function EquipmentExchangeCalculator() {
       let best = states[0];
       let bestCombined = Number.POSITIVE_INFINITY;
       for (const state of states) {
-        const combined = state.entry.buyPrice + state.currentExchange;
+        const combined = state.entry.buyPrice * state.currentExchange;
         if (
           combined < bestCombined ||
           (combined === bestCombined && state.currentExchange < best.currentExchange) ||
@@ -330,16 +352,17 @@ export default function EquipmentExchangeCalculator() {
         }
       }
 
+      const tradeCost = best.entry.buyPrice * best.currentExchange;
       best.used += 1;
-      best.totalBuy += best.entry.buyPrice;
+      best.totalBuy += tradeCost;
       best.totalExchange += best.currentExchange;
-      totalBuy += best.entry.buyPrice;
+      totalBuy += tradeCost;
       totalExchange += best.currentExchange;
       picks.push({
         item: best.entry.inputName,
         tradeCost: best.currentExchange,
         buyCost: best.entry.buyPrice,
-        totalCost: best.entry.buyPrice + best.currentExchange,
+        totalCost: tradeCost,
       });
       best.currentExchange += best.entry.priceStep;
     }
@@ -358,7 +381,7 @@ export default function EquipmentExchangeCalculator() {
       usedEntries,
       picks,
     };
-  }, [entries, parsedCurrentPrices, targetCount]);
+  }, [routeEntries, parsedCurrentPrices, targetCount]);
 
   const funFactItems = useMemo(
     () => PLAYER_EQUIPMENT.filter((item) => funFactRanks.has(item.rankLabel as (typeof RANK_TOGGLES)[number])),
@@ -376,7 +399,7 @@ export default function EquipmentExchangeCalculator() {
   const resetVisible = () => {
     setCurrentPriceInputs((prev) => {
       const next = { ...prev };
-      for (const entry of entries) delete next[entry.inputId];
+      for (const entry of routeEntries) delete next[entry.inputId];
       return next;
     });
   };
@@ -589,13 +612,13 @@ export default function EquipmentExchangeCalculator() {
         <div className="grid gap-3 sm:grid-cols-3">
           <Card>
             <CardContent className="p-3">
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Copper coin buy total</div>
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total copper coins</div>
               <div className="mt-1 text-lg font-semibold tabular-nums">{route.totalBuy}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3">
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Exchange total</div>
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total items to trade</div>
               <div className="mt-1 text-lg font-semibold tabular-nums">{route.totalExchange}</div>
             </CardContent>
           </Card>
@@ -619,15 +642,9 @@ export default function EquipmentExchangeCalculator() {
               <div key={state.entry.inputId} className="rounded-md border border-border bg-background/60 px-3 py-2 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{state.entry.inputName}</span>
-                  <span className="tabular-nums text-muted-foreground">x{state.used}</span>
+                  <span className="tabular-nums font-semibold">Buy {state.totalExchange}</span>
                 </div>
-                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
-                  <span>Rank {state.entry.rankLabel}</span>
-                  <span>Buy {state.entry.buyPrice}</span>
-                  <span>Trade start {state.entry.startPrice}</span>
-                  <span>Step +{state.entry.priceStep}</span>
-                  <span className="font-medium text-foreground">Route total {state.totalBuy + state.totalExchange}</span>
-                </div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">{state.totalExchange} × {state.entry.buyPrice}¢ = {state.totalBuy}¢ total &nbsp;·&nbsp; used {state.used}×</div>
               </div>
             ))}
           </div>
@@ -636,6 +653,7 @@ export default function EquipmentExchangeCalculator() {
         <details className="rounded-md border border-border bg-background/40">
           <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-foreground">Show per-trade route</summary>
           <div className="border-t border-border px-3 py-2">
+            <p className="mb-2 text-[11px] text-muted-foreground">Each line is one exchange. You buy that many copies of the item, then trade them all for 1 Kairo weapon.</p>
             <div className="grid gap-1">
               {route.picks.map((pick, index) => (
                 <div key={`${pick.item}-${index}`} className="flex items-center justify-between gap-3 text-xs">
@@ -643,7 +661,7 @@ export default function EquipmentExchangeCalculator() {
                     {index + 1}. {pick.item}
                   </span>
                   <span className="shrink-0 tabular-nums text-muted-foreground">
-                    buy {pick.buyCost} + trade {pick.tradeCost} = {pick.totalCost}
+                    {pick.tradeCost} × {pick.buyCost}¢ = <span className="font-medium text-foreground">{pick.totalCost}¢</span>
                   </span>
                 </div>
               ))}
@@ -671,32 +689,96 @@ export default function EquipmentExchangeCalculator() {
             </div>
           </div>
 
+          <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Rank:</span>
+              {RANK_TOGGLES.map((rank) => (
+                <button
+                  key={rank}
+                  type="button"
+                  onClick={() => setSourceRankFilters((prev) => { const next = new Set(prev); next.has(rank) ? next.delete(rank) : next.add(rank); return next; })}
+                  className={`rounded-md border px-2 py-0.5 text-xs font-medium transition-colors ${
+                    sourceRankFilters.has(rank) ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"
+                  }`}
+                >
+                  {rank}
+                </button>
+              ))}
+              {sourceRankFilters.size > 0 && (
+                <button type="button" onClick={() => setSourceRankFilters(new Set())} className="text-[10px] text-muted-foreground hover:text-foreground underline">clear</button>
+              )}
+            </div>
+            <div className="relative flex items-center gap-1" ref={givesDropdownRef}>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Gives:</span>
+              <button
+                type="button"
+                onClick={() => setGivesDropdownOpen((o) => !o)}
+                className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-xs font-medium hover:bg-muted"
+              >
+                {sourceGivesFilters.size === 0
+                  ? "All"
+                  : sourceGivesFilters.size === 1
+                  ? [...sourceGivesFilters][0].replace("A/ ", "")
+                  : `${[...sourceGivesFilters][0].replace("A/ ", "")} +${sourceGivesFilters.size - 1}`}
+                <svg className="h-3 w-3 opacity-60" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              {sourceGivesFilters.size > 0 && (
+                <button type="button" onClick={() => setSourceGivesFilters(new Set())} className="text-[10px] text-muted-foreground hover:text-foreground underline">clear</button>
+              )}
+              {givesDropdownOpen && (
+                <div
+                  className="absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-md border border-border bg-popover shadow-md"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  {KAIRO_OUTPUTS.map((output) => (
+                    <label
+                      key={output}
+                      className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 accent-primary"
+                        checked={sourceGivesFilters.has(output)}
+                        onChange={() => setSourceGivesFilters((prev) => { const next = new Set(prev); next.has(output) ? next.delete(output) : next.add(output); return next; })}
+                      />
+                      {output.replace("A/ ", "")}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full min-w-[840px] border-collapse text-xs">
+            <table className="w-full min-w-[480px] sm:min-w-[840px] border-collapse text-xs">
               <thead className="bg-muted/40 text-muted-foreground">
                 <tr>
+                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">#</th>
                   <th className="px-3 py-2 text-left font-medium">Item</th>
                   <th className="px-3 py-2 text-left font-medium">Rank</th>
+                  <th className="px-3 py-2 text-left font-medium">Gives</th>
                   <th className="px-3 py-2 text-right font-medium">Buy price</th>
                   <th className="px-3 py-2 text-right font-medium">Start trade price</th>
-                  <th className="px-3 py-2 text-right font-medium">Step</th>
+                  <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">Step</th>
                   <th className="px-3 py-2 text-right font-medium">Your current trade</th>
-                  <th className="px-3 py-2 text-right font-medium">Buy + this trade</th>
+                  <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">Total copper cost</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredEntries.map((entry) => {
+                {filteredEntries.map((entry, index) => {
                   const raw = currentPriceInputs[entry.inputId] ?? String(entry.startPrice);
                   const parsed = Number(raw);
                   const isValid = raw.trim() === "" || isValidTradeValue(parsed, entry.startPrice, entry.priceStep);
                   const current = isValid && raw.trim() !== "" ? parsed : entry.startPrice;
                   return (
                     <tr key={entry.inputId} className="border-t border-border">
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{index + 1}</td>
                       <td className="px-3 py-2 font-medium">{entry.inputName}</td>
                       <td className="px-3 py-2 text-muted-foreground">{entry.rankLabel}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{entry.outputName.replace("A/ ", "")}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{entry.buyPrice}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{entry.startPrice}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">+{entry.priceStep}</td>
+                      <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">+{entry.priceStep}</td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1">
                           <button
@@ -716,7 +798,7 @@ export default function EquipmentExchangeCalculator() {
                                 [entry.inputId]: e.target.value.replace(/[^0-9]/g, ""),
                               }))
                             }
-                            className={`h-8 min-w-[88px] text-right tabular-nums ${isValid ? "" : "border-red-500"}`}
+                            className={`h-8 w-14 text-right tabular-nums ${isValid ? "" : "border-red-500"}`}
                           />
                           <button
                             type="button"
@@ -732,7 +814,7 @@ export default function EquipmentExchangeCalculator() {
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">{entry.buyPrice + current}</td>
+                      <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{current * entry.buyPrice}</td>
                     </tr>
                   );
                 })}

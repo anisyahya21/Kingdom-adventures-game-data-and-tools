@@ -751,7 +751,7 @@ export const EQUIPMENT_CATALOG = [
   },
   {
     "id": 192,
-    "name": "B/ Legendary Shield",
+    "name": "B/ Legendary Shield (B)",
     "type": 11,
     "rank": 4,
     "rankLabel": "B",
@@ -761,7 +761,7 @@ export const EQUIPMENT_CATALOG = [
   },
   {
     "id": 198,
-    "name": "B/ Legendary Shield",
+    "name": "B/ Legendary Shield (R)",
     "type": 11,
     "rank": 4,
     "rankLabel": "B",
@@ -2091,7 +2091,7 @@ export const EQUIPMENT_CATALOG = [
   },
   {
     "id": 235,
-    "name": "E/ Hat",
+    "name": "E/ Hat (Blue)",
     "type": 13,
     "rank": 1,
     "rankLabel": "E",
@@ -2101,7 +2101,7 @@ export const EQUIPMENT_CATALOG = [
   },
   {
     "id": 237,
-    "name": "E/ Hat",
+    "name": "E/ Hat (Brown)",
     "type": 13,
     "rank": 1,
     "rankLabel": "E",
@@ -5251,6 +5251,19 @@ export const EQUIPMENT_EXCHANGE_ROWS = [
     "buyPrice": 3
   },
   {
+    "inputId": 17,
+    "inputName": "F/ Wooden Staff",
+    "inputType": 2,
+    "rank": 0,
+    "rankLabel": "F",
+    "outputId": 176,
+    "outputName": "A/ Kairo Gun",
+    "startPrice": 8,
+    "priceStep": 6,
+    "tradable": true,
+    "buyPrice": 3
+  },
+  {
     "inputId": 67,
     "inputName": "F/ Wooden Spear",
     "inputType": 4,
@@ -5837,7 +5850,7 @@ export const EQUIPMENT_EXCHANGE_ROWS = [
   },
   {
     "inputId": 235,
-    "inputName": "E/ Hat",
+    "inputName": "E/ Hat (Blue)",
     "inputType": 13,
     "rank": 1,
     "rankLabel": "E",
@@ -5850,7 +5863,7 @@ export const EQUIPMENT_EXCHANGE_ROWS = [
   },
   {
     "inputId": 237,
-    "inputName": "E/ Hat",
+    "inputName": "E/ Hat (Brown)",
     "inputType": 13,
     "rank": 1,
     "rankLabel": "E",
@@ -6084,7 +6097,7 @@ export const EQUIPMENT_EXCHANGE_ROWS = [
   },
   {
     "inputId": 192,
-    "inputName": "B/ Legendary Shield",
+    "inputName": "B/ Legendary Shield (B)",
     "inputType": 11,
     "rank": 4,
     "rankLabel": "B",
@@ -6097,7 +6110,7 @@ export const EQUIPMENT_EXCHANGE_ROWS = [
   },
   {
     "inputId": 198,
-    "inputName": "B/ Legendary Shield",
+    "inputName": "B/ Legendary Shield (R)",
     "inputType": 11,
     "rank": 4,
     "rankLabel": "B",

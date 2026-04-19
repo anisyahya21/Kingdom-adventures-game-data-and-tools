@@ -677,8 +677,8 @@ export default function EquipmentPage() {
   // Per-item levels (local, comparison table only)
   const [itemLevels, setItemLevels] = useState<Record<string, number>>({});
   const [bulkCompareLevel, setBulkCompareLevel] = useState(99);
-  const getItemLevel = (name: string) => itemLevels[name] ?? 1;
-  const setItemLevel = (name: string, v: number) => setItemLevels((prev) => ({ ...prev, [name]: Math.min(99, Math.max(1, v)) }));
+  const getItemLevel = (uid: string) => itemLevels[uid] ?? 1;
+  const setItemLevel = (uid: string, v: number) => setItemLevels((prev) => ({ ...prev, [uid]: Math.min(99, Math.max(1, v)) }));
 
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -806,7 +806,7 @@ export default function EquipmentPage() {
   const getItemStatVal = useCallback((item: EquipmentItem, stat: string) => {
     const base = getEffectiveStat(item, stat, "base", overrides);
     const inc = getEffectiveStat(item, stat, "inc", overrides);
-    return statAtLevel(base, inc, getItemLevel(item.name));
+    return statAtLevel(base, inc, getItemLevel(item.uid));
   }, [overrides, itemLevels]);
 
   const filtered = useMemo(() => {
@@ -853,7 +853,7 @@ export default function EquipmentPage() {
     const clamped = Math.min(99, Math.max(1, level));
     setItemLevels((prev) => {
       const next = { ...prev };
-      for (const item of filtered) next[item.name] = clamped;
+      for (const item of filtered) next[item.uid] = clamped;
       return next;
     });
   }, [filtered]);
@@ -862,7 +862,7 @@ export default function EquipmentPage() {
     const clamped = Math.min(99, Math.max(1, level));
     setItemLevels((prev) => {
       const next = { ...prev };
-      for (const item of items) next[item.name] = clamped;
+      for (const item of items) next[item.uid] = clamped;
       return next;
     });
   }, [items]);
@@ -1260,7 +1260,7 @@ export default function EquipmentPage() {
                     {filtered.length === 0 && <tr><td colSpan={colCount} className="text-center py-10 text-sm text-muted-foreground">No equipment found.</td></tr>}
                     {filtered.map((item) => {
                       const isExpanded = expandedItem === item.uid;
-                      const level = getItemLevel(item.name);
+                      const level = getItemLevel(item.uid);
                       const itemSlot = getItemSlot(item.name);
                       const isSelected = selectedUids.has(item.uid);
                       return (
@@ -1302,7 +1302,7 @@ export default function EquipmentPage() {
                             </td>
                             <td className="px-2 py-1.5">
                               <NumInput value={level} min={1} max={99}
-                                onChange={(v) => setItemLevel(item.name, v)}
+                                onChange={(v) => setItemLevel(item.uid, v)}
                                 className="h-7 w-14 text-xs text-center px-1 mx-auto bg-background border-border/70" />
                             </td>
                             <td className="px-2 py-1.5">
@@ -1421,7 +1421,7 @@ export default function EquipmentPage() {
               ) : (
                 filtered.map((item) => {
                   const isExpanded = expandedItem === item.uid;
-                  const level = getItemLevel(item.name);
+                  const level = getItemLevel(item.uid);
                   const itemSlot = getItemSlot(item.name);
                   const isSelected = selectedUids.has(item.uid);
 
@@ -1534,7 +1534,7 @@ export default function EquipmentPage() {
                               value={level}
                               min={1}
                               max={99}
-                              onChange={(v) => setItemLevel(item.name, v)}
+                              onChange={(v) => setItemLevel(item.uid, v)}
                               className="h-8 w-16 text-sm text-center px-1 bg-background border-border/70"
                             />
                           </div>
