@@ -11,6 +11,13 @@ const GUIDE_CARDS = [
     badge: "Guide",
     note: "Community guide",
   },
+  {
+    href: "/add-guide",
+    title: "Add your own guide",
+    description: "Create and submit your own community guide for Kingdom Adventures!",
+    badge: "Submit",
+    note: "Contribute a guide",
+  },
 ];
 
 export default function GuidesPage() {
