@@ -104,7 +104,7 @@ export const SYNC_REGISTRY: readonly SyncFeature[] = [
 
   {
     id: "equipment-shared",
-    route: "/equipment",
+    route: "/equipment-stats",
     mode: "remote-commit",
     scope: "community",
     readEndpoint: "/ka-api/ka/shared",

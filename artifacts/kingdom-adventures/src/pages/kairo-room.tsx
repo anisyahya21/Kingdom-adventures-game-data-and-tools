@@ -1,9 +1,17 @@
-import { CalendarDays, Wand2 } from "lucide-react";
+import { CalendarDays, ShieldAlert, Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { KAIRO_ROOM_DRAFTS } from "@/lib/en-event-drafts";
+import { KAIRO_ROOM_LOOT_GROUPS } from "@/lib/special-boss-loot";
 
 export default function KairoRoomPage() {
+  const weekdayByTitle = new Map(
+    KAIRO_ROOM_DRAFTS.filter((entry) => entry.active && entry.questName).map((entry) => [
+      entry.questName!.replace("'s Challenge", ""),
+      entry.day,
+    ]),
+  );
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="space-y-1">
@@ -12,7 +20,7 @@ export default function KairoRoomPage() {
           <h1 className="text-xl font-bold tracking-tight">Kairo Room</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          First-draft Kairo Room schedule showing active days, challenge names, and the equipment listed from the event box.
+          Weekly Kairo Room schedule plus cleaned mined loot tables for each challenge and difficulty.
         </p>
       </div>
 
@@ -41,7 +49,7 @@ export default function KairoRoomPage() {
                     <div className="text-sm font-medium text-foreground">{entry.questName}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground mb-2">Equipment from box</div>
+                    <div className="text-xs text-muted-foreground mb-2">Main equipment from box</div>
                     <div className="flex flex-wrap gap-2">
                       {entry.equipmentFromBox.map((item) => (
                         <Badge key={item} variant="secondary" className="text-xs">
@@ -60,6 +68,73 @@ export default function KairoRoomPage() {
           </Card>
         ))}
       </div>
+
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-primary" />
+            Loot tables
+          </CardTitle>
+          <CardDescription>
+            Resolved from mined SpecialBoss and Treasure lookup data, then reformatted into readable drop tables.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {KAIRO_ROOM_LOOT_GROUPS.map((group) => (
+            <div key={group.title} className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-semibold">{group.title}</h2>
+                <Badge variant="outline">{weekdayByTitle.get(group.title) ?? "Event day"}</Badge>
+              </div>
+              <div className="grid gap-3 lg:grid-cols-2">
+                {group.encounters.map((encounter) => (
+                  <div key={`${group.title}-${encounter.difficulty}`} className="rounded-lg border p-3 space-y-3">
+                    <div>
+                      <div className="font-medium text-sm">{encounter.difficulty}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Lv {encounter.level} encounter • Boss Lv {encounter.bossLevel}
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {encounter.tables.map((table, index) => (
+                        <div key={index} className="overflow-hidden rounded-md border">
+                          <div className="bg-muted/40 px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                            Loot table {index + 1}
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead className="bg-muted/20 text-muted-foreground">
+                                <tr>
+                                  <th className="px-3 py-2 text-left font-medium">Item</th>
+                                  <th className="px-3 py-2 text-left font-medium">Quantity</th>
+                                  <th className="px-3 py-2 text-left font-medium">Rarity</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {table.map((line) => (
+                                  <tr key={`${index}-${line.item}`} className="border-t border-border/60">
+                                    <td className="px-3 py-2 text-foreground">{line.item}</td>
+                                    <td className="px-3 py-2 text-muted-foreground">{line.quantity}</td>
+                                    <td className="px-3 py-2">
+                                      <Badge variant="secondary" className="font-mono text-[11px]">
+                                        {line.chance}
+                                      </Badge>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }

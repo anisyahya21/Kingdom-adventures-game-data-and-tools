@@ -11,6 +11,8 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import MarriageMatcher from "@/pages/marriage-matcher";
 import EquipmentPage from "@/pages/equipment";
+import EquipmentExchangePage from "@/pages/equipment-exchange";
+import EquipmentStatsExchangePage from "@/pages/equipment-stats-exchange";
 import MonstersPage from "@/pages/monsters";
 import JobsPage from "@/pages/jobs";
 import SkillsPage from "@/pages/skills";
@@ -131,7 +133,7 @@ function SiteHeader() {
     );
 
     Object.keys(shared.overrides ?? {}).forEach((name) => {
-      entries.push({ label: name, subtitle: "Equipment Database", href: "/equipment" });
+      entries.push({ label: name, subtitle: "Equipment Database", href: "/equipment-stats" });
     });
 
     FURNITURE_SEARCH_ROWS.forEach((name) =>
@@ -159,7 +161,7 @@ function SiteHeader() {
       children: [
         { href: "/", label: "Home" },
         { href: "/jobs", label: "Jobs" },
-        { href: "/equipment", label: "Equipment" },
+        { href: "/equipment", label: "Equipment Stats & Exchange" },
         { href: "/skills", label: "Skills" },
         { href: "/loadout", label: "Loadout Builder" },
         { href: "/match-finder", label: "Match Finder" },
@@ -172,6 +174,14 @@ function SiteHeader() {
       title: "Guides",
       primary: { href: "/guides", label: "Guides" },
       children: [{ href: "/playthrough-guide", label: "Playthrough Guide by Jaza" }],
+    },
+    {
+      title: "Equipment",
+      primary: { href: "/equipment", label: "Equipment Stats & Exchange" },
+      children: [
+        { href: "/equipment-stats", label: "Equipment Stats" },
+        { href: "/equipment-exchange", label: "Equipment Exchange" },
+      ],
     },
     {
       title: "Eggs, Pets & Monsters",
@@ -367,7 +377,9 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/match-finder" component={MarriageMatcher} />
-      <Route path="/equipment" component={EquipmentPage} />
+      <Route path="/equipment" component={EquipmentStatsExchangePage} />
+      <Route path="/equipment-stats" component={EquipmentPage} />
+      <Route path="/equipment-exchange" component={EquipmentExchangePage} />
       <Route path="/monsters" component={MonstersPage} />
       <Route path="/weekly-conquest" component={WeeklyConquestPage} />
       <Route path="/jobs" component={JobsPage} />

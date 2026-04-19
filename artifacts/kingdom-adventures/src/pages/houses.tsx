@@ -1,11 +1,17 @@
 ﻿import { useState } from "react";
 import { Home, Search } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { useSearch } from "wouter";
+import { Link, useSearch } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MaterialIcon } from "@/lib/material-icons";
+import {
+  EQUIPMENT_EXCHANGE_ENTRIES,
+  EQUIPMENT_EXCHANGE_OUTPUTS,
+  KairoEquipmentName,
+  rankLabel,
+} from "@/lib/equipment-exchange";
 
 // -- Data (from KA GameData - House.csv) --------------------------------------
 //
@@ -1189,6 +1195,13 @@ const FACILITIES: Facility[] = [
     minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
 ];
 
+const FACILITY_PAGE_ROUTES: Partial<Record<number, string>> = {
+  168: "/weekly-conquest",
+  174: "/job-center",
+  180: "/kairo-room",
+  200: "/equipment-exchange",
+};
+
 function CostPills({ b }: { b: Building }) {
   const parts = COST_ICONS.filter(c => (b[c.field] as number) > 0);
   if (parts.length === 0)
@@ -1487,10 +1500,278 @@ function FacilityCosts({ g, w, f, o, m }: { g: number; w: number; f: number; o: 
   );
 }
 
+function EquipmentExchangeCalculator() {
+  const [target, setTarget] = useState<KairoEquipmentName>("A/ Kairo Gun");
+  const [targetCount, setTargetCount] = useState(10);
+  const [sourceQuery, setSourceQuery] = useState("");
+  const [currentPrices, setCurrentPrices] = useState<Record<number, number>>({});
+
+  const entries = useMemo(
+    () => EQUIPMENT_EXCHANGE_ENTRIES.filter((entry) => entry.outputName === target),
+    [target],
+  );
+
+  const filteredEntries = useMemo(() => {
+    const q = sourceQuery.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter((entry) => entry.inputName.toLowerCase().includes(q));
+  }, [entries, sourceQuery]);
+
+  const route = useMemo(() => {
+    const states = entries.map((entry) => ({
+      entry,
+      currentExchange: Math.max(0, currentPrices[entry.inputId] ?? entry.startPrice),
+      used: 0,
+      totalCoin: 0,
+      totalExchange: 0,
+    }));
+
+    const picks: Array<{ item: string; tradeCost: number; copperCost: number; combinedCost: number }> = [];
+    let totalCoin = 0;
+    let totalExchange = 0;
+
+    for (let i = 0; i < targetCount; i += 1) {
+      let best = states[0];
+      let bestCombined = Number.POSITIVE_INFINITY;
+      for (const state of states) {
+        const combined = state.entry.copperCoinPrice + state.currentExchange;
+        if (
+          combined < bestCombined ||
+          (combined === bestCombined && state.currentExchange < best.currentExchange) ||
+          (combined === bestCombined && state.currentExchange === best.currentExchange && state.entry.inputName < best.entry.inputName)
+        ) {
+          best = state;
+          bestCombined = combined;
+        }
+      }
+
+      best.used += 1;
+      best.totalCoin += best.entry.copperCoinPrice;
+      best.totalExchange += best.currentExchange;
+      totalCoin += best.entry.copperCoinPrice;
+      totalExchange += best.currentExchange;
+      picks.push({
+        item: best.entry.inputName,
+        tradeCost: best.currentExchange,
+        copperCost: best.entry.copperCoinPrice,
+        combinedCost: best.entry.copperCoinPrice + best.currentExchange,
+      });
+      best.currentExchange += best.entry.priceStep;
+    }
+
+    const usedEntries = states
+      .filter((state) => state.used > 0)
+      .sort((a, b) => {
+        if (b.used !== a.used) return b.used - a.used;
+        return a.entry.inputName.localeCompare(b.entry.inputName);
+      });
+
+    return {
+      totalCoin,
+      totalExchange,
+      totalCombined: totalCoin + totalExchange,
+      usedEntries,
+      picks,
+    };
+  }, [currentPrices, entries, targetCount]);
+
+  const setCurrentPrice = (inputId: number, value: number) => {
+    setCurrentPrices((prev) => ({ ...prev, [inputId]: Math.max(0, value) }));
+  };
+
+  const resetVisible = () => {
+    setCurrentPrices((prev) => {
+      const next = { ...prev };
+      for (const entry of entries) {
+        delete next[entry.inputId];
+      }
+      return next;
+    });
+  };
+
+  return (
+    <div className="space-y-4 rounded-lg border border-teal-500/20 bg-teal-500/5 p-3">
+      <div className="space-y-1">
+        <h4 className="text-sm font-semibold">Equipment Exchange Calculator</h4>
+        <p className="text-xs text-muted-foreground">
+          Decoded from the mined exchange table: each tradable equipment item has its own starting exchange price and its own increase per trade.
+          The cheapest route can mix different source items, so this calculator picks the lowest live cost step-by-step.
+        </p>
+      </div>
+
+      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
+        Enter your current live exchange price for any source item you have checked in-game. If you leave a row untouched, it uses the mined starting price.
+        The copper column uses the mined copper coin value from the equipment sheet.
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_120px]">
+        <div className="space-y-1">
+          <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Target Kairo piece</label>
+          <div className="flex flex-wrap gap-2">
+            {EQUIPMENT_EXCHANGE_OUTPUTS.map((output) => (
+              <button
+                key={output}
+                type="button"
+                onClick={() => setTarget(output)}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  target === output
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background hover:bg-muted"
+                }`}
+              >
+                {output}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">How many needed</label>
+          <Input
+            type="number"
+            min={1}
+            value={targetCount}
+            onChange={(e) => setTargetCount(Math.max(1, Number(e.target.value) || 1))}
+            className="h-9"
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="p-3">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Copper total</div>
+            <div className="mt-1 text-lg font-semibold tabular-nums">{route.totalCoin}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Exchange total</div>
+            <div className="mt-1 text-lg font-semibold tabular-nums">{route.totalExchange}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Combined total</div>
+            <div className="mt-1 text-lg font-semibold tabular-nums">{route.totalCombined}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Best route summary</h5>
+          <div className="text-xs text-muted-foreground">
+            {route.usedEntries.length} source item{route.usedEntries.length === 1 ? "" : "s"} used
+          </div>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2">
+          {route.usedEntries.map((state) => (
+            <div key={state.entry.inputId} className="rounded-md border border-border bg-background/60 px-3 py-2 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium">{state.entry.inputName}</span>
+                <span className="tabular-nums text-muted-foreground">×{state.used}</span>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
+                <span>Rank {rankLabel(state.entry.inputName)}</span>
+                <span>Copper {state.entry.copperCoinPrice}</span>
+                <span>Start {state.entry.startPrice}</span>
+                <span>+{state.entry.priceStep} each</span>
+                <span className="font-medium text-foreground">Total {state.totalCoin + state.totalExchange}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <details className="rounded-md border border-border bg-background/40">
+        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-foreground">
+          Show per-trade route
+        </summary>
+        <div className="border-t border-border px-3 py-2">
+          <div className="grid gap-1">
+            {route.picks.map((pick, index) => (
+              <div key={`${pick.item}-${index}`} className="flex items-center justify-between gap-3 text-xs">
+                <span className="truncate">
+                  {index + 1}. {pick.item}
+                </span>
+                <span className="shrink-0 tabular-nums text-muted-foreground">
+                  copper {pick.copperCost} + exchange {pick.tradeCost} = {pick.combinedCost}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </details>
+
+      <div className="space-y-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Source items</h5>
+          <div className="flex gap-2 sm:items-center">
+            <Input
+              value={sourceQuery}
+              onChange={(e) => setSourceQuery(e.target.value)}
+              placeholder="Filter source items"
+              className="h-8 text-xs sm:w-48"
+            />
+            <button
+              type="button"
+              onClick={resetVisible}
+              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+            >
+              Reset current prices
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-md border border-border">
+          <table className="w-full min-w-[680px] border-collapse text-xs">
+            <thead className="bg-muted/40 text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">Item</th>
+                <th className="px-3 py-2 text-left font-medium">Rank</th>
+                <th className="px-3 py-2 text-right font-medium">Copper</th>
+                <th className="px-3 py-2 text-right font-medium">Mined start</th>
+                <th className="px-3 py-2 text-right font-medium">Step</th>
+                <th className="px-3 py-2 text-right font-medium">Your current trade</th>
+                <th className="px-3 py-2 text-right font-medium">Next total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEntries.map((entry) => {
+                const current = currentPrices[entry.inputId] ?? entry.startPrice;
+                return (
+                  <tr key={entry.inputId} className="border-t border-border">
+                    <td className="px-3 py-2 font-medium">{entry.inputName}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{rankLabel(entry.inputName)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{entry.copperCoinPrice}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{entry.startPrice}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">+{entry.priceStep}</td>
+                    <td className="px-3 py-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        value={current}
+                        onChange={(e) => setCurrentPrice(entry.inputId, Number(e.target.value) || 0)}
+                        className="h-8 text-right tabular-nums"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">{entry.copperCoinPrice + current}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facility; timeDiscount?: number; resourceDiscount?: number }) {
   const [level, setLevel] = useState(0);
   const MAX_LEVEL = 99; // max upgrade level is 100; slider 0..99 = lv1..lv100
   const displayLevel = level + 1;
+  const facilityRoute = FACILITY_PAGE_ROUTES[f.id];
 
   function interp(lv1: number, maxV: number) {
     if (lv1 === 0 && maxV === 0) return 0;
@@ -1518,6 +1799,13 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
       <CardHeader className="pb-2 pt-4 px-4">
         <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-sm font-semibold leading-tight">{f.name}</CardTitle>
+            {facilityRoute && (
+              <Link href={facilityRoute}>
+                <Badge variant="outline" className="cursor-pointer text-[10px] bg-primary/10 text-primary border-primary/30 hover:bg-primary/15">
+                  Open page
+                </Badge>
+              </Link>
+            )}
         </div>
         {(f.canUpgrade || f.validRange > 0 || f.mapUnlock !== undefined) && (
           <div className="flex flex-wrap gap-1 mt-1">

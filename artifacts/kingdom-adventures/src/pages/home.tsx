@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link } from "wouter";
 import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, Egg, Store, Home as HomeIcon, CalendarDays, BookMarked } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 
 import srcHome from "./home.tsx?raw";
 import srcEquipment from "./equipment.tsx?raw";
@@ -185,10 +187,10 @@ const BUILT_IN_TOOLS = [
   },
   {
     slug: "/equipment",
-    title: "Equipment Stats",
-    description: "Browse and compare equipment stats at any level.",
+    title: "Equipment Stats & Exchange",
+    description: "Open the equipment hub for stats browsing and the exchange calculator.",
     icon: <Sword className="w-6 h-6 text-amber-500" />,
-    badge: "Stats",
+    badge: "Equipment",
     badgeColor: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300",
   },
   {
@@ -257,6 +259,207 @@ const BUILT_IN_TOOLS = [
   },
 ];
 
+const HOME_WARIO_SCHEDULE = [
+  { day: 1, hour: 9 }, { day: 1, hour: 13 }, { day: 1, hour: 18 }, { day: 2, hour: 15 }, { day: 2, hour: 23 },
+  { day: 3, hour: 12 }, { day: 3, hour: 17 }, { day: 4, hour: 19 }, { day: 5, hour: 21 }, { day: 5, hour: 6 },
+  { day: 6, hour: 8 }, { day: 7, hour: 12 }, { day: 8, hour: 14 }, { day: 9, hour: 19 }, { day: 10, hour: 22 },
+  { day: 11, hour: 21 }, { day: 12, hour: 16 }, { day: 13, hour: 11 }, { day: 14, hour: 19 }, { day: 15, hour: 20 },
+  { day: 16, hour: 8 }, { day: 17, hour: 16 }, { day: 18, hour: 20 }, { day: 19, hour: 22 }, { day: 20, hour: 1 },
+  { day: 21, hour: 17 }, { day: 22, hour: 16 }, { day: 23, hour: 19 }, { day: 24, hour: 11 }, { day: 25, hour: 23 },
+  { day: 26, hour: 0 }, { day: 27, hour: 11 }, { day: 28, hour: 16 }, { day: 29, hour: 14 }, { day: 30, hour: 15 },
+  { day: 30, hour: 22 }, { day: 31, hour: 10 }, { day: 31, hour: 21 },
+] as const;
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "Live now";
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+function toJstDate(year: number, monthIndex: number, day: number, hour: number): Date {
+  return new Date(Date.UTC(year, monthIndex, day, hour - 9, 0, 0, 0));
+}
+
+function getNextWarioSpawn(now: Date): Date | null {
+  const bases = [
+    new Date(now.getFullYear(), now.getMonth(), 1),
+    new Date(now.getFullYear(), now.getMonth() + 1, 1),
+  ];
+  const candidates = bases.flatMap((base) =>
+    HOME_WARIO_SCHEDULE
+      .map((entry) => toJstDate(base.getFullYear(), base.getMonth(), entry.day, entry.hour))
+      .filter((date) => date.getMonth() === base.getMonth() && date.getTime() > now.getTime())
+  );
+  return candidates.sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+}
+
+function resolveRepeatingWindow(now: Date, startMonth: number, startDay: number, endMonth: number, endDay: number) {
+  const build = (year: number) => ({
+    startAt: new Date(year, startMonth - 1, startDay, 0, 0, 0, 0),
+    endAt: new Date(year, endMonth - 1, endDay, 23, 59, 59, 999),
+  });
+  const windows = [build(now.getFullYear() - 1), build(now.getFullYear()), build(now.getFullYear() + 1)];
+  return windows.find((window) => window.startAt <= now && now <= window.endAt)
+    ?? windows.filter((window) => window.startAt > now).sort((a, b) => a.startAt.getTime() - b.startAt.getTime())[0]
+    ?? windows[1];
+}
+
+function HomeCountdownBanner() {
+  const [now, setNow] = useState(() => new Date());
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const rotate = window.setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % 3);
+    }, 4500);
+    return () => window.clearInterval(rotate);
+  }, []);
+
+  const weeklyQuery = useQuery({
+    queryKey: ["home-weekly-conquest-banner"],
+    queryFn: () => fetchAutomaticWeeklyConquestTimeline(undefined, 1),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const weeklyCurrent = weeklyQuery.data?.entries.find((entry) => entry.id === weeklyQuery.data?.currentId) ?? null;
+  const nextWario = useMemo(() => getNextWarioSpawn(now), [now]);
+  const facilityWindow = useMemo(() => resolveRepeatingWindow(now, 4, 28, 4, 30), [now]);
+  const facilityActive = facilityWindow.startAt <= now && now <= facilityWindow.endAt;
+
+  const cards = [
+    {
+      href: "/wario-dungeon",
+      title: "Wario Dungeon",
+      subtitle: nextWario
+        ? `${nextWario.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+        : "No upcoming spawn found",
+      countdown: nextWario ? formatCountdown(nextWario.getTime() - now.getTime()) : "Unavailable",
+      status: nextWario ? "Next spawn" : "Schedule",
+    },
+    {
+      href: "/gacha-events",
+      title: "Next Facility S Rank Gacha",
+      subtitle: facilityActive
+        ? `Live until ${facilityWindow.endAt.toLocaleDateString([], { month: "short", day: "numeric" })}`
+        : `${facilityWindow.startAt.toLocaleDateString([], { month: "short", day: "numeric" })} - ${facilityWindow.endAt.toLocaleDateString([], { month: "short", day: "numeric" })}`,
+      countdown: formatCountdown((facilityActive ? facilityWindow.endAt : facilityWindow.startAt).getTime() - now.getTime()),
+      status: facilityActive ? "Ends in" : "Starts in",
+    },
+    {
+      href: "/weekly-conquest",
+      title: "Weekly Conquest",
+      subtitle: weeklyCurrent ? weeklyCurrent.name : "Loading current rotation",
+      countdown: weeklyCurrent ? formatCountdown(weeklyCurrent.endsAt - now.getTime()) : "Loading",
+      status: weeklyCurrent ? "Ends in" : "Timer",
+    },
+  ];
+
+  const activeCard = cards[activeIndex] ?? cards[0];
+
+  return (
+    <div className="rounded-2xl border p-4 sm:p-5 bg-muted/20">
+      <div className="flex items-center gap-2 mb-3">
+        <CalendarDays className="w-5 h-5 text-primary" />
+        <div>
+          <div className="font-semibold xl:text-base text-sm">Event Timers</div>
+          <div className="hidden xl:block text-sm text-muted-foreground">Live countdowns for current and upcoming event windows.</div>
+        </div>
+      </div>
+
+      <div className="xl:hidden">
+        <Link href={activeCard.href}>
+          <Card className="cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors">
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-medium text-sm leading-tight">{activeCard.title}</div>
+                <Badge variant="outline" className="text-[10px] shrink-0">{activeCard.status}</Badge>
+              </div>
+              <div className="text-2xl font-semibold tabular-nums leading-none">{activeCard.countdown}</div>
+              <div className="text-xs text-muted-foreground leading-relaxed">{activeCard.subtitle}</div>
+              <div className="flex items-center gap-2 pt-1">
+                {cards.map((card, index) => (
+                  <button
+                    key={card.title}
+                    type="button"
+                    aria-label={`Show ${card.title}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setActiveIndex(index);
+                    }}
+                    className={`h-2 rounded-full transition-all ${index === activeIndex ? "w-6 bg-primary" : "w-2 bg-muted-foreground/35 hover:bg-muted-foreground/60"}`}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      <div className="hidden xl:block">
+        <Link href={activeCard.href}>
+          <Card className="cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-medium">{activeCard.title}</div>
+                <Badge variant="outline" className="text-[10px]">{activeCard.status}</Badge>
+              </div>
+              <div className="text-3xl font-semibold tabular-nums leading-tight">{activeCard.countdown}</div>
+              <div className="text-sm text-muted-foreground leading-relaxed">{activeCard.subtitle}</div>
+              <div className="flex items-center gap-2 pt-1">
+                {cards.map((card, index) => (
+                  <button
+                    key={card.title}
+                    type="button"
+                    aria-label={`Show ${card.title}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setActiveIndex(index);
+                    }}
+                    className={`h-2.5 rounded-full transition-all ${index === activeIndex ? "w-7 bg-primary" : "w-2.5 bg-muted-foreground/35 hover:bg-muted-foreground/60"}`}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function HomeWorldMapCard({ compact = false }: { compact?: boolean }) {
+  return (
+    <Link href="/world-map">
+      <Card className="cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors h-full">
+        <CardContent className={compact ? "p-3 space-y-2" : "p-4 space-y-3"}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className={compact ? "font-medium text-sm" : "font-medium"}>World map (Beta)</div>
+            <Badge variant="outline" className="text-[10px]">Beta</Badge>
+            {!compact && <Badge variant="outline" className="text-[10px]">Experimental</Badge>}
+          </div>
+          <div className={compact ? "text-xs text-muted-foreground leading-relaxed" : "text-sm text-muted-foreground leading-relaxed"}>
+            Tile map planner with hover info on PC, tap info on mobile, and tool/highlight/deployment modes.
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
 }
@@ -298,31 +501,17 @@ export default function Home() {
           </div>
         </div>
 
-        <Link href="/world-map">
-          <button className="w-full text-left rounded-2xl border p-4 mb-8 hover:bg-muted/40">
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="font-semibold">World map (Beta)</div>
-              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-orange-400 border-orange-400">Beta</span>
-              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">Experimental</span>
-            </div>
-            <div className="mt-2 text-sm opacity-75">
-              Tile map planner with hover info on PC, tap info on mobile, and tool/highlight/deployment modes.
-            </div>
-          </button>
-        </Link>
+        <div className="mb-8 xl:pr-[24rem]">
+          <div className="grid grid-cols-2 gap-3 xl:hidden">
+            <HomeCountdownBanner />
+            <HomeWorldMapCard compact />
+          </div>
+        </div>
 
-        <Link href="/map-2-testing">
-          <button className="w-full text-left rounded-2xl border p-4 mb-8 hover:bg-muted/40">
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="font-semibold">Map 2 Testing</div>
-              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium text-orange-400 border-orange-400">Beta</span>
-              <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium">Testing</span>
-            </div>
-            <div className="mt-2 text-sm opacity-75">
-              Safe duplicate of the World Map page for experimenting with MapChip, Terrain, Survey, Map, and full-map integration.
-            </div>
-          </button>
-        </Link>
+        <div className="hidden xl:block fixed right-6 top-28 w-[320px] 2xl:right-10 z-20 space-y-4">
+          <HomeCountdownBanner />
+          <HomeWorldMapCard />
+        </div>
 
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tools</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">

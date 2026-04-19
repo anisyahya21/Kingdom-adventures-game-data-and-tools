@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clock3 } from "lucide-react";
+import { Clock3, ShieldAlert } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
 
 type WarioDungeonEntry = { day: number; hour: number };
 type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
@@ -99,7 +101,7 @@ export default function WarioDungeonPage() {
           <h1 className="text-xl font-bold tracking-tight">Wario Dungeon</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Monthly dungeon spawn windows grouped under Events. Each dungeon lasts 1 hour.
+          Monthly dungeon spawn windows plus cleaned mined loot tables for the Wairo raid chain.
         </p>
       </div>
 
@@ -107,30 +109,63 @@ export default function WarioDungeonPage() {
         <Card>
           <CardContent className="p-4 space-y-4">
             <div className="space-y-1">
-              <div className="font-semibold">Wario Dungeon schedule</div>
+              <div className="flex items-center gap-2 font-semibold">
+                <ShieldAlert className="w-4 h-4 text-primary" />
+                Loot tables
+              </div>
               <div className="text-sm text-muted-foreground">
-                Spawn times are shown in your local time based on the source schedule.
+                Resolved from mined SpecialBoss and Treasure lookup data, then reformatted into readable drop tables.
+              </div>
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                Each Wairo fight has 2 loot tables because the mined data contains 2 separate reward sets for the same encounter.
+                Think of them as 2 possible reward pools tied to that stage, not 2 guaranteed drops at once.
               </div>
             </div>
-            <div className="space-y-2">
-              {scheduleByDay.map(({ day, entries }) => {
-                const firstEntry = entries[0];
-                const isPast = entries.every((entry) => entry.endsAt.getTime() <= now.getTime());
-                const isActive = entries.some((entry) => entry.startsAt.getTime() <= now.getTime() && now.getTime() < entry.endsAt.getTime());
-                return (
-                  <div key={day} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${isActive ? "border-green-500/40 bg-green-500/5" : ""}`}>
-                    <div>
-                      <div className="font-medium">Day {day} - {firstEntry.startsAt.toLocaleString([], { weekday: "short" })}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {entries.map((entry) => entry.startsAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })).join(" - ")}
-                      </div>
-                    </div>
-                    <div className={`text-right text-xs ${isPast ? "text-muted-foreground" : ""}`}>
-                      {isActive ? <div className="font-medium text-green-600 dark:text-green-400">Live now</div> : isPast ? <div>Ended</div> : <div className="font-medium">Upcoming</div>}
+
+            <div className="grid gap-3 lg:grid-cols-2">
+              {WAIRO_DUNGEON_LOOT_GROUP.encounters.map((encounter) => (
+                <div key={encounter.difficulty} className="rounded-lg border p-3 space-y-3">
+                  <div>
+                    <div className="font-medium text-sm">{encounter.difficulty}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Lv {encounter.level} encounter • Boss Lv {encounter.bossLevel}
                     </div>
                   </div>
-                );
-              })}
+                  <div className="space-y-3">
+                    {encounter.tables.map((table, index) => (
+                      <div key={index} className="overflow-hidden rounded-md border">
+                        <div className="bg-muted/40 px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          Loot table {index + 1}
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead className="bg-muted/20 text-muted-foreground">
+                              <tr>
+                                <th className="px-3 py-2 text-left font-medium">Item</th>
+                                <th className="px-3 py-2 text-left font-medium">Quantity</th>
+                                <th className="px-3 py-2 text-left font-medium">Rarity</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {table.map((line) => (
+                                <tr key={`${index}-${line.item}`} className="border-t border-border/60">
+                                  <td className="px-3 py-2 text-foreground">{line.item}</td>
+                                  <td className="px-3 py-2 text-muted-foreground">{line.quantity}</td>
+                                  <td className="px-3 py-2">
+                                    <Badge variant="secondary" className="font-mono text-[11px]">
+                                      {line.chance}
+                                    </Badge>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -154,16 +189,43 @@ export default function WarioDungeonPage() {
               )}
             </CardContent>
           </Card>
-
-          <Card>
-            <CardContent className="p-4 space-y-2 text-sm text-muted-foreground">
-              <div className="font-semibold text-foreground">Notes</div>
-              <div>The first day of the month has three spawns in the source data.</div>
-              <div>Days 30 and 31 can also have multiple spawns when those dates exist in the month.</div>
-            </CardContent>
-          </Card>
         </div>
       </div>
+
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="space-y-1">
+            <div className="font-semibold">Wario Dungeon schedule</div>
+            <div className="text-sm text-muted-foreground">
+              Spawn times are shown in your local time based on the source schedule.
+            </div>
+          </div>
+          <div className="space-y-2">
+            {scheduleByDay.map(({ day, entries }) => {
+              const firstEntry = entries[0];
+              const isPast = entries.every((entry) => entry.endsAt.getTime() <= now.getTime());
+              const isActive = entries.some((entry) => entry.startsAt.getTime() <= now.getTime() && now.getTime() < entry.endsAt.getTime());
+              return (
+                <div key={day} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${isActive ? "border-green-500/40 bg-green-500/5" : ""}`}>
+                  <div>
+                    <div className="font-medium">Day {day} - {firstEntry.startsAt.toLocaleString([], { weekday: "short" })}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {entries.map((entry) => entry.startsAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })).join(" - ")}
+                    </div>
+                  </div>
+                  <div className={`text-right text-xs ${isPast ? "text-muted-foreground" : ""}`}>
+                    {isActive ? <div className="font-medium text-green-600 dark:text-green-400">Live now</div> : isPast ? <div>Ended</div> : <div className="font-medium">Upcoming</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <div>The first day of the month has three spawns in the source data.</div>
+            <div>Days 30 and 31 can also have multiple spawns when those dates exist in the month.</div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

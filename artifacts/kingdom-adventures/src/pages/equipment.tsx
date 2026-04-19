@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef, Fragment, useEffect, ChangeEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearch } from "wouter";
 
 import {
   ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
@@ -636,6 +637,7 @@ function exportData(shared: SharedState) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EquipmentPage() {
+  const locationSearch = useSearch();
   const { data: items = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery({ queryKey: ["equipment"], queryFn: fetchSheet, staleTime: 5 * 60 * 1000 });
   const { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, saveWeaponTypes, saveWeaponCategories, renameUser } = useShared();
   const { overrides, slotAssignments, equipIcons, statIcons } = shared;
@@ -691,6 +693,12 @@ export default function EquipmentPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(locationSearch);
+    const nextSearch = params.get("search");
+    if (nextSearch !== null) setSearch(nextSearch);
+  }, [locationSearch]);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) setOpenFilterMenu(null);
@@ -1722,7 +1730,6 @@ export default function EquipmentPage() {
     </div>
   );
 }
-
 
 
 

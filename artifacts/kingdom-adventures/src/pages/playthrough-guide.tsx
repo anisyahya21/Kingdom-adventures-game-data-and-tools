@@ -86,7 +86,7 @@ function buildGuideLinks(): GuideLink[] {
 
   Object.keys(shared.overrides ?? {}).forEach((name) => {
     if (/^[FSABCDE]\s*\/\s*/i.test(name)) {
-      add(name, `/equipment?search=${encodeURIComponent(name)}`);
+      add(name, `/equipment-stats?search=${encodeURIComponent(name)}`);
     }
   });
 
@@ -115,7 +115,7 @@ function buildGuideLinks(): GuideLink[] {
   });
 
   add("Master Smithy", "/houses?tab=facilities&facilityTab=map");
-  add("Novel", `/equipment?search=${encodeURIComponent("F/ Novel")}`);
+  add("Novel", `/equipment-stats?search=${encodeURIComponent("F/ Novel")}`);
   add("Weapon Shop", "/shops/weapon-shop");
   add("Weapons Shop", "/shops/weapon-shop");
   add("Armor Shop", "/shops/armor-shop");
@@ -129,13 +129,13 @@ function buildGuideLinks(): GuideLink[] {
   add("Armor", "/shops/armor-shop");
   add("Weekly Conquest", "/weekly-conquest");
   add("Friend Post Office", "/houses?tab=facilities&facilityTab=map&search=Friend%20Post%20Office");
-  add("Wooden Stick", "/equipment?search=Wooden%20Stick");
-  add("Magic Pendant", "/equipment?search=Magic%20Pendant");
-  add("Leather Armor", "/equipment?search=Leather%20Armor");
-  add("Mage's Hat", "/equipment?search=Mage%27s%20Hat");
-  add("Mage’s Hat", "/equipment?search=Mage%E2%80%99s%20Hat");
-  add("Lightning Staff", "/equipment?search=Lightning%20Staff");
-  add("Ninja Headband", "/equipment?search=Ninja%20Headband");
+  add("Wooden Stick", "/equipment-stats?search=Wooden%20Stick");
+  add("Magic Pendant", "/equipment-stats?search=Magic%20Pendant");
+  add("Leather Armor", "/equipment-stats?search=Leather%20Armor");
+  add("Mage's Hat", "/equipment-stats?search=Mage%27s%20Hat");
+  add("Mage’s Hat", "/equipment-stats?search=Mage%E2%80%99s%20Hat");
+  add("Lightning Staff", "/equipment-stats?search=Lightning%20Staff");
+  add("Ninja Headband", "/equipment-stats?search=Ninja%20Headband");
   add("Craftsmanship V", "/skills");
   add("Stove", "/houses?tab=facilities&search=Stove");
   add("Simple Stove", "/houses?tab=facilities&search=Simple%20Stove");

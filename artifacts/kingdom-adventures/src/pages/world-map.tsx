@@ -141,6 +141,7 @@ const OUTLINE_BORDER = "#2563eb";
 const PREVIEW_ORANGE = "rgba(251,146,60,0.95)";
 const DEFAULT_TILE_SIZE = 6;
 const MIN_TILE_SIZE = 5;
+const MOBILE_MIN_TILE_SIZE = 1;
 const MIN_TILE_SIZE_FULLSCREEN_FILL = true; // enforce fill-screen minimum when fullscreen
 const MAX_TILE_SIZE = 24;
 const STORAGE_PREFIX = "ka-world-map-v6";
@@ -618,8 +619,11 @@ const BubbleIconCursor = () => (
 
 export default function WorldMapPage() {
   const [touchMode, setTouchMode] = useState(false);
+  const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
+  const [fullscreenToolbarOpen, setFullscreenToolbarOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<ToolType>("none");
   const [brushSize, setBrushSize] = useState<BrushSize>(1);
+  const [penBrushSize, setPenBrushSize] = useState<BrushSize>(1);
   const [eraserSize, setEraserSize] = useState<BrushSize>(1);
   const [paintMode, setPaintMode] = useState<PaintMode>("mark");
   const [reclaimMode, setReclaimMode] = useState<ReclaimMode>("reclaim");
@@ -663,6 +667,7 @@ export default function WorldMapPage() {
   const [roadSnapPreview, setRoadSnapPreview] = useState<Set<string>>(new Set());
   const [drawBubbleOpen, setDrawBubbleOpen] = useState(false);
   const [drawBubblePos, setDrawBubblePos] = useState({ x: 16, y: 220 });
+  const [lineAssist, setLineAssist] = useState(false);
   const [showSurveys, setShowSurveys] = useState(false);
   const [visibleSurveyCats, setVisibleSurveyCats] = useState<Set<SurveyCategory>>(
     new Set(["storehouse", "chaos_stone", "cash_register", "dragon_taming"])
@@ -686,6 +691,7 @@ export default function WorldMapPage() {
   const drawBubbleDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
   const minimapBubbleDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
   const spaceDownRef = useRef(false);
+  const shiftDownRef = useRef(false);
   const pendingPointerRef = useRef<{ x: number; y: number } | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const [minimapBubblePos, setMinimapBubblePos] = useState({ x: 12, y: 12 });
@@ -697,6 +703,7 @@ export default function WorldMapPage() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Shift") shiftDownRef.current = true;
       if (e.code === "Space" && !e.repeat && (e.target as HTMLElement).tagName !== "INPUT" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
         e.preventDefault();
         spaceDownRef.current = true;
@@ -704,6 +711,7 @@ export default function WorldMapPage() {
       }
     }
     function onKeyUp(e: KeyboardEvent) {
+      if (e.key === "Shift") shiftDownRef.current = false;
       if (e.code === "Space") {
         spaceDownRef.current = false;
         if (viewportRef.current) viewportRef.current.style.cursor = "";
@@ -765,6 +773,14 @@ export default function WorldMapPage() {
   useEffect(() => {
     setTouchMode(isTouchDevice());
   }, []);
+
+  useEffect(() => {
+    if (!touchMode) setMobileToolbarOpen(false);
+  }, [touchMode]);
+
+  useEffect(() => {
+    if (!isFullscreen) setFullscreenToolbarOpen(false);
+  }, [isFullscreen]);
 
 
   useEffect(() => {
@@ -1158,7 +1174,7 @@ export default function WorldMapPage() {
         : activeTool === "chaos_setup"
         ? getChaosSetupFootprintCoords(tile.x, tile.y, chaosSetupPiece, cols, rows)
         : activeTool === "pen"
-        ? getCenteredSquareCoordinates(tile.x, tile.y, paintMode === "erase" ? eraserSize : 1, cols, rows)
+        ? getCenteredSquareCoordinates(tile.x, tile.y, paintMode === "erase" ? eraserSize : penBrushSize, cols, rows)
         : getCenteredSquareCoordinates(tile.x, tile.y, brushSize, cols, rows);
 
     if (activeTool === "pen") applyPatchToSet("pen", coords, paintMode);
@@ -1224,7 +1240,13 @@ export default function WorldMapPage() {
     if (!isPainting || activeTool === "none") return;
     const last = lastTileRef.current;
     if (last && (last.x !== tile.x || last.y !== tile.y)) {
-      const pts = tilesOnLine(last.x, last.y, tile.x, tile.y);
+      let targetX = tile.x;
+      let targetY = tile.y;
+      if (activeTool === "pen" && (lineAssist || shiftDownRef.current)) {
+        if (Math.abs(tile.x - last.x) >= Math.abs(tile.y - last.y)) targetY = last.y;
+        else targetX = last.x;
+      }
+      const pts = tilesOnLine(last.x, last.y, targetX, targetY);
       for (const [x, y] of pts.slice(1)) {
         const t = grid.get(keyOf(x, y));
         if (t) handleToolAction(t);
@@ -1475,12 +1497,12 @@ export default function WorldMapPage() {
 
   function getMinTileSize() {
     const vp = viewportRef.current;
-    if (isFullscreen && vp && MIN_TILE_SIZE_FULLSCREEN_FILL) {
+    if (isFullscreen && vp && MIN_TILE_SIZE_FULLSCREEN_FILL && !touchMode) {
       const fillW = vp.clientWidth / cols;
       const fillH = vp.clientHeight / rows;
       return Math.max(MIN_TILE_SIZE, Math.ceil(Math.min(fillW, fillH)));
     }
-    return MIN_TILE_SIZE;
+    return touchMode ? MOBILE_MIN_TILE_SIZE : MIN_TILE_SIZE;
   }
 
   useLayoutEffect(() => {
@@ -2597,18 +2619,8 @@ export default function WorldMapPage() {
                   className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
                   style={{ background: isChaosSetup ? "rgba(217,119,6,0.88)" : "rgba(15,23,42,0.88)", borderColor: isChaosSetup ? "#f59e0b" : "rgba(255,255,255,0.18)", color: isChaosSetup ? "#fff" : "rgba(255,255,255,0.75)" }}
                 >
-                  <span className="text-[10px] font-bold">CS</span>
+                  <span className="text-[10px] font-bold">BLD</span>
                 </button>
-                {isChaosSetup && (
-                  <button
-                    title={chaosSetupPiece === "info_board" ? "Switch to Chaos Stone" : "Switch to Info Board"}
-                    onClick={() => setChaosSetupPiece((prev) => prev === "info_board" ? "chaos_stone" : "info_board")}
-                    className="h-9 px-2.5 rounded-full border-2 flex items-center justify-center text-[10px] font-bold shadow-xl backdrop-blur transition-all"
-                    style={{ background: "rgba(15,23,42,0.88)", borderColor: "rgba(255,255,255,0.18)", color: "#fff" }}
-                  >
-                    {chaosSetupPiece === "info_board" ? "Board" : "Stone"}
-                  </button>
-                )}
                 <button
                   title="Eraser"
                   onClick={() => { if (activeTool !== "none") setPaintMode("erase"); setDrawBubbleOpen(false); }}
@@ -2616,48 +2628,133 @@ export default function WorldMapPage() {
                   style={{ background: isErase ? "rgba(239,68,68,0.75)" : "rgba(15,23,42,0.88)", borderColor: isErase ? "#ef4444" : "rgba(255,255,255,0.18)", color: isErase ? "#fff" : "rgba(255,255,255,0.75)" }}
                 ><BubbleIconEraser /></button>
                 <button
-                  title="Road (straight snap)"
+                  title="Road"
                   onClick={() => { setActiveTool("road"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
                   className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
                   style={{ background: isRoad ? "rgba(100,116,139,0.85)" : "rgba(15,23,42,0.88)", borderColor: isRoad ? "#94a3b8" : "rgba(255,255,255,0.18)", color: isRoad ? "#fff" : "rgba(255,255,255,0.75)" }}
                 ><BubbleIconRoad /></button>
               </div>
             )}
-            {drawBubbleOpen && isErase && (
-              <div className="flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
-                {/* Layer selector */}
-                <div className="flex flex-row gap-1 items-center">
-                  {(["pen","draw_area","road","chaos_setup"] as const).map((layer) => {
-                    const label = layer === "pen" ? "Pen" : layer === "draw_area" ? "Area" : layer === "road" ? "Road" : "CS";
-                    const active = activeTool === layer;
-                    return (
-                      <button
-                        key={layer}
-                        title={`Erase ${label} layer`}
-                        onClick={() => setActiveTool(layer)}
-                        className="h-7 px-2.5 rounded-full border-2 flex items-center justify-center text-[11px] font-bold shadow-lg backdrop-blur transition-all"
-                        style={{ background: active ? "rgba(239,68,68,0.85)" : "rgba(15,23,42,0.75)", borderColor: active ? "#ef4444" : "rgba(255,255,255,0.18)", color: "#fff" }}
-                      >{label}</button>
-                    );
-                  })}
-                </div>
-                {/* Size chips */}
-                <div className="flex flex-row gap-1 items-center">
-                  {([1,2,3,4,5,6,7,8,9,10] as BrushSize[]).map((s) => (
-                    <button
-                      key={s}
-                      title={`Eraser size ${s}`}
-                      onClick={() => setEraserSize(s)}
-                      className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-bold shadow-lg backdrop-blur transition-all"
-                      style={{ background: eraserSize === s ? "rgba(239,68,68,0.85)" : "rgba(15,23,42,0.75)", borderColor: eraserSize === s ? "#ef4444" : "rgba(255,255,255,0.18)", color: "#fff" }}
-                    >{s}</button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         );
       })()}
+
+      {!cleanMode && activeTool !== "none" && (
+        <div
+          className="absolute z-50"
+          style={{ left: Math.max(12, drawBubblePos.x + 56), top: Math.max(14, drawBubblePos.y - 60) }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border px-3 py-2 shadow-2xl backdrop-blur"
+            style={{ background: "rgba(15,23,42,0.92)", borderColor: "rgba(255,255,255,0.15)", color: "#fff", maxWidth: touchMode ? 260 : 420 }}>
+            {activeTool === "pen" && paintMode === "mark" && (
+              <>
+                <span className="text-[10px] font-semibold opacity-60 uppercase tracking-wider">Pen</span>
+                {([1,2,3,4,5,6] as BrushSize[]).map((size) => (
+                  <button
+                    key={`pen-size-${size}`}
+                    onClick={() => setPenBrushSize(size)}
+                    className="w-7 h-7 rounded-full border text-[11px] font-bold"
+                    style={{ background: penBrushSize === size ? "rgba(37,99,235,0.88)" : "rgba(15,23,42,0.72)", borderColor: penBrushSize === size ? "#60a5fa" : "rgba(255,255,255,0.18)" }}
+                  >{size}</button>
+                ))}
+                <button
+                  onClick={() => setLineAssist((prev) => !prev)}
+                  className="h-7 px-2.5 rounded-full border text-[11px] font-bold"
+                  style={{ background: lineAssist ? "rgba(37,99,235,0.88)" : "rgba(15,23,42,0.72)", borderColor: lineAssist ? "#60a5fa" : "rgba(255,255,255,0.18)" }}
+                >
+                  Line
+                </button>
+                {BRUSH_COLORS.slice(0, 6).map((c) => (
+                  <button
+                    key={`pen-color-${c.value}`}
+                    onClick={() => setPenColor(c.value)}
+                    className="w-6 h-6 rounded-full border-2"
+                    style={{ background: c.value, borderColor: penColor === c.value ? "#fff" : "rgba(255,255,255,0.2)" }}
+                    title={c.label}
+                  />
+                ))}
+              </>
+            )}
+
+            {paintMode === "erase" && (
+              <>
+                <span className="text-[10px] font-semibold opacity-60 uppercase tracking-wider">Eraser</span>
+                {(["pen","draw_area","road","chaos_setup"] as const).map((layer) => {
+                  const label = layer === "pen" ? "Pen" : layer === "draw_area" ? "Area" : layer === "road" ? "Road" : "BLD";
+                  const active = activeTool === layer;
+                  return (
+                    <button
+                      key={`erase-layer-${layer}`}
+                      onClick={() => setActiveTool(layer)}
+                      className="h-7 px-2.5 rounded-full border text-[11px] font-bold"
+                      style={{ background: active ? "rgba(239,68,68,0.85)" : "rgba(15,23,42,0.72)", borderColor: active ? "#ef4444" : "rgba(255,255,255,0.18)" }}
+                    >{label}</button>
+                  );
+                })}
+                {([1,2,3,4,5,6] as BrushSize[]).map((size) => (
+                  <button
+                    key={`eraser-size-${size}`}
+                    onClick={() => setEraserSize(size)}
+                    className="w-7 h-7 rounded-full border text-[11px] font-bold"
+                    style={{ background: eraserSize === size ? "rgba(239,68,68,0.85)" : "rgba(15,23,42,0.72)", borderColor: eraserSize === size ? "#ef4444" : "rgba(255,255,255,0.18)" }}
+                  >{size}</button>
+                ))}
+              </>
+            )}
+
+            {activeTool === "draw_area" && (
+              <>
+                <span className="text-[10px] font-semibold opacity-60 uppercase tracking-wider">Area</span>
+                {([2,3,4,5,6] as BrushSize[]).map((size) => (
+                  <button
+                    key={`area-size-${size}`}
+                    onClick={() => setBrushSize(size)}
+                    className="w-7 h-7 rounded-full border text-[11px] font-bold"
+                    style={{ background: brushSize === size ? "rgba(37,99,235,0.88)" : "rgba(15,23,42,0.72)", borderColor: brushSize === size ? "#60a5fa" : "rgba(255,255,255,0.18)" }}
+                  >{size}</button>
+                ))}
+                {BRUSH_COLORS.slice(0, 6).map((c) => (
+                  <button
+                    key={`area-color-${c.value}`}
+                    onClick={() => setDrawAreaColor(c.value)}
+                    className="w-6 h-6 rounded-full border-2"
+                    style={{ background: c.value, borderColor: drawAreaColor === c.value ? "#fff" : "rgba(255,255,255,0.2)" }}
+                    title={c.label}
+                  />
+                ))}
+              </>
+            )}
+
+            {activeTool === "chaos_setup" && (
+              <>
+                <span className="text-[10px] font-semibold opacity-60 uppercase tracking-wider">Buildings</span>
+                <button
+                  onClick={() => setChaosSetupPiece("info_board")}
+                  className="h-7 px-2.5 rounded-full border text-[11px] font-bold"
+                  style={{ background: chaosSetupPiece === "info_board" ? "rgba(217,119,6,0.88)" : "rgba(15,23,42,0.72)", borderColor: chaosSetupPiece === "info_board" ? "#f59e0b" : "rgba(255,255,255,0.18)" }}
+                >
+                  Board
+                </button>
+                <button
+                  onClick={() => setChaosSetupPiece("chaos_stone")}
+                  className="h-7 px-2.5 rounded-full border text-[11px] font-bold"
+                  style={{ background: chaosSetupPiece === "chaos_stone" ? "rgba(217,119,6,0.88)" : "rgba(15,23,42,0.72)", borderColor: chaosSetupPiece === "chaos_stone" ? "#f59e0b" : "rgba(255,255,255,0.18)" }}
+                >
+                  Stone
+                </button>
+              </>
+            )}
+
+            {activeTool === "road" && (
+              <>
+                <span className="text-[10px] font-semibold opacity-60 uppercase tracking-wider">Road</span>
+                <div className="text-[11px] opacity-75">Straight drag</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Survey tooltip */}
       {surveyTooltip && showSurveys && (() => {
@@ -2794,26 +2891,54 @@ export default function WorldMapPage() {
         {/* Left toolbar â€” only in fullscreen */}
         {isFullscreen && (
           <div
-            className="h-full overflow-y-auto flex-shrink-0 border-r"
-            style={{ width: 240, background: "rgba(10,15,30,0.98)", borderColor: currentTheme.panelBorder }}
+            className="h-full overflow-y-auto flex-shrink-0 border-r transition-all duration-200"
+            style={{
+              width: touchMode ? (fullscreenToolbarOpen ? 156 : 56) : 240,
+              background: "rgba(10,15,30,0.98)",
+              borderColor: currentTheme.panelBorder,
+            }}
           >
-            <div className="p-3 space-y-1 border-b sticky top-0 z-10" style={{ borderColor: currentTheme.panelBorder, background: "rgba(10,15,30,0.98)" }}>
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-sm">World Map</span>
+            <div className="border-b sticky top-0 z-10" style={{ borderColor: currentTheme.panelBorder, background: "rgba(10,15,30,0.98)" }}>
+              {touchMode ? (
                 <button
-                  onClick={toggleFullscreen}
-                  className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors"
-                  title="Exit fullscreen"
+                  onClick={() => setFullscreenToolbarOpen((prev) => !prev)}
+                  className="w-full h-11 px-3 flex items-center justify-between text-sm font-semibold hover:bg-white/10 transition-colors"
+                  title={fullscreenToolbarOpen ? "Collapse toolbar" : "Expand toolbar"}
                 >
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/>
-                    <path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
-                  </svg>
+                  <span>{fullscreenToolbarOpen ? "Map" : "Map"}</span>
+                  <span className="text-lg leading-none">{fullscreenToolbarOpen ? "<" : ">"}</span>
                 </button>
-              </div>
-              <div className="text-[10px] opacity-40">{cols} Ã— {rows} tiles</div>
+              ) : (
+                <div className="p-2 sm:p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm">World Map</span>
+                    <button
+                      onClick={toggleFullscreen}
+                      className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/10 transition-colors"
+                      title="Exit fullscreen"
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/>
+                        <path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="text-[10px] opacity-40">{cols} × {rows} tiles</div>
+                </div>
+              )}
             </div>
-            <div className="p-3">
+            <div className={`${touchMode && !fullscreenToolbarOpen ? "hidden" : "block"} p-2 sm:p-3`}>
+              {touchMode && (
+                <div className="mb-2 flex justify-end">
+                  <button
+                    onClick={toggleFullscreen}
+                    className="h-8 px-2 rounded-md text-xs flex items-center justify-center hover:bg-white/10 transition-colors"
+                    title="Exit fullscreen"
+                  >
+                    Exit
+                  </button>
+                </div>
+              )}
               {toolbarContent}
             </div>
           </div>
@@ -2837,7 +2962,7 @@ export default function WorldMapPage() {
                 <a href="https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/edit?gid=1631803140#gid=1631803140" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">KA GameData</a>
               </p>
 
-              {!cleanMode && (
+              {!cleanMode && !touchMode && (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2" style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
                   {/* Tools */}
                   <Button size="sm" variant={activeTool === "none" ? "default" : "ghost"} onClick={() => setActiveTool("none")}>Pan</Button>
@@ -2931,6 +3056,123 @@ export default function WorldMapPage() {
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+
+              {!cleanMode && touchMode && (
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="text-xs opacity-70">
+                    {activeTool === "none"
+                      ? "Pan"
+                      : activeTool === "chaos_setup"
+                      ? `CS: ${chaosSetupPiece === "info_board" ? "Board" : "Stone"}`
+                      : activeTool === "draw_area"
+                      ? "Draw Area"
+                      : activeTool === "reclaim"
+                      ? reclaimMode === "reclaim" ? "Reclaim" : "Restore"
+                      : activeTool === "deploy"
+                      ? "Deploy"
+                      : activeTool === "road"
+                      ? paintMode === "erase" ? "Erase Roads" : "Roads"
+                      : paintMode === "erase"
+                      ? `Erase ${activeTool}`
+                      : activeTool}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setShowMinimap((prev) => !prev)}>
+                      Minimap
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setMobileToolbarOpen((prev) => !prev)}>
+                      {mobileToolbarOpen ? "<" : ">"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {!cleanMode && touchMode && mobileToolbarOpen && (
+                <div className="mb-3 rounded-xl border p-3 space-y-3" style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button size="sm" variant={activeTool === "none" ? "default" : "ghost"} onClick={() => setActiveTool("none")}>Pan</Button>
+                    <Button size="sm" variant={activeTool === "pen" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "pen"))}>Pen</Button>
+                    <Button size="sm" variant={activeTool === "draw_area" ? "default" : "ghost"} onClick={() => { setActiveTool((prev) => toggleTool(prev, "draw_area")); if (brushSize < 2) setBrushSize(2); }}>Area</Button>
+                    <Button size="sm" variant={activeTool === "chaos_setup" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "chaos_setup"))}>CS</Button>
+                    <Button size="sm" variant={activeTool === "reclaim" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "reclaim"))}>Reclaim</Button>
+                    <Button size="sm" variant={activeTool === "deploy" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "deploy"))}>Deploy</Button>
+                    <Button size="sm" variant={activeTool === "road" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "road"))}>Roads</Button>
+                    <Button size="sm" variant="ghost" onClick={undo}>Undo</Button>
+                    <Button size="sm" variant="ghost" onClick={redo}>Redo</Button>
+                  </div>
+
+                  {activeTool === "chaos_setup" && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button size="sm" variant={chaosSetupPiece === "info_board" ? "default" : "outline"} onClick={() => setChaosSetupPiece("info_board")}>Board</Button>
+                      <Button size="sm" variant={chaosSetupPiece === "chaos_stone" ? "default" : "outline"} onClick={() => setChaosSetupPiece("chaos_stone")}>Stone</Button>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" variant={layersDropdownOpen ? "default" : "ghost"} onClick={() => { setLayersDropdownOpen((v) => !v); setSurveysDropdownOpen(false); }}>
+                      Layers
+                    </Button>
+                    <Button size="sm" variant={surveysDropdownOpen || showSurveys ? "default" : "ghost"} onClick={() => { setSurveysDropdownOpen((v) => !v); setLayersDropdownOpen(false); }}>
+                      Surveys
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={exportToClipboard}>Export</Button>
+                    <Button size="sm" variant="ghost" onClick={importFromClipboard}>Import</Button>
+                    <Button size="sm" variant="ghost" onClick={downloadScreenshot}>Shot</Button>
+                    <Button size="sm" variant="ghost" onClick={toggleFullscreen}>Fullscreen</Button>
+                  </div>
+
+                  {layersDropdownOpen && (
+                    <div className="grid grid-cols-2 gap-2 rounded-lg border p-2" style={{ borderColor: currentTheme.panelBorder }}>
+                      {layerOrder.map((layer) => (
+                        <button
+                          key={layer}
+                          onClick={() => setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))}
+                          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-white/5"
+                          style={{ color: layers[layer] ? "#fff" : "rgba(255,255,255,0.4)" }}
+                        >
+                          <span className="w-3 h-3 rounded-sm border flex-shrink-0" style={{ background: layers[layer] ? "#3b82f6" : "transparent", borderColor: layers[layer] ? "#3b82f6" : "rgba(255,255,255,0.2)" }} />
+                          <span>{LAYER_LABELS[layer]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {surveysDropdownOpen && (
+                    <div className="space-y-2 rounded-lg border p-2" style={{ borderColor: currentTheme.panelBorder }}>
+                      <button
+                        onClick={() => setShowSurveys((v) => !v)}
+                        className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded-md hover:bg-white/5 transition-colors"
+                        style={{ color: showSurveys ? "#fff" : "rgba(255,255,255,0.4)" }}
+                      >
+                        <span className="w-3 h-3 rounded-sm border flex-shrink-0" style={{ background: showSurveys ? "#3b82f6" : "transparent", borderColor: showSurveys ? "#3b82f6" : "rgba(255,255,255,0.2)" }} />
+                        Show survey pins
+                      </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["storehouse", "chaos_stone", "cash_register", "dragon_taming"] as SurveyCategory[]).map((cat) => {
+                          const active = visibleSurveyCats.has(cat);
+                          return (
+                            <button
+                              key={cat}
+                              onClick={() => setVisibleSurveyCats((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(cat)) next.delete(cat); else next.add(cat);
+                                return next;
+                              })}
+                              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-white/5"
+                              style={{ color: active ? "#fff" : "rgba(255,255,255,0.4)" }}
+                            >
+                              <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ background: active ? SURVEY_CAT_COLORS[cat] : "rgba(255,255,255,0.1)" }}>
+                                {SURVEY_CAT_LABELS[cat]}
+                              </span>
+                              {SURVEY_CAT_LABELS[cat]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

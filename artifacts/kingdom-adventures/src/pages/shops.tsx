@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
 import {
@@ -82,8 +82,7 @@ const STATUS_STYLE = {
   "In Progress": "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300",
   "Research Needed": "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300",
 } as const;
-const RANKS = ["All", "S", "A", "B", "C", "D", "E", "F"] as const;
-const CRAFT_FILTERS = ["All", "Craftable", "Not Craftable"] as const;
+const RANKS = ["All", "B", "C", "D", "E", "F"] as const;
 const EXCLUDED_SKILLS = new Set(["normal attack", "gun attack", "critical hit"]);
 const FURNITURE_ROWS: FurnitureRow[] = [
   { name: "Candle", studioLevel: 1, craftingIntelligence: 7 },
@@ -125,7 +124,7 @@ const FURNITURE_ROWS: FurnitureRow[] = [
   { name: "Double Bed", studioLevel: 25, craftingIntelligence: 500 },
 ];
 
-const SHOP_ICONS: Record<ShopSlug, JSX.Element> = {
+const SHOP_ICONS: Record<ShopSlug, ReactNode> = {
   "weapon-shop": <Hammer className="w-5 h-5 text-amber-500" />,
   "armor-shop": <Shield className="w-5 h-5 text-sky-500" />,
   "accessory-shop": <Store className="w-5 h-5 text-violet-500" />,
@@ -192,12 +191,15 @@ async function fetchEquipmentRows(): Promise<EquipmentRow[]> {
           ? sheetSlot as EquipmentSlot
           : "-";
 
-      return {
+      const craftable = getNumeric(cells, studioIndex) > 0;
+      if (!craftable) return null;
+
+      const equipmentRow: EquipmentRow = {
         name,
         rank: getRank(name),
         slot,
         weaponType: weaponTypes[name] ?? "",
-        craftable: getNumeric(cells, studioIndex) > 0,
+        craftable: true,
         studioLevel: getNumeric(cells, studioIndex),
         craftingIntelligence: getNumeric(cells, intIndex),
         hp: getNumeric(cells, cols.findIndex((col) => /^hp$/i.test(col))),
@@ -208,6 +210,7 @@ async function fetchEquipmentRows(): Promise<EquipmentRow[]> {
         intelligence: getNumeric(cells, cols.findIndex((col) => /^int$|^intelligence$/i.test(col))),
         luck: getNumeric(cells, cols.findIndex((col) => /^lck$|^luck$/i.test(col))),
       };
+      return equipmentRow;
     })
     .filter((row): row is EquipmentRow => !!row);
 }
@@ -485,7 +488,6 @@ function EquipmentTable({ rows, showWeaponType = false }: { rows: EquipmentRow[]
             <th className={`${thC} text-center`} onClick={() => toggleSort("rank")}>Rank{arrow("rank")}</th>
             <th className="px-3 py-2 text-center font-medium">Slot</th>
             {showWeaponType && <th className="px-3 py-2 text-center font-medium">Type</th>}
-            <th className="px-3 py-2 text-center font-medium">Craftable</th>
             <th className={`${thC} text-center`} onClick={() => toggleSort("studio")}>Studio{arrow("studio")}</th>
             <th className={`${thC} text-center`} onClick={() => toggleSort("int")}>INT{arrow("int")}</th>
           </tr>
@@ -497,9 +499,8 @@ function EquipmentTable({ rows, showWeaponType = false }: { rows: EquipmentRow[]
               <td className="px-3 py-2 text-center">{row.rank || "-"}</td>
               <td className="px-3 py-2 text-center">{row.slot}</td>
               {showWeaponType && <td className="px-3 py-2 text-center">{row.weaponType || "-"}</td>}
-              <td className="px-3 py-2 text-center">{row.craftable ? "Yes" : "No"}</td>
-              <td className="px-3 py-2 text-center">{row.craftable ? row.studioLevel : "-"}</td>
-              <td className="px-3 py-2 text-center">{row.craftable ? row.craftingIntelligence || "-" : "-"}</td>
+              <td className="px-3 py-2 text-center">{row.studioLevel}</td>
+              <td className="px-3 py-2 text-center">{row.craftingIntelligence || "-"}</td>
             </tr>
           ))}
         </tbody>
@@ -709,7 +710,6 @@ export default function ShopsPage() {
   const [, params] = useRoute("/shops/:slug");
   const [search, setSearch] = useState("");
   const [rankFilter, setRankFilter] = useState<(typeof RANKS)[number]>("All");
-  const [craftFilter, setCraftFilter] = useState<(typeof CRAFT_FILTERS)[number]>("All");
   const [armorSlotFilter, setArmorSlotFilter] = useState<"All" | "Head" | "Armor" | "Shield">("All");
   const [skillSearch, setSkillSearch] = useState("");
   const [itemSearch, setItemSearch] = useState("");
@@ -770,12 +770,9 @@ export default function ShopsPage() {
     return dedupedEquipmentRows.filter((row) => {
       const matchesSearch = matchesQuery(row.name, search);
       const matchesRank = rankFilter === "All" || row.rank === rankFilter;
-      const matchesCraft = craftFilter === "All"
-        || (craftFilter === "Craftable" && row.craftable)
-        || (craftFilter === "Not Craftable" && !row.craftable);
-      return matchesSearch && matchesRank && matchesCraft;
+      return matchesSearch && matchesRank;
     });
-  }, [craftFilter, dedupedEquipmentRows, rankFilter, search]);
+  }, [dedupedEquipmentRows, rankFilter, search]);
 
   const weaponRows = useMemo(
     () => filteredEquipment.filter((row) => row.slot === "Weapon" && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
@@ -846,7 +843,7 @@ export default function ShopsPage() {
     next.has(v) ? next.delete(v) : next.add(v);
     return next;
   });
-  const FilterDropdowns = ({ showRank = true, showCraft = true, showArmorSlot = false }: { showRank?: boolean; showCraft?: boolean; showArmorSlot?: boolean }) => (
+  const FilterDropdowns = ({ showRank = true, showArmorSlot = false }: { showRank?: boolean; showArmorSlot?: boolean }) => (
     <div ref={filterMenuRef} className="flex flex-wrap items-center gap-2">
       {showArmorSlot && (
         <div className="relative">
@@ -880,25 +877,6 @@ export default function ShopsPage() {
                   className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
                   <span className={`w-3.5 h-3.5 shrink-0 ${rankFilter === rank ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
                   {rank === "All" ? "All ranks" : `${rank} rank`}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      {showCraft && (
-        <div className="relative">
-          <button onClick={() => setOpenFilterMenu((v) => v === "craft" ? null : "craft")}
-            className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${craftFilter !== "All" ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}>
-            {craftFilter === "All" ? "Craftable" : craftFilter}<ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "craft" ? "rotate-180" : ""}`} />
-          </button>
-          {openFilterMenu === "craft" && (
-            <div className="absolute z-50 top-full mt-1 left-0 min-w-[140px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
-              {CRAFT_FILTERS.map((opt) => (
-                <button key={opt} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setCraftFilter(opt); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
-                  <span className={`w-3.5 h-3.5 shrink-0 ${craftFilter === opt ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
-                  {opt === "All" ? "All craftable" : opt}
                 </button>
               ))}
             </div>
@@ -943,8 +921,8 @@ export default function ShopsPage() {
           )}
         </div>
       )}
-      {(rankFilter !== "All" || craftFilter !== "All" || armorSlotFilter !== "All" || studioFilter.size > 0 || intFilter.size > 0) && (
-        <button onClick={() => { setRankFilter("All"); setCraftFilter("All"); setArmorSlotFilter("All"); setStudioFilter(new Set()); setIntFilter(new Set()); }}
+      {(rankFilter !== "All" || armorSlotFilter !== "All" || studioFilter.size > 0 || intFilter.size > 0) && (
+        <button onClick={() => { setRankFilter("All"); setArmorSlotFilter("All"); setStudioFilter(new Set()); setIntFilter(new Set()); }}
           className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
           ✕ clear
         </button>
@@ -1074,7 +1052,7 @@ export default function ShopsPage() {
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search weapons..." className="pl-9 h-9" />
                   </div>
-                  <FilterDropdowns showRank showCraft />
+                  <FilterDropdowns showRank />
                 </div>
               </CardContent>
             </Card>
@@ -1102,7 +1080,7 @@ export default function ShopsPage() {
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search armor..." className="pl-9 h-9" />
                   </div>
-                  <FilterDropdowns showArmorSlot showRank showCraft />
+                  <FilterDropdowns showArmorSlot showRank />
                 </div>
               </CardContent>
             </Card>
@@ -1130,7 +1108,7 @@ export default function ShopsPage() {
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search accessories..." className="pl-9 h-9" />
                   </div>
-                  <FilterDropdowns showRank showCraft />
+                  <FilterDropdowns showRank />
                 </div>
               </CardContent>
             </Card>
@@ -1158,7 +1136,7 @@ export default function ShopsPage() {
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input value={skillSearch} onChange={(e) => setSkillSearch(e.target.value)} placeholder="Search skills..." className="pl-9 h-9" />
                   </div>
-                  <FilterDropdowns showRank={false} showCraft={false} />
+                  <FilterDropdowns showRank={false} />
                   <span className="text-xs text-muted-foreground">{filteredSkillRows.length} skills</span>
                 </div>
               </CardContent>
@@ -1187,7 +1165,7 @@ export default function ShopsPage() {
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search items..." className="pl-9 h-9" />
                   </div>
-                  <FilterDropdowns showRank={false} showCraft={false} />
+                  <FilterDropdowns showRank={false} />
                   <span className="text-xs text-muted-foreground">{filteredItemRows.length} items</span>
                 </div>
               </CardContent>
@@ -1216,7 +1194,7 @@ export default function ShopsPage() {
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input value={furnitureSearch} onChange={(e) => setFurnitureSearch(e.target.value)} placeholder="Search furniture..." className="pl-9 h-9" />
                   </div>
-                  <FilterDropdowns showRank={false} showCraft={false} />
+                  <FilterDropdowns showRank={false} />
                   <span className="text-xs text-muted-foreground">{filteredFurnitureRows.length} furniture items</span>
                 </div>
               </CardContent>
