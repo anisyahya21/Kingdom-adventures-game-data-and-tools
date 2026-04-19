@@ -693,8 +693,21 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
   const [pairChildTypeFilter, setPairChildTypeFilter] = useState<ChildTypeFilter>("all");
   const [pairExclusiveFilter, setPairExclusiveFilter] = useState<ExclusiveFilter>("all");
   const [includeParentInheritance, setIncludeParentInheritance] = useState(true);
-  const [pairParentFilter, setPairParentFilter] = useState<string>("all");
-  const [pairChildFilter, setPairChildFilter] = useState<string>("all");
+  const [pairParentFilter, setPairParentFilter] = useState<string[]>([]);
+  const [pairChildFilter, setPairChildFilter] = useState<string[]>([]);
+
+  const addPairParentFilter = (job: string) => {
+    setPairParentFilter((prev) => prev.some((item) => normJob(item) === normJob(job)) ? prev : [...prev, job].sort());
+  };
+  const removePairParentFilter = (job: string) => {
+    setPairParentFilter((prev) => prev.filter((item) => normJob(item) !== normJob(job)));
+  };
+  const addPairChildFilter = (job: string) => {
+    setPairChildFilter((prev) => prev.some((item) => normJob(item) === normJob(job)) ? prev : [...prev, job].sort());
+  };
+  const removePairChildFilter = (job: string) => {
+    setPairChildFilter((prev) => prev.filter((item) => normJob(item) !== normJob(job)));
+  };
 
   const toggleAffinity = (aff: string) => {
     const next = new Set(pairAffinityFilter);
@@ -708,10 +721,10 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
 
     const possibleChildren = buildPossibleChildren(p.jobA, p.jobB, p.children, includeParentInheritance);
 
-    if (pairParentFilter !== "all") {
-      const parentMatch =
-        normJob(p.jobA) === normJob(pairParentFilter) ||
-        normJob(p.jobB) === normJob(pairParentFilter);
+    if (pairParentFilter.length > 0) {
+      const parentMatch = pairParentFilter.some((job) =>
+        normJob(p.jobA) === normJob(job) || normJob(p.jobB) === normJob(job)
+      );
       if (!parentMatch) return false;
     }
 
@@ -725,8 +738,10 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
       if (!parentTypeMatch) return false;
     }
 
-    if (pairChildFilter !== "all") {
-      const childMatch = possibleChildren.some((child) => normJob(child) === normJob(pairChildFilter));
+    if (pairChildFilter.length > 0) {
+      const childMatch = possibleChildren.some((child) =>
+        pairChildFilter.some((job) => normJob(child) === normJob(job))
+      );
       if (!childMatch) return false;
     }
 
@@ -744,7 +759,11 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
   });
 
   const sorted = [...filtered].sort((a, b) => pairKey(a.jobA, a.jobB).localeCompare(pairKey(b.jobA, b.jobB)));
-  const parentOptions = allJobNames.map((job) => ({ value: job, label: job }));
+  const parentOptions = allJobNames
+    .filter((job) => jobGenMap[job] === 1)
+    .sort((a, b) => a.localeCompare(b))
+    .map((job) => ({ value: job, label: job }));
+
   const childOptions = [...new Set([
     ...allJobNames,
     ...pairs.flatMap((p) => buildPossibleChildren(p.jobA, p.jobB, p.children, true)),
@@ -774,23 +793,49 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div className="space-y-1">
+            <div className="space-y-2">
               <span className="text-xs text-muted-foreground font-medium shrink-0">Parent job:</span>
+              <div className="flex flex-wrap gap-2 min-h-[34px] items-center">
+                {pairParentFilter.length > 0 ? pairParentFilter.map((job) => (
+                  <Badge key={job} variant="outline" className="text-xs gap-1 px-2 py-0.5">
+                    {job}
+                    <button type="button" onClick={() => removePairParentFilter(job)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                )) : (
+                  <span className="text-xs text-muted-foreground">All parents</span>
+                )}
+              </div>
               <SearchableSelect
-                value={pairParentFilter}
-                onChange={(v) => setPairParentFilter(v || "all")}
-                options={[{ value: "all", label: "All parents" }, ...parentOptions]}
-                placeholder="All parents"
+                value=""
+                clearOnSelect
+                onChange={(v) => { if (v) addPairParentFilter(v); }}
+                options={parentOptions.filter((option) => !pairParentFilter.some((selected) => normJob(selected) === normJob(option.value)))}
+                placeholder="+ Add parent…"
                 triggerClassName="h-8 text-sm"
               />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <span className="text-xs text-muted-foreground font-medium shrink-0">Child job:</span>
+              <div className="flex flex-wrap gap-2 min-h-[34px] items-center">
+                {pairChildFilter.length > 0 ? pairChildFilter.map((job) => (
+                  <Badge key={job} variant="outline" className="text-xs gap-1 px-2 py-0.5">
+                    {job}
+                    <button type="button" onClick={() => removePairChildFilter(job)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                )) : (
+                  <span className="text-xs text-muted-foreground">All children</span>
+                )}
+              </div>
               <SearchableSelect
-                value={pairChildFilter}
-                onChange={(v) => setPairChildFilter(v || "all")}
-                options={[{ value: "all", label: "All children" }, ...childOptions]}
-                placeholder="All children"
+                value=""
+                clearOnSelect
+                onChange={(v) => { if (v) addPairChildFilter(v); }}
+                options={childOptions.filter((option) => !pairChildFilter.some((selected) => normJob(selected) === normJob(option.value)))}
+                placeholder="+ Add child…"
                 triggerClassName="h-8 text-sm"
               />
             </div>
@@ -886,19 +931,19 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
             <span className="text-xs text-muted-foreground">
               Showing {filtered.length} of {pairs.length} pairs.
             </span>
-            {(pairParentFilter !== "all" || pairChildFilter !== "all" || pairParentTypeFilter !== "all") && (
+            {(pairParentFilter.length > 0 || pairChildFilter.length > 0 || pairParentTypeFilter !== "all") && (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setPairParentFilter("all");
-                  setPairChildFilter("all");
+                  setPairParentFilter([]);
+                  setPairChildFilter([]);
                   setPairParentTypeFilter("all");
                 }}
                 className="h-6 px-2 text-xs"
               >
-                Clear parent filters
+                Clear filters
               </Button>
             )}
           </div>
@@ -1232,34 +1277,35 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMa
         </Tooltip>
       </div>
 
-      {/* Children row */}
-      {possibleChildren.length > 0 && (
-        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap pl-7">
-          <Baby className="w-3 h-3 text-muted-foreground shrink-0" />
-          <span className="text-[11px] text-muted-foreground">Child can be:</span>
-          {possibleChildren.map((c) => {
-            const isPriority = desiredChildren.some((d) => normJob(d) === normJob(c));
-            return (
-              <Badge key={c} variant="outline" className={`text-[10px] px-1.5 py-0 ${isPriority ? "border-violet-400 text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30" : "text-muted-foreground"}`}>
-                {isPriority && <Star className="w-2.5 h-2.5 mr-0.5 text-violet-500" />}
-                {c}
-              </Badge>
-            );
-          })}
+      {/* Children and Mark as Married row (side by side) */}
+      {(possibleChildren.length > 0 || true) && (
+        <div className="mt-2 flex flex-row flex-wrap items-center justify-between pl-7 gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            {possibleChildren.length > 0 && <>
+              <Baby className="w-3 h-3 text-muted-foreground shrink-0" />
+              <span className="text-[11px] text-muted-foreground">Child can be:</span>
+              {possibleChildren.map((c) => {
+                const isPriority = desiredChildren.some((d) => normJob(d) === normJob(c));
+                return (
+                  <Badge key={c} variant="outline" className={`text-[10px] px-1.5 py-0 ${isPriority ? "border-violet-400 text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30" : "text-muted-foreground"}`}>
+                    {isPriority && <Star className="w-2.5 h-2.5 mr-0.5 text-violet-500" />}
+                    {c}
+                  </Badge>
+                );
+              })}
+            </>}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1.5 text-xs whitespace-nowrap"
+            onClick={() => onMarkMarried(match)}
+          >
+            <Check className="w-3.5 h-3.5" />
+            Mark as married
+          </Button>
         </div>
       )}
-
-      <div className="mt-2 flex justify-end pl-7">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 gap-1.5 text-xs"
-          onClick={() => onMarkMarried(match)}
-        >
-          <Check className="w-3.5 h-3.5" />
-          Mark as married
-        </Button>
-      </div>
     </div>
   );
 }
@@ -2475,7 +2521,10 @@ export default function MarriageMatcher() {
                         <div key={rank}>
                           <div className="flex items-center gap-2 mb-2">
                             <Badge className={`text-xs font-bold px-2 border ${RANK_STYLE[rank].badge}`}>Rank {rank}</Badge>
-                            <span className="text-xs text-muted-foreground">{rankMatches.length} match{rankMatches.length !== 1 ? "es" : ""}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {rankMatches.length} match{rankMatches.length !== 1 ? "es" : ""}
+                              <span className="ml-2 font-semibold text-foreground">+{SAME_RANK_BONUS[rank]} awakening</span>
+                            </span>
                             {rankMatches.some((m) => m.locked) && (
                               <Badge variant="outline" className="text-[10px] gap-1 border-amber-400 text-amber-600 dark:text-amber-400 px-1.5 py-0">
                                 <Lock className="w-2.5 h-2.5" />{rankMatches.filter((m) => m.locked).length} locked

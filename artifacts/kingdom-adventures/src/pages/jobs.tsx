@@ -1584,73 +1584,53 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: `${STAT_ORDER.length * 90}px` }}>
-              <thead>
-                <tr>
-                  {STAT_ORDER.map((stat) => (
-                    <th key={stat} className="text-center px-2 pb-1 border-b border-border">
-                      <div className="flex flex-col items-center gap-0.5">
-                        {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-4 h-4 object-contain" />}
-                        <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{stat}</span>
+          <div className="grid gap-2 grid-cols-[repeat(auto-fit,_minmax(150px,_1fr))]">
+            {STAT_ORDER.map((stat) => {
+              const s = rankData?.stats[stat];
+              const effLevel = statLevels[stat] ?? level;
+              const v = s ? statAtLevel(s, effLevel) : null;
+              return (
+                <div key={stat} className="rounded border border-border bg-background/50 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-4 h-4 object-contain" />}
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate">{stat}</div>
+                        <div className="text-[10px] text-muted-foreground">Lv {effLevel}</div>
                       </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  {STAT_ORDER.map((stat) => {
-                    const s = rankData?.stats[stat];
-                    return (
-                      <td key={stat} className="text-center px-2 pt-2 pb-1">
-                        {s
-                          ? <span className="text-sm font-semibold tabular-nums text-foreground">{Math.round(s.base * 100) / 100}</span>
-                          : <span className="text-sm font-bold text-red-400">-</span>}
-                      </td>
-                    );
-                  })}
-                </tr>
-                <tr className="border-b border-border/50">
-                  {STAT_ORDER.map((stat) => {
-                    const s = rankData?.stats[stat];
-                    return (
-                      <td key={stat} className="text-center px-2 pb-2">
-                        {s
-                          ? <span className="text-xs tabular-nums text-muted-foreground">+{Math.round(s.inc * 100) / 100}/Lv</span>
-                          : <span className="text-xs text-muted-foreground/40">-</span>}
-                      </td>
-                    );
-                  })}
-                </tr>
-                <tr>
-                  {STAT_ORDER.map((stat) => {
-                    const s = rankData?.stats[stat];
-                    const effLevel = statLevels[stat] ?? level;
-                    const v = s ? statAtLevel(s, effLevel) : null;
-                    return (
-                      <td key={stat} className="text-center px-2 py-2">
-                        {!s
-                          ? <span className="text-sm font-bold text-red-400">-</span>
-                          : <>
-                              <Input
-                                type="text" inputMode="numeric" value={statLevelInputs[stat] ?? String(effLevel)}
-                                onChange={(e) => setPreviewLevelInput(stat, e.target.value)}
-                                onKeyDown={(e) => commitOnEnter(e, () => commitPreviewLevel(stat, e.currentTarget.value))}
-                                onBlur={(e) => commitPreviewLevel(stat, e.target.value)}
-                                className="h-5 w-14 text-[10px] text-center px-0.5 mx-auto mb-0.5 block"
-                              />
-                              <span className={`text-sm font-semibold tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
-                                {v === null || v === 0 ? "-" : Math.round(v * 100) / 100}
-                              </span>
-                            </>
-                        }
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tbody>
-            </table>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{s ? Math.round(s.base * 100) / 100 : "-"}</span>
+                  </div>
+                  <div className="mt-2 space-y-2 text-[10px] text-muted-foreground">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>+/Lv</span>
+                      <span className="font-semibold text-foreground">{s ? `+${Math.round(s.inc * 100) / 100}` : "-"}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Preview</span>
+                      {s ? (
+                        <span className="flex items-center gap-2">
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            value={statLevelInputs[stat] ?? String(effLevel)}
+                            onChange={(e) => setPreviewLevelInput(stat, e.target.value)}
+                            onKeyDown={(e) => commitOnEnter(e, () => commitPreviewLevel(stat, e.currentTarget.value))}
+                            onBlur={(e) => commitPreviewLevel(stat, e.target.value)}
+                            className="h-6 w-16 text-[10px] text-center px-0.5"
+                          />
+                          <span className={`font-semibold tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
+                            {v === null || v === 0 ? "-" : Math.round(v * 100) / 100}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-red-400">-</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <p className="text-[10px] text-muted-foreground mt-2">Value = Start + (Level - 1) * +/Lv</p>
         </CardContent>
@@ -1700,42 +1680,30 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
             {weaponCategories.length === 0 ? (
               <p className="text-xs text-muted-foreground/60">No weapon categories defined yet. Add them in Equipment Stats.</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="text-xs border-collapse" style={{ minWidth: `${weaponCategories.length * 80}px` }}>
-                  <thead>
-                    <tr>
-                      {weaponCategories.map((cls) => (
-                        <th key={cls} className="text-center px-3 pb-1 border-b border-border font-medium text-muted-foreground whitespace-nowrap">{cls}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      {weaponCategories.map((cls) => {
-                        const savedVal = getResolvedWeaponAccess(jobName, job, cls);
-                        const draftVal = draft.weaponEquip?.[cls];
-                        const unfilled = !editing && savedVal === undefined;
-                        const v = (editing ? draftVal : savedVal) ?? "cannot";
-                        return (
-                          <td key={cls} className="text-center px-2 py-2">
-                            {unfilled ? (
-                              <span className="text-sm font-bold text-red-400">-</span>
-                            ) : editing ? (
-                              <button onClick={() => cycleWeapon(cls)}
-                                className={`px-2 py-1 rounded-full border text-[11px] font-medium transition-colors whitespace-nowrap ${weaponStyle[v]}`}>
-                                {weaponLabel[v]}
-                              </button>
-                            ) : (
-                              <span className={`px-2 py-1 rounded-full border text-[11px] font-medium whitespace-nowrap ${weaponStyle[v]}`}>
-                                {weaponLabel[v]}
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="flex flex-col gap-2">
+                {weaponCategories.map((cls) => {
+                  const savedVal = getResolvedWeaponAccess(jobName, job, cls);
+                  const draftVal = draft.weaponEquip?.[cls];
+                  const unfilled = !editing && savedVal === undefined;
+                  const v = (editing ? draftVal : savedVal) ?? "cannot";
+                  return (
+                    <div key={cls} className="flex items-center gap-2 rounded border border-border bg-background/60 px-2 py-1">
+                      <span className="min-w-[80px] text-xs font-medium text-muted-foreground">{cls}</span>
+                      {unfilled ? (
+                        <span className="text-sm font-bold text-red-400">-</span>
+                      ) : editing ? (
+                        <button onClick={() => cycleWeapon(cls)}
+                          className={`px-2 py-1 rounded-full border text-[11px] font-medium transition-colors whitespace-nowrap ${weaponStyle[v]}`}>
+                          {weaponLabel[v]}
+                        </button>
+                      ) : (
+                        <span className={`px-2 py-1 rounded-full border text-[11px] font-medium whitespace-nowrap ${weaponStyle[v]}`}>
+                          {weaponLabel[v]}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
             {editing && <p className="text-[10px] text-muted-foreground mt-1">Click to cycle: Can't, Can, Weak, then back to Can't.</p>}
@@ -1744,7 +1712,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
           {/* Skill Access */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground mb-2">Skill Access</p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-2">
               {(["attack","attackMagic","recovery"] as const).map((cat) => {
                 const resolvedSkillAccess = getResolvedSkillAccess(jobName, job, selRank);
                 const savedCatVal = resolvedSkillAccess[cat];
@@ -1788,7 +1756,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
           {visibleShops.length === 0 ? (
             <p className="text-xs text-muted-foreground/60">No lands or shops listed yet.</p>
           ) : (
-            <div className="flex flex-wrap gap-1.5 mb-2">
+            <div className="flex flex-col gap-1 mb-2">
               {visibleShops.map((shop, i) => {
                 const href = getLandOrShopHref(shop);
                 const chip = (
