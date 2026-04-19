@@ -13,6 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
+import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
+import { KAIRO_ROOM_LOOT_GROUPS, WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
+import { PLAYTHROUGH_GUIDE_SECTION_OVERLAYS } from "@/lib/playthrough-guide";
+import { FACILITIES } from "@/pages/houses";
 
 type RawEquipmentItem = {
   uid: string;
@@ -66,6 +70,34 @@ type EquipmentRecord = {
   crafterIntelligence: number;
 };
 
+type CatalogEquipmentRecord = {
+  id: number;
+  name: string;
+  type: number;
+  rank: number;
+  rankLabel: string;
+  unlockEquip: number;
+  buyPrice: number;
+  requiredKairo: string;
+};
+
+type ExchangeRowRecord = {
+  inputId: number;
+  inputName: string;
+  outputName: string;
+  startPrice: number;
+  priceStep: number;
+  buyPrice: number;
+};
+
+type AskFacilityRecord = {
+  id: number;
+  name: string;
+  tab: string;
+  size: string;
+  mapUnlock?: number;
+};
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -75,6 +107,12 @@ type ChatMessage = {
 
 type AnswerResult = {
   text: string;
+  options?: string[];
+};
+
+type KnowledgeEntry = {
+  title: string;
+  body: string;
   options?: string[];
 };
 
@@ -269,10 +307,10 @@ const FURNITURE_ROWS = [
 ];
 
 const SUGGESTIONS = [
-  "How do I unlock Double Bed?",
-  "What job has the highest attack?",
+  "How much does F/ Wooden Staff cost?",
+  "What does C/ Magic Staff exchange into?",
+  "Where is Equipment Exchange on the map?",
   "How can I get a Royal?",
-  "Max possible attack?",
 ];
 
 function makeId() {
@@ -855,6 +893,76 @@ function answerFurnitureUnlock(question: string): AnswerResult | null {
   return result(`${row.name} unlocks at Furniture Shop level ${row.shopLevel} and needs ${row.requiredInt} INT.`);
 }
 
+function findExactCatalogEquipment(question: string, items: readonly CatalogEquipmentRecord[]): CatalogEquipmentRecord | null {
+  const q = normalize(question);
+
+  const exactFull = items.find((item) => {
+    const pattern = new RegExp(`\\b${escapeRegExp(normalize(item.name))}\\b`);
+    return pattern.test(q);
+  });
+  if (exactFull) return exactFull;
+
+  const phraseMatches = items.filter((item) => {
+    const cleaned = normalize(cleanupItemName(item.name));
+    if (cleaned.length < 4) return false;
+    const pattern = new RegExp(`\\b${escapeRegExp(cleaned)}\\b`);
+    return pattern.test(q);
+  });
+
+  if (phraseMatches.length === 1) return phraseMatches[0];
+  if (phraseMatches.length > 1) {
+    return [...phraseMatches].sort((a, b) => getItemRank(a.name) - getItemRank(b.name))[0];
+  }
+
+  return null;
+}
+
+function answerEquipmentPrice(question: string, catalog: readonly CatalogEquipmentRecord[]): AnswerResult | null {
+  const lower = question.toLowerCase();
+  if (!/\b(price|cost|buy price|buy cost|copper|coin|coins|how much)\b/.test(lower)) return null;
+
+  const item = findExactCatalogEquipment(question, catalog);
+  if (!item) return null;
+
+  return result(`${item.name} costs ${item.buyPrice} copper coins.`);
+}
+
+function answerEquipmentExchangeInfo(question: string, exchangeRows: readonly ExchangeRowRecord[]): AnswerResult | null {
+  const lower = question.toLowerCase();
+  const row = exchangeRows.find((entry) => {
+    const full = new RegExp(`\\b${escapeRegExp(normalize(entry.inputName))}\\b`);
+    const clean = new RegExp(`\\b${escapeRegExp(normalize(cleanupItemName(entry.inputName)))}\\b`);
+    const q = normalize(question);
+    return full.test(q) || clean.test(q);
+  });
+  if (!row) return null;
+
+  if (/\b(exchange|trade|kairo)\b/.test(lower)) {
+    return result(
+      `${row.inputName} exchanges into ${row.outputName}. ` +
+      `Its exchange starts at ${row.startPrice} and goes up by ${row.priceStep} each time for that exact item. ` +
+      `Its buy price is ${row.buyPrice} copper coins.`
+    );
+  }
+
+  return null;
+}
+
+function answerFacilityLookup(question: string, facilities: readonly AskFacilityRecord[]): AnswerResult | null {
+  const lower = question.toLowerCase();
+  if (!/\b(where|location|map|unlock|facility)\b/.test(lower)) return null;
+
+  const q = normalize(question);
+  const facility = facilities.find((entry) => {
+    const full = new RegExp(`\\b${escapeRegExp(normalize(entry.name))}\\b`);
+    return full.test(q);
+  });
+  if (!facility) return null;
+
+  const unlock = facility.mapUnlock ? ` It appears on the map at unlock level ${facility.mapUnlock}.` : "";
+  return result(`${facility.name} is a ${facility.size} map facility in Houses & Facilities > Map.${unlock}`);
+}
+
 function answerEquipmentExactStat(question: string, items: EquipmentRecord[]): AnswerResult | null {
   const item = findExactEquipment(question, items);
   const stat = parseStat(question);
@@ -1379,7 +1487,58 @@ function answerPairs(question: string, shared: SharedData): AnswerResult | null 
 function answerWeeklyConquest(question: string): AnswerResult | null {
   const lower = question.toLowerCase();
   if (!/\bweekly conquest\b|\bthis week\b/.test(lower)) return null;
-  return result("I have not wired weekly conquest answers into the helper yet, even though the site has a weekly conquest page.");
+  return result("Weekly Conquest is tracked on the Weekly Conquest page and the World Map layer. I do not answer the live current rotation inside Ask Database yet.");
+}
+
+function tokenizeKnowledge(text: string): string[] {
+  return normalize(text)
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 2);
+}
+
+function scoreKnowledgeEntry(question: string, entry: KnowledgeEntry): number {
+  const tokens = Array.from(new Set(tokenizeKnowledge(question)));
+  if (tokens.length === 0) return 0;
+
+  const haystack = normalize(`${entry.title} ${entry.body}`);
+  let score = 0;
+
+  for (const token of tokens) {
+    if (haystack.includes(token)) {
+      score += token.length >= 6 ? 3 : 2;
+      if (new RegExp(`\\b${escapeRegExp(token)}\\b`).test(haystack)) {
+        score += 2;
+      }
+      if (normalize(entry.title).includes(token)) {
+        score += 3;
+      }
+    }
+  }
+
+  return score;
+}
+
+function answerKnowledgeIndex(question: string, knowledge: readonly KnowledgeEntry[]): AnswerResult | null {
+  const trimmed = question.trim();
+  if (!trimmed) return null;
+
+  const scored = knowledge
+    .map((entry) => ({ entry, score: scoreKnowledgeEntry(trimmed, entry) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (scored.length === 0 || scored[0].score < 4) return null;
+
+  const top = scored.slice(0, 3);
+  const primary = top[0].entry;
+  const followups = top
+    .slice(1)
+    .map(({ entry }) => entry.title)
+    .filter((title) => title !== primary.title);
+
+  const extra = followups.length > 0 ? `\n\nRelated site info: ${followups.join("; ")}` : "";
+  return result(`${primary.title}\n${primary.body}${extra}`, primary.options);
 }
 
 function answerOwnedInventory(question: string): AnswerResult | null {
@@ -1388,10 +1547,22 @@ function answerOwnedInventory(question: string): AnswerResult | null {
   return result("I do not know your owned gear yet. I can answer database-wide, craftable, and full-loadout questions, but personal inventory is not wired in yet.");
 }
 
-function answerQuestion(question: string, items: EquipmentRecord[], shared: SharedData, messages: ChatMessage[] = []): AnswerResult {
+function answerQuestion(
+  question: string,
+  items: EquipmentRecord[],
+  catalog: readonly CatalogEquipmentRecord[],
+  exchangeRows: readonly ExchangeRowRecord[],
+  facilities: readonly AskFacilityRecord[],
+  knowledge: readonly KnowledgeEntry[],
+  shared: SharedData,
+  messages: ChatMessage[] = []
+): AnswerResult {
   return (
     answerTargetedClarification(question) ??
     answerOwnedInventory(question) ??
+    answerEquipmentPrice(question, catalog) ??
+    answerEquipmentExchangeInfo(question, exchangeRows) ??
+    answerFacilityLookup(question, facilities) ??
     answerSkillLookup(question, shared) ??
     answerFurnitureUnlock(question) ??
     answerEquipmentUnlock(question, items) ??
@@ -1404,6 +1575,7 @@ function answerQuestion(question: string, items: EquipmentRecord[], shared: Shar
     answerPairs(question, shared) ??
     answerWeeklyConquest(question) ??
     answerShop(question) ??
+    answerKnowledgeIndex(question, knowledge) ??
     result("I do not know that one yet.")
   );
 }
@@ -1416,7 +1588,7 @@ export default function AskDatabaseWidget() {
     {
       id: makeId(),
       role: "assistant",
-      text: "Ask me about equipment, jobs, skill prices, furniture unlocks, shops, craftable single pieces, craftable full loadouts, or Royal child pair questions.",
+      text: "Ask me about equipment prices, exchange routes, jobs, skills, furniture unlocks, map facilities, shops, loadouts, or Royal child pairs.",
     },
   ]);
 
@@ -1435,6 +1607,67 @@ export default function AskDatabaseWidget() {
   });
 
   const equipmentRecords = useMemo(() => buildEquipmentRecords(sheetItems, shared), [sheetItems, shared]);
+  const catalogRecords = useMemo(() => EQUIPMENT_CATALOG as readonly CatalogEquipmentRecord[], []);
+  const exchangeRecords = useMemo(() => EQUIPMENT_EXCHANGE_ROWS as readonly ExchangeRowRecord[], []);
+  const facilityRecords = useMemo(() => (FACILITIES as readonly AskFacilityRecord[]).filter((entry) => entry.tab === "map"), []);
+  const knowledgeEntries = useMemo<readonly KnowledgeEntry[]>(() => {
+    const facilityKnowledge = facilityRecords.map((facility) => ({
+      title: facility.name,
+      body: `${facility.name} is a map facility on the Houses & Facilities page. It is listed in the ${facility.tab} facilities tab${facility.mapUnlock ? ` and unlocks at map level ${facility.mapUnlock}` : ""}. Size: ${facility.size}.`,
+      options: [`Where is ${facility.name}?`, `Open ${facility.name} page`],
+    }));
+
+    const exchangeKnowledge = exchangeRecords.slice(0, 80).map((row) => ({
+      title: `${row.inputName} exchange`,
+      body: `${row.inputName} exchanges into ${row.outputName}. Its mined exchange starts at ${row.startPrice} and increases by ${row.priceStep} each time you trade that exact source item. Its equipment buy price is ${row.buyPrice} copper coins.`,
+      options: [`What does ${row.inputName} exchange into?`, `How much does ${row.inputName} cost?`],
+    }));
+
+    const kairoKnowledge = KAIRO_ROOM_LOOT_GROUPS.map((group) => ({
+      title: `Kairo Room loot: ${group.title}`,
+      body: `${group.title} appears in Kairo Room. Difficulties: ${group.encounters.map((encounter) => `${encounter.difficulty} Lv ${encounter.level}/${encounter.bossLevel}`).join(", ")}. Example drops include ${group.encounters[0]?.tables.flat().slice(0, 4).map((line) => line.item).join(", ") || "special loot"}.`,
+      options: [`Kairo Room ${group.title} loot`, "Open Kairo Room"],
+    }));
+
+    const wairoKnowledge: KnowledgeEntry = {
+      title: "Wairo Dungeon loot",
+      body: `Wairo Raid Dungeon has mined loot tables for Easy, Normal, Hard, and Extreme. Example drops include ${WAIRO_DUNGEON_LOOT_GROUP.encounters[0]?.tables.flat().slice(0, 5).map((line) => line.item).join(", ") || "A/ Kairo Gun and Myriad Arrows"}.`,
+      options: ["What drops in Wairo Dungeon?", "Open Wario Dungeon"],
+    };
+
+    const guideKnowledge = Object.entries(PLAYTHROUGH_GUIDE_SECTION_OVERLAYS).map(([section, overlay]) => ({
+      title: `Guide section: ${section}`,
+      body: `${section} is covered in the playthrough guide. ${overlay.description}`,
+      options: [overlay.cta, "Open Playthrough Guide"],
+    }));
+
+    const staticKnowledge: KnowledgeEntry[] = [
+      {
+        title: "Weekly Conquest",
+        body: "Weekly Conquest is tracked on the Weekly Conquest page and on the World Map weekly layer. Ask Database does not answer the live current rotation directly yet.",
+        options: ["Open Weekly Conquest", "Open World Map"],
+      },
+      {
+        title: "Equipment Exchange",
+        body: "Equipment Exchange lets you trade eligible equipment, up to B rank, into A/ Kairo equipment. The trade price starts from a mined base price and rises by a mined step for that exact source item.",
+        options: ["Open Equipment Exchange", "Where is Equipment Exchange?"],
+      },
+      {
+        title: "Master Smithy",
+        body: "Master Smithy uses Kairo equipment to break level caps on equipment. The site has an Equipment Exchange calculator to estimate the cheapest route to get the needed Kairo pieces.",
+        options: ["Open Equipment Exchange", "Where is Master Smithy?"],
+      },
+    ];
+
+    return [
+      ...staticKnowledge,
+      ...facilityKnowledge,
+      ...exchangeKnowledge,
+      ...kairoKnowledge,
+      wairoKnowledge,
+      ...guideKnowledge,
+    ];
+  }, [exchangeRecords, facilityRecords]);
 
   const canSend = query.trim().length > 0;
 
@@ -1447,7 +1680,7 @@ export default function AskDatabaseWidget() {
     const answer =
       sheetLoading || sharedLoading
         ? result("Loading site data...")
-        : answerQuestion(text, equipmentRecords, shared, messages);
+        : answerQuestion(text, equipmentRecords, catalogRecords, exchangeRecords, facilityRecords, knowledgeEntries, shared, messages);
 
     const assistantMsg: ChatMessage = {
       id: makeId(),

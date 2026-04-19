@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Diamond, Loader2, MapPin, Trophy } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { apiUrl } from "@/lib/api";
+import {
+  MINED_MONSTER_SUMMARY_MAP,
+  mergeUniqueSpawns,
+  readCommunitySightings,
+  type CommunitySighting,
+} from "@/lib/monster-truth";
 
 type MonsterSpawn = { area: string; level: number };
 type Monster = { icon?: string; spawns: MonsterSpawn[] };
@@ -31,6 +38,7 @@ export default function WeeklyConquestPage() {
   const [conquestOffset, setConquestOffset] = useState(0);
   const [deploymentQuery, setDeploymentQuery] = useState("");
   const [deploymentOpen, setDeploymentOpen] = useState(false);
+  const [communitySightings] = useState<Record<string, CommunitySighting[]>>(() => readCommunitySightings());
   const [coveredConquestAreas, setCoveredConquestAreas] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("ka_conquest_covered_areas");
@@ -117,8 +125,10 @@ export default function WeeklyConquestPage() {
     const results: Array<{ label: string; spawn: MonsterSpawn }> = [];
     for (const monsterName of weeklyConquest.monsters) {
       const monster = monsters[monsterName];
-      if (!monster?.spawns?.length) continue;
-      for (const spawn of monster.spawns) {
+      const minedSummary = MINED_MONSTER_SUMMARY_MAP[monsterName];
+      const spawns = mergeUniqueSpawns(monster?.spawns, minedSummary?.nativeMapSpawns, communitySightings[monsterName]);
+      if (!spawns.length) continue;
+      for (const spawn of spawns) {
         if (!spawn.area || spawn.area === "Dispatch") continue;
         const key = `${spawn.area.trim().toLowerCase()}|${spawn.level}`;
         if (seen.has(key)) continue;
@@ -366,6 +376,9 @@ export default function WeeklyConquestPage() {
 
                     const mName = weeklyConquest?.monsters?.[i];
                     const m = mName ? monsters[mName] : undefined;
+                    const minedSummary = mName ? MINED_MONSTER_SUMMARY_MAP[mName] : undefined;
+                    const communitySpawns = mName ? (communitySightings[mName] ?? []) : [];
+                    const displaySpawns = mergeUniqueSpawns(m?.spawns, minedSummary?.nativeMapSpawns, communitySpawns);
                     return mName ? (
                       <div key={i} className="rounded-lg border border-border bg-muted/20 px-2 py-2 text-[11px]">
                         <div className="flex items-start gap-2">
@@ -373,13 +386,26 @@ export default function WeeklyConquestPage() {
                             {m?.icon ? <img src={m.icon} alt="" className="w-full h-full object-contain" /> : <Trophy className="w-4 h-4 text-muted-foreground/40" />}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[11px] font-semibold leading-tight">{mName}</p>
+                            <Link
+                              href={`/monsters?monster=${encodeURIComponent(mName)}`}
+                              className="text-[11px] font-semibold leading-tight text-foreground hover:text-primary underline-offset-2 hover:underline"
+                            >
+                              {mName}
+                            </Link>
                             <p className="text-[10px] text-muted-foreground mt-0.5">Target kills: {conquestKillTargets[i]?.toLocaleString() ?? "-"}</p>
                           </div>
                         </div>
-                        {m && m.spawns.length > 0 ? (
+                        {minedSummary ? (
+                          <div className="mt-2 rounded-md border border-border/60 bg-background/40 px-2 py-1.5">
+                            <p className="text-[10px] text-muted-foreground">
+                              <span className="font-medium text-foreground">{minedSummary.terrainName}</span>
+                              {" • "}Lv {minedSummary.areaLevelMin} to Lv {minedSummary.areaLevelMax}
+                            </p>
+                          </div>
+                        ) : null}
+                        {displaySpawns.length > 0 ? (
                           <div className="mt-2 grid grid-cols-2 gap-1">
-                            {m.spawns.map((sp, si) => (
+                            {displaySpawns.map((sp, si) => (
                               <button
                                 key={si}
                                 type="button"
@@ -395,7 +421,11 @@ export default function WeeklyConquestPage() {
                               </button>
                             ))}
                           </div>
-                        ) : <p className="text-[10px] text-muted-foreground/60 mt-2">No spawns recorded</p>}
+                        ) : (
+                          <div className="mt-2 rounded-md border border-dashed border-border/60 bg-background/30 px-2 py-2">
+                            <p className="text-[10px] text-muted-foreground/70">You can add spawns on the Monster Spawns page for this monster.</p>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div key={i} className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/10 px-2 py-2 h-14">

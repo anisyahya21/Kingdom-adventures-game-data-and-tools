@@ -1224,7 +1224,7 @@ export default function WorldMapPage() {
         : activeTool === "chaos_setup"
         ? getChaosSetupFootprintCoords(tile.x, tile.y, chaosSetupPiece, cols, rows)
         : activeTool === "pen"
-        ? getCenteredSquareCoordinates(tile.x, tile.y, paintMode === "erase" ? eraserSize : penBrushSize, cols, rows)
+        ? getCenteredSquareCoordinates(tile.x, tile.y, penBrushSize, cols, rows)
         : getCenteredSquareCoordinates(tile.x, tile.y, brushSize, cols, rows);
 
     if (activeTool === "pen") applyPatchToSet("pen", coords, "mark");
@@ -1232,18 +1232,7 @@ export default function WorldMapPage() {
     if (activeTool === "draw_area") applyPatchToSet("outline", coords, paintMode);
     if (activeTool === "reclaim") applyPatchToSet("reclaim", coords, reclaimMode);
     if (activeTool === "deploy") {
-      if (paintMode === "erase") {
-        const cluster = collectConnectedDeployment(keyOf(tile.x, tile.y));
-        if (cluster.size) {
-          setDeployedTiles((prev) => {
-            const next = new Set(prev);
-            cluster.forEach((key) => next.delete(key));
-            return next;
-          });
-        }
-      } else {
-        applyPatchToSet("deploy", coords, "mark");
-      }
+      applyPatchToSet("deploy", coords, "mark");
     }
     if (activeTool === "road") applyPatchToSet("road", coords, paintMode);
   }

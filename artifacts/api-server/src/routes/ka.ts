@@ -17,6 +17,7 @@ export interface HistoryEntry {
 
 export type MonsterSpawn = { area: string; level: number };
 export type Monster = { icon?: string; spawns: MonsterSpawn[] };
+export type CommunitySighting = { area: string; level: number };
 
 export type WeeklyConquest = {
   monsters: string[];
@@ -100,6 +101,7 @@ type SharedState = {
   loadouts: Loadout[];
   loadoutsUpdatedAt: number | null;
   syncedDevices: Array<{ id: string; name: string; createdAt: number; syncGroupId?: string }>;
+  communitySightings: Record<string, CommunitySighting[]>;
 };
 
 const DEFAULT_STATE: SharedState = {
@@ -119,6 +121,7 @@ const DEFAULT_STATE: SharedState = {
   loadouts: [],
   loadoutsUpdatedAt: null,
   syncedDevices: [],
+  communitySightings: {},
 };
 
 function ensureDir() {
@@ -143,6 +146,7 @@ function readState(): SharedState {
       loadouts: [],
       loadoutsUpdatedAt: null,
       syncedDevices: [],
+      communitySightings: {},
       ...parsed,
     };
   } catch {
@@ -294,6 +298,23 @@ router.put("/ka/weekly-conquest", (req, res) => {
   if (history) appendHistory(state, history);
   writeState(state);
   res.json({ ok: true });
+});
+
+// ─── Community Sightings ──────────────────────────────────────────────────────
+
+router.get("/ka/community-sightings", (_req, res) => {
+  res.json(readState().communitySightings ?? {});
+});
+
+router.put("/ka/community-sightings", (req, res) => {
+  const { data } = req.body as { data: Record<string, CommunitySighting[]> };
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return res.status(400).json({ error: "data must be an object" });
+  }
+  const state = readState();
+  state.communitySightings = data;
+  writeState(state);
+  return res.json({ ok: true });
 });
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
