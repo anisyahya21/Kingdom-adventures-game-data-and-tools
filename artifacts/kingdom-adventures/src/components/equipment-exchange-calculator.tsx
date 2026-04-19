@@ -369,6 +369,7 @@ export default function EquipmentExchangeCalculator() {
 
     const usedEntries = states
       .filter((state) => state.used > 0)
+      .map((state) => ({ ...state, nextExchange: state.currentExchange }))
       .sort((a, b) => {
         if (b.used !== a.used) return b.used - a.used;
         return a.entry.inputName.localeCompare(b.entry.inputName);
@@ -642,9 +643,30 @@ export default function EquipmentExchangeCalculator() {
               <div key={state.entry.inputId} className="rounded-md border border-border bg-background/60 px-3 py-2 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{state.entry.inputName}</span>
-                  <span className="tabular-nums font-semibold">Buy {state.totalExchange}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="tabular-nums font-semibold">Buy {state.totalExchange}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground">marks done &amp; updates rate ➜</span>
+                      <button
+                        type="button"
+                        title="Mark as bought & traded — updates your trade rate and reduces target"
+                        onClick={() => {
+                          setCurrentPriceInputs((prev) => ({ ...prev, [state.entry.inputId]: String(state.nextExchange) }));
+                          if (requirementMode === "auto") {
+                            setOwnedKairo((prev) => prev + state.used);
+                          } else {
+                            setTargetCount((prev) => Math.max(0, prev - state.used));
+                          }
+                        }}
+                        className="flex h-6 w-6 items-center justify-center rounded-md border border-green-500/50 bg-green-500/10 text-sm font-bold text-green-600 hover:bg-green-500/20 dark:text-green-400"
+                      >
+                        ✓
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div className="mt-0.5 text-[11px] text-muted-foreground">{state.totalExchange} × {state.entry.buyPrice}¢ = {state.totalBuy}¢ total &nbsp;·&nbsp; used {state.used}×</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">Rate after: <span className="font-medium text-foreground">{state.nextExchange}</span></div>
               </div>
             ))}
           </div>
