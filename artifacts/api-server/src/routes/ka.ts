@@ -2,6 +2,25 @@ import { Router } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import multer from "multer";
+// Multer setup for image uploads
+const PUBLIC_IMAGES_DIR = path.resolve(process.cwd(), "artifacts/kingdom-adventures/public/guides/images");
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    fs.mkdirSync(PUBLIC_IMAGES_DIR, { recursive: true });
+    cb(null, PUBLIC_IMAGES_DIR);
+  },
+  filename: (req, file, cb) => {
+    // Use a unique filename
+    const ext = path.extname(file.originalname);
+    const base = path.basename(file.originalname, ext);
+    const unique = `${base}-${Date.now()}${ext}`;
+    cb(null, unique);
+  },
+});
+const upload = multer({ storage });
+
+
 
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const STATE_FILE = path.join(DATA_DIR, "ka_shared.json");
@@ -165,6 +184,14 @@ function appendHistory(state: SharedState, entry: Omit<HistoryEntry, "id" | "tim
 }
 
 const router = Router();
+
+// POST /ka/upload-image: Accepts multipart/form-data, saves image, returns URL
+router.post("/ka/upload-image", upload.single("image"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  // Return the public URL for the uploaded image
+  const url = `/guides/images/${req.file.filename}`;
+  res.json({ url });
+});
 
 const syncCodes = new Map<string, { expiresAt: number; sourceDeviceId: string }>();
 

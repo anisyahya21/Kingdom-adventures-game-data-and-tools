@@ -36,6 +36,7 @@ import JobCenterPage from "@/pages/job-center";
 import KairoRoomPage from "@/pages/kairo-room";
 import PlaythroughGuidePage from "@/pages/playthrough-guide";
 import GuidesPage from "@/pages/guides";
+import AddGuidePage from "@/pages/add-guide";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
 
@@ -405,6 +406,7 @@ function Router() {
       <Route path="/gacha-events" component={GachaEventsPage} />
       <Route path="/town-rank" component={TownRankPage} />
       <Route path="/guides" component={GuidesPage} />
+      <Route path="/add-guide" component={AddGuidePage} />
       <Route path="/playthrough-guide" component={PlaythroughGuidePage} />
       <Route component={NotFound} />
     </Switch>

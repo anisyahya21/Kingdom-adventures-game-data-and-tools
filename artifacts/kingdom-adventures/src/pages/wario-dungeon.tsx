@@ -45,6 +45,7 @@ function toJstDate(year: number, monthIndex: number, day: number, hour: number):
   return new Date(Date.UTC(year, monthIndex, day, hour - 9, 0, 0, 0));
 }
 
+
 function buildMonthlyWarioSchedule(base: Date): WarioDungeonSpawn[] {
   const entries: WarioDungeonSpawn[] = [];
   for (const entry of WARIO_DUNGEON_SCHEDULE) {

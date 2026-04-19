@@ -81,6 +81,7 @@
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "html-to-image": "^1.11.13",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.14.1"
   }
 }
