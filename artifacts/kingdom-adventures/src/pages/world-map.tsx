@@ -83,6 +83,7 @@ const SURVEY_DEFS: SurveyDef[] = [
 ];
 
 type ToolType = "none" | "pen" | "draw_area" | "reclaim" | "deploy" | "road" | "chaos_setup";
+type EraserTarget = "pen" | "draw_area" | "road" | "chaos_setup" | "deploy" | "all";
 type BrushSize = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type DeploymentSize = 2 | 3 | 4 | 5 | 6;
 type PaintMode = "mark" | "erase";
@@ -668,6 +669,7 @@ export default function WorldMapPage() {
   const [drawBubbleOpen, setDrawBubbleOpen] = useState(false);
   const [drawBubblePos, setDrawBubblePos] = useState({ x: 16, y: 220 });
   const [lineAssist, setLineAssist] = useState(false);
+  const [eraserTarget, setEraserTarget] = useState<EraserTarget>("pen");
   const [showSurveys, setShowSurveys] = useState(false);
   const [visibleSurveyCats, setVisibleSurveyCats] = useState<Set<SurveyCategory>>(
     new Set(["storehouse", "chaos_stone", "cash_register", "dragon_taming"])
@@ -681,6 +683,7 @@ export default function WorldMapPage() {
   const panStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const lastPaintedKeysRef = useRef<Set<string>>(new Set());
   const lastTileRef = useRef<Tile | null>(null);
+  const lineStartTileRef = useRef<Tile | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const minimapCanvasRef = useRef<HTMLCanvasElement>(null);
   const activePaintPointersRef = useRef<Set<number>>(new Set());
@@ -808,6 +811,7 @@ export default function WorldMapPage() {
       setIsPainting(false);
       lastPaintedKeysRef.current = new Set();
       lastTileRef.current = null;
+      lineStartTileRef.current = null;
       activePaintPointersRef.current = new Set();
     }
     function stopPanning() {
@@ -1168,6 +1172,52 @@ export default function WorldMapPage() {
   function handleToolAction(tile: Tile) {
     setSelectedTile(tile);
     if (activeTool === "none") return;
+
+    if (paintMode === "erase") {
+      const eraseCoords =
+        eraserTarget === "deploy"
+          ? getDiamondCoordinates(tile.x, tile.y, deploymentSize, cols, rows)
+          : eraserTarget === "chaos_setup"
+          ? getChaosSetupFootprintCoords(tile.x, tile.y, chaosSetupPiece, cols, rows)
+          : getCenteredSquareCoordinates(tile.x, tile.y, eraserSize, cols, rows);
+
+      if (eraserTarget === "all") {
+        applyPatchToSet("pen", eraseCoords, "erase");
+        applyPatchToSet("outline", eraseCoords, "erase");
+        applyPatchToSet("road", eraseCoords, "erase");
+        applyPatchToSet("chaos_setup", eraseCoords, "erase");
+        const cluster = collectConnectedDeployment(keyOf(tile.x, tile.y));
+        if (cluster.size) {
+          setDeployedTiles((prev) => {
+            const next = new Set(prev);
+            cluster.forEach((key) => next.delete(key));
+            return next;
+          });
+        } else {
+          applyPatchToSet("deploy", eraseCoords, "erase");
+        }
+        return;
+      }
+
+      if (eraserTarget === "pen") applyPatchToSet("pen", eraseCoords, "erase");
+      if (eraserTarget === "draw_area") applyPatchToSet("outline", eraseCoords, "erase");
+      if (eraserTarget === "road") applyPatchToSet("road", eraseCoords, "erase");
+      if (eraserTarget === "chaos_setup") applyPatchToSet("chaos_setup", eraseCoords, "erase");
+      if (eraserTarget === "deploy") {
+        const cluster = collectConnectedDeployment(keyOf(tile.x, tile.y));
+        if (cluster.size) {
+          setDeployedTiles((prev) => {
+            const next = new Set(prev);
+            cluster.forEach((key) => next.delete(key));
+            return next;
+          });
+        } else {
+          applyPatchToSet("deploy", eraseCoords, "erase");
+        }
+      }
+      return;
+    }
+
     const coords =
       activeTool === "deploy"
         ? getDiamondCoordinates(tile.x, tile.y, deploymentSize, cols, rows)
@@ -1177,7 +1227,7 @@ export default function WorldMapPage() {
         ? getCenteredSquareCoordinates(tile.x, tile.y, paintMode === "erase" ? eraserSize : penBrushSize, cols, rows)
         : getCenteredSquareCoordinates(tile.x, tile.y, brushSize, cols, rows);
 
-    if (activeTool === "pen") applyPatchToSet("pen", coords, paintMode);
+    if (activeTool === "pen") applyPatchToSet("pen", coords, "mark");
     if (activeTool === "chaos_setup") applyPatchToSet("chaos_setup", coords, paintMode);
     if (activeTool === "draw_area") applyPatchToSet("outline", coords, paintMode);
     if (activeTool === "reclaim") applyPatchToSet("reclaim", coords, reclaimMode);
@@ -1229,8 +1279,11 @@ export default function WorldMapPage() {
       pushHistory();
       lastPaintedKeysRef.current = new Set();
       lastTileRef.current = tile;
+      lineStartTileRef.current = tile;
       setIsPainting(true);
-      handleToolAction(tile);
+      if (!(activeTool === "pen" && paintMode === "mark" && lineAssist)) {
+        handleToolAction(tile);
+      }
       return;
     }
     setSelectedTile(tile);
@@ -1238,6 +1291,20 @@ export default function WorldMapPage() {
 
   function continuePaint(tile: Tile) {
     if (!isPainting || activeTool === "none") return;
+    if (activeTool === "pen" && paintMode === "mark" && lineAssist) {
+      const start = lineStartTileRef.current ?? tile;
+      let targetX = tile.x;
+      let targetY = tile.y;
+      if (Math.abs(tile.x - start.x) >= Math.abs(tile.y - start.y)) targetY = start.y;
+      else targetX = start.x;
+      const pts = tilesOnLine(start.x, start.y, targetX, targetY);
+      for (const [x, y] of pts) {
+        const t = grid.get(keyOf(x, y));
+        if (t) handleToolAction(t);
+      }
+      lastTileRef.current = tile;
+      return;
+    }
     const last = lastTileRef.current;
     if (last && (last.x !== tile.x || last.y !== tile.y)) {
       let targetX = tile.x;
@@ -2526,17 +2593,19 @@ export default function WorldMapPage() {
         const isErase = paintMode === "erase" && activeTool !== "none";
         const isNone = activeTool === "none";
 
-        const eraseTargetLabel = activeTool === "pen"
+        const eraseTargetLabel = eraserTarget === "all"
+          ? "All"
+          : eraserTarget === "pen"
           ? "Pen"
-          : activeTool === "draw_area"
+          : eraserTarget === "draw_area"
           ? "Area"
-          : activeTool === "road"
+          : eraserTarget === "road"
           ? "Road"
-          : activeTool === "deploy"
+          : eraserTarget === "deploy"
           ? "Deploy"
-          : activeTool === "chaos_setup"
+          : eraserTarget === "chaos_setup"
           ? "Chaos Setup"
-          : activeTool;
+          : eraserTarget;
         const toolName = isNone ? "No tool" : isErase ? `Erase ${eraseTargetLabel}` : isRoad ? "Road" : isPen ? "Pen" : isDrawArea ? "Draw Area" : isChaosSetup ? `CS (${chaosSetupPiece === "info_board" ? "Info Board" : "Chaos Stone"})` : activeTool;
 
         const bubbleIcon = isNone ? <BubbleIconCursor /> : isRoad ? <BubbleIconRoad /> : isErase ? <BubbleIconEraser /> : isDrawArea ? <BubbleIconDrawArea /> : <BubbleIconPen />;
@@ -2641,12 +2710,11 @@ export default function WorldMapPage() {
 
       {!cleanMode && activeTool !== "none" && (
         <div
-          className="absolute z-50"
-          style={{ left: Math.max(12, drawBubblePos.x + 56), top: Math.max(14, drawBubblePos.y - 60) }}
+          className="absolute top-3 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100%-24px)]"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border px-3 py-2 shadow-2xl backdrop-blur"
-            style={{ background: "rgba(15,23,42,0.92)", borderColor: "rgba(255,255,255,0.15)", color: "#fff", maxWidth: touchMode ? 260 : 420 }}>
+          <div className="flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 shadow-2xl backdrop-blur overflow-x-auto whitespace-nowrap"
+            style={{ background: "rgba(15,23,42,0.92)", borderColor: "rgba(255,255,255,0.15)", color: "#fff", maxWidth: touchMode ? "min(92vw, 560px)" : "min(70vw, 860px)" }}>
             {activeTool === "pen" && paintMode === "mark" && (
               <>
                 <span className="text-[10px] font-semibold opacity-60 uppercase tracking-wider">Pen</span>
@@ -2654,13 +2722,13 @@ export default function WorldMapPage() {
                   <button
                     key={`pen-size-${size}`}
                     onClick={() => setPenBrushSize(size)}
-                    className="w-7 h-7 rounded-full border text-[11px] font-bold"
+                    className="w-6 h-6 rounded-full border text-[10px] font-bold shrink-0"
                     style={{ background: penBrushSize === size ? "rgba(37,99,235,0.88)" : "rgba(15,23,42,0.72)", borderColor: penBrushSize === size ? "#60a5fa" : "rgba(255,255,255,0.18)" }}
                   >{size}</button>
                 ))}
                 <button
                   onClick={() => setLineAssist((prev) => !prev)}
-                  className="h-7 px-2.5 rounded-full border text-[11px] font-bold"
+                  className="h-6 px-2 rounded-full border text-[10px] font-bold shrink-0"
                   style={{ background: lineAssist ? "rgba(37,99,235,0.88)" : "rgba(15,23,42,0.72)", borderColor: lineAssist ? "#60a5fa" : "rgba(255,255,255,0.18)" }}
                 >
                   Line
@@ -2669,7 +2737,7 @@ export default function WorldMapPage() {
                   <button
                     key={`pen-color-${c.value}`}
                     onClick={() => setPenColor(c.value)}
-                    className="w-6 h-6 rounded-full border-2"
+                    className="w-5 h-5 rounded-full border-2 shrink-0"
                     style={{ background: c.value, borderColor: penColor === c.value ? "#fff" : "rgba(255,255,255,0.2)" }}
                     title={c.label}
                   />
@@ -2680,14 +2748,14 @@ export default function WorldMapPage() {
             {paintMode === "erase" && (
               <>
                 <span className="text-[10px] font-semibold opacity-60 uppercase tracking-wider">Eraser</span>
-                {(["pen","draw_area","road","chaos_setup"] as const).map((layer) => {
-                  const label = layer === "pen" ? "Pen" : layer === "draw_area" ? "Area" : layer === "road" ? "Road" : "BLD";
-                  const active = activeTool === layer;
+                {(["pen","draw_area","road","chaos_setup","deploy","all"] as const).map((layer) => {
+                  const label = layer === "pen" ? "Pen" : layer === "draw_area" ? "Area" : layer === "road" ? "Road" : layer === "chaos_setup" ? "BLD" : layer === "deploy" ? "Deploy" : "All";
+                  const active = eraserTarget === layer;
                   return (
                     <button
                       key={`erase-layer-${layer}`}
-                      onClick={() => setActiveTool(layer)}
-                      className="h-7 px-2.5 rounded-full border text-[11px] font-bold"
+                      onClick={() => setEraserTarget(layer)}
+                      className="h-6 px-2 rounded-full border text-[10px] font-bold shrink-0"
                       style={{ background: active ? "rgba(239,68,68,0.85)" : "rgba(15,23,42,0.72)", borderColor: active ? "#ef4444" : "rgba(255,255,255,0.18)" }}
                     >{label}</button>
                   );
@@ -2696,7 +2764,7 @@ export default function WorldMapPage() {
                   <button
                     key={`eraser-size-${size}`}
                     onClick={() => setEraserSize(size)}
-                    className="w-7 h-7 rounded-full border text-[11px] font-bold"
+                    className="w-6 h-6 rounded-full border text-[10px] font-bold shrink-0"
                     style={{ background: eraserSize === size ? "rgba(239,68,68,0.85)" : "rgba(15,23,42,0.72)", borderColor: eraserSize === size ? "#ef4444" : "rgba(255,255,255,0.18)" }}
                   >{size}</button>
                 ))}
@@ -2710,7 +2778,7 @@ export default function WorldMapPage() {
                   <button
                     key={`area-size-${size}`}
                     onClick={() => setBrushSize(size)}
-                    className="w-7 h-7 rounded-full border text-[11px] font-bold"
+                    className="w-6 h-6 rounded-full border text-[10px] font-bold shrink-0"
                     style={{ background: brushSize === size ? "rgba(37,99,235,0.88)" : "rgba(15,23,42,0.72)", borderColor: brushSize === size ? "#60a5fa" : "rgba(255,255,255,0.18)" }}
                   >{size}</button>
                 ))}
@@ -2718,7 +2786,7 @@ export default function WorldMapPage() {
                   <button
                     key={`area-color-${c.value}`}
                     onClick={() => setDrawAreaColor(c.value)}
-                    className="w-6 h-6 rounded-full border-2"
+                    className="w-5 h-5 rounded-full border-2 shrink-0"
                     style={{ background: c.value, borderColor: drawAreaColor === c.value ? "#fff" : "rgba(255,255,255,0.2)" }}
                     title={c.label}
                   />
@@ -2731,14 +2799,14 @@ export default function WorldMapPage() {
                 <span className="text-[10px] font-semibold opacity-60 uppercase tracking-wider">Buildings</span>
                 <button
                   onClick={() => setChaosSetupPiece("info_board")}
-                  className="h-7 px-2.5 rounded-full border text-[11px] font-bold"
+                  className="h-6 px-2 rounded-full border text-[10px] font-bold shrink-0"
                   style={{ background: chaosSetupPiece === "info_board" ? "rgba(217,119,6,0.88)" : "rgba(15,23,42,0.72)", borderColor: chaosSetupPiece === "info_board" ? "#f59e0b" : "rgba(255,255,255,0.18)" }}
                 >
                   Board
                 </button>
                 <button
                   onClick={() => setChaosSetupPiece("chaos_stone")}
-                  className="h-7 px-2.5 rounded-full border text-[11px] font-bold"
+                  className="h-6 px-2 rounded-full border text-[10px] font-bold shrink-0"
                   style={{ background: chaosSetupPiece === "chaos_stone" ? "rgba(217,119,6,0.88)" : "rgba(15,23,42,0.72)", borderColor: chaosSetupPiece === "chaos_stone" ? "#f59e0b" : "rgba(255,255,255,0.18)" }}
                 >
                   Stone
