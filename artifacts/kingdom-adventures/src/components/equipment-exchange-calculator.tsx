@@ -112,19 +112,19 @@ function getCheapestCopperBuyForTarget(target: KairoEquipmentName, count: number
     let best = states[0];
     let bestCombined = Number.POSITIVE_INFINITY;
     for (const state of states) {
-      const combined = state.entry.buyPrice + state.currentExchange;
+      const combined = state.entry.buyPrice * state.currentExchange;
       if (
         combined < bestCombined ||
-        (combined === bestCombined && state.entry.buyPrice < best.entry.buyPrice) ||
+        (combined === bestCombined && state.currentExchange < best.currentExchange) ||
         (combined === bestCombined &&
-          state.entry.buyPrice === best.entry.buyPrice &&
+          state.currentExchange === best.currentExchange &&
           state.entry.inputName < best.entry.inputName)
       ) {
         best = state;
         bestCombined = combined;
       }
     }
-    totalBuy += best.entry.buyPrice;
+    totalBuy += best.entry.buyPrice * best.currentExchange;
     best.currentExchange += best.entry.priceStep;
   }
 
