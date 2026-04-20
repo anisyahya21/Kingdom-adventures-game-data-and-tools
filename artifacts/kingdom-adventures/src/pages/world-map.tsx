@@ -5,7 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { apiUrl } from "@/lib/api";
-import { mapTerrainCodeToType } from "@/lib/monster-truth";
+import { mapTerrainCodeToType, parseTerrainMapCsv } from "@/lib/monster-truth";
+import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
+
+const FULL_TERRAIN_MAP: number[][] = parseTerrainMapCsv(fullTerrainCsv);
 
 type TerrainType =
   | "grass"
@@ -833,8 +836,10 @@ function buildTiles() {
       const nativeY = getNativeIndex(y, rows, nativeRows);
       const native = NATIVE_MAP[nativeY][nativeX];
       const buildable = row[x] === "1";
-      const fullTerrainCode = null;
-      const tileTerrain = native.terrain;
+      const fullTerrainCode = FULL_TERRAIN_MAP[y]?.[x];
+      const tileTerrain = Number.isFinite(fullTerrainCode)
+        ? mapTerrainCodeToType(fullTerrainCode) ?? native.terrain
+        : native.terrain;
       const tile: Tile = {
         x,
         y,
@@ -843,7 +848,7 @@ function buildTiles() {
         nativeX,
         nativeY,
         buildable,
-        fullTerrainId: fullTerrainCode,
+        fullTerrainId: Number.isFinite(fullTerrainCode) ? fullTerrainCode : null,
       };
       if (buildable) terrainCounts[tile.terrain] += 1;
       grid.set(keyOf(x, y), tile);
