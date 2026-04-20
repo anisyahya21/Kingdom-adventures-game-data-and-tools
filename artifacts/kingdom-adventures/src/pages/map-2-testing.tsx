@@ -1,10 +1,6 @@
 ﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { parseTerrainMapCsv } from "@/lib/monster-truth";
-import fullTerrainCsv from "../../../../data/Sheet csv/KA GameData - Map (full, terrain).csv?raw";
-
-const FULL_TERRAIN_MAP: number[][] = parseTerrainMapCsv(fullTerrainCsv);
 
 type TerrainType =
   | "grass"
@@ -476,7 +472,6 @@ function buildTiles() {
       const nativeY = getNativeIndex(y, rows, nativeRows);
       const native = NATIVE_MAP[nativeY][nativeX];
       const buildable = row[x] === "1";
-      const fullTerrainCode = FULL_TERRAIN_MAP[y]?.[x];
       const terrain = native.terrain;
       const tile: Tile = {
         x,
@@ -486,7 +481,7 @@ function buildTiles() {
         nativeX,
         nativeY,
         buildable,
-        fullTerrainId: Number.isFinite(fullTerrainCode) ? fullTerrainCode : null,
+        fullTerrainId: null,
         mapChip: buildable ? MAP_CHIP_BY_TERRAIN[terrain] : null,
       };
       if (buildable) terrainCounts[tile.terrain] += 1;

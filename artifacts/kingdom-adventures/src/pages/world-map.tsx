@@ -5,10 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { apiUrl } from "@/lib/api";
-import { mapTerrainCodeToType, parseTerrainMapCsv } from "@/lib/monster-truth";
-import fullTerrainCsv from "../../../../data/Sheet csv/KA GameData - Map (full, terrain).csv?raw";
-
-const FULL_TERRAIN_MAP: number[][] = parseTerrainMapCsv(fullTerrainCsv);
+import { mapTerrainCodeToType } from "@/lib/monster-truth";
 
 type TerrainType =
   | "grass"
@@ -836,10 +833,8 @@ function buildTiles() {
       const nativeY = getNativeIndex(y, rows, nativeRows);
       const native = NATIVE_MAP[nativeY][nativeX];
       const buildable = row[x] === "1";
-      const fullTerrainCode = FULL_TERRAIN_MAP[y]?.[x];
-      const tileTerrain = Number.isFinite(fullTerrainCode)
-        ? mapTerrainCodeToType(fullTerrainCode) ?? native.terrain
-        : native.terrain;
+      const fullTerrainCode = null;
+      const tileTerrain = native.terrain;
       const tile: Tile = {
         x,
         y,
@@ -848,7 +843,7 @@ function buildTiles() {
         nativeX,
         nativeY,
         buildable,
-        fullTerrainId: Number.isFinite(fullTerrainCode) ? fullTerrainCode : null,
+        fullTerrainId: fullTerrainCode,
       };
       if (buildable) terrainCounts[tile.terrain] += 1;
       grid.set(keyOf(x, y), tile);
