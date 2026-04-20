@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Download, Upload } from "lucide-react";
+import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
 
 type KairoEquipmentName =
@@ -39,7 +42,39 @@ const SMITHY_LEVEL_ROWS = [
 
 const BREAK_LEVELS = SMITHY_LEVEL_ROWS.map((row) => row.level);
 const RANK_TOGGLES = ["F", "E", "D", "C", "B", "A", "S"] as const;
-const STORAGE_KEY = "ka-equipment-exchange-state-v1";
+const STORAGE_KEY = "ka_equipment_exchange_state";
+
+interface EquipmentExchangeSavedState {
+  target: KairoEquipmentName;
+  targetCount: number;
+  requirementMode: RequirementMode;
+  ownedKairo: number;
+  equipmentQuery: string;
+  selectedEquipmentId: number | "";
+  currentLevel: number;
+  targetLevel: number;
+  sourceQuery: string;
+  sourceRankFilters: string[];
+  sourceGivesFilters: string[];
+  currentPriceInputs: Record<number, string>;
+  funFactRanks: string[];
+}
+
+const DEFAULT_EQUIPMENT_EXCHANGE_STATE: EquipmentExchangeSavedState = {
+  target: "A/ Kairo Gun",
+  targetCount: 10,
+  requirementMode: "auto",
+  ownedKairo: 0,
+  equipmentQuery: "",
+  selectedEquipmentId: "",
+  currentLevel: 1,
+  targetLevel: 99,
+  sourceQuery: "",
+  sourceRankFilters: [],
+  sourceGivesFilters: [],
+  currentPriceInputs: {},
+  funFactRanks: [...RANK_TOGGLES],
+};
 
 const PLAYER_EQUIPMENT = (EQUIPMENT_CATALOG as readonly EquipmentCatalogItem[]).filter((item) =>
   /^[FSABCDEG]\s*\//i.test(item.name),
@@ -137,20 +172,25 @@ function summarizeCopperCoinRoute(items: EquipmentCatalogItem[], targetLevel = 9
 }
 
 export default function EquipmentExchangeCalculator() {
-  const [target, setTarget] = useState<KairoEquipmentName>("A/ Kairo Gun");
-  const [targetCount, setTargetCount] = useState(10);
-  const [requirementMode, setRequirementMode] = useState<RequirementMode>("auto");
-  const [ownedKairo, setOwnedKairo] = useState(0);
-  const [equipmentQuery, setEquipmentQuery] = useState("");
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState<number | "">("");
-  const [currentLevel, setCurrentLevel] = useState(1);
-  const [targetLevel, setTargetLevel] = useState(99);
-  const [sourceQuery, setSourceQuery] = useState("");
-  const [sourceRankFilters, setSourceRankFilters] = useState<Set<string>>(new Set());
-  const [sourceGivesFilters, setSourceGivesFilters] = useState<Set<string>>(new Set());
+  const [savedExchangeState, setSavedExchangeState] = useLocalFeature<EquipmentExchangeSavedState>(
+    STORAGE_KEY,
+    DEFAULT_EQUIPMENT_EXCHANGE_STATE,
+  );
+
+  const [target, setTarget] = useState<KairoEquipmentName>(savedExchangeState.target ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.target);
+  const [targetCount, setTargetCount] = useState(savedExchangeState.targetCount ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.targetCount);
+  const [requirementMode, setRequirementMode] = useState<RequirementMode>(savedExchangeState.requirementMode ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.requirementMode);
+  const [ownedKairo, setOwnedKairo] = useState(savedExchangeState.ownedKairo ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.ownedKairo);
+  const [equipmentQuery, setEquipmentQuery] = useState(savedExchangeState.equipmentQuery ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.equipmentQuery);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState<number | "">(savedExchangeState.selectedEquipmentId ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.selectedEquipmentId);
+  const [currentLevel, setCurrentLevel] = useState(savedExchangeState.currentLevel ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.currentLevel);
+  const [targetLevel, setTargetLevel] = useState(savedExchangeState.targetLevel ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.targetLevel);
+  const [sourceQuery, setSourceQuery] = useState(savedExchangeState.sourceQuery ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.sourceQuery);
+  const [sourceRankFilters, setSourceRankFilters] = useState<Set<string>>(new Set(savedExchangeState.sourceRankFilters ?? []));
+  const [sourceGivesFilters, setSourceGivesFilters] = useState<Set<string>>(new Set(savedExchangeState.sourceGivesFilters ?? []));
   const [givesDropdownOpen, setGivesDropdownOpen] = useState(false);
   const givesDropdownRef = useRef<HTMLDivElement>(null);
-  const [currentPriceInputs, setCurrentPriceInputs] = useState<Record<number, string>>({});
+  const [currentPriceInputs, setCurrentPriceInputs] = useState<Record<number, string>>(savedExchangeState.currentPriceInputs ?? {});
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -161,71 +201,123 @@ export default function EquipmentExchangeCalculator() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
-  const [funFactRanks, setFunFactRanks] = useState<Set<string>>(new Set(RANK_TOGGLES));
+  const [funFactRanks, setFunFactRanks] = useState<Set<string>>(new Set(savedExchangeState.funFactRanks ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.funFactRanks));
+  const [importText, setImportText] = useState("");
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
+  const exportPayload = useMemo(
+    () => ({
+      target,
+      targetCount,
+      requirementMode,
+      ownedKairo,
+      equipmentQuery,
+      selectedEquipmentId,
+      currentLevel,
+      targetLevel,
+      sourceQuery,
+      sourceRankFilters: Array.from(sourceRankFilters),
+      sourceGivesFilters: Array.from(sourceGivesFilters),
+      currentPriceInputs,
+      funFactRanks: Array.from(funFactRanks),
+    }),
+    [
+      currentLevel,
+      currentPriceInputs,
+      equipmentQuery,
+      funFactRanks,
+      ownedKairo,
+      requirementMode,
+      selectedEquipmentId,
+      sourceGivesFilters,
+      sourceQuery,
+      sourceRankFilters,
+      target,
+      targetCount,
+      targetLevel,
+    ],
+  );
+
+  const exportText = useMemo(() => JSON.stringify(exportPayload), [exportPayload]);
+
+  const copyExportText = async () => {
     try {
-      const saved = JSON.parse(raw) as {
-        target?: KairoEquipmentName;
-        targetCount?: number;
-        requirementMode?: RequirementMode;
-        ownedKairo?: number;
-        equipmentQuery?: string;
-        selectedEquipmentId?: number | "";
-        currentLevel?: number;
-        targetLevel?: number;
-        sourceQuery?: string;
-        currentPriceInputs?: Record<number, string>;
-        funFactRanks?: string[];
-      };
-      if (saved.target) setTarget(saved.target);
-      if (typeof saved.targetCount === "number") setTargetCount(saved.targetCount);
-      if (saved.requirementMode) setRequirementMode(saved.requirementMode);
-      if (typeof saved.ownedKairo === "number") setOwnedKairo(saved.ownedKairo);
-      if (typeof saved.equipmentQuery === "string") setEquipmentQuery(saved.equipmentQuery);
-      if (typeof saved.selectedEquipmentId === "number" || saved.selectedEquipmentId === "") setSelectedEquipmentId(saved.selectedEquipmentId);
-      if (typeof saved.currentLevel === "number") setCurrentLevel(saved.currentLevel);
-      if (typeof saved.targetLevel === "number") setTargetLevel(saved.targetLevel);
-      if (typeof saved.sourceQuery === "string") setSourceQuery(saved.sourceQuery);
-      if (saved.currentPriceInputs) setCurrentPriceInputs(saved.currentPriceInputs);
-      if (saved.funFactRanks?.length) setFunFactRanks(new Set(saved.funFactRanks));
-    } catch {}
-  }, []);
+      await navigator.clipboard.writeText(exportText);
+      window.alert("Exchange state copied to clipboard.");
+    } catch {
+      window.alert("Copy failed. Please select the export text and copy it manually.");
+    }
+  };
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        target,
-        targetCount,
-        requirementMode,
-        ownedKairo,
-        equipmentQuery,
-        selectedEquipmentId,
-        currentLevel,
-        targetLevel,
-        sourceQuery,
-        currentPriceInputs,
-        funFactRanks: Array.from(funFactRanks),
-      }),
-    );
+    setSavedExchangeState({
+      target,
+      targetCount,
+      requirementMode,
+      ownedKairo,
+      equipmentQuery,
+      selectedEquipmentId,
+      currentLevel,
+      targetLevel,
+      sourceQuery,
+      sourceRankFilters: Array.from(sourceRankFilters),
+      sourceGivesFilters: Array.from(sourceGivesFilters),
+      currentPriceInputs,
+      funFactRanks: Array.from(funFactRanks),
+    });
   }, [
-    currentLevel,
-    currentPriceInputs,
-    equipmentQuery,
-    funFactRanks,
-    ownedKairo,
-    requirementMode,
-    selectedEquipmentId,
-    sourceQuery,
     target,
     targetCount,
+    requirementMode,
+    ownedKairo,
+    equipmentQuery,
+    selectedEquipmentId,
+    currentLevel,
     targetLevel,
+    sourceQuery,
+    sourceRankFilters,
+    sourceGivesFilters,
+    currentPriceInputs,
+    funFactRanks,
+    setSavedExchangeState,
   ]);
+
+  const importExchangeState = (content: string) => {
+    try {
+      const parsed = JSON.parse(content) as Partial<EquipmentExchangeSavedState>;
+      const nextState: EquipmentExchangeSavedState = {
+        ...DEFAULT_EQUIPMENT_EXCHANGE_STATE,
+        ...parsed,
+        sourceRankFilters: parsed.sourceRankFilters ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.sourceRankFilters,
+        sourceGivesFilters: parsed.sourceGivesFilters ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.sourceGivesFilters,
+        funFactRanks: parsed.funFactRanks ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.funFactRanks,
+        currentPriceInputs: parsed.currentPriceInputs ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.currentPriceInputs,
+      };
+      setSavedExchangeState(nextState);
+      setTarget(nextState.target);
+      setTargetCount(nextState.targetCount);
+      setRequirementMode(nextState.requirementMode);
+      setOwnedKairo(nextState.ownedKairo);
+      setEquipmentQuery(nextState.equipmentQuery);
+      setSelectedEquipmentId(nextState.selectedEquipmentId);
+      setCurrentLevel(nextState.currentLevel);
+      setTargetLevel(nextState.targetLevel);
+      setSourceQuery(nextState.sourceQuery);
+      setSourceRankFilters(new Set(nextState.sourceRankFilters));
+      setSourceGivesFilters(new Set(nextState.sourceGivesFilters));
+      setCurrentPriceInputs(nextState.currentPriceInputs);
+      setFunFactRanks(new Set(nextState.funFactRanks));
+    } catch {
+      window.alert("Unable to import exchange state. Please provide a valid export string.");
+    }
+  };
+
+  const handleImportText = () => {
+    if (!importText.trim()) {
+      window.alert("Paste some export text before importing.");
+      return;
+    }
+    importExchangeState(importText.trim());
+  };
 
   const selectedEquipment = useMemo(
     () => PLAYER_EQUIPMENT.find((item) => item.id === selectedEquipmentId) ?? null,
@@ -444,13 +536,15 @@ export default function EquipmentExchangeCalculator() {
         </div>
 
         <div className="space-y-3 rounded-md border border-border bg-background/50 p-3">
-          <div>
-            <h2 className="text-sm font-semibold">Master Smithy helper</h2>
-            <p className="text-xs text-muted-foreground">
-              Pick the equipment you are leveling, your current level, and your target level. The calculator will figure out
-              how many Kairo pieces and diamonds are needed to break the required caps. The highest break point is level 90,
-              even though the final item level is 99.
-            </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">Master Smithy helper</h2>
+              <p className="text-xs text-muted-foreground">
+                Pick the equipment you are leveling, your current level, and your target level. The calculator will figure out
+                how many Kairo pieces and diamonds are needed to break the required caps. The highest break point is level 90,
+                even though the final item level is 99.
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_120px_120px_120px]">
@@ -711,10 +805,11 @@ export default function EquipmentExchangeCalculator() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Rank:</span>
-              {RANK_TOGGLES.map((rank) => (
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Rank:</span>
+                {RANK_TOGGLES.map((rank) => (
                 <button
                   key={rank}
                   type="button"
@@ -768,6 +863,37 @@ export default function EquipmentExchangeCalculator() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] rounded-md border border-border bg-background/50 p-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Export state</h3>
+                <Button size="sm" variant="outline" onClick={copyExportText}>
+                  <Upload className="mr-2 h-3.5 w-3.5" />Copy
+                </Button>
+              </div>
+              <textarea
+                readOnly
+                value={exportText}
+                className="min-h-[120px] w-full resize-y rounded-md border border-border bg-background p-2 text-xs font-mono text-muted-foreground"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Import state</h3>
+                <Button size="sm" variant="outline" onClick={handleImportText}>
+                  <Download className="mr-2 h-3.5 w-3.5" />Paste
+                </Button>
+              </div>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder="Paste export text here"
+                className="min-h-[120px] w-full resize-y rounded-md border border-border bg-background p-2 text-xs font-mono"
+              />
             </div>
           </div>
 
