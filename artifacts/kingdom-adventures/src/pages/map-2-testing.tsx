@@ -1,6 +1,10 @@
 ﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { parseTerrainMapCsv } from "@/lib/monster-truth";
+import fullTerrainCsv from "../../../../data/Sheet csv/KA GameData - Map (full, terrain).csv?raw";
+
+const FULL_TERRAIN_MAP: number[][] = parseTerrainMapCsv(fullTerrainCsv);
 
 type TerrainType =
   | "grass"
@@ -111,6 +115,7 @@ type Tile = {
   nativeX: number;
   nativeY: number;
   buildable: boolean;
+  fullTerrainId: number | null;
   mapChip: MapChipDef | null;
 };
 
@@ -123,10 +128,10 @@ type HistoryState = {
 };
 
 const TERRAIN_COLORS: Record<TerrainType, string> = {
-  grass: "#93c47d",
+  grass: "#38761d",
   sand: "#e9ddb2",
   volcano: "#ea7b70",
-  swamp: "#38761d",
+  swamp: "#3e948b",
   rock: "#d9d9d9",
   snow: "#f3f3f3",
   ground: "#c89a00",
@@ -471,17 +476,20 @@ function buildTiles() {
       const nativeY = getNativeIndex(y, rows, nativeRows);
       const native = NATIVE_MAP[nativeY][nativeX];
       const buildable = row[x] === "1";
+      const fullTerrainCode = FULL_TERRAIN_MAP[y]?.[x];
+      const terrain = native.terrain;
       const tile: Tile = {
         x,
         y,
-        terrain: native.terrain,
+        terrain,
         level: native.level,
         nativeX,
         nativeY,
         buildable,
-        mapChip: buildable ? MAP_CHIP_BY_TERRAIN[native.terrain] : null,
+        fullTerrainId: Number.isFinite(fullTerrainCode) ? fullTerrainCode : null,
+        mapChip: buildable ? MAP_CHIP_BY_TERRAIN[terrain] : null,
       };
-      if (buildable) terrainCounts[native.terrain] += 1;
+      if (buildable) terrainCounts[tile.terrain] += 1;
       grid.set(keyOf(x, y), tile);
     }
   }
@@ -2644,6 +2652,7 @@ export default function Map2TestingPage() {
                             <>
                                 <div>Biome: <span className="capitalize">{visibleInfoTile.terrain}</span></div>
                                 <div>Level: {visibleInfoTile.level}</div>
+                                <div>Tile ID: {visibleInfoTile.fullTerrainId ?? "n/a"}</div>
                                 {visibleInfoTile.mapChip && (
                                   <>
                                     <div>MapChip: {visibleInfoTile.mapChip.name} <span className="opacity-60">(ID {visibleInfoTile.mapChip.id})</span></div>

@@ -199,3 +199,11 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+@media (min-width: 1280px) {
+  /* Desktop: make page wrappers full-width while keeping dialogs/portals unaffected */
+  .ka-app-shell > * > [class*="max-w-"][class*="mx-auto"] {
+    max-width: none !important;
+    width: 100%;
+  }
+}

@@ -42,7 +42,7 @@ export const TERRAIN_CODE_TO_NAME: Record<number, string> = {
 
 const COMMUNITY_SIGHTINGS_KEY = "ka_monster_community_sightings";
 
-function parseCsv(text: string): string[][] {
+export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -85,6 +85,35 @@ function parseCsv(text: string): string[][] {
   }
 
   return rows;
+}
+
+export function parseTerrainMapCsv(text: string, headerRows = 0): number[][] {
+  return parseCsv(text)
+    .slice(headerRows)
+    .map((row) => row.map((cell) => Number(cell)));
+}
+
+export type TerrainType = "grass" | "sand" | "volcano" | "swamp" | "rock" | "snow" | "ground";
+
+const TERRAIN_CODE_TO_TERRAIN_TYPE: Record<number, TerrainType> = {
+  1: "ground",
+  15: "ground",
+  2: "grass",
+  13: "grass",
+  3: "sand",
+  9: "sand",
+  4: "rock",
+  11: "rock",
+  5: "volcano",
+  10: "volcano",
+  6: "snow",
+  8: "snow",
+  7: "swamp",
+  12: "swamp",
+};
+
+export function mapTerrainCodeToType(code: number): TerrainType | undefined {
+  return TERRAIN_CODE_TO_TERRAIN_TYPE[code];
 }
 
 function buildMinedMonsters(rawCsv: string): MinedMonsterSummary[] {

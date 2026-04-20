@@ -231,12 +231,18 @@ function SiteHeader() {
 
   return (
     <div className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+      <div className="w-full px-2 sm:px-4 h-14 flex items-center justify-between gap-3">
 
         <div className="flex items-center gap-0.5">
+          {pathname !== "/" && (
+            <Button variant="ghost" size="icon" className="h-11 w-11" onClick={goBack} title="Go back">
+              <ArrowLeft className="w-[30px] h-[30px]" />
+            </Button>
+          )}
+
           <div ref={menuRef}>
-            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setMenuOpen(!menuOpen)}>
-              <Menu className="w-5 h-5" />
+            <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setMenuOpen(!menuOpen)}>
+              <Menu className="w-[30px] h-[30px]" />
             </Button>
 
             {menuOpen && (
@@ -297,28 +303,22 @@ function SiteHeader() {
               </div>
             )}
           </div>
-
-          {pathname !== "/" && (
-            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={goBack} title="Go back">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          )}
         </div>
 
         <Link href="/">
-          <a className="text-sm font-semibold truncate hover:opacity-80 transition-opacity" title="Go to home page">
+          <a className="text-xl sm:text-2xl font-semibold truncate hover:opacity-80 transition-opacity" title="Go to home page">
             Kingdom Adventures
           </a>
         </Link>
 
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDark((d) => !d)} title={dark ? "Switch to light mode" : "Switch to dark mode"}>
-            {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setDark((d) => !d)} title={dark ? "Switch to light mode" : "Switch to dark mode"}>
+            {dark ? <Sun className="w-[30px] h-[30px]" /> : <Moon className="w-[30px] h-[30px]" />}
           </Button>
 
           <div ref={searchRef}>
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setSearchOpen(!searchOpen)}>
-            <Search className="w-5 h-5" />
+          <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setSearchOpen(!searchOpen)}>
+            <Search className="w-[30px] h-[30px]" />
           </Button>
 
           {searchOpen && (
@@ -419,7 +419,9 @@ const App = memo(function App() {
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <SiteHeader />
-          <Router />
+          <main className="ka-app-shell">
+            <Router />
+          </main>
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

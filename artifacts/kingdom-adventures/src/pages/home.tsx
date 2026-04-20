@@ -493,7 +493,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background transition-colors">
-      <div className="max-w-5xl mx-auto px-4 py-12">
+      <div className="max-w-5xl mx-auto px-4 py-12 xl:pr-[24rem]">
         <div className="flex items-start justify-between mb-10 gap-4">
           <div className="min-w-0">
             <h1 className="text-4xl font-bold text-foreground tracking-tight">Kingdom Adventures</h1>
