@@ -2939,6 +2939,10 @@ export default function WorldMapPage() {
       ctx.restore();
     }
 
+    if (layers.weekly_conquest && weeklyConquestIconEnabled) {
+      drawWeeklyConquestAreaIcons(ctx, tileSize, weeklyConquestAreas);
+    }
+
     // ── Survey pins ────────────────────────────────────────────────────────────
     if (showSurveys) {
       const MARGIN = 8;
