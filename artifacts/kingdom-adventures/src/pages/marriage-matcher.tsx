@@ -1373,6 +1373,7 @@ const CHILD_RANK_MATRIX: Record<SimRank, Record<SimRank, SimRank>> = {
 };
 
 const SAME_RANK_BONUS: Record<SimRank, number> = { D: 1, C: 2, B: 3, A: 4, S: 5 };
+const MAX_SIM_STAT_LEVEL = 999;
 
 const AFFINITY_NUM_TO_LETTER: Record<number, string> = {
   100: "A", 95: "B", 90: "B", 80: "C", 75: "D", 70: "D", 65: "E", 60: "E",
@@ -1435,7 +1436,7 @@ function calcSim(
     const stat = childRankData?.stats?.[key];
     if (!stat) return { key, label, base: 0, inc: 0, maxLevel: null, maxValue: null };
     const baseMaxLevel = stat.maxLevel ?? null;
-    const maxLevel = baseMaxLevel !== null ? baseMaxLevel + 30 * childAwakening : null;
+    const maxLevel = baseMaxLevel !== null ? Math.min(MAX_SIM_STAT_LEVEL, baseMaxLevel + 30 * childAwakening) : null;
     const maxValue = maxLevel !== null ? stat.base + stat.inc * (maxLevel - 1) : null;
     return { key, label, base: stat.base, inc: stat.inc, maxLevel, maxValue };
   });
