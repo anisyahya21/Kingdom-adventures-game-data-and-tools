@@ -220,6 +220,9 @@ importers:
       html-to-image:
         specifier: ^1.11.13
         version: 1.11.13
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.2.14)(react@19.1.0)
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
