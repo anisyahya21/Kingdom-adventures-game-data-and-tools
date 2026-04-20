@@ -1147,6 +1147,7 @@ export default function WorldMapPage() {
   const paintModeRef = useRef(paintMode);
   const drawBubbleDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
   const minimapBubbleDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
+  const previousWeeklyConquestLayerRef = useRef(layers.weekly_conquest);
   const spaceDownRef = useRef(false);
   const shiftDownRef = useRef(false);
   const pendingPointerRef = useRef<{ x: number; y: number } | null>(null);
@@ -1156,6 +1157,14 @@ export default function WorldMapPage() {
 
   useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
   useEffect(() => { paintModeRef.current = paintMode; }, [paintMode]);
+
+  useEffect(() => {
+    const wasEnabled = previousWeeklyConquestLayerRef.current;
+    if (!wasEnabled && layers.weekly_conquest) {
+      setWeeklyConquestIconEnabled(true);
+    }
+    previousWeeklyConquestLayerRef.current = layers.weekly_conquest;
+  }, [layers.weekly_conquest]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
