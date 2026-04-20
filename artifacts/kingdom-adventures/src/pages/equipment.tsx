@@ -6,7 +6,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
   Loader2, AlertTriangle, Info, X, ImageIcon, Pencil,
   ChevronDown, ChevronRight, Download, History, CheckSquare, GripVertical,
-  Plus, Settings2, Clock, CheckCircle2,
+  Plus, Copy, Settings2, Clock, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -495,8 +495,88 @@ const CHANGE_COLORS: Record<string, string> = {
 // ─── Character builder ────────────────────────────────────────────────────────
 
 interface SlotEntry { itemName: string; level: number; }
-type LoadoutState = Record<CharSlot, SlotEntry>;
-const DEFAULT_LOADOUT: LoadoutState = { Head: { itemName: "", level: 1 }, Weapon: { itemName: "", level: 1 }, Shield: { itemName: "", level: 1 }, Armor: { itemName: "", level: 1 }, Accessory: { itemName: "", level: 1 } };
+type LoadoutSlot = Record<CharSlot, SlotEntry>;
+interface LoadoutStateItem { id: string; label: string; slots: LoadoutSlot; }
+type LoadoutState = LoadoutStateItem[];
+
+function createLoadout(label: string, baseSlots?: Partial<LoadoutSlot>): LoadoutStateItem {
+  const slots: LoadoutSlot = {
+    Head: { itemName: "", level: 1 },
+    Weapon: { itemName: "", level: 1 },
+    Shield: { itemName: "", level: 1 },
+    Armor: { itemName: "", level: 1 },
+    Accessory: { itemName: "", level: 1 },
+  };
+  if (baseSlots) {
+    for (const slot of CHAR_SLOTS) {
+      if (baseSlots[slot]) {
+        slots[slot] = { ...slots[slot], ...baseSlots[slot] };
+      }
+    }
+  }
+  return {
+    id: `loadout-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 8)}`,
+    label,
+    slots,
+  };
+}
+
+function normalizeSavedLoadout(value: unknown): LoadoutState {
+  if (Array.isArray(value)) {
+    return value.map((loadout, index) => {
+      if (loadout && typeof loadout === "object") {
+        const maybe = loadout as Partial<LoadoutStateItem>;
+        const slots: LoadoutSlot = {
+          Head: { itemName: "", level: 1 },
+          Weapon: { itemName: "", level: 1 },
+          Shield: { itemName: "", level: 1 },
+          Armor: { itemName: "", level: 1 },
+          Accessory: { itemName: "", level: 1 },
+        };
+        if (maybe.slots && typeof maybe.slots === "object") {
+          for (const slot of CHAR_SLOTS) {
+            const entry = (maybe.slots as any)[slot];
+            if (entry && typeof entry === "object") {
+              slots[slot] = {
+                itemName: typeof entry.itemName === "string" ? entry.itemName : "",
+                level: Number.isFinite(entry.level as number) ? Number(entry.level) : 1,
+              };
+            }
+          }
+        }
+        return {
+          id: typeof maybe.id === "string" && maybe.id ? maybe.id : `loadout-${index + 1}-${Math.random().toString(36).slice(2, 8)}`,
+          label: typeof maybe.label === "string" && maybe.label ? maybe.label : `Loadout ${index + 1}`,
+          slots,
+        };
+      }
+      return createLoadout(`Loadout ${index + 1}`);
+    });
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, any>;
+    const slots: LoadoutSlot = {
+      Head: { itemName: "", level: 1 },
+      Weapon: { itemName: "", level: 1 },
+      Shield: { itemName: "", level: 1 },
+      Armor: { itemName: "", level: 1 },
+      Accessory: { itemName: "", level: 1 },
+    };
+    for (const slot of CHAR_SLOTS) {
+      const entry = record[slot];
+      if (entry && typeof entry === "object") {
+        slots[slot] = {
+          itemName: typeof entry.itemName === "string" ? entry.itemName : "",
+          level: Number.isFinite(entry.level as number) ? Number(entry.level) : 1,
+        };
+      }
+    }
+    return [createLoadout("Loadout 1", slots)];
+  }
+  return [createLoadout("Loadout 1")];
+}
+
+const DEFAULT_LOADOUT: LoadoutState = [createLoadout("Loadout 1")];
 
 // ─── Info dialog ──────────────────────────────────────────────────────────────
 
@@ -717,17 +797,97 @@ export default function EquipmentPage() {
 
   // Character builder — personal
   const [loadout, setLoadout] = useState<LoadoutState>(() => {
-    try { return JSON.parse(localStorage.getItem("ka_loadout") ?? "null") ?? DEFAULT_LOADOUT; } catch { return DEFAULT_LOADOUT; }
+    try {
+      const raw = JSON.parse(localStorage.getItem("ka_loadout") ?? "null");
+      return normalizeSavedLoadout(raw);
+    } catch {
+      return DEFAULT_LOADOUT;
+    }
   });
-  const setLoadoutEntry = (slot: CharSlot, entry: Partial<SlotEntry>) =>
+  const setLoadoutEntry = (loadoutId: string, slotType: CharSlot, entry: Partial<SlotEntry>) =>
     setLoadout((prev) => {
-      const next = { ...prev, [slot]: { ...prev[slot], ...entry } };
+      const next = prev.map((loadoutItem) => {
+        if (loadoutItem.id !== loadoutId) return loadoutItem;
+        return {
+          ...loadoutItem,
+          slots: {
+            ...loadoutItem.slots,
+            [slotType]: { ...loadoutItem.slots[slotType], ...entry },
+          },
+        };
+      });
       localStorage.setItem("ka_loadout", JSON.stringify(next));
       return next;
     });
 
+  const addLoadout = (afterId?: string) => {
+    setLoadout((prev) => {
+      const next = [...prev];
+      const label = `Loadout ${prev.length + 1}`;
+      const newLoadout = createLoadout(label);
+      if (!afterId) next.push(newLoadout);
+      else {
+        const index = next.findIndex((item) => item.id === afterId);
+        next.splice(index < 0 ? next.length : index + 1, 0, newLoadout);
+      }
+      localStorage.setItem("ka_loadout", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const duplicateLoadout = (loadoutId: string) => {
+    setLoadout((prev) => {
+      const index = prev.findIndex((item) => item.id === loadoutId);
+      if (index === -1) return prev;
+      const source = prev[index];
+      const cloned = createLoadout(`${source.label} copy`, source.slots);
+      const next = [...prev];
+      next.splice(index + 1, 0, cloned);
+      localStorage.setItem("ka_loadout", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const removeLoadout = (loadoutId: string) => {
+    setLoadout((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((item) => item.id !== loadoutId);
+      localStorage.setItem("ka_loadout", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const [editingLoadoutId, setEditingLoadoutId] = useState<string | null>(null);
+  const [editingLoadoutLabel, setEditingLoadoutLabel] = useState("");
+
+  const renameLoadout = (loadoutId: string, label: string) => {
+    setLoadout((prev) => {
+      const next = prev.map((item) => item.id === loadoutId ? { ...item, label } : item);
+      localStorage.setItem("ka_loadout", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const startRenameLoadout = (loadoutId: string) => {
+    const target = loadout.find((item) => item.id === loadoutId);
+    setEditingLoadoutId(loadoutId);
+    setEditingLoadoutLabel(target ? target.label : "");
+  };
+
+  const saveRenameLoadout = () => {
+    if (!editingLoadoutId) return;
+    renameLoadout(editingLoadoutId, editingLoadoutLabel.trim() || `Loadout ${loadout.findIndex((item) => item.id === editingLoadoutId) + 1}`);
+    setEditingLoadoutId(null);
+    setEditingLoadoutLabel("");
+  };
+
+  const cancelRenameLoadout = () => {
+    setEditingLoadoutId(null);
+    setEditingLoadoutLabel("");
+  };
+
   // Drag-and-drop state for character builder
-  const [dragOverSlot, setDragOverSlot] = useState<CharSlot | null>(null);
+  const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
   const draggingItemRef = useRef<{ name: string; slot: string } | null>(null);
 
   // Slot helpers
@@ -778,6 +938,7 @@ export default function EquipmentPage() {
   }, [saveStatIcons, withName, userName]);
 
   const [sortByInc, setSortByInc] = useState(false);
+  const [rowsToShow, setRowsToShow] = useState<"25" | "50" | "100" | "all">("25");
 
   const allStudioLevels = useMemo(
     () => [...new Set(items.filter((i) => i.crafterStudioLevel > 0).map((i) => i.crafterStudioLevel))].sort((a, b) => a - b),
@@ -849,14 +1010,19 @@ export default function EquipmentPage() {
     return list;
   }, [items, compareMode, selectedUids, search, slotFilters, rankFilters, studioFilters, intFilters, craftFilter, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemSlot]);
 
+  const visibleItems = useMemo(() => {
+    if (rowsToShow === "all") return filtered;
+    return filtered.slice(0, Number(rowsToShow));
+  }, [filtered, rowsToShow]);
+
   const applyLevelToShown = useCallback((level: number) => {
     const clamped = Math.min(99, Math.max(1, level));
     setItemLevels((prev) => {
       const next = { ...prev };
-      for (const item of filtered) next[item.uid] = clamped;
+      for (const item of visibleItems) next[item.uid] = clamped;
       return next;
     });
-  }, [filtered]);
+  }, [visibleItems]);
 
   const applyLevelToAll = useCallback((level: number) => {
     const clamped = Math.min(99, Math.max(1, level));
@@ -867,19 +1033,23 @@ export default function EquipmentPage() {
     });
   }, [items]);
 
-  const totalStats = useMemo(() => {
-    const totals: Record<string, number> = {};
-    for (const s of STAT_ORDER) totals[s] = 0;
-    for (const slot of CHAR_SLOTS) {
-      const entry = loadout[slot]; if (!entry.itemName) continue;
-      const item = items.find((i) => i.name === entry.itemName); if (!item) continue;
-      for (const s of STAT_ORDER) {
-        const base = getEffectiveStat(item, s, "base", overrides);
-        const inc = getEffectiveStat(item, s, "inc", overrides);
-        totals[s] += statAtLevel(base, inc, entry.level);
+  const loadoutTotals = useMemo(() => {
+    return loadout.map((loadoutItem) => {
+      const totals: Record<string, number> = {};
+      for (const s of STAT_ORDER) totals[s] = 0;
+      for (const slot of CHAR_SLOTS) {
+        const entry = loadoutItem.slots[slot];
+        if (!entry.itemName) continue;
+        const item = items.find((i) => i.name === entry.itemName);
+        if (!item) continue;
+        for (const s of STAT_ORDER) {
+          const base = getEffectiveStat(item, s, "base", overrides);
+          const inc = getEffectiveStat(item, s, "inc", overrides);
+          totals[s] += statAtLevel(base, inc, entry.level);
+        }
       }
-    }
-    return totals;
+      return { id: loadoutItem.id, label: loadoutItem.label, totals };
+    });
   }, [loadout, items, overrides]);
 
   const SortIcon = ({ col }: { col: string }) => {
@@ -901,14 +1071,22 @@ export default function EquipmentPage() {
   // Clear loadout entry if slot mismatch
   useEffect(() => {
     if (!items.length || !Object.keys(slotAssignments).length) return;
-    let changed = false; const next = { ...loadout };
-    for (const slot of CHAR_SLOTS) {
-      const entry = next[slot]; if (!entry.itemName) continue;
-      const assigned = slotAssignments[entry.itemName];
-      if (assigned && assigned !== "—" && assigned !== slot) { next[slot] = { itemName: "", level: 1 }; changed = true; }
-    }
+    let changed = false;
+    const next = loadout.map((loadoutItem) => {
+      const newSlots: LoadoutSlot = { ...loadoutItem.slots };
+      for (const slot of CHAR_SLOTS) {
+        const entry = newSlots[slot];
+        if (!entry.itemName) continue;
+        const assigned = slotAssignments[entry.itemName];
+        if (assigned && assigned !== "—" && assigned !== slot) {
+          changed = true;
+          newSlots[slot] = { itemName: "", level: 1 };
+        }
+      }
+      return changed ? { ...loadoutItem, slots: newSlots } : loadoutItem;
+    });
     if (changed) { setLoadout(next); localStorage.setItem("ka_loadout", JSON.stringify(next)); }
-  }, [slotAssignments, items]);
+  }, [slotAssignments, items, loadout]);
 
   return (
     <div className="min-h-screen bg-background transition-colors">
@@ -972,6 +1150,17 @@ export default function EquipmentPage() {
               { value: "Not Craftable", label: "Not craftable" },
             ]}
             triggerClassName="h-8 text-sm w-36"
+          />
+          <SearchableSelect
+            value={rowsToShow}
+            onChange={(v) => setRowsToShow(v as typeof rowsToShow)}
+            options={[
+              { value: "25", label: "Show 25" },
+              { value: "50", label: "Show 50" },
+              { value: "100", label: "Show 100" },
+              { value: "all", label: "Show all" },
+            ]}
+            triggerClassName="h-8 text-sm w-32"
           />
           <button
             onClick={() => setSortByInc((v) => !v)}
@@ -1258,7 +1447,7 @@ export default function EquipmentPage() {
                   </thead>
                   <tbody>
                     {filtered.length === 0 && <tr><td colSpan={colCount} className="text-center py-10 text-sm text-muted-foreground">No equipment found.</td></tr>}
-                    {filtered.map((item) => {
+                    {visibleItems.map((item) => {
                       const isExpanded = expandedItem === item.uid;
                       const level = getItemLevel(item.uid);
                       const itemSlot = getItemSlot(item.name);
@@ -1402,7 +1591,7 @@ export default function EquipmentPage() {
                 </table>
               </div>
               <div className="px-4 py-2 border-t border-border bg-muted/30 text-xs text-muted-foreground flex items-center justify-between">
-                <span>{filtered.length} / {items.length} items shown · click item name to view base and growth</span>
+                <span>{rowsToShow === "all" ? `${filtered.length}` : `${visibleItems.length} of ${filtered.length}`} visible · {items.length} total · click item name to view base and growth</span>
                 {selectedUids.size > 0 && !compareMode && (
                   <button onClick={() => setCompareMode(true)} className="text-primary font-medium hover:underline">
                     Compare {selectedUids.size} selected →
@@ -1419,7 +1608,7 @@ export default function EquipmentPage() {
                   </CardContent>
                 </Card>
               ) : (
-                filtered.map((item) => {
+                visibleItems.map((item) => {
                   const isExpanded = expandedItem === item.uid;
                   const level = getItemLevel(item.uid);
                   const itemSlot = getItemSlot(item.name);
@@ -1588,99 +1777,195 @@ export default function EquipmentPage() {
             {/* Equipment Builder */}
             <Card className="shadow-sm mb-6">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Equipment Builder</CardTitle>
-                <p className="text-xs text-muted-foreground">Your personal loadout — saved only for you. Each slot shows only items assigned to it.</p>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">Equipment Builder</CardTitle>
+                    <p className="text-xs text-muted-foreground">Your personal equipment loadouts — saved only for you. Each loadout contains Head, Weapon, Shield, Armor, and Accessory.</p>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-8" onClick={() => addLoadout()}>
+                    <Plus className="w-3.5 h-3.5" />Add loadout
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
-                  {CHAR_SLOTS.map((slot) => {
-                    const entry = loadout[slot];
-                    const item = items.find((i) => i.name === entry.itemName);
-                    const eligibleItems = items.filter((i) => { const a = getItemSlot(i.name); return a === slot || a === "—"; });
-                    const isOver = dragOverSlot === slot;
-                    const dragging = draggingItemRef.current;
-                    const compatible = !dragging || dragging.slot === "—" || dragging.slot === slot;
+                <div className="space-y-4 mb-4">
+                  {loadout.map((loadoutItem) => {
+                    const loadoutTotal = loadoutTotals.find((item) => item.id === loadoutItem.id);
                     return (
-                      <Card key={slot}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          const dragSlot = draggingItemRef.current?.slot ?? "—";
-                          e.dataTransfer.dropEffect = (dragSlot === "—" || dragSlot === slot) ? "copy" : "none";
-                          setDragOverSlot(slot);
-                        }}
-                        onDragLeave={(e) => {
-                          if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlot(null);
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          setDragOverSlot(null);
-                          const itemName = e.dataTransfer.getData("text/plain");
-                          const dragSlot = e.dataTransfer.getData("application/ka-slot");
-                          if (!itemName) return;
-                          if (dragSlot && dragSlot !== "—" && dragSlot !== slot) return;
-                          setLoadoutEntry(slot, { itemName });
-                        }}
-                        className={`shadow-none transition-all ${isOver && compatible ? "border-primary ring-2 ring-primary/30 bg-primary/5" : isOver && !compatible ? "border-destructive/40 bg-destructive/5" : "border-border"}`}>
-                        <CardHeader className="pb-1 pt-3 px-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <SlotIcon slot={slot} className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{slot}</span>
-                            </div>
-                            {entry.itemName && <button onClick={() => setLoadoutEntry(slot, { itemName: "" })} className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>}
+                      <Card key={loadoutItem.id} className="shadow-sm">
+                        <CardHeader className="pb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div>
+                            {editingLoadoutId === loadoutItem.id ? (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Input
+                                  value={editingLoadoutLabel}
+                                  onChange={(e) => setEditingLoadoutLabel(e.target.value)}
+                                  className="h-8 text-sm w-full max-w-xs"
+                                  placeholder="Loadout name"
+                                  onKeyDown={(e) => { if (e.key === "Enter") saveRenameLoadout(); }}
+                                />
+                                <Button size="sm" variant="outline" className="h-8" onClick={saveRenameLoadout}>
+                                  Save
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-8" onClick={cancelRenameLoadout}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-sm font-semibold text-foreground">{loadoutItem.label}</div>
+                                  <button
+                                    type="button"
+                                    onClick={() => startRenameLoadout(loadoutItem.id)}
+                                    className="inline-flex items-center justify-center rounded border border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/70 h-8 w-8"
+                                    aria-label={`Rename ${loadoutItem.label}`}
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Full loadout with one item per slot.</p>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => duplicateLoadout(loadoutItem.id)}>
+                              <Copy className="w-3.5 h-3.5" />Duplicate
+                            </Button>
+                            {loadout.length > 1 && (
+                              <Button size="sm" variant="destructive" className="h-8" onClick={() => removeLoadout(loadoutItem.id)}>
+                                Remove
+                              </Button>
+                            )}
+                          </div>
                           </div>
                         </CardHeader>
-                        <CardContent className="px-3 pb-3 space-y-2">
-                          {!entry.itemName && (
-                            <div className={`flex flex-col items-center justify-center gap-1 py-3 rounded border border-dashed transition-colors ${isOver && compatible ? "border-primary text-primary" : "border-border text-muted-foreground/40"}`}>
-                              <SlotIcon slot={slot} className="w-8 h-8" />
-                              <span className="text-[10px]">Drop here</span>
+                        <CardContent>
+                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 mb-4">
+                            {CHAR_SLOTS.map((slotType) => {
+                              const entry = loadoutItem.slots[slotType];
+                              const item = items.find((i) => i.name === entry.itemName);
+                              const eligibleItems = items.filter((i) => {
+                                const a = getItemSlot(i.name);
+                                return a === slotType || a === "—";
+                              });
+                              const isOver = dragOverSlot === `${loadoutItem.id}:${slotType}`;
+                              const dragging = draggingItemRef.current;
+                              const compatible = !dragging || dragging.slot === "—" || dragging.slot === slotType;
+                              return (
+                                <Card key={slotType}
+                                  onDragOver={(e) => {
+                                    e.preventDefault();
+                                    const dragSlot = draggingItemRef.current?.slot ?? "—";
+                                    e.dataTransfer.dropEffect = (dragSlot === "—" || dragSlot === slotType) ? "copy" : "none";
+                                    setDragOverSlot(`${loadoutItem.id}:${slotType}`);
+                                  }}
+                                  onDragLeave={(e) => {
+                                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlot(null);
+                                  }}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    setDragOverSlot(null);
+                                    const itemName = e.dataTransfer.getData("text/plain");
+                                    const dragSlot = e.dataTransfer.getData("application/ka-slot");
+                                    if (!itemName) return;
+                                    if (dragSlot && dragSlot !== "—" && dragSlot !== slotType) return;
+                                    setLoadoutEntry(loadoutItem.id, slotType, { itemName });
+                                  }}
+                                  className={`shadow-none transition-all ${isOver && compatible ? "border-primary ring-2 ring-primary/30 bg-primary/5" : isOver && !compatible ? "border-destructive/40 bg-destructive/5" : "border-border"}`}>
+                                  <CardHeader className="pb-1 pt-3 px-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-1.5">
+                                        <SlotIcon slot={slotType} className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{slotType}</span>
+                                      </div>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent className="px-3 pb-3 space-y-2">
+                                    {!entry.itemName && (
+                                      <div className={`flex flex-col items-center justify-center gap-1 py-3 rounded border border-dashed transition-colors ${isOver && compatible ? "border-primary text-primary" : "border-border text-muted-foreground/40"}`}>
+                                        <SlotIcon slot={slotType} className="w-8 h-8" />
+                                        <span className="text-[10px]">Drop here</span>
+                                      </div>
+                                    )}
+                                    {entry.itemName && equipIcons[`equip:${entry.itemName}`] && (
+                                      <img src={equipIcons[`equip:${entry.itemName}`]} alt={entry.itemName} className="w-10 h-10 object-contain rounded mx-auto" />
+                                    )}
+                                    <SearchableSelect
+                                      value={entry.itemName}
+                                      onChange={(v) => setLoadoutEntry(loadoutItem.id, slotType, { itemName: v })}
+                                      options={eligibleItems.map((i) => ({ value: i.name, label: i.name }))}
+                                      placeholder="— none —"
+                                      triggerClassName="h-7 text-xs w-full"
+                                    />
+                                    {entry.itemName && (
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] text-muted-foreground">Level</span>
+                                        <NumInput value={entry.level} min={1} max={99}
+                                          onChange={(v) => setLoadoutEntry(loadoutItem.id, slotType, { level: v })}
+                                          className="h-7 w-14 text-xs text-center px-1 bg-background border-border/70" />
+                                      </div>
+                                    )}
+                                    {item && entry.itemName && (
+                                      <div className="text-[10px] text-muted-foreground space-y-0.5 mt-1">
+                                        {STAT_ORDER.filter((s) => statAtLevel(getEffectiveStat(item, s, "base", overrides), getEffectiveStat(item, s, "inc", overrides), entry.level) > 0).map((s) => {
+                                          const b = getEffectiveStat(item, s, "base", overrides);
+                                          const inc = getEffectiveStat(item, s, "inc", overrides);
+                                          return (
+                                            <div key={s} className="flex items-center justify-between">
+                                              <span className="flex items-center gap-1">{statIcons[s] && <img src={statIcons[s]} alt={s} className="w-3 h-3 object-contain" />}{s}</span>
+                                              <span className="font-medium text-foreground tabular-nums">{statAtLevel(b, inc, entry.level)}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                          <div className="rounded-lg bg-muted/50 border border-border px-4 py-3">
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Loadout total</p>
+                              <span className="text-xs text-muted-foreground">{loadoutItem.label}</span>
                             </div>
-                          )}
-                          {entry.itemName && equipIcons[`equip:${entry.itemName}`] && (
-                            <img src={equipIcons[`equip:${entry.itemName}`]} alt={entry.itemName} className="w-10 h-10 object-contain rounded mx-auto" />
-                          )}
-                          <SearchableSelect
-                            value={entry.itemName}
-                            onChange={(v) => setLoadoutEntry(slot, { itemName: v })}
-                            options={eligibleItems.map((i) => ({ value: i.name, label: i.name }))}
-                            placeholder="— none —"
-                            triggerClassName="h-7 text-xs w-full"
-                          />
-                          {entry.itemName && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-muted-foreground">Level</span>
-                              <NumInput value={entry.level} min={1} max={99}
-                                onChange={(v) => setLoadoutEntry(slot, { level: v })}
-                                className="h-7 w-14 text-xs text-center px-1 bg-background border-border/70" />
+                            <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+                              {STAT_ORDER.map((stat) => (
+                                <div key={stat} className="flex items-center gap-1.5 text-sm">
+                                  {statIcons[stat] ? <img src={statIcons[stat]} alt={stat} className="w-4 h-4 object-contain" /> : <span className="text-xs text-muted-foreground">{stat}</span>}
+                                  <span className={`font-semibold tabular-nums ${loadoutTotal?.totals[stat] === 0 ? "text-muted-foreground/40" : "text-foreground"}`}>{loadoutTotal?.totals[stat] || "—"}</span>
+                                </div>
+                              ))}
                             </div>
-                          )}
-                          {item && entry.itemName && (
-                            <div className="text-[10px] text-muted-foreground space-y-0.5 mt-1">
-                              {STAT_ORDER.filter((s) => statAtLevel(getEffectiveStat(item, s, "base", overrides), getEffectiveStat(item, s, "inc", overrides), entry.level) > 0).map((s) => {
-                                const b = getEffectiveStat(item, s, "base", overrides);
-                                const inc = getEffectiveStat(item, s, "inc", overrides);
-                                return (
-                                  <div key={s} className="flex items-center justify-between">
-                                    <span className="flex items-center gap-1">{statIcons[s] && <img src={statIcons[s]} alt={s} className="w-3 h-3 object-contain" />}{s}</span>
-                                    <span className="font-medium text-foreground tabular-nums">{statAtLevel(b, inc, entry.level)}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                          </div>
                         </CardContent>
                       </Card>
                     );
                   })}
                 </div>
-                <div className="rounded-lg bg-muted/50 border border-border px-4 py-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Total Equipment Stats</p>
-                  <div className="flex flex-wrap gap-x-5 gap-y-1.5">
-                    {STAT_ORDER.map((stat) => (
-                      <div key={stat} className="flex items-center gap-1.5 text-sm">
-                        {statIcons[stat] ? <img src={statIcons[stat]} alt={stat} className="w-4 h-4 object-contain" /> : <span className="text-xs text-muted-foreground">{stat}</span>}
-                        <span className={`font-semibold tabular-nums ${totalStats[stat] === 0 ? "text-muted-foreground/40" : "text-foreground"}`}>{totalStats[stat] || "—"}</span>
+                <div className="rounded-lg bg-muted/50 border border-border px-4 py-3 mt-4">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Equipment loadout Comparison</p>
+                  <div className="space-y-3">
+                    {loadoutTotals.map((loadoutItem) => (
+                      <div key={loadoutItem.id} className="rounded-lg border border-border bg-background p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium text-foreground">{loadoutItem.label}</div>
+                            <div className="text-xs text-muted-foreground">{CHAR_SLOTS.map((slot) => loadout.find((lo) => lo.id === loadoutItem.id)?.slots[slot].itemName || "—").join(" · ")}</div>
+                          </div>
+                          <span className="text-[11px] text-muted-foreground">{Object.values(loadoutItem.totals).some((val) => val > 0) ? "Configured" : "Empty"}</span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {STAT_ORDER.filter((stat) => loadoutItem.totals[stat] > 0).map((stat) => (
+                            <span key={stat} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/30 px-2 py-1 text-[11px]">
+                              {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3 h-3 object-contain" />}
+                              <span className="font-medium">{stat}</span>
+                              <span className="tabular-nums">{loadoutItem.totals[stat]}</span>
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
