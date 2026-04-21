@@ -37,6 +37,7 @@ import KairoRoomPage from "@/pages/kairo-room";
 import PlaythroughGuidePage from "@/pages/playthrough-guide";
 import GuidesPage from "@/pages/guides";
 import AddGuidePage from "@/pages/add-guide";
+import UpdatesPage from "@/pages/updates";
 import SurveyPlanner from "@/pages/survey-planner";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
@@ -410,6 +411,7 @@ function Router() {
       <Route path="/gacha-events" component={GachaEventsPage} />
       <Route path="/town-rank" component={TownRankPage} />
       <Route path="/guides" component={GuidesPage} />
+      <Route path="/updates" component={UpdatesPage} />
       <Route path="/add-guide" component={AddGuidePage} />
       <Route path="/playthrough-guide" component={PlaythroughGuidePage} />
       <Route component={NotFound} />
@@ -417,11 +419,55 @@ function Router() {
   );
 }
 
+function ScrollToTopOnRouteChange() {
+  const [pathname] = useLocation();
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash) {
+      const targetId = decodeURIComponent(hash.replace(/^#/, ""));
+      let attempts = 0;
+      const maxAttempts = 30;
+      const tryScrollToHash = () => {
+        const target = document.getElementById(targetId);
+        if (target) {
+          target.scrollIntoView({ behavior: "auto", block: "start" });
+          if (typeof (target as HTMLElement).focus === "function") {
+            (target as HTMLElement).focus({ preventScroll: true });
+          }
+          target.classList.remove("hash-focus-flash");
+          // Force reflow so repeated visits retrigger the animation.
+          void target.getBoundingClientRect();
+          target.classList.add("hash-focus-flash");
+          return true;
+        }
+        return false;
+      };
+
+      requestAnimationFrame(() => {
+        if (tryScrollToHash()) return;
+        const timer = window.setInterval(() => {
+          attempts += 1;
+          if (tryScrollToHash() || attempts >= maxAttempts) {
+            window.clearInterval(timer);
+          }
+        }, 100);
+      });
+
+      return;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname]);
+
+  return null;
+}
+
 const App = memo(function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <ScrollToTopOnRouteChange />
           <SiteHeader />
           <main className="ka-app-shell">
             <Router />

@@ -29,6 +29,14 @@ const DEFAULT_RANKS  = ["S","A","B","C","D"];
 const GEN1_RANKS     = ["S","A","B","C","D"];
 const GEN2_RANKS     = ["S","A","B","C"];
 const MAX_LEVEL     = 999;
+const AWAKENING_LEVEL_BONUS = 30;
+const RANK_AWAKENING_PRESETS: Array<{ label: string; rank: string; awakening: number }> = [
+  { label: "S+5", rank: "S", awakening: 5 },
+  { label: "A+4", rank: "A", awakening: 4 },
+  { label: "B+3", rank: "B", awakening: 3 },
+  { label: "C+2", rank: "C", awakening: 2 },
+  { label: "D+1", rank: "D", awakening: 1 },
+];
 const normJob = (name: string) => name.trim().toLowerCase();
 const AFFINITY_SORT_ORDER: Record<string, number> = {
   S: 0,
@@ -453,7 +461,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
   isFav: boolean;
   onToggleFav: () => void;
   mobile?: boolean;
-  bulkApply?: { rank?: string; allLevel?: number; seq: number };
+  bulkApply?: { rank?: string; allLevel?: number; awakening?: number; seq: number };
   statRanks?: Record<string, number>;
 }) {
   const [rs, setRs] = useState<RowState>(() => makeRowState(job));
@@ -471,6 +479,25 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
         const levels: Record<string, number> = {};
         const levelInputs: Record<string, string> = {};
         for (const s of STAT_ORDER) { levels[s] = clamped; levelInputs[s] = String(clamped); }
+        next = { ...next, levels, levelInputs };
+      }
+      if (bulkApply.awakening !== undefined) {
+        const selectedRank = next.rank;
+        const selectedRankStats = job.ranks[selectedRank]?.stats ?? {};
+        const levels: Record<string, number> = {};
+        const levelInputs: Record<string, string> = {};
+        for (const stat of STAT_ORDER) {
+          const aliases = stat === "Speed" ? ["Speed", "Move", "Movement"] : [stat];
+          const baseMax = aliases.reduce<number>((maxSoFar, alias) => {
+            const candidate = selectedRankStats[alias]?.maxLevel;
+            return typeof candidate === "number" ? Math.max(maxSoFar, candidate) : maxSoFar;
+          }, 0);
+          const maxLevelWithAwakening = baseMax > 0
+            ? clampLevel(baseMax + AWAKENING_LEVEL_BONUS * bulkApply.awakening)
+            : clampLevel(parseInt(next.levelInputs[stat] ?? "1", 10) || 1);
+          levels[stat] = maxLevelWithAwakening;
+          levelInputs[stat] = String(maxLevelWithAwakening);
+        }
         next = { ...next, levels, levelInputs };
       }
       return next;
@@ -914,7 +941,7 @@ function JobsTable({
   const [sortByGrowth, setSortByGrowth] = useState(() => savedPrefs?.sortByGrowth ?? false);
   const [bulkRankInput, setBulkRankInput] = useState("S");
   const [bulkLevelInput, setBulkLevelInput] = useState("1");
-  const [bulkApply, setBulkApply] = useState<{ rank?: string; allLevel?: number; seq: number }>({ seq: 0 });
+  const [bulkApply, setBulkApply] = useState<{ rank?: string; allLevel?: number; awakening?: number; seq: number }>({ seq: 0 });
   const [showRankings, setShowRankings] = useState(false);
 
   useEffect(() => {
@@ -1154,6 +1181,22 @@ function JobsTable({
           >
             Apply all
           </button>
+        </div>
+        <div className="flex items-center gap-1.5 border border-input rounded-md px-2 h-8">
+          <span className="text-xs text-muted-foreground shrink-0">Preset:</span>
+          {RANK_AWAKENING_PRESETS.map((preset) => (
+            <button
+              key={preset.label}
+              onClick={() => {
+                setBulkRankInput(preset.rank);
+                setBulkApply({ rank: preset.rank, awakening: preset.awakening, seq: Date.now() });
+              }}
+              className="px-2 h-6 text-xs font-medium rounded bg-muted hover:bg-muted/80 transition-colors text-foreground"
+              title={`Set all jobs to Rank ${preset.rank} and max level for Awakening ${preset.awakening}`}
+            >
+              {preset.label}
+            </button>
+          ))}
         </div>
       </div>
 

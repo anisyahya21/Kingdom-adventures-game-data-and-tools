@@ -1400,10 +1400,28 @@ interface SimResult {
   affinityLetter: string;
   affinityNum: number;
   childAwakening: number;
-  stats: Array<{ key: string; label: string; base: number; inc: number; maxLevel: number | null; maxValue: number | null }>;
+  childStats: Array<{ key: string; label: string; base: number; inc: number; maxLevel: number | null; maxValue: number | null }>;
 }
 
 type StatData = { base: number; inc: number; maxLevel?: number };
+
+function buildSimStats(
+  jobName: string,
+  rank: SimRank,
+  awakening: number,
+  jobs: Record<string, JobData>
+): Array<{ key: string; label: string; base: number; inc: number; maxLevel: number | null; maxValue: number | null }> {
+  const rankData = (jobs[jobName]?.ranks as Record<string, { stats: Record<string, StatData> }>)?.[rank];
+
+  return SIM_STATS.map(({ key, label }) => {
+    const stat = rankData?.stats?.[key];
+    if (!stat) return { key, label, base: 0, inc: 0, maxLevel: null, maxValue: null };
+    const baseMaxLevel = stat.maxLevel ?? null;
+    const maxLevel = baseMaxLevel !== null ? Math.min(MAX_SIM_STAT_LEVEL, baseMaxLevel + 30 * awakening) : null;
+    const maxValue = maxLevel !== null ? stat.base + stat.inc * (maxLevel - 1) : null;
+    return { key, label, base: stat.base, inc: stat.inc, maxLevel, maxValue };
+  });
+}
 
 function calcSim(
   fatherJob: string, motherJob: string,
@@ -1430,18 +1448,14 @@ function calcSim(
   const sameRankBonus = fatherRank === motherRank ? SAME_RANK_BONUS[fatherRank] : 0;
   const childAwakening = Math.floor((affinityNum * (fatherAwk + motherAwk + sameRankBonus)) / 100);
 
-  const childRankData = (jobs[childJobName]?.ranks as Record<string, { stats: Record<string, StatData> }>)?.[childRank];
-
-  const stats = SIM_STATS.map(({ key, label }) => {
-    const stat = childRankData?.stats?.[key];
-    if (!stat) return { key, label, base: 0, inc: 0, maxLevel: null, maxValue: null };
-    const baseMaxLevel = stat.maxLevel ?? null;
-    const maxLevel = baseMaxLevel !== null ? Math.min(MAX_SIM_STAT_LEVEL, baseMaxLevel + 30 * childAwakening) : null;
-    const maxValue = maxLevel !== null ? stat.base + stat.inc * (maxLevel - 1) : null;
-    return { key, label, base: stat.base, inc: stat.inc, maxLevel, maxValue };
-  });
-
-  return { childJob: childJobName, childRank, affinityLetter, affinityNum, childAwakening, stats };
+  return {
+    childJob: childJobName,
+    childRank,
+    affinityLetter,
+    affinityNum,
+    childAwakening,
+    childStats: buildSimStats(childJobName, childRank, childAwakening, jobs),
+  };
 }
 
 const SIM_RANK_STYLE: Record<SimRank, string> = {
@@ -1459,19 +1473,59 @@ function SimTab({
   jobs: Record<string, JobData>;
   firstGenJobNames: string[];
 }) {
-  const [fatherJob, setFatherJob] = useState("");
-  const [motherJob, setMotherJob] = useState("");
-  const [fatherRank, setFatherRank] = useState<SimRank>("S");
-  const [motherRank, setMotherRank] = useState<SimRank>("S");
-  const [fatherAwk, setFatherAwk] = useState(0);
-  const [motherAwk, setMotherAwk] = useState(0);
+  type SimState = {
+    fatherJob: string;
+    motherJob: string;
+    fatherRank: SimRank;
+    motherRank: SimRank;
+    fatherAwk: number;
+    motherAwk: number;
+    statSource: "child" | "father" | "mother";
+  };
+
+  const createSimState = (): SimState => ({
+    fatherJob: "",
+    motherJob: "",
+    fatherRank: "S",
+    motherRank: "S",
+    fatherAwk: 0,
+    motherAwk: 0,
+    statSource: "child",
+  });
+
+  const [simOne, setSimOne] = useState<SimState>(createSimState);
+  const [simTwo, setSimTwo] = useState<SimState>(createSimState);
 
   const jobOptions = firstGenJobNames.map((n) => ({ value: n, label: n }));
 
-  const result = useMemo(() => {
-    if (!fatherJob || !motherJob) return null;
-    return calcSim(fatherJob, motherJob, fatherRank, motherRank, fatherAwk, motherAwk, pairs, jobs);
-  }, [fatherJob, motherJob, fatherRank, motherRank, fatherAwk, motherAwk, pairs, jobs]);
+  const calcForState = useCallback((state: SimState) => {
+    if (!state.fatherJob || !state.motherJob) return null;
+    return calcSim(
+      state.fatherJob,
+      state.motherJob,
+      state.fatherRank,
+      state.motherRank,
+      state.fatherAwk,
+      state.motherAwk,
+      pairs,
+      jobs
+    );
+  }, [jobs, pairs]);
+
+  const resultOne = useMemo(() => calcForState(simOne), [calcForState, simOne]);
+  const resultTwo = useMemo(() => calcForState(simTwo), [calcForState, simTwo]);
+
+  const displayStatsFor = useCallback((state: SimState, result: SimResult | { error: string } | null) => {
+    if (!result || "error" in result) return [];
+    if (state.statSource === "child") {
+      return result.childStats;
+    }
+    const sourceJob = state.statSource === "father" ? state.fatherJob : state.motherJob;
+    return buildSimStats(sourceJob, result.childRank, result.childAwakening, jobs);
+  }, [jobs]);
+
+  const displayStatsOne = useMemo(() => displayStatsFor(simOne, resultOne), [displayStatsFor, resultOne, simOne]);
+  const displayStatsTwo = useMemo(() => displayStatsFor(simTwo, resultTwo), [displayStatsFor, resultTwo, simTwo]);
 
   function AwkInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
     const [local, setLocal] = useState(String(value));
@@ -1488,151 +1542,254 @@ function SimTab({
     );
   }
 
+  function renderSimBlock(
+    title: string,
+    state: SimState,
+    setState: React.Dispatch<React.SetStateAction<SimState>>,
+    result: SimResult | { error: string } | null,
+    displayStats: Array<{ key: string; label: string; base: number; inc: number; maxLevel: number | null; maxValue: number | null }>
+  ) {
+    const sourceJobName = state.statSource === "father"
+      ? state.fatherJob
+      : state.statSource === "mother"
+        ? state.motherJob
+        : (result && !("error" in result) ? result.childJob : "");
+
+    return (
+      <div className="space-y-4">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{title} — Parents</CardTitle>
+            <CardDescription className="text-xs">Only 1st generation (Non-Marriage) jobs can marry in the game.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-blue-500 leading-none">♂</span>
+                  <span className="text-sm font-semibold">Father</span>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Job</label>
+                  <SearchableSelect
+                    value={state.fatherJob}
+                    onChange={(v) => setState((prev) => ({ ...prev, fatherJob: v ?? "" }))}
+                    options={jobOptions}
+                    placeholder="Select father's job…"
+                    triggerClassName="h-8 text-sm"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Rank</label>
+                    <div className="flex rounded-md overflow-hidden border border-input">
+                      {SIM_RANKS.map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setState((prev) => ({ ...prev, fatherRank: r }))}
+                          className={`flex-1 h-8 text-xs font-bold transition-colors ${state.fatherRank === r ? SIM_RANK_STYLE[r] + " border" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Awakening</label>
+                    <AwkInput value={state.fatherAwk} onChange={(v) => setState((prev) => ({ ...prev, fatherAwk: v }))} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-rose-500 leading-none">♀</span>
+                  <span className="text-sm font-semibold">Mother</span>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Job</label>
+                  <SearchableSelect
+                    value={state.motherJob}
+                    onChange={(v) => setState((prev) => ({ ...prev, motherJob: v ?? "" }))}
+                    options={jobOptions}
+                    placeholder="Select mother's job…"
+                    triggerClassName="h-8 text-sm"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Rank</label>
+                    <div className="flex rounded-md overflow-hidden border border-input">
+                      {SIM_RANKS.map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setState((prev) => ({ ...prev, motherRank: r }))}
+                          className={`flex-1 h-8 text-xs font-bold transition-colors ${state.motherRank === r ? SIM_RANK_STYLE[r] + " border" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Awakening</label>
+                    <AwkInput value={state.motherAwk} onChange={(v) => setState((prev) => ({ ...prev, motherAwk: v }))} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {!state.fatherJob || !state.motherJob ? (
+          <Card className="shadow-sm border-dashed">
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Select both parents above to see the simulation result.
+            </CardContent>
+          </Card>
+        ) : result && "error" in result ? (
+          <Card className="shadow-sm border-destructive/40">
+            <CardContent className="py-8 text-center">
+              <p className="text-sm text-destructive">{result.error}</p>
+            </CardContent>
+          </Card>
+        ) : result ? (
+          <>
+            <Card className="shadow-sm border-primary/20">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Baby className="w-4 h-4 text-violet-500" />
+                  <CardTitle className="text-base">{title} — Child Summary</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Compatibility</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-sm font-bold px-2 py-0.5 rounded border ${AFFINITY_STYLE[result.affinityLetter] ?? "bg-muted border-border text-foreground"}`}>
+                        {result.affinityLetter}
+                      </span>
+                      <span className="text-xs text-muted-foreground">({result.affinityNum}%)</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Child Job</p>
+                    <p className="text-sm font-semibold">{result.childJob}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Child Rank</p>
+                    <Badge className={`text-sm font-bold px-2.5 py-0.5 border ${SIM_RANK_STYLE[result.childRank]}`}>{result.childRank}</Badge>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Child Awakening</p>
+                    <p className="text-sm font-semibold">{result.childAwakening}</p>
+                    {state.fatherRank === state.motherRank && (
+                      <p className="text-[10px] text-muted-foreground">+{SAME_RANK_BONUS[state.fatherRank]} same-rank bonus</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2">
+                <div className="flex flex-col items-start gap-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <BarChart2 className="w-4 h-4 text-muted-foreground" />
+                    Child Stats Source — {state.statSource === "father" ? "Father" : state.statSource === "mother" ? "Mother" : "Child"} ({sourceJobName || "not selected"})
+                  </CardTitle>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-medium text-muted-foreground">Or choose child to take:</span>
+                    <button
+                      onClick={() => setState((prev) => ({ ...prev, statSource: prev.statSource === "father" ? "child" : "father" }))}
+                      className={`h-7 px-2.5 text-xs rounded border font-medium transition-colors ${state.statSource === "father" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                    >
+                      Father ({state.fatherJob || "—"})
+                    </button>
+                    <button
+                      onClick={() => setState((prev) => ({ ...prev, statSource: prev.statSource === "mother" ? "child" : "mother" }))}
+                      className={`h-7 px-2.5 text-xs rounded border font-medium transition-colors ${state.statSource === "mother" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                    >
+                      Mother ({state.motherJob || "—"})
+                    </button>
+                  </div>
+                </div>
+                <CardDescription className="text-xs">
+                  Uses child rank {result.childRank} and awakening {result.childAwakening}. Max Level = base max level + 30 × awakening.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <div className="grid grid-cols-[80px_1fr_1fr_1fr_1fr] bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-[400px]">
+                    <span>Stat</span><span className="text-right">Base Val</span><span className="text-right">Growth</span><span className="text-right">Max Lvl</span><span className="text-right">Max Val</span>
+                  </div>
+                  {displayStats.map((s) => (
+                    <div key={s.key} className="grid grid-cols-[80px_1fr_1fr_1fr_1fr] px-4 py-2 text-sm border-b border-border last:border-0 hover:bg-muted/20 transition-colors min-w-[400px]">
+                      <span className="font-medium">{s.label}</span>
+                      <span className="text-right text-muted-foreground">{s.base}</span>
+                      <span className="text-right text-muted-foreground">{s.inc}</span>
+                      <span className="text-right font-medium">{s.maxLevel !== null ? s.maxLevel : <span className="text-muted-foreground/40">—</span>}</span>
+                      <span className="text-right font-semibold text-primary">{s.maxValue !== null ? s.maxValue.toLocaleString() : <span className="text-muted-foreground/40">—</span>}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        ) : null}
+      </div>
+    );
+  }
+
+  const bothCalculated =
+    resultOne && !("error" in resultOne) &&
+    resultTwo && !("error" in resultTwo);
+
+  const compareTopStat = (stats: Array<{ label: string; maxValue: number | null }>) => {
+    const top = [...stats]
+      .filter((s) => s.maxValue !== null)
+      .sort((a, b) => (b.maxValue ?? 0) - (a.maxValue ?? 0))[0];
+    return top ? `${top.label} (${(top.maxValue ?? 0).toLocaleString()})` : "—";
+  };
+
   return (
     <div className="space-y-6">
-      <Card className="shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Parents</CardTitle>
-          <CardDescription className="text-xs">Only 1st generation (Non-Marriage) jobs can marry in the game.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-blue-500 leading-none">♂</span>
-                <span className="text-sm font-semibold">Father</span>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Job</label>
-                <SearchableSelect value={fatherJob} onChange={(v) => setFatherJob(v ?? "")} options={jobOptions} placeholder="Select father's job…" triggerClassName="h-8 text-sm" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground">Rank</label>
-                  <div className="flex rounded-md overflow-hidden border border-input">
-                    {SIM_RANKS.map((r) => (
-                      <button key={r} onClick={() => setFatherRank(r)}
-                        className={`flex-1 h-8 text-xs font-bold transition-colors ${fatherRank === r ? SIM_RANK_STYLE[r] + " border" : "bg-background text-muted-foreground hover:text-foreground"}`}
-                      >{r}</button>
-                    ))}
-                  </div>
+      {renderSimBlock("Simulation 1", simOne, setSimOne, resultOne, displayStatsOne)}
+      {renderSimBlock("Simulation 2", simTwo, setSimTwo, resultTwo, displayStatsTwo)}
+
+      {bothCalculated && (
+        <Card className="shadow-sm border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Simulation Comparison</CardTitle>
+            <CardDescription className="text-xs">Quick comparison between Simulation 1 and Simulation 2 results.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs text-muted-foreground mb-2">Simulation 1</p>
+                <div className="space-y-1 text-sm">
+                  <p><span className="text-muted-foreground">Child job:</span> {(resultOne as SimResult).childJob}</p>
+                  <p><span className="text-muted-foreground">Child rank:</span> {(resultOne as SimResult).childRank}</p>
+                  <p><span className="text-muted-foreground">Affinity:</span> {(resultOne as SimResult).affinityLetter} ({(resultOne as SimResult).affinityNum}%)</p>
+                  <p><span className="text-muted-foreground">Awakening:</span> {(resultOne as SimResult).childAwakening}</p>
+                  <p><span className="text-muted-foreground">Top max stat:</span> {compareTopStat(displayStatsOne)}</p>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground">Awakening</label>
-                  <AwkInput value={fatherAwk} onChange={setFatherAwk} />
+              </div>
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs text-muted-foreground mb-2">Simulation 2</p>
+                <div className="space-y-1 text-sm">
+                  <p><span className="text-muted-foreground">Child job:</span> {(resultTwo as SimResult).childJob}</p>
+                  <p><span className="text-muted-foreground">Child rank:</span> {(resultTwo as SimResult).childRank}</p>
+                  <p><span className="text-muted-foreground">Affinity:</span> {(resultTwo as SimResult).affinityLetter} ({(resultTwo as SimResult).affinityNum}%)</p>
+                  <p><span className="text-muted-foreground">Awakening:</span> {(resultTwo as SimResult).childAwakening}</p>
+                  <p><span className="text-muted-foreground">Top max stat:</span> {compareTopStat(displayStatsTwo)}</p>
                 </div>
               </div>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-rose-500 leading-none">♀</span>
-                <span className="text-sm font-semibold">Mother</span>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Job</label>
-                <SearchableSelect value={motherJob} onChange={(v) => setMotherJob(v ?? "")} options={jobOptions} placeholder="Select mother's job…" triggerClassName="h-8 text-sm" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground">Rank</label>
-                  <div className="flex rounded-md overflow-hidden border border-input">
-                    {SIM_RANKS.map((r) => (
-                      <button key={r} onClick={() => setMotherRank(r)}
-                        className={`flex-1 h-8 text-xs font-bold transition-colors ${motherRank === r ? SIM_RANK_STYLE[r] + " border" : "bg-background text-muted-foreground hover:text-foreground"}`}
-                      >{r}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground">Awakening</label>
-                  <AwkInput value={motherAwk} onChange={setMotherAwk} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {!fatherJob || !motherJob ? (
-        <Card className="shadow-sm border-dashed">
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Select both parents above to see the simulation result.
           </CardContent>
         </Card>
-      ) : result && "error" in result ? (
-        <Card className="shadow-sm border-destructive/40">
-          <CardContent className="py-8 text-center">
-            <p className="text-sm text-destructive">{result.error}</p>
-          </CardContent>
-        </Card>
-      ) : result ? (
-        <div className="space-y-4">
-          <Card className="shadow-sm border-primary/20">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <Baby className="w-4 h-4 text-violet-500" />
-                <CardTitle className="text-base">Child Summary</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Compatibility</p>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-sm font-bold px-2 py-0.5 rounded border ${AFFINITY_STYLE[result.affinityLetter] ?? "bg-muted border-border text-foreground"}`}>
-                      {result.affinityLetter}
-                    </span>
-                    <span className="text-xs text-muted-foreground">({result.affinityNum}%)</span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Child Job</p>
-                  <p className="text-sm font-semibold">{result.childJob}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Child Rank</p>
-                  <Badge className={`text-sm font-bold px-2.5 py-0.5 border ${SIM_RANK_STYLE[result.childRank]}`}>{result.childRank}</Badge>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Child Awakening</p>
-                  <p className="text-sm font-semibold">{result.childAwakening}</p>
-                  {fatherRank === motherRank && (
-                    <p className="text-[10px] text-muted-foreground">+{SAME_RANK_BONUS[fatherRank]} same-rank bonus</p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <BarChart2 className="w-4 h-4 text-muted-foreground" />
-                Child Stats — {result.childJob} at Rank {result.childRank}
-              </CardTitle>
-              <CardDescription className="text-xs">
-                At awakening {result.childAwakening}. Max Level = base max level + 30 × awakening.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <div className="grid grid-cols-[80px_1fr_1fr_1fr_1fr] bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground border-b border-border min-w-[400px]">
-                  <span>Stat</span><span className="text-right">Base Val</span><span className="text-right">Growth</span><span className="text-right">Max Lvl</span><span className="text-right">Max Val</span>
-                </div>
-                {result.stats.map((s) => (
-                  <div key={s.key} className="grid grid-cols-[80px_1fr_1fr_1fr_1fr] px-4 py-2 text-sm border-b border-border last:border-0 hover:bg-muted/20 transition-colors min-w-[400px]">
-                    <span className="font-medium">{s.label}</span>
-                    <span className="text-right text-muted-foreground">{s.base}</span>
-                    <span className="text-right text-muted-foreground">{s.inc}</span>
-                    <span className="text-right font-medium">{s.maxLevel !== null ? s.maxLevel : <span className="text-muted-foreground/40">—</span>}</span>
-                    <span className="text-right font-semibold text-primary">{s.maxValue !== null ? s.maxValue.toLocaleString() : <span className="text-muted-foreground/40">—</span>}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
+      )}
     </div>
   );
 }

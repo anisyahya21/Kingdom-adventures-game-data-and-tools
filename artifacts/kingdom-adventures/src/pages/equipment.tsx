@@ -92,6 +92,7 @@ const STAT_SHORT: Record<string, string> = {
   Heart: "Hrt",
 };
 const MOBILE_SORT_OPTIONS = [
+  { value: "mobile-sort", label: "Sort by" },
   { value: "name", label: "Name" },
   { value: "slot", label: "Slot" },
   { value: "studioLevel", label: "Studio Lv" },
@@ -1194,8 +1195,8 @@ export default function EquipmentPage() {
           </button>
           <div className="md:hidden flex items-center gap-2">
             <SearchableSelect
-              value={sortCol ?? "name"}
-              onChange={(v) => setSortCol(v)}
+              value={sortCol || "mobile-sort"}
+              onChange={(v) => setSortCol(v === "mobile-sort" ? "" : v)}
               options={MOBILE_SORT_OPTIONS}
               triggerClassName="h-8 text-sm w-32"
             />
@@ -1798,7 +1799,7 @@ export default function EquipmentPage() {
             </div>
 
             {/* Equipment Builder */}
-            <Card className="shadow-sm mb-6">
+            <Card id="equipment-builder-tool" tabIndex={-1} className="shadow-sm mb-6 scroll-mt-24">
               <CardHeader className="pb-3">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div>

@@ -506,6 +506,9 @@ export default function Home() {
           <div className="min-w-0">
             <h1 className="text-4xl font-bold text-foreground tracking-tight">Kingdom Adventures</h1>
             <p className="mt-2 text-muted-foreground">Tools & resources for Kingdom Adventures players.</p>
+            <Link href="/updates" className="mt-2 inline-block text-sm font-semibold text-primary underline underline-offset-2 hover:opacity-90 transition-opacity">
+              Click here for the latest updates and patch notes.
+            </Link>
           </div>
         </div>
 

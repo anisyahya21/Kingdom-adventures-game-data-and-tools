@@ -207,3 +207,18 @@
     width: 100%;
   }
 }
+
+@keyframes hash-focus-flash {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.55);
+    background-color: hsl(var(--primary) / 0.16);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    background-color: transparent;
+  }
+}
+
+.hash-focus-flash {
+  animation: hash-focus-flash 1.2s ease-out;
+}

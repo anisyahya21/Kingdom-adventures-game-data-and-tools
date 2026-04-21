@@ -1345,6 +1345,26 @@ function calcItemCosts(facilityId: number, N: number): { name: string; qty: numb
   }
 }
 
+function calcTownHallCoinCosts(nextRank: number): { name: string; qty: number }[] {
+  const q = Math.max(1, Math.floor(nextRank / 3));
+  return [
+    { name: "Copper Coin", qty: q * 3 },
+  ];
+}
+
+function calcTownHallMaterialCosts(nextRank: number): { name: string; qty: number }[] {
+  const q = Math.max(1, Math.floor(nextRank / 3));
+  return [
+    { name: "Sturdy Board", qty: q * 3 },
+    { name: "Large Nail", qty: q * 2 },
+    { name: "Strong Rope", qty: q * 1 },
+  ];
+}
+
+function formatFacilityItemName(name: string): string {
+  return name === "Copper Coin" ? "🟤 Copper Coin" : name;
+}
+
 // What a facility gains from leveling up
 type FacilityGain = "mine" | "farm" | "shop" | "port" | "exp" | "hp";
 
@@ -1892,7 +1912,7 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                   {items.map(({ name, qty }) => (
                     <span key={name} className="text-xs text-muted-foreground">
-                      {qty}× {name}
+                      {qty}× {formatFacilityItemName(name)}
                     </span>
                   ))}
                 </div>
@@ -1981,6 +2001,20 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
             </div>
           </div>
           <FacilityCosts g={uG} w={uW} f={uF} o={uO} m={uM} />
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+            {calcTownHallMaterialCosts(rank + 1).map(({ name, qty }) => (
+              <span key={name} className="text-xs text-muted-foreground">
+                {qty}× {formatFacilityItemName(name)}
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+            {calcTownHallCoinCosts(rank + 1).map(({ name, qty }) => (
+              <span key={name} className="text-xs text-muted-foreground">
+                {qty}× {formatFacilityItemName(name)}
+              </span>
+            ))}
+          </div>
           <p className="text-xs font-medium text-amber-600 dark:text-amber-400">⏱ {formatUpgTime(upgTime)}</p>
         </div>
       </CardContent>
