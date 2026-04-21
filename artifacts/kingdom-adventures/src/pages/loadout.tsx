@@ -385,13 +385,34 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
 
   const renderManualEditor = (c: Combatant, setC: (next: Combatant) => void) => (
     <div className="grid grid-cols-2 gap-2">
-      <Input type="number" value={String(c.maxHp)} onChange={(e) => setC({ ...c, maxHp: Math.max(1, parseInt(e.target.value || "1", 10) || 1) })} className="h-8 text-xs" placeholder="HP" />
-      <Input type="number" value={String(c.atk)} onChange={(e) => setC({ ...c, atk: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="ATK" />
-      <Input type="number" value={String(c.def)} onChange={(e) => setC({ ...c, def: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="DEF" />
-      <Input type="number" value={String(c.spd)} onChange={(e) => setC({ ...c, spd: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="SPD" />
-      <Input type="number" value={String(c.dex)} onChange={(e) => setC({ ...c, dex: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="DEX" />
-      <Input type="number" value={String(c.lck)} onChange={(e) => setC({ ...c, lck: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="LCK" />
-      <Input type="number" value={String(c.int)} onChange={(e) => setC({ ...c, int: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="INT" />
+      <label className="space-y-1 text-xs">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">HP</span>
+        <Input type="number" value={String(c.maxHp)} onChange={(e) => setC({ ...c, maxHp: Math.max(1, parseInt(e.target.value || "1", 10) || 1) })} className="h-8 text-xs" aria-label="HP" />
+      </label>
+      <label className="space-y-1 text-xs">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">ATK</span>
+        <Input type="number" value={String(c.atk)} onChange={(e) => setC({ ...c, atk: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="ATK" />
+      </label>
+      <label className="space-y-1 text-xs">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">DEF</span>
+        <Input type="number" value={String(c.def)} onChange={(e) => setC({ ...c, def: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="DEF" />
+      </label>
+      <label className="space-y-1 text-xs">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">SPD</span>
+        <Input type="number" value={String(c.spd)} onChange={(e) => setC({ ...c, spd: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="SPD" />
+      </label>
+      <label className="space-y-1 text-xs">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">DEX</span>
+        <Input type="number" value={String(c.dex)} onChange={(e) => setC({ ...c, dex: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="DEX" />
+      </label>
+      <label className="space-y-1 text-xs">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">LCK</span>
+        <Input type="number" value={String(c.lck)} onChange={(e) => setC({ ...c, lck: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="LCK" />
+      </label>
+      <label className="space-y-1 text-xs">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">INT</span>
+        <Input type="number" value={String(c.int)} onChange={(e) => setC({ ...c, int: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="INT" />
+      </label>
       <label className="text-xs text-muted-foreground col-span-2 flex items-center gap-2">
         <input type="checkbox" checked={c.weaponAdvantage} onChange={(e) => setC({ ...c, weaponAdvantage: e.currentTarget.checked })} />
         Weapon advantage (x1.5)
