@@ -17,6 +17,7 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { toPng } from "html-to-image";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
+import { simulateBatch, simulateDuel, type Combatant, type BattleResult, type BatchResult } from "@/lib/combat-simulator";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -300,6 +301,177 @@ function calcStats(loadout: Loadout, data: SharedData): Record<string, number> {
   const total = { ...job };
   for (const [k, v] of Object.entries(equip)) total[k] = (total[k] ?? 0) + v;
   return total;
+}
+
+type CombatSourceMode = "manual" | "loadout";
+
+function formatNum(v: number | null | undefined) {
+  return v == null ? "-" : v.toLocaleString();
+}
+
+function formatPct(part: number, total: number) {
+  if (total <= 0) return "0.0%";
+  return `${((part * 100) / total).toFixed(1)}%`;
+}
+
+function baseManualCombatant(name: string): Combatant {
+  return {
+    name,
+    maxHp: 1200,
+    atk: 220,
+    def: 110,
+    spd: 120,
+    dex: 110,
+    lck: 90,
+    int: 80,
+    weaponAdvantage: false,
+    action: { type: "normal", value: 0 },
+  };
+}
+
+function loadoutToCombatant(loadout: Loadout, data: SharedData): Combatant {
+  const stats = calcStats(loadout, data);
+  return {
+    name: loadout.name || "Loadout",
+    maxHp: Math.max(1, stats.hp ?? 1),
+    atk: stats.atk ?? 0,
+    def: stats.def ?? 0,
+    spd: stats.spd ?? 0,
+    dex: stats.dex ?? 0,
+    lck: stats.lck ?? 0,
+    int: stats.int ?? 0,
+    weaponAdvantage: false,
+    action: { type: "normal", value: 0 },
+  };
+}
+
+function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: SharedData }) {
+  const [aName, setAName] = useState("Attacker A");
+  const [bName, setBName] = useState("Attacker B");
+  const [aMode, setAMode] = useState<CombatSourceMode>("manual");
+  const [bMode, setBMode] = useState<CombatSourceMode>("manual");
+  const [aManual, setAManual] = useState<Combatant>(() => baseManualCombatant("Attacker A"));
+  const [bManual, setBManual] = useState<Combatant>(() => baseManualCombatant("Attacker B"));
+  const [aLoadoutId, setALoadoutId] = useState<string>(loadouts[0]?.id ?? "");
+  const [bLoadoutId, setBLoadoutId] = useState<string>(loadouts[1]?.id ?? loadouts[0]?.id ?? "");
+  const [batchCount, setBatchCount] = useState(1000);
+  const [battle, setBattle] = useState<BattleResult | null>(null);
+  const [batch, setBatch] = useState<BatchResult | null>(null);
+
+  const aImported = useMemo(() => loadouts.find((l) => l.id === aLoadoutId) ?? null, [loadouts, aLoadoutId]);
+  const bImported = useMemo(() => loadouts.find((l) => l.id === bLoadoutId) ?? null, [loadouts, bLoadoutId]);
+
+  const resolvedA = useMemo(() => {
+    if (aMode === "manual") {
+      return { ...aManual, name: aName.trim() || aManual.name || "Attacker A" };
+    }
+    if (!aImported) return null;
+    return { ...loadoutToCombatant(aImported, data), name: aName.trim() || aImported.name || "Attacker A" };
+  }, [aMode, aManual, aImported, data, aName]);
+
+  const resolvedB = useMemo(() => {
+    if (bMode === "manual") {
+      return { ...bManual, name: bName.trim() || bManual.name || "Attacker B" };
+    }
+    if (!bImported) return null;
+    return { ...loadoutToCombatant(bImported, data), name: bName.trim() || bImported.name || "Attacker B" };
+  }, [bMode, bManual, bImported, data, bName]);
+
+  const run = () => {
+    if (!resolvedA || !resolvedB) return;
+    setBattle(simulateDuel(resolvedA, resolvedB));
+    setBatch(simulateBatch(resolvedA, resolvedB, Math.max(1, batchCount)));
+  };
+
+  const renderManualEditor = (c: Combatant, setC: (next: Combatant) => void) => (
+    <div className="grid grid-cols-2 gap-2">
+      <Input type="number" value={String(c.maxHp)} onChange={(e) => setC({ ...c, maxHp: Math.max(1, parseInt(e.target.value || "1", 10) || 1) })} className="h-8 text-xs" placeholder="HP" />
+      <Input type="number" value={String(c.atk)} onChange={(e) => setC({ ...c, atk: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="ATK" />
+      <Input type="number" value={String(c.def)} onChange={(e) => setC({ ...c, def: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="DEF" />
+      <Input type="number" value={String(c.spd)} onChange={(e) => setC({ ...c, spd: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="SPD" />
+      <Input type="number" value={String(c.dex)} onChange={(e) => setC({ ...c, dex: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="DEX" />
+      <Input type="number" value={String(c.lck)} onChange={(e) => setC({ ...c, lck: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="LCK" />
+      <Input type="number" value={String(c.int)} onChange={(e) => setC({ ...c, int: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" placeholder="INT" />
+      <label className="text-xs text-muted-foreground col-span-2 flex items-center gap-2">
+        <input type="checkbox" checked={c.weaponAdvantage} onChange={(e) => setC({ ...c, weaponAdvantage: e.currentTarget.checked })} />
+        Weapon advantage (x1.5)
+      </label>
+    </div>
+  );
+
+  const renderImportedPreview = (selectedId: string, setSelectedId: (id: string) => void, c: Combatant | null) => (
+    <div className="space-y-2">
+      <select
+        value={selectedId}
+        onChange={(e) => setSelectedId(e.target.value)}
+        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+      >
+        <option value="">Select loadout...</option>
+        {loadouts.map((lo) => <option key={lo.id} value={lo.id}>{lo.name || "Unnamed"}</option>)}
+      </select>
+      {c && (
+        <div className="text-xs text-muted-foreground border border-border rounded-md p-2 bg-muted/20">
+          HP {formatNum(c.maxHp)} · ATK {formatNum(c.atk)} · DEF {formatNum(c.def)} · SPD {formatNum(c.spd)} · DEX {formatNum(c.dex)} · LCK {formatNum(c.lck)} · INT {formatNum(c.int)}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle className="text-base">Combat Sandbox (Normal Attack)</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="text-sm font-semibold">Attacker A</div>
+            <Input value={aName} onChange={(e) => setAName(e.target.value)} className="h-8 text-xs" placeholder="Display name" />
+            <select value={aMode} onChange={(e) => setAMode(e.target.value as CombatSourceMode)} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs">
+              <option value="manual">Manual input</option>
+              <option value="loadout">Import from loadouts</option>
+            </select>
+            {aMode === "manual" ? renderManualEditor(aManual, setAManual) : renderImportedPreview(aLoadoutId, setALoadoutId, resolvedA)}
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-sm font-semibold">Attacker B</div>
+            <Input value={bName} onChange={(e) => setBName(e.target.value)} className="h-8 text-xs" placeholder="Display name" />
+            <select value={bMode} onChange={(e) => setBMode(e.target.value as CombatSourceMode)} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs">
+              <option value="manual">Manual input</option>
+              <option value="loadout">Import from loadouts</option>
+            </select>
+            {bMode === "manual" ? renderManualEditor(bManual, setBManual) : renderImportedPreview(bLoadoutId, setBLoadoutId, resolvedB)}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Input type="number" value={String(batchCount)} onChange={(e) => setBatchCount(Math.max(1, parseInt(e.target.value || "1", 10) || 1))} className="h-8 w-32 text-xs" />
+          <span className="text-xs text-muted-foreground">batch size</span>
+          <Button size="sm" onClick={run}>Run simulation</Button>
+        </div>
+
+        {(battle || batch) && (
+          <div className="space-y-2 text-sm">
+            {batch && (
+              <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs">
+                <strong>{resolvedA?.name ?? "A"}</strong> won {formatNum(batch.leftWins)} ({formatPct(batch.leftWins, batch.total)}), <strong>{resolvedB?.name ?? "B"}</strong> won {formatNum(batch.rightWins)} ({formatPct(batch.rightWins, batch.total)}), draws {formatNum(batch.draws)} ({formatPct(batch.draws, batch.total)}) out of {formatNum(batch.total)}.
+              </div>
+            )}
+            {battle && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded-md border border-border bg-muted/10 px-2 py-1">{battle.winner ? `${battle.winner} wins` : "No winner"} in {battle.rounds.length} strikes</span>
+                <span className="rounded-md border border-border bg-muted/10 px-2 py-1">{resolvedA?.name ?? "A"}: {formatNum(battle.leftHp)} HP</span>
+                <span className="rounded-md border border-border bg-muted/10 px-2 py-1">{resolvedB?.name ?? "B"}: {formatNum(battle.rightHp)} HP</span>
+                <span className="rounded-md border border-border bg-muted/10 px-2 py-1">{resolvedA?.name ?? "A"}: {battle.rounds.filter((r) => r.attacker === (resolvedA?.name ?? "")).length} attacks</span>
+                <span className="rounded-md border border-border bg-muted/10 px-2 py-1">{resolvedB?.name ?? "B"}: {battle.rounds.filter((r) => r.attacker === (resolvedB?.name ?? "")).length} attacks</span>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 // ─── Screenshot Card (portal-rendered) ───────────────────────────────────────
@@ -1005,6 +1177,10 @@ export default function LoadoutPage() {
             className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-muted/30 transition-colors py-4 text-sm text-muted-foreground hover:text-foreground">
             <Plus className="w-4 h-4" />Add another loadout
           </button>
+        )}
+
+        {!isLoading && data && (
+          <LoadoutCombatTool loadouts={loadouts} data={data} />
         )}
 
         <p className="text-xs text-muted-foreground mt-4 text-center">
