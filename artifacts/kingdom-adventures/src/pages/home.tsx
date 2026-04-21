@@ -202,6 +202,14 @@ const BUILT_IN_TOOLS = [
     badgeColor: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300",
   },
   {
+    slug: "/survey",
+    title: "Survey",
+    description: "Survey database and calculator for planning success and rewards.",
+    icon: <Store className="w-6 h-6 text-cyan-500" />,
+    badge: "Survey",
+    badgeColor: "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300",
+  },
+  {
     slug: "/skills",
     title: "Skills Database",
     description: "Community-editable list of skills and related data.",

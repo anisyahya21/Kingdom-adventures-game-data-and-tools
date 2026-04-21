@@ -220,8 +220,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
   const craftLvlIdx = cols.findIndex((c) => /crafterstudio|studio.?level|crafter.?studio/i.test(c));
   const craftIntIdx = cols.findIndex((c) => /craftermintelligence|crafter.?intel|craft.*int/i.test(c));
 
-  const items: EquipmentItem[] = [];
-  let uid = 0;
+  const rawItems: Omit<EquipmentItem, "uid">[] = [];
 
   for (const row of data.table.rows) {
     if (!row?.c) continue;
@@ -244,9 +243,32 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
       if (baseStats[s] === undefined) baseStats[s] = 0;
       if (incStats[s] === undefined) incStats[s] = 0;
     }
-    items.push({ uid: String(uid++), name, sheetSlot, baseStats, incStats, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
+    rawItems.push({ name, sheetSlot, baseStats, incStats, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
   }
-  return items;
+
+  const duplicateCounts = new Map<string, number>();
+  for (const item of rawItems) {
+    duplicateCounts.set(item.name, (duplicateCounts.get(item.name) ?? 0) + 1);
+  }
+
+  const preferredDuplicateSuffixes: Record<string, string[]> = {
+    "B/ Legendary Shield": ["(B)", "(R)"],
+    "E/ Hat": ["(B)", "(R)"],
+  };
+  const seenDuplicateIndex = new Map<string, number>();
+
+  return rawItems.map((item, index) => {
+    const duplicateTotal = duplicateCounts.get(item.name) ?? 0;
+    if (duplicateTotal <= 1) {
+      return { uid: String(index), ...item };
+    }
+
+    const seen = (seenDuplicateIndex.get(item.name) ?? 0) + 1;
+    seenDuplicateIndex.set(item.name, seen);
+    const preferredSuffix = preferredDuplicateSuffixes[item.name]?.[seen - 1];
+    const suffix = preferredSuffix ?? `(${seen})`;
+    return { uid: String(index), ...item, name: `${item.name} ${suffix}` };
+  });
 }
 
 function statAtLevel(base: number, inc: number, level: number): number {
@@ -793,6 +815,7 @@ export default function EquipmentPage() {
 
   const toggleSelect = (uid: string) =>
     setSelectedUids((prev) => { const next = new Set(prev); next.has(uid) ? next.delete(uid) : next.add(uid); return next; });
+  const leaveCompareMode = () => setCompareMode(false);
   const clearSelection = () => { setSelectedUids(new Set()); setCompareMode(false); };
 
   // Character builder — personal
@@ -1192,7 +1215,7 @@ export default function EquipmentPage() {
             </Button>
           )}
           {compareMode && (
-            <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={clearSelection}>
+            <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={leaveCompareMode}>
               <X className="w-3.5 h-3.5" />Show all
             </Button>
           )}
@@ -1383,7 +1406,7 @@ export default function EquipmentPage() {
                           checked={selectedUids.size === filtered.length && filtered.length > 0}
                           onChange={(e) => {
                             if (e.target.checked) setSelectedUids(new Set(filtered.map((i) => i.uid)));
-                            else clearSelection();
+                            else setSelectedUids(new Set());
                           }} title="Select all visible" />
                       </th>
                       <th className="px-2 py-2 w-8 shrink-0" />

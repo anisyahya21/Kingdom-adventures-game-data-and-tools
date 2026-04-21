@@ -164,6 +164,7 @@ const SHEET_SKILL_ACCESS_FALLBACKS: Record<string, SkillAccessMap> = {
   Merchant: { attackMagic: "can", recovery: "can" },
   Artisan: { attack: "can" },
   Blacksmith: { attack: "can" },
+  Mover: { attack: "can" },
   Porter: { attack: "can" },
   Rancher: { attack: "can" },
   Mage: { attackMagic: "can", recovery: "can" },
@@ -248,6 +249,47 @@ function useUserName() {
   const [name, setName] = useState(() => localStorage.getItem("ka_username") ?? "");
   const save = (n: string) => { setName(n); localStorage.setItem("ka_username", n); };
   return { name, save };
+}
+
+type JobsTablePrefs = {
+  search: string;
+  genFilter: "all" | "1" | "2";
+  typeFilter: "all" | "combat" | "non-combat";
+  excludedJobs: string[];
+  includedJobs: string[];
+  favsOnly: boolean;
+  sortCol: string;
+  sortDir: "asc" | "desc";
+  sortByGrowth: boolean;
+};
+
+const JOBS_TABLE_PREFS_KEY = "ka_jobs_table_prefs_v1";
+
+function loadJobsTablePrefs(): JobsTablePrefs | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(JOBS_TABLE_PREFS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<JobsTablePrefs>;
+    return {
+      search: typeof parsed.search === "string" ? parsed.search : "",
+      genFilter: parsed.genFilter === "1" || parsed.genFilter === "2" ? parsed.genFilter : "all",
+      typeFilter: parsed.typeFilter === "combat" || parsed.typeFilter === "non-combat" ? parsed.typeFilter : "all",
+      excludedJobs: Array.isArray(parsed.excludedJobs) ? parsed.excludedJobs.filter((v): v is string => typeof v === "string") : [],
+      includedJobs: Array.isArray(parsed.includedJobs) ? parsed.includedJobs.filter((v): v is string => typeof v === "string") : [],
+      favsOnly: Boolean(parsed.favsOnly),
+      sortCol: typeof parsed.sortCol === "string" ? parsed.sortCol : "",
+      sortDir: parsed.sortDir === "asc" ? "asc" : "desc",
+      sortByGrowth: Boolean(parsed.sortByGrowth),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveJobsTablePrefs(prefs: JobsTablePrefs) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(JOBS_TABLE_PREFS_KEY, JSON.stringify(prefs));
 }
 
 function useFavorites() {
@@ -850,25 +892,26 @@ function JobsTable({
   onSaveJobs: (updated: Record<string, Job>, desc: string) => void;
 }) {
   const { favs, toggle: toggleFav } = useFavorites();
-  const [search, setSearch] = useState("");
-  const [genFilter, setGenFilter] = useState<"all" | "1" | "2">("all");
-  const [typeFilter, setTypeFilter] = useState<"all" | "combat" | "non-combat">("all");
-  const [excludedJobs, setExcludedJobs] = useState<Set<string>>(new Set());
+  const savedPrefs = useMemo(() => loadJobsTablePrefs(), []);
+  const [search, setSearch] = useState(() => savedPrefs?.search ?? "");
+  const [genFilter, setGenFilter] = useState<"all" | "1" | "2">(() => savedPrefs?.genFilter ?? "all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "combat" | "non-combat">(() => savedPrefs?.typeFilter ?? "all");
+  const [excludedJobs, setExcludedJobs] = useState<Set<string>>(() => new Set(savedPrefs?.excludedJobs ?? []));
   const [excludeSearch, setExcludeSearch] = useState("");
   const [excludeOpen, setExcludeOpen] = useState(false);
   const excludeRef = useRef<HTMLDivElement>(null);
-  const [includedJobs, setIncludedJobs] = useState<Set<string>>(new Set());
+  const [includedJobs, setIncludedJobs] = useState<Set<string>>(() => new Set(savedPrefs?.includedJobs ?? []));
   const [includeSearch, setIncludeSearch] = useState("");
   const [includeOpen, setIncludeOpen] = useState(false);
   const includeRef = useRef<HTMLDivElement>(null);
-  const [favsOnly, setFavsOnly] = useState(false);
+  const [favsOnly, setFavsOnly] = useState(() => savedPrefs?.favsOnly ?? false);
   const [compactView, setCompactView] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("ka_jobs_compact_view") === "true";
   });
-  const [sortCol, setSortCol] = useState<string>("");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [sortByGrowth, setSortByGrowth] = useState(false);
+  const [sortCol, setSortCol] = useState<string>(() => savedPrefs?.sortCol ?? "");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => savedPrefs?.sortDir ?? "desc");
+  const [sortByGrowth, setSortByGrowth] = useState(() => savedPrefs?.sortByGrowth ?? false);
   const [bulkRankInput, setBulkRankInput] = useState("S");
   const [bulkLevelInput, setBulkLevelInput] = useState("1");
   const [bulkApply, setBulkApply] = useState<{ rank?: string; allLevel?: number; seq: number }>({ seq: 0 });
@@ -878,6 +921,20 @@ function JobsTable({
     if (typeof window === "undefined") return;
     localStorage.setItem("ka_jobs_compact_view", compactView ? "true" : "false");
   }, [compactView]);
+
+  useEffect(() => {
+    saveJobsTablePrefs({
+      search,
+      genFilter,
+      typeFilter,
+      excludedJobs: [...excludedJobs],
+      includedJobs: [...includedJobs],
+      favsOnly,
+      sortCol,
+      sortDir,
+      sortByGrowth,
+    });
+  }, [search, genFilter, typeFilter, excludedJobs, includedJobs, favsOnly, sortCol, sortDir, sortByGrowth]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

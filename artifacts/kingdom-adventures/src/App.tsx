@@ -37,6 +37,7 @@ import KairoRoomPage from "@/pages/kairo-room";
 import PlaythroughGuidePage from "@/pages/playthrough-guide";
 import GuidesPage from "@/pages/guides";
 import AddGuidePage from "@/pages/add-guide";
+import SurveyPlanner from "@/pages/survey-planner";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
 
@@ -162,6 +163,7 @@ function SiteHeader() {
       children: [
         { href: "/", label: "Home" },
         { href: "/jobs", label: "Jobs" },
+        { href: "/survey", label: "Survey" },
         { href: "/equipment", label: "Equipment Stats & Exchange" },
         { href: "/skills", label: "Skills" },
         { href: "/loadout", label: "Loadout Builder" },
@@ -398,6 +400,8 @@ function Router() {
       <Route path="/world-map" component={WorldMapPage} />
       <Route path="/map-2-testing" component={Map2TestingPage} />
       <Route path="/houses" component={HousesPage} />
+      <Route path="/survey" component={SurveyPlanner} />
+      <Route path="/survey-planner" component={SurveyPlanner} />
       <Route path="/timed-events" component={TimedEventsPage} />
       <Route path="/wario-dungeon" component={WarioDungeonPage} />
       <Route path="/daily-rank-rewards" component={DailyRankRewardsPage} />
