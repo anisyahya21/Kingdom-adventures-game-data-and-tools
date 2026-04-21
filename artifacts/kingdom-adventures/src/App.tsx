@@ -17,6 +17,7 @@ import MonstersPage from "@/pages/monsters";
 import JobsPage from "@/pages/jobs";
 import SkillsPage from "@/pages/skills";
 import LoadoutPage from "@/pages/loadout";
+import CombatSimulatorPage from "@/pages/combat-simulator-v2";
 import EggsPage from "@/pages/eggs";
 import EggsPetsMonstersPage from "@/pages/eggs-pets-monsters";
 import ShopsPage from "@/pages/shops";
@@ -168,6 +169,7 @@ function SiteHeader() {
         { href: "/equipment", label: "Equipment Stats & Exchange" },
         { href: "/skills", label: "Skills" },
         { href: "/loadout", label: "Loadout Builder" },
+        { href: "/combat-simulator", label: "Combat Simulator" },
         { href: "/match-finder", label: "Match Finder" },
         { href: "/town-rank", label: "Town Rank" },
         { href: "/guides", label: "Guides" },
@@ -390,6 +392,7 @@ function Router() {
       <Route path="/jobs/:name" component={JobsPage} />
       <Route path="/skills" component={SkillsPage} />
       <Route path="/loadout" component={LoadoutPage} />
+      <Route path="/combat-simulator" component={CombatSimulatorPage} />
       <Route path="/eggs-pets-monsters" component={EggsPetsMonstersPage} />
       <Route path="/eggs" component={EggsPage} />
       <Route path="/monsters-pets" component={MonstersPetsPage} />
