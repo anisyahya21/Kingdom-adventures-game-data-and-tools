@@ -181,7 +181,16 @@ function parseGuide(markdown: string): ParsedGuide {
     imageMap[`image${id}`] = `/guides/images/image${id}.${ext}`;
   }
 
-  const cleaned = normalized.replace(/^\[image\d+\]:\s*<data:image\/[^\n]+$/gm, "");
+    // 1. Parse explicit image definitions (local markdown)
+    const cleaned = normalized.replace(/^\[image\d+\]:\s*<data:image\/[^>]+$/gm, "");
+
+    // 2. Auto-map missing image refs to .png if not defined (for Google Doc markdown)
+    const referencedImages = Array.from(normalized.matchAll(/!\[\]\[(image\d+)\]/g)).map((m) => m[1]);
+    for (const imageId of referencedImages) {
+      if (!imageMap[imageId]) {
+        imageMap[imageId] = `/guides/images/${imageId}.png`;
+      }
+    }
 
   const lines = cleaned.split("\n");
   const sections: GuideSection[] = [];
@@ -382,22 +391,30 @@ export default function PlaythroughGuidePage() {
       try {
         setLoading(true);
         setError(null);
-        // Try to fetch Google Doc as plain text (exported)
-        const googleDocUrl = `https://docs.google.com/document/d/${PLAYTHROUGH_GUIDE_DOC_ID}/export?format=txt`;
-        const response = await fetch(googleDocUrl);
-        if (response.ok) {
-          const text = await response.text();
-          if (!cancelled) {
-            setMarkdown(text);
+        // Try to fetch Google Doc as markdown (exported)
+        const googleDocUrl = `https://docs.google.com/document/d/${PLAYTHROUGH_GUIDE_DOC_ID}/export?format=md`;
+        let fetchedMarkdown = "";
+        let usedGoogleDoc = false;
+        try {
+          const response = await fetch(googleDocUrl);
+          if (response.ok) {
+            const text = await response.text();
+            // Only use if it contains markdown headings and image refs
+            if (/^#|^##|!\[\]\[image\d+\]/m.test(text)) {
+              fetchedMarkdown = text;
+              usedGoogleDoc = true;
+            }
           }
-          return;
+        } catch {}
+
+        if (!usedGoogleDoc) {
+          // Fallback to local markdown
+          const fallback = await fetch(PLAYTHROUGH_GUIDE_LOCAL_URL);
+          if (!fallback.ok) throw new Error(`Guide request failed with ${fallback.status}`);
+          fetchedMarkdown = await fallback.text();
         }
-        // Fallback to local markdown
-        const fallback = await fetch(PLAYTHROUGH_GUIDE_LOCAL_URL);
-        if (!fallback.ok) throw new Error(`Guide request failed with ${fallback.status}`);
-        const fallbackText = await fallback.text();
         if (!cancelled) {
-          setMarkdown(fallbackText);
+          setMarkdown(fetchedMarkdown);
         }
       } catch (err) {
         if (!cancelled) {
