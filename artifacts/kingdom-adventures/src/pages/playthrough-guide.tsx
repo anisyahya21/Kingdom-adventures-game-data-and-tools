@@ -382,13 +382,22 @@ export default function PlaythroughGuidePage() {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch(PLAYTHROUGH_GUIDE_LOCAL_URL);
-        if (!response.ok) {
-          throw new Error(`Guide request failed with ${response.status}`);
+        // Try to fetch Google Doc as plain text (exported)
+        const googleDocUrl = `https://docs.google.com/document/d/${PLAYTHROUGH_GUIDE_DOC_ID}/export?format=txt`;
+        const response = await fetch(googleDocUrl);
+        if (response.ok) {
+          const text = await response.text();
+          if (!cancelled) {
+            setMarkdown(text);
+          }
+          return;
         }
-        const text = await response.text();
+        // Fallback to local markdown
+        const fallback = await fetch(PLAYTHROUGH_GUIDE_LOCAL_URL);
+        if (!fallback.ok) throw new Error(`Guide request failed with ${fallback.status}`);
+        const fallbackText = await fallback.text();
         if (!cancelled) {
-          setMarkdown(text);
+          setMarkdown(fallbackText);
         }
       } catch (err) {
         if (!cancelled) {
