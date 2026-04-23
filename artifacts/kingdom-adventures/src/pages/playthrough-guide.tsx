@@ -173,24 +173,34 @@ function parseGuide(markdown: string): ParsedGuide {
   const normalized = markdown.replace(/\r/g, "");
   const imageMap: Record<string, string> = {};
 
-  for (const match of normalized.matchAll(/^\[image(?<id>\d+)\]:\s*<data:image\/(?<ext>[a-zA-Z0-9.+-]+);base64,[^>]+>/gm)) {
+  // Google Docs markdown export defines images at the bottom like:
+  // [image155]: <data:image/png;base64,...>
+  //
+  // Keep those data URLs directly instead of converting them to
+  // /guides/images/image155.png. That way new Google Doc images can render
+  // without also uploading static image files to the website.
+  for (const match of normalized.matchAll(/^\[image(?<id>\d+)\]:\s*<(?<src>data:image\/[a-zA-Z0-9.+-]+;base64,[^>\n]+)>\s*$/gm)) {
     const id = match.groups?.id;
-    const rawExt = match.groups?.ext;
-    if (!id || !rawExt) continue;
-    const ext = rawExt === "jpeg" ? "jpg" : rawExt;
-    imageMap[`image${id}`] = `/guides/images/image${id}.${ext}`;
+    const src = match.groups?.src;
+    if (!id || !src) continue;
+    imageMap[`image${id}`] = src;
   }
 
-    // 1. Parse explicit image definitions (local markdown)
-    const cleaned = normalized.replace(/^\[image\d+\]:\s*<data:image\/[^>]+$/gm, "");
+  // Remove Google Docs image definition lines from the visible article text.
+  // If a malformed export ever misses the closing ">", this still removes the
+  // whole definition line so the base64 text does not flood the page.
+  const cleaned = normalized
+    .replace(/^\[image\d+\]:\s*<data:image\/[^\n>]+>?\s*$/gm, "")
+    .replace(/^\[image\d+\]:\s*<data:image\/.*$/gm, "");
 
-    // 2. Auto-map missing image refs to .png if not defined (for Google Doc markdown)
-    const referencedImages = Array.from(normalized.matchAll(/!\[\]\[(image\d+)\]/g)).map((m) => m[1]);
-    for (const imageId of referencedImages) {
-      if (!imageMap[imageId]) {
-        imageMap[imageId] = `/guides/images/${imageId}.png`;
-      }
+  // Fallback only: if the markdown references an image but did not include a
+  // data URL definition, try the old static public image path.
+  const referencedImages = Array.from(normalized.matchAll(/!\[\]\[(image\d+)\]/g)).map((m) => m[1]);
+  for (const imageId of referencedImages) {
+    if (!imageMap[imageId]) {
+      imageMap[imageId] = `/guides/images/${imageId}.png`;
     }
+  }
 
   const lines = cleaned.split("\n");
   const sections: GuideSection[] = [];
@@ -328,30 +338,32 @@ function renderLine(line: string, index: number, imageMap: Record<string, string
     return <div key={index} className="h-2" />;
   }
 
-  const imageRefs = Array.from(trimmed.matchAll(/!\[\]\[(image\d+)\]/g)).map((match) => match[1]);
-  if (imageRefs.length > 0) {
+  const referencedImageIds = Array.from(trimmed.matchAll(/!\[\]\[(image\d+)\]/g)).map((match) => match[1]);
+  const inlineImageSources = Array.from(trimmed.matchAll(/!\[[^\]]*\]\((data:image\/[^)]+)\)/g)).map((match) => match[1]);
+  const imageSources = [
+    ...referencedImageIds.map((imageId) => ({ id: imageId, src: imageMap[imageId] })),
+    ...inlineImageSources.map((src, i) => ({ id: `inline-image-${index}-${i}`, src })),
+  ].filter((image): image is { id: string; src: string } => Boolean(image.src));
+
+  if (imageSources.length > 0) {
     return (
       <div key={index} className="flex flex-wrap gap-3 py-2">
-        {imageRefs.map((imageId) => {
-          const src = imageMap[imageId];
-          if (!src) return null;
-          return (
-            <a
-              key={imageId}
-              href={src}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block overflow-hidden rounded-xl border border-border bg-muted/20 shadow-sm"
-            >
-              <img
-                src={src}
-                alt={imageId}
-                className="max-h-80 w-auto max-w-full object-contain"
-                loading="lazy"
-              />
-            </a>
-          );
-        })}
+        {imageSources.map(({ id, src }) => (
+          <a
+            key={id}
+            href={src}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block overflow-hidden rounded-xl border border-border bg-muted/20 shadow-sm"
+          >
+            <img
+              src={src}
+              alt={id}
+              className="max-h-80 w-auto max-w-full object-contain"
+              loading="lazy"
+            />
+          </a>
+        ))}
       </div>
     );
   }
