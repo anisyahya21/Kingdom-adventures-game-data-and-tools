@@ -1,4 +1,5 @@
 ﻿import { useState } from "react";
+import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Home, Search } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { Link, useSearch } from "wouter";
@@ -1440,6 +1441,18 @@ const MATERIAL_STOREHOUSE_IDS = new Set([
   206, 207, 208, 209, 210, 211, 212, 213, 214,
 ]);
 
+
+function applyResourceDiscount(qty: number, resourceDiscount: number): number {
+  return Math.max(0, Math.round(qty * (1 - resourceDiscount)));
+}
+
+function applyResourceDiscountToItems<T extends { qty: number }>(items: T[], resourceDiscount: number): T[] {
+  return items.map((item) => ({
+    ...item,
+    qty: applyResourceDiscount(item.qty, resourceDiscount),
+  }));
+}
+
 function formatUpgTime(seconds: number): string {
   if (seconds <= 0) return "0s";
   if (seconds < 60) return `${seconds}s`;
@@ -2009,7 +2022,7 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
             ))}
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-            {calcTownHallCoinCosts(rank + 1).map(({ name, qty }) => (
+            {applyResourceDiscountToItems(calcTownHallCoinCosts(rank + 1), resourceDiscount).map(({ name, qty }) => (
               <span key={name} className="text-xs text-muted-foreground">
                 {qty}× {formatFacilityItemName(name)}
               </span>
@@ -2029,8 +2042,12 @@ export default function HousesPage() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<PageTab>("houses");
   const [facilityTab, setFacilityTab] = useState<FacilityTab>("env");
-  const [knowHow, setKnowHow] = useState(0);
-  const [craftsman, setCraftsman] = useState(0);
+  const [storedKnowHow, setStoredKnowHow] = useLocalFeature<number>("houses-facilities-know-how", 0);
+  const [storedCraftsman, setStoredCraftsman] = useLocalFeature<number>("houses-facilities-craftsman", 0);
+  const knowHow = Math.max(0, Math.min(6, Number(storedKnowHow) || 0));
+  const craftsman = Math.max(0, Math.min(6, Number(storedCraftsman) || 0));
+  const setKnowHow = (n: number) => setStoredKnowHow(Math.max(0, Math.min(6, n)));
+  const setCraftsman = (n: number) => setStoredCraftsman(Math.max(0, Math.min(6, n)));
   const timeDiscount = knowHow * 0.05;
   const resourceDiscount = craftsman * 0.05;
 
@@ -2124,7 +2141,7 @@ export default function HousesPage() {
         <div className="space-y-4">
           {/* Modifier panel */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border border-border bg-muted/20 px-4 py-2.5">
-            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground/60 shrink-0">Modifiers</span>
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-orange-500 dark:text-orange-400 shrink-0">Modifiers</span>
             {([
               { label: "Know-How Journal", value: knowHow, set: setKnowHow, suffix: "-5% upgrade time each" },
               { label: "Master Craftsman's Tools", value: craftsman, set: setCraftsman, suffix: "-5% resource cost each" },

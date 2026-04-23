@@ -573,8 +573,8 @@ function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, o
       </CardHeader>
       <CardContent className="px-4 pb-3 pt-0">
         {slots.length > 0 && (
-          <div className="rounded-md border border-border overflow-hidden mt-3 mb-3">
-            <div className="grid grid-cols-[1fr_72px_72px_88px_28px] bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+          <div className="rounded-md border border-border overflow-hidden mt-3 mb-3 w-fit max-w-full">
+            <div className="grid grid-cols-[minmax(220px,320px)_56px_56px_72px_24px] bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
               <span>Job</span>
               <span className="text-center">Male</span>
               <span className="text-center">Female</span>
@@ -593,16 +593,16 @@ function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, o
             {slots.map((slot, i) => (
               <div key={slot.id}>
                 {i > 0 && <Separator />}
-                <div className="grid grid-cols-[1fr_72px_72px_88px_28px] items-center px-3 py-1.5 gap-1">
-                  <span className="text-sm font-medium truncate">
+                <div className="grid grid-cols-[minmax(220px,320px)_56px_56px_72px_24px] items-center px-3 py-1.5 gap-1">
+                  <span className="text-sm font-medium truncate pr-2">
                     {slot.jobName}
                     {slot.unassigned > 0 && (
                       <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">⚥</Badge>
                     )}
                   </span>
-                  <CountInput value={slot.males} onCommit={(value) => onUpdate(slot.id, "males", value)} className="h-7 text-center text-sm px-1" />
-                  <CountInput value={slot.females} onCommit={(value) => onUpdate(slot.id, "females", value)} className="h-7 text-center text-sm px-1" />
-                  <CountInput value={slot.unassigned} onCommit={(value) => onUpdate(slot.id, "unassigned", value)} className="h-7 text-center text-sm px-1 border-amber-300 dark:border-amber-700 focus-visible:ring-amber-400" />
+                  <CountInput value={slot.males} onCommit={(value) => onUpdate(slot.id, "males", value)} className="h-7 text-center text-xs px-1" />
+                  <CountInput value={slot.females} onCommit={(value) => onUpdate(slot.id, "females", value)} className="h-7 text-center text-xs px-1" />
+                  <CountInput value={slot.unassigned} onCommit={(value) => onUpdate(slot.id, "unassigned", value)} className="h-7 text-center text-xs px-1 border-amber-300 dark:border-amber-700 focus-visible:ring-amber-400" />
                   <button onClick={() => onRemove(slot.id)}
                     className="text-muted-foreground hover:text-destructive transition-colors justify-self-center">
                     <Trash2 className="w-3.5 h-3.5" />
@@ -774,8 +774,8 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Compatible Pairs & Children</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-3">
+      <CardContent className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)] items-start">
+        <div className="space-y-3 rounded-lg border border-border bg-background/40 p-3">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-muted-foreground font-medium shrink-0">Affinity:</span>
             {ALL_AFFINITIES.map((aff) => {
@@ -948,7 +948,7 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
             )}
           </div>
         </div>
-        <div className="rounded-md border border-border overflow-hidden">
+        <div className="rounded-md border border-border overflow-hidden min-w-0">
           <div className="max-h-80 overflow-y-auto divide-y divide-border">
             {sorted.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">No pairs defined yet.</p>}
             {sorted.map((p) => {
@@ -1556,15 +1556,16 @@ function SimTab({
         : (result && !("error" in result) ? result.childJob : "");
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-3 xl:max-w-[1200px]">
         <Card className="shadow-sm">
           <CardHeader className="pb-3">
+
             <CardTitle className="text-base">{title} — Parents</CardTitle>
             <CardDescription className="text-xs">Only 1st generation (Non-Marriage) jobs can marry in the game.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="space-y-3">
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="space-y-3 rounded-lg border border-border bg-background/40 p-4">
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold text-blue-500 leading-none">♂</span>
                   <span className="text-sm font-semibold">Father</span>
@@ -1601,7 +1602,7 @@ function SimTab({
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 rounded-lg border border-border bg-background/40 p-4">
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold text-rose-500 leading-none">♀</span>
                   <span className="text-sm font-semibold">Mother</span>
@@ -1754,7 +1755,7 @@ function SimTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {renderSimBlock("Simulation 1", simOne, setSimOne, resultOne, displayStatsOne)}
       {renderSimBlock("Simulation 2", simTwo, setSimTwo, resultTwo, displayStatsTwo)}
 
@@ -2413,24 +2414,31 @@ export default function MarriageMatcher() {
               <p><strong className="text-foreground">How to use Export:</strong> click <strong>Export current inputs</strong>, then save the generated text somewhere safe like a note, text file, or message to yourself.</p>
               <p><strong className="text-foreground">How to use Import:</strong> paste that saved text back into the box here, then click <strong>Import pasted backup</strong> to restore your Match Finder inputs.</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={exportBackup} className="gap-2">
-                <Upload className="w-4 h-4" /> Export current inputs
-              </Button>
-              <Button variant="outline" size="sm" onClick={importBackup} className="gap-2">
-                <Download className="w-4 h-4" /> Import pasted backup
-              </Button>
-              <Button variant="outline" size="sm" onClick={copyBackup} className="gap-2">
-                <Copy className="w-4 h-4" /> Copy backup text
-              </Button>
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)] items-start">
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={exportBackup} className="gap-2">
+                    <Upload className="w-4 h-4" /> Export current inputs
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={importBackup} className="gap-2">
+                    <Download className="w-4 h-4" /> Import pasted backup
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={copyBackup} className="gap-2">
+                    <Copy className="w-4 h-4" /> Copy backup text
+                  </Button>
+                </div>
+                {backupStatus && <p className="text-xs text-muted-foreground">{backupStatus}</p>}
+              </div>
+
+              <div className="min-w-0">
+                <textarea
+                  value={backupText}
+                  onChange={(e) => setBackupText(e.target.value)}
+                  placeholder="Exported backup text will appear here. You can also paste a backup here to restore it."
+                  className="min-h-[140px] w-full rounded-md border border-border bg-background px-3 py-2 text-xs font-mono text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
             </div>
-            <textarea
-              value={backupText}
-              onChange={(e) => setBackupText(e.target.value)}
-              placeholder="Exported backup text will appear here. You can also paste a backup here to restore it."
-              className="min-h-[140px] w-full rounded-md border border-border bg-background px-3 py-2 text-xs font-mono text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            {backupStatus && <p className="text-xs text-muted-foreground">{backupStatus}</p>}
           </CardContent>
         </Card>
 
@@ -2459,68 +2467,72 @@ export default function MarriageMatcher() {
         {/* ── Finder tab ──────────────────────────────────────────────── */}
         {activeTab === "finder" && (<>
 
-        {/* Jobs Panel */}
-        <div className="mb-6">
-          <JobsPanel jobNames={sortedJobNames} isLoading={jobsLoading} isFromApi={!!apiFirstGenJobs} />
-        </div>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,0.85fr)] items-start">
+          <div className="min-w-0 space-y-4">
+            {/* Rank tables */}
+            <div className="grid gap-4 md:grid-cols-2">
+              {RANKS.map((rank) => (
+                <RankTable key={rank} rank={rank}
+                  slots={rankSlots.filter((s) => s.rank === rank)}
+                  availableJobs={availablePerRank[rank]}
+                  totalFirstGenCount={sortedJobNames.length}
+                  onUpdate={updateSlot} onRemove={removeSlot} onAdd={addSlot}
+                />
+              ))}
+            </div>
+          </div>
 
-        {/* Rank tables */}
-        <div className="space-y-4">
-          {RANKS.map((rank) => (
-            <RankTable key={rank} rank={rank}
-              slots={rankSlots.filter((s) => s.rank === rank)}
-              availableJobs={availablePerRank[rank]}
-              totalFirstGenCount={sortedJobNames.length}
-              onUpdate={updateSlot} onRemove={removeSlot} onAdd={addSlot}
+          <div className="min-w-0 space-y-4 xl:sticky xl:top-20">
+            {/* Jobs Panel */}
+            <JobsPanel jobNames={sortedJobNames} isLoading={jobsLoading} isFromApi={!!apiFirstGenJobs} />
+
+            <PlannerSetup
+              affinityFilter={affinityFilter}
+              onAffinityFilterChange={setAffinityFilter}
+              targetChildTypeFilter={targetChildTypeFilter}
+              onTargetChildTypeFilterChange={setTargetChildTypeFilter}
+              targetExclusiveFilter={targetExclusiveFilter}
+              onTargetExclusiveFilterChange={setTargetExclusiveFilter}
+              targetIncludeJobs={targetIncludeJobs}
+              onAddIncludeJob={addTargetIncludeJob}
+              onRemoveIncludeJob={removeTargetIncludeJob}
+              targetExcludeJobs={targetExcludeJobs}
+              onAddExcludeJob={addTargetExcludeJob}
+              onRemoveExcludeJob={removeTargetExcludeJob}
+              targetPoolJobs={targetPoolJobs}
+              onResetSetup={resetPlannerSetup}
+              allJobNames={allJobNames}
             />
-          ))}
-        </div>
 
-        <div className="mt-6">
-          <PlannerSetup
-            affinityFilter={affinityFilter}
-            onAffinityFilterChange={setAffinityFilter}
-            targetChildTypeFilter={targetChildTypeFilter}
-            onTargetChildTypeFilterChange={setTargetChildTypeFilter}
-            targetExclusiveFilter={targetExclusiveFilter}
-            onTargetExclusiveFilterChange={setTargetExclusiveFilter}
-            targetIncludeJobs={targetIncludeJobs}
-            onAddIncludeJob={addTargetIncludeJob}
-            onRemoveIncludeJob={removeTargetIncludeJob}
-            targetExcludeJobs={targetExcludeJobs}
-            onAddExcludeJob={addTargetExcludeJob}
-            onRemoveExcludeJob={removeTargetExcludeJob}
-            targetPoolJobs={targetPoolJobs}
-            onResetSetup={resetPlannerSetup}
-            allJobNames={allJobNames}
-          />
-        </div>
+            {/* Stale / locked notice */}
+            {(isStale && result) && (
+              <div className="flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <p className="text-sm text-amber-700 dark:text-amber-400 flex-1">
+                  Inputs have changed{hasLocked ? " (some pairs are locked)" : ""}. Recalculate to update results.
+                </p>
+              </div>
+            )}
+            {(hasLocked && !isStale && result) && (
+              <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3">
+                <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  {lockedPairs.length} pair{lockedPairs.length !== 1 ? "s are" : " is"} locked. The algorithm works around them.
+                </p>
+              </div>
+            )}
 
-        {/* Stale / locked notice */}
-        {(isStale && result) && (
-          <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3">
-            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-            <p className="text-sm text-amber-700 dark:text-amber-400 flex-1">
-              Inputs have changed{hasLocked ? " (some pairs are locked)" : ""}. Recalculate to update results.
-            </p>
+            {/* Calculate button */}
+            <Card className="shadow-sm border-primary/20">
+              <CardContent className="pt-6">
+                <Button onClick={calculate} disabled={isCalculating} size="lg" className={`w-full gap-2 shadow-md transition-all ${isStale && result ? "ring-2 ring-amber-400 ring-offset-2" : ""}`}>
+                  {isCalculating
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Calculating…</>
+                    : <><Zap className="w-4 h-4" />{result ? "Recalculate" : "Calculate Optimal Matching"}</>}
+                </Button>
+              </CardContent>
+            </Card>
           </div>
-        )}
-        {(hasLocked && !isStale && result) && (
-          <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50/60 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3">
-            <Lock className="w-4 h-4 text-amber-500 shrink-0" />
-            <p className="text-sm text-amber-600 dark:text-amber-400">
-              {lockedPairs.length} pair{lockedPairs.length !== 1 ? "s are" : " is"} locked. The algorithm works around them.
-            </p>
-          </div>
-        )}
-
-        {/* Calculate button */}
-        <div className="mt-6 flex justify-center">
-          <Button onClick={calculate} disabled={isCalculating} size="lg" className={`gap-2 px-10 shadow-md transition-all ${isStale && result ? "ring-2 ring-amber-400 ring-offset-2" : ""}`}>
-            {isCalculating
-              ? <><Loader2 className="w-4 h-4 animate-spin" />Calculating…</>
-              : <><Zap className="w-4 h-4" />{result ? "Recalculate" : "Calculate Optimal Matching"}</>}
-          </Button>
         </div>
 
         {/* Results */}
