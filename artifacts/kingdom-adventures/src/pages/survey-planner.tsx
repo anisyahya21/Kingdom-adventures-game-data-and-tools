@@ -89,7 +89,7 @@ function parseSurveyCsv(raw: string): Survey[] {
       const status = (cols[statusIndex] ?? "").trim();
       if (status !== "Not used") return true;
       const rawName = (cols[nameIndex] ?? "").toLowerCase();
-      return rawName.includes("dragon taming") || rawName.includes("master instructor");
+      return rawName.includes("dragon taming") || rawName.includes("master instructor") || rawName.includes("cash register");
     })
     .map((cols) => {
       const maxEarnableRaw = Number(cols[maxEarnableRewardCountIndex] ?? "");
@@ -246,7 +246,14 @@ function buildJobFamilies(jobVariants: JobVariant[]): JobFamily[] {
 
 const SURVEY_CAPABLE_JOB_BASE_NAMES = new Set(["Carpenter", "Farmer", "Merchant", "Mover", "Rancher"]);
 
-const SURVEYS: Survey[] = parseSurveyCsv(surveyCsv).filter((survey) => survey.name && survey.name !== "" && survey.id >= 0);
+// Restore Cash Register surveys: allow them through the filter
+const SURVEYS: Survey[] = parseSurveyCsv(surveyCsv).filter((survey) => {
+  if (!survey.name || survey.name === "" || survey.id < 0) return false;
+  // Allow Cash Register surveys
+  if (survey.name.toLowerCase().includes("cash register")) return true;
+  // Default filter
+  return true;
+});
 const JOB_GROUPS: Record<number, string> = parseJobGroupCsv(jobGroupCsv);
 const JOB_VARIANTS = parseJobCsv(jobCsv);
 const JOB_FAMILIES = buildJobFamilies(JOB_VARIANTS);
@@ -556,6 +563,8 @@ export default function SurveyPlanner() {
   const [guideLoading, setGuideLoading] = useState(true);
   const [surveyListExpanded, setSurveyListExpanded] = useState(false);
   const [isMobileSurveyList, setIsMobileSurveyList] = useState(false);
+  // New: Track expanded/collapsed state for each group
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => ({}));
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 768px)");
@@ -768,37 +777,49 @@ export default function SurveyPlanner() {
                 <div>Bonus Job</div>
               </div>
               <div className="space-y-2">
-                {(isMobileSurveyList && !surveyListExpanded ? GROUPED_SURVEYS.slice(0, 3) : GROUPED_SURVEYS).map((group) => (
-                  <div key={`${group.name}-${group.surveys[0]?.id ?? "none"}`} className="space-y-1 rounded-lg border border-border/20 p-1">
-                    <div className="grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 items-center rounded bg-muted/50 px-2 py-2 text-sm font-semibold">
-                      <div className="font-medium">{group.name}</div>
-                      <div className="text-center">{getSurveyMaxLabel(group.totalMax)}{group.surveys.length > 1 ? " total" : ""}</div>
-                      <div className="text-center">—</div>
-                      <div className="text-center">—</div>
-                      <div className="text-right text-xs text-muted-foreground">{group.surveys.length > 1 ? "Grouped surveys" : "Single survey"}</div>
-                    </div>
-                    {group.surveys.map((s) => (
-                      <div key={s.id} className={`grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 items-center p-2 rounded ${s.id === selectedSurveyId ? "bg-muted/40" : ""}`}>
-                        <div>
-                          <Button variant="link" onClick={() => setSelectedSurveyId(s.id)}>{formatSurveyName(s)}</Button>
+                {(isMobileSurveyList && !surveyListExpanded ? GROUPED_SURVEYS.slice(0, 3) : GROUPED_SURVEYS).map((group) => {
+                  const groupKey = `${group.name}-${group.surveys[0]?.id ?? "none"}`;
+                  const expanded = !!expandedGroups[groupKey];
+                  return (
+                    <div key={groupKey} className="space-y-1 rounded-lg border border-border/20 p-1">
+                      <div className="grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 items-center rounded bg-muted/50 px-2 py-2 text-sm font-semibold cursor-pointer"
+                        onClick={() => setExpandedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }))}>
+                        <div className="font-medium flex items-center gap-1">
+                          {group.surveys.length > 1 ? (
+                            expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                          ) : null}
+                          {group.name}
                         </div>
-                        <div className="text-center">{getSurveyMaxLabel(s.maxEarnableRewardCount)}</div>
-                        <div className="text-center">{getSurveyTerrainLabel(s)}</div>
-                        <div className="text-center">{s.minAreaLevel}</div>
-                        <div>
-                          {s.jobGroupId ? (
-                            <div className="text-sm">
-                              <div className="font-medium">{JOB_GROUPS[s.jobGroupId] ?? `Group ${s.jobGroupId}`}</div>
-                              <div className="text-muted-foreground text-xs">{JOB_BONUS_HINT[s.jobGroupId]}</div>
-                            </div>
-                          ) : (
-                            <div className="text-muted-foreground">— none —</div>
-                          )}
+                        <div className="text-center">{getSurveyMaxLabel(group.totalMax)}{group.surveys.length > 1 ? " total" : ""}</div>
+                        <div className="text-center">—</div>
+                        <div className="text-center">—</div>
+                        <div className="text-right text-xs text-muted-foreground">
+                          {group.surveys.length > 1 ? null : "Single survey"}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ))}
+                      {expanded && group.surveys.map((s) => (
+                        <div key={s.id} className={`grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 items-center p-2 rounded ${s.id === selectedSurveyId ? "bg-muted/40" : ""}`}>
+                          <div>
+                            <Button variant="link" onClick={() => setSelectedSurveyId(s.id)}>{formatSurveyName(s)}</Button>
+                          </div>
+                          <div className="text-center">{getSurveyMaxLabel(s.maxEarnableRewardCount)}</div>
+                          <div className="text-center">{getSurveyTerrainLabel(s)}</div>
+                          <div className="text-center">{s.minAreaLevel}</div>
+                          <div>
+                            {s.jobGroupId ? (
+                              <div className="text-sm">
+                                <div className="font-medium">{JOB_GROUPS[s.jobGroupId] ?? `Group ${s.jobGroupId}`}</div>
+                                <div className="text-muted-foreground text-xs">{JOB_BONUS_HINT[s.jobGroupId]}</div>
+                              </div>
+                            ) : (
+                              <div className="text-muted-foreground">— none —</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
               {isMobileSurveyList && SURVEYS.length > 3 && (
                 <div className="mt-3 text-right xl:hidden">

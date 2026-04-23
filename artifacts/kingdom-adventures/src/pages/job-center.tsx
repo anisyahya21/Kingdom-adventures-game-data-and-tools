@@ -2,6 +2,7 @@ import { BriefcaseBusiness, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { JOB_CENTER_DRAFTS } from "@/lib/en-event-drafts";
+import { Link } from "wouter";
 
 export default function JobCenterPage() {
   return (
@@ -28,9 +29,19 @@ export default function JobCenterPage() {
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
               {entry.professions.map((profession) => (
-                <Badge key={profession} variant="outline" className="text-xs">
-                  {profession}
-                </Badge>
+                <Link
+                  key={profession}
+                  href={`/jobs/${encodeURIComponent(profession)}`}
+                  className="focus:outline-none"
+                >
+                  <Badge
+                    variant="outline"
+                    className="text-xs cursor-pointer hover:bg-primary/10 hover:border-primary transition-colors"
+                    asChild
+                  >
+                    <span>{profession}</span>
+                  </Badge>
+                </Link>
               ))}
             </CardContent>
           </Card>

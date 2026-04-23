@@ -1,0 +1,41 @@
+name: Backup main
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *' # daily 02:00 UTC
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Snapshot main (dedupe)
+        run: |
+          git fetch origin main:refs/remotes/origin/main
+          main_sha=$(git rev-parse refs/remotes/origin/main)
+          latest_sha=$(git ls-remote origin refs/heads/backup/main-latest | cut -f1)
+          if [ "$main_sha" = "$latest_sha" ]; then
+            echo "No new commit; skipping snapshot"
+            exit 0
+          fi
+          ts=$(date -u +"%Y%m%d-%H%M%S")
+          tag="backup-snapshot-$ts"
+          git tag -a "$tag" -m "Backup snapshot $ts" "$main_sha"
+          git push origin "$tag"
+          # update a convenient pointer to latest
+          git push origin -f refs/heads/backup/main-latest:refs/heads/backup/main-latest
+
+      - name: Prune old snapshots (90 days)
+        run: |
+          # delete tags older than 90 days
+          cutoff=$(date -u -d "90 days ago" +"%Y%m%d%H%M%S")
+          git ls-remote --tags origin 'backup-snapshot-*' | while read sha ref; do
+            tag=${ref#refs/tags/}
+            ts=$(echo "$tag" | sed -E 's/backup-snapshot-([0-9]{8}-[0-9]{6})/\1/' | tr -d '-')
+            if [ -n "$ts" ] && [ "$ts" -lt "$cutoff" ]; then
+              echo "Deleting tag $tag"
+              git push origin :refs/tags/$tag
+            fi
+          done
