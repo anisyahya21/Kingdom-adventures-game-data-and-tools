@@ -1684,7 +1684,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-2 grid-cols-[repeat(auto-fit,_minmax(150px,_1fr))]">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
             {STAT_ORDER.map((stat) => {
               const s = rankData?.stats[stat];
               const effLevel = statLevels[stat] ?? level;
@@ -1736,175 +1736,189 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
         </CardContent>
       </Card>
 
-      {/* Equipment & Skills ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â combined card */}
-      <Card className="shadow-sm mb-4">
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Equipment & Skills</CardTitle></CardHeader>
-        <CardContent className="space-y-5">
-          {/* Shield */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground mb-2">Shield</p>
-            {(() => {
-              const shieldVal = getResolvedShieldAccess(jobName, job);
-              const draftShieldVal = draft.weaponEquip?.["Shield"] ?? (draft.shield === "can" ? "can" : draft.shield === "cannot" ? "cannot" : undefined);
-              if (!editing && shieldVal === undefined) {
-                return <span className="text-sm font-bold text-red-400">-</span>;
-              }
-              if (editing) {
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] items-start">
+        {/* Equipment & Skills */}
+        <Card className="shadow-sm mb-4 lg:mb-0">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Equipment & Skills</CardTitle></CardHeader>
+          <CardContent className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)] items-start">
+            {/* Shield */}
+            <div className="rounded-lg border border-border bg-background/40 p-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Shield</p>
+              {(() => {
+                const shieldVal = getResolvedShieldAccess(jobName, job);
+                const draftShieldVal = draft.weaponEquip?.["Shield"] ?? (draft.shield === "can" ? "can" : draft.shield === "cannot" ? "cannot" : undefined);
+                if (!editing && shieldVal === undefined) {
+                  return <span className="text-sm font-bold text-red-400">-</span>;
+                }
+                if (editing) {
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      {(["can","weak","cannot"] as WeaponValue[]).map((v) => {
+                        const active = (draftShieldVal ?? "cannot") === v;
+                        return (
+                          <button
+                            key={v}
+                            onClick={() => setDraft((d) => ({ ...d, shield: v === "can" ? "can" : "cannot", weaponEquip: { ...d.weaponEquip, Shield: v } }))}
+                            className={`px-3 py-1.5 text-xs rounded-full border font-medium transition-colors ${active ? weaponStyle[v] : "border-dashed border-border/60 text-muted-foreground/50 hover:border-primary/40"}`}
+                          >
+                            {v === "can" ? "Can Equip" : v === "weak" ? "Weak" : "Can't Equip"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+                const sv = shieldVal ?? "cannot";
                 return (
-                  <div className="flex gap-2">
-                    {(["can","weak","cannot"] as WeaponValue[]).map((v) => {
-                      const active = (draftShieldVal ?? "cannot") === v;
+                  <span className={`px-3 py-1.5 text-xs rounded-full border font-medium ${weaponStyle[sv as WeaponValue]}`}>
+                    {sv === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : sv === "weak" ? "Weak" : "Can't Equip"}
+                  </span>
+                );
+              })()}
+            </div>
+
+            <div className="grid gap-4">
+              {/* Weapon Classes */}
+              <div className="rounded-lg border border-border bg-background/40 p-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Weapon Classes</p>
+                {weaponCategories.length === 0 ? (
+                  <p className="text-xs text-muted-foreground/60">No weapon categories defined yet. Add them in Equipment Stats.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2.5">
+                    {weaponCategories.map((cls) => {
+                      const savedVal = getResolvedWeaponAccess(jobName, job, cls);
+                      const draftVal = draft.weaponEquip?.[cls];
+                      const unfilled = !editing && savedVal === undefined;
+                      const v = (editing ? draftVal : savedVal) ?? "cannot";
                       return (
-                        <button key={v}
-                          onClick={() => setDraft((d) => ({ ...d, shield: v === "can" ? "can" : "cannot", weaponEquip: { ...d.weaponEquip, Shield: v } }))}
-                          className={`px-3 py-1.5 text-xs rounded-full border font-medium transition-colors ${active ? weaponStyle[v] : "border-dashed border-border/60 text-muted-foreground/50 hover:border-primary/40"}`}>
-                          {v === "can" ? "Can Equip" : v === "weak" ? "Weak" : "Can't Equip"}
-                        </button>
+                        <div key={cls} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background/60 px-3 py-2">
+                          <span className="text-xs font-medium text-muted-foreground">{cls}</span>
+                          {unfilled ? (
+                            <span className="text-sm font-bold text-red-400">-</span>
+                          ) : editing ? (
+                            <button
+                              onClick={() => cycleWeapon(cls)}
+                              className={`px-2 py-1 rounded-full border text-[11px] font-medium transition-colors whitespace-nowrap ${weaponStyle[v]}`}
+                            >
+                              {weaponLabel[v]}
+                            </button>
+                          ) : (
+                            <span className={`px-2 py-1 rounded-full border text-[11px] font-medium whitespace-nowrap ${weaponStyle[v]}`}>
+                              {weaponLabel[v]}
+                            </span>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
-                );
-              }
-              const sv = shieldVal ?? "cannot";
-              return (
-                <span className={`px-3 py-1.5 text-xs rounded-full border font-medium ${weaponStyle[sv as WeaponValue]}`}>
-                  {sv === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Equip</> : sv === "weak" ? "Weak" : "Can't Equip"}
-                </span>
-              );
-            })()}
-          </div>
-
-          {/* Weapon Classes */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground mb-1">Weapon Classes</p>
-            {weaponCategories.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60">No weapon categories defined yet. Add them in Equipment Stats.</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {weaponCategories.map((cls) => {
-                  const savedVal = getResolvedWeaponAccess(jobName, job, cls);
-                  const draftVal = draft.weaponEquip?.[cls];
-                  const unfilled = !editing && savedVal === undefined;
-                  const v = (editing ? draftVal : savedVal) ?? "cannot";
-                  return (
-                    <div key={cls} className="flex items-center gap-2 rounded border border-border bg-background/60 px-2 py-1">
-                      <span className="min-w-[80px] text-xs font-medium text-muted-foreground">{cls}</span>
-                      {unfilled ? (
-                        <span className="text-sm font-bold text-red-400">-</span>
-                      ) : editing ? (
-                        <button onClick={() => cycleWeapon(cls)}
-                          className={`px-2 py-1 rounded-full border text-[11px] font-medium transition-colors whitespace-nowrap ${weaponStyle[v]}`}>
-                          {weaponLabel[v]}
-                        </button>
-                      ) : (
-                        <span className={`px-2 py-1 rounded-full border text-[11px] font-medium whitespace-nowrap ${weaponStyle[v]}`}>
-                          {weaponLabel[v]}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
+                )}
+                {editing && <p className="text-[10px] text-muted-foreground mt-2">Click to cycle: Can't, Can, Weak, then back to Can't.</p>}
               </div>
-            )}
-            {editing && <p className="text-[10px] text-muted-foreground mt-1">Click to cycle: Can't, Can, Weak, then back to Can't.</p>}
-          </div>
 
-          {/* Skill Access */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground mb-2">Skill Access</p>
-            <div className="flex flex-col gap-2">
-              {(["attack","attackMagic","recovery"] as const).map((cat) => {
-                const resolvedSkillAccess = getResolvedSkillAccess(jobName, job, selRank);
-                const savedCatVal = resolvedSkillAccess[cat];
-                const draftCatVal =
-                  cat === "attackMagic"
-                    ? (draft.skillAccess?.attackMagic ?? draft.skillAccess?.casting)
-                    : draft.skillAccess?.[cat];
-                const unfilled = !editing && savedCatVal === undefined;
-                const v = (editing ? draftCatVal : savedCatVal) ?? "can";
-                return (
-                  <div key={cat} className="flex flex-col items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground">{SKILL_ACCESS_LABELS[cat]}</span>
-                    {unfilled ? (
-                      <span className="text-sm font-bold text-red-400">-</span>
-                    ) : editing ? (
-                      <button onClick={() => setDraft((d) => ({ ...d, skillAccess: { ...d.skillAccess, [cat]: v === "can" ? "cannot" : "can" } }))}
-                        className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${v === "can"
-                          ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
-                          : "border-dashed border-border/60 text-muted-foreground/50"}`}>
-                        {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
-                      </button>
-                    ) : (
-                      <span className={`px-3 py-1.5 rounded-full border text-xs font-medium ${v === "can"
-                        ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
-                        : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400"}`}>
-                        {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
+              {/* Skill Access */}
+              <div className="rounded-lg border border-border bg-background/40 p-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Skill Access</p>
+                <div className="flex flex-wrap gap-2.5">
+                  {(["attack","attackMagic","recovery"] as const).map((cat) => {
+                    const resolvedSkillAccess = getResolvedSkillAccess(jobName, job, selRank);
+                    const savedCatVal = resolvedSkillAccess[cat];
+                    const draftCatVal =
+                      cat === "attackMagic"
+                        ? (draft.skillAccess?.attackMagic ?? draft.skillAccess?.casting)
+                        : draft.skillAccess?.[cat];
+                    const unfilled = !editing && savedCatVal === undefined;
+                    const v = (editing ? draftCatVal : savedCatVal) ?? "can";
+                    return (
+                      <div key={cat} className="rounded-lg border border-border bg-background/60 px-3 py-3 min-w-[120px]">
+                        <div className="text-[10px] text-muted-foreground mb-2">{SKILL_ACCESS_LABELS[cat]}</div>
+                        {unfilled ? (
+                          <span className="text-sm font-bold text-red-400">-</span>
+                        ) : editing ? (
+                          <button
+                            onClick={() => setDraft((d) => ({ ...d, skillAccess: { ...d.skillAccess, [cat]: v === "can" ? "cannot" : "can" } }))}
+                            className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${v === "can"
+                              ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
+                              : "border-dashed border-border/60 text-muted-foreground/50"}`}
+                          >
+                            {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
+                          </button>
+                        ) : (
+                          <span className={`px-3 py-1.5 rounded-full border text-xs font-medium ${v === "can"
+                            ? "bg-green-100 dark:bg-green-950/40 border-green-400 text-green-700 dark:text-green-400"
+                            : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400"}`}>
+                            {v === "can" ? <><Check className="w-3 h-3 inline mr-1" />Can Use</> : "Can't Use"}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4">
+          {/* Lands & Shops */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Lands & Shops</CardTitle></CardHeader>
+            <CardContent className="pt-0">
+              {visibleShops.length === 0 ? (
+                <p className="text-xs text-muted-foreground/60">No lands or shops listed yet.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {visibleShops.map((shop, i) => {
+                    const href = getLandOrShopHref(shop);
+                    const chip = (
+                      <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-300 rounded-full px-2.5 py-1 text-xs">
+                        {href && !editing ? (
+                          <Link href={href}>
+                            <button className="hover:text-amber-950 dark:hover:text-amber-100 transition-colors">
+                              {shop}
+                            </button>
+                          </Link>
+                        ) : (
+                          <span>{shop}</span>
+                        )}
+                        {editing && (
+                          <button
+                            onClick={() => setDraft((d) => ({ ...d, shops: (d.shops ?? []).filter((_, j) => j !== i) }))}
+                            className="text-amber-500 hover:text-destructive transition-colors ml-0.5"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        )}
                       </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                    );
+                    return <Fragment key={i}>{chip}</Fragment>;
+                  })}
+                </div>
+              )}
+              {editing && <ShopInput onAdd={(v) => setDraft((d) => ({ ...d, shops: [...(d.shops ?? []), v] }))} />}
+            </CardContent>
+          </Card>
 
-      {/* Lands & Shops */}
-      <Card className="shadow-sm mb-4">
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Lands & Shops</CardTitle></CardHeader>
-        <CardContent>
-          {visibleShops.length === 0 ? (
-            <p className="text-xs text-muted-foreground/60">No lands or shops listed yet.</p>
-          ) : (
-            <div className="flex flex-col gap-1 mb-2">
-              {visibleShops.map((shop, i) => {
-                const href = getLandOrShopHref(shop);
-                const chip = (
-                  <span className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-300 rounded-full px-2.5 py-1 text-xs">
-                    {href && !editing ? (
-                      <Link href={href}>
-                        <button className="hover:text-amber-950 dark:hover:text-amber-100 transition-colors">
-                          {shop}
-                        </button>
-                      </Link>
-                    ) : (
-                      <span>{shop}</span>
-                    )}
-                    {editing && (
-                      <button onClick={() => setDraft((d) => ({ ...d, shops: (d.shops ?? []).filter((_, j) => j !== i) }))}
-                        className="text-amber-500 hover:text-destructive transition-colors ml-0.5">
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                  </span>
-                );
-                return <Fragment key={i}>{chip}</Fragment>;
-              })}
-            </div>
-          )}
-          {editing && <ShopInput onAdd={(v) => setDraft((d) => ({ ...d, shops: [...(d.shops ?? []), v] }))} />}
-        </CardContent>
-      </Card>
-
-      {/* Information */}
-      <Card className="shadow-sm mb-4">
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Information</CardTitle></CardHeader>
-        <CardContent>
-          {editing ? (
-            <textarea
-              value={draft.notes ?? ""}
-              onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
-              placeholder="Add any notes or information about this jobÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦"
-              rows={5}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-            />
-          ) : job.notes ? (
-            <p className="text-sm text-foreground whitespace-pre-wrap">{job.notes}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground/60">No information added yet.</p>
-          )}
-        </CardContent>
-      </Card>
+          {/* Information */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Information</CardTitle></CardHeader>
+            <CardContent className="pt-0">
+              {editing ? (
+                <textarea
+                  value={draft.notes ?? ""}
+                  onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
+                  placeholder="Add any notes or information about this job..."
+                  rows={4}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                />
+              ) : job.notes ? (
+                <p className="text-sm text-foreground whitespace-pre-wrap">{job.notes}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground/60">No information added yet.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       {/* Marriage */}
       <Card className="shadow-sm">
@@ -1943,7 +1957,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
               {jobPairs.length === 0 ? (
                 <p className="text-xs text-muted-foreground">{allJobPairs.length === 0 ? `No compatible pairs recorded for ${jobName} yet.` : "No pairs match the current filter."}</p>
               ) : (
-                <div className="space-y-2">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {jobPairs.map(({ id, partner, children, affinity }) => {
                     const colors: Record<string,string> = {
                       S: "bg-violet-100 dark:bg-violet-950/50 border-violet-400 text-violet-700 dark:text-violet-300",
@@ -1954,7 +1968,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                       E: "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 text-zinc-500 dark:text-zinc-400",
                     };
                     return (
-                      <div key={id} className="rounded-md border border-border bg-muted/20 px-3 py-2 space-y-1.5">
+                      <div key={id} className="rounded-lg border border-border bg-muted/20 px-3 py-3 space-y-2 h-full">
                         <div className="flex items-center gap-2 flex-wrap">
                           {affinity && (
                             <span className={`inline-flex items-center px-2 py-0.5 text-xs font-bold rounded-full border ${colors[affinity] ?? "bg-muted border-border text-muted-foreground"}`}>
@@ -2079,7 +2093,7 @@ export default function JobsPage() {
               value={pageNote}
               onChange={(e) => setPageNote(e.target.value)}
               onBlur={() => localStorage.setItem("ka_note_jobs", pageNote)}
-              placeholder="Personal notes for this pageÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ (only visible to you, saved on this device)"
+              placeholder="Personal notes for this page (only visible to you, saved on this device)"
               className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
             />
           </div>
