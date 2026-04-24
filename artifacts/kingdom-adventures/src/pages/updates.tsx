@@ -47,7 +47,7 @@ export default function UpdatesPage() {
             <li>The word MODIFIERS for Know-How Journal & Master Craftsman's Tools is now orange so people can't miss it in the facilities section.</li>
             <li>Master Craftsman's Tools now also applies to building items ( Sturdy Board, Large Nail, etc), and copper coins.</li>
             <li>The website now remembers your Know-How Journal & Master Craftsman's Tools modifiers for next session</li>
-            <li>User interface improvements to Survey, groups now can be collapsed and expanded, and are collapsed on default.</li>
+            <li>User interface improvements to Survey, groups now can be collapsed and expande, and are collapsed on default.</li>
             <li>Cash register Survey is no longer missing from Survey list</li>
             <li>Added the ability to offset timed events, Kairo Room, Job Center, and Wairo Dungeon follow your local time plus any offset you set. </li>
           </ol>

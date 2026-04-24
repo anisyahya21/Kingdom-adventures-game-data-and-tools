@@ -103,6 +103,18 @@ type Loadout = {
   skills: string[];
 };
 
+type CommunityGuide = {
+  id: string;
+  slug: string;
+  title: string;
+  author: string;
+  docUrl: string;
+  docId: string;
+  ownerToken: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
 type SharedState = {
   overrides: Record<string, Record<string, { base?: number; inc?: number }>>;
   slotAssignments: Record<string, string>;
@@ -121,6 +133,7 @@ type SharedState = {
   loadoutsUpdatedAt: number | null;
   syncedDevices: Array<{ id: string; name: string; createdAt: number; syncGroupId?: string }>;
   communitySightings: Record<string, CommunitySighting[]>;
+  communityGuides: CommunityGuide[];
 };
 
 const DEFAULT_STATE: SharedState = {
@@ -141,6 +154,7 @@ const DEFAULT_STATE: SharedState = {
   loadoutsUpdatedAt: null,
   syncedDevices: [],
   communitySightings: {},
+  communityGuides: [],
 };
 
 function ensureDir() {
@@ -166,6 +180,7 @@ function readState(): SharedState {
       loadoutsUpdatedAt: null,
       syncedDevices: [],
       communitySightings: {},
+      communityGuides: [],
       ...parsed,
     };
   } catch {
@@ -181,6 +196,33 @@ function writeState(state: SharedState) {
 function appendHistory(state: SharedState, entry: Omit<HistoryEntry, "id" | "timestamp">) {
   const full: HistoryEntry = { id: crypto.randomUUID(), timestamp: Date.now(), ...entry };
   state.history = [full, ...state.history].slice(0, 200);
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "guide";
+}
+
+function extractGoogleDocId(url: string) {
+  return url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/)?.[1] ?? "";
+}
+
+function publicGuide(guide: CommunityGuide) {
+  const { ownerToken: _ownerToken, ...rest } = guide;
+  return rest;
+}
+
+function uniqueGuideSlug(state: SharedState, base: string, existingId?: string) {
+  let slug = base;
+  let suffix = 2;
+  while (state.communityGuides.some((guide) => guide.slug === slug && guide.id !== existingId)) {
+    slug = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  return slug;
 }
 
 const router = Router();
@@ -230,6 +272,67 @@ function getGroupDevices(devices: SyncedDevice[], groupId: string): SyncedDevice
 
 router.get("/ka/shared", (_req, res) => {
   res.json(readState());
+});
+
+router.get("/ka/guides", (_req, res) => {
+  const state = readState();
+  res.json({ guides: state.communityGuides.map(publicGuide) });
+});
+
+router.post("/ka/guides", (req, res) => {
+  const { title, author, docUrl, ownerToken } = req.body as {
+    title?: string;
+    author?: string;
+    docUrl?: string;
+    ownerToken?: string;
+  };
+  const cleanTitle = String(title ?? "").trim();
+  const cleanDocUrl = String(docUrl ?? "").trim();
+  const docId = extractGoogleDocId(cleanDocUrl);
+  if (!cleanTitle || !docId) return res.status(400).json({ error: "A title and public Google Doc link are required." });
+
+  const state = readState();
+  const now = Date.now();
+  const guide: CommunityGuide = {
+    id: crypto.randomUUID(),
+    slug: uniqueGuideSlug(state, slugify(cleanTitle)),
+    title: cleanTitle,
+    author: String(author ?? "").trim(),
+    docUrl: cleanDocUrl,
+    docId,
+    ownerToken: String(ownerToken ?? crypto.randomUUID()),
+    createdAt: now,
+    updatedAt: now,
+  };
+  state.communityGuides = [guide, ...(state.communityGuides ?? [])];
+  writeState(state);
+  res.json({ guide: publicGuide(guide) });
+});
+
+router.patch("/ka/guides/:id", (req, res) => {
+  const { ownerToken, title } = req.body as { ownerToken?: string; title?: string };
+  const state = readState();
+  const guide = state.communityGuides.find((item) => item.id === req.params.id);
+  if (!guide) return res.status(404).json({ error: "Guide not found." });
+  if (!ownerToken || ownerToken !== guide.ownerToken) return res.status(403).json({ error: "Only the submitter can edit this guide." });
+  const cleanTitle = String(title ?? "").trim();
+  if (!cleanTitle) return res.status(400).json({ error: "Title is required." });
+  guide.title = cleanTitle;
+  guide.slug = uniqueGuideSlug(state, slugify(cleanTitle), guide.id);
+  guide.updatedAt = Date.now();
+  writeState(state);
+  res.json({ guide: publicGuide(guide) });
+});
+
+router.delete("/ka/guides/:id", (req, res) => {
+  const { ownerToken } = req.body as { ownerToken?: string };
+  const state = readState();
+  const guide = state.communityGuides.find((item) => item.id === req.params.id);
+  if (!guide) return res.status(404).json({ error: "Guide not found." });
+  if (!ownerToken || ownerToken !== guide.ownerToken) return res.status(403).json({ error: "Only the submitter can remove this guide." });
+  state.communityGuides = state.communityGuides.filter((item) => item.id !== guide.id);
+  writeState(state);
+  res.json({ ok: true });
 });
 
 router.put("/ka/shared/overrides", (req, res) => {

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
+import { applyEventHourOffset, useEventHourOffset } from "@/lib/event-time";
 
 import srcHome from "./home.tsx?raw";
 import srcEquipment from "./equipment.tsx?raw";
@@ -295,14 +296,14 @@ function toJstDate(year: number, monthIndex: number, day: number, hour: number):
   return new Date(Date.UTC(year, monthIndex, day, hour - 9, 0, 0, 0));
 }
 
-function getNextWarioSpawn(now: Date): Date | null {
+function getNextWarioSpawn(now: Date, offset: number): Date | null {
   const bases = [
     new Date(now.getFullYear(), now.getMonth(), 1),
     new Date(now.getFullYear(), now.getMonth() + 1, 1),
   ];
   const candidates = bases.flatMap((base) =>
     HOME_WARIO_SCHEDULE
-      .map((entry) => toJstDate(base.getFullYear(), base.getMonth(), entry.day, entry.hour))
+      .map((entry) => applyEventHourOffset(toJstDate(base.getFullYear(), base.getMonth(), entry.day, entry.hour), offset))
       .filter((date) => date.getMonth() === base.getMonth() && date.getTime() > now.getTime())
   );
   return candidates.sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
@@ -322,6 +323,7 @@ function resolveRepeatingWindow(now: Date, startMonth: number, startDay: number,
 function HomeCountdownBanner() {
   const [now, setNow] = useState(() => new Date());
   const [activeIndex, setActiveIndex] = useState(0);
+  const [eventOffset] = useEventHourOffset();
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -342,7 +344,7 @@ function HomeCountdownBanner() {
   });
 
   const weeklyCurrent = weeklyQuery.data?.entries.find((entry) => entry.id === weeklyQuery.data?.currentId) ?? null;
-  const nextWario = useMemo(() => getNextWarioSpawn(now), [now]);
+  const nextWario = useMemo(() => getNextWarioSpawn(now, eventOffset), [eventOffset, now]);
   const facilityWindow = useMemo(() => resolveRepeatingWindow(now, 4, 28, 4, 30), [now]);
   const facilityActive = facilityWindow.startAt <= now && now <= facilityWindow.endAt;
 

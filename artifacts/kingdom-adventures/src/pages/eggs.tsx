@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchableSelect } from "@/components/searchable-select";
 import {
@@ -616,12 +617,10 @@ export default function EggsPage() {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
-                                    <Input
-                                      type="number"
+                                    <ThemedNumberInput
                                       min={0}
                                       value={targetFeedInputs[item.name] ?? String(quantity)}
-                                      onChange={(e) => {
-                                        const nextValue = e.target.value;
+                                      onRawChange={(nextValue) => {
                                         updateFeedQuantityInput(setTargetFeedInputs, item.name, nextValue);
                                         if (nextValue.trim() === "") {
                                           return;
@@ -629,14 +628,11 @@ export default function EggsPage() {
                                         const parsed = Math.max(0, Number.parseInt(nextValue, 10) || 0);
                                         setTargetFeedState((current) => ({ ...current, [item.name]: parsed }));
                                       }}
-                                      onBlur={(e) => commitFeedQuantity(setTargetFeedState, setTargetFeedInputs, item.name, e.target.value)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          commitFeedQuantity(setTargetFeedState, setTargetFeedInputs, item.name, e.currentTarget.value);
-                                          e.currentTarget.blur();
-                                        }
+                                      onRawBlur={(value) => commitFeedQuantity(setTargetFeedState, setTargetFeedInputs, item.name, value)}
+                                      onEnter={(value) => {
+                                        commitFeedQuantity(setTargetFeedState, setTargetFeedInputs, item.name, value);
                                       }}
-                                      className="w-20 h-8"
+                                      className="w-24 h-8"
                                     />
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { removeFeed(setTargetFeedState, item.name); setTargetFeedInputs((current) => { const next = { ...current }; delete next[item.name]; return next; }); }}>
                                       <Trash2 className="w-4 h-4" />
@@ -694,13 +690,7 @@ export default function EggsPage() {
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground mb-1">Egg level</div>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={eggLevel}
-                          onChange={(e) => setEggLevel(e.target.value)}
-                          className="h-9"
-                        />
+                        <ThemedNumberInput value={eggLevel} min={1} onRawChange={setEggLevel} />
                       </div>
                     </div>
 

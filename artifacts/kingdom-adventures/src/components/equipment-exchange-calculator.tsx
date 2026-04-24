@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Download, Upload } from "lucide-react";
+import { Check, Download, Upload } from "lucide-react";
+import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
 
@@ -506,19 +507,6 @@ export default function EquipmentExchangeCalculator() {
     });
   };
 
-  const stepTradePrice = (entry: ExchangeRow, direction: -1 | 1) => {
-    setCurrentPriceInputs((prev) => {
-      const currentRaw = prev[entry.inputId];
-      const parsed = currentRaw && currentRaw.trim() !== "" ? Number(currentRaw) : entry.startPrice;
-      const validCurrent = isValidTradeValue(parsed, entry.startPrice, entry.priceStep) ? parsed : entry.startPrice;
-      const nextValue = direction === -1 ? Math.max(entry.startPrice, validCurrent - entry.priceStep) : validCurrent + entry.priceStep;
-      return {
-        ...prev,
-        [entry.inputId]: String(nextValue),
-      };
-    });
-  };
-
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -529,8 +517,8 @@ export default function EquipmentExchangeCalculator() {
         </p>
       </div>
 
-      <div className="space-y-4 rounded-lg border border-teal-500/20 bg-teal-500/5 p-4">
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-200">
+      <div className="space-y-4 rounded-lg border border-border bg-card p-4">
+        <div className="rounded-md border border-border bg-background/50 px-3 py-2 text-xs text-muted-foreground">
           Lower-rank items can be exchanged. Each source item tracks its own live trade price. If you enter a current trade
           value, it must match that item&apos;s valid ladder: start price + (step x number of past trades).
         </div>
@@ -575,37 +563,17 @@ export default function EquipmentExchangeCalculator() {
 
             <div className="space-y-1">
               <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Current level</label>
-              <Input
-                type="number"
-                min={1}
-                max={99}
-                value={currentLevel}
-                onChange={(e) => setCurrentLevel(Number(e.target.value) || 1)}
-                className="h-9"
-              />
+              <ThemedNumberInput value={currentLevel} min={1} max={99} onValueChange={setCurrentLevel} />
             </div>
 
             <div className="space-y-1">
               <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Target level</label>
-              <Input
-                type="number"
-                min={1}
-                max={99}
-                value={targetLevel}
-                onChange={(e) => setTargetLevel(Number(e.target.value) || 1)}
-                className="h-9"
-              />
+              <ThemedNumberInput value={targetLevel} min={1} max={99} onValueChange={setTargetLevel} />
             </div>
 
             <div className="space-y-1">
               <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Kairo you own</label>
-              <Input
-                type="number"
-                min={0}
-                value={ownedKairo}
-                onChange={(e) => setOwnedKairo(Math.max(0, Number(e.target.value) || 0))}
-                className="h-9"
-              />
+              <ThemedNumberInput value={ownedKairo} min={0} onValueChange={(value) => setOwnedKairo(Math.max(0, value))} />
             </div>
           </div>
 
@@ -692,12 +660,10 @@ export default function EquipmentExchangeCalculator() {
               <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                 {requirementMode === "auto" ? "Kairo needed" : "Manual Kairo needed"}
               </label>
-              <Input
-                type="number"
-                min={0}
+              <ThemedNumberInput
                 value={targetCount}
-                onChange={(e) => setTargetCount(Math.max(0, Number(e.target.value) || 0))}
-                className="h-9"
+                min={0}
+                onValueChange={(value) => setTargetCount(Math.max(0, value))}
                 disabled={requirementMode === "auto"}
               />
             </div>
@@ -752,9 +718,9 @@ export default function EquipmentExchangeCalculator() {
                             setTargetCount((prev) => Math.max(0, prev - state.used));
                           }
                         }}
-                        className="flex h-6 w-6 items-center justify-center rounded-md border border-green-500/50 bg-green-500/10 text-sm font-bold text-green-600 hover:bg-green-500/20 dark:text-green-400"
+                        className="flex h-6 w-6 items-center justify-center rounded-md border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20"
                       >
-                        ✓
+                        <Check className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
@@ -928,34 +894,18 @@ export default function EquipmentExchangeCalculator() {
                       <td className="px-3 py-2 text-right tabular-nums">{entry.startPrice}</td>
                       <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">+{entry.priceStep}</td>
                       <td className="px-3 py-2">
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => stepTradePrice(entry, -1)}
-                            className="h-8 w-8 rounded-md border border-border text-sm font-medium hover:bg-muted"
-                          >
-                            -
-                          </button>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            value={raw}
-                            onChange={(e) =>
-                              setCurrentPriceInputs((prev) => ({
-                                ...prev,
-                                [entry.inputId]: e.target.value.replace(/[^0-9]/g, ""),
-                              }))
-                            }
-                            className={`h-8 w-14 text-right tabular-nums ${isValid ? "" : "border-red-500"}`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => stepTradePrice(entry, 1)}
-                            className="h-8 w-8 rounded-md border border-border text-sm font-medium hover:bg-muted"
-                          >
-                            +
-                          </button>
-                        </div>
+                        <ThemedNumberInput
+                          value={raw}
+                          min={entry.startPrice}
+                          step={entry.priceStep}
+                          onRawChange={(value) =>
+                            setCurrentPriceInputs((prev) => ({
+                              ...prev,
+                              [entry.inputId]: value,
+                            }))
+                          }
+                          className={`ml-auto w-28 ${isValid ? "" : "border-red-500"}`}
+                        />
                         {!isValid && (
                           <div className="mt-1 text-[10px] text-red-500">
                             Must follow {entry.startPrice} + n x {entry.priceStep}

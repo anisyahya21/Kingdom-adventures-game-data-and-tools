@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowUpDown, Coins } from "lucide-react";
+import { ArrowUpDown, Coins, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -18,6 +18,13 @@ const CARDS = [
     icon: Coins,
     badge: "Calculator",
   },
+  {
+    href: "/equipment-leveling-optimizer",
+    title: "Equipment Leveling Optimizer",
+    description: "Calculate EXP gained from sacrificed equipment and prepare for cheapest leveling route optimization.",
+    icon: TrendingUp,
+    badge: "Beta",
+  },
 ];
 
 export default function EquipmentStatsExchangePage() {
@@ -30,7 +37,7 @@ export default function EquipmentStatsExchangePage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         {CARDS.map((card) => {
           const Icon = card.icon;
           return (

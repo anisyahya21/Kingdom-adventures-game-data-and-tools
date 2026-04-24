@@ -1,10 +1,22 @@
+import { useEffect, useState } from "react";
 import { CalendarDays, ShieldAlert, Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { KAIRO_ROOM_DRAFTS } from "@/lib/en-event-drafts";
 import { KAIRO_ROOM_LOOT_GROUPS } from "@/lib/special-boss-loot";
+import { getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
 export default function KairoRoomPage() {
+  const [now, setNow] = useState(() => new Date());
+  const [eventOffset] = useEventHourOffset();
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const currentEventDay = WEEKDAYS[getOffsetAdjustedNow(now, eventOffset).getDay()];
+
   const weekdayByTitle = new Map(
     KAIRO_ROOM_DRAFTS.filter((entry) => entry.active && entry.questName).map((entry) => [
       entry.questName!.replace("'s Challenge", ""),
@@ -25,8 +37,10 @@ export default function KairoRoomPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {KAIRO_ROOM_DRAFTS.map((entry) => (
-          <Card key={entry.day} className="shadow-sm">
+        {KAIRO_ROOM_DRAFTS.map((entry) => {
+          const isCurrentDay = entry.day === currentEventDay;
+          return (
+          <Card key={entry.day} className={`shadow-sm ${isCurrentDay ? "border-primary/50 bg-primary/5" : ""}`}>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -38,7 +52,7 @@ export default function KairoRoomPage() {
                     {entry.active ? entry.questName : "No Kairo Room challenge listed."}
                   </CardDescription>
                 </div>
-                <Badge variant="outline">{entry.active ? "Active" : "Off"}</Badge>
+                <Badge variant="outline">{isCurrentDay ? "Current" : entry.active ? "Active" : "Off"}</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -66,7 +80,8 @@ export default function KairoRoomPage() {
               )}
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       <Card className="shadow-sm">

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, Fragment, useEffect, ChangeEvent } from "react";
+import { useState, useMemo, useCallback, useRef, Fragment, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { SearchableSelect } from "@/components/searchable-select";
@@ -47,15 +48,14 @@ function NumInput({
     if (clamped !== value) onChange(clamped);
   };
   return (
-    <Input
-      type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
+    <ThemedNumberInput
       value={local}
+      min={min}
+      max={max}
       className={className}
-      onChange={(e: ChangeEvent<HTMLInputElement>) => updateWhileTyping(e.target.value.replace(/[^0-9]/g, ""))}
-      onBlur={commit}
-      onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+      onRawChange={updateWhileTyping}
+      onRawBlur={commit}
+      onEnter={commit}
     />
   );
 }

@@ -3,6 +3,7 @@ import { Clock3, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
+import { applyEventHourOffset, useEventHourOffset } from "@/lib/event-time";
 
 type WarioDungeonEntry = { day: number; hour: number };
 type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
@@ -46,11 +47,12 @@ function toJstDate(year: number, monthIndex: number, day: number, hour: number):
 }
 
 
-function buildMonthlyWarioSchedule(base: Date): WarioDungeonSpawn[] {
+function buildMonthlyWarioSchedule(base: Date, offset: number): WarioDungeonSpawn[] {
   const entries: WarioDungeonSpawn[] = [];
   for (const entry of WARIO_DUNGEON_SCHEDULE) {
-    const startsAt = toJstDate(base.getFullYear(), base.getMonth(), entry.day, entry.hour);
-    if (startsAt.getMonth() !== base.getMonth()) continue;
+    const sourceStartsAt = toJstDate(base.getFullYear(), base.getMonth(), entry.day, entry.hour);
+    if (sourceStartsAt.getMonth() !== base.getMonth()) continue;
+    const startsAt = applyEventHourOffset(sourceStartsAt, offset);
     entries.push({ ...entry, startsAt, endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000) });
   }
   return entries.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
@@ -71,19 +73,20 @@ function formatCountdown(ms: number): string {
 
 export default function WarioDungeonPage() {
   const [now, setNow] = useState(() => new Date());
+  const [eventOffset] = useEventHourOffset();
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
   }, []);
 
-  const schedule = useMemo(() => buildMonthlyWarioSchedule(now), [now]);
+  const schedule = useMemo(() => buildMonthlyWarioSchedule(now, eventOffset), [eventOffset, now]);
   const nextSpawn = useMemo(() => {
     const currentMonthUpcoming = schedule.find((entry) => entry.startsAt.getTime() > now.getTime());
     if (currentMonthUpcoming) return currentMonthUpcoming;
     const nextMonthBase = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    return buildMonthlyWarioSchedule(nextMonthBase)[0] ?? null;
-  }, [now, schedule]);
+    return buildMonthlyWarioSchedule(nextMonthBase, eventOffset)[0] ?? null;
+  }, [eventOffset, now, schedule]);
 
   const scheduleByDay = useMemo(() => {
     const grouped = new Map<number, WarioDungeonSpawn[]>();
@@ -198,7 +201,7 @@ export default function WarioDungeonPage() {
           <div className="space-y-1">
             <div className="font-semibold">Wario Dungeon schedule</div>
             <div className="text-sm text-muted-foreground">
-              Spawn times are shown in your local time based on the source schedule.
+              Spawn times are shown in your local time with your event offset applied ({eventOffset >= 0 ? `+${eventOffset}` : eventOffset}h).
             </div>
           </div>
           <div className="space-y-2">

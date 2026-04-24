@@ -1,8 +1,8 @@
 import { Link } from "wouter";
-import { useEffect, useState } from "react";
 import { BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award, AlertTriangle, Plus, Minus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useEventHourOffset } from "@/lib/event-time";
 
 const EVENT_CARDS = [
   {
@@ -52,14 +52,7 @@ const EVENT_CARDS = [
 type EventCard = (typeof EVENT_CARDS)[number] & { disabled?: boolean };
 
 export default function TimedEventsPage() {
-  // Persistent offset state
-  const [offset, setOffset] = useState(() => {
-    const stored = localStorage.getItem("eventHourOffset");
-    return stored ? parseInt(stored, 10) : 0;
-  });
-  useEffect(() => {
-    localStorage.setItem("eventHourOffset", String(offset));
-  }, [offset]);
+  const [offset, setOffset] = useEventHourOffset();
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">

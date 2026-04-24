@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -387,31 +388,31 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
     <div className="grid grid-cols-2 gap-2">
       <label className="space-y-1 text-xs">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground">HP</span>
-        <Input type="number" value={String(c.maxHp)} onChange={(e) => setC({ ...c, maxHp: Math.max(1, parseInt(e.target.value || "1", 10) || 1) })} className="h-8 text-xs" aria-label="HP" />
+        <ThemedNumberInput value={c.maxHp} min={1} onValueChange={(value) => setC({ ...c, maxHp: Math.max(1, value) })} className="h-8" ariaLabel="HP" />
       </label>
       <label className="space-y-1 text-xs">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground">ATK</span>
-        <Input type="number" value={String(c.atk)} onChange={(e) => setC({ ...c, atk: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="ATK" />
+        <ThemedNumberInput value={c.atk} min={0} onValueChange={(value) => setC({ ...c, atk: value })} className="h-8" ariaLabel="ATK" />
       </label>
       <label className="space-y-1 text-xs">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground">DEF</span>
-        <Input type="number" value={String(c.def)} onChange={(e) => setC({ ...c, def: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="DEF" />
+        <ThemedNumberInput value={c.def} min={0} onValueChange={(value) => setC({ ...c, def: value })} className="h-8" ariaLabel="DEF" />
       </label>
       <label className="space-y-1 text-xs">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground">SPD</span>
-        <Input type="number" value={String(c.spd)} onChange={(e) => setC({ ...c, spd: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="SPD" />
+        <ThemedNumberInput value={c.spd} min={0} onValueChange={(value) => setC({ ...c, spd: value })} className="h-8" ariaLabel="SPD" />
       </label>
       <label className="space-y-1 text-xs">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground">DEX</span>
-        <Input type="number" value={String(c.dex)} onChange={(e) => setC({ ...c, dex: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="DEX" />
+        <ThemedNumberInput value={c.dex} min={0} onValueChange={(value) => setC({ ...c, dex: value })} className="h-8" ariaLabel="DEX" />
       </label>
       <label className="space-y-1 text-xs">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground">LCK</span>
-        <Input type="number" value={String(c.lck)} onChange={(e) => setC({ ...c, lck: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="LCK" />
+        <ThemedNumberInput value={c.lck} min={0} onValueChange={(value) => setC({ ...c, lck: value })} className="h-8" ariaLabel="LCK" />
       </label>
       <label className="space-y-1 text-xs">
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground">INT</span>
-        <Input type="number" value={String(c.int)} onChange={(e) => setC({ ...c, int: parseInt(e.target.value || "0", 10) || 0 })} className="h-8 text-xs" aria-label="INT" />
+        <ThemedNumberInput value={c.int} min={0} onValueChange={(value) => setC({ ...c, int: value })} className="h-8" ariaLabel="INT" />
       </label>
       <label className="text-xs text-muted-foreground col-span-2 flex items-center gap-2">
         <input type="checkbox" checked={c.weaponAdvantage} onChange={(e) => setC({ ...c, weaponAdvantage: e.currentTarget.checked })} />
@@ -467,7 +468,7 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Input type="number" value={String(batchCount)} onChange={(e) => setBatchCount(Math.max(1, parseInt(e.target.value || "1", 10) || 1))} className="h-8 w-32 text-xs" />
+          <ThemedNumberInput value={batchCount} min={1} onValueChange={(value) => setBatchCount(Math.max(1, value))} className="h-8 w-32" />
           <span className="text-xs text-muted-foreground">batch size</span>
           <Button size="sm" onClick={run}>Run simulation</Button>
         </div>

@@ -391,7 +391,21 @@ function renderLine(line: string, index: number, imageMap: Record<string, string
   );
 }
 
-export default function PlaythroughGuidePage() {
+export function GuideDocumentPage({
+  title,
+  description,
+  docId,
+  docUrl,
+  fallbackUrl,
+  overlays = {},
+}: {
+  title: string;
+  description: string;
+  docId: string;
+  docUrl?: string;
+  fallbackUrl?: string;
+  overlays?: typeof PLAYTHROUGH_GUIDE_SECTION_OVERLAYS;
+}) {
   const [markdown, setMarkdown] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -404,7 +418,7 @@ export default function PlaythroughGuidePage() {
         setLoading(true);
         setError(null);
         // Try to fetch Google Doc as markdown (exported)
-        const googleDocUrl = `https://docs.google.com/document/d/${PLAYTHROUGH_GUIDE_DOC_ID}/export?format=md`;
+        const googleDocUrl = `https://docs.google.com/document/d/${docId}/export?format=md`;
         let fetchedMarkdown = "";
         let usedGoogleDoc = false;
         try {
@@ -419,12 +433,13 @@ export default function PlaythroughGuidePage() {
           }
         } catch {}
 
-        if (!usedGoogleDoc) {
+        if (!usedGoogleDoc && fallbackUrl) {
           // Fallback to local markdown
-          const fallback = await fetch(PLAYTHROUGH_GUIDE_LOCAL_URL);
+          const fallback = await fetch(fallbackUrl);
           if (!fallback.ok) throw new Error(`Guide request failed with ${fallback.status}`);
           fetchedMarkdown = await fallback.text();
         }
+        if (!fetchedMarkdown) throw new Error("Guide request failed. Make sure the Google Doc is public or published.");
         if (!cancelled) {
           setMarkdown(fetchedMarkdown);
         }
@@ -444,7 +459,7 @@ export default function PlaythroughGuidePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [docId, fallbackUrl]);
 
   const parsedGuide = useMemo(() => parseGuide(markdown), [markdown]);
   const sections = parsedGuide.sections;
@@ -455,15 +470,14 @@ export default function PlaythroughGuidePage() {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <BookOpenText className="w-5 h-5 text-muted-foreground" />
-          <h1 className="text-xl font-bold tracking-tight">Playthrough Guide by Jaza</h1>
+          <h1 className="text-xl font-bold tracking-tight">{title}</h1>
         </div>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          Website-styled first pass of the community playthrough guide. This version is intentionally text-first so we
-          can keep the page stable while we build the later live Google Doc source.
+          {description}
         </p>
         <div className="flex flex-wrap gap-2">
           <a
-            href={`https://docs.google.com/document/d/${PLAYTHROUGH_GUIDE_DOC_ID}/edit`}
+            href={docUrl ?? `https://docs.google.com/document/d/${docId}/edit`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -518,7 +532,7 @@ export default function PlaythroughGuidePage() {
 
             <div className="min-w-0 flex-1 space-y-4">
               {sections.map((section) => {
-                const overlay = PLAYTHROUGH_GUIDE_SECTION_OVERLAYS[section.title];
+                const overlay = overlays[section.title];
                 return (
                   <Card key={section.id} id={section.id}>
                     <CardContent className="p-5 md:p-7 space-y-4">
@@ -579,5 +593,18 @@ export default function PlaythroughGuidePage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function PlaythroughGuidePage() {
+  return (
+    <GuideDocumentPage
+      title="Playthrough Guide by Jaza"
+      description="Website-styled version of the community playthrough guide, kept live from the Google Doc when available."
+      docId={PLAYTHROUGH_GUIDE_DOC_ID}
+      docUrl={`https://docs.google.com/document/d/${PLAYTHROUGH_GUIDE_DOC_ID}/edit`}
+      fallbackUrl={PLAYTHROUGH_GUIDE_LOCAL_URL}
+      overlays={PLAYTHROUGH_GUIDE_SECTION_OVERLAYS}
+    />
   );
 }

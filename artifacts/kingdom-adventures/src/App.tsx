@@ -12,12 +12,12 @@ import Home from "@/pages/home";
 import MarriageMatcher from "@/pages/marriage-matcher";
 import EquipmentPage from "@/pages/equipment";
 import EquipmentExchangePage from "@/pages/equipment-exchange";
+import EquipmentLevelingOptimizerPage from "@/pages/equipment-leveling-optimizer";
 import EquipmentStatsExchangePage from "@/pages/equipment-stats-exchange";
 import MonstersPage from "@/pages/monsters";
 import JobsPage from "@/pages/jobs";
 import SkillsPage from "@/pages/skills";
 import LoadoutPage from "@/pages/loadout";
-import CombatSimulatorPage from "@/pages/combat-simulator-v2";
 import EggsPage from "@/pages/eggs";
 import EggsPetsMonstersPage from "@/pages/eggs-pets-monsters";
 import ShopsPage from "@/pages/shops";
@@ -42,6 +42,7 @@ import UpdatesPage from "@/pages/updates";
 import SurveyPlanner from "@/pages/survey-planner";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
+import TestPage from "./pages/Test";
 
 const queryClient = new QueryClient();
 
@@ -169,7 +170,6 @@ function SiteHeader() {
         { href: "/equipment", label: "Equipment Stats & Exchange" },
         { href: "/skills", label: "Skills" },
         { href: "/loadout", label: "Loadout Builder" },
-        { href: "/combat-simulator", label: "Combat Simulator" },
         { href: "/match-finder", label: "Match Finder" },
         { href: "/town-rank", label: "Town Rank" },
         { href: "/guides", label: "Guides" },
@@ -187,6 +187,7 @@ function SiteHeader() {
       children: [
         { href: "/equipment-stats", label: "Equipment Stats" },
         { href: "/equipment-exchange", label: "Equipment Exchange" },
+        { href: "/equipment-leveling-optimizer", label: "Equipment Leveling Optimizer", beta: true },
       ],
     },
     {
@@ -310,10 +311,12 @@ function SiteHeader() {
           </div>
         </div>
 
-        <Link href="/">
-          <a className="text-xl sm:text-2xl font-semibold truncate hover:opacity-80 transition-opacity" title="Go to home page">
-            Kingdom Adventures
-          </a>
+        <Link
+          href="/"
+          className="text-xl sm:text-2xl font-semibold truncate hover:opacity-80 transition-opacity"
+          title="Go to home page"
+        >
+          Kingdom Adventures
         </Link>
 
         <div className="flex items-center gap-0.5">
@@ -386,13 +389,13 @@ function Router() {
       <Route path="/equipment" component={EquipmentStatsExchangePage} />
       <Route path="/equipment-stats" component={EquipmentPage} />
       <Route path="/equipment-exchange" component={EquipmentExchangePage} />
+      <Route path="/equipment-leveling-optimizer" component={EquipmentLevelingOptimizerPage} />
       <Route path="/monsters" component={MonstersPage} />
       <Route path="/weekly-conquest" component={WeeklyConquestPage} />
       <Route path="/jobs" component={JobsPage} />
       <Route path="/jobs/:name" component={JobsPage} />
       <Route path="/skills" component={SkillsPage} />
       <Route path="/loadout" component={LoadoutPage} />
-      <Route path="/combat-simulator" component={CombatSimulatorPage} />
       <Route path="/eggs-pets-monsters" component={EggsPetsMonstersPage} />
       <Route path="/eggs" component={EggsPage} />
       <Route path="/monsters-pets" component={MonstersPetsPage} />
@@ -417,7 +420,9 @@ function Router() {
       <Route path="/updates" component={UpdatesPage} />
       <Route path="/add-guide" component={AddGuidePage} />
       <Route path="/playthrough-guide" component={PlaythroughGuidePage} />
+      <Route path="/test" component={TestPage} />
       <Route component={NotFound} />
+      
     </Switch>
   );
 }
