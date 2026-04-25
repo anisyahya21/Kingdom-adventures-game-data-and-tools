@@ -32,11 +32,11 @@ const GEN2_RANKS     = ["S","A","B","C"];
 const MAX_LEVEL     = 999;
 const AWAKENING_LEVEL_BONUS = 30;
 const RANK_AWAKENING_PRESETS: Array<{ label: string; rank: string; awakening: number }> = [
+  { label: "C+1", rank: "C", awakening: 1 },
+  { label: "B+2", rank: "B", awakening: 2 },
+  { label: "A+3", rank: "A", awakening: 3 },
+  { label: "S+4", rank: "S", awakening: 4 },
   { label: "S+5", rank: "S", awakening: 5 },
-  { label: "A+4", rank: "A", awakening: 4 },
-  { label: "B+3", rank: "B", awakening: 3 },
-  { label: "C+2", rank: "C", awakening: 2 },
-  { label: "D+1", rank: "D", awakening: 1 },
 ];
 const normJob = (name: string) => name.trim().toLowerCase();
 const AFFINITY_SORT_ORDER: Record<string, number> = {
@@ -511,6 +511,10 @@ function makeRowState(job: Job): RowState {
 
 function clampLevel(v: number): number {
   return Math.min(MAX_LEVEL, Math.max(1, v));
+}
+
+function clampAwakening(v: number): number {
+  return Math.min(99, Math.max(0, Math.floor(Number.isFinite(v) ? v : 0)));
 }
 
 function commitOnEnter(e: React.KeyboardEvent<HTMLInputElement>, commit: () => void) {
@@ -1007,6 +1011,7 @@ function JobsTable({
   const [sortByGrowth, setSortByGrowth] = useState(() => savedPrefs?.sortByGrowth ?? false);
   const [bulkRankInput, setBulkRankInput] = useState("S");
   const [bulkLevelInput, setBulkLevelInput] = useState("1");
+  const [bulkAwakeningInput, setBulkAwakeningInput] = useState("0");
   const [bulkApply, setBulkApply] = useState<{ rank?: string; allLevel?: number; awakening?: number; seq: number }>({ seq: 0 });
   const [showRankings, setShowRankings] = useState(false);
 
@@ -1246,6 +1251,39 @@ function JobsTable({
             className="px-2 h-6 text-xs font-medium rounded bg-muted hover:bg-muted/80 transition-colors text-foreground"
           >
             Apply all
+          </button>
+          <span className="mx-1 h-4 w-px bg-border" />
+          <span className="text-xs text-muted-foreground shrink-0">Awk</span>
+          <input
+            type="text" inputMode="numeric"
+            value={bulkAwakeningInput}
+            onChange={(e) => /^\d*$/.test(e.target.value) && setBulkAwakeningInput(e.target.value)}
+            onBlur={(e) => {
+              const p = parseInt(e.target.value, 10);
+              setBulkAwakeningInput(String(clampAwakening(isNaN(p) ? 0 : p)));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const p = parseInt(bulkAwakeningInput, 10);
+                const clamped = clampAwakening(isNaN(p) ? 0 : p);
+                setBulkAwakeningInput(String(clamped));
+                setBulkApply({ awakening: clamped, seq: Date.now() });
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            className="h-6 w-10 border border-border bg-background rounded px-1 text-xs text-center text-foreground"
+          />
+          <button
+            onClick={() => {
+              const p = parseInt(bulkAwakeningInput, 10);
+              const clamped = clampAwakening(isNaN(p) ? 0 : p);
+              setBulkAwakeningInput(String(clamped));
+              setBulkApply({ awakening: clamped, seq: Date.now() });
+            }}
+            className="px-2 h-6 text-xs font-medium rounded bg-muted hover:bg-muted/80 transition-colors text-foreground"
+            title="Set every shown job to max stat levels for this awakening without changing their selected rank"
+          >
+            Set Awk
           </button>
         </div>
         <div className="flex items-center gap-1.5 border border-input rounded-md px-2 h-8">

@@ -35,7 +35,7 @@ export default function UpdatesPage() {
             <li>Fixed mobile Equipment sort on phone so the default label shows Sort by instead of Name.</li>
             <li>Added Marriage Simulator parent-source controls so child stats can optionally follow Father or Mother jobs.</li>
             <li>Marriage simulator now supports two independent simulations., Added a bottom comparison summary between Simulation 1 and Simulation 2.</li>
-            <li>Added Jobs preset buttons for S+5, A+4, B+3, C+2, and D+1. it sets all jobs To that Rank, with that awakenings and stats maxed to that awakenings, a good way to find out what to breed with none awakened parents.</li>
+            <li>Added Jobs preset buttons for C+1, B+2, A+3, S+4, and S+5. It sets all jobs to that rank, with that awakening and stats maxed to that awakening, a good way to compare children from non-awakened parents.</li>
             <li>Added copper coin upgrade cost to <Link href="/houses?tab=facilities" className="underline text-foreground">facilities</Link>.</li>
           </ol>
         </section>
@@ -68,6 +68,9 @@ export default function UpdatesPage() {
             <li>Jobs pages now show Job ranges, ( searching Range, Deployment Range, Defog Range ). Check out <Link href="/jobs/Monarch" className="underline text-foreground">Monarch</Link>.</li>
             <li>B/ Legendary Shield (B)/(R) &amp; E/ Hat (B)/(R) are no longer missing slot or stat information, they now also show as independent items in Loadout-builder &amp; Equipment Builder.</li>
             <li>You can now add your own guide in the <a href="https://kingdom-adventures-community-tools.vercel.app/guides" className="underline text-foreground">Guides section</a>.</li>
+            <li><Link href="/match-finder?tab=simulator" className="underline text-foreground">Marriage Simulator</Link> child rank results for same-rank parents are fixed: D + D now gives C, C + C now gives B, and B + B now gives A.</li>
+            <li><Link href="/jobs" className="underline text-foreground">Jobs</Link> preset buttons are updated to C+1, B+2, A+3, S+4, and S+5 for comparing children from non-awakened parents.</li>
+            <li>Added Set Awk to the <Link href="/jobs" className="underline text-foreground">Jobs Database</Link> bulk controls, letting you set all shown jobs to their max stat levels for a chosen awakening without changing their ranks.</li>
           </ol>
         </section>
       </div>

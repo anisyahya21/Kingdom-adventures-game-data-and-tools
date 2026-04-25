@@ -21,10 +21,10 @@ const RANKED_EQUIPMENT_NAME = /^[FSABCDE]\s*\/\s*/i;
 
 // ─── NumInput: local-string-state to prevent typing glitch ────────────────────
 function NumInput({
-  value, onChange, min = 0, max = 99, className = "",
+  value, onChange, min = 0, max = 99, className = "", inputClassName = "",
 }: {
   value: number; onChange: (v: number) => void;
-  min?: number; max?: number; className?: string;
+  min?: number; max?: number; className?: string; inputClassName?: string;
 }) {
   const [local, setLocal] = useState(String(value));
   const prevRef = useRef(value);
@@ -53,6 +53,7 @@ function NumInput({
       min={min}
       max={max}
       className={className}
+      inputClassName={inputClassName}
       onRawChange={updateWhileTyping}
       onRawBlur={commit}
       onEnter={commit}
@@ -1400,7 +1401,8 @@ export default function EquipmentPage() {
             min={1}
             max={99}
             onChange={setBulkCompareLevel}
-            className="h-8 w-16 text-sm text-center px-1 bg-background border-border/70"
+            className="h-8 w-20 text-sm text-center bg-background border-border/70"
+            inputClassName="px-1"
           />
           <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => applyLevelToShown(bulkCompareLevel)}>
             Set shown items
@@ -1553,7 +1555,8 @@ export default function EquipmentPage() {
                             <td className="px-2 py-1.5">
                               <NumInput value={level} min={1} max={99}
                                 onChange={(v) => setItemLevel(item.uid, v)}
-                                className="h-7 w-14 text-xs text-center px-1 mx-auto bg-background border-border/70" />
+                                className="h-7 w-16 text-xs text-center mx-auto bg-background border-border/70"
+                                inputClassName="px-1" />
                             </td>
                             <td className="px-2 py-1.5">
                               <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
@@ -1785,7 +1788,8 @@ export default function EquipmentPage() {
                               min={1}
                               max={99}
                               onChange={(v) => setItemLevel(item.uid, v)}
-                              className="h-8 w-16 text-sm text-center px-1 bg-background border-border/70"
+                              className="h-8 w-16 text-sm text-center bg-background border-border/70"
+                              inputClassName="px-1"
                             />
                           </div>
                         </div>
@@ -1965,7 +1969,8 @@ export default function EquipmentPage() {
                                         <span className="text-[10px] text-muted-foreground">Level</span>
                                         <NumInput value={entry.level} min={1} max={99}
                                           onChange={(v) => setLoadoutEntry(loadoutItem.id, slotType, { level: v })}
-                                          className="h-7 w-14 text-xs text-center px-1 bg-background border-border/70" />
+                                          className="h-7 w-16 text-xs text-center bg-background border-border/70"
+                                          inputClassName="px-1" />
                                       </div>
                                     )}
                                     {item && entry.itemName && (

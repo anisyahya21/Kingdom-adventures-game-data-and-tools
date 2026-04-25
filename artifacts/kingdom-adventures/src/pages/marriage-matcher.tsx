@@ -1365,9 +1365,9 @@ const SIM_RANKS = ["D", "C", "B", "A", "S"] as const;
 type SimRank = typeof SIM_RANKS[number];
 
 const CHILD_RANK_MATRIX: Record<SimRank, Record<SimRank, SimRank>> = {
-  D: { D: "D", C: "D", B: "D", A: "D", S: "D" },
-  C: { D: "D", C: "C", B: "C", A: "C", S: "B" },
-  B: { D: "D", C: "C", B: "B", A: "A", S: "A" },
+  D: { D: "C", C: "D", B: "D", A: "D", S: "D" },
+  C: { D: "D", C: "B", B: "C", A: "C", S: "B" },
+  B: { D: "D", C: "C", B: "A", A: "A", S: "A" },
   A: { D: "D", C: "B", B: "A", A: "S", S: "S" },
   S: { D: "D", C: "B", B: "A", A: "S", S: "S" },
 };
@@ -2800,7 +2800,6 @@ export default function MarriageMatcher() {
     </div>
   );
 }
-
 
 
 
