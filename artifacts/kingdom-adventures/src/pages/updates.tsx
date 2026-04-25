@@ -52,6 +52,14 @@ export default function UpdatesPage() {
             <li>Added the ability to offset timed events, Kairo Room, Job Center, and Wairo Dungeon follow your local time plus any offset you set. </li>
           </ol>
         </section>
+        
+        <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
+          <h2 className="text-lg font-bold">25/04/2026</h2>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+            <li>Added <Link href="/equipment-leveling-optimizer" className="underline text-foreground">Equipment Leveling Optimizer</Link>.</li>
+            <li>Event timing offsets now work correctly.</li>
+          </ol>
+        </section>
       </div>
     </div>
   );
