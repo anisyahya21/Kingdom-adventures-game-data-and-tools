@@ -253,7 +253,7 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/timed-events",
     title: "Events",
-    description: "Weekly Conquest, Gacha Events, Wario Dungeon, Kairo Room, and Job Center.",
+    description: "Weekly Conquest, Gacha Events, Wairo Dungeon, Kairo Room, and Job Center.",
     icon: <CalendarDays className="w-6 h-6 text-pink-500" />,
     badge: "Events",
     badgeColor: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-950 dark:text-pink-300",
@@ -351,7 +351,7 @@ function HomeCountdownBanner() {
   const cards = [
     {
       href: "/wario-dungeon",
-      title: "Wario Dungeon",
+      title: "Wairo Dungeon",
       subtitle: nextWario
         ? `${nextWario.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
         : "No upcoming spawn found",

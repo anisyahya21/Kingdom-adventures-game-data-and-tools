@@ -60,6 +60,16 @@ export default function UpdatesPage() {
             <li>Event timing offsets now work correctly.</li>
           </ol>
         </section>
+
+        <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
+          <h2 className="text-lg font-bold">26/04/2026</h2>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+            <li><Link href="/jobs/Berserker" className="underline text-foreground">Berserker</Link> now not missing shield, Weapon classes &amp; Skill access information.</li>
+            <li>Jobs pages now show Job ranges, ( searching Range, Deployment Range, Defog Range ). Check out <Link href="/jobs/Monarch" className="underline text-foreground">Monarch</Link>.</li>
+            <li>B/ Legendary Shield (B)/(R) &amp; E/ Hat (B)/(R) are no longer missing slot or stat information, they now also show as independent items in Loadout-builder &amp; Equipment Builder.</li>
+            <li>You can now add your own guide in the <a href="https://kingdom-adventures-community-tools.vercel.app/guides" className="underline text-foreground">Guides section</a>.</li>
+          </ol>
+        </section>
       </div>
     </div>
   );

@@ -1632,7 +1632,7 @@ export default function AskDatabaseWidget() {
     const wairoKnowledge: KnowledgeEntry = {
       title: "Wairo Dungeon loot",
       body: `Wairo Raid Dungeon has mined loot tables for Easy, Normal, Hard, and Extreme. Example drops include ${WAIRO_DUNGEON_LOOT_GROUP.encounters[0]?.tables.flat().slice(0, 5).map((line) => line.item).join(", ") || "A/ Kairo Gun and Myriad Arrows"}.`,
-      options: ["What drops in Wairo Dungeon?", "Open Wario Dungeon"],
+      options: ["What drops in Wairo Dungeon?", "Open Wairo Dungeon"],
     };
 
     const guideKnowledge = Object.entries(PLAYTHROUGH_GUIDE_SECTION_OVERLAYS).map(([section, overlay]) => ({

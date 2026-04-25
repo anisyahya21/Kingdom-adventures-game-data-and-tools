@@ -161,6 +161,14 @@ function SlotIcon({ slot, className = "w-6 h-6" }: { slot: string; className?: s
 }
 
 function fullStat(raw: string): string { return STAT_FULL[raw.toLowerCase().trim()] ?? raw; }
+function statFromStartCol(col: string): string | null {
+  const normalized = col.toLowerCase().trim().replace(/\s+/g, " ");
+  const match = normalized.match(/^(.+?)\s+start$/);
+  if (!match) return null;
+  const stat = fullStat(match[1]);
+  return STAT_ORDER.includes(stat) ? stat : null;
+}
+
 function isStatCol(col: string): boolean { return !!STAT_FULL[col.toLowerCase().trim()]; }
 
 function isIncCol(col: string): string | null {
@@ -180,9 +188,21 @@ const GID = "123527243";
 const EQUIPMENT_RANKS = ["S", "A", "B", "C", "D", "E", "F"] as const;
 type CraftFilter = "All" | "Craftable" | "Not Craftable";
 
+function slotFromEquipmentType(rawType: string | number | null): string {
+  const type = Number(rawType);
+  if (type === 11) return "Shield";
+  if (type === 12) return "Armor";
+  if (type === 13) return "Head";
+  if (type === 14) return "Accessory";
+  if (Number.isFinite(type) && type > 0) return "Weapon";
+  return typeof rawType === "string" ? rawType.trim() : "";
+}
+
 export interface EquipmentItem {
   uid: string;
   name: string;
+  sourceName: string;
+  sourceId: number | null;
   sheetSlot: string;
   baseStats: Record<string, number>;
   incStats: Record<string, number>;
@@ -217,11 +237,24 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     return colTypes.findIndex((t) => t === "string");
   })();
 
-  const slotColIdx = cols.findIndex((c, i) => i !== nameColIdx && /^(slot|type|equip.?type|category|kind)$/i.test(c));
+  const slotColIdx = (() => {
+    const equipmentType = cols.findIndex((c, i) => i !== nameColIdx && /^(type|equip.?type)$/i.test(c));
+    if (equipmentType >= 0) return equipmentType;
+    return cols.findIndex((c, i) => i !== nameColIdx && /^(slot|category|kind)$/i.test(c));
+  })();
   const craftLvlIdx = cols.findIndex((c) => /crafterstudio|studio.?level|crafter.?studio/i.test(c));
   const craftIntIdx = cols.findIndex((c) => /craftermintelligence|crafter.?intel|craft.*int/i.test(c));
 
   const rawItems: Omit<EquipmentItem, "uid">[] = [];
+  const statColumnRoles = cols.map((col, index): { stat: string; field: "base" | "inc" } | null => {
+    const startStat = statFromStartCol(col);
+    if (startStat) return { stat: startStat, field: "base" };
+    const previousStartStat = index > 0 ? statFromStartCol(cols[index - 1]) : null;
+    if (/^increment$/i.test(col.trim()) && previousStartStat) return { stat: previousStartStat, field: "inc" };
+    if (isStatCol(col)) return { stat: fullStat(col), field: "base" };
+    const incName = isIncCol(col);
+    return incName ? { stat: incName, field: "inc" } : null;
+  });
 
   for (const row of data.table.rows) {
     if (!row?.c) continue;
@@ -230,21 +263,23 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     const name = String(get(nameColIdx) ?? "").trim();
     if (!name || /^\d+$/.test(name)) continue;
     if (!isPlayerFacingEquipmentName(name)) continue;
-    const sheetSlot = slotColIdx >= 0 ? String(get(slotColIdx) ?? "").trim() : "";
+    const sourceId = Number(get(0));
+    const rawSlot = slotColIdx >= 0 ? get(slotColIdx) : null;
+    const sheetSlot = slotFromEquipmentType(rawSlot);
     const baseStats: Record<string, number> = {};
     const incStats: Record<string, number> = {};
     for (let i = 0; i < cols.length; i++) {
       if (i === nameColIdx || i === slotColIdx || i === craftLvlIdx || i === craftIntIdx) continue;
-      const col = cols[i]; if (!col) continue;
-      const incName = isIncCol(col);
-      if (incName) incStats[incName] = Number(get(i)) || 0;
-      else if (isStatCol(col)) baseStats[fullStat(col)] = Number(get(i)) || 0;
+      const role = statColumnRoles[i];
+      if (!role) continue;
+      if (role.field === "base") baseStats[role.stat] = Number(get(i)) || 0;
+      else incStats[role.stat] = Number(get(i)) || 0;
     }
     for (const s of STAT_ORDER) {
       if (baseStats[s] === undefined) baseStats[s] = 0;
       if (incStats[s] === undefined) incStats[s] = 0;
     }
-    rawItems.push({ name, sheetSlot, baseStats, incStats, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
+    rawItems.push({ name, sourceName: name, sourceId: Number.isFinite(sourceId) ? sourceId : null, sheetSlot, baseStats, incStats, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
   }
 
   const duplicateCounts = new Map<string, number>();
@@ -252,9 +287,11 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     duplicateCounts.set(item.name, (duplicateCounts.get(item.name) ?? 0) + 1);
   }
 
-  const preferredDuplicateSuffixes: Record<string, string[]> = {
-    "B/ Legendary Shield": ["(B)", "(R)"],
-    "E/ Hat": ["(B)", "(R)"],
+  const preferredSuffixById: Record<number, string> = {
+    192: "(B)",
+    198: "(R)",
+    235: "(B)",
+    237: "(R)",
   };
   const seenDuplicateIndex = new Map<string, number>();
 
@@ -266,9 +303,9 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
 
     const seen = (seenDuplicateIndex.get(item.name) ?? 0) + 1;
     seenDuplicateIndex.set(item.name, seen);
-    const preferredSuffix = preferredDuplicateSuffixes[item.name]?.[seen - 1];
+    const preferredSuffix = item.sourceId === null ? undefined : preferredSuffixById[item.sourceId];
     const suffix = preferredSuffix ?? `(${seen})`;
-    return { uid: String(index), ...item, name: `${item.name} ${suffix}` };
+    return { uid: item.sourceId === null ? String(index) : String(item.sourceId), ...item, name: `${item.name} ${suffix}` };
   });
 }
 

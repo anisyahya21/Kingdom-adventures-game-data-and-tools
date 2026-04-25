@@ -191,12 +191,17 @@ export default function EquipmentExchangeCalculator() {
   const [sourceGivesFilters, setSourceGivesFilters] = useState<Set<string>>(new Set(savedExchangeState.sourceGivesFilters ?? []));
   const [givesDropdownOpen, setGivesDropdownOpen] = useState(false);
   const givesDropdownRef = useRef<HTMLDivElement>(null);
+  const [equipmentDropdownOpen, setEquipmentDropdownOpen] = useState(false);
+  const equipmentDropdownRef = useRef<HTMLDivElement>(null);
   const [currentPriceInputs, setCurrentPriceInputs] = useState<Record<number, string>>(savedExchangeState.currentPriceInputs ?? {});
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (givesDropdownRef.current && !givesDropdownRef.current.contains(e.target as Node)) {
         setGivesDropdownOpen(false);
+      }
+      if (equipmentDropdownRef.current && !equipmentDropdownRef.current.contains(e.target as Node)) {
+        setEquipmentDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClick);
@@ -357,6 +362,12 @@ export default function EquipmentExchangeCalculator() {
       setSelectedEquipmentId(firstMatch.id);
     }
   }, [equipmentOptions, equipmentQuery, selectedEquipmentId]);
+
+  const selectEquipment = (item: EquipmentCatalogItem) => {
+    setSelectedEquipmentId(item.id);
+    setEquipmentQuery(item.name);
+    setEquipmentDropdownOpen(false);
+  };
 
   const normalizedCurrentLevel = Math.max(1, Math.min(99, currentLevel));
   const normalizedTargetLevel = Math.max(normalizedCurrentLevel, Math.min(99, targetLevel));
@@ -538,24 +549,71 @@ export default function EquipmentExchangeCalculator() {
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_120px_120px_120px]">
             <div className="space-y-1">
               <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Equipment search</label>
-              <Input
-                value={equipmentQuery}
-                onChange={(e) => setEquipmentQuery(e.target.value)}
-                placeholder="Type part of an equipment name"
-                className="h-9"
-              />
-              <select
-                value={displayedEquipmentId === "" ? "" : String(displayedEquipmentId)}
-                onChange={(e) => setSelectedEquipmentId(e.target.value ? Number(e.target.value) : "")}
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">Select equipment...</option>
-                {equipmentOptions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative" ref={equipmentDropdownRef}>
+                <Input
+                  value={equipmentQuery}
+                  onChange={(e) => {
+                    setEquipmentQuery(e.target.value);
+                    setEquipmentDropdownOpen(true);
+                  }}
+                  onFocus={() => setEquipmentDropdownOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setEquipmentDropdownOpen(false);
+                    if (e.key === "Enter" && displayedEquipmentId !== "") {
+                      const match = PLAYER_EQUIPMENT.find((item) => item.id === displayedEquipmentId);
+                      if (match) {
+                        e.preventDefault();
+                        selectEquipment(match);
+                      }
+                    }
+                  }}
+                  placeholder="Type part of an equipment name"
+                  className={`h-9 pr-9 ${equipmentDropdownOpen ? "rounded-b-none border-primary ring-1 ring-primary" : ""}`}
+                  role="combobox"
+                  aria-expanded={equipmentDropdownOpen}
+                  aria-controls="equipment-search-results"
+                />
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setEquipmentDropdownOpen((open) => !open);
+                  }}
+                  className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label={equipmentDropdownOpen ? "Close equipment results" : "Open equipment results"}
+                >
+                  <svg className={`h-4 w-4 transition-transform ${equipmentDropdownOpen ? "rotate-180" : ""}`} viewBox="0 0 12 12" fill="none">
+                    <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {equipmentDropdownOpen && (
+                  <div
+                    id="equipment-search-results"
+                    className="absolute left-0 right-0 top-full z-50 max-h-64 overflow-y-auto rounded-b-md border border-t-0 border-primary bg-popover shadow-lg"
+                  >
+                    {equipmentOptions.length === 0 ? (
+                      <div className="px-3 py-3 text-center text-xs text-muted-foreground">No matching equipment</div>
+                    ) : (
+                      equipmentOptions.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectEquipment(item);
+                          }}
+                          className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
+                            item.id === displayedEquipmentId ? "bg-primary/10 font-medium text-foreground" : ""
+                          }`}
+                        >
+                          <span className="truncate">{item.name}</span>
+                          {item.id === selectedEquipmentId && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="text-[10px] text-muted-foreground">
                 Search matches partial words in any order, like `swift bow` or `magic staff`.
               </div>

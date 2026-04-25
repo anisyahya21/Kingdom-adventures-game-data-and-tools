@@ -38,6 +38,7 @@ import KairoRoomPage from "@/pages/kairo-room";
 import PlaythroughGuidePage from "@/pages/playthrough-guide";
 import GuidesPage from "@/pages/guides";
 import AddGuidePage from "@/pages/add-guide";
+import CommunityGuidePage from "@/pages/community-guide";
 import UpdatesPage from "@/pages/updates";
 import SurveyPlanner from "@/pages/survey-planner";
 import { localSharedData } from "@/lib/local-shared-data";
@@ -179,7 +180,10 @@ function SiteHeader() {
     {
       title: "Guides",
       primary: { href: "/guides", label: "Guides" },
-      children: [{ href: "/playthrough-guide", label: "Playthrough Guide by Jaza" }],
+      children: [
+        { href: "/playthrough-guide", label: "Playthrough Guide by Jaza" },
+        { href: "/add-guide", label: "Add Guide" },
+      ],
     },
     {
       title: "Equipment",
@@ -216,7 +220,7 @@ function SiteHeader() {
       children: [
         { href: "/weekly-conquest", label: "Weekly Conquest" },
         { href: "/gacha-events", label: "Gacha Events" },
-        { href: "/wario-dungeon", label: "Wario Dungeon" },
+        { href: "/wario-dungeon", label: "Wairo Dungeon" },
         { href: "/daily-rank-rewards", label: "Daily Rank Rewards" },
         { href: "/kairo-room", label: "Kairo Room" },
         { href: "/job-center", label: "Job Center" },
@@ -416,6 +420,7 @@ function Router() {
       <Route path="/kairo-room" component={KairoRoomPage} />
       <Route path="/gacha-events" component={GachaEventsPage} />
       <Route path="/town-rank" component={TownRankPage} />
+      <Route path="/guides/:slug" component={CommunityGuidePage} />
       <Route path="/guides" component={GuidesPage} />
       <Route path="/updates" component={UpdatesPage} />
       <Route path="/add-guide" component={AddGuidePage} />

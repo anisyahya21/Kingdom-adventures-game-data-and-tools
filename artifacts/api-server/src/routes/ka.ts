@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -20,6 +20,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+type UploadedImageRequest = Request & { file?: { filename: string } };
 
 
 const DATA_DIR = path.resolve(process.cwd(), "data");
@@ -228,8 +229,11 @@ function uniqueGuideSlug(state: SharedState, base: string, existingId?: string) 
 const router = Router();
 
 // POST /ka/upload-image: Accepts multipart/form-data, saves image, returns URL
-router.post("/ka/upload-image", upload.single("image"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+router.post("/ka/upload-image", upload.single("image"), (req: UploadedImageRequest, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: "No file uploaded" });
+    return;
+  }
   // Return the public URL for the uploaded image
   const url = `/guides/images/${req.file.filename}`;
   res.json({ url });
@@ -289,7 +293,10 @@ router.post("/ka/guides", (req, res) => {
   const cleanTitle = String(title ?? "").trim();
   const cleanDocUrl = String(docUrl ?? "").trim();
   const docId = extractGoogleDocId(cleanDocUrl);
-  if (!cleanTitle || !docId) return res.status(400).json({ error: "A title and public Google Doc link are required." });
+  if (!cleanTitle || !docId) {
+    res.status(400).json({ error: "A title and public Google Doc link are required." });
+    return;
+  }
 
   const state = readState();
   const now = Date.now();
@@ -313,10 +320,19 @@ router.patch("/ka/guides/:id", (req, res) => {
   const { ownerToken, title } = req.body as { ownerToken?: string; title?: string };
   const state = readState();
   const guide = state.communityGuides.find((item) => item.id === req.params.id);
-  if (!guide) return res.status(404).json({ error: "Guide not found." });
-  if (!ownerToken || ownerToken !== guide.ownerToken) return res.status(403).json({ error: "Only the submitter can edit this guide." });
+  if (!guide) {
+    res.status(404).json({ error: "Guide not found." });
+    return;
+  }
+  if (!ownerToken || ownerToken !== guide.ownerToken) {
+    res.status(403).json({ error: "Only the submitter can edit this guide." });
+    return;
+  }
   const cleanTitle = String(title ?? "").trim();
-  if (!cleanTitle) return res.status(400).json({ error: "Title is required." });
+  if (!cleanTitle) {
+    res.status(400).json({ error: "Title is required." });
+    return;
+  }
   guide.title = cleanTitle;
   guide.slug = uniqueGuideSlug(state, slugify(cleanTitle), guide.id);
   guide.updatedAt = Date.now();
@@ -328,8 +344,14 @@ router.delete("/ka/guides/:id", (req, res) => {
   const { ownerToken } = req.body as { ownerToken?: string };
   const state = readState();
   const guide = state.communityGuides.find((item) => item.id === req.params.id);
-  if (!guide) return res.status(404).json({ error: "Guide not found." });
-  if (!ownerToken || ownerToken !== guide.ownerToken) return res.status(403).json({ error: "Only the submitter can remove this guide." });
+  if (!guide) {
+    res.status(404).json({ error: "Guide not found." });
+    return;
+  }
+  if (!ownerToken || ownerToken !== guide.ownerToken) {
+    res.status(403).json({ error: "Only the submitter can remove this guide." });
+    return;
+  }
   state.communityGuides = state.communityGuides.filter((item) => item.id !== guide.id);
   writeState(state);
   res.json({ ok: true });

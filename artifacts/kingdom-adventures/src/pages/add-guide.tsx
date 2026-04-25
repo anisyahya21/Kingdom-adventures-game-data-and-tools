@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { apiUrl } from "@/lib/api";
 import { extractGoogleDocId, setGuideOwnerToken } from "@/lib/community-guides";
 
+function createOwnerToken() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function AddGuidePage() {
   const [, navigate] = useLocation();
   const [title, setTitle] = useState("");
@@ -25,7 +32,7 @@ export default function AddGuidePage() {
 
     setSaving(true);
     setError(null);
-    const ownerToken = crypto.randomUUID();
+    const ownerToken = createOwnerToken();
     try {
       const response = await fetch(apiUrl("/guides"), {
         method: "POST",

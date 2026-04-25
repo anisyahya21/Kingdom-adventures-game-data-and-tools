@@ -102,7 +102,7 @@ export default function WarioDungeonPage() {
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Clock3 className="w-5 h-5 text-muted-foreground" />
-          <h1 className="text-xl font-bold tracking-tight">Wario Dungeon</h1>
+          <h1 className="text-xl font-bold tracking-tight">Wairo Dungeon</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
           Monthly dungeon spawn windows plus cleaned mined loot tables for the Wairo raid chain.
@@ -199,7 +199,7 @@ export default function WarioDungeonPage() {
       <Card>
         <CardContent className="p-4 space-y-4">
           <div className="space-y-1">
-            <div className="font-semibold">Wario Dungeon schedule</div>
+            <div className="font-semibold">Wairo Dungeon schedule</div>
             <div className="text-sm text-muted-foreground">
               Spawn times are shown in your local time with your event offset applied ({eventOffset >= 0 ? `+${eventOffset}` : eventOffset}h).
             </div>
