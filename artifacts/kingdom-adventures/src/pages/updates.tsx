@@ -68,7 +68,7 @@ export default function UpdatesPage() {
             <li>Jobs pages now show Job ranges, ( searching Range, Deployment Range, Defog Range ). Check out <Link href="/jobs/Monarch" className="underline text-foreground">Monarch</Link>.</li>
             <li>B/ Legendary Shield (B)/(R) &amp; E/ Hat (B)/(R) are no longer missing slot or stat information, they now also show as independent items in Loadout-builder &amp; Equipment Builder.</li>
             <li>You can now add your own guide in the <a href="https://kingdom-adventures-community-tools.vercel.app/guides" className="underline text-foreground">Guides section</a>.</li>
-            <li><Link href="/match-finder?tab=simulator" className="underline text-foreground">Marriage Simulator</Link> child rank results for same-rank parents are fixed: D + D now gives C, C + C now gives B, and B + B now gives A.</li>
+            <li><Link href="/match-finder?tab=simulator" className="underline text-foreground">Marriage Simulator</Link> child rank results now use the data-backed rank formula for every parent-rank combination. Mixed-rank marriages now resolve correctly, and same-rank marriages now apply the proper same-rank child-rank bonus.</li>
             <li><Link href="/jobs" className="underline text-foreground">Jobs</Link> preset buttons are updated to C+1, B+2, A+3, S+4, and S+5 for comparing children from non-awakened parents.</li>
             <li>Added Set Awk to the <Link href="/jobs" className="underline text-foreground">Jobs Database</Link> bulk controls, letting you set all shown jobs to their max stat levels for a chosen awakening without changing their ranks.</li>
           </ol>

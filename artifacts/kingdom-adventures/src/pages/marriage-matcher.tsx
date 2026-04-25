@@ -1364,20 +1364,20 @@ function InfoDialog() {
 const SIM_RANKS = ["D", "C", "B", "A", "S"] as const;
 type SimRank = typeof SIM_RANKS[number];
 
-const CHILD_RANK_MATRIX: Record<SimRank, Record<SimRank, SimRank>> = {
-  D: { D: "C", C: "D", B: "D", A: "D", S: "D" },
-  C: { D: "D", C: "B", B: "C", A: "C", S: "B" },
-  B: { D: "D", C: "C", B: "A", A: "A", S: "A" },
-  A: { D: "D", C: "B", B: "A", A: "S", S: "S" },
-  S: { D: "D", C: "B", B: "A", A: "S", S: "S" },
-};
-
 const SAME_RANK_BONUS: Record<SimRank, number> = { D: 1, C: 2, B: 3, A: 4, S: 5 };
+const SIM_RANK_VALUE: Record<SimRank, number> = { D: 1, C: 2, B: 3, A: 4, S: 5 };
+const SIM_VALUE_RANK: Record<number, SimRank> = { 1: "D", 2: "C", 3: "B", 4: "A", 5: "S" };
 const MAX_SIM_STAT_LEVEL = 999;
 
 const AFFINITY_NUM_TO_LETTER: Record<number, string> = {
   100: "A", 95: "B", 90: "B", 80: "C", 75: "D", 70: "D", 65: "E", 60: "E",
 };
+
+function calcChildRank(fatherRank: SimRank, motherRank: SimRank): SimRank {
+  const averageRank = Math.round((SIM_RANK_VALUE[fatherRank] + SIM_RANK_VALUE[motherRank]) / 2);
+  const sameRankBonus = fatherRank === motherRank ? 1 : 0;
+  return SIM_VALUE_RANK[Math.min(5, averageRank + sameRankBonus)];
+}
 
 const SIM_STATS: Array<{ key: string; label: string }> = [
   { key: "HP",           label: "HP"    },
@@ -1438,8 +1438,7 @@ function calcSim(
       ? "Royal" : pair.children[0] ?? null;
   if (!childJobName) return { error: "No child job found for this pair." };
 
-  const childRank = CHILD_RANK_MATRIX[fatherRank]?.[motherRank];
-  if (!childRank) return { error: "Could not determine child rank." };
+  const childRank = calcChildRank(fatherRank, motherRank);
 
   const affinityNum = (pair as any).affinityNum as number | undefined;
   if (!affinityNum) return { error: "Affinity number missing — re-run the migration script." };
@@ -2800,7 +2799,6 @@ export default function MarriageMatcher() {
     </div>
   );
 }
-
 
 
 
