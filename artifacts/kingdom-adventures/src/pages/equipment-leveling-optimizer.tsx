@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Calculator, CheckCircle2, Route, TableProperties } from "lucide-react";
+import { ArrowRight, Calculator, CheckCircle2, Route, Sigma, TableProperties } from "lucide-react";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
@@ -417,7 +426,7 @@ type TwoItemState = {
   totalWastedExp: number;
   itemASacrifices: number;
   itemBSacrifices: number;
-  steps: string[];
+  steps: TwoItemStep[];
 };
 
 type TwoItemAction = "A_TO_B" | "B_TO_A";
@@ -931,6 +940,154 @@ function TwoItemStepCard({
   );
 }
 
+function FormulaLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background/70 p-2">
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 text-xs font-medium text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function TwoItemFormulaDialog({
+  slot,
+  itemA,
+  itemB,
+}: {
+  slot: TwoItemOptionSlot;
+  itemA: Equipment | undefined;
+  itemB: Equipment | undefined;
+}) {
+  const result = slot.result;
+  if (!result?.found) return null;
+
+  const compactSteps = compactTwoItemSteps(result.steps);
+  const itemAName = itemA?.name ?? "Item A";
+  const itemBName = itemB?.name ?? "Item B";
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          aria-label={`Show formula for ${slot.title}`}
+          title={`Show formula for ${slot.title}`}
+        >
+          <Sigma className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-12">
+          <DialogTitle className="text-base">{slot.title} Math</DialogTitle>
+          <DialogDescription className="text-xs">
+            {result.label}. This window stays fixed while the math details scroll.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <FormulaLine
+              label="EXP per sacrificed item"
+              value="floor((floor(source stat total x recipient expRate x 60 / 10000) + source mixBonusExp) x 1.5)"
+            />
+            <FormulaLine
+              label="Copies per batch"
+              value="max(1, ceil(EXP needed for next useful level / EXP per sacrificed item))"
+            />
+            <FormulaLine
+              label="Copper"
+              value="sum(batch quantity x sacrificed item's copper cost)"
+            />
+            <FormulaLine
+              label="Wasted EXP"
+              value="sum(max(0, fed EXP - useful EXP before the current cap))"
+            />
+          </div>
+
+          <div className="rounded-md border border-border bg-muted/20 p-3">
+            <div className="mb-2 text-xs font-semibold text-foreground">Totals for this option</div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <FormulaLine label="Copper" value={formatNumber(result.totalCopperCost)} />
+              <FormulaLine label="Wasted EXP" value={formatNumber(result.totalWastedExp)} />
+              <FormulaLine label={`${itemAName} used`} value={formatNumber(result.itemASacrifices)} />
+              <FormulaLine label={`${itemBName} used`} value={formatNumber(result.itemBSacrifices)} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-foreground">Step math</div>
+            {compactSteps.map((step, index) => {
+              const source = step.action === "A_TO_B" ? itemA : itemB;
+              const recipient = step.action === "A_TO_B" ? itemB : itemA;
+              const expPerSource = expFromSource(recipient, source, step.sourceLevel).finalExp;
+              const fedExp = step.quantity * expPerSource;
+              const copperEach = source?.buyPrice ?? 0;
+              const stageStart = currentCapStart(step.recipientStartLevel);
+              const stageEnd = nextStageEnd(step.recipientStartLevel, step.recipientEndLevel);
+              const stageTotal = stageExpNeeded(stageStart, stageEnd);
+              const startingProgress = capProgressForLevel(step.recipientStartLevel);
+              const nextUsefulLevel = Math.min(stageEnd, step.recipientStartLevel + 1);
+              const nextLevelProgress = stageExpNeeded(stageStart, nextUsefulLevel);
+              const neededToNextUsefulLevel = Math.max(0, nextLevelProgress - startingProgress);
+              const neededToStageEnd = Math.max(0, stageTotal - startingProgress);
+              return (
+                <div
+                  key={`${slot.title}-formula-${step.action}-${step.sourceLevel}-${step.recipientStartLevel}-${index}`}
+                  className="rounded-md border border-border bg-background/60 p-3"
+                >
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="font-semibold text-foreground">Step {index + 1}</div>
+                    <Badge variant="outline">
+                      {step.sourceName} Lv{step.sourceLevel} into {step.recipientName}
+                    </Badge>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <FormulaLine
+                      label="Active cap"
+                      value={`Lv${stageStart} to Lv${stageEnd}, ${formatNumber(stageTotal)} EXP total`}
+                    />
+                    <FormulaLine
+                      label="Needed EXP"
+                      value={`${formatNumber(neededToNextUsefulLevel)} to next level, ${formatNumber(neededToStageEnd)} to cap`}
+                    />
+                    <FormulaLine
+                      label="EXP each"
+                      value={`${formatNumber(expPerSource)} from ${step.sourceName} Lv${step.sourceLevel}`}
+                    />
+                    <FormulaLine
+                      label="Fed EXP"
+                      value={`${formatNumber(step.quantity)} x ${formatNumber(expPerSource)} = ${formatNumber(fedExp)}`}
+                    />
+                    <FormulaLine
+                      label="Useful / wasted"
+                      value={`${formatNumber(step.usefulExp)} useful, ${formatNumber(step.wastedExp)} wasted`}
+                    />
+                    <FormulaLine
+                      label="Copper"
+                      value={`${formatNumber(step.quantity)} x ${formatNumber(copperEach)} = ${formatNumber(step.copperCost)}`}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-border px-5 py-3">
+          <DialogClose asChild>
+            <Button type="button" variant="outline" size="sm">
+              Close
+            </Button>
+          </DialogClose>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function EquipmentLevelingOptimizerPage() {
   const firstItem = EQUIPMENT[0]?.id ? String(EQUIPMENT[0].id) : "";
   const secondItem = EQUIPMENT[1]?.id ? String(EQUIPMENT[1].id) : "";
@@ -1348,7 +1505,14 @@ export default function EquipmentLevelingOptimizerPage() {
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="text-sm font-semibold">{slot.title}</div>
-                        <Badge variant="outline">{slot.result.label}</Badge>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline">{slot.result.label}</Badge>
+                          <TwoItemFormulaDialog
+                            slot={slot}
+                            itemA={EQUIPMENT_BY_ID.get(itemAId)}
+                            itemB={EQUIPMENT_BY_ID.get(itemBId)}
+                          />
+                        </div>
                       </div>
                       <div className="text-[11px] text-muted-foreground">
                         {formatNumber(displayedStepCount(slot.result))} steps · {formatNumber(totalSacrifices(slot.result))} total sacrifices
