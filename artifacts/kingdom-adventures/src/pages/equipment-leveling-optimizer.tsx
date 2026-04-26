@@ -1021,15 +1021,15 @@ function ExpCalculatorFormulaDialog({
           <div className="grid gap-2 sm:grid-cols-2">
             <FormulaLine
               label="Weighted EXP"
-              value={`floor(${formatNumber(totalParam)} x ${formatNumber(recipient?.expRate)} x 60 / 10000) = ${formatNumber(weightedExp)}`}
+              value={`round down(${formatNumber(totalParam)} x ${formatNumber(recipient?.expRate)} x 60 / 10000) = ${formatNumber(weightedExp)}`}
             />
             <FormulaLine
               label="Final EXP each"
-              value={`floor((${formatNumber(weightedExp)} + ${formatNumber(source?.mixBonusExp)}) x 1.5) = ${formatNumber(finalExp)}`}
+              value={`round down((${formatNumber(weightedExp)} + ${formatNumber(source?.mixBonusExp)}) x 1.5) = ${formatNumber(finalExp)}`}
             />
             <FormulaLine
               label="Copies per stage"
-              value="ceil(stage EXP needed / final EXP each)"
+              value="round up(stage EXP needed / final EXP each)"
             />
             <FormulaLine
               label="Stage waste"
@@ -1039,6 +1039,9 @@ function ExpCalculatorFormulaDialog({
 
           <div className="rounded-md border border-border bg-muted/20 p-3">
             <div className="mb-2 text-xs font-semibold text-foreground">Totals for this calculation</div>
+            <div className="mb-2 text-[11px] text-muted-foreground">
+              Round up means any leftover EXP requirement still needs one whole extra item.
+            </div>
             <div className="grid gap-2 sm:grid-cols-3">
               <FormulaLine label="Quantity" value={formatNumber(stagePlan.totalQuantity)} />
               <FormulaLine label="Copper" value={formatNumber(stagePlan.totalCopperCost)} />
@@ -1062,7 +1065,7 @@ function ExpCalculatorFormulaDialog({
                       <FormulaLine label="Needed EXP" value={formatNumber(stage.expNeeded)} />
                       <FormulaLine
                         label="Quantity"
-                        value={`ceil(${formatNumber(stage.expNeeded)} / ${formatNumber(finalExp)}) = ${formatNumber(stage.quantityNeeded)}`}
+                        value={`round up(${formatNumber(stage.expNeeded)} / ${formatNumber(finalExp)}) = ${formatNumber(stage.quantityNeeded)}`}
                       />
                       <FormulaLine
                         label="Fed EXP"
@@ -1113,13 +1116,16 @@ function GrandFormulaDialog({ candidate }: { candidate: RouteCandidate }) {
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div className="grid gap-2 sm:grid-cols-2">
             <FormulaLine label="Source choice" value="lowest copper, then lowest waste, then highest EXP per item" />
-            <FormulaLine label="Quantity" value="ceil(cap stage EXP needed / selected source EXP each)" />
+            <FormulaLine label="Quantity" value="round up(cap stage EXP needed / selected source EXP each)" />
             <FormulaLine label="Copper" value="quantity x selected source copper cost" />
             <FormulaLine label="Wasted EXP" value="quantity x EXP each - cap stage EXP needed" />
           </div>
 
           <div className="rounded-md border border-border bg-muted/20 p-3">
             <div className="mb-2 text-xs font-semibold text-foreground">Totals for this route</div>
+            <div className="mb-2 text-[11px] text-muted-foreground">
+              Round up means any leftover EXP requirement still needs one whole extra item.
+            </div>
             <div className="grid gap-2 sm:grid-cols-3">
               <FormulaLine label="Fed EXP" value={formatNumber(candidate.totalExp)} />
               <FormulaLine label="Copper" value={formatNumber(candidate.copperCost)} />
@@ -1142,7 +1148,7 @@ function GrandFormulaDialog({ candidate }: { candidate: RouteCandidate }) {
                   <FormulaLine label="EXP each" value={formatNumber(step.expPerSource)} />
                   <FormulaLine
                     label="Quantity"
-                    value={`ceil(${formatNumber(step.neededExp)} / ${formatNumber(step.expPerSource)}) = ${formatNumber(step.quantity)}`}
+                    value={`round up(${formatNumber(step.neededExp)} / ${formatNumber(step.expPerSource)}) = ${formatNumber(step.quantity)}`}
                   />
                   <FormulaLine
                     label="Fed EXP"
@@ -1208,11 +1214,11 @@ function TwoItemFormulaDialog({
           <div className="grid gap-2 sm:grid-cols-2">
             <FormulaLine
               label="EXP per sacrificed item"
-              value="floor((floor(source stat total x recipient expRate x 60 / 10000) + source mixBonusExp) x 1.5)"
+              value="round down((round down(source stat total x recipient expRate x 60 / 10000) + source mixBonusExp) x 1.5)"
             />
             <FormulaLine
               label="Copies per batch"
-              value="max(1, ceil(EXP needed for next useful level / EXP per sacrificed item))"
+              value="at least 1, then round up(EXP needed for next useful level / EXP per sacrificed item)"
             />
             <FormulaLine
               label="Copper"
@@ -1226,6 +1232,9 @@ function TwoItemFormulaDialog({
 
           <div className="rounded-md border border-border bg-muted/20 p-3">
             <div className="mb-2 text-xs font-semibold text-foreground">Totals for this option</div>
+            <div className="mb-2 text-[11px] text-muted-foreground">
+              Round up means any leftover EXP requirement still needs one whole extra item.
+            </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <FormulaLine label="Copper" value={formatNumber(result.totalCopperCost)} />
               <FormulaLine label="Wasted EXP" value={formatNumber(result.totalWastedExp)} />
@@ -1612,9 +1621,7 @@ export default function EquipmentLevelingOptimizerPage() {
               Calculate
             </Button>
             <div className="text-xs text-muted-foreground">
-              {calcData.source && calcData.recipient
-                ? `${calcData.source.name} Lv ${sourceLevel}: totalParam ${formatNumber(calcData.totalParam)}, weighted ${formatNumber(calcData.weightedExp)}, final ${formatNumber(calcData.finalExp)}`
-                : "Choose a recipient and source item."}
+              {calcData.source && calcData.recipient ? "Open the formula button to see the EXP math." : "Choose a recipient and source item."}
             </div>
             <ExpCalculatorFormulaDialog
               recipient={calcData.recipient}
@@ -1629,7 +1636,7 @@ export default function EquipmentLevelingOptimizerPage() {
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <MetricCard label="EXP Per Source" value={formatNumber(calcData.finalExp)} />
-            <MetricCard label="Source totalParam" value={formatNumber(calcData.totalParam)} />
+            <MetricCard label="Source Stat Total" value={formatNumber(calcData.totalParam)} />
             <MetricCard label="Source mixBonusExp" value={formatNumber(calcData.source?.mixBonusExp)} />
             <MetricCard label="Recipient expRate" value={formatNumber(calcData.recipient?.expRate)} />
             <MetricCard label="Source Copper Cost" value={formatNumber(calcData.source?.buyPrice)} />
