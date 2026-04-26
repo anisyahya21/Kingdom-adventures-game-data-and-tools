@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { BookMarked, ExternalLink, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookMarked, Check, Copy, ExternalLink, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +28,7 @@ export default function GuidesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [copiedGuideId, setCopiedGuideId] = useState<string | null>(null);
   const [ownerTokens, setOwnerTokens] = useState<Record<string, string>>(() => getGuideOwnerTokens());
 
   const ownedGuideIds = useMemo(() => new Set(Object.keys(ownerTokens)), [ownerTokens]);
@@ -99,6 +100,19 @@ export default function GuidesPage() {
       setError(err instanceof Error ? err.message : "Could not remove guide.");
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const copyEditLink = async (guide: CommunityGuide) => {
+    const ownerToken = ownerTokens[guide.id];
+    if (!ownerToken) return;
+    const editUrl = `${window.location.origin}/guides/${guide.slug}?edit=${encodeURIComponent(ownerToken)}`;
+    try {
+      await navigator.clipboard.writeText(editUrl);
+      setCopiedGuideId(guide.id);
+      window.setTimeout(() => setCopiedGuideId(null), 1600);
+    } catch {
+      setCopiedGuideId(null);
     }
   };
 
@@ -210,6 +224,10 @@ export default function GuidesPage() {
                       <Button size="sm" variant="outline" className="gap-2" onClick={() => startEditing(guide)} disabled={saving}>
                         <Pencil className="w-3.5 h-3.5" />
                         Edit Title
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-2" onClick={() => copyEditLink(guide)} disabled={saving}>
+                        {copiedGuideId === guide.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedGuideId === guide.id ? "Copied" : "Edit Link"}
                       </Button>
                       <Button size="sm" variant="outline" className="gap-2 text-destructive hover:text-destructive" onClick={() => removeGuide(guide)} disabled={saving}>
                         <Trash2 className="w-3.5 h-3.5" />

@@ -155,6 +155,46 @@ type MarriageSimPreviewItem = {
   child?: string;
 };
 
+type GuideMarriagePair = {
+  jobA: string;
+  jobB: string;
+  children: string[];
+  rank?: string;
+  affinity?: string;
+  affinityNum?: number;
+};
+
+type GuideSimRank = "D" | "C" | "B" | "A" | "S";
+
+const GUIDE_SIM_RANKS: GuideSimRank[] = ["D", "C", "B", "A", "S"];
+const GUIDE_SAME_RANK_BONUS: Record<GuideSimRank, number> = { D: 1, C: 2, B: 3, A: 4, S: 5 };
+const GUIDE_SIM_RANK_VALUE: Record<GuideSimRank, number> = { D: 1, C: 2, B: 3, A: 4, S: 5 };
+const GUIDE_SIM_VALUE_RANK: Record<number, GuideSimRank> = { 1: "D", 2: "C", 3: "B", 4: "A", 5: "S" };
+const GUIDE_AFFINITY_NUM_TO_LETTER: Record<number, string> = {
+  100: "A",
+  95: "B",
+  90: "B",
+  80: "C",
+  75: "D",
+  70: "D",
+  65: "E",
+  60: "E",
+};
+const GUIDE_AFFINITY_STYLE: Record<string, string> = {
+  A: "bg-amber-100 text-amber-800 border-amber-400 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-600",
+  B: "bg-violet-100 text-violet-800 border-violet-400 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-600",
+  C: "bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-600",
+  D: "bg-sky-100 text-sky-800 border-sky-400 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-600",
+  E: "bg-slate-100 text-slate-600 border-slate-400 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+};
+const GUIDE_SIM_RANK_STYLE: Record<GuideSimRank, string> = {
+  S: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700",
+  A: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700",
+  B: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700",
+  C: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700",
+  D: "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+};
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -623,8 +663,6 @@ function getGuideCollapsedRangeGroups(jobName: string, index: 0 | 1 | 2) {
   for (const entry of entries.slice(1)) {
     if (entry.value === value) {
       end = entry.rank;
-    } else if (occurrenceDisabled) {
-      parts.push(mdLink.label);
     } else {
       groups.push({ label: formatGuideRangeRankLabel(start, end), value });
       start = entry.rank;
@@ -739,8 +777,11 @@ function renderInlineContent(
     effectiveLinks?: GuideLink[];
     disabledOccurrenceKeys?: Set<string>;
     linkEditMode?: boolean;
+    exactSpotPickMode?: boolean;
+    selectedOccurrenceKeys?: Set<string>;
     occurrenceScope?: string;
     onSelectLink?: (link: SelectedGuideLink) => void;
+    onToggleExactSpot?: (link: SelectedGuideLink) => void;
     onOpenEquipmentPreview?: (href: string, label: string) => void;
     onOpenJobPreview?: (href: string, label: string) => void;
     onOpenGuideTarget?: (link: GuideLink, label: string) => void;
@@ -755,10 +796,108 @@ function renderInlineContent(
     end: (match.index ?? 0) + match[0].length,
   })) as MarkdownLinkMatch[];
 
-  if (!guideLinkPattern && markdownLinks.length === 0) return text;
+  if (!options?.exactSpotPickMode && !guideLinkPattern && markdownLinks.length === 0) return text;
 
   const parts: ReactNode[] = [];
   let lastIndex = 0;
+
+  const pushSelectableWords = (segment: string, segmentStart: number) => {
+    const wordPattern = /[A-Za-z0-9][A-Za-z0-9'’‘/-]*/g;
+    let wordLastIndex = 0;
+    for (const match of segment.matchAll(wordPattern)) {
+      const word = match[0];
+      const wordStart = match.index ?? 0;
+      const absoluteIndex = segmentStart + wordStart;
+      if (wordStart > wordLastIndex) parts.push(segment.slice(wordLastIndex, wordStart));
+      const occurrenceKey = buildGuideOccurrenceKey(options?.occurrenceScope, absoluteIndex, word);
+      const selected = options?.selectedOccurrenceKeys?.has(occurrenceKey);
+      parts.push(
+        <button
+          key={`exact-${occurrenceKey}`}
+          type="button"
+          className={`rounded px-0.5 font-medium underline underline-offset-4 decoration-dashed ${
+            selected ? "bg-primary text-primary-foreground decoration-primary-foreground" : "text-primary hover:bg-primary/10"
+          }`}
+          onClick={() => options?.onToggleExactSpot?.({ label: word, href: "", kind: "custom", occurrenceKey })}
+        >
+          {word}
+        </button>,
+      );
+      wordLastIndex = wordStart + word.length;
+    }
+    if (wordLastIndex < segment.length) parts.push(segment.slice(wordLastIndex));
+  };
+
+  const pushExactSpotText = (segment: string, segmentStart: number) => {
+    if (!guideLinkPattern) {
+      pushSelectableWords(segment, segmentStart);
+      return;
+    }
+
+    let innerLastIndex = 0;
+    for (const match of segment.matchAll(guideLinkPattern)) {
+      const prefix = match[1] ?? "";
+      const fullMatch = match[2];
+      const rawMatchStart = match.index ?? 0;
+      const matchIndex = rawMatchStart + prefix.length;
+      const absoluteMatchIndex = segmentStart + matchIndex;
+      const occurrenceKey = buildGuideOccurrenceKey(options?.occurrenceScope, absoluteMatchIndex, fullMatch);
+      const link = findGuideLinkForOccurrence(effectiveLinks, fullMatch, occurrenceKey);
+      const href = link?.href ?? "";
+
+      if (rawMatchStart > innerLastIndex) {
+        pushSelectableWords(segment.slice(innerLastIndex, rawMatchStart), segmentStart + innerLastIndex);
+      }
+      if (prefix) parts.push(prefix);
+
+      const selected = options?.selectedOccurrenceKeys?.has(occurrenceKey);
+      parts.push(
+        <button
+          key={`exact-${occurrenceKey}`}
+          type="button"
+          className={`rounded px-0.5 font-medium underline underline-offset-4 decoration-dashed ${
+            selected ? "bg-primary text-primary-foreground decoration-primary-foreground" : "text-primary hover:bg-primary/10"
+          }`}
+          onClick={() => options?.onToggleExactSpot?.({ id: link?.id, label: fullMatch, href, kind: link?.kind ?? "custom", target: link?.target, occurrenceKey })}
+        >
+          {fullMatch}
+        </button>,
+      );
+      innerLastIndex = rawMatchStart + prefix.length + fullMatch.length;
+    }
+
+    if (innerLastIndex < segment.length) {
+      pushSelectableWords(segment.slice(innerLastIndex), segmentStart + innerLastIndex);
+    }
+  };
+
+  if (options?.exactSpotPickMode) {
+    for (const mdLink of markdownLinks) {
+      if (mdLink.start > lastIndex) {
+        pushExactSpotText(text.slice(lastIndex, mdLink.start), lastIndex);
+      }
+      const occurrenceKey = buildGuideOccurrenceKey(options.occurrenceScope, mdLink.start, mdLink.label);
+      const overrideLink = findGuideLinkForOccurrence(effectiveLinks, mdLink.label, occurrenceKey);
+      const selected = options.selectedOccurrenceKeys?.has(occurrenceKey);
+      parts.push(
+        <button
+          key={`exact-${occurrenceKey}`}
+          type="button"
+          className={`rounded px-0.5 font-medium underline underline-offset-4 decoration-dashed ${
+            selected ? "bg-primary text-primary-foreground decoration-primary-foreground" : "text-primary hover:bg-primary/10"
+          }`}
+          onClick={() => options.onToggleExactSpot?.({ id: overrideLink?.id, label: mdLink.label, href: overrideLink?.href ?? mdLink.url, kind: overrideLink?.kind ?? "custom", target: overrideLink?.target, occurrenceKey })}
+        >
+          {mdLink.label}
+        </button>,
+      );
+      lastIndex = mdLink.end;
+    }
+    if (lastIndex < text.length) {
+      pushExactSpotText(text.slice(lastIndex), lastIndex);
+    }
+    return parts.length > 0 ? parts : text;
+  }
 
   const pushMarkdownLinkAwareText = (segment: string, segmentStart: number) => {
     if (!guideLinkPattern) {
@@ -912,6 +1051,8 @@ function renderInlineContent(
           {mdLink.label}
         </button>,
       );
+    } else if (occurrenceDisabled) {
+      parts.push(mdLink.label);
     } else {
       parts.push(
         <a
@@ -943,8 +1084,11 @@ function renderLine(
     effectiveLinks?: GuideLink[];
     disabledOccurrenceKeys?: Set<string>;
     linkEditMode?: boolean;
+    exactSpotPickMode?: boolean;
+    selectedOccurrenceKeys?: Set<string>;
     occurrenceScope?: string;
     onSelectLink?: (link: SelectedGuideLink) => void;
+    onToggleExactSpot?: (link: SelectedGuideLink) => void;
     onOpenEquipmentPreview?: (href: string, label: string) => void;
     onOpenJobPreview?: (href: string, label: string) => void;
     onOpenGuideTarget?: (link: GuideLink, label: string) => void;
@@ -1311,6 +1455,34 @@ function EquipmentSetPreviewDialog({
   );
 }
 
+function getGuideMarriagePair(parentA?: string, parentB?: string, pairs?: GuideMarriagePair[]) {
+  if (!parentA || !parentB) return null;
+  const selected = [parentA.toLowerCase(), parentB.toLowerCase()].sort().join("|");
+  return (pairs ?? []).find((entry) => {
+    const jobs = [entry.jobA.toLowerCase(), entry.jobB.toLowerCase()].sort().join("|");
+    return jobs === selected;
+  }) ?? null;
+}
+
+function getGuideMarriageChildren(parentA?: string, parentB?: string, pairs?: GuideMarriagePair[]) {
+  return getGuideMarriagePair(parentA, parentB, pairs)?.children ?? [];
+}
+
+function isGuideMarriageChildAllowed(parentA?: string, parentB?: string, child?: string, pairs?: GuideMarriagePair[]) {
+  if (!parentA || !parentB || !child) return true;
+  return getGuideMarriageChildren(parentA, parentB, pairs).some((entry) => entry.toLowerCase() === child.toLowerCase());
+}
+
+function calcGuideChildRank(fatherRank: GuideSimRank, motherRank: GuideSimRank): GuideSimRank {
+  const averageRank = Math.round((GUIDE_SIM_RANK_VALUE[fatherRank] + GUIDE_SIM_RANK_VALUE[motherRank]) / 2);
+  const sameRankBonus = fatherRank === motherRank ? 1 : 0;
+  return GUIDE_SIM_VALUE_RANK[Math.min(5, averageRank + sameRankBonus)];
+}
+
+function isGuideSimRank(value: string): value is GuideSimRank {
+  return (GUIDE_SIM_RANKS as string[]).includes(value);
+}
+
 function MarriageSimPreviewDialog({
   item,
   open,
@@ -1322,59 +1494,164 @@ function MarriageSimPreviewDialog({
 }) {
   const shared = localSharedData as {
     jobs?: Record<string, GuideJob>;
-    pairs?: Array<{ jobA: string; jobB: string; children: string[]; rank?: string; affinity?: string }>;
+    pairs?: GuideMarriagePair[];
   };
+  const [parentA, setParentA] = useState("");
+  const [parentB, setParentB] = useState("");
+  const [child, setChild] = useState("");
+  const [fatherRank, setFatherRank] = useState<GuideSimRank>("S");
+  const [motherRank, setMotherRank] = useState<GuideSimRank>("S");
+  const [fatherAwakening, setFatherAwakening] = useState(0);
+  const [motherAwakening, setMotherAwakening] = useState(0);
   const parentJobs = Object.entries(shared.jobs ?? {})
     .filter(([, job]) => job.generation === 1)
     .map(([name]) => name)
     .sort((a, b) => a.localeCompare(b));
-  const pair = item?.parentA && item?.parentB
-    ? (shared.pairs ?? []).find((entry) => {
-      const jobs = [entry.jobA.toLowerCase(), entry.jobB.toLowerCase()].sort().join("|");
-      const selected = [item.parentA!.toLowerCase(), item.parentB!.toLowerCase()].sort().join("|");
-      return jobs === selected;
-    })
-    : null;
-  const children = pair?.children ?? (item?.child ? [item.child] : []);
+
+  useEffect(() => {
+    if (!open || !item) return;
+    const startingParentA = item.parentA ?? "";
+    const startingParentB = item.parentB ?? "";
+    setParentA(startingParentA);
+    setParentB(startingParentB);
+    setFatherRank("S");
+    setMotherRank("S");
+    setFatherAwakening(0);
+    setMotherAwakening(0);
+    setChild(isGuideMarriageChildAllowed(startingParentA, startingParentB, item.child, shared.pairs) ? item.child ?? "" : "");
+  }, [open, item?.label, item?.parentA, item?.parentB, item?.child]);
 
   if (!item) return null;
 
+  const children = getGuideMarriageChildren(parentA, parentB, shared.pairs);
+  const selectedChildAllowed = isGuideMarriageChildAllowed(parentA, parentB, child, shared.pairs);
+  const pair = getGuideMarriagePair(parentA, parentB, shared.pairs);
+  const affinityNum = pair?.affinityNum;
+  const affinityLetter = affinityNum ? GUIDE_AFFINITY_NUM_TO_LETTER[affinityNum] ?? pair?.affinity ?? "?" : pair?.affinity ?? "";
+  const childRank = calcGuideChildRank(fatherRank, motherRank);
+  const sameRankBonus = fatherRank === motherRank ? GUIDE_SAME_RANK_BONUS[fatherRank] : 0;
+  const childAwakening = affinityNum ? Math.floor((affinityNum * (fatherAwakening + motherAwakening + sameRankBonus)) / 100) : null;
+  const summaryChild = child || children[0] || "";
+  const rankOptions = GUIDE_SIM_RANKS;
+  const setClampedAwakening = (setter: (value: number) => void) => (value: number) => {
+    setter(Math.min(999, Math.max(0, Number.isFinite(value) ? Math.round(value) : 0)));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-[95vw] xl:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{item.label}</DialogTitle>
-          <DialogDescription>Marriage simulator preview from the guide link.</DialogDescription>
+          <DialogDescription>Change parents and ranks to check compatibility from inside the guide.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border border-border p-3">
-            <div className="text-xs text-muted-foreground">Parent 1</div>
-            <div className="mt-1 text-base font-semibold">{item.parentA || "Choose in full simulator"}</div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-lg border border-border p-4">
+            <div className="mb-3 font-semibold">Father</div>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Job</label>
+                <select value={parentA} onChange={(event) => { setParentA(event.target.value); setChild(""); }} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="">Select father's job...</option>
+                  {parentJobs.map((job) => <option key={job} value={job}>{job}</option>)}
+                </select>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[1fr_130px]">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Rank</label>
+                  <div className="grid grid-cols-5 overflow-hidden rounded-md border border-border">
+                    {rankOptions.map((rank) => (
+                      <button key={rank} type="button" className={`h-8 text-xs font-semibold ${fatherRank === rank ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground"}`} onClick={() => setFatherRank(rank)}>
+                        {rank}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Awakening</label>
+                  <ThemedNumberInput value={fatherAwakening} min={0} max={999} onValueChange={setClampedAwakening(setFatherAwakening)} className="h-8 w-full" inputClassName="px-1" />
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="rounded-lg border border-border p-3">
-            <div className="text-xs text-muted-foreground">Parent 2</div>
-            <div className="mt-1 text-base font-semibold">{item.parentB || "Choose in full simulator"}</div>
-          </div>
-          <div className="rounded-lg border border-border p-3">
-            <div className="text-xs text-muted-foreground">Guide target child</div>
-            <div className="mt-1 text-base font-semibold">{item.child || "Any compatible child"}</div>
+
+          <div className="rounded-lg border border-border p-4">
+            <div className="mb-3 font-semibold">Mother</div>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Job</label>
+                <select value={parentB} onChange={(event) => { setParentB(event.target.value); setChild(""); }} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="">Select mother's job...</option>
+                  {parentJobs.map((job) => <option key={job} value={job}>{job}</option>)}
+                </select>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[1fr_130px]">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Rank</label>
+                  <div className="grid grid-cols-5 overflow-hidden rounded-md border border-border">
+                    {rankOptions.map((rank) => (
+                      <button key={rank} type="button" className={`h-8 text-xs font-semibold ${motherRank === rank ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground"}`} onClick={() => setMotherRank(rank)}>
+                        {rank}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Awakening</label>
+                  <ThemedNumberInput value={motherAwakening} min={0} max={999} onValueChange={setClampedAwakening(setMotherAwakening)} className="h-8 w-full" inputClassName="px-1" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-border p-3">
-          <div className="mb-2 text-sm font-semibold">Compatible Children</div>
-          {children.length ? (
-            <div className="flex flex-wrap gap-2">
-              {children.map((child) => (
-                <Badge key={child} variant="outline" className={child === item.child ? "border-primary text-primary" : ""}>{child}</Badge>
-              ))}
-            </div>
+        <div className={`rounded-lg border p-4 ${pair ? "border-primary/20 bg-primary/5" : parentA && parentB ? "border-destructive/40 bg-destructive/10" : "border-border"}`}>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm font-semibold">Child Summary</div>
+            {children.length > 1 ? (
+              <select value={child} onChange={(event) => setChild(event.target.value)} className="h-8 min-w-48 rounded-md border border-input bg-background px-2 text-sm">
+                <option value="">Select child...</option>
+                {children.map((childName) => (
+                  <option key={childName} value={childName}>{childName}</option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+          {!parentA || !parentB ? (
+            <div className="text-sm text-muted-foreground">Select both parents to see compatibility.</div>
+          ) : !pair ? (
+            <div className="text-sm text-destructive">This pair has no compatible marriage data.</div>
           ) : (
-            <div className="text-sm text-muted-foreground">
-              {parentJobs.length ? "Pick the exact parents in the full simulator to calculate compatibility and child stats." : "Marriage job data is not loaded yet."}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Compatibility</p>
+                <div className="flex items-center gap-1.5">
+                  <span className={`rounded border px-2 py-0.5 text-sm font-bold ${GUIDE_AFFINITY_STYLE[affinityLetter] ?? "bg-muted border-border text-foreground"}`}>
+                    {affinityLetter || "?"}
+                  </span>
+                  {affinityNum ? <span className="text-xs text-muted-foreground">({affinityNum}%)</span> : null}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Child Job</p>
+                <p className="text-sm font-semibold">{summaryChild || "-"}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Child Rank</p>
+                <Badge className={`border px-2.5 py-0.5 text-sm font-bold ${GUIDE_SIM_RANK_STYLE[childRank]}`}>{childRank}</Badge>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Child Awakening</p>
+                <p className="text-sm font-semibold">{childAwakening ?? "-"}</p>
+                {fatherRank === motherRank ? (
+                  <p className="text-[10px] text-muted-foreground">+{sameRankBonus} same-rank bonus</p>
+                ) : null}
+              </div>
             </div>
           )}
+          {child && !selectedChildAllowed ? (
+            <div className="mt-2 text-xs text-destructive">That child is not compatible with the selected parents.</div>
+          ) : null}
         </div>
 
         <Link href="/match-finder?tab=simulator">
@@ -1643,6 +1920,8 @@ export function GuideDocumentPage({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkSaveError, setLinkSaveError] = useState<string | null>(null);
   const [selectedLink, setSelectedLink] = useState<SelectedGuideLink | null>(null);
+  const [selectedExactSpots, setSelectedExactSpots] = useState<SelectedGuideLink[]>([]);
+  const [exactSpotPickMode, setExactSpotPickMode] = useState(false);
   const [linkScope, setLinkScope] = useState<"phrase" | "spot">("phrase");
   const [draftPhrase, setDraftPhrase] = useState("");
   const [draftHref, setDraftHref] = useState("");
@@ -1688,6 +1967,7 @@ export function GuideDocumentPage({
 
   const effectiveLinks = useMemo(() => buildEffectiveGuideLinks(linkOverrides), [linkOverrides]);
   const disabledOccurrenceKeys = useMemo(() => new Set(linkOverrides.disabledOccurrences ?? []), [linkOverrides.disabledOccurrences]);
+  const selectedExactSpotKeys = useMemo(() => new Set(selectedExactSpots.map((spot) => spot.occurrenceKey).filter(Boolean) as string[]), [selectedExactSpots]);
   const equipmentOptions = useMemo(
     () => (EQUIPMENT_CATALOG as readonly EquipmentCatalogItem[])
       .map((item) => ({ value: item.name, label: item.name }))
@@ -1707,6 +1987,10 @@ export function GuideDocumentPage({
       .map(([name]) => ({ value: name, label: name }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, []);
+  const marriagePairs = useMemo(() => {
+    const shared = localSharedData as { pairs?: GuideMarriagePair[] };
+    return shared.pairs ?? [];
+  }, []);
 
   useEffect(() => {
     const normalizedServerOverrides = normalizeGuideLinkOverrides(serverLinkOverrides);
@@ -1718,6 +2002,8 @@ export function GuideDocumentPage({
           : normalizedServerOverrides,
     );
     setLinkEditMode(false);
+    setExactSpotPickMode(false);
+    setSelectedExactSpots([]);
     setSelectedLink(null);
     setLinkScope("phrase");
     setLinkDialogOpen(false);
@@ -1780,6 +2066,8 @@ export function GuideDocumentPage({
 
   const openLinkTools = () => {
     setSelectedLink(null);
+    setSelectedExactSpots([]);
+    setExactSpotPickMode(false);
     setLinkScope("phrase");
     setLinkDialogOpen(true);
   };
@@ -1816,7 +2104,10 @@ export function GuideDocumentPage({
         .filter((entry) => entry.name);
       return equipment.length ? { type: "equipment-set", equipment } : null;
     }
-    if (targetType === "marriage-sim") return { type: "marriage-sim", parentA: marriageParentA, parentB: marriageParentB, child: marriageChild };
+    if (targetType === "marriage-sim") {
+      if (!isGuideMarriageChildAllowed(marriageParentA, marriageParentB, marriageChild, marriagePairs)) return null;
+      return { type: "marriage-sim", parentA: marriageParentA, parentB: marriageParentB, child: marriageChild };
+    }
     const href = normalizeOwnerHref(draftHref);
     return href ? { type: "custom", href } : null;
   };
@@ -1834,24 +2125,38 @@ export function GuideDocumentPage({
     const phrase = draftPhrase.trim();
     const target = getDraftTarget();
     const href = target ? guideTargetToHref(target) : "";
-    if (!phrase || !href) return;
-    const occurrenceKey = linkScope === "spot" ? selectedLink?.occurrenceKey : undefined;
+    const spots = linkScope === "spot"
+      ? (selectedExactSpots.length ? selectedExactSpots : selectedLink ? [selectedLink] : [])
+      : [];
+    if ((!phrase && !spots.length) || !href) return;
+    const occurrenceKeys = spots.map((spot) => spot.occurrenceKey).filter(Boolean) as string[];
+    const occurrenceKeySet = new Set(occurrenceKeys);
 
     saveLinkOverrides({
-      disabledAutoLinks: linkOverrides.disabledAutoLinks.filter((label) => normalizeGuideLinkLabel(label) !== normalizeGuideLinkLabel(phrase)),
-      disabledOccurrences: occurrenceKey
-        ? (linkOverrides.disabledOccurrences ?? []).filter((key) => key !== occurrenceKey)
+      disabledAutoLinks: phrase
+        ? linkOverrides.disabledAutoLinks.filter((label) => normalizeGuideLinkLabel(label) !== normalizeGuideLinkLabel(phrase))
+        : linkOverrides.disabledAutoLinks,
+      disabledOccurrences: occurrenceKeys.length
+        ? (linkOverrides.disabledOccurrences ?? []).filter((key) => !occurrenceKeySet.has(key))
         : linkOverrides.disabledOccurrences,
       customLinks: [
         ...linkOverrides.customLinks.filter((link) => {
-          const samePhrase = normalizeGuideLinkLabel(link.phrase) === normalizeGuideLinkLabel(phrase);
-          if (occurrenceKey) return link.occurrenceKey !== occurrenceKey;
+          if (link.occurrenceKey && occurrenceKeySet.has(link.occurrenceKey)) return false;
+          const samePhrase = phrase && normalizeGuideLinkLabel(link.phrase) === normalizeGuideLinkLabel(phrase);
+          if (occurrenceKeys.length) return true;
           return !samePhrase || Boolean(link.occurrenceKey);
         }),
-        { id: makeCustomLinkId(), phrase, href, target: target ?? undefined, occurrenceKey },
+        ...(occurrenceKeys.length
+          ? spots
+            .filter((spot): spot is SelectedGuideLink & { occurrenceKey: string } => Boolean(spot.occurrenceKey))
+            .map((spot) => ({ id: makeCustomLinkId(), phrase: spot.label, href, target: target ?? undefined, occurrenceKey: spot.occurrenceKey }))
+          : [{ id: makeCustomLinkId(), phrase, href, target: target ?? undefined }]),
       ],
     });
     setDraftPhrase("");
+    setSelectedExactSpots([]);
+    setSelectedLink(null);
+    setLinkScope("phrase");
     setSelectedEquipmentName("");
     setSelectedJobName("");
     setEquipmentSetDraft([{ name: "", level: 99 }]);
@@ -1903,6 +2208,36 @@ export function GuideDocumentPage({
       ...linkOverrides,
       disabledOccurrences: (linkOverrides.disabledOccurrences ?? []).filter((item) => item !== occurrenceKey),
     });
+  };
+
+  const startExactSpotPicking = () => {
+    setLinkDialogOpen(false);
+    setLinkEditMode(true);
+    setExactSpotPickMode(true);
+    setLinkScope("spot");
+    setSelectedLink(null);
+    setSelectedExactSpots([]);
+  };
+
+  const toggleExactSpot = (link: SelectedGuideLink) => {
+    if (!link.occurrenceKey) return;
+    setSelectedExactSpots((current) => {
+      if (current.some((spot) => spot.occurrenceKey === link.occurrenceKey)) {
+        return current.filter((spot) => spot.occurrenceKey !== link.occurrenceKey);
+      }
+      return [...current, link];
+    });
+  };
+
+  const finishExactSpotPicking = () => {
+    setExactSpotPickMode(false);
+    setLinkEditMode(false);
+    setLinkDialogOpen(true);
+    setLinkScope("spot");
+    const firstSpot = selectedExactSpots[0] ?? null;
+    setSelectedLink(firstSpot);
+    setDraftPhrase(selectedExactSpots.map((spot) => spot.label).join(", "));
+    if (firstSpot) applyTargetFromHref(firstSpot.href, firstSpot.target);
   };
 
   const openEquipmentPreview = (href: string, label: string) => {
@@ -1975,7 +2310,10 @@ export function GuideDocumentPage({
               <Button
                 variant={linkEditMode ? "default" : "outline"}
                 className="gap-2"
-                onClick={() => setLinkEditMode((value) => !value)}
+                onClick={() => {
+                  setLinkEditMode((value) => !value);
+                  setExactSpotPickMode(false);
+                }}
               >
                 <Pencil className="w-4 h-4" />
                 Edit Links
@@ -1989,8 +2327,10 @@ export function GuideDocumentPage({
         </div>
         {isOwner && linkEditMode ? (
           <div className="flex max-w-3xl flex-wrap items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-            <Badge variant="outline">Owner link edit mode</Badge>
-            Click an underlined auto-link in the guide to remove it or replace it with a custom target.
+            <Badge variant="outline">{exactSpotPickMode ? "Picking exact spots" : "Owner link edit mode"}</Badge>
+            {exactSpotPickMode
+              ? "Click any word or linked phrase. Pick as many spots as needed, then finish."
+              : "Click an underlined auto-link in the guide to remove it or replace it with a custom target."}
           </div>
         ) : null}
       </div>
@@ -2070,11 +2410,18 @@ export function GuideDocumentPage({
                             effectiveLinks,
                             disabledOccurrenceKeys,
                             linkEditMode,
+                            exactSpotPickMode,
+                            selectedOccurrenceKeys: selectedExactSpotKeys,
                             occurrenceScope: `${section.id}:${index}`,
                             onOpenEquipmentPreview: openEquipmentPreview,
                             onOpenJobPreview: openJobPreview,
                             onOpenGuideTarget: openGuideTarget,
+                            onToggleExactSpot: toggleExactSpot,
                             onSelectLink: (link) => {
+                              if (exactSpotPickMode) {
+                                toggleExactSpot(link);
+                                return;
+                              }
                               setSelectedLink(link);
                               setDraftPhrase(link.label);
                               setLinkScope(link.occurrenceKey ? "spot" : "phrase");
@@ -2141,8 +2488,17 @@ export function GuideDocumentPage({
 
               {selectedLink ? (
                 <div className="rounded-md border border-border bg-muted/20 p-3 text-sm">
-                  <div className="font-medium">Clicked guide spot</div>
-                  <div className="mt-1 break-all text-xs text-muted-foreground">{selectedLink.href}</div>
+                  <div className="font-medium">{selectedExactSpots.length > 1 ? "Selected guide spots" : "Clicked guide spot"}</div>
+                  <div className="mt-1 break-all text-xs text-muted-foreground">
+                    {selectedExactSpots.length > 1 ? `${selectedExactSpots.length} exact spots selected` : selectedLink.href || selectedLink.label}
+                  </div>
+                  {selectedExactSpots.length > 1 ? (
+                    <div className="mt-2 flex max-h-20 flex-wrap gap-1 overflow-y-auto">
+                      {selectedExactSpots.map((spot) => (
+                        <Badge key={spot.occurrenceKey} variant="outline">{spot.label}</Badge>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" variant={linkScope === "phrase" ? "default" : "outline"} onClick={() => setLinkScope("phrase")}>
                       Every Matching Phrase
@@ -2183,10 +2539,7 @@ export function GuideDocumentPage({
                     size="sm"
                     variant="outline"
                     className="mt-3 gap-2"
-                    onClick={() => {
-                      setLinkDialogOpen(false);
-                      setLinkEditMode(true);
-                    }}
+                    onClick={startExactSpotPicking}
                   >
                     <Pencil className="h-4 w-4" />
                     Pick Exact Spot In Guide
@@ -2276,19 +2629,26 @@ export function GuideDocumentPage({
                 ) : null}
 
                 {targetType === "marriage-sim" ? (
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Parent 1</label>
-                      <GuideLinkTargetPicker value={marriageParentA} onChange={setMarriageParentA} options={parentJobOptions} placeholder="Optional..." />
+                  <div className="space-y-2">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Parent 1</label>
+                        <GuideLinkTargetPicker value={marriageParentA} onChange={setMarriageParentA} options={parentJobOptions} placeholder="Optional..." />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Parent 2</label>
+                        <GuideLinkTargetPicker value={marriageParentB} onChange={setMarriageParentB} options={parentJobOptions} placeholder="Optional..." />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">Child</label>
+                        <GuideLinkTargetPicker value={marriageChild} onChange={setMarriageChild} options={jobOptions} placeholder="Optional..." />
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Parent 2</label>
-                      <GuideLinkTargetPicker value={marriageParentB} onChange={setMarriageParentB} options={parentJobOptions} placeholder="Optional..." />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-muted-foreground">Child</label>
-                      <GuideLinkTargetPicker value={marriageChild} onChange={setMarriageChild} options={jobOptions} placeholder="Optional..." />
-                    </div>
+                    {marriageParentA && marriageParentB && marriageChild && !isGuideMarriageChildAllowed(marriageParentA, marriageParentB, marriageChild, marriagePairs) ? (
+                      <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                        This parent pair cannot produce {marriageChild}. Choose a compatible child or leave child empty.
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -2304,7 +2664,7 @@ export function GuideDocumentPage({
                 <div className="min-w-0 text-xs text-muted-foreground">
                   Target: <span className="break-all text-foreground/80">{guideTargetLabel(getDraftTarget() ?? undefined) || getDraftTargetHref() || "Choose a target"}</span>
                 </div>
-                <Button className="gap-2" onClick={addCustomLink} disabled={!draftPhrase.trim() || !getDraftTargetHref()}>
+                <Button className="gap-2" onClick={addCustomLink} disabled={!(draftPhrase.trim() || selectedExactSpots.length) || !getDraftTargetHref()}>
                   <Link2 className="h-4 w-4" />
                   Save
                 </Button>
@@ -2383,12 +2743,40 @@ export function GuideDocumentPage({
       ) : null}
 
       {isOwner ? (
-        <div className="fixed bottom-4 right-4 z-40 flex flex-col gap-2 rounded-lg border border-border bg-background/95 p-2 shadow-lg backdrop-blur sm:flex-row">
+        exactSpotPickMode ? (
+          <div className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-background/95 p-3 shadow-lg backdrop-blur">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">Pick exact guide spots</div>
+              <div className="text-xs text-muted-foreground">
+                {selectedExactSpots.length} selected. Click any word or linked phrase in the guide.
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => setSelectedExactSpots([])} disabled={!selectedExactSpots.length}>
+                Clear
+              </Button>
+              <Button
+                size="sm"
+                onClick={finishExactSpotPicking}
+                disabled={!selectedExactSpots.length}
+              >
+                Done Picking
+              </Button>
+            </div>
+          </div>
+        ) : null
+      ) : null}
+
+      {isOwner ? (
+        <div className="fixed bottom-4 right-24 z-40 flex flex-col gap-2 rounded-lg border border-border bg-background/95 p-2 shadow-lg backdrop-blur sm:flex-row">
           <Button
             size="sm"
             variant={linkEditMode ? "default" : "outline"}
             className="gap-2"
-            onClick={() => setLinkEditMode((value) => !value)}
+            onClick={() => {
+              setLinkEditMode((value) => !value);
+              setExactSpotPickMode(false);
+            }}
           >
             <Pencil className="h-4 w-4" />
             {linkEditMode ? "Exit Link Edit" : "Edit Links"}

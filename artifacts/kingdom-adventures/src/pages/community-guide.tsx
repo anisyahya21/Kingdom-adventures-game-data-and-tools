@@ -3,7 +3,7 @@ import { Link, useRoute } from "wouter";
 import { BookOpenText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { type CommunityGuide, fetchCommunityGuides, getGuideOwnerTokens } from "@/lib/community-guides";
+import { type CommunityGuide, fetchCommunityGuides, getGuideOwnerTokens, setGuideOwnerToken } from "@/lib/community-guides";
 import { GuideDocumentPage } from "@/pages/playthrough-guide";
 
 export default function CommunityGuidePage() {
@@ -24,6 +24,14 @@ export default function CommunityGuidePage() {
         const payload = await fetchCommunityGuides();
         const found = payload.guides.find((item) => item.slug === slug) ?? null;
         if (!cancelled) {
+          const url = new URL(window.location.href);
+          const editToken = url.searchParams.get("edit") ?? url.searchParams.get("ownerToken") ?? "";
+          if (found && editToken) {
+            setGuideOwnerToken(found.id, editToken);
+            url.searchParams.delete("edit");
+            url.searchParams.delete("ownerToken");
+            window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+          }
           setGuide(found);
           setOwnerTokens(getGuideOwnerTokens());
           if (!found) setError("Guide not found.");

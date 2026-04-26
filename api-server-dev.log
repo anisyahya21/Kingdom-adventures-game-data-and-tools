@@ -3722,3 +3722,573 @@
       "statusCode": 200
     }
     [35mresponseTime[39m: 5
+[13:31:30.876] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 372,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[13:37:25.513] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 373,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 2
+[13:37:31.854] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 374,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[13:40:29.136] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 375,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[13:40:29.143] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 376,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[17:57:14.868] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 377,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[17:57:16.195] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 378,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[18:04:20.354] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 379,
+      "method": "POST",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 6
+[18:04:20.365] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 380,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 2
+[18:04:35.432] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 381,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 1
+[18:04:35.436] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 382,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:04:56.448] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 383,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:06:29.764] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 384,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:06:29.768] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 385,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[18:08:02.496] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 386,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:08:25.664] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 387,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 5
+[18:08:26.331] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 388,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 5
+[18:08:26.782] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 389,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:08:27.221] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 390,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 5
+[18:08:35.570] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 391,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 5
+[18:08:37.648] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 392,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:08:39.883] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 393,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:08:42.669] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 394,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 5
+[18:08:44.440] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 395,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:08:46.143] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 396,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:08:47.827] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 397,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 5
+[18:08:49.808] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 398,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:09:47.767] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 399,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:15:29.980] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 400,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:15:34.922] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 401,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 3
+[18:16:06.442] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 402,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[18:16:45.668] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 403,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 2
+[18:17:46.347] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 404,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:17:48.514] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 405,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:17:53.722] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 406,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:17:53.725] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 407,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:17:54.841] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 408,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:21:14.386] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 409,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:21:14.390] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 410,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 1
+[18:21:23.035] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 411,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:21:41.644] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 412,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:21:41.648] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 413,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[18:21:45.446] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 414,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 1
+[18:23:25.447] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 415,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 5
+[18:23:32.764] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 416,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 3
+[18:23:42.908] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 417,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:24:12.232] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 418,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 3
+[18:28:44.418] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 419,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:37:58.920] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 420,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 2
+[18:37:58.924] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 421,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 3
+[18:47:50.914] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 422,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:47:53.437] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 423,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[18:48:11.700] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 424,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[19:00:40.605] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 425,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 3
+[19:01:17.268] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 426,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 2
+[19:01:19.236] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 427,
+      "method": "DELETE",
+      "url": "/ka-api/ka/guides/cc512e37-cdd5-43fa-9ec3-829a5c60ddf8"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 4
+[19:01:20.884] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 428,
+      "method": "DELETE",
+      "url": "/ka-api/ka/guides/d5909553-8bc1-4276-81d3-495fbfbe86d6"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 3

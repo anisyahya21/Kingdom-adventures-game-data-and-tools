@@ -324,9 +324,9 @@ function expFromSource(recipient: Equipment | undefined, source: Equipment | und
 function expNeededForSheetRange(startLevel: number, targetLevel: number) {
   const start = clampLevel(startLevel);
   const target = clampLevel(targetLevel);
-  if (target < start) return 0;
+  if (target <= start) return 0;
   let total = 0;
-  for (let level = start; level <= target; level += 1) {
+  for (let level = start; level < target; level += 1) {
     total += EXP_BY_LEVEL.get(level) ?? 0;
   }
   return total;
@@ -338,11 +338,7 @@ function nextStageEnd(level: number, targetLevel: number) {
 }
 
 function stageExpNeeded(startLevel: number, endLevel: number) {
-  const clampedStart = clampLevel(startLevel);
-  const start = LEVEL_CAPS.includes(clampedStart as (typeof LEVEL_CAPS)[number])
-    ? Math.min(MAX_LEVEL, clampedStart + 1)
-    : clampedStart;
-  return expNeededForSheetRange(start, endLevel);
+  return expNeededForSheetRange(startLevel, endLevel);
 }
 
 function nextLevelExpNeeded(currentLevel: number) {
