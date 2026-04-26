@@ -1185,10 +1185,14 @@ function TwoItemFormulaDialog({
   slot,
   itemA,
   itemB,
+  itemATargetLevel,
+  itemBTargetLevel,
 }: {
   slot: TwoItemOptionSlot;
   itemA: Equipment | undefined;
   itemB: Equipment | undefined;
+  itemATargetLevel: number;
+  itemBTargetLevel: number;
 }) {
   const result = slot.result;
   if (!result?.found) return null;
@@ -1248,11 +1252,12 @@ function TwoItemFormulaDialog({
             {compactSteps.map((step, index) => {
               const source = step.action === "A_TO_B" ? itemA : itemB;
               const recipient = step.action === "A_TO_B" ? itemB : itemA;
+              const recipientTargetLevel = step.action === "A_TO_B" ? itemBTargetLevel : itemATargetLevel;
               const expPerSource = expFromSource(recipient, source, step.sourceLevel).finalExp;
               const fedExp = step.quantity * expPerSource;
               const copperEach = source?.buyPrice ?? 0;
               const stageStart = currentCapStart(step.recipientStartLevel);
-              const stageEnd = nextStageEnd(step.recipientStartLevel, step.recipientEndLevel);
+              const stageEnd = nextStageEnd(step.recipientStartLevel, recipientTargetLevel);
               const stageTotal = stageExpNeeded(stageStart, stageEnd);
               const startingProgress = capProgressForLevel(step.recipientStartLevel);
               const nextUsefulLevel = Math.min(stageEnd, step.recipientStartLevel + 1);
@@ -1272,12 +1277,16 @@ function TwoItemFormulaDialog({
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <FormulaLine
-                      label="Active cap"
-                      value={`Lv${stageStart} to Lv${stageEnd}, ${formatNumber(stageTotal)} EXP total`}
+                      label="Displayed progress"
+                      value={`Recipient moved from Lv${step.recipientStartLevel} to Lv${step.recipientEndLevel}`}
                     />
                     <FormulaLine
-                      label="Needed EXP"
-                      value={`${formatNumber(neededToNextUsefulLevel)} to next level, ${formatNumber(neededToStageEnd)} to cap`}
+                      label="Current level cap"
+                      value={`Lv${stageEnd} cap, ${formatNumber(stageTotal)} EXP from Lv${stageStart} to Lv${stageEnd}`}
+                    />
+                    <FormulaLine
+                      label="Needed from step start"
+                      value={`${formatNumber(neededToNextUsefulLevel)} to next level, ${formatNumber(neededToStageEnd)} to Lv${stageEnd} cap`}
                     />
                     <FormulaLine
                       label="EXP each"
@@ -1761,6 +1770,8 @@ export default function EquipmentLevelingOptimizerPage() {
                             slot={slot}
                             itemA={EQUIPMENT_BY_ID.get(itemAId)}
                             itemB={EQUIPMENT_BY_ID.get(itemBId)}
+                            itemATargetLevel={itemATargetLevel}
+                            itemBTargetLevel={itemBTargetLevel}
                           />
                         </div>
                       </div>
