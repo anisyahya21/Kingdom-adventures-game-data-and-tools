@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { forwardRef, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Calculator, CheckCircle2, Route, Sigma, TableProperties } from "lucide-react";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { ButtonProps } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -968,20 +969,23 @@ function FormulaLine({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FormulaIconButton({ label }: { label: string }) {
-  return (
+const FormulaIconButton = forwardRef<HTMLButtonElement, ButtonProps & { label: string }>(
+  ({ label, ...props }, ref) => (
     <Button
+      ref={ref}
       type="button"
       variant="ghost"
       size="icon"
       className="h-7 w-7 shrink-0"
       aria-label={label}
       title={label}
+      {...props}
     >
       <Sigma className="h-4 w-4" />
     </Button>
-  );
-}
+  ),
+);
+FormulaIconButton.displayName = "FormulaIconButton";
 
 function ExpCalculatorFormulaDialog({
   recipient,
