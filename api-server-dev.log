@@ -2182,3 +2182,1543 @@
       "statusCode": 304
     }
     [35mresponseTime[39m: 3
+[23:47:18.449] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 218,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:47:18.456] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 219,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:47:27.547] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 220,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:48:19.799] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 221,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:48:45.023] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 222,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 7
+[23:49:01.318] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 223,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[23:49:44.607] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 224,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 5
+[23:50:06.127] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 225,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:50:06.133] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 226,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:50:10.159] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 227,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[23:50:17.213] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 228,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:50:37.558] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 229,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 8
+[23:51:19.236] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 230,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:51:49.270] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 231,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 9
+[23:51:56.889] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 232,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:52:14.537] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 233,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[23:52:15.545] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 234,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[23:52:45.033] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 235,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 7
+[23:53:16.295] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 236,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[23:53:48.918] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 237,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:54:18.943] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 238,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 7
+[23:54:49.151] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 239,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[23:55:19.172] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 240,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[23:57:28.744] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 241,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[23:58:27.940] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 242,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[00:11:46.491] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 243,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[00:12:38.434] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 244,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[11:11:12.328] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 245,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[11:14:09.503] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 246,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[11:14:10.694] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 247,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[11:30:02.275] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 248,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[11:45:37.085] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 249,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 5
+[11:45:38.511] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 250,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[11:46:20.896] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 251,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[11:46:35.906] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 252,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[11:46:50.920] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 253,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[11:47:05.944] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 254,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[11:47:20.966] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 255,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 6
+[11:47:35.980] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 256,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 5
+[11:47:51.000] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 257,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[11:48:06.024] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 258,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 7
+[11:48:21.042] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 259,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[11:48:36.063] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 260,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 13
+[11:48:51.103] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 261,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[11:48:55.766] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 262,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[11:49:06.815] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 263,
+      "method": "POST",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 5
+[11:49:06.829] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 264,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 2
+[11:49:18.430] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 265,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[11:49:25.745] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 266,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[11:50:06.944] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 267,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[11:51:02.693] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 268,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[11:54:08.769] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 269,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[11:54:39.724] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 270,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[11:55:59.077] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 271,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[11:57:21.232] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 272,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[11:57:21.235] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 273,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 3
+[11:58:03.406] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 274,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[11:58:03.412] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 275,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[11:58:18.433] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 276,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[11:58:33.456] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 277,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 6
+[11:58:48.481] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 278,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 7
+[11:59:03.506] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 279,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 10
+[11:59:18.703] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 280,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 9
+[11:59:33.737] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 281,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 8
+[11:59:48.758] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 282,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 9
+[12:00:03.786] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 283,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 5
+[12:00:25.381] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 284,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 9
+[12:00:43.009] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 285,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:00:50.996] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 286,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:00:53.448] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 287,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:00:55.999] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 288,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:01:11.308] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 289,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:01:11.314] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 290,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:01:13.338] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 291,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:01:13.341] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 292,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:01:30.329] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 293,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:01:30.337] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 294,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:01:32.429] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 295,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:01:32.432] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 296,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:01:45.750] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 297,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:01:48.044] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 298,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:04:22.961] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 299,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:04:37.986] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 300,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:04:53.017] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 301,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 10
+[12:05:39.942] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 302,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:05:39.947] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 303,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:06:02.548] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 304,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:06:06.973] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 305,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:08:59.858] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 306,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:09:14.877] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 307,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:09:29.908] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 308,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 9
+[12:09:44.917] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 309,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 5
+[12:09:59.986] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 310,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:10:15.008] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 311,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 7
+[12:11:45.921] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 312,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:11:45.926] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 313,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:12:03.105] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 314,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:12:03.110] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 315,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:13:09.270] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 316,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:13:09.275] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 317,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:13:24.284] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 318,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:13:39.301] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 319,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:13:54.314] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 320,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 5
+[12:14:09.329] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 321,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 5
+[12:14:16.266] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 322,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:14:17.845] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 323,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:14:20.260] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 324,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:14:24.367] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 325,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:14:24.372] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 326,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:14:39.600] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 327,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:14:54.628] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 328,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 6
+[12:15:09.652] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 329,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:15:24.684] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 330,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 5
+[12:15:30.970] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 331,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:15:33.261] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 332,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:15:35.857] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 333,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:21:07.045] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 334,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:21:07.049] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 335,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:22:44.448] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 336,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:22:56.980] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 337,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:27:42.523] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 338,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[12:27:44.294] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 339,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:27:45.486] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 340,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:27:46.938] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 341,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:27:46.942] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 342,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:27:51.808] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 343,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:27:52.611] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 344,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 1
+[12:29:14.872] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 345,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:29:14.879] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 346,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:29:44.890] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 347,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 6
+[12:30:15.926] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 348,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 6
+[12:30:42.664] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 349,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:30:44.233] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 350,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:30:46.052] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 351,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:30:55.966] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 352,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 1
+[12:30:55.970] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 353,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[12:35:21.170] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 354,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 5
+[12:35:21.177] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 355,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:35:24.102] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 356,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[12:35:28.151] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 357,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[13:03:06.932] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 358,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 4
+[13:03:08.779] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 359,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[13:03:10.314] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 360,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[13:09:19.257] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 361,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[13:11:24.425] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 362,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[13:11:24.428] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 363,
+      "method": "GET",
+      "url": "/ka-api/ka/shared"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 3
+[13:16:47.705] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 364,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/cc512e37-cdd5-43fa-9ec3-829a5c60ddf8"
+    }
+    [35mres[39m: {
+      "statusCode": 400
+    }
+    [35mresponseTime[39m: 3
+[13:16:48.821] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 365,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/cc512e37-cdd5-43fa-9ec3-829a5c60ddf8"
+    }
+    [35mres[39m: {
+      "statusCode": 400
+    }
+    [35mresponseTime[39m: 2
+[13:18:31.906] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 366,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/cc512e37-cdd5-43fa-9ec3-829a5c60ddf8"
+    }
+    [35mres[39m: {
+      "statusCode": 400
+    }
+    [35mresponseTime[39m: 2
+[13:18:37.770] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 367,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/cc512e37-cdd5-43fa-9ec3-829a5c60ddf8"
+    }
+    [35mres[39m: {
+      "statusCode": 400
+    }
+    [35mresponseTime[39m: 3
+[13:19:09.959] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 368,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/cc512e37-cdd5-43fa-9ec3-829a5c60ddf8"
+    }
+    [35mres[39m: {
+      "statusCode": 400
+    }
+    [35mresponseTime[39m: 2
+[13:20:56.227] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 369,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[13:22:05.127] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 370,
+      "method": "GET",
+      "url": "/ka-api/ka/guides"
+    }
+    [35mres[39m: {
+      "statusCode": 304
+    }
+    [35mresponseTime[39m: 2
+[13:25:50.181] [32mINFO[39m (14552): [36mrequest completed[39m
+    [35mreq[39m: {
+      "id": 371,
+      "method": "PATCH",
+      "url": "/ka-api/ka/guides/cc512e37-cdd5-43fa-9ec3-829a5c60ddf8"
+    }
+    [35mres[39m: {
+      "statusCode": 200
+    }
+    [35mresponseTime[39m: 5

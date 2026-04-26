@@ -104,6 +104,27 @@ type Loadout = {
   skills: string[];
 };
 
+type GuideCustomLink = {
+  id: string;
+  phrase: string;
+  href: string;
+  target?: GuideLinkTarget;
+  occurrenceKey?: string;
+};
+
+type GuideLinkOverrides = {
+  disabledAutoLinks: string[];
+  disabledOccurrences?: string[];
+  customLinks: GuideCustomLink[];
+};
+
+type GuideLinkTarget =
+  | { type: "equipment"; equipmentName: string }
+  | { type: "job"; jobName: string }
+  | { type: "equipment-set"; equipment: Array<{ name: string; level: number }> }
+  | { type: "marriage-sim"; parentA?: string; parentB?: string; child?: string }
+  | { type: "custom"; href: string };
+
 type CommunityGuide = {
   id: string;
   slug: string;
@@ -114,6 +135,7 @@ type CommunityGuide = {
   ownerToken: string;
   createdAt: number;
   updatedAt: number;
+  linkOverrides?: GuideLinkOverrides;
 };
 
 type SharedState = {
@@ -211,9 +233,77 @@ function extractGoogleDocId(url: string) {
   return url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/)?.[1] ?? "";
 }
 
+function sanitizeGuideLinkOverrides(overrides: unknown): GuideLinkOverrides {
+  const input = (overrides && typeof overrides === "object" ? overrides : {}) as Partial<GuideLinkOverrides>;
+  return {
+    disabledAutoLinks: Array.from(
+      new Set(
+        (Array.isArray(input.disabledAutoLinks) ? input.disabledAutoLinks : [])
+          .map((label) => String(label ?? "").trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ).slice(0, 300),
+    disabledOccurrences: Array.from(
+      new Set(
+        (Array.isArray(input.disabledOccurrences) ? input.disabledOccurrences : [])
+          .map((key) => String(key ?? "").trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, 500),
+    customLinks: (Array.isArray(input.customLinks) ? input.customLinks : [])
+      .map((link) => ({
+        id: String(link?.id || crypto.randomUUID()),
+        phrase: String(link?.phrase ?? "").trim(),
+        href: String(link?.href ?? "").trim(),
+        target: sanitizeGuideLinkTarget(link?.target),
+        occurrenceKey: String(link?.occurrenceKey ?? "").trim() || undefined,
+      }))
+      .filter((link) => link.phrase && link.href)
+      .slice(0, 300),
+  };
+}
+
+function sanitizeGuideLinkTarget(target: unknown): GuideLinkTarget | undefined {
+  const input = (target && typeof target === "object" ? target : {}) as Partial<GuideLinkTarget>;
+  if (input.type === "equipment") {
+    const equipmentName = String(input.equipmentName ?? "").trim();
+    return equipmentName ? { type: "equipment", equipmentName } : undefined;
+  }
+  if (input.type === "job") {
+    const jobName = String(input.jobName ?? "").trim();
+    return jobName ? { type: "job", jobName } : undefined;
+  }
+  if (input.type === "equipment-set") {
+    const equipment = (Array.isArray(input.equipment) ? input.equipment : [])
+      .map((item) => ({
+        name: String(item?.name ?? "").trim(),
+        level: Math.min(99, Math.max(1, Math.round(Number(item?.level) || 99))),
+      }))
+      .filter((item) => item.name)
+      .slice(0, 12);
+    return equipment.length ? { type: "equipment-set", equipment } : undefined;
+  }
+  if (input.type === "marriage-sim") {
+    return {
+      type: "marriage-sim",
+      parentA: String(input.parentA ?? "").trim(),
+      parentB: String(input.parentB ?? "").trim(),
+      child: String(input.child ?? "").trim(),
+    };
+  }
+  if (input.type === "custom") {
+    const href = String(input.href ?? "").trim();
+    return href ? { type: "custom", href } : undefined;
+  }
+  return undefined;
+}
+
 function publicGuide(guide: CommunityGuide) {
   const { ownerToken: _ownerToken, ...rest } = guide;
-  return rest;
+  return {
+    ...rest,
+    linkOverrides: sanitizeGuideLinkOverrides(guide.linkOverrides),
+  };
 }
 
 function uniqueGuideSlug(state: SharedState, base: string, existingId?: string) {
@@ -310,6 +400,7 @@ router.post("/ka/guides", (req, res) => {
     ownerToken: String(ownerToken ?? crypto.randomUUID()),
     createdAt: now,
     updatedAt: now,
+    linkOverrides: sanitizeGuideLinkOverrides(undefined),
   };
   state.communityGuides = [guide, ...(state.communityGuides ?? [])];
   writeState(state);
@@ -317,7 +408,11 @@ router.post("/ka/guides", (req, res) => {
 });
 
 router.patch("/ka/guides/:id", (req, res) => {
-  const { ownerToken, title } = req.body as { ownerToken?: string; title?: string };
+  const { ownerToken, title, linkOverrides } = req.body as {
+    ownerToken?: string;
+    title?: string;
+    linkOverrides?: GuideLinkOverrides;
+  };
   const state = readState();
   const guide = state.communityGuides.find((item) => item.id === req.params.id);
   if (!guide) {
@@ -328,13 +423,24 @@ router.patch("/ka/guides/:id", (req, res) => {
     res.status(403).json({ error: "Only the submitter can edit this guide." });
     return;
   }
-  const cleanTitle = String(title ?? "").trim();
-  if (!cleanTitle) {
-    res.status(400).json({ error: "Title is required." });
+  const hasTitle = Object.prototype.hasOwnProperty.call(req.body ?? {}, "title");
+  const hasLinkOverrides = Object.prototype.hasOwnProperty.call(req.body ?? {}, "linkOverrides");
+  if (!hasTitle && !hasLinkOverrides) {
+    res.status(400).json({ error: "Nothing to update." });
     return;
   }
-  guide.title = cleanTitle;
-  guide.slug = uniqueGuideSlug(state, slugify(cleanTitle), guide.id);
+  if (hasTitle) {
+    const cleanTitle = String(title ?? "").trim();
+    if (!cleanTitle) {
+      res.status(400).json({ error: "Title is required." });
+      return;
+    }
+    guide.title = cleanTitle;
+    guide.slug = uniqueGuideSlug(state, slugify(cleanTitle), guide.id);
+  }
+  if (hasLinkOverrides) {
+    guide.linkOverrides = sanitizeGuideLinkOverrides(linkOverrides);
+  }
   guide.updatedAt = Date.now();
   writeState(state);
   res.json({ guide: publicGuide(guide) });

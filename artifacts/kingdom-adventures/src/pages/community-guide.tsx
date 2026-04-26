@@ -3,7 +3,7 @@ import { Link, useRoute } from "wouter";
 import { BookOpenText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { type CommunityGuide, fetchCommunityGuides } from "@/lib/community-guides";
+import { type CommunityGuide, fetchCommunityGuides, getGuideOwnerTokens } from "@/lib/community-guides";
 import { GuideDocumentPage } from "@/pages/playthrough-guide";
 
 export default function CommunityGuidePage() {
@@ -12,6 +12,7 @@ export default function CommunityGuidePage() {
   const [guide, setGuide] = useState<CommunityGuide | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [ownerTokens, setOwnerTokens] = useState<Record<string, string>>(() => getGuideOwnerTokens());
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +25,7 @@ export default function CommunityGuidePage() {
         const found = payload.guides.find((item) => item.slug === slug) ?? null;
         if (!cancelled) {
           setGuide(found);
+          setOwnerTokens(getGuideOwnerTokens());
           if (!found) setError("Guide not found.");
         }
       } catch (err) {
@@ -79,6 +81,9 @@ export default function CommunityGuidePage() {
       description={`${guide.author ? `Added by ${guide.author}. ` : ""}Rendered live from the linked Google Doc.`}
       docId={guide.docId}
       docUrl={guide.docUrl}
+      ownerGuideId={ownerTokens[guide.id] ? guide.id : undefined}
+      ownerToken={ownerTokens[guide.id]}
+      serverLinkOverrides={guide.linkOverrides}
     />
   );
 }

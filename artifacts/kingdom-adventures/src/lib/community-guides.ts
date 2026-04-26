@@ -9,9 +9,38 @@ export type CommunityGuide = {
   docId: string;
   createdAt: number;
   updatedAt: number;
+  linkOverrides?: GuideLinkOverrides;
+};
+
+export type GuideCustomLink = {
+  id: string;
+  phrase: string;
+  href: string;
+  target?: GuideLinkTarget;
+  occurrenceKey?: string;
+};
+
+export type GuideLinkTarget =
+  | { type: "equipment"; equipmentName: string }
+  | { type: "job"; jobName: string }
+  | { type: "equipment-set"; equipment: Array<{ name: string; level: number }> }
+  | { type: "marriage-sim"; parentA?: string; parentB?: string; child?: string }
+  | { type: "custom"; href: string };
+
+export type GuideLinkOverrides = {
+  disabledAutoLinks: string[];
+  disabledOccurrences?: string[];
+  customLinks: GuideCustomLink[];
 };
 
 const OWNER_KEY = "ka_community_guide_owner_tokens";
+const LINK_OVERRIDES_KEY = "ka_community_guide_link_overrides";
+
+const EMPTY_LINK_OVERRIDES: GuideLinkOverrides = {
+  disabledAutoLinks: [],
+  disabledOccurrences: [],
+  customLinks: [],
+};
 
 export function getGuideOwnerTokens(): Record<string, string> {
   try {
@@ -31,6 +60,103 @@ export function removeGuideOwnerToken(guideId: string) {
   const current = getGuideOwnerTokens();
   delete current[guideId];
   localStorage.setItem(OWNER_KEY, JSON.stringify(current));
+}
+
+function getAllGuideLinkOverrides(): Record<string, GuideLinkOverrides> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LINK_OVERRIDES_KEY) ?? "{}") as Record<string, Partial<GuideLinkOverrides>>;
+    return Object.fromEntries(
+      Object.entries(raw).map(([guideId, overrides]) => [
+        guideId,
+        {
+          disabledAutoLinks: Array.isArray(overrides.disabledAutoLinks) ? overrides.disabledAutoLinks : [],
+          disabledOccurrences: Array.isArray(overrides.disabledOccurrences) ? overrides.disabledOccurrences : [],
+          customLinks: Array.isArray(overrides.customLinks) ? overrides.customLinks : [],
+        },
+      ]),
+    );
+  } catch {
+    return {};
+  }
+}
+
+export function getGuideLinkOverrides(guideId: string): GuideLinkOverrides {
+  const overrides = getAllGuideLinkOverrides()[guideId];
+  if (!overrides) return EMPTY_LINK_OVERRIDES;
+  return {
+    disabledAutoLinks: [...overrides.disabledAutoLinks],
+    disabledOccurrences: [...(overrides.disabledOccurrences ?? [])],
+    customLinks: [...overrides.customLinks],
+  };
+}
+
+export function setGuideLinkOverrides(guideId: string, overrides: GuideLinkOverrides) {
+  const current = getAllGuideLinkOverrides();
+  current[guideId] = normalizeGuideLinkOverrides(overrides);
+  localStorage.setItem(LINK_OVERRIDES_KEY, JSON.stringify(current));
+}
+
+export function normalizeGuideLinkOverrides(overrides?: Partial<GuideLinkOverrides> | null): GuideLinkOverrides {
+  return {
+    disabledAutoLinks: Array.from(new Set((overrides?.disabledAutoLinks ?? []).map((label) => label.trim().toLowerCase()).filter(Boolean))),
+    disabledOccurrences: Array.from(new Set((overrides?.disabledOccurrences ?? []).map((key) => key.trim()).filter(Boolean))),
+    customLinks: (overrides?.customLinks ?? [])
+      .map((link) => ({
+        id: link.id,
+        phrase: link.phrase.trim(),
+        href: link.href.trim(),
+        target: normalizeGuideLinkTarget(link.target),
+        occurrenceKey: String(link.occurrenceKey ?? "").trim() || undefined,
+      }))
+      .filter((link) => link.phrase && link.href),
+  };
+}
+
+function normalizeGuideLinkTarget(target?: GuideLinkTarget | null): GuideLinkTarget | undefined {
+  if (!target || typeof target !== "object") return undefined;
+  if (target.type === "equipment") {
+    const equipmentName = String(target.equipmentName ?? "").trim();
+    return equipmentName ? { type: "equipment", equipmentName } : undefined;
+  }
+  if (target.type === "job") {
+    const jobName = String(target.jobName ?? "").trim();
+    return jobName ? { type: "job", jobName } : undefined;
+  }
+  if (target.type === "equipment-set") {
+    const equipment = (Array.isArray(target.equipment) ? target.equipment : [])
+      .map((item) => ({
+        name: String(item.name ?? "").trim(),
+        level: Math.min(99, Math.max(1, Math.round(Number(item.level) || 99))),
+      }))
+      .filter((item) => item.name);
+    return equipment.length ? { type: "equipment-set", equipment } : undefined;
+  }
+  if (target.type === "marriage-sim") {
+    return {
+      type: "marriage-sim",
+      parentA: String(target.parentA ?? "").trim(),
+      parentB: String(target.parentB ?? "").trim(),
+      child: String(target.child ?? "").trim(),
+    };
+  }
+  if (target.type === "custom") {
+    const href = String(target.href ?? "").trim();
+    return href ? { type: "custom", href } : undefined;
+  }
+  return undefined;
+}
+
+export async function saveGuideLinkOverrides(guideId: string, ownerToken: string, overrides: GuideLinkOverrides, title?: string) {
+  const normalized = normalizeGuideLinkOverrides(overrides);
+  setGuideLinkOverrides(guideId, normalized);
+  const response = await fetch(apiUrl(`/guides/${guideId}`), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ownerToken, title, linkOverrides: normalized }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error ?? "Could not save guide links.");
+  return payload as { guide: CommunityGuide };
 }
 
 export function extractGoogleDocId(url: string) {
