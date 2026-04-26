@@ -57,6 +57,7 @@ type RouteCandidate = {
   wasteExp: number;
   copperCost: number | null;
   steps: string[];
+  formulaSteps?: GrandFormulaStep[];
 };
 
 type StageBreakdown = {
@@ -74,6 +75,21 @@ type StagePlan = {
   totalCopperCost: number | null;
   totalUsefulExp: number;
   totalWastedExp: number;
+};
+
+type GrandFormulaStep = {
+  stage: string;
+  startLevel: number;
+  endLevel: number;
+  sourceName: string;
+  sourceLevel: number;
+  expPerSource: number;
+  quantity: number;
+  fedExp: number;
+  neededExp: number;
+  wastedExp: number;
+  copperEach: number | null;
+  copperCost: number | null;
 };
 
 type TwoItemResult = {
@@ -878,7 +894,10 @@ function CandidateSummary({ candidate, emptyText }: { candidate: RouteCandidate 
     <div className="rounded-md border border-border bg-background/50 p-3 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm font-semibold">{candidate.label}</div>
-        <Badge variant="outline">Best Found</Badge>
+        <div className="flex items-center gap-1.5">
+          <Badge variant="outline">Best Found</Badge>
+          <GrandFormulaDialog candidate={candidate} />
+        </div>
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
         <MetricCard label="Copper Cost" value={formatNumber(candidate.copperCost)} />
@@ -949,6 +968,209 @@ function FormulaLine({ label, value }: { label: string; value: string }) {
   );
 }
 
+function FormulaIconButton({ label }: { label: string }) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7 shrink-0"
+      aria-label={label}
+      title={label}
+    >
+      <Sigma className="h-4 w-4" />
+    </Button>
+  );
+}
+
+function ExpCalculatorFormulaDialog({
+  recipient,
+  source,
+  sourceLevel,
+  totalParam,
+  weightedExp,
+  finalExp,
+  stagePlan,
+}: {
+  recipient: Equipment | undefined;
+  source: Equipment | undefined;
+  sourceLevel: number;
+  totalParam: number;
+  weightedExp: number;
+  finalExp: number;
+  stagePlan: StagePlan;
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <FormulaIconButton label="Show formula for EXP Calculator" />
+      </DialogTrigger>
+      <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-12">
+          <DialogTitle className="text-base">EXP Calculator Math</DialogTitle>
+          <DialogDescription className="text-xs">
+            {source?.name ?? "Source"} Lv{sourceLevel} into {recipient?.name ?? "recipient"}.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <FormulaLine
+              label="Weighted EXP"
+              value={`floor(${formatNumber(totalParam)} x ${formatNumber(recipient?.expRate)} x 60 / 10000) = ${formatNumber(weightedExp)}`}
+            />
+            <FormulaLine
+              label="Final EXP each"
+              value={`floor((${formatNumber(weightedExp)} + ${formatNumber(source?.mixBonusExp)}) x 1.5) = ${formatNumber(finalExp)}`}
+            />
+            <FormulaLine
+              label="Copies per stage"
+              value="ceil(stage EXP needed / final EXP each)"
+            />
+            <FormulaLine
+              label="Stage waste"
+              value="copies x final EXP each - stage EXP needed"
+            />
+          </div>
+
+          <div className="rounded-md border border-border bg-muted/20 p-3">
+            <div className="mb-2 text-xs font-semibold text-foreground">Totals for this calculation</div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <FormulaLine label="Quantity" value={formatNumber(stagePlan.totalQuantity)} />
+              <FormulaLine label="Copper" value={formatNumber(stagePlan.totalCopperCost)} />
+              <FormulaLine label="Wasted EXP" value={formatNumber(stagePlan.totalWastedExp)} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-foreground">Cap stage math</div>
+            {stagePlan.stages.length === 0 ? (
+              <div className="rounded-md border border-border bg-background/60 p-3 text-xs text-muted-foreground">
+                No stage math yet. Choose a target level above the current level and calculate.
+              </div>
+            ) : (
+              stagePlan.stages.map((stage) => {
+                const fedExp = stage.quantityNeeded * finalExp;
+                return (
+                  <div key={`exp-formula-${stage.stage}`} className="rounded-md border border-border bg-background/60 p-3">
+                    <div className="mb-2 text-xs font-semibold text-foreground">{stage.stage}</div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <FormulaLine label="Needed EXP" value={formatNumber(stage.expNeeded)} />
+                      <FormulaLine
+                        label="Quantity"
+                        value={`ceil(${formatNumber(stage.expNeeded)} / ${formatNumber(finalExp)}) = ${formatNumber(stage.quantityNeeded)}`}
+                      />
+                      <FormulaLine
+                        label="Fed EXP"
+                        value={`${formatNumber(stage.quantityNeeded)} x ${formatNumber(finalExp)} = ${formatNumber(fedExp)}`}
+                      />
+                      <FormulaLine
+                        label="Waste"
+                        value={`${formatNumber(fedExp)} - ${formatNumber(stage.expNeeded)} = ${formatNumber(stage.wastedExp)}`}
+                      />
+                      <FormulaLine label="Useful EXP" value={formatNumber(stage.usefulExp)} />
+                      <FormulaLine label="Copper" value={formatNumber(stage.copperCost)} />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-border px-5 py-3">
+          <DialogClose asChild>
+            <Button type="button" variant="outline" size="sm">
+              Close
+            </Button>
+          </DialogClose>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GrandFormulaDialog({ candidate }: { candidate: RouteCandidate }) {
+  if (!candidate.formulaSteps?.length) return null;
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <FormulaIconButton label="Show formula for Grand Optimizer result" />
+      </DialogTrigger>
+      <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-12">
+          <DialogTitle className="text-base">Grand Optimizer Math</DialogTitle>
+          <DialogDescription className="text-xs">
+            {candidate.label}. This uses the cheapest selected source for each cap stage.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <FormulaLine label="Source choice" value="lowest copper, then lowest waste, then highest EXP per item" />
+            <FormulaLine label="Quantity" value="ceil(cap stage EXP needed / selected source EXP each)" />
+            <FormulaLine label="Copper" value="quantity x selected source copper cost" />
+            <FormulaLine label="Wasted EXP" value="quantity x EXP each - cap stage EXP needed" />
+          </div>
+
+          <div className="rounded-md border border-border bg-muted/20 p-3">
+            <div className="mb-2 text-xs font-semibold text-foreground">Totals for this route</div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <FormulaLine label="Fed EXP" value={formatNumber(candidate.totalExp)} />
+              <FormulaLine label="Copper" value={formatNumber(candidate.copperCost)} />
+              <FormulaLine label="Wasted EXP" value={formatNumber(candidate.wasteExp)} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-foreground">Cap stage math</div>
+            {candidate.formulaSteps.map((step, index) => (
+              <div key={`grand-formula-${step.stage}-${index}`} className="rounded-md border border-border bg-background/60 p-3">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="font-semibold text-foreground">{step.stage}</div>
+                  <Badge variant="outline">
+                    {step.sourceName} Lv{step.sourceLevel}
+                  </Badge>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <FormulaLine label="Needed EXP" value={formatNumber(step.neededExp)} />
+                  <FormulaLine label="EXP each" value={formatNumber(step.expPerSource)} />
+                  <FormulaLine
+                    label="Quantity"
+                    value={`ceil(${formatNumber(step.neededExp)} / ${formatNumber(step.expPerSource)}) = ${formatNumber(step.quantity)}`}
+                  />
+                  <FormulaLine
+                    label="Fed EXP"
+                    value={`${formatNumber(step.quantity)} x ${formatNumber(step.expPerSource)} = ${formatNumber(step.fedExp)}`}
+                  />
+                  <FormulaLine label="Wasted EXP" value={formatNumber(step.wastedExp)} />
+                  <FormulaLine
+                    label="Copper"
+                    value={
+                      step.copperCost == null
+                        ? "N/A"
+                        : `${formatNumber(step.quantity)} x ${formatNumber(step.copperEach)} = ${formatNumber(step.copperCost)}`
+                    }
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-border px-5 py-3">
+          <DialogClose asChild>
+            <Button type="button" variant="outline" size="sm">
+              Close
+            </Button>
+          </DialogClose>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function TwoItemFormulaDialog({
   slot,
   itemA,
@@ -968,16 +1190,7 @@ function TwoItemFormulaDialog({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          aria-label={`Show formula for ${slot.title}`}
-          title={`Show formula for ${slot.title}`}
-        >
-          <Sigma className="h-4 w-4" />
-        </Button>
+        <FormulaIconButton label={`Show formula for ${slot.title}`} />
       </DialogTrigger>
       <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-12">
@@ -1180,6 +1393,7 @@ export default function EquipmentLevelingOptimizerPage() {
     return {
       recipient,
       source,
+      sourceLevel: snap.sourceLevel,
       ...sourceExp,
       stagePlan,
     };
@@ -1237,6 +1451,7 @@ export default function EquipmentLevelingOptimizerPage() {
     let copperCost: number | null = 0;
     let wasteExp = 0;
     const steps: string[] = [];
+    const formulaSteps: GrandFormulaStep[] = [];
 
     while (level < grandTargetLevel) {
       const stageEnd = nextStageEnd(level, grandTargetLevel);
@@ -1273,6 +1488,20 @@ export default function EquipmentLevelingOptimizerPage() {
       steps.push(
         `Lv${level} to Lv${stageEnd}: use ${bestSource.quantity} x ${bestSource.item.name} Lv${bestSource.row.level}.`,
       );
+      formulaSteps.push({
+        stage: `Lv${level} to Lv${stageEnd}`,
+        startLevel: level,
+        endLevel: stageEnd,
+        sourceName: bestSource.item.name,
+        sourceLevel: bestSource.row.level,
+        expPerSource: bestSource.expPerSource,
+        quantity: bestSource.quantity,
+        fedExp,
+        neededExp: needed,
+        wastedExp: bestSource.sourceWaste,
+        copperEach: bestSource.item.buyPrice,
+        copperCost: bestSource.sourceCopper,
+      });
       level = stageEnd;
     }
 
@@ -1284,6 +1513,7 @@ export default function EquipmentLevelingOptimizerPage() {
       wasteExp,
       copperCost,
       steps,
+      formulaSteps,
     };
   }, [grandCalculated, grandCurrentLevel, grandRecipientId, grandTargetLevel, selectedGrandRows]);
 
@@ -1382,6 +1612,15 @@ export default function EquipmentLevelingOptimizerPage() {
                 ? `${calcData.source.name} Lv ${sourceLevel}: totalParam ${formatNumber(calcData.totalParam)}, weighted ${formatNumber(calcData.weightedExp)}, final ${formatNumber(calcData.finalExp)}`
                 : "Choose a recipient and source item."}
             </div>
+            <ExpCalculatorFormulaDialog
+              recipient={calcData.recipient}
+              source={calcData.source}
+              sourceLevel={calcData.sourceLevel}
+              totalParam={calcData.totalParam}
+              weightedExp={calcData.weightedExp}
+              finalExp={calcData.finalExp}
+              stagePlan={calcData.stagePlan}
+            />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
