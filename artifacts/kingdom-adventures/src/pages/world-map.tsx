@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
@@ -135,6 +136,24 @@ type HistoryState = {
   penned: Array<{ k: string; c: string }>;
   chaosSetup: Array<{ k: string; piece: ChaosSetupPiece }>;
   townhallPlacement: TownHallPlacement | null;
+};
+
+type ScreenshotArea = "full-map" | "viewport";
+
+type ScreenshotOptions = {
+  area: ScreenshotArea;
+  includeLevels: boolean;
+  includeGrid: boolean;
+  includeRoads: boolean;
+  includePen: boolean;
+  includeDrawArea: boolean;
+  includeDeployments: boolean;
+  includeReclaimed: boolean;
+  includeWeeklyConquest: boolean;
+  includeChaosSetup: boolean;
+  includeFacilities: boolean;
+  includeSurveys: boolean;
+  includeTownHall: boolean;
 };
 
 const TERRAIN_COLORS: Record<TerrainType, string> = {
@@ -436,8 +455,24 @@ function drawWeeklyConquestAreaIcons(
   ctx: CanvasRenderingContext2D,
   tileSize: number,
   areas: WeeklyConquestArea[],
+  viewBounds?: { minX: number; minY: number; maxX: number; maxY: number },
 ) {
   areas.forEach((area) => {
+    if (viewBounds) {
+      const areaMinX = area.centerX - Math.floor(area.width / 2);
+      const areaMaxX = areaMinX + area.width - 1;
+      const areaMinY = area.centerY - Math.floor(area.height / 2);
+      const areaMaxY = areaMinY + area.height - 1;
+      if (
+        areaMaxX < viewBounds.minX ||
+        areaMinX > viewBounds.maxX ||
+        areaMaxY < viewBounds.minY ||
+        areaMinY > viewBounds.maxY
+      ) {
+        return;
+      }
+    }
+
     const areaW = area.width * tileSize;
     const areaH = area.height * tileSize;
     const fontSize = Math.max(12, Math.min(Math.min(areaW, areaH) * 0.7, 26));
@@ -476,7 +511,14 @@ const MIN_TILE_SIZE = 2;
 const MOBILE_MIN_TILE_SIZE = 0.25;
 const MIN_TILE_SIZE_FULLSCREEN_FILL = false; // allow deeper zoom-out in fullscreen mode
 const MAX_TILE_SIZE = 24;
+const PAN_SAMPLE_MS = 16.6667;
+const PAN_VELOCITY_SMOOTHING = 0.22;
+const MAX_PAN_VELOCITY = 36;
+const CAMERA_POSITION_LERP = 0.2;
+const CAMERA_ZOOM_LERP = 0.18;
+const CAMERA_PAN_FRICTION = 0.82;
 const STORAGE_PREFIX = "ka-world-map-v6";
+const SCREENSHOT_OPTIONS_STORAGE_KEY = `${STORAGE_PREFIX}:screenshot:options`;
 type MapCamera = {
   x: number;
   y: number;
@@ -753,7 +795,11 @@ const FULL_MASK = [
 
 function isTouchDevice() {
   if (typeof window === "undefined") return false;
-  return window.matchMedia("(hover: none)").matches || "ontouchstart" in window;
+  return (
+    window.matchMedia("(hover: none)").matches ||
+    "ontouchstart" in window ||
+    (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0)
+  );
 }
 
 function getNativeIndex(position: number, size: number, buckets: number) {
@@ -1059,6 +1105,7 @@ const BubbleIconCursor = () => (
 
 export default function WorldMapPage() {
   const [touchMode, setTouchMode] = useState(false);
+  const [touchEditMode, setTouchEditMode] = useState(false);
   const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
   const [fullscreenToolbarOpen, setFullscreenToolbarOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<ToolType>("none");
@@ -1137,6 +1184,25 @@ export default function WorldMapPage() {
   const [visibleSurveyCats, setVisibleSurveyCats] = useState<Set<SurveyCategory>>(
     new Set(["storehouse", "chaos_stone", "cash_register", "dragon_taming"])
   );
+  const [screenshotDialogOpen, setScreenshotDialogOpen] = useState(false);
+  const [screenshotStatus, setScreenshotStatus] = useState<null | "working">(null);
+  const [screenshotPreviewUrl, setScreenshotPreviewUrl] = useState<string | null>(null);
+  const [screenshotPreviewFileName, setScreenshotPreviewFileName] = useState<string | null>(null);
+  const [screenshotOptions, setScreenshotOptions] = useState<ScreenshotOptions>({
+    area: "full-map",
+    includeLevels: false,
+    includeGrid: false,
+    includeRoads: true,
+    includePen: true,
+    includeDrawArea: true,
+    includeDeployments: true,
+    includeReclaimed: true,
+    includeWeeklyConquest: false,
+    includeChaosSetup: true,
+    includeFacilities: false,
+    includeSurveys: false,
+    includeTownHall: true,
+  });
   const [surveyTooltip, setSurveyTooltip] = useState<{ x: number; y: number; items: SurveyDef[] } | null>(null);
   const [layersDropdownOpen, setLayersDropdownOpen] = useState(false);
   const [surveysDropdownOpen, setSurveysDropdownOpen] = useState(false);
@@ -1150,9 +1216,10 @@ export default function WorldMapPage() {
   const mapGridRef = useRef<HTMLDivElement>(null);
   const moveDeploySourceRef = useRef<{ sourceKeys: Set<string>; sourceCenter: { x: number; y: number } } | null>(null);
   const moveDeployPreviewRef = useRef<Set<string>>(new Set());
-  const panStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const panStartRef = useRef<{ x: number; y: number; left: number; top: number; source: "pointer" | "mouse"; pointerId?: number } | null>(null);
   const cameraRef = useRef<MapCamera>({ x: 0, y: 0, zoom: 1, targetX: 0, targetY: 0, targetZoom: 1, vx: 0, vy: 0 });
   const cameraAnimationRef = useRef<number | null>(null);
+  const cameraLastFrameTimeRef = useRef<number | null>(null);
   const renderRafRef = useRef<number | null>(null);
   const uiSyncRafRef = useRef<number | null>(null);
   const baseTerrainCacheRef = useRef<{ canvas: HTMLCanvasElement; tileSize: number; water: boolean } | null>(null);
@@ -1172,10 +1239,135 @@ export default function WorldMapPage() {
   const previousWeeklyConquestLayerRef = useRef(layers.weekly_conquest);
   const spaceDownRef = useRef(false);
   const shiftDownRef = useRef(false);
-  const pendingPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const pendingPointerRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
   const rafIdRef = useRef<number | null>(null);
 
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+
+  function isValidScreenshotOptions(value: unknown): value is ScreenshotOptions {
+    if (!value || typeof value !== "object") return false;
+    const candidate = value as Record<string, unknown>;
+    return (candidate.area === "full-map" || candidate.area === "viewport")
+      && typeof candidate.includeLevels === "boolean"
+      && typeof candidate.includeGrid === "boolean"
+      && typeof candidate.includeRoads === "boolean"
+      && typeof candidate.includePen === "boolean"
+      && typeof candidate.includeDrawArea === "boolean"
+      && typeof candidate.includeDeployments === "boolean"
+      && typeof candidate.includeReclaimed === "boolean"
+      && typeof candidate.includeWeeklyConquest === "boolean"
+      && typeof candidate.includeChaosSetup === "boolean"
+      && typeof candidate.includeFacilities === "boolean"
+      && typeof candidate.includeSurveys === "boolean"
+      && typeof candidate.includeTownHall === "boolean";
+  }
+
+  function getSavedScreenshotOptions(): ScreenshotOptions | null {
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(SCREENSHOT_OPTIONS_STORAGE_KEY);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return isValidScreenshotOptions(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearScreenshotPreview() {
+    if (screenshotPreviewUrl) {
+      URL.revokeObjectURL(screenshotPreviewUrl);
+    }
+    setScreenshotPreviewUrl(null);
+    setScreenshotPreviewFileName(null);
+  }
+
+  function getScreenshotFileName(options: ScreenshotOptions) {
+    return cleanMode
+      ? `world-map-${options.area}-clean.png`
+      : `world-map-${options.area}.png`;
+  }
+
+  function getDefaultScreenshotOptions(): ScreenshotOptions {
+    return {
+      area: "full-map",
+      includeLevels: layers.levels,
+      includeGrid: layers.grid,
+      includeRoads: layers.roads,
+      includePen: layers.poi,
+      includeDrawArea: layers.poi,
+      includeDeployments: layers.deployments,
+      includeReclaimed: layers.reclaimed,
+      includeWeeklyConquest: layers.weekly_conquest,
+      includeChaosSetup: layers.chaos_setup,
+      includeFacilities: layers.facilities,
+      includeSurveys: showSurveys,
+      includeTownHall: !!townhallPlacement,
+    };
+  }
+
+  function applyScreenshotPreset(preset: "shareable" | "planner" | "current") {
+    if (preset === "current") {
+      setScreenshotOptions(getDefaultScreenshotOptions());
+      return;
+    }
+    if (preset === "shareable") {
+      setScreenshotOptions({
+        area: "full-map",
+        includeLevels: false,
+        includeGrid: false,
+        includeRoads: false,
+        includePen: false,
+        includeDrawArea: false,
+        includeDeployments: false,
+        includeReclaimed: false,
+        includeWeeklyConquest: false,
+        includeChaosSetup: false,
+        includeFacilities: false,
+        includeSurveys: false,
+        includeTownHall: false,
+      });
+      return;
+    }
+    setScreenshotOptions({
+      area: "full-map",
+      includeLevels: layers.levels,
+      includeGrid: layers.grid,
+      includeRoads: true,
+      includePen: true,
+      includeDrawArea: true,
+      includeDeployments: true,
+      includeReclaimed: true,
+      includeWeeklyConquest: layers.weekly_conquest,
+      includeChaosSetup: layers.chaos_setup,
+      includeFacilities: layers.facilities,
+      includeSurveys: showSurveys,
+      includeTownHall: !!townhallPlacement,
+    });
+  }
+
+  function openScreenshotDialog() {
+    clearScreenshotPreview();
+    setScreenshotOptions(getSavedScreenshotOptions() ?? getDefaultScreenshotOptions());
+    setScreenshotDialogOpen(true);
+  }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SCREENSHOT_OPTIONS_STORAGE_KEY, JSON.stringify(screenshotOptions));
+  }, [screenshotOptions]);
+
+  useEffect(() => {
+    return () => {
+      if (screenshotPreviewUrl) URL.revokeObjectURL(screenshotPreviewUrl);
+    };
+  }, [screenshotPreviewUrl]);
+
+  useEffect(() => {
+    if (!screenshotDialogOpen) return;
+    if (!screenshotPreviewUrl) return;
+    clearScreenshotPreview();
+  }, [screenshotOptions, screenshotDialogOpen]);
 
   useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
   useEffect(() => { paintModeRef.current = paintMode; }, [paintMode]);
@@ -1262,7 +1454,10 @@ export default function WorldMapPage() {
   }, []);
 
   useEffect(() => {
-    if (!touchMode) setMobileToolbarOpen(false);
+    if (!touchMode) {
+      setMobileToolbarOpen(false);
+      setTouchEditMode(false);
+    }
   }, [touchMode]);
 
   useEffect(() => {
@@ -1293,7 +1488,12 @@ export default function WorldMapPage() {
   }, [notice]);
 
   useEffect(() => {
-    function stopPainting() {
+    function stopPainting(event?: MouseEvent | PointerEvent) {
+      if (event instanceof PointerEvent) {
+        if (!activePaintPointersRef.current.has(event.pointerId)) return;
+        activePaintPointersRef.current.delete(event.pointerId);
+        if (activePaintPointersRef.current.size > 0) return;
+      }
       // Commit road snap on release
       if (activeToolRef.current === "road" && paintModeRef.current === "mark") {
         const keys = roadSnapPreviewRef.current;
@@ -1331,12 +1531,20 @@ export default function WorldMapPage() {
       lineStartTileRef.current = null;
       activePaintPointersRef.current = new Set();
     }
-    function stopPanning() {
+    function stopPanning(event?: MouseEvent | PointerEvent) {
+      if (event instanceof PointerEvent && panStartRef.current?.source === "pointer" && panStartRef.current.pointerId !== event.pointerId) {
+        return;
+      }
       if (panStartRef.current) {
         const velocity = panVelocityRef.current;
         const camera = cameraRef.current;
-        camera.vx = velocity.vx;
-        camera.vy = velocity.vy;
+        const dragDistance = Math.hypot(
+          velocity.lastX - panStartRef.current.x,
+          velocity.lastY - panStartRef.current.y,
+        );
+        const shouldCarryMomentum = dragDistance >= 6 && (Math.abs(velocity.vx) > 0.12 || Math.abs(velocity.vy) > 0.12);
+        camera.vx = shouldCarryMomentum ? velocity.vx : 0;
+        camera.vy = shouldCarryMomentum ? velocity.vy : 0;
         camera.targetX = camera.x;
         camera.targetY = camera.y;
         camera.targetZoom = camera.zoom;
@@ -1574,6 +1782,29 @@ export default function WorldMapPage() {
     return labels;
   }, [cols, rows, conquestMonsters, grid, weeklyConquest]);
 
+  const surveyZoneData = useMemo(() => {
+    const defsByZone = new Map<string, SurveyDef[]>();
+    const catsByZone = new Map<string, SurveyCategory[]>();
+
+    for (let ny = 0; ny < 10; ny += 1) {
+      for (let nx = 0; nx < 10; nx += 1) {
+        const native = NATIVE_MAP[ny]?.[nx];
+        if (!native) continue;
+        const matching = SURVEY_DEFS.filter((s) => {
+          if (s.terrainId !== -1 && SURVEY_TERRAIN_MAP[s.terrainId] !== native.terrain) return false;
+          return native.level >= s.minLevel;
+        });
+        if (!matching.length) continue;
+
+        const key = `${nx},${ny}`;
+        defsByZone.set(key, matching);
+        catsByZone.set(key, [...new Set(matching.map((s) => s.category))] as SurveyCategory[]);
+      }
+    }
+
+    return { defsByZone, catsByZone };
+  }, []);
+
   const townhallPlacementKeys = useMemo(() => {
     if (!townhallPlacement) return new Set<string>();
     return new Set(getTownHallFootprintCoords(townhallPlacement.x, townhallPlacement.y, cols, rows).map(([x, y]) => keyOf(x, y)));
@@ -1661,6 +1892,18 @@ export default function WorldMapPage() {
     return MAX_TILE_SIZE / BASE_TILE_SIZE;
   }
 
+  function getViewportWorldOffset(nextTileSize = tileSizeFromZoom()) {
+    const viewport = viewportRef.current;
+    const viewportWidth = viewport?.clientWidth ?? 0;
+    const viewportHeight = viewport?.clientHeight ?? 0;
+    const worldWidth = cols * nextTileSize + MAP_CANVAS_MARGIN * 2;
+    const worldHeight = rows * nextTileSize + MAP_CANVAS_MARGIN * 2;
+    return {
+      x: Math.max(0, (viewportWidth - worldWidth) / 2),
+      y: Math.max(0, (viewportHeight - worldHeight) / 2),
+    };
+  }
+
   function syncMapScroll() {
     const viewport = viewportRef.current;
     if (!viewport) return;
@@ -1739,20 +1982,29 @@ export default function WorldMapPage() {
       cancelAnimationFrame(cameraAnimationRef.current);
       cameraAnimationRef.current = null;
     }
+    cameraLastFrameTimeRef.current = null;
     cameraRef.current.vx = 0;
     cameraRef.current.vy = 0;
   }
 
-  function animateCamera() {
+  function animateCamera(frameTime: number) {
     const camera = cameraRef.current;
+    const lastFrameTime = cameraLastFrameTimeRef.current;
+    const frameScale = lastFrameTime == null
+      ? 1
+      : clampNumber((frameTime - lastFrameTime) / PAN_SAMPLE_MS, 0.75, 2);
+    cameraLastFrameTimeRef.current = frameTime;
     const zoomDelta = camera.targetZoom - camera.zoom;
     const xDelta = camera.targetX - camera.x;
     const yDelta = camera.targetY - camera.y;
-    camera.zoom += zoomDelta * 0.22;
-    camera.x += xDelta * 0.22 + camera.vx;
-    camera.y += yDelta * 0.22 + camera.vy;
-    camera.vx *= 0.90;
-    camera.vy *= 0.90;
+    const zoomLerp = 1 - Math.pow(1 - CAMERA_ZOOM_LERP, frameScale);
+    const positionLerp = 1 - Math.pow(1 - CAMERA_POSITION_LERP, frameScale);
+    const panFriction = Math.pow(CAMERA_PAN_FRICTION, frameScale);
+    camera.zoom += zoomDelta * zoomLerp;
+    camera.x += xDelta * positionLerp + camera.vx * frameScale;
+    camera.y += yDelta * positionLerp + camera.vy * frameScale;
+    camera.vx *= panFriction;
+    camera.vy *= panFriction;
     clampCamera(camera);
     tileSizeRef.current = tileSizeFromZoom(camera.zoom);
     scheduleRender();
@@ -1773,6 +2025,7 @@ export default function WorldMapPage() {
       camera.vx = 0;
       camera.vy = 0;
       clampCamera(camera);
+      cameraLastFrameTimeRef.current = null;
       cameraAnimationRef.current = null;
       scheduleRender();
       syncMapScroll();
@@ -2181,12 +2434,35 @@ export default function WorldMapPage() {
     const viewport = viewportRef.current;
     if (!viewport) return null;
     const rect = viewport.getBoundingClientRect();
-    const offsetX = clientX - rect.left + cameraRef.current.x - MAP_CANVAS_MARGIN;
-    const offsetY = clientY - rect.top + cameraRef.current.y - MAP_CANVAS_MARGIN;
+    const viewportOffset = getViewportWorldOffset(tileSizeRef.current);
+    const offsetX = clientX - rect.left - viewportOffset.x + cameraRef.current.x - MAP_CANVAS_MARGIN;
+    const offsetY = clientY - rect.top - viewportOffset.y + cameraRef.current.y - MAP_CANVAS_MARGIN;
     const tx = Math.floor(offsetX / tileSizeRef.current);
     const ty = Math.floor(offsetY / tileSizeRef.current);
     if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) return null;
     return grid.get(keyOf(tx, ty)) ?? null;
+  }
+
+  function shouldUseTouchNavigation(pointerType: string) {
+    return touchMode && pointerType === "touch" && !touchEditMode;
+  }
+
+  function hasConflictingPointerGesture(pointerId: number) {
+    const panStart = panStartRef.current;
+    if (panStart?.source === "pointer" && panStart.pointerId !== pointerId) {
+      return true;
+    }
+    return activePaintPointersRef.current.size > 0 && !activePaintPointersRef.current.has(pointerId);
+  }
+
+  function hasActivePointerGesture(pointerId?: number) {
+    const panStart = panStartRef.current;
+    if (panStart?.source === "pointer" && (pointerId == null || panStart.pointerId === pointerId)) {
+      return true;
+    }
+    return pointerId == null
+      ? activePaintPointersRef.current.size > 0
+      : activePaintPointersRef.current.has(pointerId);
   }
 
   function updateRoadSnap(tile: Tile) {
@@ -2211,15 +2487,27 @@ export default function WorldMapPage() {
   function onViewportPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (e.button === 2) return;
     if (spaceDownRef.current) return; // space+drag handled by startPan
+    if (hasConflictingPointerGesture(e.pointerId)) {
+      e.preventDefault();
+      return;
+    }
+    setHoveredTile(null);
+    setSurveyTooltip(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    if (activeTool === "none") {
+    if (activeTool === "none" || shouldUseTouchNavigation(e.pointerType)) {
+      if (e.pointerType === "pen") {
+        e.preventDefault();
+        const tile = tileAtPointer(e.clientX, e.clientY);
+        if (tile) setSelectedTile(tile);
+        return;
+      }
       // left-click drag pans; click without drag selects tile
       e.preventDefault();
       const viewport = viewportRef.current;
       if (!viewport) return;
       setIsPanning(true);
       stopCameraAnimation();
-      panStartRef.current = { x: e.clientX, y: e.clientY, left: cameraRef.current.x, top: cameraRef.current.y };
+      panStartRef.current = { x: e.clientX, y: e.clientY, left: cameraRef.current.x, top: cameraRef.current.y, source: "pointer", pointerId: e.pointerId };
       panVelocityRef.current = { lastX: e.clientX, lastY: e.clientY, lastTime: performance.now(), vx: 0, vy: 0 };
       return;
     }
@@ -2228,26 +2516,30 @@ export default function WorldMapPage() {
     e.preventDefault();
     if (activeTool === "road" && paintMode === "mark") {
       pushHistory();
+      activePaintPointersRef.current = new Set([e.pointerId]);
       roadSnapStartRef.current = { x: tile.x, y: tile.y };
       const startKey = keyOf(tile.x, tile.y);
       roadSnapPreviewRef.current = new Set([startKey]);
       setRoadSnapPreview(new Set([startKey]));
       setIsPainting(true);
     } else {
+      activePaintPointersRef.current = new Set([e.pointerId]);
       beginPaint(tile);
     }
   }
 
   function onViewportPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     // Pan is synchronous — no RAF throttle
-    if (panStartRef.current && viewportRef.current) {
+    if (panStartRef.current?.source === "pointer" && panStartRef.current.pointerId === e.pointerId && viewportRef.current) {
       const dx = e.clientX - panStartRef.current.x;
       const dy = e.clientY - panStartRef.current.y;
       const now = performance.now();
       const sample = panVelocityRef.current;
-      const dt = Math.max(16, now - sample.lastTime);
-      sample.vx = ((sample.lastX - e.clientX) / dt) * 16;
-      sample.vy = ((sample.lastY - e.clientY) / dt) * 16;
+      const dt = Math.max(8, now - sample.lastTime);
+      const instantaneousVx = clampNumber(((sample.lastX - e.clientX) / dt) * PAN_SAMPLE_MS, -MAX_PAN_VELOCITY, MAX_PAN_VELOCITY);
+      const instantaneousVy = clampNumber(((sample.lastY - e.clientY) / dt) * PAN_SAMPLE_MS, -MAX_PAN_VELOCITY, MAX_PAN_VELOCITY);
+      sample.vx += (instantaneousVx - sample.vx) * PAN_VELOCITY_SMOOTHING;
+      sample.vy += (instantaneousVy - sample.vy) * PAN_VELOCITY_SMOOTHING;
       sample.lastX = e.clientX;
       sample.lastY = e.clientY;
       sample.lastTime = now;
@@ -2255,26 +2547,35 @@ export default function WorldMapPage() {
       return;
     }
     // Survey pin hover detection
-    if (showSurveys && viewportRef.current) {
+    if (!hasActivePointerGesture(e.pointerId) && showSurveys && viewportRef.current) {
       const vp = viewportRef.current;
       const rect = vp.getBoundingClientRect();
-      const canvasX = e.clientX - rect.left + cameraRef.current.x - MAP_CANVAS_MARGIN;
-      const canvasY = e.clientY - rect.top + cameraRef.current.y - MAP_CANVAS_MARGIN;
+      const viewportOffset = getViewportWorldOffset(tileSizeRef.current);
+      const canvasX = e.clientX - rect.left - viewportOffset.x + cameraRef.current.x - MAP_CANVAS_MARGIN;
+      const canvasY = e.clientY - rect.top - viewportOffset.y + cameraRef.current.y - MAP_CANVAS_MARGIN;
       const MARGIN = 8;
       const PIN_R = Math.max(5, Math.min(14, tileSize * 1.6));
       let found: SurveyDef[] | null = null;
       let foundScreenX = 0, foundScreenY = 0;
-      outer: for (let ny = 0; ny < 10; ny++) {
-        for (let nx = 0; nx < 10; nx++) {
-          const native = NATIVE_MAP[ny]?.[nx];
-          if (!native) continue;
-          const matching = SURVEY_DEFS.filter((s) => {
-            if (!visibleSurveyCats.has(s.category)) return false;
-            if (s.terrainId !== -1 && SURVEY_TERRAIN_MAP[s.terrainId] !== native.terrain) return false;
-            return native.level >= s.minLevel;
-          });
+      const tileX = Math.floor(canvasX / tileSizeRef.current);
+      const tileY = Math.floor(canvasY / tileSizeRef.current);
+      const centerNx = clampNumber(Math.floor((tileX * 10) / cols), 0, 9);
+      const centerNy = clampNumber(Math.floor((tileY * 10) / rows), 0, 9);
+      const nxStart = Math.max(0, centerNx - 2);
+      const nxEnd = Math.min(9, centerNx + 2);
+      const nyStart = Math.max(0, centerNy - 2);
+      const nyEnd = Math.min(9, centerNy + 2);
+
+      outer: for (let ny = nyStart; ny <= nyEnd; ny += 1) {
+        for (let nx = nxStart; nx <= nxEnd; nx += 1) {
+          const zoneKey = `${nx},${ny}`;
+          const zoneDefs = surveyZoneData.defsByZone.get(zoneKey);
+          const zoneCats = surveyZoneData.catsByZone.get(zoneKey);
+          if (!zoneDefs || !zoneCats) continue;
+          const cats = zoneCats.filter((cat) => visibleSurveyCats.has(cat));
+          if (!cats.length) continue;
+          const matching = zoneDefs.filter((s) => visibleSurveyCats.has(s.category));
           if (!matching.length) continue;
-          const cats = [...new Set(matching.map((s) => s.category))] as SurveyCategory[];
           const nCX = Math.floor((Math.floor((nx * cols) / 10) + Math.floor(((nx + 1) * cols) / 10) - 1) / 2);
           const nCY = Math.floor((Math.floor((ny * rows) / 10) + Math.floor(((ny + 1) * rows) / 10) - 1) / 2);
           const baseX = nCX * tileSize + MARGIN + tileSize / 2;
@@ -2301,13 +2602,15 @@ export default function WorldMapPage() {
       }
     }
     // Drawing uses RAF throttle
-    pendingPointerRef.current = { x: e.clientX, y: e.clientY };
+    pendingPointerRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
     if (rafIdRef.current !== null) return;
     rafIdRef.current = requestAnimationFrame(() => {
       rafIdRef.current = null;
       const pos = pendingPointerRef.current;
       if (!pos) return;
       pendingPointerRef.current = null;
+      if (isPainting && activePaintPointersRef.current.size > 0 && !activePaintPointersRef.current.has(pos.pointerId)) return;
+      if (hasActivePointerGesture(pos.pointerId)) return;
       const tile = tileAtPointer(pos.x, pos.y);
       if (!tile) return;
       setHoveredTile(tile);
@@ -2509,16 +2812,18 @@ export default function WorldMapPage() {
       if (!lastDist) { lastDist = dist; return; }
       const factor = dist / lastDist;
       lastDist = dist;
+      const previousMidX = lastMidX;
+      const previousMidY = lastMidY;
       const midX = (t0.clientX + t1.clientX) / 2;
       const midY = (t0.clientY + t1.clientY) / 2;
       const currentSize = tileSizeRef.current;
       const rect = touchViewport.getBoundingClientRect();
-      const offsetX = midX - rect.left + cameraRef.current.x;
-      const offsetY = midY - rect.top + cameraRef.current.y;
+      const viewportOffset = getViewportWorldOffset(currentSize);
+      const offsetX = previousMidX - rect.left - viewportOffset.x + cameraRef.current.x;
+      const offsetY = previousMidY - rect.top - viewportOffset.y + cameraRef.current.y;
       const nextTileSize = Math.max(getMinTileSize(), Math.min(MAX_TILE_SIZE, currentSize * factor));
-      if (nextTileSize === currentSize) return;
       const scale = nextTileSize / currentSize;
-      setCameraPosition(offsetX * scale - (midX - rect.left), offsetY * scale - (midY - rect.top), nextTileSize);
+      setCameraPosition(offsetX * scale - (midX - rect.left - viewportOffset.x), offsetY * scale - (midY - rect.top - viewportOffset.y), nextTileSize);
       lastMidX = midX;
       lastMidY = midY;
     }
@@ -2538,24 +2843,28 @@ export default function WorldMapPage() {
     if (!viewport) return;
     setIsPanning(true);
     stopCameraAnimation();
-    panStartRef.current = {
+      panStartRef.current = {
       x: e.clientX,
       y: e.clientY,
       left: cameraRef.current.x,
       top: cameraRef.current.y,
+      source: "mouse",
+        pointerId: undefined,
     };
     panVelocityRef.current = { lastX: e.clientX, lastY: e.clientY, lastTime: performance.now(), vx: 0, vy: 0 };
   }
 
   function movePan(e: React.MouseEvent<HTMLDivElement>) {
-    if (!panStartRef.current || !viewportRef.current) return;
+    if (!panStartRef.current || panStartRef.current.source !== "mouse" || !viewportRef.current) return;
     const dx = e.clientX - panStartRef.current.x;
     const dy = e.clientY - panStartRef.current.y;
     const now = performance.now();
     const sample = panVelocityRef.current;
-    const dt = Math.max(16, now - sample.lastTime);
-    sample.vx = ((sample.lastX - e.clientX) / dt) * 16;
-    sample.vy = ((sample.lastY - e.clientY) / dt) * 16;
+    const dt = Math.max(8, now - sample.lastTime);
+    const instantaneousVx = clampNumber(((sample.lastX - e.clientX) / dt) * PAN_SAMPLE_MS, -MAX_PAN_VELOCITY, MAX_PAN_VELOCITY);
+    const instantaneousVy = clampNumber(((sample.lastY - e.clientY) / dt) * PAN_SAMPLE_MS, -MAX_PAN_VELOCITY, MAX_PAN_VELOCITY);
+    sample.vx += (instantaneousVx - sample.vx) * PAN_VELOCITY_SMOOTHING;
+    sample.vy += (instantaneousVy - sample.vy) * PAN_VELOCITY_SMOOTHING;
     sample.lastX = e.clientX;
     sample.lastY = e.clientY;
     sample.lastTime = now;
@@ -2577,14 +2886,15 @@ export default function WorldMapPage() {
     const camera = cameraRef.current;
     const currentSize = tileSizeFromZoom(camera.targetZoom);
     const rect = viewport.getBoundingClientRect();
-    const offsetX = clientX - rect.left + camera.targetX;
-    const offsetY = clientY - rect.top + camera.targetY;
+    const viewportOffset = getViewportWorldOffset(currentSize);
+    const offsetX = clientX - rect.left - viewportOffset.x + camera.targetX;
+    const offsetY = clientY - rect.top - viewportOffset.y + camera.targetY;
     const nextTileSize = Math.max(getMinTileSize(), Math.min(MAX_TILE_SIZE, currentSize * factor));
     if (nextTileSize === currentSize) return;
     const scale = nextTileSize / currentSize;
     camera.targetZoom = clampNumber(nextTileSize / BASE_TILE_SIZE, getMinZoom(), getMaxZoom());
-    camera.targetX = offsetX * scale - (clientX - rect.left);
-    camera.targetY = offsetY * scale - (clientY - rect.top);
+    camera.targetX = offsetX * scale - (clientX - rect.left - viewportOffset.x);
+    camera.targetY = offsetY * scale - (clientY - rect.top - viewportOffset.y);
     camera.vx = 0;
     camera.vy = 0;
     clampCamera(camera);
@@ -2729,15 +3039,17 @@ export default function WorldMapPage() {
     }
   }
 
-  async function downloadScreenshot() {
-    const scale = Math.max(4, Math.min(tileSize, 10));
+  function renderScreenshotCanvas(options: ScreenshotOptions) {
+    const renderScale = options.area === "viewport"
+      ? Math.max(6, Math.min(tileSizeRef.current, 18))
+      : Math.max(4, Math.min(tileSizeRef.current, 10));
     const canvas = document.createElement("canvas");
-    canvas.width = cols * scale;
-    canvas.height = rows * scale;
+    canvas.width = cols * renderScale;
+    canvas.height = rows * renderScale;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return null;
 
-    ctx.fillStyle = layers.water ? currentTheme.water : "#0b1020";
+    ctx.fillStyle = currentTheme.water;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     for (let y = 0; y < rows; y += 1) {
@@ -2746,117 +3058,310 @@ export default function WorldMapPage() {
         if (!tile) continue;
         const key = keyOf(x, y);
         const land = isLand(tile);
+        const px = x * renderScale;
+        const py = y * renderScale;
 
         ctx.fillStyle = getTileBackground(tile);
-        ctx.fillRect(x * scale, y * scale, scale, scale);
+        ctx.fillRect(px, py, renderScale, renderScale);
 
-        if (layers.grid) {
-          ctx.strokeStyle = land ? "rgba(0,0,0,0.10)" : currentTheme.waterBorder;
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x * scale, y * scale, scale, scale);
+        if (land && options.includeLevels) {
+          const normalizedLevel = Math.min(tile.level, 6000) / 6000;
+          const levelShade = 0.10 + normalizedLevel * 0.52;
+          ctx.fillStyle = `rgba(37,99,235,${Math.max(0.10, levelShade * 0.42).toFixed(2)})`;
+          ctx.fillRect(px, py, renderScale, renderScale);
+          ctx.fillStyle = `rgba(17,24,39,${Math.max(0.16, levelShade * 0.86).toFixed(2)})`;
+          ctx.fillRect(px, py, renderScale, renderScale);
         }
 
-        if (layers.reclaimed && reclaimedTiles.has(key)) {
+        if (options.includeGrid) {
+          ctx.strokeStyle = land ? "rgba(0,0,0,0.10)" : currentTheme.waterBorder;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, renderScale - 1, renderScale - 1);
+        }
+
+        if (options.includeRoads && roadTiles.has(key)) {
+          drawRoadTexture(ctx, px, py, renderScale);
+        }
+
+        if (options.includeReclaimed && reclaimedTiles.has(key)) {
           ctx.fillStyle = RECLAIMED_FILL;
-          ctx.fillRect(x * scale, y * scale, scale, scale);
+          ctx.fillRect(px, py, renderScale, renderScale);
           ctx.strokeStyle = RECLAIMED_BORDER;
           ctx.lineWidth = 1;
-          ctx.strokeRect(x * scale + 0.5, y * scale + 0.5, scale - 1, scale - 1);
+          ctx.strokeRect(px + 0.5, py + 0.5, renderScale - 1, renderScale - 1);
           ctx.strokeStyle = RECLAIMED_STRIPE;
           ctx.beginPath();
-          ctx.moveTo(x * scale, y * scale + scale * 0.7);
-          ctx.lineTo(x * scale + scale * 0.7, y * scale);
-          ctx.moveTo(x * scale + scale * 0.3, y * scale + scale);
-          ctx.lineTo(x * scale + scale, y * scale + scale * 0.3);
+          ctx.moveTo(px, py + renderScale * 0.7);
+          ctx.lineTo(px + renderScale * 0.7, py);
+          ctx.moveTo(px + renderScale * 0.3, py + renderScale);
+          ctx.lineTo(px + renderScale, py + renderScale * 0.3);
           ctx.stroke();
         }
 
-        if (layers.roads && roadTiles.has(key)) {
-          drawRoadTexture(ctx, x * scale, y * scale, scale);
-        }
-        if (layers.weekly_conquest && weeklyConquestTileKeys.has(key)) {
-          ctx.fillStyle = WEEKLY_CONQUEST_FILL;
-          ctx.fillRect(x * scale, y * scale, scale, scale);
-          ctx.strokeStyle = WEEKLY_CONQUEST_BORDER;
+        if (options.includeDeployments && getDeploymentCount(key) > 0) {
+          ctx.fillStyle = DEPLOY_FILL;
+          ctx.fillRect(px, py, renderScale, renderScale);
+          ctx.strokeStyle = DEPLOY_BORDER;
           ctx.lineWidth = 1;
-          ctx.strokeRect(x * scale + 0.5, y * scale + 0.5, scale - 1, scale - 1);
+          ctx.strokeRect(px + 0.5, py + 0.5, renderScale - 1, renderScale - 1);
         }
 
-        if (layers.poi && outlinedTiles.has(key)) {
+        if (options.includeWeeklyConquest && weeklyConquestTileKeys.has(key)) {
+          ctx.fillStyle = WEEKLY_CONQUEST_FILL;
+          ctx.fillRect(px, py, renderScale, renderScale);
+          ctx.strokeStyle = WEEKLY_CONQUEST_BORDER;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, renderScale - 1, renderScale - 1);
+        }
+
+        if (options.includeDrawArea && outlinedTiles.has(key)) {
           ctx.strokeStyle = drawAreaColor;
-          ctx.lineWidth = Math.max(1, Math.floor(scale / 4));
-          if (!outlinedTiles.has(keyOf(x, y - 1))) { ctx.beginPath(); ctx.moveTo(x * scale, y * scale); ctx.lineTo((x + 1) * scale, y * scale); ctx.stroke(); }
-          if (!outlinedTiles.has(keyOf(x + 1, y))) { ctx.beginPath(); ctx.moveTo((x + 1) * scale, y * scale); ctx.lineTo((x + 1) * scale, (y + 1) * scale); ctx.stroke(); }
-          if (!outlinedTiles.has(keyOf(x, y + 1))) { ctx.beginPath(); ctx.moveTo(x * scale, (y + 1) * scale); ctx.lineTo((x + 1) * scale, (y + 1) * scale); ctx.stroke(); }
-          if (!outlinedTiles.has(keyOf(x - 1, y))) { ctx.beginPath(); ctx.moveTo(x * scale, y * scale); ctx.lineTo(x * scale, (y + 1) * scale); ctx.stroke(); }
+          ctx.lineWidth = Math.max(1, Math.floor(renderScale / 4));
+          if (!outlinedTiles.has(keyOf(x, y - 1))) { ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + renderScale, py); ctx.stroke(); }
+          if (!outlinedTiles.has(keyOf(x + 1, y))) { ctx.beginPath(); ctx.moveTo(px + renderScale, py); ctx.lineTo(px + renderScale, py + renderScale); ctx.stroke(); }
+          if (!outlinedTiles.has(keyOf(x, y + 1))) { ctx.beginPath(); ctx.moveTo(px, py + renderScale); ctx.lineTo(px + renderScale, py + renderScale); ctx.stroke(); }
+          if (!outlinedTiles.has(keyOf(x - 1, y))) { ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py + renderScale); ctx.stroke(); }
         }
-        if (layers.poi && penTiles.has(key)) {
+
+        if (options.includePen && penTiles.has(key)) {
           ctx.fillStyle = penTiles.get(key)!;
-          ctx.fillRect(x * scale, y * scale, scale, scale);
-        }
-        if (layers.deployments && getDeploymentCount(key) > 0) {
-          ctx.fillStyle = DEPLOY_FILL;
-          ctx.fillRect(x * scale, y * scale, scale, scale);
+          ctx.fillRect(px, py, renderScale, renderScale);
         }
       }
     }
 
-    if (layers.weekly_conquest && weeklyConquestIconEnabled) {
-      drawWeeklyConquestAreaIcons(ctx, scale, weeklyConquestAreas);
+    if (options.includeFacilities && renderScale >= 5.5) {
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let ny = 0; ny < 10; ny += 1) {
+        for (let nx = 0; nx < 10; nx += 1) {
+          const names = ZONE_FACILITY_NAMES.get(`${nx},${ny}`);
+          if (!names?.length) continue;
+          const nSX = Math.floor((nx * cols) / 10);
+          const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
+          const nSY = Math.floor((ny * rows) / 10);
+          const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
+          const zoneW = (nEX - nSX + 1) * renderScale;
+          const zoneH = (nEY - nSY + 1) * renderScale;
+          const cxPx = nSX * renderScale + zoneW / 2;
+          const cyPx = nSY * renderScale + zoneH / 2;
+          const maxW = zoneW * 0.88;
+          let fSize = Math.max(8, Math.min(44, Math.floor(zoneW * 0.13)));
+          for (const name of names) {
+            ctx.font = `bold ${fSize}px Arial, sans-serif`;
+            while (ctx.measureText(name).width > maxW && fSize > 7) {
+              fSize -= 1;
+              ctx.font = `bold ${fSize}px Arial, sans-serif`;
+            }
+          }
+          ctx.font = `bold ${fSize}px Arial, sans-serif`;
+          const lineH = fSize * 1.35;
+          const totalH = names.length * lineH;
+          let yOff = cyPx - totalH / 2 + lineH / 2;
+          for (const name of names) {
+            ctx.shadowColor = "rgba(0,0,0,0.95)";
+            ctx.shadowBlur = Math.max(3, fSize * 0.45);
+            ctx.fillStyle = "#fde68a";
+            ctx.fillText(name, cxPx, yOff);
+            ctx.shadowBlur = 0;
+            yOff += lineH;
+          }
+        }
+      }
+      ctx.restore();
     }
 
-    if (layers.chaos_setup) {
+    if (options.includeWeeklyConquest && weeklyConquestIconEnabled) {
+      drawWeeklyConquestAreaIcons(ctx, renderScale, weeklyConquestAreas);
+    }
+
+    if (options.includeSurveys) {
+      const margin = 8;
+      const pinRadius = Math.max(5, Math.min(14, renderScale * 1.6));
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let ny = 0; ny < 10; ny += 1) {
+        for (let nx = 0; nx < 10; nx += 1) {
+          const zoneKey = `${nx},${ny}`;
+          const zoneCats = surveyZoneData.catsByZone.get(zoneKey);
+          if (!zoneCats) continue;
+          const cats = zoneCats.filter((cat) => visibleSurveyCats.has(cat));
+          if (!cats.length) continue;
+          const nSX = Math.floor((nx * cols) / 10);
+          const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
+          const nSY = Math.floor((ny * rows) / 10);
+          const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
+          const nCX = Math.floor((nSX + nEX) / 2);
+          const nCY = Math.floor((nSY + nEY) / 2);
+          const baseX = nCX * renderScale + margin + renderScale / 2;
+          const baseY = nCY * renderScale + margin + renderScale / 2;
+          const spacing = pinRadius * 2.2;
+          const totalW = (cats.length - 1) * spacing;
+          cats.forEach((cat, index) => {
+            const pinX = baseX - totalW / 2 + index * spacing;
+            const pinY = baseY - pinRadius * 3.5;
+            const color = SURVEY_CAT_COLORS[cat];
+            ctx.shadowColor = "rgba(0,0,0,0.6)";
+            ctx.shadowBlur = 4;
+            ctx.beginPath();
+            ctx.arc(pinX, pinY, pinRadius, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = "rgba(255,255,255,0.9)";
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(pinX, pinY + pinRadius);
+            ctx.lineTo(pinX, pinY + pinRadius + pinRadius * 0.8);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = Math.max(1.5, pinRadius * 0.35);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.font = `bold ${Math.max(7, Math.floor(pinRadius * 0.9))}px sans-serif`;
+            ctx.fillStyle = "#fff";
+            ctx.fillText(SURVEY_CAT_LABELS[cat], pinX, pinY);
+          });
+        }
+      }
+      ctx.restore();
+    }
+
+    if (options.includeChaosSetup) {
       chaosSetupTiles.forEach((piece, placedKey) => {
         const [x, y] = placedKey.split(",").map(Number);
-        const px = x * scale;
-        const py = y * scale;
+        const px = x * renderScale;
+        const py = y * renderScale;
         if (piece === "info_board") {
           ctx.fillStyle = "#8b5a2b";
-          ctx.fillRect(px + scale * 0.44, py + scale * 0.45, Math.max(1, scale * 0.12), scale * 0.45);
+          ctx.fillRect(px + renderScale * 0.44, py + renderScale * 0.45, Math.max(1, renderScale * 0.12), renderScale * 0.45);
           ctx.fillStyle = "#d4a95f";
-          ctx.fillRect(px + scale * 0.18, py + scale * 0.12, scale * 0.64, scale * 0.36);
+          ctx.fillRect(px + renderScale * 0.18, py + renderScale * 0.12, renderScale * 0.64, renderScale * 0.36);
           ctx.strokeStyle = "#8b5a2b";
-          ctx.lineWidth = Math.max(1, scale * 0.05);
-          ctx.strokeRect(px + scale * 0.18, py + scale * 0.12, scale * 0.64, scale * 0.36);
+          ctx.lineWidth = Math.max(1, renderScale * 0.05);
+          ctx.strokeRect(px + renderScale * 0.18, py + renderScale * 0.12, renderScale * 0.64, renderScale * 0.36);
         } else {
           ctx.fillStyle = "#6b7280";
           ctx.beginPath();
-          ctx.moveTo(px + scale, py + scale);
-          ctx.lineTo(px + scale * 1.75, py + scale * 0.95);
-          ctx.lineTo(px + scale * 1.55, py + scale * 0.2);
-          ctx.lineTo(px + scale, py + scale * 0.05);
-          ctx.lineTo(px + scale * 0.4, py + scale * 0.4);
-          ctx.lineTo(px + scale * 0.1, py + scale);
+          ctx.moveTo(px + renderScale, py + renderScale);
+          ctx.lineTo(px + renderScale * 1.75, py + renderScale * 0.95);
+          ctx.lineTo(px + renderScale * 1.55, py + renderScale * 0.2);
+          ctx.lineTo(px + renderScale, py + renderScale * 0.05);
+          ctx.lineTo(px + renderScale * 0.4, py + renderScale * 0.4);
+          ctx.lineTo(px + renderScale * 0.1, py + renderScale);
           ctx.closePath();
           ctx.fill();
         }
       });
     }
 
-    const fileName = cleanMode ? "world-map-clean.png" : "world-map.png";
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-    if (!blob) return;
-    const file = new File([blob], fileName, { type: "image/png" });
-
-    const canShareFile = typeof navigator.canShare === "function" ? navigator.canShare({ files: [file] }) : true;
-    if (navigator.share && canShareFile) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: "Kingdom Adventures map screenshot",
-          text: "Save or share this map screenshot.",
-        });
-        return;
-      } catch (error) {
-        console.warn("Share failed, falling back to download", error);
+    if (options.includeTownHall && townhallPlacement) {
+      townhallPlacementKeys.forEach((key) => {
+        const [x, y] = key.split(",").map(Number);
+        const px = x * renderScale;
+        const py = y * renderScale;
+        ctx.fillStyle = TOWNHALL_FOOTPRINT_FILL;
+        ctx.fillRect(px, py, renderScale, renderScale);
+        ctx.strokeStyle = TOWNHALL_FOOTPRINT_BORDER;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px + 0.5, py + 0.5, renderScale - 1, renderScale - 1);
+      });
+      if (townhallCoverageBounds) {
+        const { minX, minY, maxX, maxY } = townhallCoverageBounds;
+        ctx.strokeStyle = TOWNHALL_FOOTPRINT_BORDER;
+        ctx.lineWidth = Math.max(1, renderScale * 0.75);
+        ctx.setLineDash([Math.max(4, renderScale * 0.5), Math.max(4, renderScale * 0.5)]);
+        ctx.strokeRect(
+          Math.round(minX * renderScale) + 0.5,
+          Math.round(minY * renderScale) + 0.5,
+          Math.round((maxX - minX + 1) * renderScale) - 1,
+          Math.round((maxY - minY + 1) * renderScale) - 1,
+        );
+        ctx.setLineDash([]);
       }
     }
 
+    if (options.includeLevels && renderScale >= 5.5) {
+      const zonePx = Math.floor((cols / 10) * renderScale);
+      const fontSize = Math.max(14, Math.min(72, Math.floor(zonePx * 0.18)));
+      ctx.save();
+      ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = "rgba(0,0,0,0.98)";
+      ctx.shadowBlur = Math.max(6, fontSize * 0.45);
+      ctx.fillStyle = "#ffffff";
+      for (let ny = 0; ny < 10; ny += 1) {
+        for (let nx = 0; nx < 10; nx += 1) {
+          const native = NATIVE_MAP[ny]?.[nx];
+          if (!native) continue;
+          const nSX = Math.floor((nx * cols) / 10);
+          const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
+          const nSY = Math.floor((ny * rows) / 10);
+          const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
+          const cxPx = nSX * renderScale + (nEX - nSX + 1) * renderScale / 2;
+          const cyPx = nSY * renderScale + (nEY - nSY + 1) * renderScale / 2;
+          ctx.fillText(String(native.level), cxPx, cyPx);
+        }
+      }
+      ctx.restore();
+    }
+
+    if (options.area !== "viewport") return canvas;
+    const viewport = viewportRef.current;
+    if (!viewport) return canvas;
+    const currentTileSize = tileSizeRef.current;
+    const viewportOffset = getViewportWorldOffset(currentTileSize);
+    const left = Math.max(0, cameraRef.current.x - MAP_CANVAS_MARGIN - viewportOffset.x);
+    const top = Math.max(0, cameraRef.current.y - MAP_CANVAS_MARGIN - viewportOffset.y);
+    const right = Math.min(cols * currentTileSize, left + viewport.clientWidth);
+    const bottom = Math.min(rows * currentTileSize, top + viewport.clientHeight);
+    const sourceX = Math.max(0, Math.floor((left / currentTileSize) * renderScale));
+    const sourceY = Math.max(0, Math.floor((top / currentTileSize) * renderScale));
+    const sourceW = Math.max(1, Math.min(canvas.width - sourceX, Math.ceil(((right - left) / currentTileSize) * renderScale)));
+    const sourceH = Math.max(1, Math.min(canvas.height - sourceY, Math.ceil(((bottom - top) / currentTileSize) * renderScale)));
+    const croppedCanvas = document.createElement("canvas");
+    croppedCanvas.width = sourceW;
+    croppedCanvas.height = sourceH;
+    const croppedCtx = croppedCanvas.getContext("2d");
+    if (!croppedCtx) return canvas;
+    croppedCtx.drawImage(canvas, sourceX, sourceY, sourceW, sourceH, 0, 0, sourceW, sourceH);
+    return croppedCanvas;
+  }
+
+  async function generateScreenshotPreview() {
+    try {
+      setScreenshotStatus("working");
+      const canvas = renderScreenshotCanvas(screenshotOptions);
+      if (!canvas) throw new Error("Screenshot canvas could not be created.");
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("Screenshot export failed.");
+      clearScreenshotPreview();
+      const fileName = getScreenshotFileName(screenshotOptions);
+      const url = URL.createObjectURL(blob);
+      setScreenshotPreviewUrl(url);
+      setScreenshotPreviewFileName(fileName);
+    } catch (error) {
+      console.error("Screenshot preview failed", error);
+      setNotice("Screenshot preview failed.");
+    } finally {
+      setScreenshotStatus(null);
+    }
+  }
+
+  function downloadScreenshot() {
+    if (!screenshotPreviewUrl) {
+      setNotice("Generate preview first.");
+      return;
+    }
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = fileName;
+    link.href = screenshotPreviewUrl;
+    link.download = screenshotPreviewFileName ?? getScreenshotFileName(screenshotOptions);
     link.click();
-    URL.revokeObjectURL(link.href);
+    setNotice("Screenshot saved.");
+    setScreenshotDialogOpen(false);
+    clearScreenshotPreview();
   }
 
 
@@ -2924,15 +3429,26 @@ export default function WorldMapPage() {
     const startY = Math.max(0, Math.floor((camera.y - MAP_CANVAS_MARGIN) / renderedTileSize) - 2);
     const endX = Math.min(cols - 1, Math.ceil((camera.x + w - MAP_CANVAS_MARGIN) / renderedTileSize) + 2);
     const endY = Math.min(rows - 1, Math.ceil((camera.y + h - MAP_CANVAS_MARGIN) / renderedTileSize) + 2);
+    const visibleNativeStartX = Math.max(0, Math.floor((startX * 10) / cols) - 1);
+    const visibleNativeEndX = Math.min(9, Math.floor((endX * 10) / cols) + 1);
+    const visibleNativeStartY = Math.max(0, Math.floor((startY * 10) / rows) - 1);
+    const visibleNativeEndY = Math.min(9, Math.floor((endY * 10) / rows) + 1);
+    const viewportOffset = getViewportWorldOffset(renderedTileSize);
     ctx.save();
-    ctx.translate(MAP_CANVAS_MARGIN - camera.x, MAP_CANVAS_MARGIN - camera.y);
+    ctx.translate(viewportOffset.x + MAP_CANVAS_MARGIN - camera.x, viewportOffset.y + MAP_CANVAS_MARGIN - camera.y);
 
+    const roundedTileSize = Math.max(0.25, Math.round(renderedTileSize * 4) / 4);
     const baseCache = getBaseTerrainCache(renderedTileSize);
-    const cacheScale = renderedTileSize / Math.max(0.25, Math.round(renderedTileSize * 4) / 4);
-    ctx.save();
-    ctx.scale(cacheScale, cacheScale);
-    ctx.drawImage(baseCache, 0, 0);
-    ctx.restore();
+    const cacheScale = renderedTileSize / roundedTileSize;
+    const srcX = Math.max(0, Math.floor(startX * roundedTileSize));
+    const srcY = Math.max(0, Math.floor(startY * roundedTileSize));
+    const srcW = Math.min(baseCache.width - srcX, Math.ceil((endX - startX + 1) * roundedTileSize));
+    const srcH = Math.min(baseCache.height - srcY, Math.ceil((endY - startY + 1) * roundedTileSize));
+    const dstX = srcX * cacheScale;
+    const dstY = srcY * cacheScale;
+    const dstW = srcW * cacheScale;
+    const dstH = srcH * cacheScale;
+    ctx.drawImage(baseCache, srcX, srcY, srcW, srcH, dstX, dstY, dstW, dstH);
 
     for (let cy = startY; cy <= endY; cy++) {
       for (let cx = startX; cx <= endX; cx++) {
@@ -3123,6 +3639,9 @@ export default function WorldMapPage() {
     if (layers.chaos_setup) {
       chaosSetupTiles.forEach((piece, placedKey) => {
         const [x, y] = placedKey.split(",").map(Number);
+        const maxPieceX = piece === "chaos_stone" ? x + 1 : x;
+        const maxPieceY = piece === "chaos_stone" ? y + 1 : y;
+        if (maxPieceX < startX || x > endX || maxPieceY < startY || y > endY) return;
         const px = x * renderedTileSize;
         const py = y * renderedTileSize;
         if (piece === "info_board") {
@@ -3157,8 +3676,8 @@ export default function WorldMapPage() {
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      for (let ny = 0; ny < 10; ny++) {
-        for (let nx = 0; nx < 10; nx++) {
+      for (let ny = visibleNativeStartY; ny <= visibleNativeEndY; ny += 1) {
+        for (let nx = visibleNativeStartX; nx <= visibleNativeEndX; nx += 1) {
           const names = ZONE_FACILITY_NAMES.get(`${nx},${ny}`);
           if (!names?.length) continue;
           // Zone pixel bounds
@@ -3201,8 +3720,8 @@ export default function WorldMapPage() {
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      for (let ny = 0; ny < 10; ny++) {
-        for (let nx = 0; nx < 10; nx++) {
+      for (let ny = visibleNativeStartY; ny <= visibleNativeEndY; ny += 1) {
+        for (let nx = visibleNativeStartX; nx <= visibleNativeEndX; nx += 1) {
           const names = weeklyConquestZoneLabels.get(`${nx},${ny}`);
           if (!names?.length) continue;
           const nSX = Math.floor((nx * cols) / 10);
@@ -3249,7 +3768,12 @@ export default function WorldMapPage() {
     }
 
     if (layers.weekly_conquest && weeklyConquestIconEnabled) {
-      drawWeeklyConquestAreaIcons(ctx, renderedTileSize, weeklyConquestAreas);
+      drawWeeklyConquestAreaIcons(ctx, renderedTileSize, weeklyConquestAreas, {
+        minX: startX,
+        minY: startY,
+        maxX: endX,
+        maxY: endY,
+      });
     }
 
     // ── Survey pins ────────────────────────────────────────────────────────────
@@ -3259,21 +3783,19 @@ export default function WorldMapPage() {
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      for (let ny = 0; ny < 10; ny++) {
-        for (let nx = 0; nx < 10; nx++) {
+      for (let ny = visibleNativeStartY; ny <= visibleNativeEndY; ny += 1) {
+        for (let nx = visibleNativeStartX; nx <= visibleNativeEndX; nx += 1) {
           const native = NATIVE_MAP[ny]?.[nx];
           if (!native) continue;
           const zoneTerrain: TerrainType = native.terrain;
           const zoneLevel: number = native.level;
           // Collect matching surveys (filtered by visible cats)
-          const matching = SURVEY_DEFS.filter((s) => {
-            if (!visibleSurveyCats.has(s.category)) return false;
-            if (s.terrainId !== -1 && SURVEY_TERRAIN_MAP[s.terrainId] !== zoneTerrain) return false;
-            return zoneLevel >= s.minLevel;
-          });
-          if (!matching.length) continue;
-          // Deduplicate by category
-          const cats = [...new Set(matching.map((s) => s.category))] as SurveyCategory[];
+          const zoneKey = `${nx},${ny}`;
+          const zoneDefs = surveyZoneData.defsByZone.get(zoneKey);
+          const zoneCats = surveyZoneData.catsByZone.get(zoneKey);
+          if (!zoneDefs || !zoneCats) continue;
+          const cats = zoneCats.filter((cat) => visibleSurveyCats.has(cat));
+          if (!cats.length) continue;
           // Zone center in canvas coords
           const nSX = Math.floor((nx * cols) / 10);
           const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
@@ -3332,8 +3854,8 @@ export default function WorldMapPage() {
       ctx.shadowColor = "rgba(0,0,0,0.98)";
       ctx.shadowBlur = Math.max(6, fontSize * 0.45);
       ctx.fillStyle = "#ffffff";
-      for (let ny = 0; ny < 10; ny++) {
-        for (let nx = 0; nx < 10; nx++) {
+      for (let ny = visibleNativeStartY; ny <= visibleNativeEndY; ny += 1) {
+        for (let nx = visibleNativeStartX; nx <= visibleNativeEndX; nx += 1) {
           const native = NATIVE_MAP[ny]?.[nx];
           if (!native) continue;
           const nSX = Math.floor((nx * cols) / 10);
@@ -3352,28 +3874,27 @@ export default function WorldMapPage() {
   }
 
   function drawMinimap() {
+    if (!showMinimap) return;
     const canvas = minimapCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, cols, rows);
-    for (let cy = 0; cy < rows; cy++) {
-      for (let cx = 0; cx < cols; cx++) {
-        const tile = grid.get(keyOf(cx, cy));
-        if (!tile) continue;
-        const key = keyOf(cx, cy);
-        const land = isLand(tile);
-        let bg = currentTheme.water;
-        if (land) bg = TERRAIN_COLORS[tile.terrain];
-        if (layers.roads && roadTiles.has(key)) bg = "rgba(100,116,139,0.95)";
-        if (layers.weekly_conquest && weeklyConquestTileKeys.has(key)) bg = "rgba(245,158,11,0.9)";
-        if (layers.poi && penTiles.has(key)) bg = penTiles.get(key)!;
-        if (layers.reclaimed && reclaimedTiles.has(key)) bg = "#8fd3ff";
-        if (layers.deployments && getDeploymentCount(key) > 0) bg = "rgba(34,211,238,0.9)";
-        ctx.fillStyle = bg;
-        ctx.fillRect(cx, cy, 1, 1);
-      }
-    }
+    grid.forEach((tile) => {
+      const cx = tile.x;
+      const cy = tile.y;
+      const key = keyOf(cx, cy);
+      const land = isLand(tile);
+      let bg = currentTheme.water;
+      if (land) bg = TERRAIN_COLORS[tile.terrain];
+      if (layers.roads && roadTiles.has(key)) bg = "rgba(100,116,139,0.95)";
+      if (layers.weekly_conquest && weeklyConquestTileKeys.has(key)) bg = "rgba(245,158,11,0.9)";
+      if (layers.poi && penTiles.has(key)) bg = penTiles.get(key)!;
+      if (layers.reclaimed && reclaimedTiles.has(key)) bg = "#8fd3ff";
+      if (layers.deployments && getDeploymentCount(key) > 0) bg = "rgba(34,211,238,0.9)";
+      ctx.fillStyle = bg;
+      ctx.fillRect(cx, cy, 1, 1);
+    });
     if (layers.chaos_setup) {
       chaosSetupTiles.forEach((piece, placedKey) => {
         const [x, y] = placedKey.split(",").map(Number);
@@ -3383,19 +3904,24 @@ export default function WorldMapPage() {
     }
   }
 
+  // Render invalidation for non-camera state changes.
+  // Camera movement/zoom uses scheduleRender directly, so we avoid duplicate redraws.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    drawMap();
-    requestAnimationFrame(syncMapScroll);
+    scheduleRender();
   }, [
-    tileSize, mapCamera, outlinedTiles, penTiles, chaosSetupTiles, reclaimedTiles, deployedTiles, roadTiles,
+    outlinedTiles, penTiles, chaosSetupTiles, reclaimedTiles, deployedTiles, roadTiles,
     layers, hoveredTile, selectedTile, activeTool, paintMode, drawAreaColor, penColor, deployColor, previewKeys,
     townhallPlacement, townhallLevel, townhallCoverageBounds, townhallPlacementKeys, townhallPreviewBounds,
     weeklyConquestTileKeys, weeklyConquestAreas, weeklyConquestIconEnabled,
   ]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { drawMinimap(); }, [
+  useEffect(() => {
+    if (!showMinimap) return;
+    drawMinimap();
+  }, [
+    showMinimap,
     reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles, outlinedTiles, layers, weeklyConquestTileKeys,
   ]);
 
@@ -3661,7 +4187,7 @@ export default function WorldMapPage() {
           <Button size="sm" variant="outline" className="w-full justify-start" onClick={exportToClipboard}>Export</Button>
           <Button size="sm" variant="outline" className="w-full justify-start" onClick={importFromClipboard}>Import</Button>
           <Button size="sm" variant="outline" className="w-full justify-start" onClick={resetMap}>Reset</Button>
-          <Button size="sm" variant="outline" className="w-full justify-start" onClick={downloadScreenshot}>Screenshot</Button>
+          <Button size="sm" variant="outline" className="w-full justify-start" onClick={openScreenshotDialog}>Screenshot</Button>
         </div>
       </div>
 
@@ -3708,7 +4234,7 @@ export default function WorldMapPage() {
         onPointerDown={onViewportPointerDown}
         onPointerMove={onViewportPointerMove}
         onPointerUp={(e) => {
-          if (activeTool === "none" && panStartRef.current) {
+          if ((activeTool === "none" || shouldUseTouchNavigation(e.pointerType)) && panStartRef.current && (panStartRef.current.source !== "pointer" || panStartRef.current.pointerId === e.pointerId)) {
             const dx = Math.abs(e.clientX - panStartRef.current.x);
             const dy = Math.abs(e.clientY - panStartRef.current.y);
             if (dx < 5 && dy < 5) {
@@ -4252,6 +4778,88 @@ export default function WorldMapPage() {
     </div>
   );
 
+  const screenshotDialog = (
+    <Dialog open={screenshotDialogOpen} onOpenChange={(open) => { if (screenshotStatus !== "working") { if (!open) clearScreenshotPreview(); setScreenshotDialogOpen(open); } }}>
+      <DialogContent
+        className="w-[min(96vw,720px)] max-w-[min(96vw,720px)] max-h-[90vh] overflow-y-auto p-4 sm:p-6"
+        container={isFullscreen ? fullscreenContainerRef.current : undefined}
+      >
+        <DialogHeader>
+          <DialogTitle>Map screenshot</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 text-sm">
+          <div className="space-y-2">
+            <div className="font-medium">Quick presets</div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <Button size="sm" variant="outline" onClick={() => applyScreenshotPreset("shareable")}>Shareable</Button>
+              <Button size="sm" variant="outline" onClick={() => applyScreenshotPreset("planner")}>Planner</Button>
+              <Button size="sm" variant="outline" onClick={() => applyScreenshotPreset("current")}>Current state</Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="font-medium">Capture area</div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button size="sm" variant={screenshotOptions.area === "full-map" ? "default" : "outline"} onClick={() => setScreenshotOptions((prev) => ({ ...prev, area: "full-map" }))}>Full map</Button>
+              <Button size="sm" variant={screenshotOptions.area === "viewport" ? "default" : "outline"} onClick={() => setScreenshotOptions((prev) => ({ ...prev, area: "viewport" }))}>Current viewport</Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="font-medium">Include in screenshot</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[
+                ["includeLevels", "Levels overlay"],
+                ["includeGrid", "Grid"],
+                ["includePen", "Pen marks"],
+                ["includeDrawArea", "Draw area outlines"],
+                ["includeRoads", "Roads"],
+                ["includeDeployments", "Deployments"],
+                ["includeReclaimed", "Reclaimed tiles"],
+                ["includeWeeklyConquest", "Weekly conquest"],
+                ["includeChaosSetup", "Chaos setup"],
+                ["includeFacilities", "Facilities"],
+                ["includeSurveys", "Survey pins"],
+                ["includeTownHall", "Town hall coverage"],
+              ].map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(screenshotOptions[key as keyof ScreenshotOptions])}
+                    onChange={(e) => setScreenshotOptions((prev) => ({ ...prev, [key]: e.target.checked }))}
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="font-medium">Preview</div>
+            <div className="rounded-md border bg-black/30 p-2 min-h-[150px] sm:min-h-[180px] flex items-center justify-center">
+              {screenshotPreviewUrl ? (
+                <img
+                  src={screenshotPreviewUrl}
+                  alt="Screenshot preview"
+                  className="max-h-[220px] sm:max-h-[260px] w-auto rounded border border-white/10"
+                  style={{ imageRendering: "pixelated" }}
+                />
+              ) : (
+                <div className="text-xs opacity-70">Generate preview to review before download.</div>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end">
+            <Button size="sm" className="w-full sm:w-auto" variant="outline" onClick={() => { clearScreenshotPreview(); setScreenshotDialogOpen(false); }} disabled={screenshotStatus === "working"}>Cancel</Button>
+            <Button size="sm" className="w-full sm:w-auto" variant="outline" onClick={generateScreenshotPreview} disabled={screenshotStatus === "working"}>
+              {screenshotStatus === "working" ? "Preparing..." : "Generate preview"}
+            </Button>
+            <Button size="sm" className="w-full sm:w-auto" onClick={downloadScreenshot} disabled={screenshotStatus === "working" || !screenshotPreviewUrl}>
+              Download PNG
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   return (
     <>
       {notice && (
@@ -4416,7 +5024,7 @@ export default function WorldMapPage() {
                   <Button size="sm" className="h-8 w-8 p-0" title="Import" aria-label="Import" variant="ghost" onClick={importFromClipboard}>
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 4v12"/><path d="M8 12l4 4 4-4"/><path d="M4 20h16"/></svg>
                   </Button>
-                  <Button size="sm" className="h-8 w-8 p-0" title="Screenshot" aria-label="Screenshot" variant="ghost" onClick={downloadScreenshot}>
+                  <Button size="sm" className="h-8 w-8 p-0" title="Screenshot" aria-label="Screenshot" variant="ghost" onClick={openScreenshotDialog}>
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M8 6l1.5-2h5L16 6"/><circle cx="12" cy="13" r="3"/></svg>
                   </Button>
                   <Button size="sm" className="h-8 w-8 p-0" title="Minimap" aria-label="Minimap" variant={showMinimap ? "default" : "ghost"} onClick={() => setShowMinimap((prev) => !prev)}>
@@ -4539,6 +5147,14 @@ export default function WorldMapPage() {
                       : activeTool}
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant={touchEditMode ? "default" : "ghost"}
+                      className="h-8 px-2 text-[11px]"
+                      onClick={() => setTouchEditMode((prev) => !prev)}
+                    >
+                      {touchEditMode ? "Touch Edit" : "Touch Pan"}
+                    </Button>
                     <Button size="sm" className="h-8 w-8 p-0" title="Minimap" aria-label="Minimap" variant="ghost" onClick={() => setShowMinimap((prev) => !prev)}>
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14"/><path d="M15 6v14"/></svg>
                     </Button>
@@ -4551,6 +5167,15 @@ export default function WorldMapPage() {
 
               {!cleanMode && touchMode && mobileToolbarOpen && (
                 <div className="mb-3 rounded-xl border p-3 space-y-3" style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" variant={touchEditMode ? "default" : "outline"} onClick={() => setTouchEditMode(true)}>
+                      Finger Edit
+                    </Button>
+                    <Button size="sm" variant={!touchEditMode ? "default" : "outline"} onClick={() => setTouchEditMode(false)}>
+                      Finger Pan
+                    </Button>
+                  </div>
+
                   <div className="grid grid-cols-3 gap-2">
                     <Button size="sm" className="h-8 w-8 p-0" title="Pan" aria-label="Pan" variant={activeTool === "none" ? "default" : "ghost"} onClick={() => setActiveTool("none")}><BubbleIconCursor /></Button>
                     <Button size="sm" className="h-8 w-8 p-0" title="Pen" aria-label="Pen" variant={activeTool === "pen" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "pen"))}><BubbleIconPen /></Button>
@@ -4585,7 +5210,7 @@ export default function WorldMapPage() {
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 4v12"/><path d="M8 12l4 4 4-4"/><path d="M4 20h16"/></svg>
                     </Button>
                     <Button size="sm" variant="ghost" onClick={resetMap}>Reset</Button>
-                    <Button size="sm" className="h-8 w-8 p-0" title="Screenshot" aria-label="Screenshot" variant="ghost" onClick={downloadScreenshot}>
+                    <Button size="sm" className="h-8 w-8 p-0" title="Screenshot" aria-label="Screenshot" variant="ghost" onClick={openScreenshotDialog}>
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M8 6l1.5-2h5L16 6"/><circle cx="12" cy="13" r="3"/></svg>
                     </Button>
                     <Button size="sm" variant="ghost" onClick={toggleFullscreen}>Fullscreen</Button>
@@ -4913,6 +5538,8 @@ export default function WorldMapPage() {
             </div>
           )}
         </div>
+
+        {screenshotDialog}
       </div>
     </>
   );
