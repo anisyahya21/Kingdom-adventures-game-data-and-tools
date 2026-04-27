@@ -9,6 +9,16 @@ export default function UpdatesPage() {
         </div>
 
         <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
+          <h2 className="text-lg font-bold">27/04/2026</h2>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+            <li>Events now use clearer live/inactive visual status across the Events page, homepage event banner, Job Center, Daily Rank Rewards, Kairo Room, and Wairo Dungeon.</li>
+            <li>Weekly Conquest monsters with ground spawns now show their areas, and the Weekly Conquest page now includes a map highlighting monster areas directly.</li>
+            <li>Monster images have now been added to Monster Spawns and Weekly Conquest, credits to <a href="https://kairosoft.fandom.com/wiki/Monsters_(Kingdom_Adventurers)" className="underline text-foreground" target="_blank" rel="noreferrer">kairosoft.fandom</a>.</li>
+            <li>Guides now show a table of contents on mobile, and guide popups behave better on mobile now.</li>
+          </ol>
+        </section>
+
+        <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
           <h2 className="text-lg font-bold">26/04/2026</h2>
           <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
             <li><Link href="/jobs/Berserker" className="underline text-foreground">Berserker</Link> now not missing shield, Weapon classes &amp; Skill access information.</li>

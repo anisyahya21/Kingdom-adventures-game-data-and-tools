@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Info, Loader2, Plus, RefreshCw, Skull, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Loader2, Plus, RefreshCw, Search, Skull, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
+import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
 import {
   MINED_MONSTER_SUMMARIES,
   mergeUniqueSpawns,
@@ -13,6 +14,29 @@ import {
 } from "@/lib/monster-truth";
 
 type SharedMonster = { icon?: string };
+
+function MonsterImage({ src, name, large = false }: { src?: string; name: string; large?: boolean }) {
+  return (
+    <div className={`${large ? "h-24 w-48" : "h-14 w-28 sm:h-16 sm:w-32"} shrink-0 overflow-hidden rounded-md border border-border bg-muted/30`}>
+      {src ? (
+        <img src={src} alt={name} className="h-full w-full object-cover object-center" loading="lazy" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <Skull className={`${large ? "h-7 w-7" : "h-5 w-5"} text-muted-foreground/40`} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SpawnChip({ area, level }: { area: string; level: number }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] leading-5 text-muted-foreground">
+      <span className="font-medium text-foreground/80">{area}</span>
+      <span>Lv {level}</span>
+    </span>
+  );
+}
 
 function useSharedIcons() {
   return useQuery({
@@ -69,6 +93,7 @@ export default function MonstersPage() {
     const params = new URLSearchParams(window.location.search);
     return params.get("monster") ?? null;
   });
+  const [searchQuery, setSearchQuery] = useState("");
   const [sightingDrafts, setSightingDrafts] = useState<Record<string, { area: string; level: string }>>({});
   const { data, isLoading, refetch } = useSharedIcons();
   const { data: communitySightings = {} } = useCommunitySightings();
@@ -96,12 +121,27 @@ export default function MonstersPage() {
       const sightings = communitySightings[monster.name] ?? [];
       return {
         ...monster,
-        icon: sharedMonsters[monster.name]?.icon,
+        icon: sharedMonsters[monster.name]?.icon ?? MONSTER_ICON_MAP[monster.name],
         communitySightings: sightings,
         combinedSpawns: mergeUniqueSpawns(monster.nativeMapSpawns, sightings),
       };
     });
   }, [communitySightings, data?.monsters]);
+
+  const filteredMonsters = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return monsters;
+    return monsters.filter((monster) => {
+      const searchable = [
+        monster.name,
+        monster.terrainName,
+        String(monster.areaLevelMin),
+        String(monster.areaLevelMax),
+        ...monster.combinedSpawns.flatMap((spawn) => [spawn.area, String(spawn.level), `lv ${spawn.level}`]),
+      ].join(" ").toLowerCase();
+      return searchable.includes(query);
+    });
+  }, [monsters, searchQuery]);
 
   useEffect(() => {
     if (expandedRowRef.current) {
@@ -162,7 +202,7 @@ export default function MonstersPage() {
 
   return (
     <div className="min-h-screen bg-background transition-colors">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
@@ -203,69 +243,96 @@ export default function MonstersPage() {
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Monster Spawns Database</h2>
         </div>
 
+        <div className="relative mb-3">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search monsters, terrain, or spawn level"
+            className="h-9 pl-9 text-sm"
+          />
+        </div>
+
         <Card className="shadow-sm overflow-hidden">
           <div className="divide-y divide-border">
-            {monsters.map((monster) => {
+            {filteredMonsters.map((monster) => {
               const isExpanded = expandedMonster === monster.name;
               const draft = sightingDrafts[monster.name] ?? { area: "", level: "" };
+              const previewSpawns = monster.combinedSpawns.slice(0, 6);
+              const hiddenSpawnCount = Math.max(0, monster.combinedSpawns.length - previewSpawns.length);
               return (
                 <div key={monster.id || monster.name} ref={expandedMonster === monster.name ? expandedRowRef : null}>
-                  <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
-                    <div className="w-9 h-9 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
-                      {monster.icon ? <img src={monster.icon} alt="" className="w-full h-full object-contain" /> : <Skull className="w-4 h-4 text-muted-foreground/40" />}
-                    </div>
-                    <button onClick={() => setExpandedMonster(isExpanded ? null : monster.name)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
-                      {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-primary shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-                      <span className={`font-medium text-sm ${isExpanded ? "text-primary underline underline-offset-2 decoration-primary/40" : ""}`}>{monster.name}</span>
-                      <span className="text-[11px] text-muted-foreground ml-1">
-                        {monster.combinedSpawns.length > 0
-                          ? `${monster.combinedSpawns.length} spawn level${monster.combinedSpawns.length !== 1 ? "s" : ""}`
-                          : "no resolved spawn levels"}
-                      </span>
+                  <div className="flex items-center gap-3 px-3 py-2 hover:bg-muted/20 transition-colors">
+                    <MonsterImage src={monster.icon} name={monster.name} />
+                    <button onClick={() => setExpandedMonster(isExpanded ? null : monster.name)} className="grid flex-1 grid-cols-1 gap-1 text-left lg:grid-cols-[minmax(180px,260px)_minmax(0,1fr)_160px] lg:items-center">
+                      <div className="flex min-w-0 items-center gap-2">
+                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-primary shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+                        <span className={`truncate font-medium text-sm ${isExpanded ? "text-primary underline underline-offset-2 decoration-primary/40" : ""}`}>{monster.name}</span>
+                      </div>
+                      <div className="flex min-w-0 flex-wrap gap-1">
+                        {previewSpawns.length > 0 ? (
+                          <>
+                            {previewSpawns.map((spawn, index) => (
+                              <SpawnChip key={`${monster.name}-preview-${spawn.area}-${spawn.level}-${index}`} area={spawn.area} level={spawn.level} />
+                            ))}
+                            {hiddenSpawnCount > 0 ? (
+                              <span className="inline-flex items-center rounded border border-border/70 px-2 py-0.5 text-[11px] leading-5 text-muted-foreground">+{hiddenSpawnCount}</span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground">No resolved spawn levels</span>
+                        )}
+                      </div>
+                      <div className="hidden text-right text-[11px] text-muted-foreground lg:block">
+                        <span className="font-medium text-foreground/80">{monster.terrainName}</span>
+                        <span> Lv {monster.areaLevelMin}-{monster.areaLevelMax}</span>
+                      </div>
                     </button>
                   </div>
 
                   {isExpanded && (
-                    <div className="bg-muted/10 px-4 py-3 border-t border-border/50 space-y-3">
-                      <div className="grid gap-2 sm:grid-cols-3">
-                        <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
-                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Terrain</p>
-                          <p className="text-sm font-medium">{monster.terrainName}</p>
+                    <div className="bg-muted/10 px-3 py-3 border-t border-border/50">
+                      <div className="grid gap-3 lg:grid-cols-[200px_minmax(0,1fr)]">
+                        <div className="hidden lg:block">
+                          <MonsterImage src={monster.icon} name={monster.name} large />
                         </div>
-                        <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
-                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Min Lv.</p>
-                          <p className="text-sm font-medium">{monster.areaLevelMin}</p>
-                        </div>
-                        <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
-                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Max Lv.</p>
-                          <p className="text-sm font-medium">{monster.areaLevelMax}</p>
+
+                        <div className="min-w-0 space-y-3">
+                          <div className="grid gap-2 sm:grid-cols-3">
+                            <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Terrain</p>
+                              <p className="text-sm font-medium">{monster.terrainName}</p>
+                            </div>
+                            <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Min Lv.</p>
+                              <p className="text-sm font-medium">{monster.areaLevelMin}</p>
+                            </div>
+                            <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Max Lv.</p>
+                              <p className="text-sm font-medium">{monster.areaLevelMax}</p>
+                            </div>
+                          </div>
+
+                          {monster.spawnNote ? (
+                            <div className="rounded-md border border-dashed border-border/70 bg-background/40 px-3 py-3">
+                              <p className="text-xs text-muted-foreground">{monster.spawnNote}</p>
+                            </div>
+                          ) : null}
+
+                          {monster.nativeMapSpawns.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-2">Native Map Spawns</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {monster.nativeMapSpawns.map((spawn, index) => (
+                                  <SpawnChip key={`${monster.name}-${spawn.area}-${spawn.level}-${index}`} area={spawn.area} level={spawn.level} />
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      {monster.spawnNote ? (
-                        <div className="rounded-md border border-dashed border-border/70 bg-background/40 px-3 py-3">
-                          <p className="text-xs text-muted-foreground">{monster.spawnNote}</p>
-                        </div>
-                      ) : null}
-
-                      {monster.nativeMapSpawns.length > 0 && (
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-2">Native Map Spawns</p>
-                          <div className="space-y-1.5">
-                            {monster.nativeMapSpawns.map((spawn, index) => (
-                              <div key={`${monster.name}-${spawn.area}-${spawn.level}-${index}`} className="flex items-center gap-2">
-                                <Skull className="w-3 h-3 text-muted-foreground/50 shrink-0" />
-                                <div className="flex-1 text-xs text-muted-foreground">
-                                  <span className="font-medium">Lv {spawn.level}</span>
-                                  <span className="text-muted-foreground/60"> - {spawn.area}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="rounded-md border border-border/60 bg-background/40 px-3 py-3">
+                      <div className="mt-3 rounded-md border border-border/60 bg-background/40 px-3 py-3">
                         <div className="flex items-center gap-2 mb-2">
                           <Users className="w-3.5 h-3.5 text-muted-foreground" />
                           <p className="text-xs font-medium text-muted-foreground">Sighted by community data</p>
@@ -315,10 +382,19 @@ export default function MonstersPage() {
                 </div>
               );
             })}
+            {filteredMonsters.length === 0 ? (
+              <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                No monsters match that search.
+              </div>
+            ) : null}
           </div>
         </Card>
 
-        <p className="text-xs text-muted-foreground mt-4 text-center">{monsters.length} monsters</p>
+        <p className="text-xs text-muted-foreground mt-4 text-center">
+          {filteredMonsters.length === monsters.length
+            ? `${monsters.length} monsters`
+            : `${filteredMonsters.length} of ${monsters.length} monsters`}
+        </p>
       </div>
     </div>
   );

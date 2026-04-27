@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "wouter";
-import { BookOpenText, ExternalLink, Link2, Loader2, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { BookOpenText, ExternalLink, Link2, ListTree, Loader2, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,9 @@ type GuideSection = {
   level: 1 | 2;
   lines: string[];
 };
+
+const GUIDE_PREVIEW_DIALOG_CLASS =
+  "h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-none overflow-y-auto p-4 pt-12 sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-[95vw] sm:p-6 xl:max-w-6xl";
 
 type ParsedGuide = {
   imageMap: Record<string, string>;
@@ -1223,7 +1226,7 @@ function EquipmentPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] xl:max-w-6xl">
+      <DialogContent className={GUIDE_PREVIEW_DIALOG_CLASS}>
         <DialogHeader>
           <DialogTitle>{item.name}</DialogTitle>
           <DialogDescription>
@@ -1386,7 +1389,7 @@ function EquipmentSetPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] xl:max-w-6xl">
+      <DialogContent className={GUIDE_PREVIEW_DIALOG_CLASS}>
         <DialogHeader>
           <DialogTitle>{item.label}</DialogTitle>
           <DialogDescription>Equipment set stats. Change item levels to compare the setup.</DialogDescription>
@@ -1539,7 +1542,7 @@ function MarriageSimPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] xl:max-w-5xl">
+      <DialogContent className={GUIDE_PREVIEW_DIALOG_CLASS}>
         <DialogHeader>
           <DialogTitle>{item.label}</DialogTitle>
           <DialogDescription>Change parents and ranks to check compatibility from inside the guide.</DialogDescription>
@@ -1703,7 +1706,7 @@ function JobPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] xl:max-w-5xl">
+      <DialogContent className={GUIDE_PREVIEW_DIALOG_CLASS}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {item.job.icon ? <img src={item.job.icon} alt={item.name} className="h-7 w-7 rounded object-contain" /> : null}
@@ -1942,6 +1945,7 @@ export function GuideDocumentPage({
   const [equipmentSetPreviewOpen, setEquipmentSetPreviewOpen] = useState(false);
   const [marriageSimPreview, setMarriageSimPreview] = useState<MarriageSimPreviewItem | null>(null);
   const [marriageSimPreviewOpen, setMarriageSimPreviewOpen] = useState(false);
+  const [mobileTocOpen, setMobileTocOpen] = useState(false);
 
   const isOwner = Boolean(ownerGuideId);
 
@@ -2285,7 +2289,7 @@ export function GuideDocumentPage({
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 py-6 pb-24 space-y-6 lg:pb-6">
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <BookOpenText className="w-5 h-5 text-muted-foreground" />
@@ -2437,29 +2441,45 @@ export function GuideDocumentPage({
               })}
             </div>
           </div>
-          <div className="lg:hidden">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Table of Contents</CardTitle>
-                <CardDescription className="text-xs">
-                  Generated from the guide headings so we can preserve structure as the source changes later.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                {toc.map((section) => (
-                  <a
-                    key={`mobile-${section.id}`}
-                    href={`#${section.id}`}
-                    className={`block rounded-md px-2 py-1.5 text-sm hover:bg-muted/50 ${
-                      section.level === 2 ? "ml-3 text-muted-foreground" : ""
-                    }`}
-                  >
-                    {section.title}
-                  </a>
-                ))}
-              </CardContent>
-            </Card>
+          <div className="fixed bottom-3 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-sm -translate-x-1/2 lg:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 w-full justify-between rounded-full border-primary/40 bg-background/95 px-4 shadow-lg backdrop-blur"
+              onClick={() => setMobileTocOpen(true)}
+            >
+              <span className="inline-flex items-center gap-2">
+                <ListTree className="h-4 w-4 text-primary" />
+                Table of Contents
+              </span>
+              <span className="text-xs text-muted-foreground">{toc.length}</span>
+            </Button>
           </div>
+
+          <Dialog open={mobileTocOpen} onOpenChange={setMobileTocOpen}>
+            <DialogContent className="top-auto bottom-0 h-[75dvh] w-full max-w-none translate-y-0 rounded-t-xl p-4 pt-12 sm:left-1/2 sm:top-1/2 sm:h-auto sm:max-h-[85vh] sm:w-full sm:max-w-lg sm:-translate-y-1/2 sm:rounded-lg sm:p-6">
+              <DialogHeader>
+                <DialogTitle>Table of Contents</DialogTitle>
+                <DialogDescription>Jump to a section in the guide.</DialogDescription>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                <div className="space-y-1 pb-4">
+                  {toc.map((section) => (
+                    <a
+                      key={`mobile-${section.id}`}
+                      href={`#${section.id}`}
+                      onClick={() => setMobileTocOpen(false)}
+                      className={`block rounded-md px-3 py-2 text-sm hover:bg-muted/50 ${
+                        section.level === 2 ? "ml-3 text-muted-foreground" : "font-medium"
+                      }`}
+                    >
+                      {section.title}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </>
       )}
 

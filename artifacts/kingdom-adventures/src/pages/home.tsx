@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { applyEventHourOffset, useEventHourOffset } from "@/lib/event-time";
+import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventStatus } from "@/lib/event-status";
+import { isWarioDungeonLive } from "@/pages/wario-dungeon";
 
 import srcHome from "./home.tsx?raw";
 import srcEquipment from "./equipment.tsx?raw";
@@ -345,18 +347,27 @@ function HomeCountdownBanner() {
 
   const weeklyCurrent = weeklyQuery.data?.entries.find((entry) => entry.id === weeklyQuery.data?.currentId) ?? null;
   const nextWario = useMemo(() => getNextWarioSpawn(now, eventOffset), [eventOffset, now]);
+  const warioLive = isWarioDungeonLive(now, eventOffset);
   const facilityWindow = useMemo(() => resolveRepeatingWindow(now, 4, 28, 4, 30), [now]);
   const facilityActive = facilityWindow.startAt <= now && now <= facilityWindow.endAt;
 
-  const cards = [
+  const cards: Array<{
+    href: string;
+    title: string;
+    subtitle: string;
+    countdown: string;
+    status: EventStatus;
+  }> = [
     {
       href: "/wario-dungeon",
       title: "Wairo Dungeon",
-      subtitle: nextWario
+      subtitle: warioLive
+        ? "Dungeon spawn is live now"
+        : nextWario
         ? `${nextWario.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
         : "No upcoming spawn found",
-      countdown: nextWario ? formatCountdown(nextWario.getTime() - now.getTime()) : "Unavailable",
-      status: nextWario ? "Next spawn" : "Schedule",
+      countdown: warioLive ? "Live now" : nextWario ? formatCountdown(nextWario.getTime() - now.getTime()) : "Unavailable",
+      status: warioLive ? "live" : "inactive",
     },
     {
       href: "/gacha-events",
@@ -365,14 +376,14 @@ function HomeCountdownBanner() {
         ? `Live until ${facilityWindow.endAt.toLocaleDateString([], { month: "short", day: "numeric" })}`
         : `${facilityWindow.startAt.toLocaleDateString([], { month: "short", day: "numeric" })} - ${facilityWindow.endAt.toLocaleDateString([], { month: "short", day: "numeric" })}`,
       countdown: formatCountdown((facilityActive ? facilityWindow.endAt : facilityWindow.startAt).getTime() - now.getTime()),
-      status: facilityActive ? "Ends in" : "Starts in",
+      status: facilityActive ? "live" : "inactive",
     },
     {
       href: "/weekly-conquest",
       title: "Weekly Conquest",
       subtitle: weeklyCurrent ? weeklyCurrent.name : "Loading current rotation",
       countdown: weeklyCurrent ? formatCountdown(weeklyCurrent.endsAt - now.getTime()) : "Loading",
-      status: weeklyCurrent ? "Ends in" : "Timer",
+      status: weeklyCurrent ? "live" : "inactive",
     },
   ];
 
@@ -390,11 +401,13 @@ function HomeCountdownBanner() {
 
       <div className="xl:hidden">
         <Link href={activeCard.href}>
-          <Card className="cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors">
+          <Card className={`cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/30 ${eventStatusCardClass(activeCard.status)}`}>
             <CardContent className="p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="font-medium text-sm leading-tight">{activeCard.title}</div>
-                <Badge variant="outline" className="text-[10px] shrink-0">{activeCard.status}</Badge>
+                <Badge variant="outline" className={`text-[10px] shrink-0 ${eventStatusClass(activeCard.status)}`}>
+                  {eventStatusLabel(activeCard.status)}
+                </Badge>
               </div>
               <div className="text-2xl font-semibold tabular-nums leading-none">{activeCard.countdown}</div>
               <div className="text-xs text-muted-foreground leading-relaxed">{activeCard.subtitle}</div>
@@ -420,11 +433,13 @@ function HomeCountdownBanner() {
 
       <div className="hidden xl:block">
         <Link href={activeCard.href}>
-          <Card className="cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors">
+          <Card className={`cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/30 ${eventStatusCardClass(activeCard.status)}`}>
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="font-medium">{activeCard.title}</div>
-                <Badge variant="outline" className="text-[10px]">{activeCard.status}</Badge>
+                <Badge variant="outline" className={`text-[10px] ${eventStatusClass(activeCard.status)}`}>
+                  {eventStatusLabel(activeCard.status)}
+                </Badge>
               </div>
               <div className="text-3xl font-semibold tabular-nums leading-tight">{activeCard.countdown}</div>
               <div className="text-sm text-muted-foreground leading-relaxed">{activeCard.subtitle}</div>

@@ -47,7 +47,7 @@ function toJstDate(year: number, monthIndex: number, day: number, hour: number):
 }
 
 
-function buildMonthlyWarioSchedule(base: Date, offset: number): WarioDungeonSpawn[] {
+export function buildMonthlyWarioSchedule(base: Date, offset: number): WarioDungeonSpawn[] {
   const entries: WarioDungeonSpawn[] = [];
   for (const entry of WARIO_DUNGEON_SCHEDULE) {
     const sourceStartsAt = toJstDate(base.getFullYear(), base.getMonth(), entry.day, entry.hour);
@@ -56,6 +56,12 @@ function buildMonthlyWarioSchedule(base: Date, offset: number): WarioDungeonSpaw
     entries.push({ ...entry, startsAt, endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000) });
   }
   return entries.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+}
+
+export function isWarioDungeonLive(now = new Date(), offset = 0) {
+  return buildMonthlyWarioSchedule(now, offset).some(
+    (entry) => entry.startsAt.getTime() <= now.getTime() && now.getTime() < entry.endsAt.getTime(),
+  );
 }
 
 function formatCountdown(ms: number): string {

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { JOB_CENTER_DRAFTS } from "@/lib/en-event-drafts";
 import { Link } from "wouter";
 import { getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
+import { eventStatusCardClass, eventStatusClass, eventStatusLabel } from "@/lib/event-status";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
@@ -33,14 +34,16 @@ export default function JobCenterPage() {
         {JOB_CENTER_DRAFTS.map((entry) => {
           const isCurrentDay = entry.day === currentEventDay;
           return (
-          <Card key={entry.day} className={`shadow-sm ${isCurrentDay ? "border-primary/50 bg-primary/5" : ""}`}>
+          <Card key={entry.day} className={`shadow-sm ${isCurrentDay ? eventStatusCardClass("live") : eventStatusCardClass("inactive")}`}>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <CalendarDays className="w-4 h-4 text-primary" />
                   {entry.day}
                 </CardTitle>
-                {isCurrentDay ? <Badge variant="outline">Current</Badge> : null}
+                <Badge variant="outline" className={eventStatusClass(isCurrentDay ? "live" : "inactive")}>
+                  {eventStatusLabel(isCurrentDay ? "live" : "inactive")}
+                </Badge>
               </div>
               <CardDescription>{entry.professions.length} professions listed for this rotation.</CardDescription>
             </CardHeader>
@@ -49,15 +52,9 @@ export default function JobCenterPage() {
                 <Link
                   key={profession}
                   href={`/jobs/${encodeURIComponent(profession)}`}
-                  className="focus:outline-none"
+                  className="inline-flex rounded-md border border-border px-2.5 py-0.5 text-xs font-semibold transition-colors hover:border-primary hover:bg-primary/10 focus:outline-none"
                 >
-                  <Badge
-                    variant="outline"
-                    className="text-xs cursor-pointer hover:bg-primary/10 hover:border-primary transition-colors"
-                    asChild
-                  >
-                    <span>{profession}</span>
-                  </Badge>
+                  {profession}
                 </Link>
               ))}
             </CardContent>

@@ -1,8 +1,12 @@
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award, AlertTriangle, Plus, Minus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useEventHourOffset } from "@/lib/event-time";
+import { KAIRO_ROOM_DRAFTS } from "@/lib/en-event-drafts";
+import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventStatus } from "@/lib/event-status";
+import { isWarioDungeonLive } from "@/pages/wario-dungeon";
 
 const EVENT_CARDS = [
   {
@@ -10,42 +14,42 @@ const EVENT_CARDS = [
     title: "Gacha Events",
     description: "Featured S-rank jobs, S facilities, Kairo windows, and weapon banner timing.",
     icon: Gem,
-    badge: "Live",
+    status: "live" as EventStatus,
   },
   {
     href: "/weekly-conquest",
     title: "Weekly Conquest",
     description: "Current conquest targets, rewards, and the locations you need to clear each week.",
     icon: Trophy,
-    badge: "Moved",
+    status: "live" as EventStatus,
   },
   {
     href: "/wario-dungeon",
     title: "Wairo Dungeon",
     description: "Dedicated event page for the monthly dungeon spawn windows.",
     icon: Clock3,
-    badge: "Live",
+    status: "inactive" as EventStatus,
   },
   {
     href: "/daily-rank-rewards",
     title: "Daily Rank Rewards",
     description: "Daily ranking board reward tables for S and A rank, grouped by weekday.",
     icon: Award,
-    badge: "Draft",
+    status: "live" as EventStatus,
   },
   {
     href: "/kairo-room",
     title: "Kairo Room",
     description: "Active days, challenge names, and first-draft equipment box rewards from the EN sheet.",
     icon: Wand2,
-    badge: "Draft",
+    status: "inactive" as EventStatus,
   },
   {
     href: "/job-center",
     title: "Job Center",
     description: "Weekly profession rotation by day, using the EN sheet as a readable first pass.",
     icon: BriefcaseBusiness,
-    badge: "Draft",
+    status: "live" as EventStatus,
   },
 ];
 
@@ -53,6 +57,16 @@ type EventCard = (typeof EVENT_CARDS)[number] & { disabled?: boolean };
 
 export default function TimedEventsPage() {
   const [offset, setOffset] = useEventHourOffset();
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const localDay = new Date(now.getTime() + offset * 60 * 60 * 1000).toLocaleDateString("en-US", { weekday: "long" });
+  const kairoRoomLive = Boolean(KAIRO_ROOM_DRAFTS.find((entry) => entry.day === localDay)?.active);
+  const warioDungeonLive = isWarioDungeonLive(now, offset);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
@@ -104,14 +118,19 @@ export default function TimedEventsPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {(EVENT_CARDS as EventCard[]).map((card) => {
+          const status =
+            card.href === "/kairo-room" ? (kairoRoomLive ? "live" : "inactive")
+            : card.href === "/wario-dungeon" ? (warioDungeonLive ? "live" : "inactive")
+            : card.href === "/daily-rank-rewards" ? "live"
+            : card.status;
           const content = (
-            <Card className={`h-full shadow-sm transition-all ${card.disabled ? "opacity-75" : "hover:shadow-md hover:border-primary/30 cursor-pointer"}`}>
+            <Card className={`h-full shadow-sm transition-all ${eventStatusCardClass(status)} ${card.disabled ? "opacity-75" : "hover:shadow-md hover:border-primary/30 cursor-pointer"}`}>
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="p-2 rounded-lg bg-muted">
                     <card.icon className="w-5 h-5 text-primary" />
                   </div>
-                  <Badge variant="outline">{card.badge}</Badge>
+                  <Badge variant="outline" className={eventStatusClass(status)}>{eventStatusLabel(status)}</Badge>
                 </div>
                 <CardTitle className="text-base mt-2">{card.title}</CardTitle>
               </CardHeader>

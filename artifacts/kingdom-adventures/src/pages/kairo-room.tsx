@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { KAIRO_ROOM_DRAFTS } from "@/lib/en-event-drafts";
 import { KAIRO_ROOM_LOOT_GROUPS } from "@/lib/special-boss-loot";
 import { getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
+import { eventStatusCardClass, eventStatusClass, eventStatusLabel } from "@/lib/event-status";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
@@ -39,8 +40,9 @@ export default function KairoRoomPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {KAIRO_ROOM_DRAFTS.map((entry) => {
           const isCurrentDay = entry.day === currentEventDay;
+          const isLive = isCurrentDay && entry.active;
           return (
-          <Card key={entry.day} className={`shadow-sm ${isCurrentDay ? "border-primary/50 bg-primary/5" : ""}`}>
+          <Card key={entry.day} className={`shadow-sm ${eventStatusCardClass(isLive ? "live" : "inactive")}`}>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -52,7 +54,9 @@ export default function KairoRoomPage() {
                     {entry.active ? entry.questName : "No Kairo Room challenge listed."}
                   </CardDescription>
                 </div>
-                <Badge variant="outline">{isCurrentDay ? "Current" : entry.active ? "Active" : "Off"}</Badge>
+                <Badge variant="outline" className={eventStatusClass(isLive ? "live" : "inactive")}>
+                  {eventStatusLabel(isLive ? "live" : "inactive")}
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">

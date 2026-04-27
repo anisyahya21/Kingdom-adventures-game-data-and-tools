@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { Award, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DAILY_RANK_REWARD_DRAFTS } from "@/lib/en-event-drafts";
+import { eventStatusCardClass, eventStatusClass, eventStatusLabel, getJapanWeekday } from "@/lib/event-status";
 
 const COLUMNS = [
   { key: "weapon", label: "Weapon" },
@@ -14,6 +16,15 @@ const COLUMNS = [
 ] as const;
 
 export default function DailyRankRewardsPage() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const currentJapanDay = getJapanWeekday(now);
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <div className="space-y-1">
@@ -27,8 +38,10 @@ export default function DailyRankRewardsPage() {
       </div>
 
       <div className="grid gap-4">
-        {DAILY_RANK_REWARD_DRAFTS.map((entry) => (
-          <Card key={entry.day} className="shadow-sm">
+        {DAILY_RANK_REWARD_DRAFTS.map((entry) => {
+          const isCurrentDay = entry.day === currentJapanDay;
+          return (
+          <Card key={entry.day} className={`shadow-sm ${eventStatusCardClass(isCurrentDay ? "live" : "inactive")}`}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -38,7 +51,10 @@ export default function DailyRankRewardsPage() {
                   </CardTitle>
                   <CardDescription>S and A ranking board rewards for this weekday.</CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Badge variant="outline" className={eventStatusClass(isCurrentDay ? "live" : "inactive")}>
+                    {eventStatusLabel(isCurrentDay ? "live" : "inactive")}
+                  </Badge>
                   {entry.rewards.map((reward) => (
                     <Badge key={reward.rank} variant="outline">
                       Rank {reward.rank}
@@ -81,7 +97,8 @@ export default function DailyRankRewardsPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
