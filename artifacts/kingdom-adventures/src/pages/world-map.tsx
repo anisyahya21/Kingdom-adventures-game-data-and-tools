@@ -459,6 +459,7 @@ const DEPLOY_FILL = hexToRgba(DEPLOY_BASE_COLOR, 0.24);
 const DEPLOY_BORDER = hexToRgba(DEPLOY_BASE_COLOR, 0.98);
 const TOWNHALL_BASE_SIZE = 32;
 const TOWNHALL_SIZE = 4;
+const MAP_CANVAS_MARGIN = 8;
 const TOWNHALL_OUTLINE = "rgba(37,99,235,0.9)";
 const TOWNHALL_FOOTPRINT_FILL = "rgba(56,189,248,0.18)";
 const TOWNHALL_FOOTPRINT_BORDER = "rgba(14,165,233,0.95)";
@@ -470,11 +471,22 @@ const RECLAIMED_STRIPE = "rgba(2, 132, 199, 0.6)";
 const OUTLINE_BORDER = "#2563eb";
 const PREVIEW_ORANGE = "rgba(251,146,60,0.95)";
 const DEFAULT_TILE_SIZE = 5;
+const BASE_TILE_SIZE = DEFAULT_TILE_SIZE;
 const MIN_TILE_SIZE = 2;
 const MOBILE_MIN_TILE_SIZE = 0.25;
 const MIN_TILE_SIZE_FULLSCREEN_FILL = false; // allow deeper zoom-out in fullscreen mode
 const MAX_TILE_SIZE = 24;
 const STORAGE_PREFIX = "ka-world-map-v6";
+type MapCamera = {
+  x: number;
+  y: number;
+  zoom: number;
+  targetX: number;
+  targetY: number;
+  targetZoom: number;
+  vx: number;
+  vy: number;
+};
 const AREA_TERRAIN_MAP: Record<string, TerrainType> = {
   grass: "grass",
   plains: "grass",
@@ -801,7 +813,7 @@ function decodeState(text: string) {
   return {
     outlined: arrayToSet(parsed?.o),
     reclaimed: arrayToSet(parsed?.r),
-    deployed,
+    deployed: new Map(deployed.map((e) => [e.k, e.c])),
     roads: arrayToSet(parsed?.roads),
     penned: Array.isArray(parsed?.p)
       ? (parsed.p as any[]).filter((e) => e && typeof e.k === "string" && typeof e.c === "string")
@@ -1092,6 +1104,8 @@ export default function WorldMapPage() {
   const [showMinimap, setShowMinimap] = useState(true);
   const [minimapCollapsed, setMinimapCollapsed] = useState(false);
   const [minimapBubblePos, setMinimapBubblePos] = useState({ x: 12, y: 12 });
+  const [mapCamera, setMapCamera] = useState({ left: 0, top: 0, zoom: 1 });
+  const [mapScroll, setMapScroll] = useState({ left: 0, top: 0, width: 0, height: 0, viewportWidth: 0, viewportHeight: 0 });
   const [penColor, setPenColor] = useState(BRUSH_COLORS[0].value);
   const [drawAreaColor, setDrawAreaColor] = useState(BRUSH_COLORS[0].value);
   const [deployColor, setDeployColor] = useState(BRUSH_COLORS[2].value);
@@ -1104,7 +1118,7 @@ export default function WorldMapPage() {
     poi: true,
     deployments: true,
     reclaimed: true,
-    grid: true,
+    grid: false,
     roads: true,
     water: true,
     facilities: false,
@@ -1126,6 +1140,8 @@ export default function WorldMapPage() {
   const [surveyTooltip, setSurveyTooltip] = useState<{ x: number; y: number; items: SurveyDef[] } | null>(null);
   const [layersDropdownOpen, setLayersDropdownOpen] = useState(false);
   const [surveysDropdownOpen, setSurveysDropdownOpen] = useState(false);
+  const [floatingLayersOpen, setFloatingLayersOpen] = useState(!isTouchDevice());
+  const [floatingToolsOpen, setFloatingToolsOpen] = useState(false);
   const [weeklyConquestIconEnabled, setWeeklyConquestIconEnabled] = useState(true);
   const [selectedWeeklyConquestAreaIndex, setSelectedWeeklyConquestAreaIndex] = useState<number | null>(null);
   const [moveDeployPreviewKeys, setMoveDeployPreviewKeys] = useState<Set<string>>(() => new Set());
@@ -1135,6 +1151,12 @@ export default function WorldMapPage() {
   const moveDeploySourceRef = useRef<{ sourceKeys: Set<string>; sourceCenter: { x: number; y: number } } | null>(null);
   const moveDeployPreviewRef = useRef<Set<string>>(new Set());
   const panStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const cameraRef = useRef<MapCamera>({ x: 0, y: 0, zoom: 1, targetX: 0, targetY: 0, targetZoom: 1, vx: 0, vy: 0 });
+  const cameraAnimationRef = useRef<number | null>(null);
+  const renderRafRef = useRef<number | null>(null);
+  const uiSyncRafRef = useRef<number | null>(null);
+  const baseTerrainCacheRef = useRef<{ canvas: HTMLCanvasElement; tileSize: number; water: boolean } | null>(null);
+  const panVelocityRef = useRef({ lastX: 0, lastY: 0, lastTime: 0, vx: 0, vy: 0 });
   const lastPaintedKeysRef = useRef<Set<string>>(new Set());
   const lastTileRef = useRef<Tile | null>(null);
   const lineStartTileRef = useRef<Tile | null>(null);
@@ -1310,6 +1332,16 @@ export default function WorldMapPage() {
       activePaintPointersRef.current = new Set();
     }
     function stopPanning() {
+      if (panStartRef.current) {
+        const velocity = panVelocityRef.current;
+        const camera = cameraRef.current;
+        camera.vx = velocity.vx;
+        camera.vy = velocity.vy;
+        camera.targetX = camera.x;
+        camera.targetY = camera.y;
+        camera.targetZoom = camera.zoom;
+        ensureCameraAnimation();
+      }
       setIsPanning(false);
       panStartRef.current = null;
     }
@@ -1336,11 +1368,10 @@ export default function WorldMapPage() {
       setSelectedTile(tile);
       if (viewportRef.current) {
         const tileSizePx = tileSize;
-        viewportRef.current.scrollTo({
-          left: Math.max(0, x * tileSizePx - viewportRef.current.clientWidth / 2),
-          top: Math.max(0, y * tileSizePx - viewportRef.current.clientHeight / 2),
-          behavior: "smooth",
-        });
+        setCameraPosition(
+          Math.max(0, x * tileSizePx - viewportRef.current.clientWidth / 2),
+          Math.max(0, y * tileSizePx - viewportRef.current.clientHeight / 2)
+        );
       }
     }
   }, [grid, tileSize]);
@@ -1429,6 +1460,25 @@ export default function WorldMapPage() {
   const drawAreaBrushOptions: BrushSize[] = [2,3,4,5,6,7,8,9,10];
   const deploymentOptions: DeploymentSize[] = [2,3,4,5,6];
   const layerOrder: LayerKey[] = ["levels","weekly_conquest","chaos_setup","facilities","poi","reclaimed","grid","roads","deployments"];
+  const minimapSize = useMemo(() => {
+    const maxWidth = touchMode ? 132 : 168;
+    const maxHeight = touchMode ? 112 : 144;
+    const scale = Math.min(maxWidth / cols, maxHeight / rows, 1);
+    return {
+      width: Math.max(96, Math.round(cols * scale)),
+      height: Math.max(78, Math.round(rows * scale)),
+      scaleX: Math.max(96, Math.round(cols * scale)) / cols,
+      scaleY: Math.max(78, Math.round(rows * scale)) / rows,
+    };
+  }, [cols, rows, touchMode]);
+
+  useEffect(() => {
+    const width = minimapCollapsed ? 40 : minimapSize.width + 16;
+    const height = minimapCollapsed ? 40 : minimapSize.height + 44;
+    requestAnimationFrame(() => {
+      setMinimapBubblePos((pos) => clampFloatingMapPos(pos.x, pos.y, width, height));
+    });
+  }, [isFullscreen, touchMode, minimapCollapsed, minimapSize.width, minimapSize.height]);
 
   const weeklyConquestSpawnGroups = useMemo(() => {
     const groups = new Map<string, string[]>();
@@ -1595,6 +1645,156 @@ export default function WorldMapPage() {
     setNotice(message);
   }
 
+  function clampNumber(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function tileSizeFromZoom(zoom = cameraRef.current.zoom) {
+    return BASE_TILE_SIZE * zoom;
+  }
+
+  function getMinZoom() {
+    return getMinTileSize() / BASE_TILE_SIZE;
+  }
+
+  function getMaxZoom() {
+    return MAX_TILE_SIZE / BASE_TILE_SIZE;
+  }
+
+  function syncMapScroll() {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const camera = cameraRef.current;
+    const renderedTileSize = tileSizeFromZoom(camera.zoom);
+    const worldWidth = cols * renderedTileSize + MAP_CANVAS_MARGIN * 2;
+    const worldHeight = rows * renderedTileSize + MAP_CANVAS_MARGIN * 2;
+    tileSizeRef.current = renderedTileSize;
+    setMapScroll({
+      left: camera.x,
+      top: camera.y,
+      width: worldWidth,
+      height: worldHeight,
+      viewportWidth: viewport.clientWidth,
+      viewportHeight: viewport.clientHeight,
+    });
+    setMapCamera({ left: camera.x, top: camera.y, zoom: camera.zoom });
+    setTileSize(renderedTileSize);
+  }
+
+  function scheduleUiSync() {
+    if (uiSyncRafRef.current !== null) return;
+    uiSyncRafRef.current = requestAnimationFrame(() => {
+      uiSyncRafRef.current = null;
+      syncMapScroll();
+    });
+  }
+
+  function scheduleRender() {
+    if (renderRafRef.current !== null) return;
+    renderRafRef.current = requestAnimationFrame(() => {
+      renderRafRef.current = null;
+      drawMap();
+      scheduleUiSync();
+    });
+  }
+
+  function getCameraBounds(nextTileSize = tileSizeFromZoom()) {
+    const viewport = viewportRef.current;
+    const viewportWidth = viewport?.clientWidth ?? 0;
+    const viewportHeight = viewport?.clientHeight ?? 0;
+    return {
+      maxLeft: Math.max(0, cols * nextTileSize + MAP_CANVAS_MARGIN * 2 - viewportWidth),
+      maxTop: Math.max(0, rows * nextTileSize + MAP_CANVAS_MARGIN * 2 - viewportHeight),
+    };
+  }
+
+  function clampCamera(camera = cameraRef.current) {
+    const nextTileSize = tileSizeFromZoom(camera.zoom);
+    const bounds = getCameraBounds(nextTileSize);
+    camera.x = clampNumber(camera.x, 0, bounds.maxLeft);
+    camera.y = clampNumber(camera.y, 0, bounds.maxTop);
+    camera.targetX = clampNumber(camera.targetX, 0, bounds.maxLeft);
+    camera.targetY = clampNumber(camera.targetY, 0, bounds.maxTop);
+    return camera;
+  }
+
+  function setCameraPosition(left: number, top: number, nextTileSize = tileSizeFromZoom(), sync = false) {
+    const camera = cameraRef.current;
+    camera.zoom = clampNumber(nextTileSize / BASE_TILE_SIZE, getMinZoom(), getMaxZoom());
+    camera.targetZoom = camera.zoom;
+    camera.x = left;
+    camera.y = top;
+    camera.targetX = left;
+    camera.targetY = top;
+    camera.vx = 0;
+    camera.vy = 0;
+    clampCamera(camera);
+    tileSizeRef.current = tileSizeFromZoom(camera.zoom);
+    scheduleRender();
+    if (sync) syncMapScroll();
+  }
+
+  function stopCameraAnimation() {
+    if (cameraAnimationRef.current !== null) {
+      cancelAnimationFrame(cameraAnimationRef.current);
+      cameraAnimationRef.current = null;
+    }
+    cameraRef.current.vx = 0;
+    cameraRef.current.vy = 0;
+  }
+
+  function animateCamera() {
+    const camera = cameraRef.current;
+    const zoomDelta = camera.targetZoom - camera.zoom;
+    const xDelta = camera.targetX - camera.x;
+    const yDelta = camera.targetY - camera.y;
+    camera.zoom += zoomDelta * 0.22;
+    camera.x += xDelta * 0.22 + camera.vx;
+    camera.y += yDelta * 0.22 + camera.vy;
+    camera.vx *= 0.90;
+    camera.vy *= 0.90;
+    clampCamera(camera);
+    tileSizeRef.current = tileSizeFromZoom(camera.zoom);
+    scheduleRender();
+
+    const stillMoving =
+      Math.abs(zoomDelta) > 0.001 ||
+      Math.abs(xDelta) > 0.5 ||
+      Math.abs(yDelta) > 0.5 ||
+      Math.abs(camera.vx) > 0.08 ||
+      Math.abs(camera.vy) > 0.08;
+
+    if (stillMoving) {
+      cameraAnimationRef.current = requestAnimationFrame(animateCamera);
+    } else {
+      camera.zoom = camera.targetZoom;
+      camera.x = camera.targetX;
+      camera.y = camera.targetY;
+      camera.vx = 0;
+      camera.vy = 0;
+      clampCamera(camera);
+      cameraAnimationRef.current = null;
+      scheduleRender();
+      syncMapScroll();
+    }
+  }
+
+  function ensureCameraAnimation() {
+    if (cameraAnimationRef.current === null) {
+      cameraAnimationRef.current = requestAnimationFrame(animateCamera);
+    }
+  }
+
+  function clampFloatingMapPos(x: number, y: number, width = 44, height = 44) {
+    const bounds = viewportRef.current?.parentElement;
+    if (!bounds) return { x, y };
+    const pad = 8;
+    return {
+      x: clampNumber(x, pad, Math.max(pad, bounds.clientWidth - width - pad)),
+      y: clampNumber(y, pad, Math.max(pad, bounds.clientHeight - height - pad)),
+    };
+  }
+
   function pushHistory() {
     setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles, townhallPlacement)]);
     setHistoryFuture([]);
@@ -1615,7 +1815,7 @@ export default function WorldMapPage() {
     if (!historyPast.length) return;
     const previous = historyPast[historyPast.length - 1];
     setHistoryPast((prev) => prev.slice(0, -1));
-    setHistoryFuture((prev) => [snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles), ...prev].slice(0, 30));
+    setHistoryFuture((prev) => [snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles, townhallPlacement), ...prev].slice(0, 30));
     restoreSets(previous);
     flashNotice("Undid last change");
   }
@@ -1624,7 +1824,7 @@ export default function WorldMapPage() {
     if (!historyFuture.length) return;
     const next = historyFuture[0];
     setHistoryFuture((prev) => prev.slice(1));
-    setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles)]);
+    setHistoryPast((prev) => [...prev.slice(-29), snapshot(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles, townhallPlacement)]);
     restoreSets(next);
     flashNotice("Redid last change");
   }
@@ -1841,14 +2041,6 @@ export default function WorldMapPage() {
     }
 
     if (activeTool === "townhall") {
-      if (paintMode === "erase") {
-        if (!townhallPlacement) return;
-        const placementFootprint = new Set(getTownHallFootprintCoords(townhallPlacement.x, townhallPlacement.y, cols, rows).map(([x, y]) => keyOf(x, y)));
-        if (placementFootprint.has(keyOf(tile.x, tile.y))) {
-          setTownhallPlacement(null);
-        }
-        return;
-      }
       setTownhallPlacement({ x: tile.x, y: tile.y, level: townhallLevel });
       return;
     }
@@ -1989,8 +2181,8 @@ export default function WorldMapPage() {
     const viewport = viewportRef.current;
     if (!viewport) return null;
     const rect = viewport.getBoundingClientRect();
-    const offsetX = clientX - rect.left + viewport.scrollLeft - 8;
-    const offsetY = clientY - rect.top + viewport.scrollTop - 8;
+    const offsetX = clientX - rect.left + cameraRef.current.x - MAP_CANVAS_MARGIN;
+    const offsetY = clientY - rect.top + cameraRef.current.y - MAP_CANVAS_MARGIN;
     const tx = Math.floor(offsetX / tileSizeRef.current);
     const ty = Math.floor(offsetY / tileSizeRef.current);
     if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) return null;
@@ -2019,13 +2211,16 @@ export default function WorldMapPage() {
   function onViewportPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (e.button === 2) return;
     if (spaceDownRef.current) return; // space+drag handled by startPan
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     if (activeTool === "none") {
       // left-click drag pans; click without drag selects tile
       e.preventDefault();
       const viewport = viewportRef.current;
       if (!viewport) return;
       setIsPanning(true);
-      panStartRef.current = { x: e.clientX, y: e.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
+      stopCameraAnimation();
+      panStartRef.current = { x: e.clientX, y: e.clientY, left: cameraRef.current.x, top: cameraRef.current.y };
+      panVelocityRef.current = { lastX: e.clientX, lastY: e.clientY, lastTime: performance.now(), vx: 0, vy: 0 };
       return;
     }
     const tile = tileAtPointer(e.clientX, e.clientY);
@@ -2048,16 +2243,23 @@ export default function WorldMapPage() {
     if (panStartRef.current && viewportRef.current) {
       const dx = e.clientX - panStartRef.current.x;
       const dy = e.clientY - panStartRef.current.y;
-      viewportRef.current.scrollLeft = panStartRef.current.left - dx;
-      viewportRef.current.scrollTop = panStartRef.current.top - dy;
+      const now = performance.now();
+      const sample = panVelocityRef.current;
+      const dt = Math.max(16, now - sample.lastTime);
+      sample.vx = ((sample.lastX - e.clientX) / dt) * 16;
+      sample.vy = ((sample.lastY - e.clientY) / dt) * 16;
+      sample.lastX = e.clientX;
+      sample.lastY = e.clientY;
+      sample.lastTime = now;
+      setCameraPosition(panStartRef.current.left - dx, panStartRef.current.top - dy);
       return;
     }
     // Survey pin hover detection
     if (showSurveys && viewportRef.current) {
       const vp = viewportRef.current;
       const rect = vp.getBoundingClientRect();
-      const canvasX = e.clientX - rect.left + vp.scrollLeft - 8;
-      const canvasY = e.clientY - rect.top + vp.scrollTop - 8;
+      const canvasX = e.clientX - rect.left + cameraRef.current.x - MAP_CANVAS_MARGIN;
+      const canvasY = e.clientY - rect.top + cameraRef.current.y - MAP_CANVAS_MARGIN;
       const MARGIN = 8;
       const PIN_R = Math.max(5, Math.min(14, tileSize * 1.6));
       let found: SurveyDef[] | null = null;
@@ -2224,17 +2426,17 @@ export default function WorldMapPage() {
   }
 
   function panBy(dx: number, dy: number) {
-    viewportRef.current?.scrollBy({ left: dx, top: dy, behavior: "smooth" });
+    setCameraPosition(cameraRef.current.x + dx, cameraRef.current.y + dy);
   }
 
   function getAutoFitTileSize() {
     const vp = viewportRef.current;
     if (!vp) return DEFAULT_TILE_SIZE;
-    const margin = 16; // canvas margin on both sides
+    const margin = MAP_CANVAS_MARGIN * 2; // canvas margin on both sides
     const availableWidth = Math.max(1, vp.clientWidth - margin);
     const availableHeight = Math.max(1, vp.clientHeight - margin);
-    const fit = Math.floor(Math.min(availableWidth / cols, availableHeight / rows));
-    return Math.max(touchMode ? MOBILE_MIN_TILE_SIZE : MIN_TILE_SIZE, Math.min(MAX_TILE_SIZE, fit));
+    const fit = Math.min(availableWidth / cols, availableHeight / rows);
+    return Math.max(getMinTileSize(), Math.min(MAX_TILE_SIZE, fit));
   }
 
   useLayoutEffect(() => {
@@ -2244,7 +2446,7 @@ export default function WorldMapPage() {
     const updateSize = () => {
       const autoSize = getAutoFitTileSize();
       if (autoSize < tileSizeRef.current) {
-        setTileSize(autoSize);
+        setCameraPosition(cameraRef.current.x, cameraRef.current.y, autoSize);
       }
     };
 
@@ -2261,39 +2463,38 @@ export default function WorldMapPage() {
     return isFullscreen || touchMode ? MOBILE_MIN_TILE_SIZE : MIN_TILE_SIZE;
   }
 
+  useEffect(() => {
+    const minTileSize = getMinTileSize();
+    if (tileSizeRef.current < minTileSize) {
+      setCameraPosition(cameraRef.current.x, cameraRef.current.y, minTileSize);
+    }
+    requestAnimationFrame(syncMapScroll);
+  }, [isFullscreen, touchMode]);
+
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
+    const wheelViewport = viewport;
     function onWheel(e: WheelEvent) {
       e.preventDefault();
-      const currentSize = tileSizeRef.current;
-      const rect = viewport.getBoundingClientRect();
-      const offsetX = e.clientX - rect.left + viewport.scrollLeft;
-      const offsetY = e.clientY - rect.top + viewport.scrollTop;
-      const zoomFactor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-      const minTileSize = touchMode ? MOBILE_MIN_TILE_SIZE : MIN_TILE_SIZE;
-      const nextTileSize = Math.max(minTileSize, Math.min(MAX_TILE_SIZE, currentSize * zoomFactor));
-      if (nextTileSize === currentSize) return;
-      const scale = nextTileSize / currentSize;
-      setTileSize(nextTileSize);
-      requestAnimationFrame(() => {
-        viewport.scrollLeft = offsetX * scale - (e.clientX - rect.left);
-        viewport.scrollTop = offsetY * scale - (e.clientY - rect.top);
-      });
+      zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.14 : 1 / 1.14);
     }
-    viewport.addEventListener("wheel", onWheel, { passive: false });
-    return () => viewport.removeEventListener("wheel", onWheel);
-  }, [touchMode]);
+    wheelViewport.addEventListener("wheel", onWheel, { passive: false });
+    return () => wheelViewport.removeEventListener("wheel", onWheel);
+  }, [touchMode, isFullscreen]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
+    const touchViewport = viewport;
     let lastDist = 0;
     let lastMidX = 0;
     let lastMidY = 0;
-    const minTileSize = touchMode ? MOBILE_MIN_TILE_SIZE : MIN_TILE_SIZE;
     function onTouchStart(e: TouchEvent) {
       if (e.touches.length !== 2) return;
+      stopCameraAnimation();
+      panStartRef.current = null;
+      setIsPanning(false);
       const t0 = e.touches[0], t1 = e.touches[1];
       lastDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
       lastMidX = (t0.clientX + t1.clientX) / 2;
@@ -2302,6 +2503,7 @@ export default function WorldMapPage() {
     function onTouchMove(e: TouchEvent) {
       if (e.touches.length !== 2) return;
       e.preventDefault();
+      panStartRef.current = null;
       const t0 = e.touches[0], t1 = e.touches[1];
       const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
       if (!lastDist) { lastDist = dist; return; }
@@ -2310,27 +2512,23 @@ export default function WorldMapPage() {
       const midX = (t0.clientX + t1.clientX) / 2;
       const midY = (t0.clientY + t1.clientY) / 2;
       const currentSize = tileSizeRef.current;
-      const rect = viewport.getBoundingClientRect();
-      const offsetX = midX - rect.left + viewport.scrollLeft;
-      const offsetY = midY - rect.top + viewport.scrollTop;
-      const nextTileSize = Math.max(minTileSize, Math.min(MAX_TILE_SIZE, currentSize * factor));
+      const rect = touchViewport.getBoundingClientRect();
+      const offsetX = midX - rect.left + cameraRef.current.x;
+      const offsetY = midY - rect.top + cameraRef.current.y;
+      const nextTileSize = Math.max(getMinTileSize(), Math.min(MAX_TILE_SIZE, currentSize * factor));
       if (nextTileSize === currentSize) return;
       const scale = nextTileSize / currentSize;
-      setTileSize(nextTileSize);
-      requestAnimationFrame(() => {
-        viewport.scrollLeft = offsetX * scale - (midX - rect.left);
-        viewport.scrollTop = offsetY * scale - (midY - rect.top);
-      });
+      setCameraPosition(offsetX * scale - (midX - rect.left), offsetY * scale - (midY - rect.top), nextTileSize);
       lastMidX = midX;
       lastMidY = midY;
     }
-    viewport.addEventListener("touchstart", onTouchStart, { passive: false });
-    viewport.addEventListener("touchmove", onTouchMove, { passive: false });
+    touchViewport.addEventListener("touchstart", onTouchStart, { passive: false });
+    touchViewport.addEventListener("touchmove", onTouchMove, { passive: false });
     return () => {
-      viewport.removeEventListener("touchstart", onTouchStart);
-      viewport.removeEventListener("touchmove", onTouchMove);
+      touchViewport.removeEventListener("touchstart", onTouchStart);
+      touchViewport.removeEventListener("touchmove", onTouchMove);
     };
-  }, [touchMode]);
+  }, [touchMode, isFullscreen]);
 
   function startPan(e: React.MouseEvent<HTMLDivElement>) {
     // right-click or space+drag pan via mouse events
@@ -2339,30 +2537,84 @@ export default function WorldMapPage() {
     const viewport = viewportRef.current;
     if (!viewport) return;
     setIsPanning(true);
+    stopCameraAnimation();
     panStartRef.current = {
       x: e.clientX,
       y: e.clientY,
-      left: viewport.scrollLeft,
-      top: viewport.scrollTop,
+      left: cameraRef.current.x,
+      top: cameraRef.current.y,
     };
+    panVelocityRef.current = { lastX: e.clientX, lastY: e.clientY, lastTime: performance.now(), vx: 0, vy: 0 };
   }
 
   function movePan(e: React.MouseEvent<HTMLDivElement>) {
     if (!panStartRef.current || !viewportRef.current) return;
     const dx = e.clientX - panStartRef.current.x;
     const dy = e.clientY - panStartRef.current.y;
-    viewportRef.current.scrollLeft = panStartRef.current.left - dx;
-    viewportRef.current.scrollTop = panStartRef.current.top - dy;
+    const now = performance.now();
+    const sample = panVelocityRef.current;
+    const dt = Math.max(16, now - sample.lastTime);
+    sample.vx = ((sample.lastX - e.clientX) / dt) * 16;
+    sample.vy = ((sample.lastY - e.clientY) / dt) * 16;
+    sample.lastX = e.clientX;
+    sample.lastY = e.clientY;
+    sample.lastTime = now;
+    setCameraPosition(panStartRef.current.left - dx, panStartRef.current.top - dy);
   }
 
   function centerOn(x: number, y: number) {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    viewport.scrollTo({
-      left: Math.max(0, x * tileSize - viewport.clientWidth / 2),
-      top: Math.max(0, y * tileSize - viewport.clientHeight / 2),
-      behavior: "smooth",
-    });
+    setCameraPosition(
+      Math.max(0, x * tileSize - viewport.clientWidth / 2),
+      Math.max(0, y * tileSize - viewport.clientHeight / 2)
+    );
+  }
+
+  function zoomAt(clientX: number, clientY: number, factor: number) {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const camera = cameraRef.current;
+    const currentSize = tileSizeFromZoom(camera.targetZoom);
+    const rect = viewport.getBoundingClientRect();
+    const offsetX = clientX - rect.left + camera.targetX;
+    const offsetY = clientY - rect.top + camera.targetY;
+    const nextTileSize = Math.max(getMinTileSize(), Math.min(MAX_TILE_SIZE, currentSize * factor));
+    if (nextTileSize === currentSize) return;
+    const scale = nextTileSize / currentSize;
+    camera.targetZoom = clampNumber(nextTileSize / BASE_TILE_SIZE, getMinZoom(), getMaxZoom());
+    camera.targetX = offsetX * scale - (clientX - rect.left);
+    camera.targetY = offsetY * scale - (clientY - rect.top);
+    camera.vx = 0;
+    camera.vy = 0;
+    clampCamera(camera);
+    ensureCameraAnimation();
+  }
+
+  function zoomAtCenter(factor: number) {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const rect = viewport.getBoundingClientRect();
+    zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, factor);
+  }
+
+  function fitMapToViewport() {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const nextTileSize = getAutoFitTileSize();
+    const camera = cameraRef.current;
+    camera.targetZoom = nextTileSize / BASE_TILE_SIZE;
+    camera.targetX = 0;
+    camera.targetY = 0;
+    camera.vx = 0;
+    camera.vy = 0;
+    ensureCameraAnimation();
+  }
+
+  function selectMapTool(tool: ToolType) {
+    setActiveTool((prev) => toggleTool(prev, tool));
+    setFloatingToolsOpen(false);
+    if (tool === "draw_area" && brushSize < 2) setBrushSize(2);
   }
 
   async function exportToClipboard() {
@@ -2610,32 +2862,88 @@ export default function WorldMapPage() {
 
   // â”€â”€ Shared toolbar sections (used in both normal panel and fullscreen sidebar) â”€â”€
   // ── Canvas rendering ──
+  function getBaseTerrainCache(renderedTileSize: number) {
+    const roundedTileSize = Math.max(0.25, Math.round(renderedTileSize * 4) / 4);
+    const waterEnabled = layers.water;
+    const existing = baseTerrainCacheRef.current;
+    if (existing && existing.tileSize === roundedTileSize && existing.water === waterEnabled) {
+      return existing.canvas;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.ceil(cols * roundedTileSize));
+    canvas.height = Math.max(1, Math.ceil(rows * roundedTileSize));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas;
+    ctx.fillStyle = waterEnabled ? currentTheme.water : "#0b1020";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let cy = 0; cy < rows; cy += 1) {
+      for (let cx = 0; cx < cols; cx += 1) {
+        const tile = grid.get(keyOf(cx, cy));
+        if (!tile) continue;
+        const px = Math.round(cx * roundedTileSize);
+        const py = Math.round(cy * roundedTileSize);
+        const pw = Math.max(1, Math.round((cx + 1) * roundedTileSize) - px);
+        const ph = Math.max(1, Math.round((cy + 1) * roundedTileSize) - py);
+        ctx.fillStyle = tile.buildable
+          ? tile.fullTerrainId != null && RAW_TERRAIN_COLORS[tile.fullTerrainId]
+            ? RAW_TERRAIN_COLORS[tile.fullTerrainId]
+            : TERRAIN_COLORS[tile.terrain]
+          : currentTheme.water;
+        ctx.fillRect(px, py, pw, ph);
+      }
+    }
+
+    baseTerrainCacheRef.current = { canvas, tileSize: roundedTileSize, water: waterEnabled };
+    return canvas;
+  }
+
   function drawMap() {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const w = Math.round(cols * tileSize);
-    const h = Math.round(rows * tileSize);
-    if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w;
-      canvas.height = h;
+    const viewport = viewportRef.current;
+    const w = Math.max(1, Math.round(viewport?.clientWidth ?? cols * tileSize));
+    const h = Math.max(1, Math.round(viewport?.clientHeight ?? rows * tileSize));
+    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+    const pixelWidth = Math.round(w * dpr);
+    const pixelHeight = Math.round(h * dpr);
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
     }
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = layers.water ? currentTheme.water : "#0b1020";
+    ctx.fillRect(0, 0, w, h);
+    const camera = cameraRef.current;
+    const renderedTileSize = tileSizeFromZoom(camera.zoom);
+    const startX = Math.max(0, Math.floor((camera.x - MAP_CANVAS_MARGIN) / renderedTileSize) - 2);
+    const startY = Math.max(0, Math.floor((camera.y - MAP_CANVAS_MARGIN) / renderedTileSize) - 2);
+    const endX = Math.min(cols - 1, Math.ceil((camera.x + w - MAP_CANVAS_MARGIN) / renderedTileSize) + 2);
+    const endY = Math.min(rows - 1, Math.ceil((camera.y + h - MAP_CANVAS_MARGIN) / renderedTileSize) + 2);
+    ctx.save();
+    ctx.translate(MAP_CANVAS_MARGIN - camera.x, MAP_CANVAS_MARGIN - camera.y);
 
-    for (let cy = 0; cy < rows; cy++) {
-      for (let cx = 0; cx < cols; cx++) {
+    const baseCache = getBaseTerrainCache(renderedTileSize);
+    const cacheScale = renderedTileSize / Math.max(0.25, Math.round(renderedTileSize * 4) / 4);
+    ctx.save();
+    ctx.scale(cacheScale, cacheScale);
+    ctx.drawImage(baseCache, 0, 0);
+    ctx.restore();
+
+    for (let cy = startY; cy <= endY; cy++) {
+      for (let cx = startX; cx <= endX; cx++) {
         const tile = grid.get(keyOf(cx, cy));
         if (!tile) continue;
         const key = keyOf(cx, cy);
-        const px = Math.round(cx * tileSize);
-        const py = Math.round(cy * tileSize);
-        const pw = Math.round((cx + 1) * tileSize) - px;
-        const ph = Math.round((cy + 1) * tileSize) - py;
+        const px = Math.round(cx * renderedTileSize);
+        const py = Math.round(cy * renderedTileSize);
+        const pw = Math.max(1, Math.round((cx + 1) * renderedTileSize) - px);
+        const ph = Math.max(1, Math.round((cy + 1) * renderedTileSize) - py);
         const land = isLand(tile);
-
-        ctx.fillStyle = getTileBackground(tile);
-        ctx.fillRect(px, py, pw, ph);
 
         if (land && layers.levels) {
           const normalizedLevel = Math.min(tile.level, 6000) / 6000;
@@ -2660,7 +2968,8 @@ export default function WorldMapPage() {
         }
 
         if (layers.grid) {
-          ctx.strokeStyle = land ? "rgba(0,0,0,0.08)" : currentTheme.waterBorder;
+          const gridOpacity = clampNumber((renderedTileSize - 4) / 10, 0.08, 0.38);
+          ctx.strokeStyle = land ? `rgba(0,0,0,${gridOpacity * 0.4})` : `rgba(255,255,255,${gridOpacity * 0.35})`;
           ctx.lineWidth = 1;
           ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
         }
@@ -2786,13 +3095,13 @@ export default function WorldMapPage() {
 
     if (townhallPlacement && townhallCoverageBounds) {
       const { minX, minY, maxX, maxY } = townhallCoverageBounds;
-      ctx.lineWidth = Math.max(1, tileSize * 0.75);
-      ctx.setLineDash([Math.max(4, tileSize * 0.5), Math.max(4, tileSize * 0.5)]);
+      ctx.lineWidth = Math.max(1, renderedTileSize * 0.75);
+      ctx.setLineDash([Math.max(4, renderedTileSize * 0.5), Math.max(4, renderedTileSize * 0.5)]);
       ctx.strokeRect(
-        Math.round(minX * tileSize) + 0.5,
-        Math.round(minY * tileSize) + 0.5,
-        Math.round((maxX - minX + 1) * tileSize) - 1,
-        Math.round((maxY - minY + 1) * tileSize) - 1
+        Math.round(minX * renderedTileSize) + 0.5,
+        Math.round(minY * renderedTileSize) + 0.5,
+        Math.round((maxX - minX + 1) * renderedTileSize) - 1,
+        Math.round((maxY - minY + 1) * renderedTileSize) - 1
       );
       ctx.setLineDash([]);
     }
@@ -2800,13 +3109,13 @@ export default function WorldMapPage() {
     if (activeTool === "townhall" && townhallPreviewBounds) {
       const { minX, minY, maxX, maxY } = townhallPreviewBounds;
       ctx.strokeStyle = "rgba(56,189,248,0.95)";
-      ctx.lineWidth = Math.max(1, tileSize * 0.75);
-      ctx.setLineDash([Math.max(4, tileSize * 0.5), Math.max(4, tileSize * 0.5)]);
+      ctx.lineWidth = Math.max(1, renderedTileSize * 0.75);
+      ctx.setLineDash([Math.max(4, renderedTileSize * 0.5), Math.max(4, renderedTileSize * 0.5)]);
       ctx.strokeRect(
-        Math.round(minX * tileSize) + 0.5,
-        Math.round(minY * tileSize) + 0.5,
-        Math.round((maxX - minX + 1) * tileSize) - 1,
-        Math.round((maxY - minY + 1) * tileSize) - 1
+        Math.round(minX * renderedTileSize) + 0.5,
+        Math.round(minY * renderedTileSize) + 0.5,
+        Math.round((maxX - minX + 1) * renderedTileSize) - 1,
+        Math.round((maxY - minY + 1) * renderedTileSize) - 1
       );
       ctx.setLineDash([]);
     }
@@ -2814,37 +3123,37 @@ export default function WorldMapPage() {
     if (layers.chaos_setup) {
       chaosSetupTiles.forEach((piece, placedKey) => {
         const [x, y] = placedKey.split(",").map(Number);
-        const px = x * tileSize;
-        const py = y * tileSize;
+        const px = x * renderedTileSize;
+        const py = y * renderedTileSize;
         if (piece === "info_board") {
           ctx.fillStyle = "#8b5a2b";
-          ctx.fillRect(px + tileSize * 0.44, py + tileSize * 0.45, Math.max(1, tileSize * 0.12), tileSize * 0.45);
+          ctx.fillRect(px + renderedTileSize * 0.44, py + renderedTileSize * 0.45, Math.max(1, renderedTileSize * 0.12), renderedTileSize * 0.45);
           ctx.fillStyle = "#d4a95f";
-          ctx.fillRect(px + tileSize * 0.18, py + tileSize * 0.12, tileSize * 0.64, tileSize * 0.36);
+          ctx.fillRect(px + renderedTileSize * 0.18, py + renderedTileSize * 0.12, renderedTileSize * 0.64, renderedTileSize * 0.36);
           ctx.strokeStyle = "#8b5a2b";
-          ctx.lineWidth = Math.max(1, tileSize * 0.05);
-          ctx.strokeRect(px + tileSize * 0.18, py + tileSize * 0.12, tileSize * 0.64, tileSize * 0.36);
+          ctx.lineWidth = Math.max(1, renderedTileSize * 0.05);
+          ctx.strokeRect(px + renderedTileSize * 0.18, py + renderedTileSize * 0.12, renderedTileSize * 0.64, renderedTileSize * 0.36);
         } else {
           ctx.fillStyle = "#9ca3af";
           ctx.beginPath();
-          ctx.moveTo(px + tileSize, py + tileSize * 1.95);
-          ctx.lineTo(px + tileSize * 1.8, py + tileSize * 1.85);
-          ctx.lineTo(px + tileSize * 1.65, py + tileSize * 0.9);
-          ctx.lineTo(px + tileSize * 1.3, py + tileSize * 0.2);
-          ctx.lineTo(px + tileSize * 0.75, py + tileSize * 0.45);
-          ctx.lineTo(px + tileSize * 0.3, py + tileSize * 1.1);
-          ctx.lineTo(px + tileSize * 0.15, py + tileSize * 1.95);
+          ctx.moveTo(px + renderedTileSize, py + renderedTileSize * 1.95);
+          ctx.lineTo(px + renderedTileSize * 1.8, py + renderedTileSize * 1.85);
+          ctx.lineTo(px + renderedTileSize * 1.65, py + renderedTileSize * 0.9);
+          ctx.lineTo(px + renderedTileSize * 1.3, py + renderedTileSize * 0.2);
+          ctx.lineTo(px + renderedTileSize * 0.75, py + renderedTileSize * 0.45);
+          ctx.lineTo(px + renderedTileSize * 0.3, py + renderedTileSize * 1.1);
+          ctx.lineTo(px + renderedTileSize * 0.15, py + renderedTileSize * 1.95);
           ctx.closePath();
           ctx.fill();
           ctx.strokeStyle = "#4b5563";
-          ctx.lineWidth = Math.max(1, tileSize * 0.06);
+          ctx.lineWidth = Math.max(1, renderedTileSize * 0.06);
           ctx.stroke();
         }
       });
     }
 
     // ── Map facilities ──────────────────────────────────────────────────────────
-    if (layers.facilities && tileSize >= 4) {
+    if (layers.facilities && renderedTileSize >= 5.5) {
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -2857,10 +3166,10 @@ export default function WorldMapPage() {
           const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
           const nSY = Math.floor((ny * rows) / 10);
           const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
-          const zoneW = (nEX - nSX + 1) * tileSize;
-          const zoneH = (nEY - nSY + 1) * tileSize;
-          const cxPx = nSX * tileSize + zoneW / 2;
-          const cyPx = nSY * tileSize + zoneH / 2;
+          const zoneW = (nEX - nSX + 1) * renderedTileSize;
+          const zoneH = (nEY - nSY + 1) * renderedTileSize;
+          const cxPx = nSX * renderedTileSize + zoneW / 2;
+          const cyPx = nSY * renderedTileSize + zoneH / 2;
           // Fit font: start at ~13% of zone width, shrink until text fits
           const maxW = zoneW * 0.88;
           let fSize = Math.max(8, Math.min(44, Math.floor(zoneW * 0.13)));
@@ -2888,7 +3197,7 @@ export default function WorldMapPage() {
       ctx.restore();
     }
 
-    if (layers.weekly_conquest && tileSize >= 4) {
+    if (layers.weekly_conquest && renderedTileSize >= 5.5) {
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -2900,10 +3209,10 @@ export default function WorldMapPage() {
           const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
           const nSY = Math.floor((ny * rows) / 10);
           const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
-          const zoneW = (nEX - nSX + 1) * tileSize;
-          const zoneH = (nEY - nSY + 1) * tileSize;
-          const cxPx = nSX * tileSize + zoneW / 2;
-          const cyPx = nSY * tileSize + zoneH / 2 + Math.max(12, zoneH * 0.16);
+          const zoneW = (nEX - nSX + 1) * renderedTileSize;
+          const zoneH = (nEY - nSY + 1) * renderedTileSize;
+          const cxPx = nSX * renderedTileSize + zoneW / 2;
+          const cyPx = nSY * renderedTileSize + zoneH / 2 + Math.max(12, zoneH * 0.16);
           const maxW = zoneW * 0.84;
           let fSize = Math.max(7, Math.min(24, Math.floor(zoneW * 0.09)));
 
@@ -2940,13 +3249,13 @@ export default function WorldMapPage() {
     }
 
     if (layers.weekly_conquest && weeklyConquestIconEnabled) {
-      drawWeeklyConquestAreaIcons(ctx, tileSize, weeklyConquestAreas);
+      drawWeeklyConquestAreaIcons(ctx, renderedTileSize, weeklyConquestAreas);
     }
 
     // ── Survey pins ────────────────────────────────────────────────────────────
     if (showSurveys) {
       const MARGIN = 8;
-      const PIN_R = Math.max(5, Math.min(14, tileSize * 1.6));
+      const PIN_R = Math.max(5, Math.min(14, renderedTileSize * 1.6));
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -2972,8 +3281,8 @@ export default function WorldMapPage() {
           const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
           const nCX = Math.floor((nSX + nEX) / 2);
           const nCY = Math.floor((nSY + nEY) / 2);
-          const baseX = nCX * tileSize + MARGIN + tileSize / 2;
-          const baseY = nCY * tileSize + MARGIN + tileSize / 2;
+          const baseX = nCX * renderedTileSize + MARGIN + renderedTileSize / 2;
+          const baseY = nCY * renderedTileSize + MARGIN + renderedTileSize / 2;
           // Spread dots horizontally
           const spacing = PIN_R * 2.2;
           const totalW = (cats.length - 1) * spacing;
@@ -3013,8 +3322,8 @@ export default function WorldMapPage() {
     }
 
     // ── Level numbers (drawn last so they always appear on top) ────────────────
-    if (layers.levels) {
-      const zonePx = Math.floor((cols / 10) * tileSize);
+    if (layers.levels && renderedTileSize >= 5.5) {
+      const zonePx = Math.floor((cols / 10) * renderedTileSize);
       const fontSize = Math.max(14, Math.min(72, Math.floor(zonePx * 0.18)));
       ctx.save();
       ctx.font = `bold ${fontSize}px Arial, sans-serif`;
@@ -3031,14 +3340,15 @@ export default function WorldMapPage() {
           const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
           const nSY = Math.floor((ny * rows) / 10);
           const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
-          const cxPx = nSX * tileSize + (nEX - nSX + 1) * tileSize / 2;
-          const cyPx = nSY * tileSize + (nEY - nSY + 1) * tileSize / 2;
+          const cxPx = nSX * renderedTileSize + (nEX - nSX + 1) * renderedTileSize / 2;
+          const cyPx = nSY * renderedTileSize + (nEY - nSY + 1) * renderedTileSize / 2;
           ctx.fillText(String(native.level), cxPx, cyPx);
         }
       }
       ctx.shadowBlur = 0;
       ctx.restore();
     }
+    ctx.restore();
   }
 
   function drawMinimap() {
@@ -3074,8 +3384,11 @@ export default function WorldMapPage() {
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { drawMap(); }, [
-    tileSize, outlinedTiles, penTiles, chaosSetupTiles, reclaimedTiles, deployedTiles, roadTiles,
+  useEffect(() => {
+    drawMap();
+    requestAnimationFrame(syncMapScroll);
+  }, [
+    tileSize, mapCamera, outlinedTiles, penTiles, chaosSetupTiles, reclaimedTiles, deployedTiles, roadTiles,
     layers, hoveredTile, selectedTile, activeTool, paintMode, drawAreaColor, penColor, deployColor, previewKeys,
     townhallPlacement, townhallLevel, townhallCoverageBounds, townhallPlacementKeys, townhallPreviewBounds,
     weeklyConquestTileKeys, weeklyConquestAreas, weeklyConquestIconEnabled,
@@ -3321,9 +3634,9 @@ export default function WorldMapPage() {
       <div className="space-y-2">
         <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Zoom</div>
         <div className="flex gap-1 items-center">
-          <Button size="sm" variant="outline" className="flex-1" onClick={() => setTileSize((prev) => Math.max(getMinTileSize(), prev / 1.12))}>-</Button>
+          <Button size="sm" variant="outline" className="flex-1" onClick={() => zoomAtCenter(1 / 1.18)}>-</Button>
           <span className="text-xs opacity-60 w-14 text-center">{tileSize.toFixed(1)}px</span>
-          <Button size="sm" variant="outline" className="flex-1" onClick={() => setTileSize((prev) => Math.max(getMinTileSize(), Math.min(MAX_TILE_SIZE, prev * 1.12)))}>+</Button>
+          <Button size="sm" variant="outline" className="flex-1" onClick={() => zoomAtCenter(1.18)}>+</Button>
         </div>
       </div>
 
@@ -3356,6 +3669,24 @@ export default function WorldMapPage() {
   );
 
   // â”€â”€ Map viewport â”€â”€
+  const minimapPanelWidth = minimapSize.width + 16;
+  const minimapPanelHeight = minimapSize.height + 44;
+  const minimapViewRect = (() => {
+    const contentWidth = Math.max(1, mapScroll.width - MAP_CANVAS_MARGIN * 2);
+    const contentHeight = Math.max(1, mapScroll.height - MAP_CANVAS_MARGIN * 2);
+    const left = clampNumber((mapScroll.left - MAP_CANVAS_MARGIN) / contentWidth * minimapSize.width, 0, minimapSize.width);
+    const top = clampNumber((mapScroll.top - MAP_CANVAS_MARGIN) / contentHeight * minimapSize.height, 0, minimapSize.height);
+    const width = clampNumber(mapScroll.viewportWidth / contentWidth * minimapSize.width, 10, minimapSize.width - left);
+    const height = clampNumber(mapScroll.viewportHeight / contentHeight * minimapSize.height, 10, minimapSize.height - top);
+    return { left, top, width, height };
+  })();
+
+  const floatingButtonStyle = {
+    background: "rgba(15,23,42,0.88)",
+    borderColor: "rgba(255,255,255,0.16)",
+    color: "#fff",
+  };
+
   const mapViewport = (
     <div
       className="relative overflow-hidden bg-muted/20"
@@ -3367,7 +3698,7 @@ export default function WorldMapPage() {
     >
       <div
         ref={viewportRef}
-        className="absolute inset-0 overflow-auto"
+        className="absolute inset-0 overflow-hidden"
         style={{
           cursor: getCursor(),
           touchAction: "none",
@@ -3393,9 +3724,125 @@ export default function WorldMapPage() {
       >
         <canvas
           ref={canvasRef}
-          style={{ display: "block", margin: "8px" }}
+          style={{ display: "block", width: "100%", height: "100%" }}
         />
       </div>
+
+      {!cleanMode && (
+        <>
+          <div
+            className="absolute left-3 top-3 z-40 flex max-w-[calc(100%-96px)] items-center gap-1 rounded-lg border p-1 shadow-2xl backdrop-blur"
+            style={floatingButtonStyle}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="h-9 rounded-md px-3 text-xs font-semibold transition-colors hover:bg-white/10"
+              style={{ background: activeTool === "none" ? "rgba(59,130,246,0.9)" : "transparent" }}
+              onClick={() => {
+                setActiveTool("none");
+                setPaintMode("mark");
+                setFloatingToolsOpen(false);
+              }}
+              title="Browse and pan"
+            >
+              Browse
+            </button>
+            <button
+              className="h-9 rounded-md px-3 text-xs font-semibold transition-colors hover:bg-white/10"
+              style={{ background: activeTool !== "none" ? "rgba(59,130,246,0.9)" : "transparent" }}
+              onClick={() => setFloatingToolsOpen((open) => !open)}
+              title="Open editing tools"
+            >
+              Tools
+            </button>
+            <button
+              className="h-9 rounded-md px-3 text-xs font-semibold transition-colors hover:bg-white/10"
+              onClick={() => setFloatingLayersOpen((open) => !open)}
+              title="Open layers"
+            >
+              Layers
+            </button>
+          </div>
+
+          {floatingToolsOpen && (
+            <div
+              className="absolute left-3 top-[58px] z-40 grid max-w-[calc(100%-24px)] grid-cols-4 gap-1 rounded-lg border p-2 shadow-2xl backdrop-blur sm:grid-cols-7"
+              style={{ ...floatingButtonStyle, background: "rgba(15,23,42,0.94)" }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {[
+                { key: "pen" as ToolType, label: "Pen" },
+                { key: "draw_area" as ToolType, label: "Area" },
+                { key: "road" as ToolType, label: "Road" },
+                { key: "deploy" as ToolType, label: "Deploy" },
+                { key: "reclaim" as ToolType, label: "Reclaim" },
+                { key: "chaos_setup" as ToolType, label: "Build" },
+                { key: "townhall" as ToolType, label: "Town" },
+              ].map((tool) => (
+                <button
+                  key={tool.key}
+                  className="h-9 rounded-md border px-2 text-xs font-semibold transition-colors hover:bg-white/10"
+                  style={{
+                    background: activeTool === tool.key ? "rgba(59,130,246,0.9)" : "rgba(255,255,255,0.04)",
+                    borderColor: activeTool === tool.key ? "#60a5fa" : "rgba(255,255,255,0.12)",
+                  }}
+                  onClick={() => selectMapTool(tool.key)}
+                >
+                  {tool.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div
+            className="absolute right-3 top-3 z-40 flex flex-col overflow-hidden rounded-lg border shadow-2xl backdrop-blur"
+            style={floatingButtonStyle}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className="h-9 w-10 text-lg font-semibold transition-colors hover:bg-white/10" onClick={() => zoomAtCenter(1.18)} title="Zoom in">+</button>
+            <button className="h-9 w-10 border-y border-white/10 text-lg font-semibold transition-colors hover:bg-white/10" onClick={() => zoomAtCenter(1 / 1.18)} title="Zoom out">-</button>
+            <button className="h-9 w-10 text-[10px] font-bold uppercase transition-colors hover:bg-white/10" onClick={fitMapToViewport} title="Fit map">Fit</button>
+          </div>
+
+          {floatingLayersOpen && (
+            <div
+              className="absolute right-3 top-[126px] z-40 w-[min(260px,calc(100%-24px))] rounded-lg border p-2 shadow-2xl backdrop-blur"
+              style={{ ...floatingButtonStyle, background: "rgba(15,23,42,0.94)" }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">Map layers</div>
+                <button className="h-7 rounded-md px-2 text-xs hover:bg-white/10" onClick={() => setFloatingLayersOpen(false)} title="Close layers">Close</button>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                {layerOrder.map((layer) => (
+                  <button
+                    key={`floating-layer-${layer}`}
+                    className="flex h-8 items-center gap-2 rounded-md px-2 text-left text-xs transition-colors hover:bg-white/10"
+                    style={{ color: layers[layer] ? "#fff" : "rgba(255,255,255,0.45)" }}
+                    onClick={() => setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))}
+                  >
+                    <span className="h-3 w-3 flex-shrink-0 rounded-sm border" style={{ background: layers[layer] ? "#3b82f6" : "transparent", borderColor: layers[layer] ? "#60a5fa" : "rgba(255,255,255,0.25)" }} />
+                    <span className="truncate">{LAYER_LABELS[layer]}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 flex gap-1 border-t border-white/10 pt-2">
+                <button className="h-8 flex-1 rounded-md px-2 text-xs hover:bg-white/10" onClick={() => setShowMinimap((prev) => !prev)}>
+                  {showMinimap ? "Hide minimap" : "Show minimap"}
+                </button>
+                <button className="h-8 flex-1 rounded-md px-2 text-xs hover:bg-white/10" onClick={() => setShowSurveys((prev) => !prev)}>
+                  {showSurveys ? "Hide pins" : "Show pins"}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
       {/* Draw Tool Bubble */}
       {!cleanMode && (() => {
         const isRoad = activeTool === "road" && paintMode === "mark";
@@ -3724,7 +4171,7 @@ export default function WorldMapPage() {
               const drag = minimapBubbleDragRef.current;
               if (!drag) return;
               e.stopPropagation();
-              setMinimapBubblePos({ x: drag.startPosX + (e.clientX - drag.startX), y: drag.startPosY + (e.clientY - drag.startY) });
+              setMinimapBubblePos(clampFloatingMapPos(drag.startPosX + (e.clientX - drag.startX), drag.startPosY + (e.clientY - drag.startY), 40, 40));
             }}
             onPointerUp={(e) => {
               const drag = minimapBubbleDragRef.current;
@@ -3741,9 +4188,9 @@ export default function WorldMapPage() {
           </button>
         ) : (
           /* Expanded: full minimap panel */
-          <div className="absolute z-30 rounded-xl border p-2 backdrop-blur" style={{ left: minimapBubblePos.x, top: minimapBubblePos.y, background: currentTheme.panelBg, borderColor: currentTheme.panelBorder, touchAction: "none", cursor: "grab" }}>
+          <div className="absolute z-30 rounded-lg border p-2 backdrop-blur shadow-2xl" style={{ left: minimapBubblePos.x, top: minimapBubblePos.y, width: minimapPanelWidth, background: "rgba(15,23,42,0.88)", borderColor: "rgba(255,255,255,0.16)", touchAction: "none" }}>
             <div
-              className="flex items-center justify-between gap-2 mb-2"
+              className="flex items-center justify-between gap-2 mb-2 cursor-grab"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -3753,7 +4200,7 @@ export default function WorldMapPage() {
                 const drag = minimapBubbleDragRef.current;
                 if (!drag) return;
                 e.stopPropagation();
-                setMinimapBubblePos({ x: drag.startPosX + (e.clientX - drag.startX), y: drag.startPosY + (e.clientY - drag.startY) });
+                setMinimapBubblePos(clampFloatingMapPos(drag.startPosX + (e.clientX - drag.startX), drag.startPosY + (e.clientY - drag.startY), minimapPanelWidth, minimapPanelHeight));
               }}
               onPointerUp={(e) => {
                 minimapBubbleDragRef.current = null;
@@ -3761,24 +4208,35 @@ export default function WorldMapPage() {
               }}
             >
               <div className="text-[10px] uppercase tracking-wide opacity-70">Minimap</div>
-              <button className="w-5 h-5 rounded flex items-center justify-center text-sm font-bold hover:bg-white/10 opacity-60 hover:opacity-100 transition-all" onClick={() => setMinimapCollapsed(true)} title="Collapse minimap">
+              <button
+                className="w-7 h-7 rounded-md flex items-center justify-center text-base font-bold hover:bg-white/10 opacity-80 hover:opacity-100 transition-all"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMinimapBubblePos((pos) => clampFloatingMapPos(pos.x, pos.y, 40, 40));
+                  setMinimapCollapsed(true);
+                }}
+                title="Collapse minimap"
+                aria-label="Collapse minimap"
+              >
                 &minus;
               </button>
             </div>
-            <div className="relative" style={{ width: Math.max(120, cols), height: Math.max(118, rows) }}>
+            <div className="relative overflow-hidden rounded-md border border-white/10 bg-slate-950/60" style={{ width: minimapSize.width, height: minimapSize.height }}>
               <canvas
                 ref={minimapCanvasRef}
                 width={cols}
                 height={rows}
-                style={{ display: "block", cursor: "crosshair" }}
+                style={{ display: "block", width: minimapSize.width, height: minimapSize.height, cursor: "crosshair" }}
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
-                  centerOn(Math.floor(e.clientX - rect.left), Math.floor(e.clientY - rect.top));
+                  centerOn(Math.floor((e.clientX - rect.left) / rect.width * cols), Math.floor((e.clientY - rect.top) / rect.height * rows));
                 }}
               />
-              {viewportRef.current && (
-                <div className="absolute border border-white/80 pointer-events-none" style={{ left: viewportRef.current.scrollLeft / Math.max(1, tileSize), top: viewportRef.current.scrollTop / Math.max(1, tileSize), width: Math.max(8, viewportRef.current.clientWidth / Math.max(1, tileSize)), height: Math.max(8, viewportRef.current.clientHeight / Math.max(1, tileSize)) }} />
-              )}
+              <div
+                className="absolute pointer-events-none rounded-[2px] border-2 border-white/90 shadow-[0_0_0_1px_rgba(15,23,42,0.8)]"
+                style={minimapViewRect}
+              />
             </div>
           </div>
         )
