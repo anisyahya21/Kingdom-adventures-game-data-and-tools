@@ -4,6 +4,7 @@ import { BookOpenText, ExternalLink, Link2, ListTree, Loader2, Pencil, Plus, Rot
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -1961,6 +1962,7 @@ export function GuideDocumentPage({
   const [marriageSimPreview, setMarriageSimPreview] = useState<MarriageSimPreviewItem | null>(null);
   const [marriageSimPreviewOpen, setMarriageSimPreviewOpen] = useState(false);
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
+  const pendingMobileSectionRef = useRef<string | null>(null);
 
   const isOwner = Boolean(ownerGuideId);
 
@@ -2079,29 +2081,44 @@ export function GuideDocumentPage({
     };
   }, [docId, fallbackUrl]);
 
+  useEffect(() => {
+    // Do not persist TOC section selection in the URL.
+    // This avoids refresh jumping back to a stale section.
+    if (!window.location.hash) return;
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+  }, []);
+
+  useEffect(() => {
+    if (mobileTocOpen) return;
+    const pendingSectionId = pendingMobileSectionRef.current;
+    if (!pendingSectionId) return;
+    pendingMobileSectionRef.current = null;
+
+    // Wait one frame after dialog close so only the page layer handles scrolling.
+    window.requestAnimationFrame(() => {
+      const section = document.getElementById(pendingSectionId);
+      section?.scrollIntoView({ behavior: "auto", block: "start" });
+    });
+  }, [mobileTocOpen]);
+
   const parsedGuide = useMemo(() => parseGuide(markdown), [markdown]);
   const sections = parsedGuide.sections;
   const toc = sections.filter((section) => section.level <= 2);
 
-  const navigateToSection = (sectionId: string, closeMobileToc = false) => {
-    const scrollToTarget = () => {
-      const section = document.getElementById(sectionId);
-      if (!section) return;
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
-      if (window.location.hash !== `#${sectionId}`) {
-        window.history.replaceState({}, "", `#${sectionId}`);
-      }
-    };
+  const scrollToSection = (sectionId: string, behavior: ScrollBehavior) => {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    section.scrollIntoView({ behavior, block: "start" });
+  };
 
+  const navigateToSection = (sectionId: string, closeMobileToc = false) => {
     if (closeMobileToc) {
+      pendingMobileSectionRef.current = sectionId;
       setMobileTocOpen(false);
-      // Wait for the Dialog close animation to finish before scrolling.
-      // rAF alone fires before Radix's exit transition completes (~200ms).
-      setTimeout(scrollToTarget, 250);
       return;
     }
 
-    scrollToTarget();
+    scrollToSection(sectionId, "smooth");
   };
 
   const openLinkTools = () => {
@@ -2418,10 +2435,48 @@ export function GuideDocumentPage({
             </aside>
 
             <div className="min-w-0 flex-1 space-y-4">
+              <Collapsible open={mobileTocOpen} onOpenChange={setMobileTocOpen} className="lg:hidden">
+                <Card>
+                  <CardContent className="p-3">
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-11 w-full justify-between rounded-full border-primary/40 bg-background px-4"
+                        aria-expanded={mobileTocOpen}
+                        aria-controls="guide-mobile-toc"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <ListTree className="h-4 w-4 text-primary" />
+                          Table of Contents
+                        </span>
+                        <span className="text-xs text-muted-foreground">{toc.length}</span>
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent id="guide-mobile-toc" className="pt-3">
+                      <div className="space-y-1 rounded-xl border border-border bg-muted/20 p-2">
+                        {toc.map((section) => (
+                          <button
+                            key={`mobile-${section.id}`}
+                            type="button"
+                            onClick={() => navigateToSection(section.id, true)}
+                            className={`block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted/50 ${
+                              section.level === 2 ? "pl-6 text-muted-foreground" : "font-medium"
+                            }`}
+                          >
+                            {section.title}
+                          </button>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </CardContent>
+                </Card>
+              </Collapsible>
+
               {sections.map((section) => {
                 const overlay = overlays[section.title];
                 return (
-                  <Card key={section.id} id={section.id}>
+                  <Card key={section.id} id={section.id} className="scroll-mt-20">
                     <CardContent className="p-5 md:p-7 space-y-4">
                       {section.level === 1 ? (
                         <h2 className="text-2xl font-bold tracking-tight">{section.title}</h2>
@@ -2478,45 +2533,6 @@ export function GuideDocumentPage({
               })}
             </div>
           </div>
-          <div className="fixed bottom-3 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-sm -translate-x-1/2 lg:hidden">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-full justify-between rounded-full border-primary/40 bg-background/95 px-4 shadow-lg backdrop-blur"
-              onClick={() => setMobileTocOpen(true)}
-            >
-              <span className="inline-flex items-center gap-2">
-                <ListTree className="h-4 w-4 text-primary" />
-                Table of Contents
-              </span>
-              <span className="text-xs text-muted-foreground">{toc.length}</span>
-            </Button>
-          </div>
-
-          <Dialog open={mobileTocOpen} onOpenChange={setMobileTocOpen}>
-            <DialogContent className="top-auto bottom-0 h-[75dvh] w-full max-w-none translate-y-0 rounded-t-xl p-4 pt-12 sm:left-1/2 sm:top-1/2 sm:h-auto sm:max-h-[85vh] sm:w-full sm:max-w-lg sm:-translate-y-1/2 sm:rounded-lg sm:p-6">
-              <DialogHeader>
-                <DialogTitle>Table of Contents</DialogTitle>
-                <DialogDescription>Jump to a section in the guide.</DialogDescription>
-              </DialogHeader>
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                <div className="space-y-1 pb-4">
-                  {toc.map((section) => (
-                    <button
-                      key={`mobile-${section.id}`}
-                      type="button"
-                      onClick={() => navigateToSection(section.id, true)}
-                      className={`block rounded-md px-3 py-2 text-sm hover:bg-muted/50 ${
-                        section.level === 2 ? "ml-3 text-muted-foreground" : "font-medium"
-                      }`}
-                    >
-                      {section.title}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
         </>
       )}
 
