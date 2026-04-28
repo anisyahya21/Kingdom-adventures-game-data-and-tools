@@ -1,4 +1,5 @@
 import { apiUrl } from "@/lib/api";
+import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 
 export type CommunityGuide = {
   id: string;
@@ -166,5 +167,11 @@ export function extractGoogleDocId(url: string) {
 export async function fetchCommunityGuides() {
   const response = await fetch(apiUrl("/guides"));
   if (!response.ok) throw new Error("Could not load guides.");
-  return await response.json() as { guides: CommunityGuide[] };
+  const payload = await response.json() as { guides: CommunityGuide[] };
+  writeBrowserCache("community-guides", payload);
+  return payload;
+}
+
+export function getCachedCommunityGuides(maxAgeMs = 24 * 60 * 60 * 1000) {
+  return readBrowserCache<{ guides: CommunityGuide[] }>("community-guides", maxAgeMs);
 }

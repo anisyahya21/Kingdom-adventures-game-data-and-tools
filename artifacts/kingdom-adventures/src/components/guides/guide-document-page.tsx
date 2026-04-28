@@ -27,6 +27,7 @@ import { JOB_RANGE_DATA } from "@/lib/generated-job-range-data";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS, getShopHref } from "@/lib/shop-utils";
 import { googleSheetUrl, googleDocUrl } from "@/lib/api";
+import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 
 export type GuideSectionOverlay = {
   title: string;
@@ -2025,8 +2026,10 @@ export function GuideDocumentPage({
   ownerToken?: string;
   serverLinkOverrides?: GuideLinkOverrides;
 }) {
-  const [markdown, setMarkdown] = useState("");
-  const [loading, setLoading] = useState(true);
+  const guideCacheKey = `guide-doc:${docId}`;
+  const cachedMarkdown = readBrowserCache<string>(guideCacheKey, 7 * 24 * 60 * 60 * 1000);
+  const [markdown, setMarkdown] = useState(() => cachedMarkdown ?? "");
+  const [loading, setLoading] = useState(() => !cachedMarkdown);
   const [error, setError] = useState<string | null>(null);
   const [linkOverrides, setLinkOverridesState] = useState<GuideLinkOverrides>(() => {
     const normalizedServerOverrides = normalizeGuideLinkOverrides(serverLinkOverrides);
@@ -2140,10 +2143,18 @@ export function GuideDocumentPage({
 
   useEffect(() => {
     let cancelled = false;
+    const cached = readBrowserCache<string>(guideCacheKey, 7 * 24 * 60 * 60 * 1000);
+    if (cached) {
+      setMarkdown(cached);
+      setLoading(false);
+    } else {
+      setMarkdown("");
+      setLoading(true);
+    }
 
     async function loadGuide() {
       try {
-        setLoading(true);
+        if (!cached) setLoading(true);
         setError(null);
         // Fetch guide via the server-side cache proxy (avoids hitting Google on every user load)
         const googleDocUrlProxy = googleDocUrl(docId);
@@ -2169,6 +2180,7 @@ export function GuideDocumentPage({
         }
         if (!fetchedMarkdown) throw new Error("Guide request failed. Make sure the Google Doc is public or published.");
         if (!cancelled) {
+          writeBrowserCache(guideCacheKey, fetchedMarkdown);
           setMarkdown(fetchedMarkdown);
         }
       } catch (err) {
@@ -2187,7 +2199,7 @@ export function GuideDocumentPage({
     return () => {
       cancelled = true;
     };
-  }, [docId, fallbackUrl]);
+  }, [docId, fallbackUrl, guideCacheKey]);
 
   useEffect(() => {
     // Do not persist TOC section selection in the URL.

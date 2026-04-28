@@ -4,13 +4,14 @@ import { BookOpenText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { GuideDocumentPage } from "@/components/guides/guide-document-page";
-import { type CommunityGuide, fetchCommunityGuides, getGuideOwnerTokens, setGuideOwnerToken } from "@/lib/community-guides";
+import { type CommunityGuide, fetchCommunityGuides, getCachedCommunityGuides, getGuideOwnerTokens, setGuideOwnerToken } from "@/lib/community-guides";
 
 export default function CommunityGuidePage() {
   const [, params] = useRoute<{ slug: string }>("/guides/:slug");
   const slug = params?.slug ?? "";
-  const [guide, setGuide] = useState<CommunityGuide | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cachedGuide = getCachedCommunityGuides()?.guides.find((item) => item.slug === slug) ?? null;
+  const [guide, setGuide] = useState<CommunityGuide | null>(cachedGuide);
+  const [loading, setLoading] = useState(() => !cachedGuide);
   const [error, setError] = useState<string | null>(null);
   const [ownerTokens, setOwnerTokens] = useState<Record<string, string>>(() => getGuideOwnerTokens());
 
@@ -19,7 +20,7 @@ export default function CommunityGuidePage() {
 
     async function loadGuide() {
       try {
-        setLoading(true);
+        setLoading(!guide);
         setError(null);
         const payload = await fetchCommunityGuides();
         const found = payload.guides.find((item) => item.slug === slug) ?? null;

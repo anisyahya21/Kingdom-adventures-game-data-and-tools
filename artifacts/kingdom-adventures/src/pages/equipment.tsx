@@ -15,8 +15,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { SearchableSelect } from "@/components/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl, googleSheetUrl } from "@/lib/api";
+import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 const RANKED_EQUIPMENT_NAME = /^[FSABCDE]\s*\/\s*/i;
 
 // ─── NumInput: local-string-state to prevent typing glitch ────────────────────
@@ -224,8 +225,19 @@ function getEquipmentRank(name: string): string {
 
 async function fetchSheet(): Promise<EquipmentItem[]> {
   const url = googleSheetUrl("equipment");
-  const res = await fetch(url);
-  const text = await res.text();
+  const text = await fetch(url)
+    .then((res) => {
+      if (!res.ok) throw new Error(`Equipment sheet returned ${res.status}`);
+      return res.text();
+    })
+    .catch((err) => {
+      const cached = readBrowserCache<EquipmentItem[]>("equipment-sheet", 7 * 24 * 60 * 60 * 1000);
+      if (cached) return `__KA_CACHED_EQUIPMENT__${JSON.stringify(cached)}`;
+      throw err;
+    });
+  if (text.startsWith("__KA_CACHED_EQUIPMENT__")) {
+    return JSON.parse(text.replace("__KA_CACHED_EQUIPMENT__", "")) as EquipmentItem[];
+  }
   const json = text.replace(/^[^(]+\(/, "").replace(/\);?\s*$/, "");
   const data = JSON.parse(json);
   const rawCols: Array<{ id: string; label: string; type: string }> = data.table.cols;
@@ -296,7 +308,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
   };
   const seenDuplicateIndex = new Map<string, number>();
 
-  return rawItems.map((item, index) => {
+  const items = rawItems.map((item, index) => {
     const duplicateTotal = duplicateCounts.get(item.name) ?? 0;
     if (duplicateTotal <= 1) {
       return { uid: String(index), ...item };
@@ -308,6 +320,8 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     const suffix = preferredSuffix ?? `(${seen})`;
     return { uid: item.sourceId === null ? String(index) : String(item.sourceId), ...item, name: `${item.name} ${suffix}` };
   });
+  writeBrowserCache("equipment-sheet", items);
+  return items;
 }
 
 function statAtLevel(base: number, inc: number, level: number): number {
@@ -364,9 +378,9 @@ function useShared() {
   const { data: shared = EMPTY_SHARED } = useQuery<SharedState>({
     queryKey: ["ka-shared"],
     queryFn: fetchShared,
-    staleTime: 10_000,
-    refetchInterval: 15_000,
-    refetchOnWindowFocus: true,
+    initialData: () => ({ ...EMPTY_SHARED, ...(JSON.parse(JSON.stringify(localSharedData)) as Partial<SharedState>) }),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const invalidate = useCallback(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }), [qc]);
@@ -779,7 +793,14 @@ function exportData(shared: SharedState) {
 
 export default function EquipmentPage() {
   const locationSearch = useSearch();
-  const { data: items = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery({ queryKey: ["equipment"], queryFn: fetchSheet, staleTime: 5 * 60 * 1000 });
+  const { data: items = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery({
+    queryKey: ["equipment"],
+    queryFn: fetchSheet,
+    initialData: () => readBrowserCache<EquipmentItem[]>("equipment-sheet", 7 * 24 * 60 * 60 * 1000),
+    initialDataUpdatedAt: 0,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
   const { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, saveWeaponTypes, saveWeaponCategories, renameUser } = useShared();
   const { overrides, slotAssignments, equipIcons, statIcons } = shared;
   const weaponTypes = shared.weaponTypes ?? {};

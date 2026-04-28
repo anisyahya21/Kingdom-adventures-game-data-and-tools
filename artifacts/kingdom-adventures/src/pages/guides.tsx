@@ -9,6 +9,7 @@ import { apiUrl } from "@/lib/api";
 import {
   type CommunityGuide,
   fetchCommunityGuides,
+  getCachedCommunityGuides,
   getGuideOwnerTokens,
   removeGuideOwnerToken,
 } from "@/lib/community-guides";
@@ -22,8 +23,9 @@ const BUILT_IN_GUIDE = {
 };
 
 export default function GuidesPage() {
-  const [guides, setGuides] = useState<CommunityGuide[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedGuides = getCachedCommunityGuides();
+  const [guides, setGuides] = useState<CommunityGuide[]>(() => cachedGuides?.guides ?? []);
+  const [loading, setLoading] = useState(() => !cachedGuides);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -35,7 +37,7 @@ export default function GuidesPage() {
 
   const loadGuides = async () => {
     try {
-      setLoading(true);
+      setLoading(guides.length === 0);
       setError(null);
       const payload = await fetchCommunityGuides();
       setGuides(payload.guides);

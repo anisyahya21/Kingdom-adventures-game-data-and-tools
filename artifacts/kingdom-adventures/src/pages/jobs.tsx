@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { getShopHref } from "@/lib/shop-utils";
 import { apiUrl } from "@/lib/api";
 import { JOB_RANGE_DATA } from "@/lib/generated-job-range-data";
@@ -388,8 +388,9 @@ function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
     queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
-    staleTime: 15000,
-    refetchInterval: 30000,
+    initialData: () => JSON.parse(JSON.stringify(localSharedData)) as SharedData,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 }
 

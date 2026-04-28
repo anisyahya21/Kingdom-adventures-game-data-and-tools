@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached } from "../lib/google-cache";
+import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached, refreshStaticSourceIfStale } from "../lib/google-cache";
 import multer from "multer";
 // Multer setup for image uploads
 const PUBLIC_IMAGES_DIR = path.resolve(process.cwd(), "artifacts/kingdom-adventures/public/guides/images");
@@ -339,8 +339,9 @@ router.get("/ka/google/sheet/:key", (req, res) => {
     res.status(503).json({ error: "Cache is warming up, try again shortly" });
     return;
   }
+  refreshStaticSourceIfStale(key);
   res.set("Content-Type", "text/plain; charset=utf-8");
-  res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
+  res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
   res.send(data);
 });
 
@@ -358,7 +359,7 @@ router.get("/ka/google/doc/:docId", (req, res) => {
     return;
   }
   res.set("Content-Type", "text/plain; charset=utf-8");
-  res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+  res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
   res.send(data);
 });
 

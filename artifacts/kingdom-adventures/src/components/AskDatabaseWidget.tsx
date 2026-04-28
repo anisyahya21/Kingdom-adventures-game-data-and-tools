@@ -1596,6 +1596,7 @@ export default function AskDatabaseWidget() {
   const { data: sheetItems = [], isLoading: sheetLoading } = useQuery({
     queryKey: ["askdb-equipment-sheet"],
     queryFn: fetchEquipmentSheet,
+    enabled: open,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
@@ -1603,6 +1604,7 @@ export default function AskDatabaseWidget() {
   const { data: shared = {}, isLoading: sharedLoading } = useQuery({
     queryKey: ["askdb-shared"],
     queryFn: fetchSharedData,
+    enabled: open,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });

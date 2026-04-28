@@ -1,4 +1,6 @@
 import { logger } from "./logger";
+import fs from "fs";
+import path from "path";
 
 // ─── Refresh intervals ────────────────────────────────────────────────────────
 export const GUIDE_REFRESH_MS = 60_000;          // 1 min  – guides change most often
@@ -39,6 +41,50 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
+const CACHE_DIR = path.resolve(process.cwd(), "data", "google-cache");
+
+function cacheFileForKey(key: string) {
+  return path.join(CACHE_DIR, `${encodeURIComponent(key)}.txt`);
+}
+
+function metaFileForKey(key: string) {
+  return path.join(CACHE_DIR, `${encodeURIComponent(key)}.json`);
+}
+
+function loadPersistedCache(key: string): CacheEntry | null {
+  const existing = cache.get(key);
+  if (existing?.data) return existing;
+
+  try {
+    const dataPath = cacheFileForKey(key);
+    if (!fs.existsSync(dataPath)) return null;
+    const data = fs.readFileSync(dataPath, "utf8");
+    const metaPath = metaFileForKey(key);
+    const meta = fs.existsSync(metaPath)
+      ? JSON.parse(fs.readFileSync(metaPath, "utf8")) as { fetchedAt?: number }
+      : {};
+    const entry: CacheEntry = {
+      data,
+      fetchedAt: typeof meta.fetchedAt === "number" ? meta.fetchedAt : 0,
+      refreshing: false,
+    };
+    cache.set(key, entry);
+    return entry;
+  } catch (err) {
+    logger.warn({ key, err: String(err) }, "google-cache: persisted cache read failed");
+    return null;
+  }
+}
+
+function persistCache(key: string, data: string, fetchedAt: number) {
+  try {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+    fs.writeFileSync(cacheFileForKey(key), data, "utf8");
+    fs.writeFileSync(metaFileForKey(key), JSON.stringify({ fetchedAt }), "utf8");
+  } catch (err) {
+    logger.warn({ key, err: String(err) }, "google-cache: persisted cache write failed");
+  }
+}
 
 async function doRefresh(key: string, url: string): Promise<void> {
   const existing = cache.get(key);
@@ -54,7 +100,9 @@ async function doRefresh(key: string, url: string): Promise<void> {
     const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.text();
-    cache.set(key, { data, fetchedAt: Date.now(), refreshing: false });
+    const fetchedAt = Date.now();
+    cache.set(key, { data, fetchedAt, refreshing: false });
+    persistCache(key, data, fetchedAt);
     logger.info({ key }, "google-cache: refreshed");
   } catch (err) {
     const prev = cache.get(key);
@@ -71,8 +119,22 @@ async function doRefresh(key: string, url: string): Promise<void> {
 
 /** Returns cached content or null if cache is still warming. */
 export function getCachedContent(key: string): string | null {
-  const entry = cache.get(key);
+  const entry = cache.get(key) ?? loadPersistedCache(key);
   return entry && entry.data ? entry.data : null;
+}
+
+export function getCachedContentAge(key: string): number | null {
+  const entry = cache.get(key) ?? loadPersistedCache(key);
+  return entry?.data ? Date.now() - entry.fetchedAt : null;
+}
+
+export function refreshStaticSourceIfStale(key: string): void {
+  const source = STATIC_SOURCES[key];
+  if (!source) return;
+  const entry = cache.get(key) ?? loadPersistedCache(key);
+  if (!entry?.data || Date.now() - entry.fetchedAt >= source.intervalMs) {
+    void doRefresh(key, source.url);
+  }
 }
 
 /**
@@ -81,7 +143,10 @@ export function getCachedContent(key: string): string | null {
  */
 export function initGoogleCache(): void {
   for (const [key, source] of Object.entries(STATIC_SOURCES)) {
-    void doRefresh(key, source.url);
+    const entry = loadPersistedCache(key);
+    if (!entry?.data || Date.now() - entry.fetchedAt >= source.intervalMs) {
+      void doRefresh(key, source.url);
+    }
     const timer = setInterval(() => void doRefresh(key, source.url), source.intervalMs);
     timer.unref?.();
   }
@@ -98,7 +163,10 @@ export function ensureGuideDocCached(docId: string): void {
   registeredGuideDocs.add(docId);
   const key = `guide:${docId}`;
   const url = `https://docs.google.com/document/d/${docId}/export?format=md`;
-  void doRefresh(key, url);
+  const entry = loadPersistedCache(key);
+  if (!entry?.data || Date.now() - entry.fetchedAt >= GUIDE_REFRESH_MS) {
+    void doRefresh(key, url);
+  }
   const timer = setInterval(() => void doRefresh(key, url), GUIDE_REFRESH_MS);
   timer.unref?.();
 }
