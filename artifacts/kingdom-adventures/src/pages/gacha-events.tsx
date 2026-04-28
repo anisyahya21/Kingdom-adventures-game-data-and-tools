@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Package, Sparkles, Swords, Wand2 } from "lucide-react";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ThemedNumberInput } from "@/components/ui/themed-number-input";
+import { EQUIPMENT_CATALOG } from "@/lib/generated-equipment-data";
+import { localSharedData } from "@/lib/local-shared-data";
 
 type EventKind = "jobs" | "facilities" | "weapons" | "items";
 
@@ -38,6 +43,66 @@ type ResolvedEvent = GachaEvent & {
   isActive: boolean;
   isUpcoming: boolean;
   durationDays: number;
+};
+
+type EquipmentCatalogItem = {
+  name: string;
+  type: number;
+  rankLabel?: string;
+  buyPrice?: number;
+  requiredKairo?: string;
+};
+
+type StatOverride = Record<string, { base?: number; inc?: number }>;
+
+type WeaponPreviewItem = {
+  name: string;
+  slot: string;
+  rankLabel: string;
+  buyPrice?: number;
+  requiredKairo?: string;
+  weaponType?: string;
+  shopName: string;
+  equipIcon?: string;
+  statIcons: Record<string, string>;
+  stats: Array<{
+    name: string;
+    base: number;
+    inc: number;
+  }>;
+};
+
+const GUIDE_PREVIEW_DIALOG_CLASS =
+  "h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-none overflow-y-auto p-4 pt-12 sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-[95vw] sm:p-6 xl:max-w-6xl";
+
+const GUIDE_EQUIPMENT_STATS = [
+  "HP",
+  "MP",
+  "Vigor",
+  "Attack",
+  "Defence",
+  "Speed",
+  "Luck",
+  "Intelligence",
+  "Dexterity",
+  "Gather",
+  "Move",
+  "Heart",
+];
+
+const GUIDE_STAT_SHORT: Record<string, string> = {
+  HP: "HP",
+  MP: "MP",
+  Vigor: "Vig",
+  Attack: "Atk",
+  Defence: "Def",
+  Speed: "Spd",
+  Luck: "Lck",
+  Intelligence: "Int",
+  Dexterity: "Dex",
+  Gather: "Gth",
+  Move: "Mov",
+  Heart: "Hrt",
 };
 
 const JOB_EVENTS: GachaEvent[] = [
@@ -236,6 +301,78 @@ function normalizeWeaponSearchName(name: string): string {
   return name.replace(/^S\/\s*/i, "").trim();
 }
 
+function normalizeEquipmentName(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/^[fsabcde]\s*\/\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function equipmentSlotFromType(rawType: number) {
+  if (rawType === 11) return "Shield";
+  if (rawType === 12) return "Armor";
+  if (rawType === 13) return "Head";
+  if (rawType === 14) return "Accessory";
+  if (Number.isFinite(rawType) && rawType > 0) return "Weapon";
+  return "";
+}
+
+function equipmentShopFromType(rawType: number) {
+  if (rawType === 14) return "Accessory shop";
+  if (rawType === 11 || rawType === 12 || rawType === 13) return "Armor shop";
+  if (Number.isFinite(rawType) && rawType > 0) return "Weapon shop";
+  return "Equipment shop";
+}
+
+function findEquipmentCatalogItem(search: string) {
+  if (!search) return null;
+  const catalog = EQUIPMENT_CATALOG as readonly EquipmentCatalogItem[];
+  const exactSearch = search.toLowerCase().trim();
+  const normalizedSearch = normalizeEquipmentName(search);
+  return catalog.find((candidate) => candidate.name.toLowerCase() === exactSearch)
+    ?? catalog.find((candidate) => normalizeEquipmentName(candidate.name) === normalizedSearch)
+    ?? catalog.find((candidate) => normalizeEquipmentName(candidate.name).includes(normalizedSearch))
+    ?? null;
+}
+
+function statAtLevel(base: number, inc: number, level: number) {
+  return Math.round(base + (level - 1) * inc);
+}
+
+function buildWeaponPreviewItem(name: string): WeaponPreviewItem | null {
+  const item = findEquipmentCatalogItem(name);
+  if (!item) return null;
+  const shared = localSharedData as {
+    overrides?: Record<string, StatOverride>;
+    slotAssignments?: Record<string, string>;
+    weaponTypes?: Record<string, string>;
+    equipIcons?: Record<string, string>;
+    statIcons?: Record<string, string>;
+  };
+  const overrides = shared.overrides?.[item.name] ?? {};
+  const stats = GUIDE_EQUIPMENT_STATS
+    .map((stat) => ({
+      name: stat,
+      base: overrides[stat]?.base ?? 0,
+      inc: overrides[stat]?.inc ?? 0,
+    }))
+    .filter((stat) => stat.base !== 0 || stat.inc !== 0);
+
+  return {
+    name: item.name,
+    slot: shared.slotAssignments?.[item.name] || equipmentSlotFromType(item.type),
+    rankLabel: item.rankLabel ?? item.name.match(/^([FSABCDE])\s*\//i)?.[1]?.toUpperCase() ?? "",
+    buyPrice: item.buyPrice,
+    requiredKairo: item.requiredKairo,
+    weaponType: shared.weaponTypes?.[item.name],
+    shopName: equipmentShopFromType(item.type),
+    equipIcon: shared.equipIcons?.[`equip:${item.name}`],
+    statIcons: shared.statIcons ?? {},
+    stats,
+  };
+}
+
 function weaponHrefFromEvent(event: ResolvedEvent): string {
   if (event.notes) {
     const firstWeapon = event.notes.split("|").map((part) => part.trim()).find(Boolean);
@@ -270,6 +407,149 @@ function eventKindIcon(kind: EventKind) {
   if (kind === "facilities") return <Wand2 className="w-4 h-4 text-lime-500" />;
   if (kind === "items") return <Package className="w-4 h-4 text-sky-500" />;
   return <Swords className="w-4 h-4 text-amber-500" />;
+}
+
+function WeaponPreviewDialog({
+  item,
+  open,
+  onOpenChange,
+}: {
+  item: WeaponPreviewItem | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [level, setLevel] = useState(99);
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
+
+  useEffect(() => {
+    if (open) setLevel(99);
+  }, [open, item?.name]);
+
+  if (!item) return null;
+
+  const setClampedLevel = (value: number) => {
+    setLevel(Math.min(99, Math.max(1, Number.isFinite(value) ? Math.round(value) : 1)));
+  };
+  const statMap = new Map(item.stats.map((stat) => [stat.name, stat]));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className={GUIDE_PREVIEW_DIALOG_CLASS}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          titleRef.current?.focus({ preventScroll: true });
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle ref={titleRef} tabIndex={-1}>{item.name}</DialogTitle>
+          <DialogDescription>
+            Weapon stats shown at the selected level.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <div className="min-w-[1060px]">
+            <div className="grid grid-cols-[240px_78px_110px_repeat(12,minmax(58px,1fr))] items-stretch border-b border-border bg-muted/25 text-xs text-muted-foreground">
+              <div className="px-4 py-3 font-medium">Name</div>
+              <div className="px-2 py-3 text-center font-medium">Level</div>
+              <div className="px-2 py-3 font-medium">Type</div>
+              {GUIDE_EQUIPMENT_STATS.map((stat) => (
+                <div key={stat} className="flex flex-col items-center gap-0.5 px-1 py-2 text-center">
+                  {item.statIcons[stat] ? (
+                    <img src={item.statIcons[stat]} alt={stat} className="h-4 w-4 object-contain" />
+                  ) : (
+                    <span className="text-[10px] font-semibold text-primary">{GUIDE_STAT_SHORT[stat] ?? stat}</span>
+                  )}
+                  <span className="text-[10px]">{GUIDE_STAT_SHORT[stat] ?? stat}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-[240px_78px_110px_repeat(12,minmax(58px,1fr))] items-center border-b border-border text-sm">
+              <div className="flex min-w-0 items-center gap-2 px-4 py-3 font-semibold">
+                {item.equipIcon ? (
+                  <img src={item.equipIcon} alt={item.name} className="h-6 w-6 rounded object-contain" />
+                ) : (
+                  <span className="h-6 w-6 rounded border border-dashed border-border bg-muted/30" />
+                )}
+                <span className="truncate">{item.name}</span>
+              </div>
+              <div className="px-2 py-3">
+                <ThemedNumberInput
+                  value={level}
+                  min={1}
+                  max={99}
+                  onValueChange={setClampedLevel}
+                  className="h-9 w-[68px]"
+                  inputClassName="px-1"
+                />
+              </div>
+              <div className="px-2 py-3">
+                <span className="inline-flex rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium">
+                  {item.weaponType || item.slot || "Weapon"}
+                </span>
+              </div>
+              {GUIDE_EQUIPMENT_STATS.map((statName) => {
+                const stat = statMap.get(statName);
+                const value = stat ? statAtLevel(stat.base, stat.inc, level) : 0;
+                return (
+                  <div
+                    key={statName}
+                    className={`px-1 py-3 text-center text-xs tabular-nums ${
+                      stat ? "font-semibold text-foreground" : "text-destructive"
+                    }`}
+                  >
+                    {stat ? value : "-"}
+                  </div>
+                );
+              })}
+            </div>
+
+            {item.stats.length ? (
+              <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-6">
+                {item.stats.map((stat) => (
+                  <div key={stat.name} className="rounded-md border border-border bg-background/70 px-2 py-2">
+                    <div className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
+                      {item.statIcons[stat.name] ? <img src={item.statIcons[stat.name]} alt={stat.name} className="h-3 w-3 object-contain" /> : null}
+                      {stat.name}
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-1 text-center">
+                      <div>
+                        <div className="text-[9px] text-muted-foreground/70">Base</div>
+                        <div className="text-sm font-medium tabular-nums">{stat.base}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-muted-foreground/70">+/Lv</div>
+                        <div className="text-sm font-medium tabular-nums">{stat.inc}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-muted-foreground/70">Lv {level}</div>
+                        <div className="text-sm font-semibold text-primary tabular-nums">{statAtLevel(stat.base, stat.inc, level)}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-sm text-muted-foreground">No contributed stat data found for this equipment yet.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          {item.rankLabel ? <Badge variant="outline">Rank {item.rankLabel}</Badge> : null}
+          {item.buyPrice ? <Badge variant="outline">{item.buyPrice} copper</Badge> : null}
+          {item.requiredKairo ? <Badge variant="outline">Exchange: {item.requiredKairo}</Badge> : null}
+          <Badge variant="outline">{item.shopName}</Badge>
+        </div>
+
+        <Link href={`/equipment-stats?search=${encodeURIComponent(item.name)}`}>
+          <Button variant="outline" className="w-full">Open Full Equipment Page</Button>
+        </Link>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function SectionHeader({
@@ -343,7 +623,15 @@ function CompactEventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
   );
 }
 
-function PlainEventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
+function PlainEventRow({
+  event,
+  now,
+  onOpenWeapon,
+}: {
+  event: ResolvedEvent;
+  now: Date;
+  onOpenWeapon: (name: string) => void;
+}) {
   const rowClass = event.isActive
     ? "rounded-lg border border-emerald-500/60 bg-emerald-500/5 px-3 py-3"
     : "rounded-lg border border-border px-3 py-3";
@@ -351,18 +639,30 @@ function PlainEventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
   const titleContent =
     event.kind === "weapons" && weaponNames.length === 2 ? (
       <span>
-        <Link href={`/equipment-stats?search=${encodeURIComponent(normalizeWeaponSearchName(weaponNames[0]))}`} className="underline-offset-2 hover:underline focus-visible:underline">
+        <button
+          type="button"
+          onClick={() => onOpenWeapon(weaponNames[0])}
+          className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+        >
           {weaponNames[0]}
-        </Link>
+        </button>
         {" + "}
-        <Link href={`/equipment-stats?search=${encodeURIComponent(normalizeWeaponSearchName(weaponNames[1]))}`} className="underline-offset-2 hover:underline focus-visible:underline">
+        <button
+          type="button"
+          onClick={() => onOpenWeapon(weaponNames[1])}
+          className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+        >
           {weaponNames[1]}
-        </Link>
+        </button>
       </span>
     ) : event.kind === "weapons" ? (
-      <Link href={weaponHrefFromEvent(event)} className="underline-offset-2 hover:underline focus-visible:underline">
+      <button
+        type="button"
+        onClick={() => onOpenWeapon(weaponNames[0] ?? event.title)}
+        className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+      >
         {event.title}
-      </Link>
+      </button>
     ) : (
       event.title
     );
@@ -379,9 +679,13 @@ function PlainEventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
             <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1 text-xs text-muted-foreground max-w-2xl">
               {weaponNames.map((name, index) => (
                 <span key={`${event.id}-${name}`}>
-                  <Link href={`/equipment-stats?search=${encodeURIComponent(normalizeWeaponSearchName(name))}`} className="underline-offset-2 hover:underline focus-visible:underline">
+                  <button
+                    type="button"
+                    onClick={() => onOpenWeapon(name)}
+                    className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+                  >
                     {name}
-                  </Link>
+                  </button>
                   {index < weaponNames.length - 1 ? " | " : ""}
                 </span>
               ))}
@@ -401,13 +705,16 @@ function SummaryCard({
   active,
   upcoming,
   now,
+  onOpenWeapon,
 }: {
   kind: EventKind;
   active: ResolvedEvent | null;
   upcoming: ResolvedEvent | null;
   now: Date;
+  onOpenWeapon: (name: string) => void;
 }) {
   const focus = active ?? upcoming;
+  const weaponNames = focus && kind === "weapons" ? weaponNamesFromEvent(focus) : [];
   return (
     <Card className={active ? "border-emerald-500/60 bg-emerald-500/5" : undefined}>
       <CardHeader className="pb-2">
@@ -422,7 +729,34 @@ function SummaryCard({
       <CardContent className="space-y-2 text-sm">
         {focus ? (
           <>
-            <div className="font-medium">{focus.title}</div>
+            <div className="font-medium">
+              {kind === "weapons" && weaponNames.length > 0 ? (
+                <span className="flex flex-wrap gap-x-1">
+                  {weaponNames.map((name, index) => (
+                    <span key={`${focus.id}-summary-${name}`}>
+                      <button
+                        type="button"
+                        onClick={() => onOpenWeapon(name)}
+                        className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+                      >
+                        {name}
+                      </button>
+                      {index < weaponNames.length - 1 ? " + " : ""}
+                    </span>
+                  ))}
+                </span>
+              ) : kind === "weapons" ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenWeapon(focus.title)}
+                  className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+                >
+                  {focus.title}
+                </button>
+              ) : (
+                focus.title
+              )}
+            </div>
             <div className="text-xs text-muted-foreground">{focus.poolLabel}</div>
             <div className="text-xs text-muted-foreground">
               {formatDate(focus.startAt)} to {formatDate(focus.endAt)}
@@ -459,6 +793,8 @@ function SummaryCard({
 
 export default function GachaEventsPage() {
   const [now, setNow] = useState(() => new Date());
+  const [weaponPreview, setWeaponPreview] = useState<WeaponPreviewItem | null>(null);
+  const [weaponPreviewOpen, setWeaponPreviewOpen] = useState(false);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 1000);
@@ -511,6 +847,13 @@ export default function GachaEventsPage() {
     });
   }, [resolved]);
 
+  const handleOpenWeapon = (name: string) => {
+    const preview = buildWeaponPreviewItem(normalizeWeaponSearchName(name));
+    if (!preview) return;
+    setWeaponPreview(preview);
+    setWeaponPreviewOpen(true);
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <div className="space-y-1">
@@ -534,6 +877,7 @@ export default function GachaEventsPage() {
             active={summary.active}
             upcoming={summary.upcoming}
             now={now}
+            onOpenWeapon={handleOpenWeapon}
           />
         ))}
       </div>
@@ -559,7 +903,7 @@ export default function GachaEventsPage() {
         />
         <div className="grid gap-2 md:grid-cols-2">
           {facilityEvents.map((event) => (
-            <PlainEventRow key={event.id} event={event} now={now} />
+            <PlainEventRow key={event.id} event={event} now={now} onOpenWeapon={handleOpenWeapon} />
           ))}
         </div>
       </section>
@@ -578,7 +922,7 @@ export default function GachaEventsPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {upcomingSWeapons.map((event) => (
-                <PlainEventRow key={event.id} event={event} now={now} />
+                <PlainEventRow key={event.id} event={event} now={now} onOpenWeapon={handleOpenWeapon} />
               ))}
             </CardContent>
           </Card>
@@ -589,7 +933,7 @@ export default function GachaEventsPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {upcomingKairo.map((event) => (
-                <PlainEventRow key={event.id} event={event} now={now} />
+                <PlainEventRow key={event.id} event={event} now={now} onOpenWeapon={handleOpenWeapon} />
               ))}
             </CardContent>
           </Card>
@@ -606,6 +950,12 @@ export default function GachaEventsPage() {
           <div>It is not trying to be a full odds explorer yet.</div>
         </CardContent>
       </Card>
+
+      <WeaponPreviewDialog
+        item={weaponPreview}
+        open={weaponPreviewOpen}
+        onOpenChange={setWeaponPreviewOpen}
+      />
     </div>
   );
 }
