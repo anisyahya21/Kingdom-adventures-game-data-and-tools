@@ -240,7 +240,7 @@ function SiteHeader() {
   ];
 
   return (
-    <div className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+    <div className="fixed inset-x-0 top-0 z-[60] border-b border-border bg-background/90 backdrop-blur">
       <div className="w-full px-2 sm:px-4 h-14 flex items-center justify-between gap-3">
 
         <div className="flex items-center gap-0.5">
@@ -482,7 +482,7 @@ const App = memo(function App() {
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <ScrollToTopOnRouteChange />
           <SiteHeader />
-          <main className="ka-app-shell">
+          <main className="ka-app-shell pt-14">
             <Router />
           </main>
         </WouterRouter>
