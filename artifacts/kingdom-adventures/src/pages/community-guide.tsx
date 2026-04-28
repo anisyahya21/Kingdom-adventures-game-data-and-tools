@@ -3,8 +3,8 @@ import { Link, useRoute } from "wouter";
 import { BookOpenText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { GuideDocumentPage } from "@/components/guides/guide-document-page";
 import { type CommunityGuide, fetchCommunityGuides, getGuideOwnerTokens, setGuideOwnerToken } from "@/lib/community-guides";
-import { GuideDocumentPage } from "@/pages/playthrough-guide";
 
 export default function CommunityGuidePage() {
   const [, params] = useRoute<{ slug: string }>("/guides/:slug");

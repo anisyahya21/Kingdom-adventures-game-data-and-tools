@@ -195,9 +195,34 @@
   * {
     @apply border-border;
   }
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    position: relative;
   }
+}
+
+.ka-app-shell {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.ka-guide-document-page {
+  width: 100%;
+  max-width: 100%;
+  touch-action: pan-y;
+}
+
+.ka-guide-toc-jumping .ka-guide-document-page {
+  overflow-anchor: none;
 }
 
 @media (min-width: 1280px) {
