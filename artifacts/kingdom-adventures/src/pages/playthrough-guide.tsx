@@ -1226,6 +1226,18 @@ function EquipmentPreviewDialog({
   const displayStudioLevel = craftInfo?.studioLevel ?? item.studioLevel;
   const displayCraftingIntelligence = craftInfo?.craftingIntelligence ?? item.craftingIntelligence;
   const hasCraftingInfo = displayStudioLevel != null || displayCraftingIntelligence != null;
+  const visibleStats = GUIDE_EQUIPMENT_STATS.flatMap((statName) => {
+    const stat = statMap.get(statName);
+    if (!stat) return [];
+    return [{
+      name: statName,
+      shortLabel: GUIDE_STAT_SHORT[statName] ?? statName,
+      icon: item.statIcons[statName],
+      base: stat.base,
+      inc: stat.inc,
+      value: statAtLevel(stat.base, stat.inc, level),
+    }];
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1243,7 +1255,91 @@ function EquipmentPreviewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <div className="space-y-3 sm:hidden">
+          <div className="rounded-lg border border-border bg-card p-3">
+            <div className="flex items-start gap-3">
+              {item.equipIcon ? (
+                <img src={item.equipIcon} alt={item.name} className="h-12 w-12 rounded-md object-contain" />
+              ) : (
+                <span className="h-12 w-12 rounded-md border border-dashed border-border bg-muted/30" />
+              )}
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="text-sm font-semibold leading-tight">{item.name}</div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="inline-flex rounded-full border border-border bg-muted/40 px-2 py-1 font-medium text-foreground">
+                    {item.weaponType || item.slot || "Equipment"}
+                  </span>
+                  {item.rankLabel ? <Badge variant="outline">Rank {item.rankLabel}</Badge> : null}
+                  {item.buyPrice ? <Badge variant="outline">{item.buyPrice} copper</Badge> : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+              <div className="rounded-md border border-border bg-background/70 p-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Level</div>
+                <div className="mt-2">
+                  <ThemedNumberInput
+                    value={level}
+                    min={1}
+                    max={99}
+                    onValueChange={setClampedLevel}
+                    className="h-9 w-full"
+                    inputClassName="px-1"
+                  />
+                </div>
+              </div>
+              <div className="rounded-md border border-border bg-background/70 p-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Shop</div>
+                <div className="mt-2 text-sm font-medium leading-tight">{item.shopName || "-"}</div>
+              </div>
+              <div className="rounded-md border border-border bg-background/70 p-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Studio Lv</div>
+                <div className="mt-2 text-sm font-medium tabular-nums">{craftLoading ? "..." : displayStudioLevel ?? "-"}</div>
+              </div>
+              <div className="rounded-md border border-border bg-background/70 p-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">INT Req</div>
+                <div className="mt-2 text-sm font-medium tabular-nums">{craftLoading ? "..." : displayCraftingIntelligence ?? "-"}</div>
+              </div>
+            </div>
+
+            {item.requiredKairo ? (
+              <div className="mt-2 rounded-md border border-border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                Exchange: <span className="font-medium text-foreground">{item.requiredKairo}</span>
+              </div>
+            ) : null}
+          </div>
+
+          {visibleStats.length ? (
+            <div className="grid grid-cols-2 gap-2">
+              {visibleStats.map((stat) => (
+                <div key={stat.name} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                    {stat.icon ? <img src={stat.icon} alt={stat.name} className="h-4 w-4 object-contain" /> : null}
+                    <span>{stat.shortLabel}</span>
+                  </div>
+                  <div className="mt-2 text-lg font-semibold tabular-nums text-foreground">{stat.value}</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                    <div>
+                      <div>Base</div>
+                      <div className="font-medium tabular-nums text-foreground">{stat.base}</div>
+                    </div>
+                    <div>
+                      <div>+/Lv</div>
+                      <div className="font-medium tabular-nums text-foreground">{stat.inc}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+              No contributed stat data found for this equipment yet.
+            </div>
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto rounded-lg border border-border bg-card sm:block">
           <div className="min-w-[1060px]">
             <div className="grid grid-cols-[240px_78px_110px_190px_repeat(12,minmax(58px,1fr))] items-stretch border-b border-border bg-muted/25 text-xs text-muted-foreground">
               <div className="px-4 py-3 font-medium">Name</div>
@@ -2435,44 +2531,6 @@ export function GuideDocumentPage({
             </aside>
 
             <div className="min-w-0 flex-1 space-y-4">
-              <Collapsible open={mobileTocOpen} onOpenChange={setMobileTocOpen} className="lg:hidden">
-                <Card>
-                  <CardContent className="p-3">
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-11 w-full justify-between rounded-full border-primary/40 bg-background px-4"
-                        aria-expanded={mobileTocOpen}
-                        aria-controls="guide-mobile-toc"
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          <ListTree className="h-4 w-4 text-primary" />
-                          Table of Contents
-                        </span>
-                        <span className="text-xs text-muted-foreground">{toc.length}</span>
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent id="guide-mobile-toc" className="pt-3">
-                      <div className="space-y-1 rounded-xl border border-border bg-muted/20 p-2">
-                        {toc.map((section) => (
-                          <button
-                            key={`mobile-${section.id}`}
-                            type="button"
-                            onClick={() => navigateToSection(section.id, true)}
-                            className={`block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted/50 ${
-                              section.level === 2 ? "pl-6 text-muted-foreground" : "font-medium"
-                            }`}
-                          >
-                            {section.title}
-                          </button>
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </CardContent>
-                </Card>
-              </Collapsible>
-
               {sections.map((section) => {
                 const overlay = overlays[section.title];
                 return (
@@ -2533,6 +2591,47 @@ export function GuideDocumentPage({
               })}
             </div>
           </div>
+          <Collapsible
+            open={mobileTocOpen}
+            onOpenChange={setMobileTocOpen}
+            className="fixed bottom-3 left-3 right-3 z-40 mx-auto flex w-auto max-w-sm flex-col gap-2 lg:hidden"
+          >
+            <CollapsibleContent id="guide-mobile-toc">
+              <Card className="max-h-[min(60dvh,28rem)] overflow-hidden border-primary/20 bg-background/95 shadow-lg backdrop-blur">
+                <CardContent className="p-2">
+                  <div className="max-h-[min(60dvh,24rem)] space-y-1 overflow-y-auto rounded-xl border border-border bg-muted/20 p-2">
+                    {toc.map((section) => (
+                      <button
+                        key={`mobile-${section.id}`}
+                        type="button"
+                        onClick={() => navigateToSection(section.id, true)}
+                        className={`block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted/50 ${
+                          section.level === 2 ? "pl-6 text-muted-foreground" : "font-medium"
+                        }`}
+                      >
+                        {section.title}
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </CollapsibleContent>
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full justify-between rounded-full border-primary/40 bg-background/95 px-4 shadow-lg backdrop-blur"
+                aria-expanded={mobileTocOpen}
+                aria-controls="guide-mobile-toc"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <ListTree className="h-4 w-4 text-primary" />
+                  Table of Contents
+                </span>
+                <span className="text-xs text-muted-foreground">{toc.length}</span>
+              </Button>
+            </CollapsibleTrigger>
+          </Collapsible>
         </>
       )}
 
