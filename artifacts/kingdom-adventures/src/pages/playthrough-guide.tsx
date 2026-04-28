@@ -2095,7 +2095,9 @@ export function GuideDocumentPage({
 
     if (closeMobileToc) {
       setMobileTocOpen(false);
-      window.requestAnimationFrame(scrollToTarget);
+      // Wait for the Dialog close animation to finish before scrolling.
+      // rAF alone fires before Radix's exit transition completes (~200ms).
+      setTimeout(scrollToTarget, 250);
       return;
     }
 
