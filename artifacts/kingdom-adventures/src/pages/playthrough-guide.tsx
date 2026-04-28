@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { BookOpenText, ExternalLink, Link2, ListTree, Loader2, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import {
   PLAYTHROUGH_GUIDE_LOCAL_URL,
   PLAYTHROUGH_GUIDE_SECTION_OVERLAYS,
 } from "@/lib/playthrough-guide";
+import { googleSheetUrl, googleDocUrl } from "@/lib/api";
 
 type GuideSection = {
   id: string;
@@ -529,7 +530,7 @@ async function fetchGuideEquipmentCraftInfo() {
   if (guideEquipmentCraftInfoPromise) return guideEquipmentCraftInfoPromise;
 
   guideEquipmentCraftInfoPromise = (async () => {
-    const url = `https://docs.google.com/spreadsheets/d/${EQUIPMENT_SHEET_ID}/gviz/tq?tqx=out:json&gid=${EQUIPMENT_SHEET_GID}`;
+    const url = googleSheetUrl("equipment");
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Equipment sheet request failed with ${response.status}`);
     const text = await response.text();
@@ -1183,6 +1184,7 @@ function EquipmentPreviewDialog({
   const [level, setLevel] = useState(99);
   const [craftInfo, setCraftInfo] = useState<EquipmentCraftInfo | null>(null);
   const [craftLoading, setCraftLoading] = useState(false);
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
 
   useEffect(() => {
     if (open) setLevel(99);
@@ -1226,9 +1228,15 @@ function EquipmentPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={GUIDE_PREVIEW_DIALOG_CLASS}>
+      <DialogContent
+        className={GUIDE_PREVIEW_DIALOG_CLASS}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          titleRef.current?.focus({ preventScroll: true });
+        }}
+      >
         <DialogHeader>
-          <DialogTitle>{item.name}</DialogTitle>
+          <DialogTitle ref={titleRef} tabIndex={-1}>{item.name}</DialogTitle>
           <DialogDescription>
             Equipment stats shown at the selected level.
           </DialogDescription>
@@ -1682,6 +1690,7 @@ function JobPreviewDialog({
 }) {
   const [level, setLevel] = useState(1);
   const [rank, setRank] = useState("");
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
 
   useEffect(() => {
     if (!open || !item) return;
@@ -1706,9 +1715,15 @@ function JobPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={GUIDE_PREVIEW_DIALOG_CLASS}>
+      <DialogContent
+        className={GUIDE_PREVIEW_DIALOG_CLASS}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          titleRef.current?.focus({ preventScroll: true });
+        }}
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle ref={titleRef} tabIndex={-1} className="flex items-center gap-2">
             {item.job.icon ? <img src={item.job.icon} alt={item.name} className="h-7 w-7 rounded object-contain" /> : null}
             {item.name}
           </DialogTitle>
@@ -2020,12 +2035,12 @@ export function GuideDocumentPage({
       try {
         setLoading(true);
         setError(null);
-        // Try to fetch Google Doc as markdown (exported)
-        const googleDocUrl = `https://docs.google.com/document/d/${docId}/export?format=md`;
+        // Fetch guide via the server-side cache proxy (avoids hitting Google on every user load)
+        const googleDocUrlProxy = googleDocUrl(docId);
         let fetchedMarkdown = "";
         let usedGoogleDoc = false;
         try {
-          const response = await fetch(googleDocUrl);
+          const response = await fetch(googleDocUrlProxy);
           if (response.ok) {
             const text = await response.text();
             // Only use if it contains markdown headings and image refs
@@ -2067,6 +2082,25 @@ export function GuideDocumentPage({
   const parsedGuide = useMemo(() => parseGuide(markdown), [markdown]);
   const sections = parsedGuide.sections;
   const toc = sections.filter((section) => section.level <= 2);
+
+  const navigateToSection = (sectionId: string, closeMobileToc = false) => {
+    const scrollToTarget = () => {
+      const section = document.getElementById(sectionId);
+      if (!section) return;
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (window.location.hash !== `#${sectionId}`) {
+        window.history.replaceState({}, "", `#${sectionId}`);
+      }
+    };
+
+    if (closeMobileToc) {
+      setMobileTocOpen(false);
+      window.requestAnimationFrame(scrollToTarget);
+      return;
+    }
+
+    scrollToTarget();
+  };
 
   const openLinkTools = () => {
     setSelectedLink(null);
@@ -2366,15 +2400,16 @@ export function GuideDocumentPage({
                 </CardHeader>
                 <CardContent className="space-y-1 overflow-y-auto flex-1 min-h-0">
                   {toc.map((section) => (
-                    <a
+                    <button
                       key={section.id}
-                      href={`#${section.id}`}
+                      type="button"
+                      onClick={() => navigateToSection(section.id)}
                       className={`block rounded-md px-2 py-1.5 text-sm hover:bg-muted/50 ${
                         section.level === 2 ? "ml-3 text-muted-foreground" : ""
                       }`}
                     >
                       {section.title}
-                    </a>
+                    </button>
                   ))}
                 </CardContent>
               </Card>
@@ -2465,16 +2500,16 @@ export function GuideDocumentPage({
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 <div className="space-y-1 pb-4">
                   {toc.map((section) => (
-                    <a
+                    <button
                       key={`mobile-${section.id}`}
-                      href={`#${section.id}`}
-                      onClick={() => setMobileTocOpen(false)}
+                      type="button"
+                      onClick={() => navigateToSection(section.id, true)}
                       className={`block rounded-md px-3 py-2 text-sm hover:bg-muted/50 ${
                         section.level === 2 ? "ml-3 text-muted-foreground" : "font-medium"
                       }`}
                     >
                       {section.title}
-                    </a>
+                    </button>
                   ))}
                 </div>
               </div>

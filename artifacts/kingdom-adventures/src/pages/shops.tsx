@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { googleSheetUrl } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
 import {
@@ -74,8 +75,8 @@ type SharedDataShape = {
   skills?: Record<string, SkillRow>;
 };
 
-const EQUIP_SHEET_URL = "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=123527243";
-const ITEM_SHEET_URL = "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=1863106351";
+const EQUIP_SHEET_URL = googleSheetUrl("equipment");
+const ITEM_SHEET_URL = googleSheetUrl("shops-items");
 const VALID_SLOTS: EquipmentSlot[] = ["Head", "Weapon", "Shield", "Armor", "Accessory", "-"];
 const STATUS_STYLE = {
   Ready: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",

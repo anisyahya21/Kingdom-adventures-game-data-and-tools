@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { googleSheetUrl } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import {
   MessageCircle,
@@ -493,7 +494,7 @@ function result(text: string, options?: string[]): AnswerResult {
 }
 
 async function fetchEquipmentSheet(): Promise<RawEquipmentItem[]> {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${EQUIPMENT_GID}`;
+  const url = googleSheetUrl("equipment");
   const res = await fetch(url);
   const text = await res.text();
   const json = text.replace(/^[^(]+\(/, "").replace(/\);?\s*$/, "");

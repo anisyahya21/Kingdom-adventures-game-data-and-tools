@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
-import { apiUrl } from "@/lib/api";
+import { apiUrl, googleSheetUrl } from "@/lib/api";
 const RANKED_EQUIPMENT_NAME = /^[FSABCDE]\s*\/\s*/i;
 
 // ─── NumInput: local-string-state to prevent typing glitch ────────────────────
@@ -223,7 +223,7 @@ function getEquipmentRank(name: string): string {
 }
 
 async function fetchSheet(): Promise<EquipmentItem[]> {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${GID}`;
+  const url = googleSheetUrl("equipment");
   const res = await fetch(url);
   const text = await res.text();
   const json = text.replace(/^[^(]+\(/, "").replace(/\);?\s*$/, "");

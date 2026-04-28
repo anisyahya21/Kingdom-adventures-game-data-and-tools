@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Package, Sparkles, Swords, Wand2 } from "lucide-react";
+import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -231,6 +232,25 @@ function formatCountdown(ms: number): string {
   return `${minutes}m`;
 }
 
+function normalizeWeaponSearchName(name: string): string {
+  return name.replace(/^S\/\s*/i, "").trim();
+}
+
+function weaponHrefFromEvent(event: ResolvedEvent): string {
+  if (event.notes) {
+    const firstWeapon = event.notes.split("|").map((part) => part.trim()).find(Boolean);
+    if (firstWeapon) {
+      return `/equipment-stats?search=${encodeURIComponent(normalizeWeaponSearchName(firstWeapon))}`;
+    }
+  }
+  return `/equipment-stats?search=${encodeURIComponent(normalizeWeaponSearchName(event.title))}`;
+}
+
+function weaponNamesFromEvent(event: ResolvedEvent): string[] {
+  if (!event.notes) return [];
+  return event.notes.split("|").map((part) => part.trim()).filter(Boolean);
+}
+
 function eventKindClass(kind: EventKind): string {
   if (kind === "jobs") return "bg-rose-500/10 text-rose-700 border-rose-500/30 dark:text-rose-300";
   if (kind === "facilities") return "bg-lime-500/10 text-lime-700 border-lime-500/30 dark:text-lime-300";
@@ -273,8 +293,11 @@ function SectionHeader({
 }
 
 function EventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
+  const rowClass = event.isActive
+    ? "flex flex-col gap-2 rounded-lg border border-emerald-500/60 bg-emerald-500/5 px-3 py-3 md:flex-row md:items-center md:justify-between"
+    : "flex flex-col gap-2 rounded-lg border border-border px-3 py-3 md:flex-row md:items-center md:justify-between";
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-3 md:flex-row md:items-center md:justify-between">
+    <div className={rowClass}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className={eventKindClass(event.kind)}>
@@ -300,8 +323,11 @@ function EventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
 }
 
 function CompactEventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
+  const rowClass = event.isActive
+    ? "rounded-lg border border-emerald-500/60 bg-emerald-500/5 px-3 py-2"
+    : "rounded-lg border border-border px-3 py-2";
   return (
-    <div className="rounded-lg border border-border px-3 py-2">
+    <div className={rowClass}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-medium truncate">{event.title}</div>
@@ -318,15 +344,49 @@ function CompactEventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
 }
 
 function PlainEventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
+  const rowClass = event.isActive
+    ? "rounded-lg border border-emerald-500/60 bg-emerald-500/5 px-3 py-3"
+    : "rounded-lg border border-border px-3 py-3";
+  const weaponNames = event.kind === "weapons" ? weaponNamesFromEvent(event) : [];
+  const titleContent =
+    event.kind === "weapons" && weaponNames.length === 2 ? (
+      <span>
+        <Link href={`/equipment-stats?search=${encodeURIComponent(normalizeWeaponSearchName(weaponNames[0]))}`} className="underline-offset-2 hover:underline focus-visible:underline">
+          {weaponNames[0]}
+        </Link>
+        {" + "}
+        <Link href={`/equipment-stats?search=${encodeURIComponent(normalizeWeaponSearchName(weaponNames[1]))}`} className="underline-offset-2 hover:underline focus-visible:underline">
+          {weaponNames[1]}
+        </Link>
+      </span>
+    ) : event.kind === "weapons" ? (
+      <Link href={weaponHrefFromEvent(event)} className="underline-offset-2 hover:underline focus-visible:underline">
+        {event.title}
+      </Link>
+    ) : (
+      event.title
+    );
   return (
-    <div className="rounded-lg border border-border px-3 py-3">
+    <div className={rowClass}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-medium truncate">{event.title}</div>
+          <div className="font-medium truncate">{titleContent}</div>
           <div className="text-xs text-muted-foreground">
             {formatDate(event.startAt)} to {formatDate(event.endAt)} · {event.durationDays} day{event.durationDays === 1 ? "" : "s"}
           </div>
-          {event.notes && <div className="mt-1 text-xs text-muted-foreground max-w-2xl">{event.notes}</div>}
+          {event.notes && event.kind !== "weapons" && <div className="mt-1 text-xs text-muted-foreground max-w-2xl">{event.notes}</div>}
+          {event.kind === "weapons" && weaponNames.length > 0 && (
+            <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1 text-xs text-muted-foreground max-w-2xl">
+              {weaponNames.map((name, index) => (
+                <span key={`${event.id}-${name}`}>
+                  <Link href={`/equipment-stats?search=${encodeURIComponent(normalizeWeaponSearchName(name))}`} className="underline-offset-2 hover:underline focus-visible:underline">
+                    {name}
+                  </Link>
+                  {index < weaponNames.length - 1 ? " | " : ""}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="text-xs font-medium whitespace-nowrap">
           {event.isActive ? `Ends in ${formatCountdown(event.endAt.getTime() - now.getTime())}` : `Starts in ${formatCountdown(event.startAt.getTime() - now.getTime())}`}
@@ -349,7 +409,7 @@ function SummaryCard({
 }) {
   const focus = active ?? upcoming;
   return (
-    <Card>
+    <Card className={active ? "border-emerald-500/60 bg-emerald-500/5" : undefined}>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           {eventKindIcon(kind)}

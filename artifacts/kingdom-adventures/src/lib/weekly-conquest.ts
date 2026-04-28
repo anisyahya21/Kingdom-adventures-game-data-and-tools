@@ -1,7 +1,5 @@
-const CAMPAIGN_LOOKUP_URL =
-  "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=421403004";
-const CAMPAIGN_SCHEDULE_URL =
-  "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=1625050714";
+import { googleSheetUrl } from "@/lib/api";
+
 const VERIFIED_WEEKLY_ANCHOR_EVENT_ID = 18;
 const VERIFIED_WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
 
@@ -198,8 +196,8 @@ export async function fetchAutomaticWeeklyConquestTimeline(
   radius = 2,
 ): Promise<AutomaticWeeklyConquestTimeline> {
   const [lookupRes, scheduleRes] = await Promise.all([
-    fetch(CAMPAIGN_LOOKUP_URL),
-    fetch(CAMPAIGN_SCHEDULE_URL),
+    fetch(googleSheetUrl("weekly-conquest-lookup")),
+    fetch(googleSheetUrl("weekly-conquest-schedule")),
   ]);
 
   if (!lookupRes.ok || !scheduleRes.ok) {

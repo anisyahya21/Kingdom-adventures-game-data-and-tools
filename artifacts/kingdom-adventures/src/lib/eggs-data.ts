@@ -1,5 +1,5 @@
-const REFERENCE_SHEET_ID = "1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A";
-const PETS_GID = "1439838004";
+import { googleSheetUrl } from "@/lib/api";
+
 
 export type EggStat = "Attack" | "Defense" | "Balanced" | "Special";
 export type EggBand = "None" | "Low" | "Medium" | "High" | "Over";
@@ -162,7 +162,7 @@ export function getNextThreshold(
 }
 
 export async function fetchEggReferenceData(): Promise<EggReferenceData> {
-  const url = `https://docs.google.com/spreadsheets/d/${REFERENCE_SHEET_ID}/gviz/tq?tqx=out:json&gid=${PETS_GID}`;
+  const url = googleSheetUrl("eggs");
   const res = await fetch(url);
   const text = await res.text();
   const data = parseGoogleViz(text);

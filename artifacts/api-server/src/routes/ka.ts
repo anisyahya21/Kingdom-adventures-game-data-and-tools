@@ -2,6 +2,7 @@ import { Router, type Request } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached } from "../lib/google-cache";
 import multer from "multer";
 // Multer setup for image uploads
 const PUBLIC_IMAGES_DIR = path.resolve(process.cwd(), "artifacts/kingdom-adventures/public/guides/images");
@@ -318,6 +319,49 @@ function uniqueGuideSlug(state: SharedState, base: string, existingId?: string) 
 
 const router = Router();
 
+// Pre-warm guide doc cache for all guides already in the state file.
+{
+  const state = readState();
+  for (const guide of state.communityGuides) {
+    ensureGuideDocCached(guide.docId);
+  }
+}
+
+// GET /ka/google/sheet/:key – serve cached Google Sheet data by whitelisted key
+router.get("/ka/google/sheet/:key", (req, res) => {
+  const { key } = req.params;
+  if (!Object.prototype.hasOwnProperty.call(STATIC_SOURCES, key)) {
+    res.status(404).json({ error: "Unknown sheet key" });
+    return;
+  }
+  const data = getCachedContent(key);
+  if (!data) {
+    res.status(503).json({ error: "Cache is warming up, try again shortly" });
+    return;
+  }
+  res.set("Content-Type", "text/plain; charset=utf-8");
+  res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
+  res.send(data);
+});
+
+// GET /ka/google/doc/:docId – serve cached Google Doc markdown by docId
+router.get("/ka/google/doc/:docId", (req, res) => {
+  const { docId } = req.params;
+  if (!/^[a-zA-Z0-9_-]+$/.test(docId)) {
+    res.status(400).json({ error: "Invalid docId" });
+    return;
+  }
+  ensureGuideDocCached(docId);
+  const data = getCachedContent(`guide:${docId}`);
+  if (!data) {
+    res.status(503).json({ error: "Cache is warming up, try again shortly" });
+    return;
+  }
+  res.set("Content-Type", "text/plain; charset=utf-8");
+  res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+  res.send(data);
+});
+
 // POST /ka/upload-image: Accepts multipart/form-data, saves image, returns URL
 router.post("/ka/upload-image", upload.single("image"), (req: UploadedImageRequest, res) => {
   if (!req.file) {
@@ -404,6 +448,7 @@ router.post("/ka/guides", (req, res) => {
   };
   state.communityGuides = [guide, ...(state.communityGuides ?? [])];
   writeState(state);
+  ensureGuideDocCached(docId);
   res.json({ guide: publicGuide(guide) });
 });
 
