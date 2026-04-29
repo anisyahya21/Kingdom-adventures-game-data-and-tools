@@ -9,9 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
-import { applyEventHourOffset, useEventHourOffset } from "@/lib/event-time";
+import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventStatus } from "@/lib/event-status";
-import { isWarioDungeonLive } from "@/pages/wario-dungeon";
+import { getNextWarioDungeonSpawn, isWarioDungeonLive } from "@/pages/wario-dungeon";
 
 import srcHome from "./home.tsx?raw";
 import srcEquipment from "./equipment.tsx?raw";
@@ -270,17 +270,6 @@ const BUILT_IN_TOOLS = [
   },
 ];
 
-const HOME_WARIO_SCHEDULE = [
-  { day: 1, hour: 9 }, { day: 1, hour: 13 }, { day: 1, hour: 18 }, { day: 2, hour: 15 }, { day: 2, hour: 23 },
-  { day: 3, hour: 12 }, { day: 3, hour: 17 }, { day: 4, hour: 19 }, { day: 5, hour: 21 }, { day: 5, hour: 6 },
-  { day: 6, hour: 8 }, { day: 7, hour: 12 }, { day: 8, hour: 14 }, { day: 9, hour: 19 }, { day: 10, hour: 22 },
-  { day: 11, hour: 21 }, { day: 12, hour: 16 }, { day: 13, hour: 11 }, { day: 14, hour: 19 }, { day: 15, hour: 20 },
-  { day: 16, hour: 8 }, { day: 17, hour: 16 }, { day: 18, hour: 20 }, { day: 19, hour: 22 }, { day: 20, hour: 1 },
-  { day: 21, hour: 17 }, { day: 22, hour: 16 }, { day: 23, hour: 19 }, { day: 24, hour: 11 }, { day: 25, hour: 23 },
-  { day: 26, hour: 0 }, { day: 27, hour: 11 }, { day: 28, hour: 16 }, { day: 29, hour: 14 }, { day: 30, hour: 15 },
-  { day: 30, hour: 22 }, { day: 31, hour: 10 }, { day: 31, hour: 21 },
-] as const;
-
 function formatCountdown(ms: number): string {
   if (ms <= 0) return "Live now";
   const totalSeconds = Math.floor(ms / 1000);
@@ -294,29 +283,17 @@ function formatCountdown(ms: number): string {
   return `${seconds}s`;
 }
 
-function toJstDate(year: number, monthIndex: number, day: number, hour: number): Date {
-  return new Date(Date.UTC(year, monthIndex, day, hour - 9, 0, 0, 0));
-}
-
 function getNextWarioSpawn(now: Date, offset: number): Date | null {
-  const bases = [
-    new Date(now.getFullYear(), now.getMonth(), 1),
-    new Date(now.getFullYear(), now.getMonth() + 1, 1),
-  ];
-  const candidates = bases.flatMap((base) =>
-    HOME_WARIO_SCHEDULE
-      .map((entry) => applyEventHourOffset(toJstDate(base.getFullYear(), base.getMonth(), entry.day, entry.hour), offset))
-      .filter((date) => date.getMonth() === base.getMonth() && date.getTime() > now.getTime())
-  );
-  return candidates.sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
+  return getNextWarioDungeonSpawn(now, offset)?.startsAt ?? null;
 }
 
-function resolveRepeatingWindow(now: Date, startMonth: number, startDay: number, endMonth: number, endDay: number) {
+function resolveRepeatingWindow(now: Date, offset: number, startMonth: number, startDay: number, endMonth: number, endDay: number) {
   const build = (year: number) => ({
-    startAt: new Date(year, startMonth - 1, startDay, 0, 0, 0, 0),
-    endAt: new Date(year, endMonth - 1, endDay, 23, 59, 59, 999),
+    startAt: eventClockDateToLocalDate(new Date(year, startMonth - 1, startDay, 0, 0, 0, 0), offset),
+    endAt: eventClockDateToLocalDate(new Date(year, endMonth - 1, endDay, 23, 59, 59, 999), offset),
   });
-  const windows = [build(now.getFullYear() - 1), build(now.getFullYear()), build(now.getFullYear() + 1)];
+  const eventClockYear = getOffsetAdjustedNow(now, offset).getFullYear();
+  const windows = [build(eventClockYear - 1), build(eventClockYear), build(eventClockYear + 1)];
   return windows.find((window) => window.startAt <= now && now <= window.endAt)
     ?? windows.filter((window) => window.startAt > now).sort((a, b) => a.startAt.getTime() - b.startAt.getTime())[0]
     ?? windows[1];
@@ -348,7 +325,7 @@ function HomeCountdownBanner() {
   const weeklyCurrent = weeklyQuery.data?.entries.find((entry) => entry.id === weeklyQuery.data?.currentId) ?? null;
   const nextWario = useMemo(() => getNextWarioSpawn(now, eventOffset), [eventOffset, now]);
   const warioLive = isWarioDungeonLive(now, eventOffset);
-  const facilityWindow = useMemo(() => resolveRepeatingWindow(now, 4, 28, 4, 30), [now]);
+  const facilityWindow = useMemo(() => resolveRepeatingWindow(now, eventOffset, 4, 28, 4, 30), [eventOffset, now]);
   const facilityActive = facilityWindow.startAt <= now && now <= facilityWindow.endAt;
 
   const cards: Array<{

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { EQUIPMENT_CATALOG } from "@/lib/generated-equipment-data";
 import { localSharedData } from "@/lib/local-shared-data";
+import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 
 type EventKind = "jobs" | "facilities" | "weapons" | "items";
 
@@ -257,16 +258,20 @@ const WEAPON_EVENTS: GachaEvent[] = [
 
 const ALL_EVENTS: GachaEvent[] = [...JOB_EVENTS, ...FACILITY_PATTERN, ...WEAPON_EVENTS, ...ITEM_EVENTS];
 
-function buildEventWindow(event: GachaEvent, year: number) {
+function buildEventWindow(event: GachaEvent, year: number, offset: number) {
   return {
-    startAt: new Date(year, event.startMonth - 1, event.startDay, 0, 0, 0, 0),
-    endAt: new Date(year, event.endMonth - 1, event.endDay, 23, 59, 59, 999),
+    startAt: eventClockDateToLocalDate(new Date(year, event.startMonth - 1, event.startDay, 0, 0, 0, 0), offset),
+    endAt: eventClockDateToLocalDate(new Date(year, event.endMonth - 1, event.endDay, 23, 59, 59, 999), offset),
   };
 }
 
-function resolveEvent(event: GachaEvent, now: Date): ResolvedEvent {
-  const year = now.getFullYear();
-  const windows = [buildEventWindow(event, year - 1), buildEventWindow(event, year), buildEventWindow(event, year + 1)];
+function resolveEvent(event: GachaEvent, now: Date, offset: number): ResolvedEvent {
+  const year = getOffsetAdjustedNow(now, offset).getFullYear();
+  const windows = [
+    buildEventWindow(event, year - 1, offset),
+    buildEventWindow(event, year, offset),
+    buildEventWindow(event, year + 1, offset),
+  ];
   const activeWindow = windows.find((window) => window.startAt.getTime() <= now.getTime() && window.endAt.getTime() >= now.getTime());
   const upcomingWindow = windows
     .filter((window) => window.startAt.getTime() > now.getTime())
@@ -881,6 +886,7 @@ function SummaryCard({
 
 export default function GachaEventsPage() {
   const [now, setNow] = useState(() => new Date());
+  const [eventOffset] = useEventHourOffset();
   const [weaponPreview, setWeaponPreview] = useState<WeaponPreviewItem | null>(null);
   const [weaponPreviewOpen, setWeaponPreviewOpen] = useState(false);
 
@@ -889,7 +895,7 @@ export default function GachaEventsPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const resolved = useMemo(() => ALL_EVENTS.map((event) => resolveEvent(event, now)), [now]);
+  const resolved = useMemo(() => ALL_EVENTS.map((event) => resolveEvent(event, now, eventOffset)), [eventOffset, now]);
   const activeEvents = useMemo(() => resolved.filter((event) => event.isActive), [resolved]);
   const nextOverall = useMemo(
     () =>
@@ -953,7 +959,7 @@ export default function GachaEventsPage() {
           Focused event tracker for the parts of gacha that matter most: S-rank jobs, repeating S facility events, and S-weapon days.
         </p>
         <p className="text-xs text-muted-foreground max-w-3xl">
-          This page is being kept lightweight on purpose so it can later absorb Weekly Conquest, Job Center, more Wairo Dungeon tracking, Kairo Room, and similar schedule tools without another redesign.
+          Times follow your local event clock with your event offset applied ({eventOffset >= 0 ? `+${eventOffset}` : eventOffset}h).
         </p>
       </div>
 

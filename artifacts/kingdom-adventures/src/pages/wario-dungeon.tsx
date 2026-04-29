@@ -3,7 +3,7 @@ import { Clock3, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
-import { applyEventHourOffset, useEventHourOffset } from "@/lib/event-time";
+import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 
 type WarioDungeonEntry = { day: number; hour: number };
 type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
@@ -42,20 +42,30 @@ const WARIO_DUNGEON_SCHEDULE: WarioDungeonEntry[] = [
   { day: 31, hour: 10 }, { day: 31, hour: 21 },
 ];
 
-function toJstDate(year: number, monthIndex: number, day: number, hour: number): Date {
-  return new Date(Date.UTC(year, monthIndex, day, hour - 9, 0, 0, 0));
-}
-
-
-export function buildMonthlyWarioSchedule(base: Date, offset: number): WarioDungeonSpawn[] {
+function buildWarioScheduleForEventMonth(year: number, monthIndex: number, offset: number): WarioDungeonSpawn[] {
   const entries: WarioDungeonSpawn[] = [];
   for (const entry of WARIO_DUNGEON_SCHEDULE) {
-    const sourceStartsAt = toJstDate(base.getFullYear(), base.getMonth(), entry.day, entry.hour);
-    if (sourceStartsAt.getMonth() !== base.getMonth()) continue;
-    const startsAt = applyEventHourOffset(sourceStartsAt, offset);
+    const eventClockStartsAt = new Date(year, monthIndex, entry.day, entry.hour, 0, 0, 0);
+    if (eventClockStartsAt.getMonth() !== monthIndex) continue;
+    const startsAt = eventClockDateToLocalDate(eventClockStartsAt, offset);
     entries.push({ ...entry, startsAt, endsAt: new Date(startsAt.getTime() + 60 * 60 * 1000) });
   }
   return entries.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+}
+
+export function buildMonthlyWarioSchedule(base: Date, offset: number): WarioDungeonSpawn[] {
+  const eventClockBase = getOffsetAdjustedNow(base, offset);
+  return buildWarioScheduleForEventMonth(eventClockBase.getFullYear(), eventClockBase.getMonth(), offset);
+}
+
+export function getNextWarioDungeonSpawn(now = new Date(), offset = 0): WarioDungeonSpawn | null {
+  const currentMonthUpcoming = buildMonthlyWarioSchedule(now, offset).find(
+    (entry) => entry.startsAt.getTime() > now.getTime(),
+  );
+  if (currentMonthUpcoming) return currentMonthUpcoming;
+
+  const eventClockNow = getOffsetAdjustedNow(now, offset);
+  return buildWarioScheduleForEventMonth(eventClockNow.getFullYear(), eventClockNow.getMonth() + 1, offset)[0] ?? null;
 }
 
 export function isWarioDungeonLive(now = new Date(), offset = 0) {
@@ -87,12 +97,7 @@ export default function WarioDungeonPage() {
   }, []);
 
   const schedule = useMemo(() => buildMonthlyWarioSchedule(now, eventOffset), [eventOffset, now]);
-  const nextSpawn = useMemo(() => {
-    const currentMonthUpcoming = schedule.find((entry) => entry.startsAt.getTime() > now.getTime());
-    if (currentMonthUpcoming) return currentMonthUpcoming;
-    const nextMonthBase = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    return buildMonthlyWarioSchedule(nextMonthBase, eventOffset)[0] ?? null;
-  }, [eventOffset, now, schedule]);
+  const nextSpawn = useMemo(() => getNextWarioDungeonSpawn(now, eventOffset), [eventOffset, now]);
 
   const scheduleByDay = useMemo(() => {
     const grouped = new Map<number, WarioDungeonSpawn[]>();

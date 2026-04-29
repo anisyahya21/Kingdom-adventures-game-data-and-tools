@@ -87,7 +87,7 @@ export default function TimedEventsPage() {
           <div className="font-semibold">Warning: Daylight Saving Time (DST) Offset</div>
           <div className="text-sm mt-1">
             Some event times may be affected by DST or timezone differences. If event times look off, use the offset control below to adjust.<br />
-            <span className="font-medium">Kairo Room, Job Center, and Wairo Dungeon</span> follow your local time <span className="font-medium">plus any offset you set here</span>.<br />
+            <span className="font-medium">Kairo Room, Job Center, Wairo Dungeon, and Gacha Events</span> follow your local time <span className="font-medium">plus any offset you set here</span>.<br />
             <span className="font-medium">Daily Rank Rewards & Weekly Conquest</span> always follow Japan time, converted to your local time.
           </div>
         </div>
@@ -113,7 +113,7 @@ export default function TimedEventsPage() {
         >
           <Plus className="w-4 h-4" />
         </button>
-        <span className="text-xs text-muted-foreground">(applies to Kairo Room, Job Center, Wairo Dungeon)</span>
+        <span className="text-xs text-muted-foreground">(applies to Kairo Room, Job Center, Wairo Dungeon, Gacha Events)</span>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

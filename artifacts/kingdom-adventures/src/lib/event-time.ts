@@ -23,6 +23,10 @@ export function getOffsetAdjustedNow(now = new Date(), offset = getEventHourOffs
   return applyEventHourOffset(now, offset);
 }
 
+export function eventClockDateToLocalDate(date: Date, offset = getEventHourOffset()) {
+  return new Date(date.getTime() - offset * 60 * 60 * 1000);
+}
+
 export function useEventHourOffset() {
   const [offset, setOffsetState] = useState(() => getEventHourOffset());
 
