@@ -34,6 +34,7 @@ type RankEntry = { stats: Record<string, StatEntry> };
 type JobData = {
   generation: 1 | 2;
   type?: "combat" | "non-combat";
+  category?: string;
   icon?: string;
   ranks: Record<string, RankEntry>;
   shield?: "can" | "cannot";
@@ -41,6 +42,18 @@ type JobData = {
   skillAccess?: { attack?: "can" | "cannot"; casting?: "can" | "cannot" };
   skills: string[];
 };
+
+function typeFromJobCategory(category: string | undefined, fallback?: "combat" | "non-combat"): "combat" | "non-combat" | undefined {
+  const normalized = category?.trim().toLowerCase();
+  if (normalized === "fighter" || normalized === "1") return "combat";
+  if (normalized === "worker" || normalized === "trader" || normalized === "0" || normalized === "2") return "non-combat";
+  return fallback;
+}
+
+function battleTypeLabel(type: "all" | "combat" | "non-combat") {
+  if (type === "all") return "All";
+  return type === "combat" ? "Battle-Type" : "Non Battle-Type";
+}
 
 type SharedPair = { id: string; jobA: string; jobB: string; children: string[]; affinityNum?: number };
 
@@ -845,7 +858,7 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground font-medium shrink-0">Parent type:</span>
+            <span className="text-xs text-muted-foreground font-medium shrink-0">Parent Battle-Type:</span>
             <div className="flex rounded-md overflow-hidden border border-input">
               {(["all", "combat", "non-combat"] as const).map((mode) => (
                 <button
@@ -861,14 +874,14 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
                       : "bg-background text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {mode === "all" ? "All" : mode === "combat" ? "Combat" : "Non-Combat"}
+                  {battleTypeLabel(mode)}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground font-medium shrink-0">Child type:</span>
+            <span className="text-xs text-muted-foreground font-medium shrink-0">Child Battle-Type:</span>
             <div className="flex rounded-md overflow-hidden border border-input">
               {(["all", "combat", "non-combat"] as const).map((mode) => (
                 <button
@@ -884,7 +897,7 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
                       : "bg-background text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {mode === "all" ? "All" : mode === "combat" ? "Combat" : "Non-Combat"}
+                  {battleTypeLabel(mode)}
                 </button>
               ))}
             </div>
@@ -1077,7 +1090,7 @@ function PlannerSetup({
                       : "bg-background text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {mode === "all" ? "All" : mode === "combat" ? "Combat" : "Non-Combat"}
+                  {battleTypeLabel(mode)}
                 </button>
               ))}
             </div>
@@ -1849,7 +1862,8 @@ export default function MarriageMatcher() {
     if (!sharedData?.jobs) return {} as Record<string, "combat" | "non-combat">;
     const map: Record<string, "combat" | "non-combat"> = {};
     for (const [name, job] of Object.entries(sharedData.jobs)) {
-      if (job.type) map[name] = job.type;
+      const type = typeFromJobCategory(job.category, job.type);
+      if (type) map[name] = type;
     }
     return map;
   }, [sharedData]);
@@ -2605,14 +2619,14 @@ export default function MarriageMatcher() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-xs text-muted-foreground font-medium">Type:</span>
+                  <span className="text-xs text-muted-foreground font-medium">Battle-Type:</span>
                   <div className="flex rounded-md overflow-hidden border border-input">
                     {(["all", "combat", "non-combat"] as const).map((t) => (
                       <button key={t} onClick={() => setResultTypeFilter(t)}
                         className={`px-3 h-7 text-xs font-medium transition-colors ${resultTypeFilter === t
                           ? t === "combat" ? "bg-red-500 text-white" : t === "non-combat" ? "bg-sky-500 text-white" : "bg-primary text-primary-foreground"
                           : "bg-background text-muted-foreground hover:text-foreground"}`}>
-                        {t === "all" ? "All" : t === "combat" ? "Combat" : "Non-Combat"}
+                        {battleTypeLabel(t)}
                       </button>
                     ))}
                   </div>

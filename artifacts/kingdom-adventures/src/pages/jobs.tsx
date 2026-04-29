@@ -94,6 +94,7 @@ type JobRankData   = { stats: Record<string,JobStatEntry> };
 type Job = {
   generation: 1 | 2;
   type?: "combat" | "non-combat";
+  category?: string;
   icon?: string;
   ranks: Record<string,JobRankData>;
   shield?: "can" | "cannot";
@@ -113,9 +114,9 @@ type SharedData = {
 };
 
 const SKILL_ACCESS_LABELS: Record<SkillAccessKey, string> = {
-  attack: "Attack Skills",
-  attackMagic: "Casting Skills",
-  recovery: "Healing Skills",
+  attack: "Attack",
+  attackMagic: "Attack magic",
+  recovery: "Recovery magic",
 };
 
 const JOB_WEAPON_ACCESS_FALLBACKS: Record<string, Partial<Record<string, WeaponValue>>> = {
@@ -418,8 +419,8 @@ function useFavorites() {
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
-    initialData: () => JSON.parse(JSON.stringify(localSharedData)) as SharedData,
+    queryFn: async () => withCategoryBattleTypes(await fetchSharedWithFallback<SharedData>(apiUrl("/shared"))),
+    initialData: () => withCategoryBattleTypes(JSON.parse(JSON.stringify(localSharedData)) as SharedData),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
@@ -500,14 +501,14 @@ function NewJobDialog({ open, onClose, onCreate, existingNames }: {
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Type</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Battle-Type</label>
             <div className="flex gap-2">
               {(["combat","non-combat"] as const).map((t) => (
                 <button key={t} onClick={() => setJobType(t)}
                   className={`flex-1 py-1.5 text-xs rounded border font-medium transition-colors ${jobType === t
                     ? t === "combat" ? "bg-red-500 text-white border-red-500" : "bg-sky-500 text-white border-sky-500"
                     : "border-border hover:border-primary/40"}`}>
-                  {t === "combat" ? "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Combat" : "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ Non-Combat"}
+                  {battleTypeLabel(t)}
                 </button>
               ))}
             </div>
@@ -709,7 +710,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
                 </span>
                 {job.type && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${job.type === "combat" ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"}`}>
-                    {job.type === "combat" ? "Combat" : "Non-Combat"}
+                    {battleTypeLabel(job.type)}
                   </span>
                 )}
               </div>
@@ -856,7 +857,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
               </span>
               {job.type && (
                 <span className={`text-[9px] px-1 rounded font-semibold ${job.type === "combat" ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"}`}>
-                  {job.type === "combat" ? "Combat" : "Non-Combat"}
+                  {battleTypeLabel(job.type)}
                 </span>
               )}
             </div>
@@ -1017,6 +1018,29 @@ type CompareGroup = {
   stats: string[];
 };
 
+function typeFromJobCategory(category: string | undefined, fallback?: "combat" | "non-combat"): "combat" | "non-combat" | undefined {
+  const normalized = category?.trim().toLowerCase();
+  if (normalized === "fighter" || normalized === "1") return "combat";
+  if (normalized === "worker" || normalized === "trader" || normalized === "0" || normalized === "2") return "non-combat";
+  return fallback;
+}
+
+function withCategoryBattleTypes(data: SharedData): SharedData {
+  return {
+    ...data,
+    jobs: Object.fromEntries(
+      Object.entries(data.jobs ?? {}).map(([name, job]) => [
+        name,
+        { ...job, type: typeFromJobCategory(job.category, job.type) },
+      ]),
+    ),
+  };
+}
+
+function battleTypeLabel(type: "combat" | "non-combat" | undefined) {
+  return type === "combat" ? "Battle-Type" : "Non Battle-Type";
+}
+
 type CompareScope = "current" | "all" | "favorites" | "manual";
 type CompareLevelMode = "level" | "awakening";
 
@@ -1032,9 +1056,9 @@ function average(values: number[]) {
 
 function CompactSkillAccess({ access }: { access: SkillAccessMap }) {
   const items: Array<{ key: SkillAccessKey; label: string }> = [
-    { key: "attack", label: "Atk" },
-    { key: "attackMagic", label: "Cast" },
-    { key: "recovery", label: "Heal" },
+    { key: "attack", label: "Attack" },
+    { key: "attackMagic", label: "Attack magic" },
+    { key: "recovery", label: "Recovery magic" },
   ];
 
   return (
@@ -1379,11 +1403,11 @@ function AdvancedCompareDialog({
                     <div className="text-sm font-semibold text-foreground truncate">{group.name || `Group ${group.id}`}</div>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                       <div>
-                        <div className="text-muted-foreground">Combat avg</div>
+                        <div className="text-muted-foreground">Battle-Type avg</div>
                         <div className="font-semibold tabular-nums text-foreground">{formatCompareNumber(combatAvg)}</div>
                       </div>
                       <div>
-                        <div className="text-muted-foreground">Non-combat avg</div>
+                        <div className="text-muted-foreground">Non Battle-Type avg</div>
                         <div className="font-semibold tabular-nums text-foreground">{formatCompareNumber(nonCombatAvg)}</div>
                       </div>
                       <div>
@@ -1396,8 +1420,8 @@ function AdvancedCompareDialog({
                       </div>
                     </div>
                     <div className="mt-2 space-y-1 text-xs">
-                      <div className="text-muted-foreground truncate">Top combat: <span className="text-foreground">{topCombat ? `${topCombat.name} (${formatCompareNumber(topCombat.groupTotals[group.id])})` : "-"}</span></div>
-                      <div className="text-muted-foreground truncate">Top non-combat: <span className="text-foreground">{topNonCombat ? `${topNonCombat.name} (${formatCompareNumber(topNonCombat.groupTotals[group.id])})` : "-"}</span></div>
+                      <div className="text-muted-foreground truncate">Top Battle-Type: <span className="text-foreground">{topCombat ? `${topCombat.name} (${formatCompareNumber(topCombat.groupTotals[group.id])})` : "-"}</span></div>
+                      <div className="text-muted-foreground truncate">Top Non Battle-Type: <span className="text-foreground">{topNonCombat ? `${topNonCombat.name} (${formatCompareNumber(topNonCombat.groupTotals[group.id])})` : "-"}</span></div>
                     </div>
                   </div>
                 );
@@ -1428,7 +1452,7 @@ function AdvancedCompareDialog({
                     </th>
                     <th className="text-left px-0.5 py-2 text-xs font-semibold text-muted-foreground">
                       <button onClick={() => toggleSort("type")} className="inline-flex items-center gap-1 hover:text-foreground">
-                        Type <ArrowUpDown className="w-3 h-3" />
+                        Battle-Type <ArrowUpDown className="w-3 h-3" />
                       </button>
                     </th>
                     <th className="text-left px-0.5 py-2 text-xs font-semibold text-muted-foreground">Skills</th>
@@ -1468,7 +1492,7 @@ function AdvancedCompareDialog({
                         <td className="px-0.5 py-2">
                           {row.job.type ? (
                             <span className={`text-[9px] px-1 py-0.5 rounded font-semibold ${row.job.type === "combat" ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"}`}>
-                              {row.job.type === "combat" ? "Combat" : "Non-Combat"}
+                              {battleTypeLabel(row.job.type)}
                             </span>
                           ) : (
                             <span className="text-muted-foreground">-</span>
@@ -1717,7 +1741,7 @@ function JobsTable({
                   : "bg-background text-muted-foreground hover:text-foreground"
               }`}
             >
-              {t === "combat" ? "Combat" : "Non-Combat"}
+              {battleTypeLabel(t)}
             </button>
           ))}
         </div>
@@ -1965,7 +1989,7 @@ function JobsTable({
                       </span>
                       {job.type && (
                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${job.type === "combat" ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"}`}>
-                          {job.type === "combat" ? "Combat" : "Non-Combat"}
+                          {battleTypeLabel(job.type)}
                         </span>
                       )}
                     </div>
@@ -2166,11 +2190,12 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
 
   const handleSave = () => {
     const name = draftName.trim(); if (!name) return;
+    const savedDraft = { ...draft, type: typeFromJobCategory(draft.category, draft.type) };
     let updated: Record<string,Job>;
     if (name !== jobName) {
-      updated = { ...jobs }; delete updated[jobName]; updated[name] = draft;
+      updated = { ...jobs }; delete updated[jobName]; updated[name] = savedDraft;
     } else {
-      updated = { ...jobs, [jobName]: draft };
+      updated = { ...jobs, [jobName]: savedDraft };
     }
     onSave(updated, `Updated job details: ${name}`);
     setEditing(false);
@@ -2288,17 +2313,17 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                 {editing ? (
                   <div className="flex gap-1">
                     {(["combat","non-combat"] as const).map((t) => (
-                      <button key={t} onClick={() => setDraft((d) => ({ ...d, type: t }))}
+                      <button key={t} onClick={() => setDraft((d) => ({ ...d, type: t, category: t === "combat" ? "Fighter" : "Worker" }))}
                         className={`px-2 py-0.5 text-xs rounded border font-medium transition-colors ${draft.type === t
                           ? t === "combat" ? "bg-red-500 text-white border-red-500" : "bg-sky-500 text-white border-sky-500"
                           : "border-border text-muted-foreground hover:border-primary/40"}`}>
-                        {t === "combat" ? "Combat" : "Non-Combat"}
+                        {battleTypeLabel(t)}
                       </button>
                     ))}
                   </div>
                 ) : job.type && (
                   <Badge variant="outline" className={job.type === "combat" ? "border-red-300 text-red-600 dark:text-red-400" : "border-emerald-300 text-emerald-600 dark:text-emerald-400"}>
-                    {job.type === "combat" ? "Combat" : "Non-Combat"}
+                    {battleTypeLabel(job.type)}
                   </Badge>
                 )}
               </div>

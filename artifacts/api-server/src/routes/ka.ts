@@ -84,6 +84,7 @@ export type Skill = {
 export type Job = {
   generation: 1 | 2;
   type?: "combat" | "non-combat";
+  category?: string;
   icon?: string;
   ranks: Record<string, JobRank>;
   shield?: "can" | "cannot";

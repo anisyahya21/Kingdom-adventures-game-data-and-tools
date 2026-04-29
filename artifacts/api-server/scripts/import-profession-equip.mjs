@@ -5,6 +5,7 @@ import { execSync } from "child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = path.resolve(__dirname, "../data/ka_shared.json");
+const KA_JOB_FILE = path.resolve(__dirname, "../../../data/Sheet csv/KA GameData - Job.csv");
 
 function parseCSV(text) {
   const rows = [];
@@ -57,6 +58,25 @@ function normalizeCell(v) {
 const JOB_GROUP_INDEX_MAP = {
   "0": "Monarch", // gen-1 Royal (flag 23, no lookout)
 };
+
+const JOB_CATEGORY_LABELS = {
+  "0": "Worker",
+  "1": "Fighter",
+  "2": "Trader",
+};
+
+function battleTypeFromJobCategory(category) {
+  const normalized = String(category ?? "").trim().toLowerCase();
+  if (normalized === "1" || normalized === "fighter") return "combat";
+  if (normalized === "0" || normalized === "2" || normalized === "worker" || normalized === "trader") return "non-combat";
+  return undefined;
+}
+
+function normalizeGameDataJobName(value) {
+  return (value || "")
+    .replace(/^(?:[DCBAS] (?:Grade|Rank) )/, "")
+    .trim();
+}
 
 async function main() {
   // Strip UTF-8 BOM (EF BB BF) if present before parsing
@@ -192,8 +212,6 @@ async function main() {
       continue;
     }
 
-    state.jobs[jobName].type = (flagInt & 8) !== 0 ? "combat" : "non-combat";
-
     const skillAccess = {};
     if (flagInt & 4) skillAccess.attack      = "can";
     if (flagInt & 1) skillAccess.attackMagic = "can";
@@ -209,6 +227,33 @@ async function main() {
   console.log(`JobGroup updated for ${jobGroupUpdated} jobs.\n`);
 
   // ── 5. Save ─────────────────────────────────────────────────────────────────
+  console.log("Reading KA GameData Job sheet for categories...");
+  const jobRows = parseCSV(fs.readFileSync(KA_JOB_FILE, "utf8").replace(/^\uFEFF/, ""));
+  const jobHeader = jobRows[2] ?? [];
+  const nameCol = jobHeader.indexOf("name");
+  const categoryCol = jobHeader.indexOf("category");
+  if (nameCol < 0 || categoryCol < 0) {
+    throw new Error("KA GameData Job sheet is missing name/category columns.");
+  }
+
+  let jobCategoryUpdated = 0;
+  const seenJobs = new Set();
+  for (const row of jobRows.slice(3)) {
+    const jobName = normalizeGameDataJobName(row[nameCol]);
+    if (!jobName || seenJobs.has(jobName) || !state.jobs[jobName]) continue;
+    seenJobs.add(jobName);
+
+    const categoryCode = row[categoryCol]?.trim();
+    const category = JOB_CATEGORY_LABELS[categoryCode] ?? categoryCode;
+    const battleType = battleTypeFromJobCategory(categoryCode);
+    if (!category || !battleType) continue;
+
+    state.jobs[jobName].category = category;
+    state.jobs[jobName].type = battleType;
+    jobCategoryUpdated++;
+  }
+  console.log(`Job categories updated for ${jobCategoryUpdated} jobs.\n`);
+
   fs.writeFileSync(DATA_FILE, JSON.stringify(state));
   console.log("✅ ka_shared.json saved successfully.");
 }

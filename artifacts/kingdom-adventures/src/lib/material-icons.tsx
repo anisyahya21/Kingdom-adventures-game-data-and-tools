@@ -1,5 +1,6 @@
 ﻿// Material icon component — style variants for preview/selection
 // Materials: 0=Grass, 1=Wood, 2=Food, 3=Ore, 4=Mystic Ore
+import type { ReactElement } from "react";
 
 export const MATERIAL_NAMES: Record<number, string> = {
   0: "Grass",
@@ -489,7 +490,7 @@ export function MysticRune({ size }: { size: number }) {
 
 export type MaterialIconStyle = "pixel" | "flat" | "outlined" | "crystal" | "appicon" | "badge";
 
-const ICONS: Record<MaterialIconStyle, ((props: { size: number }) => JSX.Element | null)[]> = {
+const ICONS: Record<MaterialIconStyle, ((props: { size: number }) => ReactElement | null)[]> = {
   pixel:    [PixelGrass,     PixelWood,      PixelFood,     PixelOre,     PixelMysticOre],
   flat:     [FlatGrass,      FlatWood,       FlatFood,      FlatOre,      FlatMysticOre],
   outlined: [OutlinedGrass,  OutlinedWood,   OutlinedFood,  OutlinedOre,  OutlinedMysticOre],

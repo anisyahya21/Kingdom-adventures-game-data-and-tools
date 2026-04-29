@@ -34,6 +34,7 @@ type StatOverride = { base?: number; inc?: number };
 type SharedJob = {
   generation: 1 | 2;
   type?: "combat" | "non-combat";
+  category?: string;
   ranks: Record<string, { stats: Record<string, { base: number; inc: number }> }>;
 };
 

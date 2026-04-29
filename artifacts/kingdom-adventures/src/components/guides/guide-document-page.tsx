@@ -1805,9 +1805,9 @@ function JobPreviewDialog({
   const rankData = item.job.ranks[rank] ?? item.job.ranks[rankList[0] ?? ""];
   const skillAccess = item.job.skillAccess ?? {};
   const skillChips = [
-    { label: "Attack Skills", value: skillAccess.attack },
-    { label: "Casting Skills", value: skillAccess.attackMagic ?? skillAccess.casting },
-    { label: "Healing Skills", value: skillAccess.recovery },
+    { label: "Attack", value: skillAccess.attack },
+    { label: "Attack magic", value: skillAccess.attackMagic ?? skillAccess.casting },
+    { label: "Recovery magic", value: skillAccess.recovery },
   ];
   const setClampedLevel = (value: number) => {
     setLevel(Math.min(999, Math.max(1, Number.isFinite(value) ? Math.round(value) : 1)));
@@ -1832,7 +1832,7 @@ function JobPreviewDialog({
 
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">{item.job.generation === 1 ? "Non-Marriage" : "Marriage Exclusive"}</Badge>
-          {item.job.type ? <Badge variant="outline">{item.job.type === "combat" ? "Combat" : "Non-Combat"}</Badge> : null}
+          {item.job.type ? <Badge variant="outline">{item.job.type === "combat" ? "Battle-Type" : "Non Battle-Type"}</Badge> : null}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
