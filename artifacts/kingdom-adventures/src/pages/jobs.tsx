@@ -89,7 +89,7 @@ type WeaponValue   = "can" | "cannot" | "weak";
 type SkillValue    = "can" | "cannot";
 type SkillAccessKey = "attack" | "attackMagic" | "recovery";
 type SkillAccessMap = Partial<Record<SkillAccessKey, SkillValue>> & { casting?: SkillValue };
-type JobStatEntry  = { base: number; inc: number; levels?: Record<string,number> };
+type JobStatEntry  = { base: number; inc: number; levels?: Record<string,number>; maxLevel?: number };
 type JobRankData   = { stats: Record<string,JobStatEntry> };
 type Job = {
   generation: 1 | 2;
@@ -244,6 +244,37 @@ function statAtLevel(entry: JobStatEntry, level: number): number {
   const ov = entry.levels?.[String(level)];
   if (ov !== undefined) return ov;
   return entry.base + (level - 1) * entry.inc;
+}
+
+const STAT_DISPLAY_ALIASES: Record<string, string[]> = { Speed: ["Move", "Movement"] };
+
+function getJobStatEntry(job: Job, rank: string, stat: string): JobStatEntry | null {
+  const stats = job.ranks[rank]?.stats ?? job.ranks[Object.keys(job.ranks)[0]]?.stats ?? {};
+  const aliases = [stat, ...(STAT_DISPLAY_ALIASES[stat] ?? [])];
+  let combined: JobStatEntry | null = null;
+  for (const name of aliases) {
+    const entry = stats[name];
+    if (!entry) continue;
+    combined = combined
+      ? { base: combined.base + entry.base, inc: combined.inc + entry.inc }
+      : { ...entry };
+  }
+  return combined;
+}
+
+function getJobStatValue(job: Job, rank: string, stat: string, level: number): number | null {
+  const entry = getJobStatEntry(job, rank, stat);
+  return entry ? statAtLevel(entry, clampLevel(level)) : null;
+}
+
+function getAwakeningStatLevel(job: Job, rank: string, stat: string, awakening: number, fallbackLevel = 1): number {
+  const stats = job.ranks[rank]?.stats ?? {};
+  const aliases = [stat, ...(STAT_DISPLAY_ALIASES[stat] ?? [])];
+  const baseMax = aliases.reduce<number>((maxSoFar, alias) => {
+    const candidate = stats[alias]?.maxLevel;
+    return typeof candidate === "number" ? Math.max(maxSoFar, candidate) : maxSoFar;
+  }, 0);
+  return baseMax > 0 ? clampLevel(baseMax + AWAKENING_LEVEL_BONUS * awakening) : clampLevel(fallbackLevel);
 }
 
 function getResolvedShops(jobName: string, shops?: string[]): string[] {
@@ -593,7 +624,6 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
   }, [currentStats, rs.draft]);
 
   const levelFor = (stat: string) => rs.levels[stat] ?? 1;
-  const STAT_DISPLAY_ALIASES: Record<string, string[]> = { Speed: ["Move", "Movement"] };
 
   const val = (stat: string) => {
     const aliases = [stat, ...(STAT_DISPLAY_ALIASES[stat] ?? [])];
@@ -981,6 +1011,495 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
   );
 }
 
+type CompareGroup = {
+  id: number;
+  name: string;
+  stats: string[];
+};
+
+type CompareScope = "current" | "all" | "favorites" | "manual";
+type CompareLevelMode = "level" | "awakening";
+
+function formatCompareNumber(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return "-";
+  return Math.round(value * 100) / 100;
+}
+
+function average(values: number[]) {
+  if (values.length === 0) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function CompactSkillAccess({ access }: { access: SkillAccessMap }) {
+  const items: Array<{ key: SkillAccessKey; label: string }> = [
+    { key: "attack", label: "Atk" },
+    { key: "attackMagic", label: "Cast" },
+    { key: "recovery", label: "Heal" },
+  ];
+
+  return (
+    <div className="flex items-center gap-1">
+      {items.map(({ key, label }) => {
+        const value = access[key];
+        const enabled = value === "can";
+        return (
+          <span
+            key={key}
+            title={`${SKILL_ACCESS_LABELS[key]}: ${enabled ? "Can use" : "Cannot use"}`}
+            className={`inline-flex h-5 min-w-[28px] items-center justify-center rounded px-1 text-[9px] font-semibold ${
+              enabled
+                ? "bg-primary/15 text-primary"
+                : "bg-muted/60 text-muted-foreground/45"
+            }`}
+          >
+            {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function AdvancedCompareDialog({
+  open,
+  onOpenChange,
+  jobs,
+  statIcons,
+  currentEntries,
+  favs,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  jobs: Record<string, Job>;
+  statIcons: Record<string, string>;
+  currentEntries: Array<[string, Job]>;
+  favs: Set<string>;
+}) {
+  const [scope, setScope] = useState<CompareScope>("current");
+  const [rank, setRank] = useState("S");
+  const [levelMode, setLevelMode] = useState<CompareLevelMode>("level");
+  const [levelInput, setLevelInput] = useState("1");
+  const [awakeningInput, setAwakeningInput] = useState("0");
+  const [manualSearch, setManualSearch] = useState("");
+  const [manualJobs, setManualJobs] = useState<Set<string>>(() => new Set());
+  const [sortKey, setSortKey] = useState("group-1");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [groups, setGroups] = useState<CompareGroup[]>([
+    { id: 1, name: "Total Value", stats: ["HP", "MP", "Attack", "Defence", "Speed", "Intelligence"] },
+  ]);
+
+  const level = clampLevel(parseInt(levelInput, 10) || 1);
+  const awakening = clampAwakening(parseInt(awakeningInput, 10) || 0);
+  const allJobEntries = useMemo(() => Object.entries(jobs).sort(([a], [b]) => a.localeCompare(b)), [jobs]);
+
+  const manualSuggestions = useMemo(() => {
+    const query = manualSearch.trim().toLowerCase();
+    if (!query) return [];
+    return allJobEntries
+      .map(([name]) => name)
+      .filter((name) => name.toLowerCase().includes(query) && !manualJobs.has(name))
+      .slice(0, 8);
+  }, [allJobEntries, manualJobs, manualSearch]);
+
+  const comparedEntries = useMemo(() => {
+    if (scope === "all") return allJobEntries;
+    if (scope === "favorites") return allJobEntries.filter(([name]) => favs.has(name));
+    if (scope === "manual") return allJobEntries.filter(([name]) => manualJobs.has(name));
+    return currentEntries;
+  }, [allJobEntries, currentEntries, favs, manualJobs, scope]);
+
+  const activeGroups = useMemo(
+    () => groups.filter((group) => group.stats.length > 0),
+    [groups],
+  );
+
+  const rows = useMemo(() => {
+    const built = comparedEntries.map(([name, job]) => {
+      const groupTotals: Record<number, number> = {};
+      const statValues: Record<string, number | null> = {};
+      for (const stat of STAT_ORDER) {
+        const statLevel = levelMode === "awakening" ? getAwakeningStatLevel(job, rank, stat, awakening, level) : level;
+        statValues[stat] = getJobStatValue(job, rank, stat, statLevel);
+      }
+      for (const group of groups) {
+        groupTotals[group.id] = group.stats.reduce((sum, stat) => sum + (statValues[stat] ?? 0), 0);
+      }
+      return { name, job, groupTotals, statValues };
+    });
+
+    built.sort((left, right) => {
+      const direction = sortDir === "desc" ? -1 : 1;
+      if (sortKey === "name") return direction * left.name.localeCompare(right.name);
+      if (sortKey === "type") return direction * ((left.job.type ?? "").localeCompare(right.job.type ?? ""));
+      const groupId = Number(sortKey.replace("group-", ""));
+      return direction * ((left.groupTotals[groupId] ?? 0) - (right.groupTotals[groupId] ?? 0));
+    });
+    return built;
+  }, [awakening, comparedEntries, groups, level, levelMode, rank, sortDir, sortKey]);
+
+  const summaries = useMemo(() => {
+    return activeGroups.map((group) => {
+      const combat = rows.filter((row) => row.job.type === "combat");
+      const nonCombat = rows.filter((row) => row.job.type === "non-combat");
+      const getTotal = (row: typeof rows[number]) => row.groupTotals[group.id] ?? 0;
+      const topCombat = [...combat].sort((a, b) => getTotal(b) - getTotal(a))[0];
+      const topNonCombat = [...nonCombat].sort((a, b) => getTotal(b) - getTotal(a))[0];
+      const combatAvg = average(combat.map(getTotal));
+      const nonCombatAvg = average(nonCombat.map(getTotal));
+      return { group, combatAvg, nonCombatAvg, topCombat, topNonCombat };
+    });
+  }, [activeGroups, rows]);
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) setSortDir((current) => (current === "desc" ? "asc" : "desc"));
+    else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
+
+  const updateGroup = (id: number, patch: Partial<CompareGroup>) => {
+    setGroups((current) => current.map((group) => (group.id === id ? { ...group, ...patch } : group)));
+  };
+
+  const toggleGroupStat = (id: number, stat: string) => {
+    setGroups((current) => current.map((group) => {
+      if (group.id !== id) return group;
+      const stats = group.stats.includes(stat)
+        ? group.stats.filter((item) => item !== stat)
+        : [...group.stats, stat];
+      return { ...group, stats };
+    }));
+  };
+
+  const addGroup = () => {
+    setGroups((current) => {
+      if (current.length >= 3) return current;
+      const nextId = Math.max(0, ...current.map((group) => group.id)) + 1;
+      return [...current, { id: nextId, name: `Group ${current.length + 1}`, stats: [] }];
+    });
+  };
+
+  const removeGroup = (id: number) => {
+    setGroups((current) => current.length <= 1 ? current : current.filter((group) => group.id !== id));
+    if (sortKey === `group-${id}`) setSortKey("group-1");
+  };
+
+  const addManualJob = (name: string) => {
+    setManualJobs((current) => new Set([...current, name]));
+    setManualSearch("");
+  };
+
+  const selectedStats = useMemo(() => [...new Set(activeGroups.flatMap((group) => group.stats))], [activeGroups]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[96vw] w-[1180px] max-h-[90vh] overflow-hidden p-0">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
+          <DialogTitle>Advanced Compare</DialogTitle>
+        </DialogHeader>
+
+        <div className="overflow-y-auto max-h-[calc(90vh-74px)] px-5 pb-5 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-4">
+            <div className="rounded-lg border border-border bg-card/70 p-3">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">Compare jobs</div>
+                  <div className="text-xs text-muted-foreground">{rows.length} job{rows.length === 1 ? "" : "s"} in this comparison</div>
+                </div>
+                <select
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value as CompareScope)}
+                  className="h-8 rounded border border-border bg-background px-2 text-xs text-foreground"
+                >
+                  <option value="current">Current filtered jobs</option>
+                  <option value="all">All jobs</option>
+                  <option value="favorites">Favorites only</option>
+                  <option value="manual">Manual selection</option>
+                </select>
+              </div>
+
+              {scope === "manual" && (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Input
+                      value={manualSearch}
+                      onChange={(e) => setManualSearch(e.target.value)}
+                      placeholder="Add jobs to compare..."
+                      className="h-8 text-xs"
+                    />
+                    {manualSuggestions.length > 0 && (
+                      <div className="absolute z-50 top-full mt-1 left-0 w-full rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+                        {manualSuggestions.map((name) => (
+                          <button
+                            key={name}
+                            onMouseDown={(e) => { e.preventDefault(); addManualJob(name); }}
+                            className="w-full text-left px-3 py-1.5 hover:bg-muted transition-colors text-foreground"
+                          >
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[...manualJobs].map((name) => (
+                      <span key={name} className="inline-flex items-center gap-1 px-2 h-6 rounded border border-primary/40 bg-primary/10 text-primary text-xs">
+                        {name}
+                        <button onClick={() => setManualJobs((current) => { const next = new Set(current); next.delete(name); return next; })}>
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                    {manualJobs.size > 0 && (
+                      <button onClick={() => setManualJobs(new Set())} className="text-xs text-muted-foreground hover:text-foreground px-1">
+                        clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-border bg-card/70 p-3">
+              <div className="text-sm font-semibold text-foreground mb-3">Shared values</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <label className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Rank</span>
+                  <select
+                    value={rank}
+                    onChange={(e) => setRank(e.target.value)}
+                    className="h-8 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
+                  >
+                    {["S", "A", "B", "C", "D"].map((value) => <option key={value} value={value}>Rank {value}</option>)}
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Mode</span>
+                  <select
+                    value={levelMode}
+                    onChange={(e) => setLevelMode(e.target.value as CompareLevelMode)}
+                    className="h-8 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
+                  >
+                    <option value="level">Fixed level</option>
+                    <option value="awakening">Awakening max</option>
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Level</span>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={levelInput}
+                    onChange={(e) => /^\d*$/.test(e.target.value) && setLevelInput(e.target.value)}
+                    onBlur={(e) => setLevelInput(String(clampLevel(parseInt(e.target.value, 10) || 1)))}
+                    className="h-8 text-xs text-center"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs text-muted-foreground">Awakening</span>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={awakeningInput}
+                    onChange={(e) => /^\d*$/.test(e.target.value) && setAwakeningInput(e.target.value)}
+                    onBlur={(e) => setAwakeningInput(String(clampAwakening(parseInt(e.target.value, 10) || 0)))}
+                    className="h-8 text-xs text-center"
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-foreground">Stat groups</div>
+                <div className="text-xs text-muted-foreground">Name up to 3 groups and choose the stats each total should include.</div>
+              </div>
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={addGroup} disabled={groups.length >= 3}>
+                <Plus className="w-3.5 h-3.5 mr-1" />Group
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+              {groups.map((group) => (
+                <div key={group.id} className="rounded-lg border border-border bg-card/70 p-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Input
+                      value={group.name}
+                      onChange={(e) => updateGroup(group.id, { name: e.target.value })}
+                      className="h-8 text-sm font-semibold"
+                    />
+                    {groups.length > 1 && (
+                      <button
+                        onClick={() => removeGroup(group.id)}
+                        className="h-8 w-8 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center justify-center"
+                        title="Remove group"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-1.5">
+                    {STAT_ORDER.map((stat) => {
+                      const checked = group.stats.includes(stat);
+                      return (
+                        <label
+                          key={stat}
+                          className={`h-8 rounded border px-2 flex items-center gap-1.5 text-xs cursor-pointer transition-colors ${
+                            checked
+                              ? "border-primary/50 bg-primary/10 text-primary"
+                              : "border-border bg-background/60 text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleGroupStat(group.id, stat)}
+                            className="accent-primary"
+                          />
+                          {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
+                          <span className="truncate">{STAT_SHORT[stat] ?? stat}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {summaries.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              {summaries.map(({ group, combatAvg, nonCombatAvg, topCombat, topNonCombat }) => {
+                const difference = combatAvg !== null && nonCombatAvg !== null ? combatAvg - nonCombatAvg : null;
+                return (
+                  <div key={group.id} className="rounded-lg border border-border bg-muted/20 p-3">
+                    <div className="text-sm font-semibold text-foreground truncate">{group.name || `Group ${group.id}`}</div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <div className="text-muted-foreground">Combat avg</div>
+                        <div className="font-semibold tabular-nums text-foreground">{formatCompareNumber(combatAvg)}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Non-combat avg</div>
+                        <div className="font-semibold tabular-nums text-foreground">{formatCompareNumber(nonCombatAvg)}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Difference</div>
+                        <div className="font-semibold tabular-nums text-foreground">{formatCompareNumber(difference)}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Stats</div>
+                        <div className="font-semibold tabular-nums text-foreground">{group.stats.length}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 space-y-1 text-xs">
+                      <div className="text-muted-foreground truncate">Top combat: <span className="text-foreground">{topCombat ? `${topCombat.name} (${formatCompareNumber(topCombat.groupTotals[group.id])})` : "-"}</span></div>
+                      <div className="text-muted-foreground truncate">Top non-combat: <span className="text-foreground">{topNonCombat ? `${topNonCombat.name} (${formatCompareNumber(topNonCombat.groupTotals[group.id])})` : "-"}</span></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-max table-fixed border-collapse text-sm" style={{ minWidth: `${282 + activeGroups.length * 86 + selectedStats.length * 56}px` }}>
+                <colgroup>
+                  <col style={{ width: 104 }} />
+                  <col style={{ width: 80 }} />
+                  <col style={{ width: 98 }} />
+                  {activeGroups.map((group) => (
+                    <col key={`group-${group.id}`} style={{ width: 86 }} />
+                  ))}
+                  {selectedStats.map((stat) => (
+                    <col key={`stat-${stat}`} style={{ width: 56 }} />
+                  ))}
+                </colgroup>
+                <thead>
+                  <tr className="bg-muted/50 border-b border-border">
+                    <th className="text-left pl-2 pr-0.5 py-2 text-xs font-semibold text-muted-foreground">
+                      <button onClick={() => toggleSort("name")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Job <ArrowUpDown className="w-3 h-3" />
+                      </button>
+                    </th>
+                    <th className="text-left px-0.5 py-2 text-xs font-semibold text-muted-foreground">
+                      <button onClick={() => toggleSort("type")} className="inline-flex items-center gap-1 hover:text-foreground">
+                        Type <ArrowUpDown className="w-3 h-3" />
+                      </button>
+                    </th>
+                    <th className="text-left px-0.5 py-2 text-xs font-semibold text-muted-foreground">Skills</th>
+                    {activeGroups.map((group) => (
+                      <th key={group.id} className="text-center px-0.5 py-2 text-xs font-semibold text-muted-foreground">
+                        <button onClick={() => toggleSort(`group-${group.id}`)} className="inline-flex items-center justify-center gap-1 hover:text-foreground">
+                          <span className="truncate max-w-[68px]">{group.name || `Group ${group.id}`}</span>
+                          <ArrowUpDown className="w-3 h-3 shrink-0" />
+                        </button>
+                      </th>
+                    ))}
+                    {selectedStats.map((stat) => (
+                      <th key={stat} className="text-center px-1 py-2 text-xs font-semibold text-muted-foreground">
+                        <div className="flex items-center justify-center gap-1">
+                          {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
+                          <span>{STAT_SHORT[stat] ?? stat}</span>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={3 + activeGroups.length + selectedStats.length} className="text-center py-10 text-sm text-muted-foreground">
+                        No jobs selected for this comparison.
+                      </td>
+                    </tr>
+                  ) : (
+                    rows.map((row) => (
+                      <tr key={row.name} className="border-b border-border/50 hover:bg-muted/20">
+                        <td className="pl-2 pr-0.5 py-2 font-medium text-foreground truncate">
+                          <Link href={`/jobs/${encodeURIComponent(row.name)}`}>
+                            <span className="hover:text-primary cursor-pointer">{row.name}</span>
+                          </Link>
+                        </td>
+                        <td className="px-0.5 py-2">
+                          {row.job.type ? (
+                            <span className={`text-[9px] px-1 py-0.5 rounded font-semibold ${row.job.type === "combat" ? "bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"}`}>
+                              {row.job.type === "combat" ? "Combat" : "Non-Combat"}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="px-0.5 py-2">
+                          <CompactSkillAccess access={getResolvedSkillAccess(row.name, row.job, rank)} />
+                        </td>
+                        {activeGroups.map((group) => (
+                          <td key={group.id} className="px-0.5 py-2 text-center font-semibold tabular-nums text-foreground">
+                            {formatCompareNumber(row.groupTotals[group.id])}
+                          </td>
+                        ))}
+                        {selectedStats.map((stat) => (
+                          <td key={stat} className="px-1 py-2 text-center tabular-nums text-muted-foreground">
+                            {formatCompareNumber(row.statValues[stat])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function JobsTable({
   jobs, statIcons, userName, onSaveJobs,
 }: {
@@ -1015,6 +1534,7 @@ function JobsTable({
   const [bulkAwakeningInput, setBulkAwakeningInput] = useState("0");
   const [bulkApply, setBulkApply] = useState<{ rank?: string; allLevel?: number; awakening?: number; seq: number }>({ seq: 0 });
   const [showRankings, setShowRankings] = useState(false);
+  const [showAdvancedCompare, setShowAdvancedCompare] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1093,8 +1613,8 @@ function JobsTable({
     return allJobNames.filter((n) => n.toLowerCase().includes(q) && !includedJobs.has(n)).slice(0, 8);
   }, [includeSearch, allJobNames, includedJobs]);
 
-  const sortedEntries = useMemo(() => {
-    const entries = Object.entries(jobs).filter(([name, job]) => {
+  const filteredEntries = useMemo(() => {
+    return Object.entries(jobs).filter(([name, job]) => {
       // Always show jobs that are explicitly included (bypasses all other filters)
       if (includedJobs.has(name)) return true;
       if (excludedJobs.has(name)) return false;
@@ -1106,7 +1626,10 @@ function JobsTable({
       if (search && !name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
+  }, [jobs, genFilter, typeFilter, includedJobs, excludedJobs, favsOnly, favs, search]);
 
+  const sortedEntries = useMemo(() => {
+    const entries = [...filteredEntries];
     if (sortCol) {
       const sortLevel = parseInt(bulkLevelInput) || 1;
       entries.sort(([, a], [, b]) => {
@@ -1122,7 +1645,7 @@ function JobsTable({
       entries.sort(([a], [b]) => a.localeCompare(b));
     }
     return entries;
-  }, [jobs, genFilter, typeFilter, includedJobs, excludedJobs, favsOnly, favs, search, sortCol, sortDir, sortByGrowth, bulkRankInput, bulkLevelInput]);
+  }, [filteredEntries, sortCol, sortDir, sortByGrowth, bulkRankInput, bulkLevelInput]);
 
   const statRankMaps = useMemo((): Record<string, Record<string, number>> | null => {
     if (!showRankings) return null;
@@ -1155,6 +1678,14 @@ function JobsTable({
 
   return (
     <div>
+      <AdvancedCompareDialog
+        open={showAdvancedCompare}
+        onOpenChange={setShowAdvancedCompare}
+        jobs={jobs}
+        statIcons={statIcons}
+        currentEntries={filteredEntries}
+        favs={favs}
+      />
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Input
           placeholder="Search jobs..."
@@ -1228,6 +1759,13 @@ function JobsTable({
           title="Show rank numbers (#1, #2…) beside each stat — based on the current sort value mode"
         >
           {showRankings ? "Hide #Rankings" : "Show #Rankings"}
+        </button>
+        <button
+          onClick={() => setShowAdvancedCompare(true)}
+          className="px-3 h-8 text-xs font-medium rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 transition-colors"
+          title="Open a self-contained total-value comparison window"
+        >
+          Advanced Compare
         </button>
         <div className="flex items-center gap-1.5 border border-input rounded-md px-2 h-8">
           <span className="text-xs text-muted-foreground shrink-0">Bulk:</span>
