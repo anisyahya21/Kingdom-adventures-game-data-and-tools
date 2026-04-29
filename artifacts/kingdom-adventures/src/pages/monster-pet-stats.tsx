@@ -23,6 +23,7 @@ type MonsterStatRecord = {
   stats: Record<StatKey, StatLevels>;
 };
 type StatLevelKey = keyof StatLevels;
+type StatLevelColumn = { key: StatLevelKey; label: string } | { key: "custom"; label: string; level: number };
 type SortField = "name" | "id" | StatKey;
 
 const STAT_KEYS: StatKey[] = ["HP", "MP", "ATK", "DEF", "SPEED", "LUCK", "DEX"];
@@ -42,6 +43,40 @@ const STAT_LEVEL_LABELS: Record<StatLevelKey, string> = {
   level1000: "Lv 1k",
   level10000: "Lv 10k",
 };
+
+function statValueAtLevel(stat: StatLevels, level: number) {
+  const checkpoints = [
+    { level: 1, value: stat.level1 },
+    { level: 100, value: stat.level100 },
+    { level: 1000, value: stat.level1000 },
+    { level: 10000, value: stat.level10000 },
+  ];
+  const target = Math.max(1, Math.round(level));
+
+  if (target <= checkpoints[0].level) return checkpoints[0].value;
+
+  for (let index = 1; index < checkpoints.length; index += 1) {
+    const left = checkpoints[index - 1];
+    const right = checkpoints[index];
+    if (target <= right.level) {
+      const progress = (target - left.level) / (right.level - left.level);
+      return Math.round(left.value + (right.value - left.value) * progress);
+    }
+  }
+
+  const left = checkpoints[checkpoints.length - 2];
+  const right = checkpoints[checkpoints.length - 1];
+  const progress = (target - left.level) / (right.level - left.level);
+  return Math.round(left.value + (right.value - left.value) * progress);
+}
+
+function valueForStatColumn(stat: StatLevels, column: StatLevelColumn) {
+  return column.key === "custom" ? statValueAtLevel(stat, column.level) : stat[column.key];
+}
+
+function compactLevelLabel(level: number) {
+  return level >= 1000 && level % 1000 === 0 ? `${level / 1000}k` : level.toLocaleString();
+}
 
 function parseNumber(value: string | undefined): number {
   const parsed = Number(value ?? "");
@@ -113,6 +148,14 @@ export default function MonsterPetStatsPage() {
   const [sortLevel, setSortLevel] = useState<StatLevelKey>("level1");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [compareIds, setCompareIds] = useState<number[]>([]);
+  const [customLevel, setCustomLevel] = useState(500);
+
+  const customLevelValue = Math.max(1, Math.round(customLevel || 1));
+  const customLevelLabel = `Lv @${compactLevelLabel(customLevelValue)}`;
+  const statColumns = useMemo<StatLevelColumn[]>(() => [
+    ...STAT_LEVEL_KEYS.map((level) => ({ key: level, label: STAT_LEVEL_LABELS[level] }) as StatLevelColumn),
+    { key: "custom", label: customLevelLabel, level: customLevelValue },
+  ], [customLevelLabel, customLevelValue]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -197,7 +240,7 @@ export default function MonsterPetStatsPage() {
           <CardDescription>Search by monster name or id, sort by a stat, and compare up to 4 monsters side by side.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_180px_160px_auto]">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_180px_160px_140px_auto]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -223,6 +266,21 @@ export default function MonsterPetStatsPage() {
               options={STAT_LEVEL_KEYS.map((level) => ({ value: level, label: `Use ${STAT_LEVEL_LABELS[level]}` }))}
               triggerClassName="h-10"
             />
+            <label className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">@</span>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={String(customLevel)}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  setCustomLevel(Number.isFinite(next) ? Math.max(1, Math.round(next)) : 1);
+                }}
+                aria-label="Custom monster stat level"
+                className="h-10 pl-7"
+              />
+            </label>
             <Button
               variant="outline"
               className="gap-2"
@@ -293,24 +351,24 @@ export default function MonsterPetStatsPage() {
                 </thead>
                 <tbody>
                   {STAT_KEYS.flatMap((key) => {
-                    return STAT_LEVEL_KEYS.map((level, index) => (
+                    return statColumns.map((column, index) => (
                       (() => {
-                        const values = compareMonsters.map((monster) => monster.stats[key][level]);
+                        const values = compareMonsters.map((monster) => valueForStatColumn(monster.stats[key], column));
                         const maxValue = Math.max(...values);
                         const minValue = Math.min(...values);
                         const hasSpread = maxValue !== minValue;
 
                         return (
-                      <tr key={`${key}-${level}`} className="border-b border-border/60 last:border-b-0">
+                      <tr key={`${key}-${column.key}`} className="border-b border-border/60 last:border-b-0">
                         <td className="py-2 pr-3">
                           <div className={index === 0 ? "font-medium text-foreground" : "text-muted-foreground"}>
-                            {index === 0 ? STAT_LABELS[key] : STAT_LEVEL_LABELS[level]}
+                            {index === 0 ? STAT_LABELS[key] : column.label}
                           </div>
                         </td>
                         {compareMonsters.map((monster) => (
-                          <td key={`${monster.id}-${key}-${level}`} className="py-2 px-3 tabular-nums">
+                          <td key={`${monster.id}-${key}-${column.key}`} className="py-2 px-3 tabular-nums">
                             {(() => {
-                              const value = monster.stats[key][level];
+                              const value = valueForStatColumn(monster.stats[key], column);
                               const isWinner = hasSpread && value === maxValue;
                               const isLoser = hasSpread && value === minValue;
                               const deltaFromBest = maxValue - value;
@@ -392,10 +450,11 @@ export default function MonsterPetStatsPage() {
                   <thead>
                     <tr className="border-b border-border text-muted-foreground">
                       <th className="text-left py-2 pr-3 font-medium">Stat</th>
-                      <th className="text-right py-2 px-2 font-medium">Lv 1</th>
-                      <th className="text-right py-2 px-2 font-medium">Lv 100</th>
-                      <th className="text-right py-2 px-2 font-medium">Lv 1k</th>
-                      <th className="text-right py-2 pl-2 font-medium">Lv 10k</th>
+                      {statColumns.map((column, index) => (
+                        <th key={column.key} className={`text-right py-2 font-medium ${index === statColumns.length - 1 ? "pl-2" : "px-2"}`}>
+                          {column.label}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -404,10 +463,11 @@ export default function MonsterPetStatsPage() {
                       return (
                         <tr key={key} className="border-b border-border/60 last:border-b-0">
                           <td className="py-2 pr-3 font-medium text-foreground">{STAT_LABELS[key]}</td>
-                          <td className="py-2 px-2 text-right tabular-nums">{stat.level1.toLocaleString()}</td>
-                          <td className="py-2 px-2 text-right tabular-nums">{stat.level100.toLocaleString()}</td>
-                          <td className="py-2 px-2 text-right tabular-nums">{stat.level1000.toLocaleString()}</td>
-                          <td className="py-2 pl-2 text-right tabular-nums">{stat.level10000.toLocaleString()}</td>
+                          {statColumns.map((column, index) => (
+                            <td key={`${key}-${column.key}`} className={`py-2 text-right tabular-nums ${index === statColumns.length - 1 ? "pl-2" : "px-2"}`}>
+                              {valueForStatColumn(stat, column).toLocaleString()}
+                            </td>
+                          ))}
                         </tr>
                       );
                     })}

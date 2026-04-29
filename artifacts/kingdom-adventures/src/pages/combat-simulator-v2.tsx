@@ -152,6 +152,8 @@ function formatPercent(part: number, total: number) {
   return `${((part * 100) / total).toFixed(1)}%`;
 }
 
+const resultChipClass = "rounded-md border border-border bg-transparent px-3 py-2";
+
 export default function CombatSimulatorPage() {
   const [left, setLeft] = useState<Combatant>(() => defaultCombatant("Attacker A"));
   const [right, setRight] = useState<Combatant>(() => defaultCombatant("Attacker B"));
@@ -161,7 +163,8 @@ export default function CombatSimulatorPage() {
 
   const summary = useMemo(() => {
     if (!battle) return null;
-    return `${battle.winner ? `${battle.winner} wins` : "No winner"} in ${battle.rounds.length} strikes`;
+    const outcome = battle.winner ? `${battle.winner} standing` : "Draw";
+    return `${outcome} after ${battle.rounds.length} strikes`;
   }, [battle]);
 
   const attackCounts = useMemo(() => {
@@ -225,20 +228,20 @@ export default function CombatSimulatorPage() {
               <CardContent className="space-y-3 text-sm">
                 <div className="space-y-3">
                   {batchResult && (
-                    <div className="rounded-md border border-border bg-muted/10 px-3 py-2 text-sm text-foreground">
-                      <strong>{left.name}</strong> won <strong>{formatNumber(batchResult.leftWins)}</strong> fights (<strong>{formatPercent(batchResult.leftWins, batchResult.total)}</strong>), <strong>{right.name}</strong> won <strong>{formatNumber(batchResult.rightWins)}</strong> fights (<strong>{formatPercent(batchResult.rightWins, batchResult.total)}</strong>), and there were <strong>{formatNumber(batchResult.draws)}</strong> draws (<strong>{formatPercent(batchResult.draws, batchResult.total)}</strong>) out of <strong>{formatNumber(batchResult.total)}</strong>.
+                    <div className={`${resultChipClass} text-sm text-foreground`}>
+                      Batch outcomes: <strong>{left.name}</strong> ahead in <strong>{formatNumber(batchResult.leftWins)}</strong> fights (<strong>{formatPercent(batchResult.leftWins, batchResult.total)}</strong>), <strong>{right.name}</strong> ahead in <strong>{formatNumber(batchResult.rightWins)}</strong> fights (<strong>{formatPercent(batchResult.rightWins, batchResult.total)}</strong>), and <strong>{formatNumber(batchResult.draws)}</strong> draws (<strong>{formatPercent(batchResult.draws, batchResult.total)}</strong>) out of <strong>{formatNumber(batchResult.total)}</strong>.
                     </div>
                   )}
                   <div className="flex flex-wrap gap-3">
                     {battle && (
                       <>
-                        <div className="rounded-md border border-border bg-muted/10 px-3 py-2">{summary}</div>
-                        <div className="rounded-md border border-border bg-muted/10 px-3 py-2">{left.name}: {formatNumber(battle.leftHp)} HP left</div>
-                        <div className="rounded-md border border-border bg-muted/10 px-3 py-2">{right.name}: {formatNumber(battle.rightHp)} HP left</div>
+                        <div className={resultChipClass}>{summary}</div>
+                        <div className={resultChipClass}>{left.name}: {formatNumber(battle.leftHp)} HP left</div>
+                        <div className={resultChipClass}>{right.name}: {formatNumber(battle.rightHp)} HP left</div>
                         {attackCounts && (
                           <>
-                            <div className="rounded-md border border-border bg-muted/10 px-3 py-2">{left.name}: {formatNumber(attackCounts.leftAttacks)} attacks</div>
-                            <div className="rounded-md border border-border bg-muted/10 px-3 py-2">{right.name}: {formatNumber(attackCounts.rightAttacks)} attacks</div>
+                            <div className={resultChipClass}>{left.name}: {formatNumber(attackCounts.leftAttacks)} attacks</div>
+                            <div className={resultChipClass}>{right.name}: {formatNumber(attackCounts.rightAttacks)} attacks</div>
                           </>
                         )}
                       </>
@@ -254,15 +257,20 @@ export default function CombatSimulatorPage() {
                       {battle.rounds.map((round, index) => {
                         const note = round.result.note || `Crit roll ${round.result.rollCrit}${round.result.rollHit >= 0 ? `, hit roll ${round.result.rollHit}` : ``}`;
                         return (
-                          <div key={`${round.attacker}-${index}`} className="rounded-lg border border-border p-3 bg-background/80">
+                          <div key={`${round.attacker}-${index}`} className="rounded-lg border border-border bg-transparent p-3">
                             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                               <div>Strike {index + 1}</div>
                               <div>{round.attacker} → {round.defender}</div>
                             </div>
                             <div className="mt-2 text-sm">
-                              <div><strong>{round.result.attackType}</strong> • {round.result.hit ? "Hit" : "Miss"}{round.result.crit ? " (Critical)" : ""}</div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <strong>{round.result.attackType}</strong>
+                                <span>•</span>
+                                <span>{round.result.hit ? "Hit" : "Miss"}</span>
+                                {round.result.crit ? <span className="font-semibold text-orange-500">💥 Crit</span> : null}
+                              </div>
                               <div>Damage: {formatNumber(round.result.damage)}</div>
-                              <div>Defender HP after: {formatNumber(round.result.defenderHpAfter)}</div>
+                              <div>Defender HP after: {formatNumber(round.defenderHpAfter)}</div>
                               <div className="text-xs text-muted-foreground">{note}</div>
                             </div>
                           </div>

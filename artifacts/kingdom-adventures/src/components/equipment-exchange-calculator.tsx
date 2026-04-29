@@ -208,7 +208,7 @@ export default function EquipmentExchangeCalculator() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
   const [funFactRanks, setFunFactRanks] = useState<Set<string>>(new Set(savedExchangeState.funFactRanks ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.funFactRanks));
-  const [importText, setImportText] = useState("");
+  const [clipboardStatus, setClipboardStatus] = useState<{ type: "ok" | "error"; message: string } | null>(null);
 
   const exportPayload = useMemo(
     () => ({
@@ -248,9 +248,9 @@ export default function EquipmentExchangeCalculator() {
   const copyExportText = async () => {
     try {
       await navigator.clipboard.writeText(exportText);
-      window.alert("Exchange state copied to clipboard.");
+      setClipboardStatus({ type: "ok", message: "Copied to clipboard" });
     } catch {
-      window.alert("Copy failed. Please select the export text and copy it manually.");
+      setClipboardStatus({ type: "error", message: "Copy failed" });
     }
   };
 
@@ -312,17 +312,26 @@ export default function EquipmentExchangeCalculator() {
       setSourceGivesFilters(new Set(nextState.sourceGivesFilters));
       setCurrentPriceInputs(nextState.currentPriceInputs);
       setFunFactRanks(new Set(nextState.funFactRanks));
+      setClipboardStatus({ type: "ok", message: "Imported from clipboard" });
+      return true;
     } catch {
-      window.alert("Unable to import exchange state. Please provide a valid export string.");
+      setClipboardStatus({ type: "error", message: "Import failed" });
+      return false;
     }
   };
 
-  const handleImportText = () => {
-    if (!importText.trim()) {
-      window.alert("Paste some export text before importing.");
+  const pasteImportText = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        setClipboardStatus({ type: "error", message: "Clipboard is empty" });
+        return;
+      }
+      importExchangeState(text.trim());
+    } catch {
+      setClipboardStatus({ type: "error", message: "Paste failed" });
       return;
     }
-    importExchangeState(importText.trim());
   };
 
   const selectedEquipment = useMemo(
@@ -891,34 +900,25 @@ export default function EquipmentExchangeCalculator() {
           </div>
         </div>
 
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] rounded-md border border-border bg-background/50 p-3">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Export state</h3>
-                <Button size="sm" variant="outline" onClick={copyExportText}>
-                  <Upload className="mr-2 h-3.5 w-3.5" />Copy
-                </Button>
-              </div>
-              <textarea
-                readOnly
-                value={exportText}
-                className="min-h-[120px] w-full resize-y rounded-md border border-border bg-background p-2 text-xs font-mono text-muted-foreground"
-              />
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background/50 p-3">
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={copyExportText}>
+                <Upload className="mr-2 h-3.5 w-3.5" />Export state
+              </Button>
+              <Button size="sm" variant="outline" onClick={pasteImportText}>
+                <Download className="mr-2 h-3.5 w-3.5" />Import state
+              </Button>
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Import state</h3>
-                <Button size="sm" variant="outline" onClick={handleImportText}>
-                  <Download className="mr-2 h-3.5 w-3.5" />Paste
-                </Button>
+            {clipboardStatus && (
+              <div
+                className={`flex items-center gap-1.5 text-xs ${
+                  clipboardStatus.type === "ok" ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
+                }`}
+              >
+                {clipboardStatus.type === "ok" ? <Check className="h-3.5 w-3.5" /> : null}
+                {clipboardStatus.message}
               </div>
-              <textarea
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                placeholder="Paste export text here"
-                className="min-h-[120px] w-full resize-y rounded-md border border-border bg-background p-2 text-xs font-mono"
-              />
-            </div>
+            )}
           </div>
 
           <div className="overflow-x-auto rounded-md border border-border">

@@ -6,7 +6,7 @@ import {
   Plus, Trash2, Zap, RefreshCw, HelpCircle, ArrowLeftRight,
   X, Lock, LockOpen, Loader2, AlertTriangle, ExternalLink,
   Info, Star, Baby, Filter, Heart, BarChart2, BookOpen,
-  Download, Upload, Check, Copy,
+  Download, Upload, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,6 +109,9 @@ const RANK_STYLE: Record<Rank, { badge: string; header: string; border: string }
     border: "border-slate-200 dark:border-slate-700",
   },
 };
+
+const RANK_TABLE_GRID =
+  "grid-cols-[minmax(96px,1fr)_44px_44px_52px_20px] sm:grid-cols-[minmax(120px,1fr)_50px_50px_58px_20px] xl:grid-cols-[minmax(160px,1fr)_56px_56px_72px_24px]";
 
 interface RankSlot {
   id: string;
@@ -573,13 +576,13 @@ function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, o
       </CardHeader>
       <CardContent className="px-4 pb-3 pt-0">
         {slots.length > 0 && (
-          <div className="rounded-md border border-border overflow-hidden mt-3 mb-3 w-fit max-w-full">
-            <div className="grid grid-cols-[minmax(220px,320px)_56px_56px_72px_24px] bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+          <div className="rounded-md border border-border overflow-hidden mt-3 mb-3 w-full">
+            <div className={`grid ${RANK_TABLE_GRID} bg-muted/40 px-2 py-1.5 text-xs font-medium text-muted-foreground sm:px-3`}>
               <span>Job</span>
               <span className="text-center">Male</span>
               <span className="text-center">Female</span>
-              <span className="text-center flex items-center justify-center gap-1">
-                Unassigned
+              <span className="text-center flex min-w-0 items-center justify-center gap-1">
+                <span className="truncate">Unassigned</span>
                 <Tooltip>
                   <TooltipTrigger asChild><HelpCircle className="w-3 h-3 cursor-help" /></TooltipTrigger>
                   <TooltipContent side="top" className="max-w-48 text-xs">
@@ -593,7 +596,7 @@ function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, o
             {slots.map((slot, i) => (
               <div key={slot.id}>
                 {i > 0 && <Separator />}
-                <div className="grid grid-cols-[minmax(220px,320px)_56px_56px_72px_24px] items-center px-3 py-1.5 gap-1">
+                <div className={`grid ${RANK_TABLE_GRID} items-center gap-1 px-2 py-1.5 sm:px-3`}>
                   <span className="text-sm font-medium truncate pr-2">
                     {slot.jobName}
                     {slot.unassigned > 0 && (
@@ -2103,8 +2106,8 @@ export default function MarriageMatcher() {
   const [result, setResult] = useState<OptimalResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isStale, setIsStale] = useState(false);
-  const [backupText, setBackupText] = useState("");
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
+  const [backupStatusType, setBackupStatusType] = useState<"ok" | "error">("ok");
 
   const markStale = useCallback(() => setIsStale(true), []);
 
@@ -2230,31 +2233,27 @@ export default function MarriageMatcher() {
       desiredChildren,
     };
     const serialized = JSON.stringify(payload, null, 2);
-    setBackupText(serialized);
-    setBackupStatus("Backup generated. This is only a temporary fail-safe while the matcher is still being built out.");
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(serialized).catch(() => {});
+      navigator.clipboard.writeText(serialized)
+        .then(() => {
+          setBackupStatusType("ok");
+          setBackupStatus("Export copied to clipboard.");
+        })
+        .catch(() => {
+          setBackupStatusType("error");
+          setBackupStatus("Export copy failed.");
+        });
+      return;
     }
+    setBackupStatusType("error");
+    setBackupStatus("Clipboard copy is not available here.");
   }, [desiredChildren, lockedPairs, rankSlots]);
 
-  const copyBackup = useCallback(() => {
-    if (!backupText.trim()) {
-      setBackupStatus("Nothing to copy yet. Export your current inputs first or paste a backup.");
-      return;
-    }
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(backupText)
-        .then(() => setBackupStatus("Backup text copied."))
-        .catch(() => setBackupStatus("Could not copy automatically. You can still copy the text manually."));
-      return;
-    }
-    setBackupStatus("Clipboard copy is not available here. You can still copy the text manually.");
-  }, [backupText]);
-
-  const importBackup = useCallback(() => {
+  const importBackupText = useCallback((backupText: string) => {
     try {
       const parsed: unknown = JSON.parse(backupText);
       if (!isPlannerBackup(parsed)) {
+        setBackupStatusType("error");
         setBackupStatus("That text is not a valid Match Finder backup.");
         return;
       }
@@ -2263,11 +2262,34 @@ export default function MarriageMatcher() {
       setDesiredChildren(parsed.desiredChildren);
       setResult(null);
       setIsStale(false);
+      setBackupStatusType("ok");
       setBackupStatus(`Imported backup from ${new Date(parsed.exportedAt).toLocaleString()}.`);
     } catch {
-      setBackupStatus("Could not import that backup. Paste the full exported text and try again.");
+      setBackupStatusType("error");
+      setBackupStatus("Could not import that backup.");
     }
-  }, [backupText, setRankSlots]);
+  }, [setRankSlots]);
+
+  const importBackup = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
+      setBackupStatusType("error");
+      setBackupStatus("Clipboard paste is not available here.");
+      return;
+    }
+    navigator.clipboard.readText()
+      .then((text) => {
+        if (!text.trim()) {
+          setBackupStatusType("error");
+          setBackupStatus("Clipboard is empty.");
+          return;
+        }
+        importBackupText(text.trim());
+      })
+      .catch(() => {
+        setBackupStatusType("error");
+        setBackupStatus("Clipboard paste failed.");
+      });
+  }, [importBackupText]);
 
   const markMatchAsMarried = useCallback((match: MatchResult) => {
     let applied = false;
@@ -2409,34 +2431,21 @@ export default function MarriageMatcher() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground space-y-1.5">
-              <p><strong className="text-foreground">How to use Export:</strong> click <strong>Export current inputs</strong>, then save the generated text somewhere safe like a note, text file, or message to yourself.</p>
-              <p><strong className="text-foreground">How to use Import:</strong> paste that saved text back into the box here, then click <strong>Import pasted backup</strong> to restore your Match Finder inputs.</p>
-            </div>
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)] items-start">
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={exportBackup} className="gap-2">
-                    <Upload className="w-4 h-4" /> Export current inputs
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={importBackup} className="gap-2">
-                    <Download className="w-4 h-4" /> Import pasted backup
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={copyBackup} className="gap-2">
-                    <Copy className="w-4 h-4" /> Copy backup text
-                  </Button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={exportBackup} className="gap-2">
+                  <Upload className="w-4 h-4" /> Export current inputs
+                </Button>
+                <Button variant="outline" size="sm" onClick={importBackup} className="gap-2">
+                  <Download className="w-4 h-4" /> Import from clipboard
+                </Button>
+              </div>
+              {backupStatus && (
+                <div className={`flex items-center gap-1.5 text-xs ${backupStatusType === "ok" ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                  {backupStatusType === "ok" ? <Check className="h-3.5 w-3.5" /> : null}
+                  {backupStatus}
                 </div>
-                {backupStatus && <p className="text-xs text-muted-foreground">{backupStatus}</p>}
-              </div>
-
-              <div className="min-w-0">
-                <textarea
-                  value={backupText}
-                  onChange={(e) => setBackupText(e.target.value)}
-                  placeholder="Exported backup text will appear here. You can also paste a backup here to restore it."
-                  className="min-h-[140px] w-full rounded-md border border-border bg-background px-3 py-2 text-xs font-mono text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -2799,8 +2808,3 @@ export default function MarriageMatcher() {
     </div>
   );
 }
-
-
-
-
-

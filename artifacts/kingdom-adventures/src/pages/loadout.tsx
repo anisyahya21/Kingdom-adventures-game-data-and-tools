@@ -315,6 +315,29 @@ function formatPct(part: number, total: number) {
   return `${((part * 100) / total).toFixed(1)}%`;
 }
 
+function ordinalWord(value: number) {
+  const words = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+  return words[value - 1] ?? `${value}th`;
+}
+
+function attackOutcomeText(round: BattleResult["rounds"][number]) {
+  if (!round.result.hit) return "missed";
+  return `dealt ${formatNum(round.result.damage)} damage`;
+}
+
+const COMBAT_SIDE_STYLE = {
+  a: {
+    row: "border-l-4 border-l-sky-400 bg-sky-50/25 dark:border-l-sky-500 dark:bg-sky-950/10",
+    chip: "border-sky-300/70 bg-sky-50/30 text-sky-900 dark:border-sky-700 dark:bg-sky-950/15 dark:text-sky-100",
+    label: "text-sky-800 dark:text-sky-200",
+  },
+  b: {
+    row: "border-l-4 border-l-rose-300 bg-rose-50/20 dark:border-l-rose-500/80 dark:bg-rose-950/10",
+    chip: "border-rose-300/60 bg-rose-50/25 text-rose-900 dark:border-rose-800/80 dark:bg-rose-950/15 dark:text-rose-100",
+    label: "text-rose-700 dark:text-rose-200",
+  },
+} as const;
+
 function baseManualCombatant(name: string): Combatant {
   return {
     name,
@@ -383,6 +406,25 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
     setBattle(simulateDuel(resolvedA, resolvedB));
     setBatch(simulateBatch(resolvedA, resolvedB, Math.max(1, batchCount)));
   };
+
+  const battleSummary = useMemo(() => {
+    if (!battle || !resolvedA || !resolvedB) return null;
+    let aAttacks = 0;
+    let bAttacks = 0;
+    const rows = battle.rounds.map((round, index) => {
+      const isA = round.attacker === resolvedA.name;
+      const attackNumber = isA ? ++aAttacks : ++bAttacks;
+      return {
+        id: `${round.attacker}-${index}`,
+        side: (isA ? "a" : "b") as keyof typeof COMBAT_SIDE_STYLE,
+        label: `${round.attacker} ${ordinalWord(attackNumber)} attack`,
+        text: `${attackOutcomeText(round)}. ${round.defender} HP after: ${formatNum(round.defenderHpAfter)}.`,
+        crit: round.result.crit,
+        meta: `${round.result.attackType}${round.result.note ? ` - ${round.result.note}` : ""}`,
+      };
+    });
+    return { aAttacks, bAttacks, rows };
+  }, [battle, resolvedA, resolvedB]);
 
   const renderManualEditor = (c: Combatant, setC: (next: Combatant) => void) => (
     <div className="grid grid-cols-2 gap-2">
@@ -474,19 +516,54 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
         </div>
 
         {(battle || batch) && (
-          <div className="space-y-2 text-sm">
+          <div className="space-y-3 text-sm">
             {batch && (
-              <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs">
-                <strong>{resolvedA?.name ?? "A"}</strong> won {formatNum(batch.leftWins)} ({formatPct(batch.leftWins, batch.total)}), <strong>{resolvedB?.name ?? "B"}</strong> won {formatNum(batch.rightWins)} ({formatPct(batch.rightWins, batch.total)}), draws {formatNum(batch.draws)} ({formatPct(batch.draws, batch.total)}) out of {formatNum(batch.total)}.
+              <div className="rounded-md border border-border bg-transparent px-3 py-2 text-xs">
+                Batch outcomes: <strong>{resolvedA?.name ?? "A"}</strong> ahead in {formatNum(batch.leftWins)} ({formatPct(batch.leftWins, batch.total)}), <strong>{resolvedB?.name ?? "B"}</strong> ahead in {formatNum(batch.rightWins)} ({formatPct(batch.rightWins, batch.total)}), draws {formatNum(batch.draws)} ({formatPct(batch.draws, batch.total)}) out of {formatNum(batch.total)}.
               </div>
             )}
             {battle && (
-              <div className="flex flex-wrap gap-2 text-xs">
-                <span className="rounded-md border border-border bg-muted/10 px-2 py-1">{battle.winner ? `${battle.winner} wins` : "No winner"} in {battle.rounds.length} strikes</span>
-                <span className="rounded-md border border-border bg-muted/10 px-2 py-1">{resolvedA?.name ?? "A"}: {formatNum(battle.leftHp)} HP</span>
-                <span className="rounded-md border border-border bg-muted/10 px-2 py-1">{resolvedB?.name ?? "B"}: {formatNum(battle.rightHp)} HP</span>
-                <span className="rounded-md border border-border bg-muted/10 px-2 py-1">{resolvedA?.name ?? "A"}: {battle.rounds.filter((r) => r.attacker === (resolvedA?.name ?? "")).length} attacks</span>
-                <span className="rounded-md border border-border bg-muted/10 px-2 py-1">{resolvedB?.name ?? "B"}: {battle.rounds.filter((r) => r.attacker === (resolvedB?.name ?? "")).length} attacks</span>
+              <div className="rounded-md border border-border bg-background">
+                <div className="space-y-3 border-b border-border bg-transparent p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="text-sm font-semibold">Duel summary</div>
+                      <div className="text-xs text-muted-foreground">
+                        {battle.winner ? `${battle.winner} standing` : "Draw"} after {battle.rounds.length} strikes
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-md border border-border bg-transparent px-2 py-1">{resolvedA?.name ?? "A"}: {formatNum(battle.leftHp)} HP left</span>
+                      <span className="rounded-md border border-border bg-transparent px-2 py-1">{resolvedB?.name ?? "B"}: {formatNum(battle.rightHp)} HP left</span>
+                    </div>
+                  </div>
+                  {battleSummary && (
+                    <div className="grid gap-2 text-xs sm:grid-cols-2">
+                      <div className={`rounded-md border px-2 py-1 ${COMBAT_SIDE_STYLE.a.chip}`}>
+                        <strong>{resolvedA?.name ?? "A"}</strong>: {battleSummary.aAttacks} attacks
+                      </div>
+                      <div className={`rounded-md border px-2 py-1 ${COMBAT_SIDE_STYLE.b.chip}`}>
+                        <strong>{resolvedB?.name ?? "B"}</strong>: {battleSummary.bAttacks} attacks
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {battleSummary && (
+                  <div className="divide-y divide-border">
+                    {battleSummary.rows.map((row) => (
+                      <div key={row.id} className={`grid gap-1 px-3 py-2 text-xs sm:grid-cols-[180px_1fr] sm:items-start ${COMBAT_SIDE_STYLE[row.side].row}`}>
+                        <div className={`font-semibold ${COMBAT_SIDE_STYLE[row.side].label}`}>{row.label}</div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2 text-foreground">
+                            <span>{row.text}</span>
+                            {row.crit ? <span className="font-semibold text-orange-500">💥 Crit</span> : null}
+                          </div>
+                          <div className="text-muted-foreground">{row.meta}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
