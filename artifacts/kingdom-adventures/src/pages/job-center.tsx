@@ -26,7 +26,8 @@ export default function JobCenterPage() {
           <h1 className="text-xl font-bold tracking-tight">Job Center</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          First-draft weekly job-center profession rotation, using the community sheet as a readable guide while we trace the mined source.
+          Kingdom Adventures Job Center profession rotation by weekday, with the current event day highlighted
+          for faster planning.
         </p>
       </div>
 

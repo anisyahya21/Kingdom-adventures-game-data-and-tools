@@ -1579,12 +1579,10 @@ export default function EquipmentLevelingOptimizerPage() {
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold tracking-tight">Equipment Leveling Optimizer</h1>
-          <Badge variant="outline" className="border-orange-400/50 text-orange-500 dark:text-orange-300">
-            Beta / Experimental
-          </Badge>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Find efficient routes to level equipment with low waste and low copper cost.
+          Find efficient Kingdom Adventures equipment leveling routes with low EXP waste, low copper cost,
+          sacrifice item planning, cap-stage math, and Grand Prize exchange inputs.
         </p>
       </div>
 

@@ -23,7 +23,7 @@ const CARDS = [
     title: "Equipment Leveling Optimizer",
     description: "Calculate EXP gained from sacrificed equipment and prepare for cheapest leveling route optimization.",
     icon: TrendingUp,
-    badge: "Beta",
+    badge: "Optimizer",
   },
 ];
 

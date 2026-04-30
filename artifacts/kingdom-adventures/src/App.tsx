@@ -108,7 +108,7 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
   "/equipment-leveling-optimizer": {
     title: "Kingdom Adventures Equipment Leveling Optimizer",
     description:
-      "Optimize Kingdom Adventures equipment leveling plans with material and upgrade calculations.",
+      "Optimize Kingdom Adventures equipment leveling plans with EXP, copper cost, sacrifice routes, cap stages, and upgrade calculations.",
   },
   "/skills": {
     title: "Kingdom Adventures Skills Database",
@@ -158,7 +158,7 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
   "/houses": {
     title: "Kingdom Adventures Houses and Facilities",
     description:
-      "Plan Kingdom Adventures houses, facilities, furniture, and town building decisions.",
+      "Plan Kingdom Adventures houses and facilities with plot sizes, building costs, indoor slots, beds, shelves, monster rooms, upgrade costs, map unlocks, HP, range, storage, and production data.",
   },
   "/survey": {
     title: "Kingdom Adventures Survey Planner",
@@ -514,7 +514,7 @@ function SiteHeader() {
       children: [
         { href: "/equipment-stats", label: "Equipment Stats" },
         { href: "/equipment-exchange", label: "Equipment Exchange" },
-        { href: "/equipment-leveling-optimizer", label: "Equipment Leveling Optimizer", beta: true },
+        { href: "/equipment-leveling-optimizer", label: "Equipment Leveling Optimizer" },
       ],
     },
     {

@@ -40,14 +40,14 @@ const EVENT_CARDS = [
   {
     href: "/kairo-room",
     title: "Kairo Room",
-    description: "Active days, challenge names, and first-draft equipment box rewards from the EN sheet.",
+    description: "Active days, challenge names, and equipment box rewards from the EN sheet.",
     icon: Wand2,
     status: "inactive" as EventStatus,
   },
   {
     href: "/job-center",
     title: "Job Center",
-    description: "Weekly profession rotation by day, using the EN sheet as a readable first pass.",
+    description: "Weekly profession rotation by day, using the EN sheet as a readable event schedule.",
     icon: BriefcaseBusiness,
     status: "live" as EventStatus,
   },
@@ -76,7 +76,8 @@ export default function TimedEventsPage() {
           <h1 className="text-xl font-bold tracking-tight">Events</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Home for the time-based systems we want grouped under one card on the homepage.
+          Kingdom Adventures event hub for weekly conquest, gacha windows, Wairo Dungeon,
+          daily rank rewards, Kairo Room, and Job Center schedules.
         </p>
       </div>
 

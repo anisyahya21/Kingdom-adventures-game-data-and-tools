@@ -33,7 +33,8 @@ export default function DailyRankRewardsPage() {
           <h1 className="text-xl font-bold tracking-tight">Daily Rank Rewards</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          First-draft daily ranking board rewards by weekday, showing the current community-understood S and A rank payouts.
+          Kingdom Adventures daily ranking board rewards by weekday, showing S and A rank payouts for weapons,
+          armor, shields, tickets, skills, and overall item rewards.
         </p>
       </div>
 

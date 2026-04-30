@@ -2075,9 +2075,7 @@ export default function HousesPage() {
 
   const q = query.trim().toLowerCase();
 
-  // All current buildings are plots × they all appear in the Houses & Plots tab.
-  // Facilities (walls, gates, roads, torches, townhall×) are non-plot infrastructure
-  // and will be added separately under the Facilities tab.
+  // Buildings are plots. Facilities cover non-plot town infrastructure.
   const filtered = tab === "facilities" ? [] : BUILDINGS.filter(b => {
     if (!q) return true;
     return b.name.toLowerCase().includes(q);
@@ -2091,10 +2089,16 @@ export default function HousesPage() {
           <Home className="w-5 h-5 text-muted-foreground" />
           <h1 className="text-xl font-bold tracking-tight">Houses & Facilities</h1>
         </div>
-        <p className="text-sm text-muted-foreground max-w-2xl">
-          Land plots (S / M / L / XL) are built into one of these building types.
-          The building type determines what can go inside and how many slots you get per plot size.
-        </p>
+        <div className="max-w-4xl space-y-2 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            Plan Kingdom Adventures houses and facilities with plot sizes, building costs, indoor slots, beds,
+            shelves, monster room slots, upgrade costs, upgrade time, HP, range, storage, production, and map unlock data.
+          </p>
+          <p>
+            Houses & Plots shows what each S / M / L / XL plot can become and what fits inside. Facilities covers
+            town infrastructure like walls, gates, roads, storehouses, resource production, indoor objects, and map-unlocked buildings.
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">
@@ -2195,7 +2199,7 @@ export default function HousesPage() {
               return (
                 <div className="py-12 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {q ? `No facilities found for "${query}".` : "No data yet for this tab."}
+                    {q ? `No facilities found for "${query}".` : "No facilities in this category."}
                   </p>
                 </div>
               );

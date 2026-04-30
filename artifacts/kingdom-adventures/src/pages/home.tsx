@@ -231,7 +231,7 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/eggs-pets-monsters",
     title: "Eggs, Pets & Monsters",
-    description: "Landing page for Eggs & Pets and the Monsters & Pets database split.",
+    description: "Egg planner plus detailed monster and pet databases for stats, growth, spawn locations, and team planning.",
     icon: <Egg className="w-6 h-6 text-yellow-500" />,
     badge: "Planner",
     badgeColor: "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300",
@@ -247,7 +247,7 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/houses",
     title: "Houses & Facilities",
-    description: "Facilities, plots, map unlocks, and building-related references.",
+    description: "Plan plots, building costs, indoor slots, beds, shelves, monster rooms, facility upgrades, map unlocks, storage, and production.",
     icon: <HomeIcon className="w-6 h-6 text-lime-500" />,
     badge: "Buildings",
     badgeColor: "bg-lime-100 text-lime-700 border-lime-200 dark:bg-lime-950 dark:text-lime-300",
