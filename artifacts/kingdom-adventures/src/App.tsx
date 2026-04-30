@@ -46,6 +46,10 @@ import { SHOP_RECORDS } from "@/lib/shop-utils";
 import TestPage from "./pages/Test";
 
 const queryClient = new QueryClient();
+const SITE_URL = "https://kingdom-adventures-community-tools.vercel.app";
+const SITE_NAME = "Kingdom Adventures Community Tools";
+const DEFAULT_DESCRIPTION =
+  "Kingdom Adventures tools, databases, guides, job stats, equipment exchange, shops, monsters, pets, events, maps, and calculators for planning stronger towns.";
 
 type GlobalSearchEntry = { label: string; subtitle: string; href: string };
 type NavLink = { href: string; label: string; beta?: boolean };
@@ -64,6 +68,325 @@ const FURNITURE_SEARCH_ROWS = [
   "Magic Training Ground","Glittering Stone","Black Mat","Fireplace","Tree Nursery","Ancestor Statue",
   "Animal Figurine","Tool Workshop","Ore Workbench","Double Bed",
 ];
+
+type SeoMeta = {
+  title: string;
+  description: string;
+  canonicalPath: string;
+};
+
+const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
+  "/": {
+    title: SITE_NAME,
+    description: DEFAULT_DESCRIPTION,
+  },
+  "/jobs": {
+    title: "Kingdom Adventures Job Database",
+    description:
+      "Compare Kingdom Adventures jobs by stats, battle type, skills, ranges, and weapon or shield access.",
+  },
+  "/match-finder": {
+    title: "Kingdom Adventures Match Finder",
+    description:
+      "Find strong Kingdom Adventures marriage matches and plan children, awakenings, and job pairings.",
+  },
+  "/equipment": {
+    title: "Kingdom Adventures Equipment Stats and Exchange",
+    description:
+      "Search Kingdom Adventures equipment stats, exchange values, shop data, and upgrade planning tools.",
+  },
+  "/equipment-stats": {
+    title: "Kingdom Adventures Equipment Stats",
+    description:
+      "Look up Kingdom Adventures weapons, armor, accessories, stats, ranks, and equipment details.",
+  },
+  "/equipment-exchange": {
+    title: "Kingdom Adventures Equipment Exchange",
+    description:
+      "Calculate Kingdom Adventures equipment exchange values and plan efficient item trades.",
+  },
+  "/equipment-leveling-optimizer": {
+    title: "Kingdom Adventures Equipment Leveling Optimizer",
+    description:
+      "Optimize Kingdom Adventures equipment leveling plans with material and upgrade calculations.",
+  },
+  "/skills": {
+    title: "Kingdom Adventures Skills Database",
+    description:
+      "Search Kingdom Adventures skills, effects, compatibility, and planning data for jobs and units.",
+  },
+  "/loadout": {
+    title: "Kingdom Adventures Loadout Builder",
+    description:
+      "Build and compare Kingdom Adventures loadouts with equipment, skills, jobs, and stat planning.",
+  },
+  "/eggs-pets-monsters": {
+    title: "Kingdom Adventures Eggs, Pets, and Monsters",
+    description:
+      "Browse Kingdom Adventures eggs, pets, monsters, spawn info, and monster planning tools.",
+  },
+  "/eggs": {
+    title: "Kingdom Adventures Eggs and Pets",
+    description:
+      "Plan Kingdom Adventures eggs and pets with hatching, compatibility, and pet data.",
+  },
+  "/monsters": {
+    title: "Kingdom Adventures Monster Spawns",
+    description:
+      "Search Kingdom Adventures monsters, spawn locations, levels, drops, and map data.",
+  },
+  "/monster-spawns": {
+    title: "Kingdom Adventures Monster Spawns",
+    description:
+      "Search Kingdom Adventures monster spawn locations, levels, drops, and map data.",
+  },
+  "/monsters-pets": {
+    title: "Kingdom Adventures Monsters and Pets",
+    description:
+      "Compare Kingdom Adventures monsters and pets with stats, icons, and planning data.",
+  },
+  "/monster-pet-stats": {
+    title: "Kingdom Adventures Monster Pet Stats",
+    description:
+      "Compare Kingdom Adventures monster and pet stats for stronger team planning.",
+  },
+  "/shops": {
+    title: "Kingdom Adventures Shop Database",
+    description:
+      "Search Kingdom Adventures shop unlocks, furniture, weapons, armor, accessories, items, restaurants, and skills.",
+  },
+  "/houses": {
+    title: "Kingdom Adventures Houses and Facilities",
+    description:
+      "Plan Kingdom Adventures houses, facilities, furniture, and town building decisions.",
+  },
+  "/survey": {
+    title: "Kingdom Adventures Survey Planner",
+    description:
+      "Plan Kingdom Adventures surveys, map exploration, rewards, and town progression.",
+  },
+  "/survey-planner": {
+    title: "Kingdom Adventures Survey Planner",
+    description:
+      "Plan Kingdom Adventures surveys, map exploration, rewards, and town progression.",
+  },
+  "/timed-events": {
+    title: "Kingdom Adventures Timed Events",
+    description:
+      "Track Kingdom Adventures timed events, weekly activities, gacha events, dungeons, and reward planning.",
+  },
+  "/weekly-conquest": {
+    title: "Kingdom Adventures Weekly Conquest",
+    description:
+      "Plan Kingdom Adventures weekly conquest fights, rewards, timing, and event progress.",
+  },
+  "/wario-dungeon": {
+    title: "Kingdom Adventures Wairo Dungeon",
+    description:
+      "Use Kingdom Adventures Wairo Dungeon data for event planning, rewards, and progression.",
+  },
+  "/daily-rank-rewards": {
+    title: "Kingdom Adventures Daily Rank Rewards",
+    description:
+      "Check Kingdom Adventures daily rank rewards and plan collection timing.",
+  },
+  "/job-center": {
+    title: "Kingdom Adventures Job Center",
+    description:
+      "Review Kingdom Adventures Job Center data, unlocks, and job planning details.",
+  },
+  "/kairo-room": {
+    title: "Kingdom Adventures Kairo Room",
+    description:
+      "Find Kingdom Adventures Kairo Room data, rewards, and planning details.",
+  },
+  "/gacha-events": {
+    title: "Kingdom Adventures Gacha Events",
+    description:
+      "Track Kingdom Adventures gacha events, banners, timing, and reward planning.",
+  },
+  "/town-rank": {
+    title: "Kingdom Adventures Town Rank",
+    description:
+      "Plan Kingdom Adventures town rank progression, unlocks, requirements, and rewards.",
+  },
+  "/world-map": {
+    title: "Kingdom Adventures World Map",
+    description:
+      "Use the Kingdom Adventures world map to plan exploration, monsters, rewards, and resources.",
+  },
+  "/map-2-testing": {
+    title: "Kingdom Adventures Map 2 Testing",
+    description:
+      "Review Kingdom Adventures map testing data for exploration and progression planning.",
+  },
+  "/guides": {
+    title: "Kingdom Adventures Guides",
+    description:
+      "Read Kingdom Adventures guides, community notes, playthrough help, and strategy resources.",
+  },
+  "/playthrough-guide": {
+    title: "Kingdom Adventures Playthrough Guide",
+    description:
+      "Follow a Kingdom Adventures playthrough guide with progression advice, planning tips, and strategy notes.",
+  },
+  "/updates": {
+    title: "Kingdom Adventures Tool Updates",
+    description:
+      "See recent updates to the Kingdom Adventures community tools, databases, and calculators.",
+  },
+  "/sync-devices": {
+    title: "Kingdom Adventures Sync Devices",
+    description:
+      "Sync Kingdom Adventures tool settings and planning data across your devices.",
+  },
+};
+
+function getSeoMeta(pathname: string): SeoMeta {
+  const cleanPath = pathname.split("?")[0].replace(/\/$/, "") || "/";
+
+  if (cleanPath.startsWith("/jobs/")) {
+    const jobName = decodeURIComponent(cleanPath.replace("/jobs/", ""));
+    return {
+      title: `${jobName} Job Stats - Kingdom Adventures`,
+      description: `View ${jobName} job stats, rank scaling, skills, ranges, battle type, and equipment access in Kingdom Adventures.`,
+      canonicalPath: cleanPath,
+    };
+  }
+
+  if (cleanPath.startsWith("/shops/")) {
+    const slug = cleanPath.replace("/shops/", "");
+    const shop = SHOP_RECORDS.find((record) => record.slug === slug);
+    const shopName = shop?.title ?? slug.split("-").map((part) => part[0]?.toUpperCase() + part.slice(1)).join(" ");
+
+    return {
+      title: `${shopName} - Kingdom Adventures Shop Database`,
+      description: `Search ${shopName} items, unlocks, costs, and shop data for Kingdom Adventures.`,
+      canonicalPath: cleanPath,
+    };
+  }
+
+  if (cleanPath.startsWith("/guides/")) {
+    const guideName = decodeURIComponent(cleanPath.replace("/guides/", "")).replace(/-/g, " ");
+    return {
+      title: `${guideName} - Kingdom Adventures Guide`,
+      description: `Read the ${guideName} guide for Kingdom Adventures strategy, planning, and community tips.`,
+      canonicalPath: cleanPath,
+    };
+  }
+
+  const meta = ROUTE_SEO[cleanPath] ?? {
+    title: SITE_NAME,
+    description: DEFAULT_DESCRIPTION,
+  };
+
+  return { ...meta, canonicalPath: cleanPath };
+}
+
+function encodeCanonicalPath(path: string) {
+  if (path === "/") return "/";
+
+  return path
+    .split("/")
+    .map((part) => {
+      try {
+        return encodeURIComponent(decodeURIComponent(part));
+      } catch {
+        return encodeURIComponent(part);
+      }
+    })
+    .join("/");
+}
+
+function upsertMeta(selector: string, create: () => HTMLMetaElement | HTMLLinkElement | HTMLScriptElement, value: string) {
+  const existing = document.head.querySelector(selector) as HTMLMetaElement | HTMLLinkElement | HTMLScriptElement | null;
+  const element = existing ?? create();
+
+  if (!existing) {
+    document.head.appendChild(element);
+  }
+
+  if (element instanceof HTMLMetaElement) {
+    element.content = value;
+  } else if (element instanceof HTMLLinkElement) {
+    element.href = value;
+  } else {
+    element.textContent = value;
+  }
+}
+
+function SeoManager() {
+  const [pathname] = useLocation();
+
+  useEffect(() => {
+    const meta = getSeoMeta(pathname);
+    const canonicalUrl = `${SITE_URL}${encodeCanonicalPath(meta.canonicalPath)}`;
+    const imageUrl = `${SITE_URL}/opengraph.jpg`;
+    const title = meta.title.includes(SITE_NAME) ? meta.title : `${meta.title} | ${SITE_NAME}`;
+
+    document.title = title;
+
+    upsertMeta('meta[name="description"]', () => {
+      const element = document.createElement("meta");
+      element.name = "description";
+      return element;
+    }, meta.description);
+    upsertMeta('link[rel="canonical"]', () => {
+      const element = document.createElement("link");
+      element.rel = "canonical";
+      return element;
+    }, canonicalUrl);
+    upsertMeta('meta[property="og:title"]', () => {
+      const element = document.createElement("meta");
+      element.setAttribute("property", "og:title");
+      return element;
+    }, title);
+    upsertMeta('meta[property="og:description"]', () => {
+      const element = document.createElement("meta");
+      element.setAttribute("property", "og:description");
+      return element;
+    }, meta.description);
+    upsertMeta('meta[property="og:url"]', () => {
+      const element = document.createElement("meta");
+      element.setAttribute("property", "og:url");
+      return element;
+    }, canonicalUrl);
+    upsertMeta('meta[property="og:image"]', () => {
+      const element = document.createElement("meta");
+      element.setAttribute("property", "og:image");
+      return element;
+    }, imageUrl);
+    upsertMeta('meta[name="twitter:title"]', () => {
+      const element = document.createElement("meta");
+      element.name = "twitter:title";
+      return element;
+    }, title);
+    upsertMeta('meta[name="twitter:description"]', () => {
+      const element = document.createElement("meta");
+      element.name = "twitter:description";
+      return element;
+    }, meta.description);
+    upsertMeta('meta[name="twitter:image"]', () => {
+      const element = document.createElement("meta");
+      element.name = "twitter:image";
+      return element;
+    }, imageUrl);
+    upsertMeta('script[type="application/ld+json"][data-seo="website"]', () => {
+      const element = document.createElement("script");
+      element.type = "application/ld+json";
+      element.dataset.seo = "website";
+      return element;
+    }, JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: SITE_NAME,
+      url: SITE_URL,
+      description: DEFAULT_DESCRIPTION,
+    }));
+  }, [pathname]);
+
+  return null;
+}
 
 function SiteHeader() {
   const [pathname, navigate] = useLocation();
@@ -480,6 +803,7 @@ const App = memo(function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <SeoManager />
           <ScrollToTopOnRouteChange />
           <SiteHeader />
           <main className="ka-app-shell pt-14">
