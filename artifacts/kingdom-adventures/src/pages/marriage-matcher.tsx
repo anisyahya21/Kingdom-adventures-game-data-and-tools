@@ -2407,7 +2407,7 @@ export default function MarriageMatcher() {
             <div>
               <h1 className="text-3xl font-bold text-foreground tracking-tight">Match Finder &amp; Marriage Sim</h1>
               <p className="mt-1 text-muted-foreground text-sm max-w-xl">
-                Find optimal job pairings, simulate a marriage and see child stats, or browse the full compatibility data.
+                Find optimal Kingdom Adventures job pairings, simulate marriage outcomes, preview child stats, and browse full compatibility data.
               </p>
             </div>
           </div>
