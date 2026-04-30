@@ -212,17 +212,24 @@ export default function MonsterPetStatsPage() {
           <Database className="w-5 h-5 text-muted-foreground" />
           <h1 className="text-xl font-bold tracking-tight">Monster & Pet Stats</h1>
         </div>
-        <p className="text-sm text-muted-foreground max-w-4xl">
-          First readable pass from the mined <code>Monster.csv</code>. The sheet stores each stat as a 4-value block:
-          <span className="font-medium text-foreground"> level 1, level 100, level 1,000, and level 10,000</span>.
-        </p>
+        <div className="max-w-4xl space-y-2 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            Detailed Kingdom Adventures monster and pet stat database built from the mined <code>Monster.csv</code>.
+            Search by monster name or id, sort by core stats, and compare up to four monsters side by side.
+          </p>
+          <p>
+            Each stat is stored as a level-based block:
+            <span className="font-medium text-foreground"> level 1, level 100, level 1,000, and level 10,000</span>,
+            with a custom level column for quick pet and monster planning.
+          </p>
+        </div>
       </div>
 
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">How This Sheet Reads</CardTitle>
           <CardDescription>
-            The mined monster sheet packs stats in blocks. This page currently focuses only on HP, MP, Attack, Def, Speed, Luck, and Dex.
+            The mined monster sheet packs stats in blocks. This view focuses on HP, MP, Attack, Def, Speed, Luck, and Dex.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2 text-xs">

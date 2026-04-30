@@ -7,14 +7,14 @@ const CARDS = [
   {
     href: "/eggs",
     title: "Eggs & Pets",
-    description: "Egg planner with I Want This Pet, I Have This Egg, and Feed Item Reference.",
+    description: "Kingdom Adventures egg planner with I Want This Pet, I Have This Egg, pet outcomes, and feed item reference.",
     icon: Egg,
     badge: "Planner",
   },
   {
     href: "/monsters-pets",
     title: "Monsters & Pets",
-    description: "Home for the monster spawns database and the future monster & pet stats database.",
+    description: "Full monster and pet database with spawn locations, detailed stats, growth data, levels, and pet planning.",
     icon: Skull,
     badge: "Database",
   },
@@ -25,9 +25,16 @@ export default function EggsPetsMonstersPage() {
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="space-y-1">
         <h1 className="text-xl font-bold tracking-tight">Eggs, Pets & Monsters</h1>
-        <p className="text-sm text-muted-foreground max-w-3xl">
-          Choose between the current egg planner and the broader monster and pet database area.
-        </p>
+        <div className="max-w-3xl space-y-2 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            Plan Kingdom Adventures eggs, pets, and monsters with tools that go beyond simple spawn lists.
+            This section connects egg outcomes, feed items, monster locations, pet stats, growth data, and level-based details.
+          </p>
+          <p>
+            Use the egg planner when you want a specific pet, or open the monster and pet database when you need detailed
+            information for collecting, comparing, and building stronger teams.
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

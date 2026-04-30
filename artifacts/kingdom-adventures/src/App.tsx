@@ -123,7 +123,7 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
   "/eggs-pets-monsters": {
     title: "Kingdom Adventures Eggs, Pets, and Monsters",
     description:
-      "Browse Kingdom Adventures eggs, pets, monsters, spawn info, and monster planning tools.",
+      "Plan Kingdom Adventures eggs, pets, and monsters with egg outcomes, feed items, spawn locations, detailed stats, growth data, and level-based comparisons.",
   },
   "/eggs": {
     title: "Kingdom Adventures Eggs and Pets",
@@ -143,12 +143,12 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
   "/monsters-pets": {
     title: "Kingdom Adventures Monsters and Pets",
     description:
-      "Compare Kingdom Adventures monsters and pets with stats, icons, and planning data.",
+      "Browse detailed Kingdom Adventures monster and pet data, including spawn locations, base stats, growth, levels, and stat comparisons.",
   },
   "/monster-pet-stats": {
     title: "Kingdom Adventures Monster Pet Stats",
     description:
-      "Compare Kingdom Adventures monster and pet stats for stronger team planning.",
+      "Compare Kingdom Adventures monster and pet stats with base levels, growth values, and level-based stat tables for stronger team planning.",
   },
   "/shops": {
     title: "Kingdom Adventures Shop Database",

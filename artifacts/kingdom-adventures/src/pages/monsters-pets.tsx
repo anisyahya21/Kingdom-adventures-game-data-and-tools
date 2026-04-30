@@ -7,16 +7,16 @@ const CARDS = [
   {
     href: "/monster-spawns",
     title: "Monster Spawns",
-    description: "Current monster spawn database, separated from Weekly Conquest.",
+    description: "Search Kingdom Adventures monster spawn locations, levels, areas, drops, and map-based encounter data.",
     icon: MapPin,
     badge: "Live",
   },
   {
     href: "/monster-pet-stats",
     title: "Monster & Pet Stats",
-    description: "Future database for monster and pet base level, growth, and level-based stats.",
+    description: "Detailed Kingdom Adventures monster and pet stats database with base levels, growth, and level-based stat tables.",
     icon: Database,
-    badge: "Scaffold",
+    badge: "Stats",
   },
 ];
 
@@ -25,9 +25,16 @@ export default function MonstersPetsPage() {
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="space-y-1">
         <h1 className="text-xl font-bold tracking-tight">Monsters & Pets</h1>
-        <p className="text-sm text-muted-foreground max-w-3xl">
-          Split the database into location-driven spawn data and deeper monster or pet stat pages.
-        </p>
+        <div className="max-w-3xl space-y-2 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            Browse the Kingdom Adventures monster database and pet database in detail, including spawn locations,
+            monster levels, pet base stats, growth, and level-based stat comparisons.
+          </p>
+          <p>
+            Use Monster Spawns when you need to find where an enemy appears, or Monster & Pet Stats when you want
+            the deeper data for collecting, pet planning, and team comparisons.
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
