@@ -499,7 +499,16 @@ export default function Home() {
         <div className="flex items-start justify-between mb-10 gap-4">
           <div className="min-w-0">
             <h1 className="text-4xl font-bold text-foreground tracking-tight">Kingdom Adventures</h1>
-            <p className="mt-2 text-muted-foreground">Tools & resources for Kingdom Adventures players.</p>
+            <div className="mt-2 max-w-3xl space-y-2 text-sm leading-relaxed text-muted-foreground">
+              <p>
+                Kingdom Adventures Community Tools is a searchable reference site for jobs, equipment, shops,
+                monsters, pets, events, maps, guides, and planning calculators.
+              </p>
+              <p>
+                Use it to compare job stats, check weapon and shield access, plan equipment exchange routes,
+                find shop unlocks, follow event timers, and make better town progression decisions.
+              </p>
+            </div>
             <Link href="/updates" className="mt-2 inline-block text-sm font-semibold text-primary underline underline-offset-2 hover:opacity-90 transition-opacity">
               Click here for the latest updates and patch notes.
             </Link>

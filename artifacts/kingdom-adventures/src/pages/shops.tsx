@@ -1042,10 +1042,11 @@ export default function ShopsPage() {
           <div className="space-y-4">
             <Card className="shadow-sm">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Weapon Shop Database</CardTitle>
-                <CardDescription className="text-xs">
-                  Read-only weapon browsing from the translated equipment data. Fixed weapon data stays reference-only.
-                </CardDescription>
+            <CardTitle className="text-base">Weapon Shop Database</CardTitle>
+            <CardDescription className="text-xs">
+                  Browse Kingdom Adventures weapon shop data, weapon ranks, weapon types, crafting levels,
+                  intelligence requirements, prices, and combat stats from the translated equipment database.
+            </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
@@ -1070,10 +1071,11 @@ export default function ShopsPage() {
           <div className="space-y-4">
             <Card className="shadow-sm">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Armor Shop Database</CardTitle>
-                <CardDescription className="text-xs">
-                  Covers headgear, armor, and shields in one shop-facing view.
-                </CardDescription>
+            <CardTitle className="text-base">Armor Shop Database</CardTitle>
+            <CardDescription className="text-xs">
+                  Browse Kingdom Adventures armor shop data for headgear, armor, and shields with ranks,
+                  crafting levels, intelligence requirements, prices, defence, speed, luck, HP, and MP.
+            </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap items-center gap-3">

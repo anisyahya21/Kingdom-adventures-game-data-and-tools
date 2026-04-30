@@ -127,7 +127,8 @@ export default function GuidesPage() {
             <h1 className="text-xl font-bold tracking-tight">Guides</h1>
           </div>
           <p className="text-sm text-muted-foreground max-w-3xl">
-            Community-written guides collected in one place. Add a public Google Doc and the site keeps rendering it live.
+            Community-written Kingdom Adventures guides collected in one place, including progression advice,
+            playthrough notes, event planning, town development, jobs, equipment, pets, monsters, and strategy help.
           </p>
         </div>
         <Link href="/add-guide">

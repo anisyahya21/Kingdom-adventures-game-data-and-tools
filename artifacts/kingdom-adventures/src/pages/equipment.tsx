@@ -1198,7 +1198,10 @@ export default function EquipmentPage() {
           <div className="flex items-center gap-3">
             <div>
               <h1 className="text-2xl font-bold text-foreground">Equipment Stats</h1>
-              <p className="text-xs text-muted-foreground">Compare equipment at any level · Build your loadout</p>
+              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                Search and compare Kingdom Adventures equipment at any level, including weapons, shields,
+                armor, headgear, accessories, ranks, stats, shop data, crafting requirements, and loadout values.
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">

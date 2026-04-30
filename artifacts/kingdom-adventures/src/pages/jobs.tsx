@@ -3086,9 +3086,16 @@ export default function JobsPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             {!selectedJob && (
-              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-sky-500" />Job Database
-              </h1>
+              <div className="space-y-2">
+                <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-sky-500" />Job Database
+                </h1>
+                <p className="max-w-4xl text-sm leading-relaxed text-muted-foreground">
+                  Compare every Kingdom Adventures job by rank stats, battle type, skills, searching range,
+                  deployment range, defog area, and weapon or shield accessibility. Use advanced compare to
+                  sort jobs for combat builds, town workers, marriage planning, and late-game progression.
+                </p>
+              </div>
             )}
           </div>
           <div className="flex items-center gap-2">

@@ -33,7 +33,8 @@ export default function EquipmentStatsExchangePage() {
       <div className="space-y-1">
         <h1 className="text-xl font-bold tracking-tight">Equipment Stats & Exchange</h1>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Choose between the equipment stats database and the decoded Equipment Exchange calculator.
+          Choose between the Kingdom Adventures equipment stats database, exchange calculator, and leveling optimizer.
+          Use these tools to compare weapons, shields, armor, accessories, ranks, craft requirements, and exchange routes.
         </p>
       </div>
 
