@@ -1314,38 +1314,42 @@ function AdvancedCompareDialog({
   };
 
   useEffect(() => {
-    if (showWeaponAccess && !sortKey.startsWith("access-") && sortKey !== "name") {
-      setSortKey("name");
-      setSortDir("asc");
-    }
-  }, [showWeaponAccess, sortKey]);
-
-  useEffect(() => {
     if (!showBattleType && sortKey === "type") {
       setSortKey("name");
       setSortDir("asc");
     }
   }, [showBattleType, sortKey]);
 
+  useEffect(() => {
+    if ((showWeaponAccess && sortKey.startsWith("group-")) || (!showWeaponAccess && sortKey.startsWith("access-"))) {
+      setSortKey("name");
+      setSortDir("asc");
+    }
+  }, [showWeaponAccess, sortKey]);
+
   const selectedStats = useMemo(
     () => showWeaponAccess ? [] : STAT_ORDER.filter((stat) => activeGroups.some((group) => group.stats.includes(stat))),
     [activeGroups, showWeaponAccess],
   );
-  const showBattleColumn = showBattleType && !showWeaponAccess;
+  const showBattleColumn = showBattleType;
   const expandedTableWidth = 104
     + (showBattleColumn ? 80 : 0)
     + (showSkills ? 98 : 0)
     + selectedRanges.length * 76
-    + activeGroups.length * 86
+    + (showWeaponAccess ? 0 : activeGroups.length * 86)
     + selectedStats.length * 56;
-  const compactTable = !showWeaponAccess && expandedTableWidth > 1100;
+  const compactTable = expandedTableWidth + (showWeaponAccess ? accessColumns.length * 74 : 0) > 1100;
   const battleColumnWidth = compactTable ? 34 : 80;
   const rangeColumnWidth = compactTable ? 34 : 76;
   const groupColumnWidth = compactTable ? 68 : 86;
   const skillColumnWidth = compactTable ? 92 : 98;
   const statColumnWidth = compactTable ? 48 : 56;
   const tableMinWidth = showWeaponAccess
-    ? 104 + accessColumns.length * 74
+    ? 104
+      + (showBattleColumn ? battleColumnWidth : 0)
+      + (showSkills ? skillColumnWidth : 0)
+      + selectedRanges.length * rangeColumnWidth
+      + accessColumns.length * 74
     : 104
       + (showBattleColumn ? battleColumnWidth : 0)
       + (showSkills ? skillColumnWidth : 0)
@@ -1353,7 +1357,7 @@ function AdvancedCompareDialog({
       + activeGroups.length * groupColumnWidth
       + selectedStats.length * statColumnWidth;
   const emptyColSpan = showWeaponAccess
-    ? 1 + accessColumns.length
+    ? 1 + (showBattleColumn ? 1 : 0) + (showSkills ? 1 : 0) + selectedRanges.length + accessColumns.length
     : 1 + (showBattleColumn ? 1 : 0) + (showSkills ? 1 : 0) + selectedRanges.length + activeGroups.length + selectedStats.length;
 
   return (
@@ -1484,22 +1488,19 @@ function AdvancedCompareDialog({
               <div className="flex flex-wrap gap-2">
                 <OptionPill
                   label="Battle-Type"
-                  checked={showBattleType && !showWeaponAccess}
-                  disabled={showWeaponAccess}
+                  checked={showBattleType}
                   onToggle={() => setShowBattleType((value) => !value)}
                 />
                 <OptionPill
                   label="Skills"
-                  checked={showSkills && !showWeaponAccess}
-                  disabled={showWeaponAccess}
+                  checked={showSkills}
                   onToggle={() => setShowSkills((value) => !value)}
                 />
                 {JOB_RANGE_LABELS.map((range) => (
                   <OptionPill
                     key={range.index}
                     label={range.label}
-                    checked={showRanges[range.index] && !showWeaponAccess}
-                    disabled={showWeaponAccess}
+                    checked={showRanges[range.index]}
                     onToggle={() => setShowRanges((current) => ({ ...current, [range.index]: !current[range.index] }))}
                   />
                 ))}
@@ -1515,7 +1516,7 @@ function AdvancedCompareDialog({
             </div>
             {showWeaponAccess && (
               <div className="mt-2 text-xs text-muted-foreground">
-                Weapon comparison uses the table width for access columns, so stat groups, ranges, and skills are temporarily hidden.
+                Weapon comparison uses the table width for access columns, so stat groups and stat value columns are temporarily hidden.
               </div>
             )}
           </div>
@@ -1628,16 +1629,16 @@ function AdvancedCompareDialog({
                 <colgroup>
                   <col style={{ width: 104 }} />
                   {showBattleColumn && <col style={{ width: battleColumnWidth }} />}
+                  {showSkills && <col style={{ width: skillColumnWidth }} />}
+                  {selectedRanges.map((range) => (
+                    <col key={`range-${range.index}`} style={{ width: rangeColumnWidth }} />
+                  ))}
                   {showWeaponAccess ? (
                     accessColumns.map((column) => (
                       <col key={`access-${column}`} style={{ width: 74 }} />
                     ))
                   ) : (
                     <>
-                      {showSkills && <col style={{ width: skillColumnWidth }} />}
-                      {selectedRanges.map((range) => (
-                        <col key={`range-${range.index}`} style={{ width: rangeColumnWidth }} />
-                      ))}
                       {activeGroups.map((group) => (
                         <col key={`group-${group.id}`} style={{ width: groupColumnWidth }} />
                       ))}
@@ -1666,14 +1667,29 @@ function AdvancedCompareDialog({
                       </th>
                     )}
                     {showWeaponAccess ? (
-                      accessColumns.map((column) => (
-                        <th key={column} className="text-center px-1 py-2 text-xs font-semibold text-muted-foreground">
-                          <button onClick={() => toggleSort(`access-${column}`)} className="inline-flex items-center justify-center gap-1 hover:text-foreground">
-                            <span className="truncate max-w-[62px]">{column}</span>
-                            <ArrowUpDown className="w-3 h-3 shrink-0" />
-                          </button>
-                        </th>
-                      ))
+                      <>
+                        {showSkills && <th className="text-left px-0.5 py-2 text-xs font-semibold text-muted-foreground">Skills</th>}
+                        {selectedRanges.map((range) => (
+                          <th key={range.index} className={`${compactTable ? "px-0 text-[9px]" : "px-0.5 text-[10px]"} text-center py-2 font-semibold text-muted-foreground`}>
+                            <button onClick={() => toggleSort(`range-${range.index}`)} className="inline-flex w-full items-center justify-center gap-0.5 hover:text-foreground">
+                              <span className={`${compactTable ? "max-w-[24px]" : "max-w-[56px]"} whitespace-normal leading-[1.05]`}>
+                                {compactTable
+                                  ? range.index === 0 ? <>Srch<br />Rng</> : range.index === 1 ? <>Dply<br />Rng</> : <>Dfg<br />AoE</>
+                                  : range.index === 0 ? <>Searching<br />Range</> : range.index === 1 ? <>Deployment<br />Range</> : <>Defog<br />AoE</>}
+                              </span>
+                              <ArrowUpDown className={`${compactTable ? "w-2.5 h-2.5" : "w-3 h-3"} shrink-0`} />
+                            </button>
+                          </th>
+                        ))}
+                        {accessColumns.map((column) => (
+                          <th key={column} className="text-center px-1 py-2 text-xs font-semibold text-muted-foreground">
+                            <button onClick={() => toggleSort(`access-${column}`)} className="inline-flex items-center justify-center gap-1 hover:text-foreground">
+                              <span className="truncate max-w-[62px]">{column}</span>
+                              <ArrowUpDown className="w-3 h-3 shrink-0" />
+                            </button>
+                          </th>
+                        ))}
+                      </>
                     ) : (
                       <>
                         {showSkills && <th className="text-left px-0.5 py-2 text-xs font-semibold text-muted-foreground">Skills</th>}
@@ -1750,11 +1766,23 @@ function AdvancedCompareDialog({
                           </td>
                         )}
                         {showWeaponAccess ? (
-                          accessColumns.map((column) => (
-                            <td key={column} className="px-1 py-2 text-center">
-                              <WeaponAccessBadge value={row.accessValues[column]} />
-                            </td>
-                          ))
+                          <>
+                            {showSkills && (
+                              <td className="px-0.5 py-2">
+                                <CompactSkillAccess access={getResolvedSkillAccess(row.name, row.job, rank)} />
+                              </td>
+                            )}
+                            {selectedRanges.map((range) => (
+                              <td key={range.index} className="px-0.5 py-2 text-center font-semibold tabular-nums text-foreground">
+                                {formatCompareNumber(row.rangeValues[range.index])}
+                              </td>
+                            ))}
+                            {accessColumns.map((column) => (
+                              <td key={column} className="px-1 py-2 text-center">
+                                <WeaponAccessBadge value={row.accessValues[column]} />
+                              </td>
+                            ))}
+                          </>
                         ) : (
                           <>
                             {showSkills && (
