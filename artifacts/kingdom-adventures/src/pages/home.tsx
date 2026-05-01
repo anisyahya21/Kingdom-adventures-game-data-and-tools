@@ -1,42 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link } from "wouter";
-import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Code, Copy, Check, Egg, Store, Home as HomeIcon, CalendarDays, BookMarked } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Egg, Store, Home as HomeIcon, CalendarDays, BookMarked } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CategoryBadge } from "@/components/ka/category-badge";
+import type { KaCategory } from "@/design-system/category-styles";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
+import { FACILITY_GACHA_EVENTS } from "@/game-data/facility-gacha-events";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventStatus } from "@/lib/event-status";
 import { getNextWarioDungeonSpawn, isWarioDungeonLive } from "@/pages/wario-dungeon";
-
-import srcHome from "./home.tsx?raw";
-import srcEquipment from "./equipment.tsx?raw";
-import srcJobs from "./jobs.tsx?raw";
-import srcMatcher from "./marriage-matcher.tsx?raw";
-import srcMonsters from "./monsters.tsx?raw";
-import srcSkills from "./skills.tsx?raw";
-import srcLoadout from "./loadout.tsx?raw";
-import srcShops from "./shops.tsx?raw";
-import srcApp from "../App.tsx?raw";
-import srcSourceViewer from "../components/source-viewer.tsx?raw";
-import AskDatabaseWidget from "@/components/AskDatabaseWidget";
-
-const SOURCE_FILES: Array<{ label: string; path: string; content: string }> = [
-  { label: "App.tsx", path: "src/App.tsx", content: srcApp },
-  { label: "home.tsx", path: "src/pages/home.tsx", content: srcHome },
-  { label: "equipment.tsx", path: "src/pages/equipment.tsx", content: srcEquipment },
-  { label: "jobs.tsx", path: "src/pages/jobs.tsx", content: srcJobs },
-  { label: "marriage-matcher.tsx", path: "src/pages/marriage-matcher.tsx", content: srcMatcher },
-  { label: "monsters.tsx", path: "src/pages/monsters.tsx", content: srcMonsters },
-  { label: "skills.tsx", path: "src/pages/skills.tsx", content: srcSkills },
-  { label: "loadout.tsx", path: "src/pages/loadout.tsx", content: srcLoadout },
-  { label: "shops.tsx", path: "src/pages/shops.tsx", content: srcShops },
-  { label: "source-viewer.tsx", path: "src/components/source-viewer.tsx", content: srcSourceViewer },
-];
 
 const CREDIT_SOURCES = [
   {
@@ -67,71 +45,6 @@ const CREDIT_SOURCES = [
     href: "https://kairosoft.wiki.gg/wiki/Kingdom_Adventurers",
   },
 ] as const;
-
-function SourceViewerDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [selected, setSelected] = useState(0);
-  const [copied, setCopied] = useState<"file" | "all" | null>(null);
-
-  const copyFile = async () => {
-    await navigator.clipboard.writeText(SOURCE_FILES[selected].content);
-    setCopied("file");
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const copyAll = async () => {
-    const all = SOURCE_FILES.map((f) =>
-      `// ${"=".repeat(60)}\n// FILE: ${f.path}\n// ${"=".repeat(60)}\n\n${f.content}`
-    ).join("\n\n");
-    await navigator.clipboard.writeText(all);
-    setCopied("all");
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-6xl h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
-        <DialogHeader className="px-5 py-3 border-b border-border shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="text-sm font-semibold">Project Source Code - {SOURCE_FILES.length} files</DialogTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={copyFile} className="gap-1.5 h-7 text-xs">
-                {copied === "file" ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                {copied === "file" ? "Copied!" : "Copy file"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={copyAll} className="gap-1.5 h-7 text-xs">
-                {copied === "all" ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                {copied === "all" ? "Copied all!" : "Copy all files"}
-              </Button>
-            </div>
-          </div>
-        </DialogHeader>
-        <div className="flex flex-1 overflow-hidden">
-          <div className="w-56 shrink-0 border-r border-border flex flex-col bg-muted/30 overflow-y-auto">
-            <p className="px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Frontend</p>
-            {SOURCE_FILES.map((f, i) => (
-              <button
-                key={f.path}
-                onClick={() => setSelected(i)}
-                className={`px-3 py-1.5 text-left text-xs truncate transition-colors ${selected === i ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
-              >
-                {f.label}
-              </button>
-            ))}
-            <p className="px-3 py-2 mt-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-t border-border shrink-0">Backend (API Server)</p>
-            <p className="px-3 py-1.5 text-xs text-muted-foreground/60 italic">See artifacts/api-server/src/</p>
-            <p className="px-3 pb-3 text-[10px] text-muted-foreground/60">app.ts - routes/ka.ts</p>
-          </div>
-          <div className="flex-1 overflow-auto bg-muted/20">
-            <div className="px-3 py-2 border-b border-border bg-muted/40 sticky top-0 z-10">
-              <span className="text-[10px] font-mono text-muted-foreground">{SOURCE_FILES[selected].path}</span>
-            </div>
-            <pre className="p-4 text-[11px] font-mono leading-relaxed whitespace-pre text-foreground">{SOURCE_FILES[selected].content}</pre>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function CreditsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
@@ -186,7 +99,7 @@ const BUILT_IN_TOOLS = [
     description: "Three tools in one: Match Finder, Marriage Simulator, and Pairing Data.",
     icon: <Heart className="w-6 h-6 text-rose-500" />,
     badge: "Marriage",
-    badgeColor: "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300",
+    badgeCategory: "marriage" satisfies KaCategory,
   },
   {
     slug: "/equipment",
@@ -194,7 +107,7 @@ const BUILT_IN_TOOLS = [
     description: "Open the equipment hub for stats browsing and the exchange calculator.",
     icon: <Sword className="w-6 h-6 text-amber-500" />,
     badge: "Equipment",
-    badgeColor: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300",
+    badgeCategory: "equipment" satisfies KaCategory,
   },
   {
     slug: "/jobs",
@@ -202,7 +115,7 @@ const BUILT_IN_TOOLS = [
     description: "Explore all jobs with stats, ranks, and restrictions.",
     icon: <Briefcase className="w-6 h-6 text-sky-500" />,
     badge: "Jobs",
-    badgeColor: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300",
+    badgeCategory: "job" satisfies KaCategory,
   },
   {
     slug: "/survey",
@@ -210,7 +123,7 @@ const BUILT_IN_TOOLS = [
     description: "Survey database and calculator for planning success and rewards.",
     icon: <Store className="w-6 h-6 text-cyan-500" />,
     badge: "Survey",
-    badgeColor: "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300",
+    badgeCategory: "survey" satisfies KaCategory,
   },
   {
     slug: "/skills",
@@ -218,7 +131,7 @@ const BUILT_IN_TOOLS = [
     description: "Community-editable list of skills and related data.",
     icon: <BookOpen className="w-6 h-6 text-emerald-500" />,
     badge: "Skills",
-    badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
+    badgeCategory: "skill" satisfies KaCategory,
   },
   {
     slug: "/loadout",
@@ -226,7 +139,7 @@ const BUILT_IN_TOOLS = [
     description: "Build character loadouts and calculate total stats.",
     icon: <Package className="w-6 h-6 text-orange-500" />,
     badge: "Builder",
-    badgeColor: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300",
+    badgeCategory: "builder" satisfies KaCategory,
   },
   {
     slug: "/eggs-pets-monsters",
@@ -234,7 +147,7 @@ const BUILT_IN_TOOLS = [
     description: "Egg planner plus detailed monster and pet databases for stats, growth, spawn locations, and team planning.",
     icon: <Egg className="w-6 h-6 text-yellow-500" />,
     badge: "Planner",
-    badgeColor: "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300",
+    badgeCategory: "monster" satisfies KaCategory,
   },
   {
     slug: "/shops",
@@ -242,7 +155,7 @@ const BUILT_IN_TOOLS = [
     description: "Browse shop systems by type and drill into each shop.",
     icon: <Store className="w-6 h-6 text-indigo-500" />,
     badge: "Shops",
-    badgeColor: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300",
+    badgeCategory: "shop" satisfies KaCategory,
   },
   {
     slug: "/houses",
@@ -250,7 +163,7 @@ const BUILT_IN_TOOLS = [
     description: "Plan plots, building costs, extra beds, shelves, monster rooms, owner jobs, facility upgrades, map unlocks, storage, and production.",
     icon: <HomeIcon className="w-6 h-6 text-lime-500" />,
     badge: "Buildings",
-    badgeColor: "bg-lime-100 text-lime-700 border-lime-200 dark:bg-lime-950 dark:text-lime-300",
+    badgeCategory: "building" satisfies KaCategory,
   },
   {
     slug: "/timed-events",
@@ -258,7 +171,7 @@ const BUILT_IN_TOOLS = [
     description: "Weekly Conquest, Gacha Events, Wairo Dungeon, Kairo Room, and Job Center.",
     icon: <CalendarDays className="w-6 h-6 text-pink-500" />,
     badge: "Events",
-    badgeColor: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-950 dark:text-pink-300",
+    badgeCategory: "event" satisfies KaCategory,
   },
   {
     slug: "/guides",
@@ -266,7 +179,7 @@ const BUILT_IN_TOOLS = [
     description: "Community-written guides collected in one place, starting with Jaza's playthrough guide.",
     icon: <BookMarked className="w-6 h-6 text-violet-500" />,
     badge: "Guides",
-    badgeColor: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950 dark:text-violet-300",
+    badgeCategory: "guide" satisfies KaCategory,
   },
 ];
 
@@ -287,21 +200,23 @@ function getNextWarioSpawn(now: Date, offset: number): Date | null {
   return getNextWarioDungeonSpawn(now, offset)?.startsAt ?? null;
 }
 
-function resolveRepeatingWindow(now: Date, offset: number, startMonth: number, startDay: number, endMonth: number, endDay: number) {
-  const build = (year: number) => ({
-    startAt: eventClockDateToLocalDate(new Date(year, startMonth - 1, startDay, 0, 0, 0, 0), offset),
-    endAt: eventClockDateToLocalDate(new Date(year, endMonth - 1, endDay, 23, 59, 59, 999), offset),
-  });
+const MAX_EVENT_COUNTDOWN_MS = 330 * 86400000;
+
+function resolveFacilityWindow(now: Date, offset: number) {
   const eventClockYear = getOffsetAdjustedNow(now, offset).getFullYear();
-  const windows = [build(eventClockYear - 1), build(eventClockYear), build(eventClockYear + 1)];
+  const windows = FACILITY_GACHA_EVENTS.flatMap((event) => [eventClockYear - 1, eventClockYear, eventClockYear + 1].map((year) => ({
+    id: event.id,
+    startAt: eventClockDateToLocalDate(new Date(year, event.startMonth - 1, event.startDay, 0, 0, 0, 0), offset),
+    endAt: eventClockDateToLocalDate(new Date(year, event.endMonth - 1, event.endDay, 23, 59, 59, 999), offset),
+  })));
   const active = windows.find((window) => window.startAt <= now && now <= window.endAt);
   if (active) return active;
-  const upcoming = windows.filter((window) => window.startAt > now).sort((a, b) => a.startAt.getTime() - b.startAt.getTime())[0];
-  // If the next event is more than 60 days away, treat as inactive (no countdown)
-  if (upcoming && (upcoming.startAt.getTime() - now.getTime()) > 60 * 86400 * 1000) {
-    return null;
-  }
-  return upcoming ?? windows[1];
+  return windows
+    .filter((window) => {
+      const diff = window.startAt.getTime() - now.getTime();
+      return diff > 0 && diff <= MAX_EVENT_COUNTDOWN_MS;
+    })
+    .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())[0] ?? null;
 }
 
 function HomeCountdownBanner() {
@@ -323,14 +238,18 @@ function HomeCountdownBanner() {
 
   const weeklyQuery = useQuery({
     queryKey: ["home-weekly-conquest-banner"],
-    queryFn: () => fetchAutomaticWeeklyConquestTimeline(undefined, 1),
+    queryFn: () => fetchAutomaticWeeklyConquestTimeline(undefined, 4),
     staleTime: 5 * 60 * 1000,
   });
 
   const weeklyCurrent = weeklyQuery.data?.entries.find((entry) => entry.id === weeklyQuery.data?.currentId) ?? null;
+  const weeklyUpcoming = useMemo(
+    () => weeklyQuery.data?.entries.filter((entry) => entry.startedAt > now.getTime()).sort((a, b) => a.startedAt - b.startedAt)[0] ?? null,
+    [weeklyQuery.data?.entries, now]
+  );
   const nextWario = useMemo(() => getNextWarioSpawn(now, eventOffset), [eventOffset, now]);
   const warioLive = isWarioDungeonLive(now, eventOffset);
-  const facilityWindow = useMemo(() => resolveRepeatingWindow(now, eventOffset, 4, 28, 4, 30), [eventOffset, now]);
+  const facilityWindow = useMemo(() => resolveFacilityWindow(now, eventOffset), [eventOffset, now]);
   const facilityActive = facilityWindow ? (facilityWindow.startAt <= now && now <= facilityWindow.endAt) : false;
 
   const cards: Array<{
@@ -367,8 +286,20 @@ function HomeCountdownBanner() {
     {
       href: "/weekly-conquest",
       title: "Weekly Conquest",
-      subtitle: weeklyCurrent ? weeklyCurrent.name : "Loading current rotation",
-      countdown: weeklyCurrent ? formatCountdown(weeklyCurrent.endsAt - now.getTime()) : "Loading",
+      subtitle: weeklyCurrent
+        ? weeklyCurrent.name
+        : weeklyUpcoming
+        ? `Next: ${weeklyUpcoming.name}`
+        : weeklyQuery.isError
+        ? "Unable to load current rotation"
+        : "Loading current rotation",
+      countdown: weeklyCurrent
+        ? formatCountdown(weeklyCurrent.endsAt - now.getTime())
+        : weeklyUpcoming
+        ? formatCountdown(weeklyUpcoming.startedAt - now.getTime())
+        : weeklyQuery.isError
+        ? "Unavailable"
+        : "Loading",
       status: weeklyCurrent ? "live" : "inactive",
     },
   ];
@@ -476,7 +407,6 @@ function generateId() {
 }
 
 export default function Home() {
-  const [srcOpen, setSrcOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [customProjects, setCustomProjects] = useLocalFeature<CustomProject[]>("ka_custom_projects", []);
   const [adding, setAdding] = useState(false);
@@ -546,9 +476,9 @@ export default function Home() {
                     <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
                       {tool.icon}
                     </div>
-                    <Badge variant="outline" className={`text-xs px-2 border ${tool.badgeColor} shrink-0`}>
+                    <CategoryBadge category={tool.badgeCategory as KaCategory} className="text-xs px-2">
                       {tool.badge}
-                    </Badge>
+                    </CategoryBadge>
                   </div>
                   <CardTitle className="text-base mt-2">{tool.title}</CardTitle>
                 </CardHeader>
@@ -621,9 +551,6 @@ export default function Home() {
             <button onClick={() => setCreditsOpen(true)} className="flex items-center gap-1 hover:text-foreground transition-colors">
               <BookOpen className="w-3 h-3" /> Credits
             </button>
-            <button onClick={() => setSrcOpen(true)} className="flex items-center gap-1 hover:text-foreground transition-colors">
-              <Code className="w-3 h-3" /> View source code
-            </button>
             <a
               href="https://github.com/anisyahya21/Kingdom-adventures-game-data-and-tools"
               target="_blank"
@@ -638,10 +565,7 @@ export default function Home() {
         </div>
       </div>
 
-      <AskDatabaseWidget />
-
       <CreditsDialog open={creditsOpen} onClose={() => setCreditsOpen(false)} />
-      <SourceViewerDialog open={srcOpen} onClose={() => setSrcOpen(false)} />
     </div>
   );
 }

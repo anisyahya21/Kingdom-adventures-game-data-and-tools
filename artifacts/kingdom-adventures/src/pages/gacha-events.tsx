@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
+import { PageHeader } from "@/components/ka/page-header";
+import { KA_CATEGORY_BADGE_CLASS } from "@/design-system/category-styles";
+import { CategoryBadge } from "@/components/ka/category-badge";
+import { getEntityHref } from "@/components/ka/entity-link";
+import { FACILITY_GACHA_EVENTS } from "@/game-data/facility-gacha-events";
 import { EQUIPMENT_CATALOG } from "@/lib/generated-equipment-data";
 import { localSharedData } from "@/lib/local-shared-data";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
@@ -45,6 +50,8 @@ type ResolvedEvent = GachaEvent & {
   isUpcoming: boolean;
   durationDays: number;
 };
+
+const MAX_EVENT_COUNTDOWN_MS = 330 * 86400000;
 
 type EquipmentCatalogItem = {
   name: string;
@@ -164,20 +171,10 @@ const JOB_EVENTS: GachaEvent[] = [
   { id: "job-55", kind: "jobs", title: "S Rank Knight", poolLabel: "S Rank Job Event", startMonth: 12, startDay: 28, endMonth: 12, endDay: 31 },
 ];
 
-const FACILITY_PATTERN: GachaEvent[] = [
-  { id: "fac-01", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 1, startDay: 28, endMonth: 1, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-02", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 2, startDay: 26, endMonth: 2, endDay: 28, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-03", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 3, startDay: 28, endMonth: 3, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-04", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 4, startDay: 28, endMonth: 4, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-05", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 5, startDay: 28, endMonth: 5, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-06", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 6, startDay: 28, endMonth: 6, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-07", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 7, startDay: 28, endMonth: 7, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-08", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 8, startDay: 28, endMonth: 8, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-09", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 9, startDay: 28, endMonth: 9, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-10", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 10, startDay: 28, endMonth: 10, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-11", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 11, startDay: 28, endMonth: 11, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-  { id: "fac-12", kind: "facilities", title: "S Facility Event", poolLabel: "Featured S facilities", startMonth: 12, startDay: 28, endMonth: 12, endDay: 30, notes: "Featured pool includes High Grade Storage and other top-tier facility rewards." },
-];
+const FACILITY_PATTERN: GachaEvent[] = FACILITY_GACHA_EVENTS.map((event) => ({
+  ...event,
+  kind: "facilities",
+}));
 
 const ITEM_EVENTS: GachaEvent[] = [
   {
@@ -274,16 +271,20 @@ function resolveEvent(event: GachaEvent, now: Date, offset: number): ResolvedEve
   ];
   const activeWindow = windows.find((window) => window.startAt.getTime() <= now.getTime() && window.endAt.getTime() >= now.getTime());
   const upcomingWindow = windows
-    .filter((window) => window.startAt.getTime() > now.getTime())
+    .filter((window) => {
+      const diff = window.startAt.getTime() - now.getTime();
+      return diff > 0 && diff <= MAX_EVENT_COUNTDOWN_MS;
+    })
     .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())[0];
   const chosen = activeWindow ?? upcomingWindow ?? windows[1];
+  const startDiff = chosen.startAt.getTime() - now.getTime();
   return {
     ...event,
     startAt: chosen.startAt,
     endAt: chosen.endAt,
     durationDays: Math.floor((chosen.endAt.getTime() - chosen.startAt.getTime()) / 86400000) + 1,
     isActive: chosen.startAt.getTime() <= now.getTime() && chosen.endAt.getTime() >= now.getTime(),
-    isUpcoming: chosen.startAt.getTime() > now.getTime(),
+    isUpcoming: startDiff > 0 && startDiff <= MAX_EVENT_COUNTDOWN_MS,
   };
 }
 
@@ -382,10 +383,10 @@ function weaponHrefFromEvent(event: ResolvedEvent): string {
   if (event.notes) {
     const firstWeapon = event.notes.split("|").map((part) => part.trim()).find(Boolean);
     if (firstWeapon) {
-      return `/equipment-stats?search=${encodeURIComponent(normalizeWeaponSearchName(firstWeapon))}`;
+      return getEntityHref("equipment", normalizeWeaponSearchName(firstWeapon)) ?? "/equipment-stats";
     }
   }
-  return `/equipment-stats?search=${encodeURIComponent(normalizeWeaponSearchName(event.title))}`;
+  return getEntityHref("equipment", normalizeWeaponSearchName(event.title)) ?? "/equipment-stats";
 }
 
 function weaponNamesFromEvent(event: ResolvedEvent): string[] {
@@ -394,10 +395,10 @@ function weaponNamesFromEvent(event: ResolvedEvent): string[] {
 }
 
 function eventKindClass(kind: EventKind): string {
-  if (kind === "jobs") return "bg-rose-500/10 text-rose-700 border-rose-500/30 dark:text-rose-300";
-  if (kind === "facilities") return "bg-lime-500/10 text-lime-700 border-lime-500/30 dark:text-lime-300";
-  if (kind === "items") return "bg-sky-500/10 text-sky-700 border-sky-500/30 dark:text-sky-300";
-  return "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300";
+  if (kind === "jobs") return KA_CATEGORY_BADGE_CLASS.job;
+  if (kind === "facilities") return KA_CATEGORY_BADGE_CLASS.building;
+  if (kind === "items") return KA_CATEGORY_BADGE_CLASS.shop;
+  return KA_CATEGORY_BADGE_CLASS.equipment;
 }
 
 function eventKindLabel(kind: EventKind): string {
@@ -637,7 +638,7 @@ function WeaponPreviewDialog({
           <Badge variant="outline">{item.shopName}</Badge>
         </div>
 
-        <Link href={`/equipment-stats?search=${encodeURIComponent(item.name)}`}>
+        <Link href={getEntityHref("equipment", item.name) ?? `/equipment-stats?search=${encodeURIComponent(item.name)}`}>
           <Button variant="outline" className="w-full">Open Full Equipment Page</Button>
         </Link>
       </DialogContent>
@@ -677,9 +678,9 @@ function EventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
             {event.poolLabel}
           </Badge>
           {event.isActive && (
-            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300">
+            <CategoryBadge category="success">
               Active now
-            </Badge>
+            </CategoryBadge>
           )}
         </div>
         <div className="mt-1 font-medium">{event.title}</div>
@@ -689,7 +690,11 @@ function EventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
         {event.notes && <div className="mt-1 text-xs text-muted-foreground max-w-2xl">{event.notes}</div>}
       </div>
       <div className="text-sm font-medium md:text-right">
-        {event.isActive ? `Ends in ${formatCountdown(event.endAt.getTime() - now.getTime())}` : `Starts in ${formatCountdown(event.startAt.getTime() - now.getTime())}`}
+        {event.isActive
+          ? `Ends in ${formatCountdown(event.endAt.getTime() - now.getTime())}`
+          : event.isUpcoming
+          ? `Starts in ${formatCountdown(event.startAt.getTime() - now.getTime())}`
+          : "Inactive"}
       </div>
     </div>
   );
@@ -709,7 +714,11 @@ function CompactEventRow({ event, now }: { event: ResolvedEvent; now: Date }) {
           </div>
         </div>
         <div className="text-xs font-medium whitespace-nowrap">
-          {event.isActive ? `Ends in ${formatCountdown(event.endAt.getTime() - now.getTime())}` : `Starts in ${formatCountdown(event.startAt.getTime() - now.getTime())}`}
+          {event.isActive
+            ? `Ends in ${formatCountdown(event.endAt.getTime() - now.getTime())}`
+            : event.isUpcoming
+            ? `Starts in ${formatCountdown(event.startAt.getTime() - now.getTime())}`
+            : "Inactive"}
         </div>
       </div>
     </div>
@@ -786,7 +795,11 @@ function PlainEventRow({
           )}
         </div>
         <div className="text-xs font-medium whitespace-nowrap">
-          {event.isActive ? `Ends in ${formatCountdown(event.endAt.getTime() - now.getTime())}` : `Starts in ${formatCountdown(event.startAt.getTime() - now.getTime())}`}
+          {event.isActive
+            ? `Ends in ${formatCountdown(event.endAt.getTime() - now.getTime())}`
+            : event.isUpcoming
+            ? `Starts in ${formatCountdown(event.startAt.getTime() - now.getTime())}`
+            : "Inactive"}
         </div>
       </div>
     </div>
@@ -950,18 +963,14 @@ export default function GachaEventsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <CalendarDays className="w-5 h-5 text-muted-foreground" />
-          <h1 className="text-xl font-bold tracking-tight">Gacha Events</h1>
-        </div>
+      <PageHeader icon={<CalendarDays className="w-5 h-5" />} title="Gacha Events">
         <p className="text-sm text-muted-foreground max-w-3xl">
           Focused event tracker for the parts of gacha that matter most: S-rank jobs, repeating S facility events, and S-weapon days.
         </p>
         <p className="text-xs text-muted-foreground max-w-3xl">
           Times follow your local event clock with your event offset applied ({eventOffset >= 0 ? `+${eventOffset}` : eventOffset}h).
         </p>
-      </div>
+      </PageHeader>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {summaryByKind.map((summary) => (

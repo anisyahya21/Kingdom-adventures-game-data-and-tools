@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ka/page-header";
 import { apiUrl } from "@/lib/api";
 import {
   type CommunityGuide,
@@ -120,24 +121,23 @@ export default function GuidesPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <BookMarked className="w-5 h-5 text-muted-foreground" />
-            <h1 className="text-xl font-bold tracking-tight">Guides</h1>
-          </div>
-          <p className="text-sm text-muted-foreground max-w-3xl">
-            Community-written Kingdom Adventures guides collected in one place, including progression advice,
-            playthrough notes, event planning, town development, jobs, equipment, pets, monsters, and strategy help.
-          </p>
-        </div>
-        <Link href="/add-guide">
-          <Button className="gap-2 self-start">
-            <Plus className="w-4 h-4" />
-            Add Guide
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        icon={<BookMarked className="w-5 h-5" />}
+        title="Guides"
+        actions={(
+          <Link href="/add-guide">
+            <Button className="gap-2 self-start">
+              <Plus className="w-4 h-4" />
+              Add Guide
+            </Button>
+          </Link>
+        )}
+      >
+        <p>
+          Community-written Kingdom Adventures guides collected in one place, including progression advice,
+          playthrough notes, event planning, town development, jobs, equipment, pets, monsters, and strategy help.
+        </p>
+      </PageHeader>
 
       {error ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">

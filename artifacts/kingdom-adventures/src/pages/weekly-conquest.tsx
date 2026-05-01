@@ -5,8 +5,8 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
-import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
+import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
+import { buildLocalAutomaticWeeklyConquestTimeline, fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { apiUrl } from "@/lib/api";
 import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
 import { cn } from "@/lib/utils";
@@ -252,8 +252,9 @@ function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
     queryFn: () => fetchSharedWithFallback<{ monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest }>(apiUrl("/shared")),
-    staleTime: 15000,
-    refetchInterval: 30000,
+    initialData: () => localSharedData as { monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest },
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -282,6 +283,8 @@ export default function WeeklyConquestPage() {
   const { data: conquestTimeline } = useQuery({
     queryKey: ["weekly-conquest-automatic"],
     queryFn: () => fetchAutomaticWeeklyConquestTimeline(undefined, 4),
+    initialData: () => buildLocalAutomaticWeeklyConquestTimeline(undefined, 4),
+    initialDataUpdatedAt: Date.now(),
     staleTime: 15 * 60 * 1000,
     refetchInterval: 15 * 60 * 1000,
   });

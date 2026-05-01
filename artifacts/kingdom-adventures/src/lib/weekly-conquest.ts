@@ -1,4 +1,5 @@
 import { googleSheetUrl } from "@/lib/api";
+import campaignLookupCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Campaign_lookup.csv?raw";
 
 const VERIFIED_WEEKLY_ANCHOR_EVENT_ID = 18;
 const VERIFIED_WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
@@ -41,6 +42,83 @@ type CampaignScheduleEntry = {
   day: number;
   hour: number;
 };
+
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[index + 1] === '"') {
+          field += '"';
+          index += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(field);
+      field = "";
+    } else if (char === "\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else if (char !== "\r") {
+      field += char;
+    }
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function parseCampaignLookupCsv(text: string): Map<number, CampaignEvent> {
+  const rows = parseCsv(text);
+  const events = new Map<number, CampaignEvent>();
+
+  for (const row of rows) {
+    const id = asNumber(row[0] ?? null);
+    const name = asText(row[1] ?? null);
+    if (!name || !name.toLowerCase().includes("conquest event")) continue;
+
+    const periodDays = asNumber(row[3] ?? null) || 7;
+    const equipment = asText(row[8] ?? null);
+    const rawJob = asText(row[14] ?? null);
+    const diamonds = asNumber(row[18] ?? null);
+
+    const monsters = [23, 29, 35, 41, 47]
+      .map((index) => asText(row[index] ?? null))
+      .filter(Boolean);
+
+    const rewardJobMatch = rawJob.match(/^([A-Z])\s+(?:Grade|Rank)\s+(.+)$/i);
+    const reward: AutomaticWeeklyReward = {
+      jobName: rewardJobMatch?.[2] ?? rawJob,
+      jobRank: rewardJobMatch?.[1] ?? "S",
+      diamonds,
+      equipment,
+    };
+
+    events.set(id, { id, name, periodDays, reward, monsters });
+  }
+
+  return events;
+}
 
 function parseGvizResponse(raw: string): { rows: GvizRow[] } {
   const json = raw
@@ -233,6 +311,60 @@ export async function fetchAutomaticWeeklyConquestTimeline(
       reward: event.reward,
       startedAt: shiftedStart,
       endsAt: shiftedEnd,
+      source: "automatic",
+    });
+  }
+
+  return {
+    currentId: current.id,
+    entries,
+  };
+}
+
+export function buildLocalAutomaticWeeklyConquestTimeline(
+  now = new Date(),
+  radius = 2,
+): AutomaticWeeklyConquestTimeline {
+  const events = parseCampaignLookupCsv(campaignLookupCsv);
+  if (events.size === 0) return { currentId: 0, entries: [] };
+
+  const current = resolveAnchoredConquest(events, now)
+    ?? Array.from(events.values())
+      .sort((a, b) => a.id - b.id)
+      .map((event) => ({
+        id: event.id,
+        name: event.name,
+        monsters: event.monsters,
+        reward: event.reward,
+        startedAt: now.getTime(),
+        endsAt: now.getTime() + event.periodDays * 24 * 60 * 60 * 1000,
+        source: "automatic" as const,
+      }))[0]
+    ?? null;
+
+  if (!current) return { currentId: 0, entries: [] };
+
+  const orderedIds = Array.from(events.keys()).sort((a, b) => a - b);
+  const currentIndex = orderedIds.indexOf(current.id);
+  if (currentIndex < 0) return { currentId: current.id, entries: [current] };
+
+  const basePeriodMs = (events.get(current.id)?.periodDays || 7) * 24 * 60 * 60 * 1000;
+  const entries: AutomaticWeeklyConquest[] = [];
+
+  for (let offset = -radius; offset <= radius; offset += 1) {
+    const circularIndex = (currentIndex + offset + orderedIds.length) % orderedIds.length;
+    const eventId = orderedIds[circularIndex];
+    const event = events.get(eventId);
+    if (!event) continue;
+
+    const startedAt = current.startedAt + offset * basePeriodMs;
+    entries.push({
+      id: event.id,
+      name: event.name,
+      monsters: event.monsters,
+      reward: event.reward,
+      startedAt,
+      endsAt: startedAt + event.periodDays * 24 * 60 * 60 * 1000,
       source: "automatic",
     });
   }

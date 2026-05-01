@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PageHeader } from "@/components/ka/page-header";
+import { ToneBadge } from "@/components/ka/badges";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 
@@ -30,8 +32,7 @@ function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
     queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
-    staleTime: 15000,
-    refetchInterval: 30000,
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -168,20 +169,21 @@ export default function SkillsPage() {
 
       {/* Header */}
       <div className="border-b border-border bg-card">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-emerald-500" />Skills Database
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
-              <Info className="w-3.5 h-3.5" />
-            </Button>
-            <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-muted">
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="max-w-5xl mx-auto px-4 py-3">
+          <PageHeader
+            icon={<BookOpen className="w-5 h-5 text-emerald-500" />}
+            title="Skills Database"
+            actions={(
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
+                  <Info className="w-3.5 h-3.5" />
+                </Button>
+                <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-muted">
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          />
         </div>
       </div>
 
@@ -280,9 +282,9 @@ export default function SkillsPage() {
                                   placeholder="Tips or notes…" className="h-7 text-sm px-2" />
                               : <div className="space-y-0.5">
                                   {d.weaponResistance && (
-                                    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700">
+                                    <ToneBadge category="shop" className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold">
                                       {d.weaponResistance} Resistance
-                                    </span>
+                                    </ToneBadge>
                                   )}
                                   {d.description
                                     ? <span className="block text-xs text-muted-foreground line-clamp-2">{d.description}</span>

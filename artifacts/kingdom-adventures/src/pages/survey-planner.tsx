@@ -6,12 +6,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PLAYTHROUGH_GUIDE_LOCAL_URL } from "@/lib/playthrough-guide";
 import { parseCsv } from "@/lib/monster-truth";
 import { SearchableSelect } from "@/components/searchable-select";
+import { PageHeader } from "@/components/ka/page-header";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
+import { getJobProfiles, getJobsThatOpenBuilding, type SharedJobProfileData } from "@/game-data/job-profile";
 import surveyCsv from "../../../../data/Sheet csv/KA GameData - Survey.csv?raw";
 import jobCsv from "../../../../data/Sheet csv/KA GameData - Job.csv?raw";
 import jobGroupCsv from "../../../../data/Sheet csv/KA GameData - JobGroup.csv?raw";
-import { Sword, Gem, ChevronDown, ChevronUp } from "lucide-react";
+import { Compass, Sword, Gem, ChevronDown, ChevronUp } from "lucide-react";
 
 function statAtLevel(base: number, inc: number, level: number) {
   return Math.round(base + (level - 1) * inc);
@@ -244,8 +246,6 @@ function buildJobFamilies(jobVariants: JobVariant[]): JobFamily[] {
   })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const SURVEY_CAPABLE_JOB_BASE_NAMES = new Set(["Carpenter", "Farmer", "Merchant", "Mover", "Rancher"]);
-
 // Restore Cash Register surveys: allow them through the filter
 const SURVEYS: Survey[] = parseSurveyCsv(surveyCsv).filter((survey) => {
   if (!survey.name || survey.name === "" || survey.id < 0) return false;
@@ -257,8 +257,11 @@ const SURVEYS: Survey[] = parseSurveyCsv(surveyCsv).filter((survey) => {
 const JOB_GROUPS: Record<number, string> = parseJobGroupCsv(jobGroupCsv);
 const JOB_VARIANTS = parseJobCsv(jobCsv);
 const JOB_FAMILIES = buildJobFamilies(JOB_VARIANTS);
-const SURVEY_CAPABLE_JOB_FAMILIES = JOB_FAMILIES.filter((family) =>
-  SURVEY_CAPABLE_JOB_BASE_NAMES.has(family.name) && family.variants.some((variant) => variant.rankNumber >= 4),
+const FALLBACK_SURVEY_JOB_NAMES = new Set(
+  getJobsThatOpenBuilding("Survey Corps HQ").map((owner) => owner.jobName),
+);
+const DEFAULT_SURVEY_CAPABLE_JOB_FAMILIES = JOB_FAMILIES.filter((family) =>
+  FALLBACK_SURVEY_JOB_NAMES.has(family.name) && family.variants.some((variant) => variant.rankNumber >= 4),
 );
 
 type SurveyGroup = {
@@ -549,8 +552,8 @@ export default function SurveyPlanner() {
   const [sharedData, setSharedData] = useState<SharedData | null>(localSharedData as SharedData);
   const [equipmentLevels, setEquipmentLevels] = useState<Record<string, number>>({});
   const [selectedSurveyId, setSelectedSurveyId] = useState<number | null>(SURVEYS[0]?.id ?? null);
-  const [selectedJobGroupId, setSelectedJobGroupId] = useState<number | null>(SURVEY_CAPABLE_JOB_FAMILIES[0]?.group ?? null);
-  const [selectedJobRank, setSelectedJobRank] = useState<string | null>(SURVEY_CAPABLE_JOB_FAMILIES[0]?.variants.find((variant) => variant.rankNumber >= 4)?.rankLabel ?? null);
+  const [selectedJobGroupId, setSelectedJobGroupId] = useState<number | null>(DEFAULT_SURVEY_CAPABLE_JOB_FAMILIES[0]?.group ?? null);
+  const [selectedJobRank, setSelectedJobRank] = useState<string | null>(DEFAULT_SURVEY_CAPABLE_JOB_FAMILIES[0]?.variants.find((variant) => variant.rankNumber >= 4)?.rankLabel ?? null);
   const [jobHeartLevel, setJobHeartLevel] = useState<number | "">(1);
   const [manualJobHeartValue, setManualJobHeartValue] = useState<number | "">("");
   const [manualEquipmentHeartValue, setManualEquipmentHeartValue] = useState<number | "">("");
@@ -576,7 +579,18 @@ export default function SurveyPlanner() {
   const [guideError, setGuideError] = useState<string | null>(null);
 
   const survey = SURVEYS.find((s) => s.id === selectedSurveyId) ?? SURVEYS[0];
-  const selectedJobFamily = JOB_FAMILIES.find((family) => family.group === selectedJobGroupId) ?? JOB_FAMILIES[0];
+  const surveyCapableJobFamilies = useMemo(() => {
+    const namesFromProfiles = getJobProfiles((sharedData ?? {}) as SharedJobProfileData)
+      .filter((profile) => profile.surveyCapable)
+      .map((profile) => profile.name);
+    const canonicalNames = namesFromProfiles.length > 0 ? new Set(namesFromProfiles) : FALLBACK_SURVEY_JOB_NAMES;
+
+    return JOB_FAMILIES.filter((family) =>
+      canonicalNames.has(family.name) && family.variants.some((variant) => variant.rankNumber >= 4),
+    );
+  }, [sharedData]);
+
+  const selectedJobFamily = surveyCapableJobFamilies.find((family) => family.group === selectedJobGroupId) ?? surveyCapableJobFamilies[0] ?? JOB_FAMILIES[0];
   const job = selectedJobFamily?.variants.find((variant) => variant.rankLabel === selectedJobRank) ?? selectedJobFamily?.variants[0] ?? { id: 0, name: "Unknown", group: 0, rankLabel: "", rankNumber: 0, heart: 0, baseName: "Unknown" };
 
   const equipmentList = useMemo(() => {
@@ -646,12 +660,16 @@ export default function SurveyPlanner() {
   const totalHeart = overrideCombinedHeart !== null ? overrideCombinedHeart : displayJobHeartValue + displayEquipmentHeartValue;
 
   useEffect(() => {
+    if (surveyCapableJobFamilies.length > 0 && !surveyCapableJobFamilies.some((family) => family.group === selectedJobGroupId)) {
+      setSelectedJobGroupId(surveyCapableJobFamilies[0].group);
+      return;
+    }
     setSelectedJobRank(selectedJobFamily?.variants.find((variant) => variant.rankNumber >= 4)?.rankLabel ?? null);
     setJobHeartLevel(1);
     setManualJobHeartValue("");
     setManualEquipmentHeartValue("");
     setManualCombinedHeartValue("");
-  }, [selectedJobGroupId, selectedJobFamily?.variants]);
+  }, [selectedJobGroupId, selectedJobFamily?.variants, surveyCapableJobFamilies]);
 
   useEffect(() => {
     let cancelled = false;
@@ -723,11 +741,11 @@ export default function SurveyPlanner() {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-semibold mb-4">Survey</h1>
-
-      <div className="mb-4 rounded-lg border border-border/70 bg-muted/50 p-4 text-sm leading-relaxed">
-        Survey database and tool, check out survey section in <button type="button" onClick={() => setIsGuideOpen(true)} className="font-semibold underline underline-offset-2 hover:text-primary">Playthrough Guide by Jaza</button>.
-      </div>
+      <PageHeader icon={<Compass className="w-5 h-5" />} title="Survey" className="mb-4">
+        <p>
+          Survey database and tool, check out survey section in <button type="button" onClick={() => setIsGuideOpen(true)} className="font-semibold underline underline-offset-2 hover:text-primary">Playthrough Guide by Jaza</button>.
+        </p>
+      </PageHeader>
 
       <Card className="mb-4">
         <CardHeader>
@@ -736,7 +754,7 @@ export default function SurveyPlanner() {
         <CardContent>
           <div className="text-xs text-muted-foreground mb-3">Note: only jobs that can build Survey Corps HQ are listed below.</div>
           <div className="space-y-3 text-sm">
-            {SURVEY_CAPABLE_JOB_FAMILIES.map((family) => {
+            {surveyCapableJobFamilies.map((family) => {
               const lowestSurveyRank = family.variants.find((variant) => variant.rankNumber >= 4);
               return (
                 <div key={family.group} className="rounded-md border border-border/50 bg-muted/10 p-3">
@@ -748,7 +766,7 @@ export default function SurveyPlanner() {
               );
             })}
           </div>
-          {SURVEY_CAPABLE_JOB_FAMILIES.length === 0 && (
+          {surveyCapableJobFamilies.length === 0 && (
             <div className="text-muted-foreground">No survey-capable jobs available.</div>
           )}
         </CardContent>
@@ -863,7 +881,7 @@ export default function SurveyPlanner() {
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Job</p>
                   <select value={selectedJobGroupId ?? undefined} onChange={(e) => setSelectedJobGroupId(Number(e.target.value))} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-                    {SURVEY_CAPABLE_JOB_FAMILIES.map((family) => {
+                    {surveyCapableJobFamilies.map((family) => {
                       const isBonusGroup = survey.jobGroupId && family.group === survey.jobGroupId;
                       return (
                         <option

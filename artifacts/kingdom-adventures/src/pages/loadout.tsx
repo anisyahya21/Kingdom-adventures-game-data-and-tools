@@ -15,10 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/searchable-select";
+import { PageHeader } from "@/components/ka/page-header";
+import { ToneBadge } from "@/components/ka/badges";
 import { toPng } from "html-to-image";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { simulateBatch, simulateDuel, type Combatant, type BattleResult, type BatchResult } from "@/lib/combat-simulator";
+import { getJobProfile } from "@/game-data/job-profile";
+import { KA_RANK_BADGE_CLASS } from "@/design-system/category-styles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +53,8 @@ type SharedData = {
   slotAssignments?: Record<string, string>;
   equipIcons?: Record<string, string>;
   weaponTypes?: Record<string, string>;
+  weaponCategories?: string[];
+  pairs?: Array<{ id: string; jobA: string; jobB: string; children?: string[]; affinity?: string; affinityNum?: number }>;
   loadouts?: Loadout[];
   loadoutsUpdatedAt?: number | null;
 };
@@ -104,11 +110,7 @@ const EQUIP_SLOTS = [
 type EquipSlot = typeof EQUIP_SLOTS[number]["slot"];
 
 const RANK_COLORS: Record<string, string> = {
-  S:"bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700",
-  A:"bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700",
-  B:"bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700",
-  C:"bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700",
-  D:"bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+  ...KA_RANK_BADGE_CLASS,
 };
 
 function generateId() { return Math.random().toString(36).slice(2, 9); }
@@ -164,8 +166,14 @@ type EquipRuleState = {
 
 function getEquipRuleState(loadout: Loadout, data: SharedData, equipName: string): EquipRuleState {
   const slot = data.slotAssignments?.[equipName] ?? null;
-  const job = data.jobs?.[loadout.jobName];
-  const { weaponType, prof } = getWeaponProficiency(job, equipName, slot ?? "", data.weaponTypes);
+  const profile = getJobProfile(data, loadout.jobName);
+  const weaponType = slot === "Shield" ? "Shield" : data.weaponTypes?.[equipName] ?? null;
+  const prof =
+    slot === "Shield"
+      ? profile?.equipmentAccess.shield ?? null
+      : slot === "Weapon" && weaponType && weaponType !== "Tool"
+        ? profile?.equipmentAccess.weapons[weaponType] ?? null
+        : null;
   const resistanceSkill = findResistanceSkill(data.skills, weaponType);
   const hasResistanceSkillEquipped = !!resistanceSkill && loadout.skills.includes(resistanceSkill.name);
   const blocked = prof === "cannot";
@@ -955,15 +963,11 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                   const isWeak = rule.prof === "weak";
                                   return (
                                     <div className="text-center space-y-0.5">
-                                      <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold border ${
-                                        isWeak
-                                          ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-700"
-                                          : "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-700"
-                                      }`}>
+                                      <ToneBadge category={isWeak ? "shop" : "warning"} className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold">
                                         {isWeak
                                           ? (rule.appliesPenalty ? "⚠ Weak: 50%" : "✓ Weak removed")
                                           : "✗ Can't wield"}
-                                      </span>
+                                      </ToneBadge>
                                       {rule.blocked ? (
                                         <p className="text-[8px] text-muted-foreground leading-tight">
                                           This item is ignored in stat totals
@@ -1038,10 +1042,10 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
             </p>
             <div className="flex flex-wrap gap-1 mb-2 min-h-6">
               {loadout.skills.map((s) => (
-                <Badge key={s} variant="secondary" className="text-xs gap-1 px-2 py-0.5 bg-violet-100 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                <ToneBadge key={s} category="skill" className="text-xs gap-1 px-2 py-0.5">
                   {s}
                   <button onClick={() => removeSkill(s)} className="hover:text-destructive ml-0.5"><X className="w-2.5 h-2.5" /></button>
-                </Badge>
+                </ToneBadge>
               ))}
               {loadout.skills.length === 0 && <span className="text-xs text-muted-foreground/60">No skills selected</span>}
             </div>
@@ -1101,27 +1105,28 @@ export default function LoadoutPage() {
     <div className="min-h-screen bg-background transition-colors">
       {/* Header */}
       <div className="border-b border-border bg-card">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <Package className="w-5 h-5 text-orange-500" />Loadout Builder
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
-              <Info className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => {
-              if (confirm("Delete all your loadouts? This cannot be undone.")) {
-                save([]);
-              }
-            }} className="h-8 w-8 text-muted-foreground" title="Reset all loadouts">
-              <RotateCcw className="w-3.5 h-3.5" />
-            </Button>
-            <Button size="sm" onClick={addLoadout} className="h-8 gap-1.5">
-              <Plus className="w-3.5 h-3.5" />New Loadout
-            </Button>
-          </div>
+        <div className="max-w-5xl mx-auto px-4 py-3">
+          <PageHeader
+            icon={<Package className="w-5 h-5 text-orange-500" />}
+            title="Loadout Builder"
+            actions={(
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
+                  <Info className="w-3.5 h-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => {
+                  if (confirm("Delete all your loadouts? This cannot be undone.")) {
+                    save([]);
+                  }
+                }} className="h-8 w-8 text-muted-foreground" title="Reset all loadouts">
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </Button>
+                <Button size="sm" onClick={addLoadout} className="h-8 gap-1.5">
+                  <Plus className="w-3.5 h-3.5" />New Loadout
+                </Button>
+              </div>
+            )}
+          />
         </div>
       </div>
 
@@ -1234,9 +1239,9 @@ export default function LoadoutPage() {
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="text-xs font-medium text-muted-foreground/70 shrink-0">Skills:</span>
                             {loadout.skills.map((s) => (
-                              <span key={s} className="inline-block bg-violet-100 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800 rounded-md px-2 py-0.5 text-xs">
+                              <ToneBadge key={s} category="skill" className="inline-block rounded-md px-2 py-0.5 text-xs">
                                 {s}
-                              </span>
+                              </ToneBadge>
                             ))}
                           </div>
                         )}

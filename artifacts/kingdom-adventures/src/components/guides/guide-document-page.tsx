@@ -23,11 +23,13 @@ import {
   setGuideLinkOverrides,
 } from "@/lib/community-guides";
 import { EQUIPMENT_CATALOG } from "@/lib/generated-equipment-data";
-import { JOB_RANGE_DATA } from "@/lib/generated-job-range-data";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS, getShopHref } from "@/lib/shop-utils";
+import { getJobProfile } from "@/game-data/job-profile";
 import { googleSheetUrl, googleDocUrl } from "@/lib/api";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
+import { AffinityBadge, RankBadge } from "@/components/ka/badges";
+import { getEntityHref } from "@/components/ka/entity-link";
 
 export type GuideSectionOverlay = {
   title: string;
@@ -188,21 +190,6 @@ const GUIDE_AFFINITY_NUM_TO_LETTER: Record<number, string> = {
   65: "E",
   60: "E",
 };
-const GUIDE_AFFINITY_STYLE: Record<string, string> = {
-  A: "bg-amber-100 text-amber-800 border-amber-400 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-600",
-  B: "bg-violet-100 text-violet-800 border-violet-400 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-600",
-  C: "bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-600",
-  D: "bg-sky-100 text-sky-800 border-sky-400 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-600",
-  E: "bg-slate-100 text-slate-600 border-slate-400 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
-};
-const GUIDE_SIM_RANK_STYLE: Record<GuideSimRank, string> = {
-  S: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700",
-  A: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700",
-  B: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700",
-  C: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700",
-  D: "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
-};
-
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -255,7 +242,7 @@ function buildGuideLinks(): GuideLink[] {
 
   Object.keys(shared.jobs ?? {}).forEach((name) => {
     if (blockedAutoLabels.has(name.trim().toLowerCase())) return;
-    add(name, `/jobs/${encodeURIComponent(name)}`);
+    add(name, getEntityHref("job", name) ?? `/jobs/${encodeURIComponent(name)}`);
   });
 
   Object.keys(shared.skills ?? {}).forEach((name) => {
@@ -265,7 +252,7 @@ function buildGuideLinks(): GuideLink[] {
 
   Object.keys(shared.overrides ?? {}).forEach((name) => {
     if (/^[FSABCDE]\s*\/\s*/i.test(name)) {
-      add(name, `/equipment-stats?search=${encodeURIComponent(name)}`);
+      add(name, getEntityHref("equipment", name) ?? `/equipment-stats?search=${encodeURIComponent(name)}`);
     }
   });
 
@@ -277,7 +264,7 @@ function buildGuideLinks(): GuideLink[] {
     }
 
     if (shop.owner) {
-      add(shop.owner, `/jobs/${encodeURIComponent(shop.owner)}`);
+      add(shop.owner, getEntityHref("job", shop.owner) ?? `/jobs/${encodeURIComponent(shop.owner)}`);
     }
   });
 
@@ -294,7 +281,7 @@ function buildGuideLinks(): GuideLink[] {
   });
 
   add("Master Smithy", "/houses?tab=facilities&facilityTab=map");
-  add("Novel", `/equipment-stats?search=${encodeURIComponent("F/ Novel")}`);
+  add("Novel", getEntityHref("equipment", "F/ Novel") ?? `/equipment-stats?search=${encodeURIComponent("F/ Novel")}`);
   add("Weapon Shop", "/shops/weapon-shop");
   add("Weapons Shop", "/shops/weapon-shop");
   add("Armor Shop", "/shops/armor-shop");
@@ -449,11 +436,11 @@ function isEquipmentStatsHref(href: string) {
 }
 
 function buildEquipmentStatsHref(name: string) {
-  return `/equipment-stats?search=${encodeURIComponent(name)}`;
+  return getEntityHref("equipment", name) ?? `/equipment-stats?search=${encodeURIComponent(name)}`;
 }
 
 function buildJobHref(name: string) {
-  return `/jobs/${encodeURIComponent(name)}`;
+  return getEntityHref("job", name) ?? `/jobs/${encodeURIComponent(name)}`;
 }
 
 function getJobNameFromHref(href: string) {
@@ -617,71 +604,17 @@ function findGuideEquipmentPreview(href: string, label: string): EquipmentPrevie
   };
 }
 
-const GUIDE_KNOWN_JOB_SHOPS: Record<string, string[]> = {
-  Artisan: ["Furniture Shop"],
-  Artist: ["Studio"],
-  Blacksmith: ["Weapon Shop", "Armor Shop"],
-  "Beast Tamer": ["Zoo"],
-  Carpenter: ["Survey Corps HQ (Rank B+)"],
-  Cook: ["Restaurant"],
-  Doctor: ["Hospital"],
-  Entertainer: ["Insectarium", "Aquarium", "Museum"],
-  Farmer: ["Orchard (Rank C+)", "Survey Corps HQ (Rank B+)"],
-  Mage: ["Skill Shop"],
-  Merchant: ["Survey Corps HQ (Rank B+)"],
-  Monk: ["Church"],
-  Mover: ["Survey Corps HQ (Rank B+)"],
-  Rancher: ["Monster House", "Survey Corps HQ (Rank B+)"],
-  Researcher: ["Analysis Lab", "Research Lab"],
-  "Santa Claus": ["Santa's House"],
-  Trader: ["Item Shop", "Accessory Shop"],
+const GUIDE_JOB_RANGE_LABEL_BY_INDEX: Record<number, string> = {
+  0: "Searching Range",
+  1: "Deployment Range",
+  2: "Defog AoE",
 };
 
-const GUIDE_JOB_RANGE_RANK_ORDER = ["D", "C", "B", "A", "S"] as const;
-const GUIDE_JOB_RANGE_LABELS = [
-  { label: "Searching Range", index: 0 },
-  { label: "Deployment Range", index: 1 },
-  { label: "Defog AoE", index: 2 },
-] as const;
-
-function formatGuideRangeRankLabel(startRank: string, endRank: string) {
-  if (startRank === endRank) return `${startRank} rank`;
-  if (endRank === "S") return `${startRank}+ rank`;
-  return `${startRank}-${endRank} rank`;
+function formatGuideProfileRangeLabel(label: string) {
+  const [start, end] = label.split("-");
+  if (!end) return `${label} rank`;
+  return end === "S" ? `${start}+ rank` : `${label} rank`;
 }
-
-function getGuideCollapsedRangeGroups(jobName: string, index: 0 | 1 | 2) {
-  const ranges = (JOB_RANGE_DATA as Record<string, Partial<Record<string, readonly [number, number, number]>>>)[jobName];
-  if (!ranges) return [];
-
-  const entries = GUIDE_JOB_RANGE_RANK_ORDER
-    .map((rank) => {
-      const values = ranges[rank];
-      return values ? { rank, value: values[index] } : null;
-    })
-    .filter((entry): entry is { rank: (typeof GUIDE_JOB_RANGE_RANK_ORDER)[number]; value: number } => Boolean(entry && Number.isFinite(entry.value)));
-
-  if (!entries.length) return [];
-  const groups: Array<{ label: string; value: number }> = [];
-  const firstEntry = entries[0]!;
-  let start = firstEntry.rank;
-  let end = firstEntry.rank;
-  let value = firstEntry.value;
-
-  for (const entry of entries.slice(1)) {
-    if (entry.value === value) {
-      end = entry.rank;
-    } else {
-      groups.push({ label: formatGuideRangeRankLabel(start, end), value });
-      start = entry.rank;
-      end = entry.rank;
-      value = entry.value;
-    }
-  }
-  groups.push({ label: formatGuideRangeRankLabel(start, end), value });
-  return groups;
-}
-
 function findGuideJobPreview(href: string, label: string): JobPreviewItem | null {
   const jobName = getJobNameFromHref(href) || label;
   if (!jobName) return null;
@@ -689,20 +622,23 @@ function findGuideJobPreview(href: string, label: string): JobPreviewItem | null
     jobs?: Record<string, GuideJob>;
     statIcons?: Record<string, string>;
     weaponCategories?: string[];
+    pairs?: Array<{ id: string; jobA: string; jobB: string; children?: string[]; affinity?: string; affinityNum?: number }>;
   };
-  const foundName = Object.keys(shared.jobs ?? {}).find((name) => name.toLowerCase() === jobName.toLowerCase()) ?? jobName;
-  const job = shared.jobs?.[foundName];
-  if (!job) return null;
+  const profile = getJobProfile(shared, jobName);
+  if (!profile) return null;
+  const foundName = profile.name;
+  const job = profile.job as GuideJob;
 
   return {
     name: foundName,
     job,
     statIcons: shared.statIcons ?? {},
     weaponCategories: shared.weaponCategories ?? [],
-    shops: job.shops?.length ? job.shops : GUIDE_KNOWN_JOB_SHOPS[foundName] ?? [],
-    ranges: GUIDE_JOB_RANGE_LABELS
-      .map((range) => ({ label: range.label, groups: getGuideCollapsedRangeGroups(foundName, range.index) }))
-      .filter((range) => range.groups.length > 0),
+    shops: profile.shops,
+    ranges: profile.rangeGroups.map((range) => ({
+      label: GUIDE_JOB_RANGE_LABEL_BY_INDEX[range.index] ?? range.label,
+      groups: range.groups.map((group) => ({ ...group, label: formatGuideProfileRangeLabel(group.label) })),
+    })),
   };
 }
 
@@ -1447,7 +1383,7 @@ function EquipmentPreviewDialog({
           {item.requiredKairo ? <Badge variant="outline">Exchange: {item.requiredKairo}</Badge> : null}
         </div>
 
-        <Link href={`/equipment-stats?search=${encodeURIComponent(item.name)}`}>
+        <Link href={buildEquipmentStatsHref(item.name)}>
           <Button variant="outline" className="w-full">Open Full Equipment Page</Button>
         </Link>
       </DialogContent>
@@ -1737,9 +1673,7 @@ function MarriageSimPreviewDialog({
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Compatibility</p>
                 <div className="flex items-center gap-1.5">
-                  <span className={`rounded border px-2 py-0.5 text-sm font-bold ${GUIDE_AFFINITY_STYLE[affinityLetter] ?? "bg-muted border-border text-foreground"}`}>
-                    {affinityLetter || "?"}
-                  </span>
+                  <AffinityBadge affinity={affinityLetter || "?"} className="rounded px-2 py-0.5 text-sm font-bold" />
                   {affinityNum ? <span className="text-xs text-muted-foreground">({affinityNum}%)</span> : null}
                 </div>
               </div>
@@ -1749,7 +1683,7 @@ function MarriageSimPreviewDialog({
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Child Rank</p>
-                <Badge className={`border px-2.5 py-0.5 text-sm font-bold ${GUIDE_SIM_RANK_STYLE[childRank]}`}>{childRank}</Badge>
+                <RankBadge rank={childRank} className="px-2.5 py-0.5 text-sm font-bold" />
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Child Awakening</p>
@@ -2153,10 +2087,30 @@ export function GuideDocumentPage({
     }
 
     async function loadGuide() {
+      let fallbackLoaded = false;
+
+      // Local markdown should be the primary render path when available.
+      if (!cached && fallbackUrl) {
+        try {
+          const fallback = await fetch(fallbackUrl);
+          if (fallback.ok) {
+            const fallbackMarkdown = await fallback.text();
+            if (!cancelled && fallbackMarkdown) {
+              writeBrowserCache(guideCacheKey, fallbackMarkdown);
+              setMarkdown(fallbackMarkdown);
+              setLoading(false);
+            }
+            fallbackLoaded = true;
+          }
+        } catch {
+          // Ignore fallback errors here; Google doc proxy may still succeed.
+        }
+      }
+
       try {
-        if (!cached) setLoading(true);
+        if (!cached && !fallbackLoaded) setLoading(true);
         setError(null);
-        // Fetch guide via the server-side cache proxy (avoids hitting Google on every user load)
+        // Refresh from server-side Google Doc cache in background.
         const googleDocUrlProxy = googleDocUrl(docId);
         let fetchedMarkdown = "";
         let usedGoogleDoc = false;
@@ -2172,11 +2126,12 @@ export function GuideDocumentPage({
           }
         } catch {}
 
-        if (!usedGoogleDoc && fallbackUrl) {
+        if (!usedGoogleDoc && fallbackUrl && !fallbackLoaded) {
           // Fallback to local markdown
           const fallback = await fetch(fallbackUrl);
           if (!fallback.ok) throw new Error(`Guide request failed with ${fallback.status}`);
           fetchedMarkdown = await fallback.text();
+          fallbackLoaded = true;
         }
         if (!fetchedMarkdown) throw new Error("Guide request failed. Make sure the Google Doc is public or published.");
         if (!cancelled) {
@@ -2185,7 +2140,9 @@ export function GuideDocumentPage({
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load guide");
+          if (!cached && !fallbackLoaded) {
+            setError(err instanceof Error ? err.message : "Failed to load guide");
+          }
         }
       } finally {
         if (!cancelled) {

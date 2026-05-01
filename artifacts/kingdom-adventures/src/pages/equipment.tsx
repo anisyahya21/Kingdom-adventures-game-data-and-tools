@@ -14,10 +14,13 @@ import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { SearchableSelect } from "@/components/searchable-select";
+import { PageHeader } from "@/components/ka/page-header";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl, googleSheetUrl } from "@/lib/api";
+import { parseCsv } from "@/lib/monster-truth";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
+import equipCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Equip.csv?raw";
 const RANKED_EQUIPMENT_NAME = /^[FSABCDE]\s*\/\s*/i;
 
 // ─── NumInput: local-string-state to prevent typing glitch ────────────────────
@@ -212,6 +215,20 @@ export interface EquipmentItem {
   crafterIntelligence: number;
 }
 
+function dedupeEquipmentItems(items: EquipmentItem[]): EquipmentItem[] {
+  const seenSignatures = new Set<string>();
+  return items.filter((item) => {
+    const statsSignature = STAT_ORDER.map((stat) => `${item.baseStats[stat] ?? 0}:${item.incStats[stat] ?? 0}`).join("|");
+    const sourceKey = item.sourceName || item.name;
+    const signature = item.sourceId !== null
+      ? `id:${item.sourceId}`
+      : `name:${sourceKey}|slot:${item.sheetSlot}|studio:${item.crafterStudioLevel}|int:${item.crafterIntelligence}|stats:${statsSignature}`;
+    if (seenSignatures.has(signature)) return false;
+    seenSignatures.add(signature);
+    return true;
+  });
+}
+
 function isPlayerFacingEquipmentName(name: string): boolean {
   if (!RANKED_EQUIPMENT_NAME.test(name)) return false;
   const lower = name.trim().toLowerCase();
@@ -221,6 +238,74 @@ function isPlayerFacingEquipmentName(name: string): boolean {
 function getEquipmentRank(name: string): string {
   const match = name.trim().match(/^([FSABCDE])\s*\//i);
   return match ? match[1].toUpperCase() : "";
+}
+
+function parseLocalEquipmentSnapshot(): EquipmentItem[] {
+  const rows = parseCsv(equipCsv);
+  if (rows.length < 4) return [];
+
+  const statLabels = rows[1] ?? [];
+  const header = rows[2] ?? [];
+  const nameColIdx = header.indexOf("name");
+  const typeColIdx = header.indexOf("type");
+  const craftLvlIdx = header.indexOf("craftTermStudioLevel");
+  const craftIntIdx = header.indexOf("craftTermIntelligence");
+
+  const statColumns: Array<{ stat: string; start: number; increment: number }> = [];
+  for (let index = 0; index < header.length - 1; index += 1) {
+    if (header[index] !== "start" || header[index + 1] !== "increment") continue;
+    const rawLabel = (statLabels[index] ?? "").trim();
+    if (!rawLabel) continue;
+
+    const normalizedStat =
+      rawLabel === "Atk" ? "Attack" :
+      rawLabel === "Def" ? "Defence" :
+      rawLabel === "Spd" ? "Speed" :
+      rawLabel === "Lck" ? "Luck" :
+      rawLabel === "Int" ? "Intelligence" :
+      rawLabel === "Dex" ? "Dexterity" :
+      rawLabel === "Gth" ? "Gather" :
+      rawLabel === "Mov" ? "Move" :
+      rawLabel === "Hrt" ? "Heart" :
+      rawLabel;
+
+    if (!STAT_ORDER.includes(normalizedStat)) continue;
+    statColumns.push({ stat: normalizedStat, start: index, increment: index + 1 });
+  }
+
+  const items: EquipmentItem[] = [];
+  for (const [rowIndex, row] of rows.slice(3).entries()) {
+    const name = String(row[nameColIdx] ?? "").trim();
+    if (!name || /^\d+$/.test(name) || !isPlayerFacingEquipmentName(name)) continue;
+
+    const rawId = Number(row[0]);
+    const sourceId = Number.isFinite(rawId) ? rawId : null;
+    const rawType = typeColIdx >= 0 ? row[typeColIdx] : null;
+    const parsedType = rawType == null || rawType === "" ? null : Number(rawType);
+    const sheetSlot = slotFromEquipmentType(Number.isFinite(parsedType as number) ? parsedType : rawType);
+
+    const baseStats: Record<string, number> = Object.fromEntries(STAT_ORDER.map((stat) => [stat, 0]));
+    const incStats: Record<string, number> = Object.fromEntries(STAT_ORDER.map((stat) => [stat, 0]));
+
+    for (const col of statColumns) {
+      baseStats[col.stat] = Number(row[col.start]) || 0;
+      incStats[col.stat] = Number(row[col.increment]) || 0;
+    }
+
+    items.push({
+      uid: sourceId === null ? `local-${rowIndex}` : String(sourceId),
+      name,
+      sourceName: name,
+      sourceId,
+      sheetSlot,
+      baseStats,
+      incStats,
+      crafterStudioLevel: Number(row[craftLvlIdx]) || 0,
+      crafterIntelligence: Number(row[craftIntIdx]) || 0,
+    });
+  }
+
+  return dedupeEquipmentItems(items);
 }
 
 async function fetchSheet(): Promise<EquipmentItem[]> {
@@ -233,10 +318,15 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     .catch((err) => {
       const cached = readBrowserCache<EquipmentItem[]>("equipment-sheet", 7 * 24 * 60 * 60 * 1000);
       if (cached) return `__KA_CACHED_EQUIPMENT__${JSON.stringify(cached)}`;
+      const localSnapshot = parseLocalEquipmentSnapshot();
+      if (localSnapshot.length > 0) return `__KA_CACHED_EQUIPMENT__${JSON.stringify(localSnapshot)}`;
       throw err;
     });
   if (text.startsWith("__KA_CACHED_EQUIPMENT__")) {
-    return JSON.parse(text.replace("__KA_CACHED_EQUIPMENT__", "")) as EquipmentItem[];
+    const cachedItems = JSON.parse(text.replace("__KA_CACHED_EQUIPMENT__", "")) as EquipmentItem[];
+    const dedupedCachedItems = dedupeEquipmentItems(cachedItems);
+    writeBrowserCache("equipment-sheet", dedupedCachedItems);
+    return dedupedCachedItems;
   }
   const json = text.replace(/^[^(]+\(/, "").replace(/\);?\s*$/, "");
   const data = JSON.parse(json);
@@ -276,7 +366,9 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     const name = String(get(nameColIdx) ?? "").trim();
     if (!name || /^\d+$/.test(name)) continue;
     if (!isPlayerFacingEquipmentName(name)) continue;
-    const sourceId = Number(get(0));
+    const rawSourceId = get(0);
+    const parsedSourceId = rawSourceId === null || rawSourceId === "" ? NaN : Number(rawSourceId);
+    const sourceId = Number.isFinite(parsedSourceId) ? parsedSourceId : null;
     const rawSlot = slotColIdx >= 0 ? get(slotColIdx) : null;
     const sheetSlot = slotFromEquipmentType(rawSlot);
     const baseStats: Record<string, number> = {};
@@ -292,11 +384,23 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
       if (baseStats[s] === undefined) baseStats[s] = 0;
       if (incStats[s] === undefined) incStats[s] = 0;
     }
-    rawItems.push({ name, sourceName: name, sourceId: Number.isFinite(sourceId) ? sourceId : null, sheetSlot, baseStats, incStats, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
+    rawItems.push({ name, sourceName: name, sourceId, sheetSlot, baseStats, incStats, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
+  }
+
+  const dedupedRawItems: Omit<EquipmentItem, "uid">[] = [];
+  const seenSignatures = new Set<string>();
+  for (const item of rawItems) {
+    const statsSignature = STAT_ORDER.map((stat) => `${item.baseStats[stat] ?? 0}:${item.incStats[stat] ?? 0}`).join("|");
+    const signature = item.sourceId !== null
+      ? `id:${item.sourceId}`
+      : `name:${item.name}|slot:${item.sheetSlot}|studio:${item.crafterStudioLevel}|int:${item.crafterIntelligence}|stats:${statsSignature}`;
+    if (seenSignatures.has(signature)) continue;
+    seenSignatures.add(signature);
+    dedupedRawItems.push(item);
   }
 
   const duplicateCounts = new Map<string, number>();
-  for (const item of rawItems) {
+  for (const item of dedupedRawItems) {
     duplicateCounts.set(item.name, (duplicateCounts.get(item.name) ?? 0) + 1);
   }
 
@@ -308,7 +412,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
   };
   const seenDuplicateIndex = new Map<string, number>();
 
-  const items = rawItems.map((item, index) => {
+  const items = dedupedRawItems.map((item, index) => {
     const duplicateTotal = duplicateCounts.get(item.name) ?? 0;
     if (duplicateTotal <= 1) {
       return { uid: String(index), ...item };
@@ -320,8 +424,9 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     const suffix = preferredSuffix ?? `(${seen})`;
     return { uid: item.sourceId === null ? String(index) : String(item.sourceId), ...item, name: `${item.name} ${suffix}` };
   });
-  writeBrowserCache("equipment-sheet", items);
-  return items;
+  const dedupedItems = dedupeEquipmentItems(items);
+  writeBrowserCache("equipment-sheet", dedupedItems);
+  return dedupedItems;
 }
 
 function statAtLevel(base: number, inc: number, level: number): number {
@@ -796,7 +901,17 @@ export default function EquipmentPage() {
   const { data: items = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["equipment"],
     queryFn: fetchSheet,
-    initialData: () => readBrowserCache<EquipmentItem[]>("equipment-sheet", 7 * 24 * 60 * 60 * 1000),
+    initialData: () => {
+      const cached = readBrowserCache<EquipmentItem[]>("equipment-sheet", 7 * 24 * 60 * 60 * 1000);
+      if (!cached) {
+        const localSnapshot = parseLocalEquipmentSnapshot();
+        if (localSnapshot.length > 0) return localSnapshot;
+        return undefined;
+      }
+      const dedupedCached = dedupeEquipmentItems(cached);
+      if (dedupedCached.length !== cached.length) writeBrowserCache("equipment-sheet", dedupedCached);
+      return dedupedCached;
+    },
     initialDataUpdatedAt: 0,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
@@ -1193,21 +1308,12 @@ export default function EquipmentPage() {
 
       <div className="max-w-[1400px] mx-auto px-4 py-8">
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Equipment Stats</h1>
-              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                Search and compare Kingdom Adventures equipment at any level, including weapons, shields,
-                armor, headgear, accessories, ranks, stats, shop data, crafting requirements, and loadout values.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <InfoDialog />
-          </div>
-        </div>
+        <PageHeader title="Equipment Stats" actions={<InfoDialog />} className="mb-6">
+          <p>
+            Search and compare Kingdom Adventures equipment at any level, including weapons, shields,
+            armor, headgear, accessories, ranks, stats, shop data, crafting requirements, and loadout values.
+          </p>
+        </PageHeader>
 
         {/* Stat icons row */}
         <Card className="shadow-sm mb-4">

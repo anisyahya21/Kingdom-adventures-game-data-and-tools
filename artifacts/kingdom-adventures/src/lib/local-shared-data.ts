@@ -6,7 +6,7 @@ export const localSharedData = fallbackSharedData as Record<string, unknown>;
 export async function fetchSharedWithFallback<T>(url: string): Promise<T> {
   const cacheKey = "shared-data";
   try {
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`Shared API returned ${res.status}`);
     const data = await res.json() as T;
     writeBrowserCache(cacheKey, data);

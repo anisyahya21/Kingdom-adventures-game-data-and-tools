@@ -18,11 +18,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CategoryBadge } from "@/components/ka/category-badge";
+import { CostPills } from "@/components/ka/cost-pills";
+import { DataCard } from "@/components/ka/data-card";
+import { PageHeader } from "@/components/ka/page-header";
+import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
+import { EntityLink } from "@/components/ka/entity-link";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS, type ShopRecord, type ShopSlug, type ShopBuilding, type ShopFacility } from "@/lib/shop-utils";
-import { MaterialIcon } from "@/lib/material-icons";
-import { FACILITIES } from "./houses";
+import { PLOT_SIZES, PLOT_TILES } from "@/game-data/buildings";
+import { FACILITIES } from "@/game-data/facilities";
 import { FacilityCard } from "./houses";
+import { KA_STATUS_BADGE_CLASS } from "@/design-system/category-styles";
 
 type EquipmentSlot = "Head" | "Weapon" | "Shield" | "Armor" | "Accessory" | "-";
 type EquipmentRow = {
@@ -78,11 +85,6 @@ type SharedDataShape = {
 const EQUIP_SHEET_URL = googleSheetUrl("equipment");
 const ITEM_SHEET_URL = googleSheetUrl("shops-items");
 const VALID_SLOTS: EquipmentSlot[] = ["Head", "Weapon", "Shield", "Armor", "Accessory", "-"];
-const STATUS_STYLE = {
-  Ready: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
-  "In Progress": "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300",
-  "Research Needed": "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300",
-} as const;
 const RANKS = ["All", "B", "C", "D", "E", "F"] as const;
 const EXCLUDED_SKILLS = new Set(["normal attack", "gun attack", "critical hit"]);
 const FURNITURE_ROWS: FurnitureRow[] = [
@@ -272,26 +274,22 @@ function ShopHeader({ selectedShop }: {
   selectedShop?: ShopRecord | null;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
-      <div className="flex items-start gap-3">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            {(selectedShop ? SHOP_ICONS[selectedShop.slug] : <Store className="w-5 h-5 text-indigo-500" />)}
-            <h1 className="text-2xl font-bold text-foreground">{selectedShop ? selectedShop.title : "Shops"}</h1>
-            {selectedShop && (
-              <Badge variant="outline" className={STATUS_STYLE[selectedShop.status]}>
-                {selectedShop.status}
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground max-w-3xl">
-            {selectedShop
-              ? selectedShop.description
-              : "Browse shop databases by owner and category. Ready shops already use translated game data; unfinished shops stay clearly marked as research-backed."}
-          </p>
-        </div>
-      </div>
-    </div>
+    <PageHeader
+      className="mb-6"
+      icon={selectedShop ? SHOP_ICONS[selectedShop.slug] : <Store className="w-5 h-5 text-indigo-500" />}
+      title={selectedShop ? selectedShop.title : "Shops"}
+      actions={selectedShop && (
+        <Badge variant="outline" className={KA_STATUS_BADGE_CLASS[selectedShop.status]}>
+          {selectedShop.status}
+        </Badge>
+      )}
+    >
+      <p>
+        {selectedShop
+          ? selectedShop.description
+          : "Browse shop databases by owner and category. Ready shops already use translated game data; unfinished shops stay clearly marked as research-backed."}
+      </p>
+    </PageHeader>
   );
 }
 
@@ -316,16 +314,6 @@ function ShopTabs({ currentSlug }: { currentSlug?: ShopSlug }) {
   );
 }
 
-const BUILDING_COST_ICONS: { field: keyof ShopBuilding; matId: number; style: "flat" | "outlined" | "crystal" }[] = [
-  { field: "grass",  matId: 0, style: "outlined" },
-  { field: "wood",   matId: 1, style: "flat" },
-  { field: "food",   matId: 2, style: "flat" },
-  { field: "ore",    matId: 3, style: "crystal" },
-  { field: "mystic", matId: 4, style: "flat" },
-];
-const PLOT_TILES: Record<string, string> = { S: "6×6", M: "6×8", L: "8×8", XL: "8×10" };
-const PLOT_SIZES = ["S", "M", "L", "XL"] as const;
-
 function BuildingSlotRow({ label, values, highlight }: { label: string; values: [number,number,number,number]; highlight?: boolean }) {
   const allZero = values.every(v => v === 0);
   return (
@@ -346,55 +334,30 @@ function ShopBuildingPanel({ shop }: { shop: ShopRecord }) {
   const b = shop.building;
   if (!b) return null;
 
-  const costs = BUILDING_COST_ICONS.filter(c => (b[c.field] as number) > 0);
-
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-2 pt-4 px-4">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-semibold leading-tight">{shop.title}</CardTitle>
-          <Badge variant="outline" className="text-[10px] shrink-0 bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-300">
-            Shop
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-3">
-        {costs.length === 0 ? (
-          <span className="text-[11px] text-muted-foreground italic">Free to build</span>
-        ) : (
-          <div className="flex flex-wrap gap-2 items-center">
-            {costs.map(c => (
-              <span key={c.field} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <MaterialIcon id={c.matId} style={c.style} size={18} />
-                {b[c.field] as number}
-              </span>
+    <DataCard
+      title={shop.title}
+      action={<CategoryBadge category="shop">Shop</CategoryBadge>}
+      contentClassName="space-y-3"
+    >
+      <CostPills costs={b} />
+      <StatTable>
+        <thead>
+          <tr>
+            <th className="pr-2 text-left text-[10px] font-medium text-muted-foreground/60 pb-1"></th>
+            {PLOT_SIZES.map(s => (
+              <StatTableHeaderCell key={s} label={s} sublabel={PLOT_TILES[s]} />
             ))}
-          </div>
-        )}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="pr-2 text-left text-[10px] font-medium text-muted-foreground/60 pb-1"></th>
-                {PLOT_SIZES.map(s => (
-                  <th key={s} className="text-center px-2 text-[10px] font-semibold text-muted-foreground pb-1">
-                    <div>{s}</div>
-                    <div className="font-normal text-muted-foreground/50 text-[9px] tabular-nums">{PLOT_TILES[s]}</div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <BuildingSlotRow label="Indoor slots" values={b.cap} />
-              <BuildingSlotRow label="Beds"         values={b.beds} highlight />
-              {b.store.some(v => v > 0) && (
-                <BuildingSlotRow label="Shelves"    values={b.store} highlight />
-              )}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+          </tr>
+        </thead>
+        <tbody>
+          <BuildingSlotRow label="Extra beds"   values={b.beds} highlight />
+          {b.store.some(v => v > 0) && (
+            <BuildingSlotRow label="Shelves"    values={b.store} highlight />
+          )}
+        </tbody>
+      </StatTable>
+    </DataCard>
   );
 }
 
@@ -417,20 +380,20 @@ function formatUpgTime(seconds: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-// FacilityCard is now imported from houses.tsx and should not be redefined here.
+// FacilityCard is still rendered from Houses until it moves to a shared KA component.
 
 
 
 function ShopOwnerLink({ owner }: { owner: string }) {
   return (
-    <Link href={`/jobs/${encodeURIComponent(owner)}`}>
-      <button
-        onClick={(e) => e.stopPropagation()}
-        className="font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500 dark:hover:text-purple-300 transition-colors"
-      >
-        {owner}
-      </button>
-    </Link>
+    <EntityLink
+      type="job"
+      name={owner}
+      onClick={(e) => e.stopPropagation()}
+      className="font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500 dark:hover:text-purple-300 transition-colors"
+    >
+      {owner}
+    </EntityLink>
   );
 }
 
@@ -984,7 +947,7 @@ export default function ShopsPage() {
                     <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
                       {SHOP_ICONS[shop.slug]}
                     </div>
-                    <Badge variant="outline" className={STATUS_STYLE[shop.status]}>
+                    <Badge variant="outline" className={KA_STATUS_BADGE_CLASS[shop.status]}>
                       {shop.status}
                     </Badge>
                   </div>

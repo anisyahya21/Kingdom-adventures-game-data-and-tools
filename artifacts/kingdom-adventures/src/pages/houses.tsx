@@ -1,12 +1,34 @@
 ﻿import { useState } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
-import { Home, Search } from "lucide-react";
+import { Home } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { Link, useSearch } from "wouter";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CategoryBadge } from "@/components/ka/category-badge";
+import { CostPills } from "@/components/ka/cost-pills";
+import { DataCard } from "@/components/ka/data-card";
+import { EntityLink } from "@/components/ka/entity-link";
+import { FilterBar } from "@/components/ka/filter-bar";
+import { PageHeader } from "@/components/ka/page-header";
+import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { MaterialIcon } from "@/lib/material-icons";
+import { formatBuildingJobOwners } from "@/game-data/job-buildings";
+import {
+  BUILDING_GROUP_LABEL,
+  BUILDINGS,
+  PLOT_SIZES,
+  PLOT_TILES,
+  type Building,
+} from "@/game-data/buildings";
+import {
+  FACILITIES,
+  FACILITY_TABS,
+  type Facility,
+  type FacilityTab,
+} from "@/game-data/facilities";
+import { KA_CATEGORY_BADGE_CLASS, KA_FACILITY_TAB_BADGE_CLASS } from "@/design-system/category-styles";
 import {
   EQUIPMENT_EXCHANGE_ENTRIES,
   EQUIPMENT_EXCHANGE_OUTPUTS,
@@ -14,93 +36,7 @@ import {
   rankLabel,
 } from "@/lib/equipment-exchange";
 
-// -- Data (from KA GameData - House.csv) --------------------------------------
-//
-// CSV COLUMN ? FIELD NAME ? ACTUAL MATERIAL ? matId ? icon
-// -----------------------------------------------------------------------------
-// The House.csv stores build costs in 5 numeric columns. The column order does
-// NOT match the material names you'd expect. Verified against in-game values:
-//
-//   CSV col 0  ?  field "grass"   ?  Grass        (matId 0)  flat green
-//   CSV col 1  ?  field "wood"    ?  Wood         (matId 1)  flat brown log
-//   CSV col 2  ?  field "food"    ?  Food         (matId 2)  flat basket
-//   CSV col 3  ?  field "ore"     ?  Ore          (matId 3)  crystal blue-grey
-//   CSV col 4  ?  field "mystic"  ?  Mystic Ore   (matId 4)  flat red diamond
-//
-// Confirmed examples:
-//   Inn              ? grass:5        (5 Grass)
-//   Furniture Shop   ? wood:15        (15 Wood)
-//   Restaurant       ? food:8         (8 Food)
-//   Weapon Shop      ? ore:12         (12 Ore)
-//   Skill Shop       ? mystic:12      (12 Mystic Ore)
-//   Insectarium      ? wood:65        (65 Wood)
-//   Zoo              ? food:80        (80 Food)
-//   Hospital         ? food:25        (25 Food)
-//   Monster House    ? food:15        (15 Food)
-//   Orchard          ? grass:25       (25 Grass)
-// -----------------------------------------------------------------------------
-
-type BuildingGroup = "house" | "shop" | "service" | "special";
-
-type Building = {
-  id: number;
-  name: string;
-  group: BuildingGroup;
-  grass: number; wood: number; food: number; ore: number; mystic: number;
-  cap:     [number, number, number, number];
-  beds:    [number, number, number, number];
-  store:   [number, number, number, number];
-  monster: [number, number, number, number];
-};
-
-const BUILDINGS: Building[] = [
-  //                                                        grass  wood   food   ore    mystic
-  { id: 0,  name: "Commoner's House", group: "house",   grass: 0,  wood: 0,  food: 0,  ore: 0,  mystic: 0,  cap: [2,3,4,5],   beds: [1,2,3,4], store: [0,0,0,0], monster: [1,1,2,3] },
-  { id: 15, name: "Mansion",          group: "house",   grass: 0,  wood: 0,  food: 0,  ore: 0,  mystic: 20, cap: [3,4,5,6],   beds: [2,3,4,5], store: [0,0,0,0], monster: [1,1,2,3] },
-  { id: 1,  name: "Royal Room",       group: "house",   grass: 0,  wood: 3,  food: 0,  ore: 0,  mystic: 0,  cap: [1,1,2,3],   beds: [0,0,1,2], store: [0,0,0,0], monster: [1,1,1,2] },
-  { id: 7,  name: "Inn",              group: "house",   grass: 5,  wood: 0,  food: 0,  ore: 0,  mystic: 0,  cap: [4,6,8,10],  beds: [3,5,7,9], store: [0,0,0,0], monster: [0,0,0,1] },
-  { id: 16, name: "Monster House",    group: "house",   grass: 0,  wood: 0,  food: 15, ore: 0,  mystic: 0,  cap: [1,1,1,2],   beds: [0,0,0,1], store: [0,0,0,0], monster: [2,3,4,5] },
-  { id: 2,  name: "Weapon Shop",      group: "shop",    grass: 0,  wood: 0,  food: 0,  ore: 12, mystic: 0,  cap: [1,2,2,3],   beds: [0,1,1,2], store: [3,5,7,9], monster: [0,0,0,0] },
-  { id: 3,  name: "Armor Shop",       group: "shop",    grass: 0,  wood: 0,  food: 0,  ore: 8,  mystic: 0,  cap: [1,2,2,3],   beds: [0,1,1,2], store: [3,5,7,9], monster: [0,0,0,0] },
-  { id: 9,  name: "Accessory Shop",   group: "shop",    grass: 0,  wood: 0,  food: 0,  ore: 15, mystic: 0,  cap: [1,2,2,3],   beds: [0,1,1,2], store: [3,5,7,9], monster: [0,0,0,0] },
-  { id: 6,  name: "Skill Shop",       group: "shop",    grass: 0,  wood: 0,  food: 0,  ore: 0,  mystic: 12, cap: [1,2,2,3],   beds: [0,1,1,2], store: [3,5,7,9], monster: [0,0,0,0] },
-  { id: 4,  name: "Item Shop",        group: "shop",    grass: 0,  wood: 0,  food: 5,  ore: 0,  mystic: 0,  cap: [1,2,2,3],   beds: [0,1,1,2], store: [3,5,7,9], monster: [0,0,0,0] },
-  { id: 5,  name: "Furniture Shop",   group: "shop",    grass: 0,  wood: 15, food: 0,  ore: 0,  mystic: 0,  cap: [1,2,2,3],   beds: [0,1,1,2], store: [3,5,7,9], monster: [0,0,0,0] },
-  { id: 8,  name: "Restaurant",       group: "shop",    grass: 0,  wood: 0,  food: 8,  ore: 0,  mystic: 0,  cap: [1,2,2,3],   beds: [0,1,1,2], store: [3,5,7,9], monster: [0,0,0,0] },
-  { id: 21, name: "Insectarium",      group: "shop",    grass: 0,  wood: 65, food: 0,  ore: 0,  mystic: 0,  cap: [1,1,1,2],   beds: [0,0,0,1], store: [3,5,7,9], monster: [0,0,0,1] },
-  { id: 22, name: "Aquarium",         group: "shop",    grass: 0,  wood: 0,  food: 0,  ore: 0,  mystic: 50, cap: [1,1,1,2],   beds: [0,0,0,1], store: [3,5,7,9], monster: [0,0,0,1] },
-  { id: 23, name: "Zoo",              group: "shop",    grass: 0,  wood: 0,  food: 80, ore: 0,  mystic: 0,  cap: [1,1,1,2],   beds: [0,0,0,1], store: [3,5,7,9], monster: [0,0,0,1] },
-  { id: 24, name: "Museum",           group: "shop",    grass: 0,  wood: 0,  food: 0,  ore: 99, mystic: 0,  cap: [1,1,1,2],   beds: [0,0,0,1], store: [3,5,7,9], monster: [0,0,0,1] },
-  { id: 13, name: "Hospital",         group: "service", grass: 0,  wood: 0,  food: 25, ore: 0,  mystic: 0,  cap: [2,3,4,5],   beds: [1,2,3,4], store: [0,0,0,0], monster: [0,0,0,0] },
-  { id: 10, name: "Recovery Room",    group: "service", grass: 0,  wood: 0,  food: 0,  ore: 0,  mystic: 5,  cap: [1,2,2,3],   beds: [0,1,1,2], store: [0,0,0,0], monster: [1,1,1,2] },
-  { id: 14, name: "Church",           group: "service", grass: 0,  wood: 0,  food: 0,  ore: 0,  mystic: 15, cap: [1,2,2,3],   beds: [0,1,1,2], store: [0,0,0,0], monster: [0,0,0,0] },
-  { id: 11, name: "Analysis Lab",     group: "service", grass: 0,  wood: 8,  food: 0,  ore: 0,  mystic: 0,  cap: [2,3,4,5],   beds: [1,2,3,4], store: [0,0,0,0], monster: [0,0,0,0] },
-  { id: 12, name: "Research Lab",     group: "service", grass: 0,  wood: 10, food: 0,  ore: 0,  mystic: 0,  cap: [2,3,4,5],   beds: [1,2,3,4], store: [0,0,0,0], monster: [0,0,0,0] },
-  { id: 17, name: "Survey Corps HQ",  group: "special", grass: 0,  wood: 0,  food: 0,  ore: 0,  mystic: 15, cap: [2,3,4,5],   beds: [1,2,3,4], store: [0,0,0,0], monster: [1,1,2,3] },
-  { id: 20, name: "Studio",           group: "special", grass: 0,  wood: 15, food: 0,  ore: 0,  mystic: 0,  cap: [2,2,2,3],   beds: [1,1,1,2], store: [0,0,0,0], monster: [1,1,1,2] },
-  { id: 18, name: "Orchard",          group: "special", grass: 25, wood: 0,  food: 0,  ore: 0,  mystic: 0,  cap: [1,2,3,4],   beds: [0,1,2,3], store: [0,0,0,0], monster: [0,0,0,1] },
-  { id: 19, name: "Santa's House",    group: "special", grass: 0,  wood: 0,  food: 0,  ore: 0,  mystic: 10, cap: [2,3,4,5],   beds: [1,2,3,4], store: [0,0,0,0], monster: [1,1,2,3] },
-];
-
-const PLOT_SIZES = ["S", "M", "L", "XL"] as const;
-// Tile footprints per plot size (W×H, width=E-W, height=N-S). Plots are longer N-S.
-const PLOT_TILES: Record<string, string> = { S: "6×6", M: "6×8", L: "8×8", XL: "8×10" };
-
 // -- Helpers -------------------------------------------------------------------
-
-const GROUP_LABEL: Record<BuildingGroup, string> = {
-  house:   "House",
-  shop:    "Shop",
-  service: "Service",
-  special: "Special",
-};
-
-const GROUP_STYLE: Record<BuildingGroup, string> = {
-  house:   "bg-blue-500/10 text-blue-600 border-blue-500/30 dark:text-blue-300",
-  shop:    "bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-300",
-  service: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:text-emerald-300",
-  special: "bg-purple-500/10 text-purple-600 border-purple-500/30 dark:text-purple-300",
-};
 
 type PageTab = "houses" | "facilities";
 const PAGE_TABS: { key: PageTab; label: string }[] = [
@@ -108,1093 +44,7 @@ const PAGE_TABS: { key: PageTab; label: string }[] = [
   { key: "facilities", label: "Facilities" },
 ];
 
-// field ? matId ? icon style  (see CSV column reference comment above)
-const COST_ICONS: { field: keyof Building; matId: number; style: "flat" | "outlined" | "crystal" }[] = [
-  { field: "grass",  matId: 0, style: "outlined" },
-  { field: "wood",   matId: 1, style: "flat" },
-  { field: "food",   matId: 2, style: "flat" },
-  { field: "ore",    matId: 3, style: "crystal" },
-  { field: "mystic", matId: 4, style: "flat" },
-];
-
 // -- Facilities ----------------------------------------------------------------
-
-type FacilityTab = "env" | "materials" | "amenity" | "indoors" | "map";
-
-const FACILITY_TABS: { key: FacilityTab; label: string }[] = [
-  { key: "env",       label: "Env." },
-  { key: "materials", label: "Materials" },
-  { key: "amenity",   label: "Amenity" },
-  { key: "indoors",   label: "Indoors" },
-  { key: "map",       label: "Map" },
-];
-
-const FACILITY_TAB_STYLE: Record<FacilityTab, string> = {
-  env:       "bg-green-500/10 text-green-700 border-green-500/30 dark:text-green-300",
-  materials: "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300",
-  amenity:   "bg-sky-500/10 text-sky-700 border-sky-500/30 dark:text-sky-300",
-  indoors:   "bg-violet-500/10 text-violet-700 border-violet-500/30 dark:text-violet-300",
-  map:       "bg-teal-500/10 text-teal-700 border-teal-500/30 dark:text-teal-300",
-};
-
-interface Facility {
-  id: number;
-  name: string;
-  tab: FacilityTab;
-  size: string;        // e.g. "1×1", "2×2", "4×4", "1×2"
-  rotatable?: boolean; // true if size is not square and can be rotated
-  mapUnlock?: number;  // map tile level required to unlock (map-tab facilities only)
-  // Build costs: min = level 1, max = max level (0 = unknown)
-  minGrass: number; minWood: number; minFood: number; minOre: number; minMystic: number;
-  maxGrass: number; maxWood: number; maxFood: number; maxOre: number; maxMystic: number;
-  minHp: number;       // 0 = unknown
-  maxHp: number;
-  validRange: number;  // territory expansion radius in tiles (0 = none)
-  canUpgrade: boolean;
-  // Upgrade costs: lv 1?2 (min) and lv max-1?max (max). All 0 if not upgradeable.
-  upgGrass: number; upgWood: number; upgFood: number; upgOre: number; upgMystic: number;
-  maxUpgGrass: number; maxUpgWood: number; maxUpgFood: number; maxUpgOre: number; maxUpgMystic: number;
-  // Harvest count (Field/Plantation only): how many times you can harvest per planting
-  minUseCount?: number; maxUseCount?: number;
-}
-
-const FACILITIES: Facility[] = [
-  // -- Env. ------------------------------------------------------------------
-  { id: 17,  name: "Town Hall",                tab: "env",  size: "4×4",
-    minGrass:  0, minWood:  0, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  1, upgWood:  1, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 150, maxUpgWood: 300, maxUpgFood: 100, maxUpgOre:  50, maxUpgMystic: 15,
-    minHp: 50, maxHp: 500, validRange: 15, canUpgrade: true },
-  // Walls
-  { id: 23,  name: "Fence",                    tab: "env",  size: "",
-    minGrass:  1, minWood:  0, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass: 10, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  1, upgWood:  0, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 80, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 15, maxHp: 315, validRange:  0, canUpgrade: true },
-  { id: 24,  name: "Wood Wall",                tab: "env",  size: "",
-    minGrass:  0, minWood:  2, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood: 18, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  2, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 40, maxHp: 430, validRange:  0, canUpgrade: true },
-  { id: 25,  name: "Defensive Wall",           tab: "env",  size: "",
-    minGrass:  0, minWood:  2, minFood:  0, minOre:  2, minMystic:  0,
-    maxGrass:  0, maxWood: 18, maxFood:  0, maxOre: 14, maxMystic:  0,
-    upgGrass:  0, upgWood:  2, upgFood:  0, upgOre:  2, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 65, maxUpgMystic: 8,
-    minHp: 65, maxHp: 650, validRange:  0, canUpgrade: true },
-  { id: 26,  name: "Castle Wall",              tab: "env",  size: "",
-    minGrass:  0, minWood:  0, minFood:  0, minOre:  3, minMystic:  1,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre: 21, maxMystic:  6,
-    upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  3, upgMystic:  1,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 70, maxUpgMystic: 50,
-    minHp: 90, maxHp: 975, validRange:  0, canUpgrade: true },
-  { id: 28,  name: "Gate",                     tab: "env",  size: "1×2",  rotatable: true,
-    minGrass:  1, minWood:  3, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass: 10, maxWood: 27, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  1, upgWood:  3, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 80, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 25, maxHp: 600, validRange:  0, canUpgrade: true },
-  // Territory expansion
-  { id: 29,  name: "Torch",                    tab: "env",  size: "",
-    minGrass:  0, minWood:  3, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood: 27, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  3, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  7, canUpgrade: true },
-  { id: 30,  name: "Nighttime Meeting Place",  tab: "env",  size: "",
-    minGrass:  3, minWood:  4, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass: 30, maxWood: 36, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  3, upgWood:  4, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 90, maxUpgWood: 90, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  8, canUpgrade: true },
-  { id: 31,  name: "Low Watchtower",           tab: "env",  size: "",
-    minGrass:  5, minWood:  8, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass: 50, maxWood: 72, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  5, upgWood:  8, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 100, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange: 10, canUpgrade: true },
-  { id: 32,  name: "Turret",                   tab: "env",  size: "2×2",
-    minGrass:  7, minWood: 11, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass: 70, maxWood: 99, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  7, upgWood: 11, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 110, maxUpgWood: 125, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange: 12, canUpgrade: true },
-  // Outdoor utility
-  { id: 68,  name: "Info Board",               tab: "amenity",  size: "",
-    minGrass:  0, minWood:  2, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass:  0, maxUpgWood:  0, maxUpgFood:  0, maxUpgOre:  0, maxUpgMystic:  0,
-    minHp:  0, maxHp:   0, validRange: 10, canUpgrade: false },
-
-  { id: 41 , name: "Canal",                         tab: "env",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 10, maxHp: 510, validRange: 0, canUpgrade: true },
-  { id: 191, name: "Chaos Stone",                  tab: "env",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: false },
-  { id: 76 , name: "Simple Stove",                  tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 1, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 75, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 77 , name: "Bonfire",                       tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 2, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 78 , name: "Thorny Trap",                   tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 2, upgOre: 1, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 70, maxUpgOre: 60, maxUpgMystic: 8,
-    minHp: 15, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 79 , name: "Flowerbed",                     tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 80 , name: "Bushes",                        tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 2, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 85, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 81 , name: "Seedlings",                     tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 3, upgWood: 2, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 90, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 82 , name: "Fountain",                      tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 2, upgMystic: 3,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 65, maxUpgMystic: 60,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 83 , name: "Goddess Statue",                tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 3, upgMystic: 5,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 70, maxUpgMystic: 70,
-    minHp: 10, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 84 , name: "Rejuvenation Spring",           tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 5, upgMystic: 3,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 80, maxUpgMystic: 60,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 85 , name: "Monster Statue",                tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 2, upgFood: 0, upgOre: 0, upgMystic: 5,
-    maxUpgGrass: 15, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 70,
-    minHp: 65, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 86 , name: "Monster-Repelling Orb",         tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 1, upgMystic: 2,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 60, maxUpgMystic: 55,
-    minHp: 40, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 87 , name: "Monster-Repelling Sword",       tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 1, upgMystic: 3,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 60, maxUpgMystic: 60,
-    minHp: 55, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 88 , name: "Monster-Repelling Slate",       tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 1, upgMystic: 5,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 60, maxUpgMystic: 70,
-    minHp: 70, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 89 , name: "Windmill",                      tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 10, upgFood: 0, upgOre: 10, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 120, maxUpgFood: 12, maxUpgOre: 105, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 91 , name: "Bench",                         tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 2, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 164, name: "Recovery Outpost",              tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-
-  // -- Materials -------------------------------------------------------------
-  // Standard storehouses
-  { id: 33,  name: "Grass Storehouse",         tab: "materials",  size: "2×2",
-    minGrass:  2, minWood:  0, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass: 20, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  2, upgWood:  0, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 85, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 35,  name: "Wood Storehouse",          tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  2, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood: 18, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  2, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 34,  name: "Food Storehouse",          tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  0, minFood:  2, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood:  0, maxFood: 16, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  0, upgFood:  2, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 70, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 36,  name: "Ore Storehouse",           tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  0, minFood:  0, minOre:  2, minMystic:  0,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre: 14, maxMystic:  0,
-    upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  2, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 65, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 37,  name: "Mystic Ore Storehouse",    tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  0, minFood:  0, minOre:  0, minMystic:  2,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic: 12,
-    upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  0, upgMystic:  2,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 55,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 38,  name: "Item Storehouse",          tab: "materials",  size: "2×2",
-    minGrass:  2, minWood:  0, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass: 20, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  2, upgWood:  0, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 85, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 39,  name: "Energy Storehouse",        tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  2, minFood:  1, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood: 18, maxFood:  8, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  2, upgFood:  1, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 80, maxUpgFood: 65, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 40,  name: "Treasure Storehouse",      tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  1, minFood:  0, minOre:  2, minMystic:  0,
-    maxGrass:  0, maxWood:  9, maxFood:  0, maxOre: 14, maxMystic:  0,
-    upgGrass:  0, upgWood:  1, upgFood:  0, upgOre:  2, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 75, maxUpgFood: 12, maxUpgOre: 65, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  // Coin storehouses
-  { id: 183, name: "Copper Coin Storehouse",   tab: "materials",  size: "",
-    minGrass:  0, minWood:  2, minFood:  0, minOre:  0, minMystic:  2,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  2, upgFood:  0, upgOre:  0, upgMystic:  2,
-    maxUpgGrass: 15, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 55,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 184, name: "Silver Coin Storehouse",   tab: "materials",  size: "",
-    minGrass:  0, minWood:  4, minFood:  0, minOre:  0, minMystic:  4,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  4, upgFood:  0, upgOre:  0, upgMystic:  4,
-    maxUpgGrass: 15, maxUpgWood: 90, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 65,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  // High-grade storehouses
-  { id: 206, name: "HG Grass Storehouse",      tab: "materials",  size: "2×2",
-    minGrass:  2, minWood:  2, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass: 20, maxWood: 18, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  2, upgWood:  2, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 85, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 207, name: "HG Wood Storehouse",       tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  2, minFood:  2, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood: 18, maxFood: 16, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  2, upgFood:  2, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 80, maxUpgFood: 70, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 208, name: "HG Food Storehouse",       tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  0, minFood:  2, minOre:  2, minMystic:  0,
-    maxGrass:  0, maxWood:  0, maxFood: 16, maxOre: 14, maxMystic:  0,
-    upgGrass:  0, upgWood:  0, upgFood:  2, upgOre:  2, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 70, maxUpgOre: 65, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 209, name: "HG Ore Storehouse",        tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  0, minFood:  0, minOre:  2, minMystic:  2,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre: 14, maxMystic: 12,
-    upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  2, upgMystic:  2,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 65, maxUpgMystic: 55,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 210, name: "HG Mystic Storehouse",     tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  0, minFood:  0, minOre:  0, minMystic:  2,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic: 12,
-    upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  0, upgMystic:  2,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 55,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 211, name: "HG Energy Storehouse",     tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  0, minFood:  3, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood:  0, maxFood: 24, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  0, upgFood:  3, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 75, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 212, name: "HG Treasure Storehouse",   tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  0, minFood:  0, minOre:  2, minMystic:  2,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre: 14, maxMystic: 12,
-    upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  2, upgMystic:  2,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 65, maxUpgMystic: 55,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 213, name: "HG Item Storehouse",       tab: "materials",  size: "2×2",
-    minGrass:  3, minWood:  0, minFood:  0, minOre:  3, minMystic:  0,
-    maxGrass: 30, maxWood:  0, maxFood:  0, maxOre: 21, maxMystic:  0,
-    upgGrass:  3, upgWood:  0, upgFood:  0, upgOre:  3, upgMystic:  0,
-    maxUpgGrass: 90, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 70, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 214, name: "HG Egg Storehouse",        tab: "materials",  size: "2×2",
-    minGrass:  2, minWood:  0, minFood:  2, minOre:  0, minMystic:  0,
-    maxGrass: 20, maxWood:  0, maxFood: 16, maxOre:  0, maxMystic:  0,
-    upgGrass:  2, upgWood:  0, upgFood:  2, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 85, maxUpgWood: 14, maxUpgFood: 70, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  // Production
-  { id: 42,  name: "Field",                    tab: "materials",  size: "2×2",
-    minGrass:  1, minWood:  0, minFood:  2, minOre:  0, minMystic:  0,
-    maxGrass: 10, maxWood:  0, maxFood: 16, maxOre:  0, maxMystic:  0,
-    upgGrass:  1, upgWood:  0, upgFood:  2, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 80, maxUpgWood: 14, maxUpgFood: 70, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 10, maxHp: 510, validRange:  0, canUpgrade: true, minUseCount: 8, maxUseCount: 99 },
-  { id: 43,  name: "Plantation",               tab: "materials",  size: "2×2",
-    minGrass:  1, minWood:  3, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass: 10, maxWood: 27, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  1, upgWood:  3, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 80, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 10, maxHp: 510, validRange:  0, canUpgrade: true, minUseCount: 8, maxUseCount: 99 },
-  { id: 44,  name: "Ranch",                    tab: "materials",  size: "2×2",
-    minGrass:  5, minWood: 10, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass: 50, maxWood: 90, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  5, upgWood: 10, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 100, maxUpgWood: 120, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 10, maxHp: 510, validRange:  0, canUpgrade: true },
-  { id: 45,  name: "Mine: Ore",                tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  3, minFood:  0, minOre:  5, minMystic:  0,
-    maxGrass:  0, maxWood: 27, maxFood:  0, maxOre:  35, maxMystic:  0,
-    upgGrass:  0, upgWood:  3, upgFood:  0, upgOre:  5, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 80, maxUpgMystic: 8,
-    minHp: 10, maxHp: 510, validRange:  0, canUpgrade: true },
-  { id: 46,  name: "Mine: Mystic Ore",         tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  0, minFood:  0, minOre:  5, minMystic:  8,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  35, maxMystic:  48,
-    upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  5, upgMystic:  8,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 80, maxUpgMystic: 85,
-    minHp: 10, maxHp: 510, validRange:  0, canUpgrade: true },
-  { id: 47,  name: "Mine: Energy",             tab: "materials",  size: "2×2",
-    minGrass:  0, minWood:  3, minFood:  5, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood: 27, maxFood: 40, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  3, upgFood:  5, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 85, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 20, maxHp: 520, validRange:  0, canUpgrade: true },
-  { id: 194, name: "Egg House",                tab: "materials",  size: "2×2",
-    minGrass:  2, minWood:  0, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  2, upgWood:  0, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 85, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-
-  { id: 90 , name: "Monster Feed",                  tab: "materials",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 3, upgWood: 0, upgFood: 2, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 90, maxUpgWood: 14, maxUpgFood: 70, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  // -- Amenity ---------------------------------------------------------------
-  { id: 67,  name: "Well",                     tab: "amenity",  size: "",
-    minGrass:  1, minWood:  2, minFood:  0, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  1, upgWood:  2, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass: 80, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: true },
-  { id: 70,  name: "Stables",                   tab: "amenity",  size: "",
-    minGrass:  0, minWood:  5, minFood:  3, minOre:  0, minMystic:  0,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass:  0, maxUpgWood:  0, maxUpgFood:  0, maxUpgOre:  0, maxUpgMystic:  0,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: false },
-  { id: 71,  name: "Wagon Yard",               tab: "amenity",  size: "",
-    minGrass:  0, minWood:  2, minFood:  0, minOre:  1, minMystic:  0,
-    maxGrass:  0, maxWood:  0, maxFood:  0, maxOre:  0, maxMystic:  0,
-    upgGrass:  0, upgWood:  0, upgFood:  0, upgOre:  0, upgMystic:  0,
-    maxUpgGrass:  0, maxUpgWood:  0, maxUpgFood:  0, maxUpgOre:  0, maxUpgMystic:  0,
-    minHp:  0, maxHp:   0, validRange:  0, canUpgrade: false },
-
-  { id: 69 , name: "Wasteland Guide",               tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 14, canUpgrade: true },
-  { id: 72 , name: "Outdoor: Analysis Lab",          tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 74 , name: "Outdoor: Research Lab",          tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 75 , name: "Rest Stop",                     tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 3, upgFood: 0, upgOre: 1, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 60, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 92 , name: "Expedition Hut",                tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 3, upgFood: 5, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 85, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 10, canUpgrade: true },
-  { id: 102, name: "Register",                      tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 103, name: "Store Shelves",                 tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 3, maxHp: 50, validRange: 0, canUpgrade: true },
-  { id: 104, name: "Skill Shelves",                 tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 3, maxHp: 50, validRange: 0, canUpgrade: true },
-  { id: 105, name: "Furniture Shelves",             tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 3, maxHp: 50, validRange: 0, canUpgrade: true },
-  { id: 132, name: "Training Room",                 tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 2, upgWood: 3, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 85, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 133, name: "Shooting Range",                tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 5, upgFood: 0, upgOre: 3, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 95, maxUpgFood: 12, maxUpgOre: 70, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 134, name: "Magic Training Ground",         tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 3, upgFood: 0, upgOre: 0, upgMystic: 5,
-    maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 70,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 157, name: "Monster Room",                  tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 160, name: "Dragon Stables",                tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 176, name: "Gold Exchange",                 tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 189, name: "Day Care",                      tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 193, name: "Restaurant Shelves",            tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 50, validRange: 0, canUpgrade: true },
-  { id: 230, name: "Animal Cage",                   tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 3, maxHp: 50, validRange: 0, canUpgrade: true },
-  { id: 231, name: "Art House",                     tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 3, maxHp: 50, validRange: 0, canUpgrade: true },
-  { id: 232, name: "Water Tank",                    tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 3, maxHp: 50, validRange: 0, canUpgrade: true },
-  { id: 233, name: "Bug Case",                      tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 3, maxHp: 50, validRange: 0, canUpgrade: true },
-  { id: 234, name: "Cash Register",                 tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 238, name: "Reindeer Stable",               tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 242, name: "Flying Carpet",                 tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-
-
-  { id: 162, name: "Monster Stable",                    tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 239, name: "Airport",                    tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 5, upgWood: 25, upgFood: 25, upgOre: 35, upgMystic: 50,
-    maxUpgGrass: 100, maxUpgWood: 195, maxUpgFood: 185, maxUpgOre: 230, maxUpgMystic: 295,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 240, name: "Resource Center",                    tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 241, name: "Fishing Pond",                    tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 161, name: "Pitfall",                         tab: "amenity",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 5, upgWood: 0, upgFood: 5, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 100, maxUpgWood: 14, maxUpgFood: 85, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 50, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 226, name: "Bug Gathering Spot",               tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 14, canUpgrade: true },
-  { id: 186, name: "Kairo King Statue",                tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 1, upgFood: 0, upgOre: 0, upgMystic: 3,
-    maxUpgGrass: 15, maxUpgWood: 75, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 60,
-    minHp: 50, maxHp: 500, validRange: 0, canUpgrade: true },
-  // -- Indoors ---------------------------------------------------------------
-  { id: 73 , name: "Temporary Shelter",             tab: "amenity",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 5, maxHp: 500, validRange: 0, canUpgrade: true },
-  { id: 98 , name: "Hard Bed",                      tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 99 , name: "Bed",                           tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 100, name: "Royal Bed",                     tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 101, name: "Double Bed",                    tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 106, name: "Chair",                         tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 2, upgWood: 5, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 85, maxUpgWood: 95, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 107, name: "Royal Room",                    tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 108, name: "Research Lab",                  tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 109, name: "Hospital",                      tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 110, name: "Accessory Workshop",            tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 111, name: "Cooking Station",               tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 112, name: "Recovery Station",              tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 113, name: "Treasure Analysis Lab",         tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 114, name: "Furniture Workbench",           tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 115, name: "Weapon Workbench",              tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 116, name: "Armor Workbench",               tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 117, name: "Skill Workbench",               tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 0, upgMystic: 5,
-    maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 70,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 118, name: "Item Workbench",                tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 119, name: "Decorative Plant",              tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 2, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 120, name: "Tomato",                        tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 2, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 121, name: "Flowers",                       tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 1, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 75, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 122, name: "Pansy",                         tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 1, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 75, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 123, name: "Glittering Stone",              tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 2, upgMystic: 2,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 65, maxUpgMystic: 55,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 124, name: "Dining Table",                  tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 2, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 125, name: "Couch",                         tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 2, upgWood: 4, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 85, maxUpgWood: 90, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 126, name: "Candle",                        tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 0, upgFood: 1, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 14, maxUpgFood: 65, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 127, name: "Tree Nursery",                  tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 128, name: "Decorative Armor",              tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 0, upgFood: 0, upgOre: 3, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 70, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 129, name: "Red Carpet",                    tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 130, name: "Fluffy Carpet",                 tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 131, name: "Black Mat",                     tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 135, name: "Rejuvenating Bath",             tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 3, upgFood: 0, upgOre: 2, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 65, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 136, name: "Rainwater Barrel",              tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 1, upgFood: 0, upgOre: 4, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 75, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 137, name: "Fireplace",                     tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 3, upgFood: 0, upgOre: 1, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 60, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 138, name: "Tool Workshop",                 tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 139, name: "Kitchen Shelves",               tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 2, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 140, name: "Bathtub",                       tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 2, upgFood: 0, upgOre: 4, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 141, name: "Chest of Drawers",              tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 2, upgWood: 4, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 85, maxUpgWood: 90, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 142, name: "Stove",                         tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 2, upgFood: 0, upgOre: 4, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 143, name: "Flower Vase",                   tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 144, name: "Animal Figurine",               tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 145, name: "Vanity Mirror",                 tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 3, upgMystic: 1,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 70, maxUpgMystic: 50,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 146, name: "Cooking Counter",               tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 2, upgFood: 0, upgOre: 2, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 65, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 147, name: "Shelf",                         tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 3, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 148, name: "Desk",                          tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 3, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 149, name: "Window",                        tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 150, name: "Bookshelf",                     tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 2, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 151, name: "Dresser",                       tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 2, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 80, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 152, name: "Ore Workbench",                 tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 153, name: "Study Desk",                    tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 1, upgWood: 3, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 80, maxUpgWood: 85, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 154, name: "Friend Bed",                    tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 155, name: "Guest Bed",                     tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 158, name: "Church",                        tab: "indoors",  size: "2×2",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 182, name: "Ancestor Statue",               tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 236, name: "Santa Room",                    tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-  { id: 237, name: "Decorative Sled",               tab: "indoors",  size: "",
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 15, maxUpgWood: 14, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 8,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: true },
-
-  // -- Map-unlocked ----------------------------------------------------------
-  // These facilities are unlocked by clearing map tiles at the listed level.
-  // Source: community spreadsheet (Kingdom Adventurers EN - Map.csv)
-  { id: 172, name: "Ranking Board",         tab: "map",  size: "2×2", mapUnlock:   2,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 171, name: "Trophy Room",           tab: "map",  size: "2×2", mapUnlock:   3,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 167, name: "Briefing Room",         tab: "map",  size: "2×2", mapUnlock:   5,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 7,   name: "Port",                  tab: "map",  size: "2×2", mapUnlock:   7,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 195, name: "Cabin",                 tab: "map",  size: "2×2", mapUnlock:   8,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 166, name: "Friend Post Office",    tab: "map",  size: "2×2", mapUnlock:  10,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 175, name: "Material Shop",         tab: "map",  size: "2×2", mapUnlock:  10,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 165, name: "Master Smithy",         tab: "map",  size: "2×2", mapUnlock:  11,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 170, name: "Monster Farm",          tab: "map",  size: "2×2", mapUnlock:  14,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 181, name: "Underground Arena",     tab: "map",  size: "2×2", mapUnlock:  20,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 169, name: "Treasure Room",         tab: "map",  size: "2×2", mapUnlock:  21,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 168, name: "Weekly Conquest Bonus", tab: "map",  size: "2×2", mapUnlock:  22,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 198, name: "Movers",                tab: "map",  size: "2×2", mapUnlock:  23,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 173, name: "Friends Agency",        tab: "map",  size: "2×2", mapUnlock:  30,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 200, name: "Equipment Exchange",    tab: "map",  size: "2×2", mapUnlock:  34,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 174, name: "Job Center",            tab: "map",  size: "2×2", mapUnlock:  35,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 201, name: "Trading Post",          tab: "map",  size: "2×2", mapUnlock:  40,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 177, name: "Instructor's Room",     tab: "map",  size: "2×2", mapUnlock:  41,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 10,  name: "Port",                  tab: "map",  size: "2×2", mapUnlock:  44,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 178, name: "Monster Fusion Lab",    tab: "map",  size: "2×2", mapUnlock:  45,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 180, name: "Kairo Room",            tab: "map",  size: "2×2", mapUnlock:  58,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 196, name: "Legendary Cave",        tab: "map",  size: "2×2", mapUnlock: 120,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-  { id: 202, name: "Date Spot",             tab: "map",  size: "2×2", mapUnlock: 135,
-    minGrass: 0, minWood: 0, minFood: 0, minOre: 0, minMystic: 0,
-    maxGrass: 0, maxWood: 0, maxFood: 0, maxOre: 0, maxMystic: 0,
-    upgGrass: 0, upgWood: 0, upgFood: 0, upgOre: 0, upgMystic: 0,
-    maxUpgGrass: 0, maxUpgWood: 0, maxUpgFood: 0, maxUpgOre: 0, maxUpgMystic: 0,
-    minHp: 0, maxHp: 0, validRange: 0, canUpgrade: false },
-];
 
 const FACILITY_PAGE_ROUTES: Partial<Record<number, string>> = {
   168: "/weekly-conquest",
@@ -1202,22 +52,6 @@ const FACILITY_PAGE_ROUTES: Partial<Record<number, string>> = {
   180: "/kairo-room",
   200: "/equipment-exchange",
 };
-
-function CostPills({ b }: { b: Building }) {
-  const parts = COST_ICONS.filter(c => (b[c.field] as number) > 0);
-  if (parts.length === 0)
-    return <span className="text-[11px] text-muted-foreground italic">Free to build</span>;
-  return (
-    <div className="flex flex-wrap gap-2 items-center">
-      {parts.map(c => (
-        <span key={c.field} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <MaterialIcon id={c.matId} style={c.style} size={18} />
-          {b[c.field] as number}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 function SlotRow({ label, values, highlight }: { label: string; values: [number,number,number,number]; highlight?: boolean }) {
   const allZero = values.every(v => v === 0);
@@ -1236,64 +70,65 @@ function SlotRow({ label, values, highlight }: { label: string; values: [number,
 }
 
 function slotKey(b: Building) {
-  return b.group + "|" + JSON.stringify([b.cap, b.beds, b.store]);
+  return b.group + "|" + JSON.stringify([b.beds, b.store, b.monster]);
+}
+
+function BuildingName({ building }: { building: Building }) {
+  const jobName = formatBuildingJobOwners(building.name);
+
+  return (
+    <span className="inline-flex flex-wrap items-baseline gap-x-1.5">
+      <EntityLink type="building" name={building.name} className="text-foreground">
+        {building.name}
+      </EntityLink>
+      {jobName && <span className="text-[11px] font-normal text-muted-foreground">({jobName})</span>}
+    </span>
+  );
 }
 
 function BuildingGroupCard({ buildings }: { buildings: Building[] }) {
   const rep = buildings[0];
   const merged = buildings.length > 1;
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-2 pt-4 px-4">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-semibold leading-tight">
-            {merged ? GROUP_LABEL[rep.group] : rep.name}
-          </CardTitle>
-          <Badge variant="outline" className={`text-[10px] shrink-0 ${GROUP_STYLE[rep.group]}`}>
-            {GROUP_LABEL[rep.group]}
-          </Badge>
+    <DataCard
+      title={merged ? BUILDING_GROUP_LABEL[rep.group] : <BuildingName building={rep} />}
+      action={<CategoryBadge category={rep.group}>{BUILDING_GROUP_LABEL[rep.group]}</CategoryBadge>}
+      contentClassName="space-y-3"
+    >
+      {merged ? (
+        <div className="space-y-1">
+          {buildings.map(b => (
+            <div key={b.id} className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium">
+                <BuildingName building={b} />
+              </span>
+              <CostPills costs={b} />
+            </div>
+          ))}
         </div>
-      </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-3">
-        {merged ? (
-          <div className="space-y-1">
-            {buildings.map(b => (
-              <div key={b.id} className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium">{b.name}</span>
-                <CostPills b={b} />
-              </div>
+      ) : (
+        <CostPills costs={rep} />
+      )}
+      <StatTable>
+        <thead>
+          <tr>
+            <th className="pr-2 text-left text-[10px] font-medium text-muted-foreground/60 pb-1"></th>
+            {PLOT_SIZES.map(s => (
+              <StatTableHeaderCell key={s} label={s} sublabel={PLOT_TILES[s]} />
             ))}
-          </div>
-        ) : (
-          <CostPills b={rep} />
-        )}
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="pr-2 text-left text-[10px] font-medium text-muted-foreground/60 pb-1"></th>
-                {PLOT_SIZES.map(s => (
-                  <th key={s} className="text-center px-2 text-[10px] font-semibold text-muted-foreground pb-1">
-                    <div>{s}</div>
-                    <div className="font-normal text-muted-foreground/50 text-[9px] tabular-nums">{PLOT_TILES[s]}</div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <SlotRow label="Indoor slots" values={rep.cap} />
-              <SlotRow label="Beds"         values={rep.beds}    highlight />
-              {rep.store.some(v => v > 0) && (
-                <SlotRow label="Shelves"    values={rep.store}   highlight />
-              )}
-              {rep.monster.some(v => v > 0) && (
-                <SlotRow label="Monster"    values={rep.monster} />
-              )}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+          </tr>
+        </thead>
+        <tbody>
+          <SlotRow label="Extra beds"   values={rep.beds}    highlight />
+          {rep.store.some(v => v > 0) && (
+            <SlotRow label="Shelves"    values={rep.store}   highlight />
+          )}
+          {rep.monster.some(v => v > 0) && (
+            <SlotRow label="Monster"    values={rep.monster} />
+          )}
+        </tbody>
+      </StatTable>
+    </DataCard>
   );
 }
 
@@ -1394,12 +229,12 @@ const FACILITY_GAIN: Partial<Record<number, FacilityGain>> = {
 };
 
 const GAIN_BADGE: Record<FacilityGain, { label: string; cls: string }> = {
-  mine: { label: "⛏ Produces faster",        cls: "bg-yellow-500/10 text-yellow-700 border-yellow-500/30 dark:text-yellow-300" },
-  farm: { label: "🌾 More harvests",           cls: "bg-green-500/10 text-green-700 border-green-500/30 dark:text-green-300" },
-  shop: { label: "🛒 More items available",   cls: "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-300" },
-  port: { label: "⏱ Longer visit duration",  cls: "bg-cyan-500/10 text-cyan-700 border-cyan-500/30 dark:text-cyan-300" },
-  exp:  { label: "⭐ More EXP per use",       cls: "bg-purple-500/10 text-purple-700 border-purple-500/30 dark:text-purple-300" },
-  hp:   { label: "🛡 Durability only",        cls: "bg-muted/60 text-muted-foreground border-border" },
+  mine: { label: "⛏ Produces faster",        cls: KA_CATEGORY_BADGE_CLASS.shop },
+  farm: { label: "🌾 More harvests",           cls: KA_CATEGORY_BADGE_CLASS.success },
+  shop: { label: "🛒 More items available",   cls: KA_CATEGORY_BADGE_CLASS.house },
+  port: { label: "⏱ Longer visit duration",  cls: KA_CATEGORY_BADGE_CLASS.survey },
+  exp:  { label: "⭐ More EXP per use",       cls: KA_CATEGORY_BADGE_CLASS.special },
+  hp:   { label: "🛡 Durability only",        cls: KA_CATEGORY_BADGE_CLASS.muted },
 };
 
 function facilityGain(id: number, canUpgrade: boolean): FacilityGain | null {
@@ -1828,19 +663,16 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
   const tabLabel = FACILITY_TABS.find(t => t.key === f.tab)?.label ?? f.tab;
 
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-2 pt-4 px-4">
-        <div className="flex items-start justify-between gap-2">
-            <CardTitle className="text-sm font-semibold leading-tight">{f.name}</CardTitle>
-            {facilityRoute && (
-              <Link href={facilityRoute}>
-                <Badge variant="outline" className="cursor-pointer text-[10px] bg-primary/10 text-primary border-primary/30 hover:bg-primary/15">
-                  Open page
-                </Badge>
-              </Link>
-            )}
-        </div>
-        {(f.canUpgrade || f.validRange > 0 || f.mapUnlock !== undefined) && (
+    <DataCard
+      title={f.name}
+      action={facilityRoute && (
+        <Link href={facilityRoute}>
+          <Badge variant="outline" className="cursor-pointer text-[10px] bg-primary/10 text-primary border-primary/30 hover:bg-primary/15">
+            Open page
+          </Badge>
+        </Link>
+      )}
+      meta={(f.canUpgrade || f.validRange > 0 || f.mapUnlock !== undefined) && (
           <div className="flex flex-wrap gap-1 mt-1">
             {f.size && (
               <Badge variant="outline" className="text-[10px] tabular-nums font-mono">
@@ -1848,12 +680,12 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
               </Badge>
             )}
             {f.mapUnlock !== undefined && (
-              <Badge variant="outline" className="text-[10px] tabular-nums bg-teal-500/10 text-teal-700 border-teal-500/30 dark:text-teal-300">
+              <Badge variant="outline" className={`text-[10px] tabular-nums ${KA_CATEGORY_BADGE_CLASS.facility}`}>
                 Map Lv.{f.mapUnlock}
               </Badge>
             )}
             {f.canUpgrade && (
-              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300">
+              <Badge variant="outline" className={`text-[10px] ${KA_CATEGORY_BADGE_CLASS.success}`}>
                 Upgradeable
               </Badge>
             )}
@@ -1870,8 +702,8 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
             )}
           </div>
         )}
-      </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-2">
+      contentClassName="space-y-2"
+    >
         {f.minHp > 0 && (
           <p className="text-xs text-muted-foreground">HP {f.minHp}–{f.maxHp}</p>
         )}
@@ -1934,8 +766,7 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
             <p className="text-xs font-medium text-amber-600 dark:text-amber-400">⏱ {formatUpgTime(upgTime)}</p>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </DataCard>
   );
 }
 
@@ -1972,25 +803,26 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
   const upgTime = Math.round(TH_UPGRADE_TIMES[rank] * (1 - timeDiscount));
 
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-2 pt-4 px-4">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-semibold leading-tight">{f.name}</CardTitle>
-          <Badge variant="outline" className={`text-[10px] shrink-0 ${FACILITY_TAB_STYLE[f.tab]}`}>
-            {FACILITY_TABS.find(t => t.key === f.tab)?.label}
-          </Badge>
-        </div>
+    <DataCard
+      title={f.name}
+      action={
+        <Badge variant="outline" className={`text-[10px] shrink-0 ${KA_FACILITY_TAB_BADGE_CLASS[f.tab]}`}>
+          {FACILITY_TABS.find(t => t.key === f.tab)?.label}
+        </Badge>
+      }
+      meta={
         <div className="flex flex-wrap gap-1 mt-1">
           <Badge variant="outline" className="text-[10px] tabular-nums font-mono">{f.size}</Badge>
-          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300">
+          <Badge variant="outline" className={`text-[10px] ${KA_CATEGORY_BADGE_CLASS.success}`}>
             Upgradeable
           </Badge>
           {f.validRange > 0 && (
             <Badge variant="outline" className="text-[10px] tabular-nums">\ud83d\udccd {f.validRange} tiles</Badge>
           )}
         </div>
-      </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-2">
+      }
+      contentClassName="space-y-2"
+    >
         {f.minHp > 0 && (
           <p className="text-xs text-muted-foreground">HP {f.minHp}×{f.maxHp}</p>
         )}
@@ -2030,8 +862,7 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
           </div>
           <p className="text-xs font-medium text-amber-600 dark:text-amber-400">⏱ {formatUpgTime(upgTime)}</p>
         </div>
-      </CardContent>
-    </Card>
+    </DataCard>
   );
 }
 
@@ -2084,24 +915,22 @@ export default function HousesPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
 
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Home className="w-5 h-5 text-muted-foreground" />
-          <h1 className="text-xl font-bold tracking-tight">Houses & Facilities</h1>
-        </div>
-        <div className="max-w-4xl space-y-2 text-sm leading-relaxed text-muted-foreground">
-          <p>
-            Plan Kingdom Adventures houses and facilities with plot sizes, building costs, indoor slots, beds,
-            shelves, monster room slots, upgrade costs, upgrade time, HP, range, storage, production, and map unlock data.
-          </p>
-          <p>
-            Houses & Plots shows what each S / M / L / XL plot can become and what fits inside. Facilities covers
-            town infrastructure like walls, gates, roads, storehouses, resource production, indoor objects, and map-unlocked buildings.
-          </p>
-        </div>
-      </div>
+      <PageHeader icon={<Home className="w-5 h-5" />} title="Houses & Facilities">
+        <p>
+          Plan Kingdom Adventures houses and facilities with plot sizes, building costs, extra beds,
+          shelves, monster room slots, upgrade costs, upgrade time, HP, range, storage, production, and map unlock data.
+        </p>
+        <p>
+          Houses & Plots shows what each S / M / L / XL plot can become and what fits inside. Facilities covers
+          town infrastructure like walls, gates, roads, storehouses, resource production, indoor objects, and map-unlocked buildings.
+        </p>
+      </PageHeader>
 
-      <div className="flex flex-col gap-4">
+      <FilterBar
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Search buildings..."
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           {PAGE_TABS.map(t => (
             <button
@@ -2116,27 +945,16 @@ export default function HousesPage() {
               <div className="text-base font-semibold">{t.label}</div>
               <div className={`mt-1 text-xs leading-relaxed ${tab === t.key ? "text-primary-foreground/85" : "text-muted-foreground"}`}>
                 {t.key === "houses"
-                  ? "Plots, building types, capacity, beds, shelves, and monster room slots."
+                  ? "Plots, building types, extra beds, shelves, monster room slots, and owner jobs."
                   : "Town facilities, indoor objects, map unlocks, upgrade costs, and utility structures."}
               </div>
             </button>
           ))}
         </div>
-
-        <div className="relative sm:max-w-xs">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search buildings×"
-            className="pl-8 h-9 text-sm"
-          />
-        </div>
-      </div>
+      </FilterBar>
 
       {tab === "houses" && <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground border border-border rounded-md px-4 py-3 bg-muted/20">
-        <span><span className="font-semibold">Indoor slots</span> × total items placeable inside</span>
-        <span><span className="font-semibold">Beds</span> × how many bed items fit (1 resident each)</span>
+        <span><span className="font-semibold">Extra beds</span> × additional bed placements beyond the default bed</span>
         <span><span className="font-semibold">Shelves</span> × shop display slots for goods</span>
         <span><span className="font-semibold">Monster</span> × monster room slots</span>
       </div>}
@@ -2256,4 +1074,5 @@ export default function HousesPage() {
   );
 }
 
-export { FacilityCard, FACILITIES };
+export { FacilityCard };
+

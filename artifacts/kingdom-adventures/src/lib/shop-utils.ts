@@ -1,13 +1,8 @@
+import { requireBuilding, type Building } from "@/game-data/buildings";
+
 export type ShopStatus = "Ready" | "In Progress" | "Research Needed";
 
-export type ShopBuilding = {
-  /** Build cost — only the non-zero material will have a value > 0 */
-  grass: number; wood: number; food: number; ore: number; mystic: number;
-  /** Per-size values: [S, M, L, XL] */
-  cap:   [number, number, number, number];
-  beds:  [number, number, number, number];
-  store: [number, number, number, number];
-};
+export type ShopBuilding = Building;
 
 export type ShopFacility = {
   id: number;
@@ -68,7 +63,7 @@ export const SHOP_RECORDS: ShopRecord[] = [
       "Link shop-made weapons directly into this page.",
       "Add price and unlock details when those sources are decoded.",
     ],
-    building: { grass: 0, wood: 0, food: 0, ore: 12, mystic: 0, cap: [1,2,2,3], beds: [0,1,1,2], store: [3,5,7,9] },
+    building: requireBuilding("Weapon Shop"),
     workbench: { id: 115, name: "Weapon Workbench", size: "2×2", upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0, maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8 },
   },
   {
@@ -87,7 +82,7 @@ export const SHOP_RECORDS: ShopRecord[] = [
       "Add price and unlock details when those sources are decoded.",
       "Expand subtype filters if players want armor-only or shield-only drill-downs.",
     ],
-    building: { grass: 0, wood: 0, food: 0, ore: 8, mystic: 0, cap: [1,2,2,3], beds: [0,1,1,2], store: [3,5,7,9] },
+    building: requireBuilding("Armor Shop"),
     workbench: { id: 116, name: "Armor Workbench", size: "2×2", upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0, maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8 },
   },
   {
@@ -105,7 +100,7 @@ export const SHOP_RECORDS: ShopRecord[] = [
     nextSteps: [
       "Add price and unlock details when those sources are decoded.",
     ],
-    building: { grass: 0, wood: 0, food: 0, ore: 15, mystic: 0, cap: [1,2,2,3], beds: [0,1,1,2], store: [3,5,7,9] },
+    building: requireBuilding("Accessory Shop"),
     workbench: { id: 110, name: "Accessory Workshop", size: "2×2", upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0, maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8 },
   },
   {
@@ -124,7 +119,7 @@ export const SHOP_RECORDS: ShopRecord[] = [
       "Separate shop items from feed-only and other special-use items more precisely.",
       "Add pricing and clearer shop-only categories if the source exposes them cleanly.",
     ],
-    building: { grass: 0, wood: 0, food: 5, ore: 0, mystic: 0, cap: [1,2,2,3], beds: [0,1,1,2], store: [3,5,7,9] },
+    building: requireBuilding("Item Shop"),
     workbench: { id: 118, name: "Item Workbench", size: "2×2", upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0, maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8 },
   },
   {
@@ -143,7 +138,7 @@ export const SHOP_RECORDS: ShopRecord[] = [
       "Add furniture prices and unlock requirements.",
       "Decode the facility source into richer effect and upgrade details.",
     ],
-    building: { grass: 0, wood: 15, food: 0, ore: 0, mystic: 0, cap: [1,2,2,3], beds: [0,1,1,2], store: [3,5,7,9] },
+    building: requireBuilding("Furniture Shop"),
     workbench: { id: 114, name: "Furniture Workbench", size: "2×2", upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0, maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8 },
   },
   {
@@ -162,7 +157,7 @@ export const SHOP_RECORDS: ShopRecord[] = [
       "Find the source for restaurant outputs.",
       "Split food items away from the broader item system cleanly.",
     ],
-    building: { grass: 0, wood: 0, food: 8, ore: 0, mystic: 0, cap: [1,2,2,3], beds: [0,1,1,2], store: [3,5,7,9] },
+    building: requireBuilding("Restaurant"),
     workbench: { id: 111, name: "Cooking Station", size: "2×2", upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 4, upgMystic: 0, maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 75, maxUpgMystic: 8 },
   },
   {
@@ -180,7 +175,7 @@ export const SHOP_RECORDS: ShopRecord[] = [
     nextSteps: [
       "Add more shop-specific explanations as the translation layer grows.",
     ],
-    building: { grass: 0, wood: 0, food: 0, ore: 0, mystic: 12, cap: [1,2,2,3], beds: [0,1,1,2], store: [3,5,7,9] },
+    building: requireBuilding("Skill Shop"),
     workbench: { id: 117, name: "Skill Workbench", size: "2×2", upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 0, upgMystic: 5, maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 70 },
   },
 ];

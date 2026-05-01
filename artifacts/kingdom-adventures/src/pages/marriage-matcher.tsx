@@ -22,8 +22,13 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { PageHeader } from "@/components/ka/page-header";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
+import { battleTypeLabel, typeFromJobCategory } from "@/game-data/job-normalization";
+import { MARRIAGE_RANKS, normJob, pairKey, type MarriageRank } from "@/game-data/job-marriage";
+import { getMarriagePair, getPossibleMarriageChildren } from "@/game-data/job-profile";
+import { KA_AFFINITY_BADGE_CLASS, KA_RANK_BADGE_CLASS, KA_RANK_BORDER_CLASS, KA_RANK_HEADER_CLASS } from "@/design-system/category-styles";
 
 // âââ API ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
@@ -42,18 +47,6 @@ type JobData = {
   skillAccess?: { attack?: "can" | "cannot"; casting?: "can" | "cannot" };
   skills: string[];
 };
-
-function typeFromJobCategory(category: string | undefined, fallback?: "combat" | "non-combat"): "combat" | "non-combat" | undefined {
-  const normalized = category?.trim().toLowerCase();
-  if (normalized === "fighter" || normalized === "1") return "combat";
-  if (normalized === "worker" || normalized === "trader" || normalized === "0" || normalized === "2") return "non-combat";
-  return fallback;
-}
-
-function battleTypeLabel(type: "all" | "combat" | "non-combat") {
-  if (type === "all") return "All";
-  return type === "combat" ? "Battle-Type" : "Non Battle-Type";
-}
 
 type SharedPair = { id: string; jobA: string; jobB: string; children: string[]; affinityNum?: number };
 
@@ -92,35 +85,15 @@ async function persistPairs(pairs: SharedPair[], userName: string) {
 
 // âââ Types ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
-type Rank = "S" | "A" | "B" | "C" | "D";
-const RANKS: Rank[] = ["S", "A", "B", "C", "D"];
+type Rank = MarriageRank;
+const RANKS: Rank[] = MARRIAGE_RANKS;
 
 const RANK_STYLE: Record<Rank, { badge: string; header: string; border: string }> = {
-  S: {
-    badge: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700",
-    header: "bg-violet-50 dark:bg-violet-950/30",
-    border: "border-violet-200 dark:border-violet-800",
-  },
-  A: {
-    badge: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700",
-    header: "bg-rose-50 dark:bg-rose-950/30",
-    border: "border-rose-200 dark:border-rose-800",
-  },
-  B: {
-    badge: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700",
-    header: "bg-amber-50 dark:bg-amber-950/30",
-    border: "border-amber-200 dark:border-amber-800",
-  },
-  C: {
-    badge: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700",
-    header: "bg-emerald-50 dark:bg-emerald-950/30",
-    border: "border-emerald-200 dark:border-emerald-800",
-  },
-  D: {
-    badge: "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
-    header: "bg-slate-50 dark:bg-slate-800/30",
-    border: "border-slate-200 dark:border-slate-700",
-  },
+  S: { badge: KA_RANK_BADGE_CLASS.S, header: KA_RANK_HEADER_CLASS.S, border: KA_RANK_BORDER_CLASS.S },
+  A: { badge: KA_RANK_BADGE_CLASS.A, header: KA_RANK_HEADER_CLASS.A, border: KA_RANK_BORDER_CLASS.A },
+  B: { badge: KA_RANK_BADGE_CLASS.B, header: KA_RANK_HEADER_CLASS.B, border: KA_RANK_BORDER_CLASS.B },
+  C: { badge: KA_RANK_BADGE_CLASS.C, header: KA_RANK_HEADER_CLASS.C, border: KA_RANK_BORDER_CLASS.C },
+  D: { badge: KA_RANK_BADGE_CLASS.D, header: KA_RANK_HEADER_CLASS.D, border: KA_RANK_BORDER_CLASS.D },
 };
 
 const RANK_TABLE_GRID =
@@ -145,11 +118,7 @@ interface Pair {
 }
 
 const AFFINITY_STYLE: Record<string, string> = {
-  A: "bg-amber-100 text-amber-800 border-amber-400 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-600",
-  B: "bg-violet-100 text-violet-800 border-violet-400 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-600",
-  C: "bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-600",
-  D: "bg-sky-100 text-sky-800 border-sky-400 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-600",
-  E: "bg-slate-100 text-slate-600 border-slate-400 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+  ...KA_AFFINITY_BADGE_CLASS,
 };
 
 interface LockedPair {
@@ -184,11 +153,6 @@ interface OptimalResult {
 }
 
 // âââ Algorithm ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-
-function normJob(name: string) { return name.trim().toLowerCase(); }
-function pairKey(a: string, b: string) {
-  return [normJob(a), normJob(b)].sort().join("|");
-}
 
 function runBipartiteMatching(
   effectiveMales: Record<string, number>,
@@ -454,22 +418,8 @@ function consumeMatchFromSlots(slots: RankSlot[], match: MatchResult): RankSlot[
   return next.filter((slot) => slot.males + slot.females + slot.unassigned > 0);
 }
 
-function buildPossibleChildren(
-  jobA: string,
-  jobB: string,
-  extraChildren: string[],
-  includeParentInheritance = true
-): string[] {
-  if ([jobA, jobB].some((job) => normJob(job) === "monarch")) {
-    return ["Royal"];
-  }
-  const pool = includeParentInheritance ? [jobA, jobB, ...extraChildren] : [...extraChildren];
-  return [...new Set(pool)];
-}
-
 function getPossibleChildren(match: MatchResult, pairs: Pair[]): string[] {
-  const pair = pairs.find((p) => pairKey(p.jobA, p.jobB) === pairKey(match.maleJob, match.femaleJob));
-  return buildPossibleChildren(match.maleJob, match.femaleJob, pair?.children ?? []);
+  return getPossibleMarriageChildren({ pairs }, match.maleJob, match.femaleJob);
 }
 
 const FALLBACK_JOB_NAMES: string[] = [
@@ -735,7 +685,7 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
   const filtered = pairs.filter((p) => {
     if (p.affinity && !pairAffinityFilter.has(p.affinity)) return false;
 
-    const possibleChildren = buildPossibleChildren(p.jobA, p.jobB, p.children, includeParentInheritance);
+    const possibleChildren = getPossibleMarriageChildren({ pairs }, p.jobA, p.jobB, { includeParentInheritance });
 
     if (pairParentFilter.length > 0) {
       const parentMatch = pairParentFilter.some((job) =>
@@ -782,7 +732,7 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
 
   const childOptions = [...new Set([
     ...allJobNames,
-    ...pairs.flatMap((p) => buildPossibleChildren(p.jobA, p.jobB, p.children, true)),
+    ...pairs.flatMap((p) => getPossibleMarriageChildren({ pairs }, p.jobA, p.jobB)),
   ])].sort((a, b) => a.localeCompare(b)).map((job) => ({ value: job, label: job }));
 
   return (
@@ -969,7 +919,7 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
             {sorted.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">No pairs defined yet.</p>}
             {sorted.map((p) => {
               const [d1, d2] = [p.jobA, p.jobB].sort();
-              const sortedChildren = [...buildPossibleChildren(p.jobA, p.jobB, p.children, includeParentInheritance)].sort();
+              const sortedChildren = getPossibleMarriageChildren({ pairs }, p.jobA, p.jobB, { includeParentInheritance });
               return (
                 <div key={p.id} className="px-3 py-2 hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
@@ -1446,12 +1396,15 @@ function calcSim(
   pairs: Pair[],
   jobs: Record<string, JobData>,
 ): SimResult | { error: string } {
-  const pair = pairs.find((p) => pairKey(p.jobA, p.jobB) === pairKey(fatherJob, motherJob));
+  const pair = getMarriagePair({ pairs }, fatherJob, motherJob);
   if (!pair) return { error: "This pair has no compatible marriage data." };
 
-  const childJobName =
-    normJob(fatherJob) === "monarch" || normJob(motherJob) === "monarch"
-      ? "Royal" : pair.children[0] ?? null;
+  const childJobName = getPossibleMarriageChildren(
+    { pairs },
+    fatherJob,
+    motherJob,
+    { includeParentInheritance: false },
+  )[0] ?? null;
   if (!childJobName) return { error: "No child job found for this pair." };
 
   const childRank = calcChildRank(fatherRank, motherRank);
@@ -1474,11 +1427,7 @@ function calcSim(
 }
 
 const SIM_RANK_STYLE: Record<SimRank, string> = {
-  S: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700",
-  A: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-700",
-  B: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700",
-  C: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700",
-  D: "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+  ...KA_RANK_BADGE_CLASS,
 };
 
 function SimTab({
@@ -2401,26 +2350,26 @@ export default function MarriageMatcher() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 py-10">
-        {/* Header */}
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground tracking-tight">Match Finder &amp; Marriage Sim</h1>
-              <p className="mt-1 text-muted-foreground text-sm max-w-xl">
-                Find optimal Kingdom Adventures job pairings, simulate marriage outcomes, preview child stats, and browse full compatibility data.
-              </p>
+        <PageHeader
+          icon={<Heart className="w-5 h-5 text-rose-500" />}
+          title="Match Finder & Marriage Sim"
+          className="mb-6"
+          actions={(
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
+                <Info className="w-3.5 h-3.5" />
+              </Button>
+              <InfoDialog />
+              <Button variant="outline" size="sm" onClick={reset} className="flex items-center gap-2 h-8">
+                <RefreshCw className="w-4 h-4" /> Reset
+              </Button>
             </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
-              <Info className="w-3.5 h-3.5" />
-            </Button>
-            <InfoDialog />
-            <Button variant="outline" size="sm" onClick={reset} className="flex items-center gap-2 h-8">
-              <RefreshCw className="w-4 h-4" /> Reset
-            </Button>
-          </div>
-        </div>
+          )}
+        >
+          <p>
+            Find optimal Kingdom Adventures job pairings, simulate marriage outcomes, preview child stats, and browse full compatibility data.
+          </p>
+        </PageHeader>
 
         <div className="mb-4 rounded-lg border border-red-300 bg-red-50/70 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
           <strong className="text-foreground dark:text-red-200">Warning:</strong> marriage is forever in Kingdom Adventures. You cannot unmarry or divorce, so double-check pairs before committing in-game. Do not marry your Monarch until you completely understand the marriage mechanics, and it is strongly worth asking the community before committing to a Monarch marriage.

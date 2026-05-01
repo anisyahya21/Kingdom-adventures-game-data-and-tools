@@ -17,7 +17,8 @@ import { apiUrl } from "@/lib/api";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
 import { KAIRO_ROOM_LOOT_GROUPS, WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
 import { PLAYTHROUGH_GUIDE_SECTION_OVERLAYS } from "@/lib/playthrough-guide";
-import { FACILITIES } from "@/pages/houses";
+import { FACILITIES } from "@/game-data/facilities";
+import { getJobProfile, getPossibleMarriageChildren, type SharedJobProfileData } from "@/game-data/job-profile";
 
 type RawEquipmentItem = {
   uid: string;
@@ -1358,6 +1359,36 @@ function answerBestJob(question: string, shared: SharedData, messages: ChatMessa
   return result(`${picked.name} has the ${ordLabel}${typeText} ${STAT_LABEL[stat] ?? stat} at level ${level} on the current site data${exclusionText}, using rank ${picked.rankName}. It reaches ${picked.value}, with base ${picked.base} and +${picked.inc} per level.`);
 }
 
+function answerJobRelations(question: string, shared: SharedData): AnswerResult | null {
+  const lower = question.toLowerCase();
+  if (!/\b(job|shop|building|house|survey|marriage|child|children|open|unlock|use)\b/.test(lower)) return null;
+
+  const jobName = Object.keys(shared.jobs ?? {}).find((name) => {
+    const clean = normalize(name);
+    return clean.length >= 4 && new RegExp(`\\b${escapeRegExp(clean)}\\b`).test(normalize(question));
+  });
+  if (!jobName) return null;
+
+  const profile = getJobProfile(shared as SharedJobProfileData, jobName);
+  if (!profile) return null;
+
+  const lines = [`${profile.name} job facts from the shared data:`];
+  if (profile.buildings.length > 0) {
+    lines.push(`Shops/buildings: ${profile.buildings.map((building) => `${building.buildingName}${building.rankNote ? ` (${building.rankNote})` : ""}`).join(", ")}`);
+  }
+  if (profile.surveyCapable) {
+    lines.push("Survey: can build Survey Corps HQ.");
+  }
+  if (profile.marriage.children.length > 0) {
+    lines.push(`Marriage children: ${profile.marriage.children.join(", ")}.`);
+  }
+  if (profile.equipmentAccess.shield) {
+    lines.push(`Shield access: ${profile.equipmentAccess.shield}.`);
+  }
+
+  return lines.length > 1 ? result(lines.join("\n")) : null;
+}
+
 function answerShop(question: string): AnswerResult | null {
   const lower = question.toLowerCase();
 
@@ -1397,7 +1428,10 @@ function answerPairs(question: string, shared: SharedData): AnswerResult | null 
   if (pairs.length === 0) return result("I could not read any pair data from the site.");
 
   const normalizedQuestion = normalize(question);
-  const royalPairs = pairs.filter((pair) => pair.children.some((child) => normalize(child) === "royal"));
+  const royalPairs = pairs.filter((pair) =>
+    getPossibleMarriageChildren({ pairs }, pair.jobA, pair.jobB, { includeParentInheritance: false })
+      .some((child) => normalize(child) === "royal")
+  );
 
   const requestedAffinity = (() => {
     if (/\b(highest|best)\s+compatibility\b/i.test(question)) return "A";
@@ -1409,7 +1443,7 @@ function answerPairs(question: string, shared: SharedData): AnswerResult | null 
   const knownJobs = Array.from(
     new Set(
       pairs
-        .flatMap((pair) => [pair.jobA, pair.jobB, ...pair.children])
+        .flatMap((pair) => [pair.jobA, pair.jobB, ...getPossibleMarriageChildren({ pairs }, pair.jobA, pair.jobB)])
         .map((name) => name.trim())
         .filter(Boolean)
     )
@@ -1429,7 +1463,7 @@ function answerPairs(question: string, shared: SharedData): AnswerResult | null 
 
   if (requestedJobs.length > 0) {
     filtered = filtered.filter((pair) => {
-      const hay = [pair.jobA, pair.jobB, ...pair.children].map(normalize);
+      const hay = [pair.jobA, pair.jobB, ...getPossibleMarriageChildren({ pairs }, pair.jobA, pair.jobB)].map(normalize);
       return requestedJobs.some((job) => hay.includes(normalize(job)));
     });
   }
@@ -1474,7 +1508,7 @@ function answerPairs(question: string, shared: SharedData): AnswerResult | null 
   }
 
   const shown = filtered.slice(0, 12).map((pair) => {
-    const children = pair.children.join(", ");
+    const children = getPossibleMarriageChildren({ pairs }, pair.jobA, pair.jobB, { includeParentInheritance: false }).join(", ");
     const affinity = pair.affinity ? ` (${pair.affinity})` : "";
     return `${pair.jobA} + ${pair.jobB}${affinity} -> ${children}`;
   });
@@ -1571,6 +1605,7 @@ function answerQuestion(
     answerEquipmentExactStat(question, items) ??
     answerCombinedMax(question, items, shared) ??
     answerComparison(question, items) ??
+    answerJobRelations(question, shared) ??
     answerBestJob(question, shared, messages) ??
     answerBestLoadout(question, items) ??
     answerBestEquipment(question, items, shared) ??

@@ -42,8 +42,7 @@ function useSharedIcons() {
   return useQuery({
     queryKey: ["ka-shared-monster-icons"],
     queryFn: () => fetchSharedWithFallback<{ monsters: Record<string, SharedMonster> }>(apiUrl("/shared")),
-    staleTime: 15000,
-    refetchInterval: 30000,
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -80,8 +79,7 @@ function useCommunitySightings() {
         return readSightingsCache();
       }
     },
-    staleTime: 15000,
-    refetchInterval: 30000,
+    staleTime: 5 * 60_000,
     initialData: readSightingsCache,
   });
 }
