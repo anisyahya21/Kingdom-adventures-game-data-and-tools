@@ -247,7 +247,7 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/houses",
     title: "Houses & Facilities",
-    description: "Plan plots, building costs, indoor slots, beds, shelves, monster rooms, facility upgrades, map unlocks, storage, and production.",
+    description: "Plan plots, building costs, extra beds, shelves, monster rooms, owner jobs, facility upgrades, map unlocks, storage, and production.",
     icon: <HomeIcon className="w-6 h-6 text-lime-500" />,
     badge: "Buildings",
     badgeColor: "bg-lime-100 text-lime-700 border-lime-200 dark:bg-lime-950 dark:text-lime-300",
@@ -294,9 +294,14 @@ function resolveRepeatingWindow(now: Date, offset: number, startMonth: number, s
   });
   const eventClockYear = getOffsetAdjustedNow(now, offset).getFullYear();
   const windows = [build(eventClockYear - 1), build(eventClockYear), build(eventClockYear + 1)];
-  return windows.find((window) => window.startAt <= now && now <= window.endAt)
-    ?? windows.filter((window) => window.startAt > now).sort((a, b) => a.startAt.getTime() - b.startAt.getTime())[0]
-    ?? windows[1];
+  const active = windows.find((window) => window.startAt <= now && now <= window.endAt);
+  if (active) return active;
+  const upcoming = windows.filter((window) => window.startAt > now).sort((a, b) => a.startAt.getTime() - b.startAt.getTime())[0];
+  // If the next event is more than 60 days away, treat as inactive (no countdown)
+  if (upcoming && (upcoming.startAt.getTime() - now.getTime()) > 60 * 86400 * 1000) {
+    return null;
+  }
+  return upcoming ?? windows[1];
 }
 
 function HomeCountdownBanner() {
@@ -326,7 +331,7 @@ function HomeCountdownBanner() {
   const nextWario = useMemo(() => getNextWarioSpawn(now, eventOffset), [eventOffset, now]);
   const warioLive = isWarioDungeonLive(now, eventOffset);
   const facilityWindow = useMemo(() => resolveRepeatingWindow(now, eventOffset, 4, 28, 4, 30), [eventOffset, now]);
-  const facilityActive = facilityWindow.startAt <= now && now <= facilityWindow.endAt;
+  const facilityActive = facilityWindow ? (facilityWindow.startAt <= now && now <= facilityWindow.endAt) : false;
 
   const cards: Array<{
     href: string;
@@ -349,10 +354,14 @@ function HomeCountdownBanner() {
     {
       href: "/gacha-events",
       title: "Next Facility S Rank Gacha",
-      subtitle: facilityActive
-        ? `Live until ${facilityWindow.endAt.toLocaleDateString([], { month: "short", day: "numeric" })}`
-        : `${facilityWindow.startAt.toLocaleDateString([], { month: "short", day: "numeric" })} - ${facilityWindow.endAt.toLocaleDateString([], { month: "short", day: "numeric" })}`,
-      countdown: formatCountdown((facilityActive ? facilityWindow.endAt : facilityWindow.startAt).getTime() - now.getTime()),
+      subtitle: facilityWindow
+        ? (facilityActive
+            ? `Live until ${facilityWindow.endAt.toLocaleDateString([], { month: "short", day: "numeric" })}`
+            : `${facilityWindow.startAt.toLocaleDateString([], { month: "short", day: "numeric" })} - ${facilityWindow.endAt.toLocaleDateString([], { month: "short", day: "numeric" })}`)
+        : "No upcoming event scheduled",
+      countdown: facilityWindow
+        ? formatCountdown((facilityActive ? facilityWindow.endAt : facilityWindow.startAt).getTime() - now.getTime())
+        : "-",
       status: facilityActive ? "live" : "inactive",
     },
     {
