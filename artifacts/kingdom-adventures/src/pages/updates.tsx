@@ -9,10 +9,45 @@ export default function UpdatesPage() {
         </div>
 
         <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
+          <h2 className="text-lg font-bold">02/05/2026</h2>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+            <li>Performance improvements were made across the website, so data and guides should load faster now.</li>
+          </ol>
+        </section>
+
+        <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
+          <h2 className="text-lg font-bold">01/05/2026</h2>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+            <li>Fixed event timers so past events now show as inactive instead of showing a misleading countdown.</li>
+            <li>Fixed E/ Hat (B)/(R) duplicate behavior when toggling the Head filter.</li>
+          </ol>
+        </section>
+
+        <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
+          <h2 className="text-lg font-bold">30/04/2026</h2>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+            <li>Updated Houses &amp; Plots display: slot labels are now clearer (Extra beds and Shelves), indoor slot wording is removed, and owner job info is now shown next to Houses &amp; Plots.</li>
+            <li>Expanded Jobs Advanced Compare to include skill access and weapon access comparison.</li>
+          </ol>
+        </section>
+
+        <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
+          <h2 className="text-lg font-bold">29/04/2026</h2>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+            <li>Jobs now correctly follow game data for Battle-Type and Non Battle-Type.</li>
+            <li>Added Advanced Compare to Jobs Database.</li>
+            <li>Renamed skill categories to clearer labels: Attack, Attack magic, and Recovery magic.</li>
+            <li>Monster database now supports checking stats at custom levels, not just fixed checkpoints.</li>
+            <li>Fixed a bug where combat simulator duel summary could fail to appear.</li>
+          </ol>
+        </section>
+
+        <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
           <h2 className="text-lg font-bold">27/04/2026</h2>
           <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
-            <li>Events now use clearer live/inactive visual status across the Events page, homepage event banner, Job Center, Daily Rank Rewards, Kairo Room, and Wairo Dungeon.</li>
-            <li>Weekly Conquest monsters with ground spawns now show their areas, and the Weekly Conquest page now includes a map highlighting monster areas directly.</li>
+            <li>Weekly Conquest now has a major map improvement with useful area tracking and better spawn visibility.</li>
+            <li>Ground monster spawn data has been populated/corrected.</li>
+            <li>World Map beta received major improvements, including fullscreen and screenshot flow upgrades.</li>
             <li>Monster images have now been added to Monster Spawns and Weekly Conquest, credits to <a href="https://kairosoft.fandom.com/wiki/Monsters_(Kingdom_Adventurers)" className="underline text-foreground" target="_blank" rel="noreferrer">kairosoft.fandom</a>.</li>
             <li>Guides now show a table of contents on mobile, and guide popups behave better on mobile now.</li>
           </ol>
