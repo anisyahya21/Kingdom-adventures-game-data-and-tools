@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://kingdom-adventures-community-tools.vercel.app/sitemap.xml
+Sitemap: https://kingdom-adventures-community-tools.vercel.app/sitemap_index.xml
