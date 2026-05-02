@@ -330,7 +330,9 @@ export default function WeeklyConquestPage() {
           ...(monster ?? { spawns: [] }),
           icon: monster?.icon ?? MONSTER_ICON_MAP[monsterName],
         },
-        spawns: mergeUniqueSpawns(monster?.spawns, minedSummary?.nativeMapSpawns, communitySpawns),
+        // Canonical spawn source: mined native map + optional community sightings.
+        // Ignore legacy shared monster.spawns to prevent stale/incorrect conquest levels.
+        spawns: mergeUniqueSpawns(minedSummary?.nativeMapSpawns, communitySpawns),
       };
     });
   }, [communitySightings, monsters, weeklyConquest]);

@@ -200,7 +200,7 @@
   #root {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
     overscroll-behavior-x: none;
   }
   body {
@@ -222,7 +222,7 @@
 .ka-app-shell {
   width: 100%;
   max-width: 100%;
-  overflow-x: clip;
+  overflow-x: visible;
 }
 
 .ka-guide-document-page {
@@ -233,6 +233,14 @@
 
 .ka-guide-toc-jumping .ka-guide-document-page {
   overflow-anchor: none;
+}
+
+@media (min-width: 1024px) {
+  .ka-guide-desktop-toc {
+    position: sticky;
+    top: 4.25rem;
+    z-index: 30;
+  }
 }
 
 @media (min-width: 1280px) {

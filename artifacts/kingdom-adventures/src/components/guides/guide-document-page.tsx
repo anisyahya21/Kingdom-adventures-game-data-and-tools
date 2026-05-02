@@ -677,7 +677,15 @@ function parseGuide(markdown: string): ParsedGuide {
 
   const lines = cleaned.split("\n");
   const sections: GuideSection[] = [];
+  const usedSectionIds = new Map<string, number>();
   let current: GuideSection | null = null;
+
+  const makeUniqueSectionId = (title: string) => {
+    const base = slugify(title) || "section";
+    const seen = usedSectionIds.get(base) ?? 0;
+    usedSectionIds.set(base, seen + 1);
+    return seen === 0 ? base : `${base}-${seen + 1}`;
+  };
 
   for (const rawLine of lines) {
     const line = rawLine.replace(/\\!/g, "!").replace(/\\#/g, "#");
@@ -687,7 +695,7 @@ function parseGuide(markdown: string): ParsedGuide {
       const level = headingMatch[1].length as 1 | 2;
       const title = headingMatch[2].trim();
       current = {
-        id: slugify(title),
+        id: makeUniqueSectionId(title),
         title,
         level,
         lines: [],
@@ -2180,6 +2188,11 @@ export function GuideDocumentPage({
   const parsedGuide = useMemo(() => parseGuide(markdown), [markdown]);
   const sections = parsedGuide.sections;
   const toc = sections.filter((section) => section.level <= 2);
+  const getGuideScrollOffset = () => {
+    const header = document.querySelector("div.fixed.inset-x-0.top-0") as HTMLElement | null;
+    const headerHeight = header?.offsetHeight ?? 56;
+    return headerHeight + 12;
+  };
 
   const scrollToSection = (sectionId: string, behavior: ScrollBehavior) => {
     const section = document.getElementById(sectionId);
@@ -2188,10 +2201,23 @@ export function GuideDocumentPage({
       window.clearTimeout(scrollAnchorTimerRef.current);
     }
     document.documentElement.classList.add("ka-guide-toc-jumping");
-    const stickyHeaderOffset = 80;
-    const top = window.scrollY + section.getBoundingClientRect().top - stickyHeaderOffset;
+    const top = window.scrollY + section.getBoundingClientRect().top - getGuideScrollOffset();
     window.scrollTo({ top: Math.max(0, top), left: 0, behavior });
+
+    const correctFinalPosition = () => {
+      const delta = section.getBoundingClientRect().top - getGuideScrollOffset();
+      if (Math.abs(delta) > 1) {
+        window.scrollBy({ top: delta, left: 0, behavior: "auto" });
+      }
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(correctFinalPosition);
+    });
+    window.setTimeout(correctFinalPosition, behavior === "smooth" ? 420 : 120);
+
     scrollAnchorTimerRef.current = window.setTimeout(() => {
+      correctFinalPosition();
       document.documentElement.classList.remove("ka-guide-toc-jumping");
       scrollAnchorTimerRef.current = null;
     }, behavior === "smooth" ? 700 : 250);
@@ -2428,7 +2454,7 @@ export function GuideDocumentPage({
   };
 
   return (
-    <div className="ka-guide-document-page mx-auto max-w-6xl overflow-x-hidden px-4 py-6 pb-24 space-y-6 lg:pb-6">
+    <div className="ka-guide-document-page mx-auto max-w-6xl px-4 py-6 pb-24 space-y-6 lg:pb-6">
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <BookOpenText className="w-5 h-5 text-muted-foreground" />
@@ -2494,9 +2520,9 @@ export function GuideDocumentPage({
         </Card>
       ) : (
         <>
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-            <aside className="hidden lg:block lg:w-72 lg:shrink-0 lg:self-start lg:sticky lg:top-20">
-              <Card className="max-h-[calc(100vh-7rem)] overflow-hidden flex flex-col">
+          <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start">
+            <aside className="ka-guide-desktop-toc hidden lg:block lg:w-72 lg:shrink-0 lg:self-start">
+              <Card className="max-h-[calc(100vh-5.25rem)] overflow-hidden flex flex-col">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm">Table of Contents</CardTitle>
                   <CardDescription className="text-xs">
@@ -2506,7 +2532,7 @@ export function GuideDocumentPage({
                 <CardContent className="space-y-1 overflow-y-auto flex-1 min-h-0">
                   {toc.map((section) => (
                     <button
-                      key={section.id}
+                      key={`desktop-${section.id}`}
                       type="button"
                       onClick={() => navigateToSection(section.id)}
                       className={`block rounded-md px-2 py-1.5 text-sm hover:bg-muted/50 ${
@@ -2524,12 +2550,12 @@ export function GuideDocumentPage({
               {sections.map((section) => {
                 const overlay = overlays[section.title];
                 return (
-                  <Card key={section.id} id={section.id} className="scroll-mt-20 overflow-hidden">
+                  <Card key={section.id} className="overflow-hidden">
                     <CardContent className="min-w-0 p-5 md:p-7 space-y-4">
                       {section.level === 1 ? (
-                        <h2 className="text-2xl font-bold tracking-tight">{section.title}</h2>
+                        <h2 id={section.id} className="scroll-mt-20 text-2xl font-bold tracking-tight">{section.title}</h2>
                       ) : (
-                        <h3 className="text-xl font-semibold tracking-tight">{section.title}</h3>
+                        <h3 id={section.id} className="scroll-mt-20 text-xl font-semibold tracking-tight">{section.title}</h3>
                       )}
 
                       {overlay ? (

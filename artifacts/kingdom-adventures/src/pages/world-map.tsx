@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { apiUrl } from "@/lib/api";
-import { mapTerrainCodeToType, parseTerrainMapCsv } from "@/lib/monster-truth";
+import { MINED_MONSTER_SUMMARY_MAP, mapTerrainCodeToType, mergeUniqueSpawns, parseTerrainMapCsv, readCommunitySightings } from "@/lib/monster-truth";
 import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
 
 const FULL_TERRAIN_MAP: number[][] = parseTerrainMapCsv(fullTerrainCsv);
@@ -96,6 +96,7 @@ type ReclaimMode = "reclaim" | "restore";
 type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water" | "facilities" | "weekly_conquest" | "chaos_setup";
 type MonsterSpawn = { area: string; level: number };
 type Monster = { icon?: string; spawns: MonsterSpawn[] };
+type CommunitySighting = { area: string; level: number };
 type WeeklyReward = { jobName: string; jobRank: string; diamonds: number; equipment: string };
 type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; updatedBy?: string; updatedAt?: number } | null;
 type ChaosSetupPiece = "info_board" | "chaos_stone";
@@ -932,6 +933,7 @@ function useWeeklyConquestMapData() {
   });
 
   const monsters = sharedQuery.data?.monsters ?? {};
+  const [communitySightings] = useState<Record<string, CommunitySighting[]>>(() => readCommunitySightings());
   const fallbackWeeklyConquest = sharedQuery.data?.weeklyConquest ?? null;
   const currentAutomaticConquest =
     conquestTimelineQuery.data?.entries.find((entry) => entry.id === conquestTimelineQuery.data.currentId) ?? null;
@@ -939,7 +941,20 @@ function useWeeklyConquestMapData() {
     ? { monsters: currentAutomaticConquest.monsters, reward: currentAutomaticConquest.reward }
     : fallbackWeeklyConquest;
 
-  return { monsters, weeklyConquest };
+  const resolvedMonsters = useMemo<Record<string, Monster>>(() => {
+    if (!weeklyConquest?.monsters?.length) return monsters;
+    const next = { ...monsters };
+    for (const monsterName of weeklyConquest.monsters) {
+      const minedSummary = MINED_MONSTER_SUMMARY_MAP[monsterName];
+      const communitySpawns = communitySightings[monsterName] ?? [];
+      const canonicalSpawns = mergeUniqueSpawns(minedSummary?.nativeMapSpawns, communitySpawns);
+      const base = next[monsterName] ?? {};
+      next[monsterName] = { ...base, spawns: canonicalSpawns };
+    }
+    return next;
+  }, [communitySightings, monsters, weeklyConquest]);
+
+  return { monsters: resolvedMonsters, weeklyConquest };
 }
 
 function getCenteredSquareCoordinates(centerX: number, centerY: number, size: number, cols: number, rows: number) {
