@@ -5,7 +5,7 @@ import { ChevronDown, Shield, Skull } from "lucide-react";
 import { NATIVE_MAP, mapTerrainCodeToType, parseTerrainMapCsv, type TerrainType } from "@/lib/monster-truth";
 import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
 
-type Tool = "none" | "stone" | "board" | "reclaim" | "erase";
+type Tool = "none" | "stone" | "board" | "monster" | "unit" | "reclaim" | "erase";
 type Piece = "stone" | "board";
 type DemoSeamMode = "auto" | "first" | "last";
 type ReclaimMode = "claim" | "unclaim";
@@ -167,6 +167,7 @@ export default function ChaosSetupLabPage() {
   const [mapZoom, setMapZoom] = useState<number>(1);
   const [pickSetupAreaFromMap, setPickSetupAreaFromMap] = useState<boolean>(false);
   const [selectedSetupArea, setSelectedSetupArea] = useState<Point | null>(null);
+  const [hoverTile, setHoverTile] = useState<Point | null>(null);
   const [locationInput, setLocationInput] = useState<string>("");
   const locationInputRef = useRef<HTMLInputElement | null>(null);
   const levelPickerRef = useRef<HTMLDivElement | null>(null);
@@ -359,6 +360,33 @@ export default function ChaosSetupLabPage() {
     return occupied;
   }, [stoneAnchors]);
 
+  const placementPreview = useMemo(() => {
+    const cells = new Set<string>();
+    if (!hoverTile || (tool !== "stone" && tool !== "board" && tool !== "monster" && tool !== "unit")) {
+      return { kind: null as "stone" | "board" | "monster" | "unit" | null, valid: false, cells };
+    }
+
+    if (tool === "monster" || tool === "unit") {
+      const k = keyOf(hoverTile.x, hoverTile.y);
+      cells.add(k);
+      const valid = !seaTiles.has(k) && !occupiedByStones.has(k);
+      return { kind: tool, valid, cells };
+    }
+
+    if (tool === "board") {
+      const k = keyOf(hoverTile.x, hoverTile.y);
+      cells.add(k);
+      const valid = !seaTiles.has(k) && !occupiedByStones.has(k);
+      return { kind: "board" as const, valid, cells };
+    }
+
+    const valid = isStoneAnchorValid(hoverTile, seaTiles, pieces);
+    stoneFootprint(hoverTile).forEach((p) => {
+      if (inside(p.x, p.y)) cells.add(keyOf(p.x, p.y));
+    });
+    return { kind: "stone" as const, valid, cells };
+  }, [hoverTile, tool, seaTiles, occupiedByStones, pieces]);
+
   const combinedEnvelope = useMemo(() => {
     const all = new Set<string>();
     stoneAnchors.forEach((anchor) => {
@@ -431,6 +459,7 @@ export default function ChaosSetupLabPage() {
     setLocationInput("");
     setResultCycle(null);
     setNextResultAnimating(false);
+    setHoverTile(null);
   }
 
   function focusSetupView() {
@@ -723,6 +752,12 @@ export default function ChaosSetupLabPage() {
     }
 
     if (tool === "erase") {
+      if (openMonsterTile && openMonsterTile.x === x && openMonsterTile.y === y) {
+        setOpenMonsterTile(null);
+      }
+      if (openUnitTile && openUnitTile.x === x && openUnitTile.y === y) {
+        setOpenUnitTile(null);
+      }
       setPieces((prev) => {
         const next = new Map(prev);
         next.delete(k);
@@ -751,6 +786,32 @@ export default function ChaosSetupLabPage() {
         }
         return next;
       });
+      return;
+    }
+
+    if (tool === "monster" || tool === "unit") {
+      if (seaTiles.has(k) || occupiedByStones.has(k)) {
+        setCopyStatus("M/U markers can only be placed on open land tiles.");
+        return;
+      }
+
+      setPieces((prev) => {
+        const next = new Map(prev);
+        next.delete(k);
+        return next;
+      });
+
+      if (tool === "monster") {
+        setOpenMonsterTile({ x, y });
+        if (openUnitTile && openUnitTile.x === x && openUnitTile.y === y) {
+          setOpenUnitTile(null);
+        }
+      } else {
+        setOpenUnitTile({ x, y });
+        if (openMonsterTile && openMonsterTile.x === x && openMonsterTile.y === y) {
+          setOpenMonsterTile(null);
+        }
+      }
     }
   }
 
@@ -1399,10 +1460,16 @@ export default function ChaosSetupLabPage() {
     const reclaimed = reclaimedTiles.has(k);
     const selectedArea = selectedSetupArea && selectedSetupArea.x === x && selectedSetupArea.y === y;
     const leak = showCoverageCheck && leakTiles.has(k);
+    const inPlacementPreview = placementPreview.cells.has(k);
 
     const overlayShadow = [
       selectedArea ? "inset 0 0 0 1px #fde047" : null,
       leak ? "inset 0 0 0 2px rgba(239,68,68,0.95)" : null,
+      inPlacementPreview
+        ? placementPreview.valid
+          ? "inset 0 0 0 2px rgba(148,163,184,0.55)"
+          : "inset 0 0 0 2px rgba(239,68,68,0.8)"
+        : null,
     ].filter(Boolean).join(", ") || undefined;
 
     if (seaTiles.has(k)) {
@@ -1485,6 +1552,32 @@ export default function ChaosSetupLabPage() {
       );
     }
 
+    if (placementPreview.kind === "monster" && hoverTile && x === hoverTile.x && y === hoverTile.y) {
+      const outerClass = placementPreview.valid
+        ? "border-red-900/40 bg-red-500/80"
+        : "border-red-900/55 bg-red-900/45";
+      return (
+        <span className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center opacity-60">
+          <span className={`flex h-[88%] w-[88%] items-center justify-center rounded-full border ${outerClass} text-slate-100`}>
+            <Skull className="h-[72%] w-[72%]" strokeWidth={2.2} />
+          </span>
+        </span>
+      );
+    }
+
+    if (placementPreview.kind === "unit" && hoverTile && x === hoverTile.x && y === hoverTile.y) {
+      const outerClass = placementPreview.valid
+        ? "border-emerald-900/40 bg-emerald-500/80"
+        : "border-red-900/55 bg-red-900/45";
+      return (
+        <span className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center opacity-60">
+          <span className={`flex h-[88%] w-[88%] items-center justify-center rounded-full border ${outerClass} text-slate-100`}>
+            <Shield className="h-[72%] w-[72%]" strokeWidth={2.2} />
+          </span>
+        </span>
+      );
+    }
+
     if (pieces.get(k) === "board") {
       // Match world-map info-board styling (post + sign face).
       return (
@@ -1507,6 +1600,37 @@ export default function ChaosSetupLabPage() {
               points="24,46.8 43.2,44.4 39.6,21.6 31.2,4.8 18,10.8 7.2,26.4 3.6,46.8"
               fill="#9ca3af"
               stroke="#4b5563"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      );
+    }
+
+    if (placementPreview.kind === "board" && placementPreview.cells.has(k)) {
+      const tintClass = placementPreview.valid ? "bg-[#d4a95f]/55 border-[#8b5a2b]/60" : "bg-red-500/40 border-red-900/60";
+      return (
+        <span className="pointer-events-none absolute inset-0 opacity-80">
+          <span className="absolute left-[44%] top-[45%] h-[45%] w-[12%] bg-[#8b5a2b]/60" />
+          <span className={`absolute left-[18%] top-[12%] h-[36%] w-[64%] border ${tintClass}`} />
+        </span>
+      );
+    }
+
+    if (placementPreview.kind === "stone" && hoverTile && x === hoverTile.x && y === hoverTile.y) {
+      const fill = placementPreview.valid ? "#9ca3af" : "#f87171";
+      const stroke = placementPreview.valid ? "#4b5563" : "#991b1b";
+      return (
+        <span
+          className="pointer-events-none absolute left-0 top-0 z-[3] opacity-55"
+          style={{ width: "calc(var(--tile-size) * 2)", height: "calc(var(--tile-size) * 2)" }}
+        >
+          <svg viewBox="0 0 48 48" className="h-full w-full" aria-hidden="true">
+            <polygon
+              points="24,46.8 43.2,44.4 39.6,21.6 31.2,4.8 18,10.8 7.2,26.4 3.6,46.8"
+              fill={fill}
+              stroke={stroke}
               strokeWidth="1.4"
               strokeLinejoin="round"
             />
@@ -1589,9 +1713,14 @@ export default function ChaosSetupLabPage() {
           <div className="space-y-2 rounded-md border border-border/60 p-2">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Manual Tool</div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant={tool === "stone" ? "default" : "outline"} onClick={() => setTool((prev) => prev === "stone" ? "none" : "stone")}>Place Stone</Button>
-              <Button size="sm" variant={tool === "board" ? "default" : "outline"} onClick={() => setTool((prev) => prev === "board" ? "none" : "board")}>Place Board</Button>
-              <Button size="sm" variant={tool === "erase" ? "default" : "outline"} onClick={() => setTool((prev) => prev === "erase" ? "none" : "erase")}>Erase Piece</Button>
+              <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 px-2 py-1">
+                <span className="text-xs font-medium text-muted-foreground">Place:</span>
+                <Button size="sm" variant={tool === "stone" ? "default" : "outline"} onClick={() => setTool((prev) => prev === "stone" ? "none" : "stone")}>Stone</Button>
+                <Button size="sm" variant={tool === "board" ? "default" : "outline"} onClick={() => setTool((prev) => prev === "board" ? "none" : "board")}>Board</Button>
+                <Button size="sm" variant={tool === "monster" ? "default" : "outline"} onClick={() => setTool((prev) => prev === "monster" ? "none" : "monster")}>Monster</Button>
+                <Button size="sm" variant={tool === "unit" ? "default" : "outline"} onClick={() => setTool((prev) => prev === "unit" ? "none" : "unit")}>Unit</Button>
+              </div>
+              <Button size="sm" variant={tool === "erase" ? "default" : "outline"} onClick={() => setTool((prev) => prev === "erase" ? "none" : "erase")}>Erase Piece/Marker</Button>
               <Button size="sm" variant={showCoverageCheck ? "default" : "outline"} onClick={() => setShowCoverageCheck((prev) => !prev)}>
                 {showCoverageCheck ? "Hide Coverage Check" : "Check Coverage"}
               </Button>
@@ -1785,6 +1914,8 @@ export default function ChaosSetupLabPage() {
                     key={k}
                     data-map-tile={k}
                     type="button"
+                    onMouseEnter={() => setHoverTile({ x, y })}
+                    onMouseLeave={() => setHoverTile(null)}
                     onClick={() => onCellClick(x, y)}
                     title={tileHoverText(x, y)}
                     style={{ width: "var(--tile-size)", height: "var(--tile-size)", ...tileInlineStyle(x, y) }}
