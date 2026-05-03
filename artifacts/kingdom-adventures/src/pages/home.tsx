@@ -150,6 +150,14 @@ const BUILT_IN_TOOLS = [
     badgeCategory: "monster" satisfies KaCategory,
   },
   {
+    slug: "/chaos-setup-lab",
+    title: "Chaos Setup Lab",
+    description: "Plan chaos stones and signboards on the terrain map with setup generation, focus, and result cycling.",
+    icon: <Skull className="w-6 h-6 text-red-500" />,
+    badge: "Planner",
+    badgeCategory: "builder" satisfies KaCategory,
+  },
+  {
     slug: "/shops",
     title: "Shops",
     description: "Browse shop systems by type and drill into each shop.",
