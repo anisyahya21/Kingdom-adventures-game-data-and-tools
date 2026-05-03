@@ -9,18 +9,28 @@ const queryClient = new QueryClient();
 const AskDatabaseWidget = lazy(() => import("./components/AskDatabaseWidget"));
 
 function DeferredAskDatabaseWidget() {
-  const [ready, setReady] = useState(false);
+  const [requested, setRequested] = useState(false);
+  const isWorldMap = window.location.pathname === "/world-map";
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setReady(true), 3000);
-    return () => window.clearTimeout(timer);
-  }, []);
+  if (isWorldMap) return null;
 
-  if (!ready) return null;
+  if (!requested) {
+    return (
+      <button
+        type="button"
+        onClick={() => setRequested(true)}
+        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+        aria-label="Open Ask the Database"
+        title="Ask the Database"
+      >
+        ?
+      </button>
+    );
+  }
 
   return (
     <Suspense fallback={null}>
-      <AskDatabaseWidget />
+      <AskDatabaseWidget initialOpen />
     </Suspense>
   );
 }

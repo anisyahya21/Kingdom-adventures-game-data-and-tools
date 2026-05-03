@@ -2,11 +2,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useQuery } from "@tanstack/react-query";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
-import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
-import { apiUrl } from "@/lib/api";
-import { MINED_MONSTER_SUMMARY_MAP, mapTerrainCodeToType, mergeUniqueSpawns, parseTerrainMapCsv, readCommunitySightings } from "@/lib/monster-truth";
+import { mapTerrainCodeToType, parseTerrainMapCsv } from "@/lib/monster-truth";
 import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
 
 const FULL_TERRAIN_MAP: number[][] = parseTerrainMapCsv(fullTerrainCsv);
@@ -28,7 +24,7 @@ type SurveyDef = {
   category: SurveyCategory;
 };
 
-// CSV terrain numeric ID → map TerrainType (-1 = any land)
+// CSV terrain numeric ID ? map TerrainType (-1 = any land)
 const SURVEY_TERRAIN_MAP: Partial<Record<number, TerrainType>> = {
   1: "grass", 2: "grass", 3: "rock", 4: "sand", 5: "snow", 6: "swamp", 7: "volcano", 15: "ground",
 };
@@ -43,7 +39,7 @@ const SURVEY_CAT_NAMES: Record<SurveyCategory, string> = {
 };
 
 const SURVEY_DEFS: SurveyDef[] = [
-  // ── Storehouses tier 1 (minLevel 45) ───────────────────────────────────────
+  // -- Storehouses tier 1 (minLevel 45) ---------------------------------------
   { id:0,  name:"Storehouse Grass Bp",    terrainId:2,  minLevel:45, minCost:0, maxCost:12, minHearts:72,  maxHearts:822,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
   { id:1,  name:"Storehouse Wood Bp",     terrainId:4,  minLevel:45, minCost:0, maxCost:12, minHearts:72,  maxHearts:822,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
   { id:2,  name:"Storehouse Food Bp",     terrainId:15, minLevel:45, minCost:0, maxCost:12, minHearts:90,  maxHearts:840,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
@@ -53,7 +49,7 @@ const SURVEY_DEFS: SurveyDef[] = [
   { id:6,  name:"Storehouse Treasure Bp", terrainId:5,  minLevel:45, minCost:0, maxCost:12, minHearts:74,  maxHearts:824,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
   { id:7,  name:"Storehouse Items Bp",    terrainId:1,  minLevel:45, minCost:0, maxCost:12, minHearts:74,  maxHearts:824,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
   { id:8,  name:"Storehouse Eggs Bp",     terrainId:2,  minLevel:45, minCost:0, maxCost:12, minHearts:74,  maxHearts:824,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:60,    category:"storehouse" },
-  // ── Storehouses tier 2 (minLevel 60) ───────────────────────────────────────
+  // -- Storehouses tier 2 (minLevel 60) ---------------------------------------
   { id:11, name:"Storehouse Grass Bp T2",    terrainId:6,  minLevel:60, minCost:2, maxCost:48, minHearts:257, maxHearts:1007, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
   { id:12, name:"Storehouse Wood Bp T2",     terrainId:2,  minLevel:60, minCost:2, maxCost:48, minHearts:282, maxHearts:1032, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
   { id:13, name:"Storehouse Food Bp T2",     terrainId:4,  minLevel:60, minCost:2, maxCost:48, minHearts:260, maxHearts:1010, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
@@ -63,7 +59,7 @@ const SURVEY_DEFS: SurveyDef[] = [
   { id:17, name:"Storehouse Treasure Bp T2", terrainId:1,  minLevel:60, minCost:2, maxCost:48, minHearts:287, maxHearts:1037, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
   { id:18, name:"Storehouse Items Bp T2",    terrainId:3,  minLevel:60, minCost:2, maxCost:48, minHearts:272, maxHearts:1022, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
   { id:19, name:"Storehouse Eggs Bp T2",     terrainId:1,  minLevel:60, minCost:2, maxCost:48, minHearts:247, maxHearts:997,  minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
-  // ── Storehouses tier 3 (minLevel 90) ───────────────────────────────────────
+  // -- Storehouses tier 3 (minLevel 90) ---------------------------------------
   { id:22, name:"Storehouse Grass Bp T3",    terrainId:3,  minLevel:90, minCost:3, maxCost:80, minHearts:580, maxHearts:1330, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
   { id:23, name:"Storehouse Wood Bp T3",     terrainId:5,  minLevel:90, minCost:3, maxCost:80, minHearts:530, maxHearts:1280, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
   { id:24, name:"Storehouse Food Bp T3",     terrainId:2,  minLevel:90, minCost:3, maxCost:80, minHearts:480, maxHearts:1230, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
@@ -73,15 +69,15 @@ const SURVEY_DEFS: SurveyDef[] = [
   { id:28, name:"Storehouse Treasure Bp T3", terrainId:7,  minLevel:90, minCost:3, maxCost:80, minHearts:555, maxHearts:1305, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
   { id:29, name:"Storehouse Items Bp T3",    terrainId:6,  minLevel:90, minCost:3, maxCost:80, minHearts:480, maxHearts:1230, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
   { id:30, name:"Storehouse Eggs Bp T3",     terrainId:5,  minLevel:90, minCost:3, maxCost:80, minHearts:550, maxHearts:1300, minRate:15, maxRate:75, minTimeSec:2700, maxTimeSec:10800, category:"storehouse" },
-  // ── Chaos Stone ─────────────────────────────────────────────────────────────
+  // -- Chaos Stone -------------------------------------------------------------
   { id:10, name:"Chaos Stone T1", terrainId:-1, minLevel:45, minCost:0, maxCost:8,  minHearts:87,  maxHearts:837,  minRate:10, maxRate:75, minTimeSec:3600, maxTimeSec:60,    category:"chaos_stone" },
   { id:21, name:"Chaos Stone T2", terrainId:-1, minLevel:60, minCost:2, maxCost:24, minHearts:257, maxHearts:1007, minRate:10, maxRate:75, minTimeSec:3600, maxTimeSec:14400, category:"chaos_stone" },
   { id:32, name:"Chaos Stone T3", terrainId:-1, minLevel:90, minCost:3, maxCost:32, minHearts:515, maxHearts:1265, minRate:10, maxRate:75, minTimeSec:3600, maxTimeSec:14400, category:"chaos_stone" },
-  // ── Cash Register ───────────────────────────────────────────────────────────
+  // -- Cash Register -----------------------------------------------------------
   { id:77, name:"Cash Register (Med)",  terrainId:-1, minLevel:30,  minCost:1, maxCost:24, minHearts:240, maxHearts:990,  minRate:10, maxRate:85, minTimeSec:3600, maxTimeSec:14400, category:"cash_register" },
   { id:76, name:"Cash Register (Easy)", terrainId:-1, minLevel:120, minCost:0, maxCost:8,  minHearts:75,  maxHearts:825,  minRate:10, maxRate:80, minTimeSec:3600, maxTimeSec:14400, category:"cash_register" },
   { id:78, name:"Cash Register (Hard)", terrainId:-1, minLevel:200, minCost:2, maxCost:48, minHearts:450, maxHearts:1200, minRate:10, maxRate:90, minTimeSec:3600, maxTimeSec:14400, category:"cash_register" },
-  // ── Dragon Taming ───────────────────────────────────────────────────────────
+  // -- Dragon Taming -----------------------------------------------------------
   { id:80, name:"Dragon Taming (Swamp)", terrainId:6, minLevel:70,  minCost:5, maxCost:24, minHearts:425, maxHearts:1175, minRate:1, maxRate:70, minTimeSec:3600, maxTimeSec:14400, category:"dragon_taming" },
   { id:79, name:"Dragon Taming (Rock)",  terrainId:3, minLevel:80,  minCost:4, maxCost:20, minHearts:350, maxHearts:1100, minRate:1, maxRate:70, minTimeSec:3600, maxTimeSec:14400, category:"dragon_taming" },
   { id:81, name:"Dragon Taming (Snow)",  terrainId:5, minLevel:500, minCost:6, maxCost:56, minHearts:500, maxHearts:1250, minRate:1, maxRate:70, minTimeSec:3600, maxTimeSec:14400, category:"dragon_taming" },
@@ -93,12 +89,7 @@ type BrushSize = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type DeploymentSize = 2 | 3 | 4 | 5 | 6;
 type PaintMode = "mark" | "erase";
 type ReclaimMode = "reclaim" | "restore";
-type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water" | "facilities" | "weekly_conquest" | "chaos_setup";
-type MonsterSpawn = { area: string; level: number };
-type Monster = { icon?: string; spawns: MonsterSpawn[] };
-type CommunitySighting = { area: string; level: number };
-type WeeklyReward = { jobName: string; jobRank: string; diamonds: number; equipment: string };
-type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; updatedBy?: string; updatedAt?: number } | null;
+type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water" | "facilities" | "chaos_setup";
 type ChaosSetupPiece = "info_board" | "chaos_stone";
 type TownHallPlacement = { x: number; y: number; level: number };
 
@@ -217,204 +208,6 @@ function drawRoadTexture(ctx: CanvasRenderingContext2D, px: number, py: number, 
   ctx.setLineDash([]);
 }
 
-function drawBattleIcon(ctx: CanvasRenderingContext2D, px: number, py: number, size: number) {
-  const cx = px + size / 2;
-  const cy = py + size / 2;
-  const emoji = "⚔️";
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `${Math.max(14, Math.floor(size * 0.95))}px serif`;
-  ctx.fillStyle = "rgba(255,255,255,0.96)";
-  ctx.shadowColor = "rgba(0,0,0,0.65)";
-  ctx.shadowBlur = Math.max(2, size * 0.1);
-  ctx.fillText(emoji, cx, cy);
-  ctx.restore();
-}
-
-type WeeklyConquestArea = {
-  tiles: Set<string>;
-  centerX: number;
-  centerY: number;
-  width: number;
-  height: number;
-  terrain: TerrainType;
-  level: number;
-  monsterNames: string[];
-};
-
-function buildWeeklyConquestAreas(
-  keys: Set<string>,
-  grid: Map<string, Tile>,
-  spawnGroups: Map<string, string[]>
-): WeeklyConquestArea[] {
-  const dirs = [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1],
-  ];
-
-  function buildComponents(sourceKeys: Set<string>) {
-    const visited = new Set<string>();
-    const components: Array<Set<string>> = [];
-    for (const key of sourceKeys) {
-      if (visited.has(key)) continue;
-      const component = new Set<string>();
-      const stack = [key];
-      visited.add(key);
-      component.add(key);
-
-      while (stack.length > 0) {
-        const current = stack.pop()!;
-        const [x, y] = current.split(",").map(Number);
-        for (const [dx, dy] of dirs) {
-          const neighbor = keyOf(x + dx, y + dy);
-          if (!sourceKeys.has(neighbor) || visited.has(neighbor)) continue;
-          visited.add(neighbor);
-          stack.push(neighbor);
-          component.add(neighbor);
-        }
-      }
-
-      components.push(component);
-    }
-    return components;
-  }
-
-  function has2x2Block(component: Set<string>) {
-    for (const key of component) {
-      const [x, y] = key.split(",").map(Number);
-      if (
-        component.has(keyOf(x + 1, y)) &&
-        component.has(keyOf(x, y + 1)) &&
-        component.has(keyOf(x + 1, y + 1))
-      ) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function findArticulationPoints(component: Set<string>) {
-    const disc = new Map<string, number>();
-    const low = new Map<string, number>();
-    const parent = new Map<string, string | null>();
-    const articulation = new Set<string>();
-    let time = 0;
-
-    function neighborsOf(key: string) {
-      const [x, y] = key.split(",").map(Number);
-      const out: string[] = [];
-      for (const [dx, dy] of dirs) {
-        const n = keyOf(x + dx, y + dy);
-        if (component.has(n)) out.push(n);
-      }
-      return out;
-    }
-
-    function dfs(key: string) {
-      disc.set(key, time);
-      low.set(key, time);
-      time += 1;
-      let children = 0;
-
-      for (const next of neighborsOf(key)) {
-        if (!disc.has(next)) {
-          parent.set(next, key);
-          children += 1;
-          dfs(next);
-          low.set(key, Math.min(low.get(key)!, low.get(next)!));
-
-          const keyParent = parent.get(key) ?? null;
-          if (keyParent === null && children > 1) articulation.add(key);
-          if (keyParent !== null && low.get(next)! >= disc.get(key)!) articulation.add(key);
-        } else if (next !== (parent.get(key) ?? null)) {
-          low.set(key, Math.min(low.get(key)!, disc.get(next)!));
-        }
-      }
-    }
-
-    for (const key of component) {
-      if (!disc.has(key)) {
-        parent.set(key, null);
-        dfs(key);
-      }
-    }
-
-    return articulation;
-  }
-
-  function splitByBottleneck(component: Set<string>) {
-    const articulation = findArticulationPoints(component);
-    if (articulation.size === 0) return [component];
-
-    const validSplitters = new Set<string>();
-    for (const cut of articulation) {
-      const reduced = new Set(component);
-      reduced.delete(cut);
-      const parts = buildComponents(reduced);
-      const largeParts = parts.filter((part) => has2x2Block(part));
-      if (largeParts.length >= 2) validSplitters.add(cut);
-    }
-
-    if (validSplitters.size === 0) return [component];
-
-    const reduced = new Set(component);
-    validSplitters.forEach((key) => reduced.delete(key));
-    const parts = buildComponents(reduced);
-    const largeParts = parts.filter((part) => has2x2Block(part));
-    return largeParts.length >= 2 ? largeParts : [component];
-  }
-
-  const areas: WeeklyConquestArea[] = [];
-  const allComponents = buildComponents(keys);
-  allComponents.forEach((component) => {
-    const drawTargets = splitByBottleneck(component);
-    drawTargets.forEach((target) => {
-      let sumX = 0;
-      let sumY = 0;
-      let count = 0;
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
-
-      target.forEach((key) => {
-        const [x, y] = key.split(",").map(Number);
-        sumX += x;
-        sumY += y;
-        count += 1;
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      });
-
-      if (count === 0) return;
-      const centerX = Math.round(sumX / count);
-      const centerY = Math.round(sumY / count);
-      const firstKey = target.values().next().value;
-      const firstTile = grid.get(firstKey);
-      if (!firstTile) return;
-      const groupKey = `${firstTile.terrain}|${firstTile.level}`;
-      const monsterNames = Array.from(new Set(spawnGroups.get(groupKey) ?? [])).sort();
-      areas.push({
-        tiles: target,
-        centerX,
-        centerY,
-        width: maxX - minX + 1,
-        height: maxY - minY + 1,
-        terrain: firstTile.terrain,
-        level: firstTile.level,
-        monsterNames,
-      });
-    });
-  });
-
-  return areas;
-}
-
 function getDeploymentClusterCenter(keys: Set<string>) {
   let sumX = 0;
   let sumY = 0;
@@ -452,44 +245,6 @@ function translateDeploymentKeys(
   return translated;
 }
 
-function drawWeeklyConquestAreaIcons(
-  ctx: CanvasRenderingContext2D,
-  tileSize: number,
-  areas: WeeklyConquestArea[],
-  viewBounds?: { minX: number; minY: number; maxX: number; maxY: number },
-) {
-  areas.forEach((area) => {
-    if (viewBounds) {
-      const areaMinX = area.centerX - Math.floor(area.width / 2);
-      const areaMaxX = areaMinX + area.width - 1;
-      const areaMinY = area.centerY - Math.floor(area.height / 2);
-      const areaMaxY = areaMinY + area.height - 1;
-      if (
-        areaMaxX < viewBounds.minX ||
-        areaMinX > viewBounds.maxX ||
-        areaMaxY < viewBounds.minY ||
-        areaMinY > viewBounds.maxY
-      ) {
-        return;
-      }
-    }
-
-    const areaW = area.width * tileSize;
-    const areaH = area.height * tileSize;
-    const fontSize = Math.max(12, Math.min(Math.min(areaW, areaH) * 0.7, 26));
-    const x = (area.centerX + 0.5) * tileSize;
-    const y = (area.centerY + 0.5) * tileSize;
-
-    ctx.save();
-    ctx.font = `${Math.round(fontSize)}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(0,0,0,0.65)";
-    ctx.shadowBlur = Math.max(2, fontSize * 0.22);
-    ctx.fillText("⚔️", x, y + 0.5);
-    ctx.restore();
-  });
-}
 const DEPLOY_BASE_COLOR = "#22d3ee";
 const DEPLOY_FILL = hexToRgba(DEPLOY_BASE_COLOR, 0.24);
 const DEPLOY_BORDER = hexToRgba(DEPLOY_BASE_COLOR, 0.98);
@@ -499,8 +254,6 @@ const MAP_CANVAS_MARGIN = 8;
 const TOWNHALL_OUTLINE = "rgba(37,99,235,0.9)";
 const TOWNHALL_FOOTPRINT_FILL = "rgba(56,189,248,0.18)";
 const TOWNHALL_FOOTPRINT_BORDER = "rgba(14,165,233,0.95)";
-const WEEKLY_CONQUEST_FILL = "rgba(245, 158, 11, 0.34)";
-const WEEKLY_CONQUEST_BORDER = "rgba(251, 191, 36, 0.98)";
 const RECLAIMED_FILL = "rgba(56, 189, 248, 0.18)";
 const RECLAIMED_BORDER = "rgba(14, 165, 233, 0.98)";
 const RECLAIMED_STRIPE = "rgba(2, 132, 199, 0.6)";
@@ -530,21 +283,8 @@ type MapCamera = {
   vx: number;
   vy: number;
 };
-const AREA_TERRAIN_MAP: Record<string, TerrainType> = {
-  grass: "grass",
-  plains: "grass",
-  desert: "sand",
-  sand: "sand",
-  swamp: "swamp",
-  rock: "rock",
-  snow: "snow",
-  lava: "volcano",
-  volcano: "volcano",
-  ground: "ground",
-};
 const LAYER_LABELS: Record<LayerKey, string> = {
   levels: "Levels",
-  weekly_conquest: "Weekly Conquest",
   chaos_setup: "Chaos Setup",
   facilities: "Facilities",
   poi: "POI",
@@ -917,46 +657,6 @@ function buildTiles() {
   return { grid, rows, cols, terrainCounts };
 }
 
-function useWeeklyConquestMapData() {
-  const sharedQuery = useQuery({
-    queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<{ monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest }>(apiUrl("/shared")),
-    staleTime: 15000,
-    refetchInterval: 30000,
-  });
-
-  const conquestTimelineQuery = useQuery({
-    queryKey: ["weekly-conquest-automatic"],
-    queryFn: () => fetchAutomaticWeeklyConquestTimeline(undefined, 4),
-    staleTime: 15 * 60 * 1000,
-    refetchInterval: 15 * 60 * 1000,
-  });
-
-  const monsters = sharedQuery.data?.monsters ?? {};
-  const [communitySightings] = useState<Record<string, CommunitySighting[]>>(() => readCommunitySightings());
-  const fallbackWeeklyConquest = sharedQuery.data?.weeklyConquest ?? null;
-  const currentAutomaticConquest =
-    conquestTimelineQuery.data?.entries.find((entry) => entry.id === conquestTimelineQuery.data.currentId) ?? null;
-  const weeklyConquest = currentAutomaticConquest
-    ? { monsters: currentAutomaticConquest.monsters, reward: currentAutomaticConquest.reward }
-    : fallbackWeeklyConquest;
-
-  const resolvedMonsters = useMemo<Record<string, Monster>>(() => {
-    if (!weeklyConquest?.monsters?.length) return monsters;
-    const next = { ...monsters };
-    for (const monsterName of weeklyConquest.monsters) {
-      const minedSummary = MINED_MONSTER_SUMMARY_MAP[monsterName];
-      const communitySpawns = communitySightings[monsterName] ?? [];
-      const canonicalSpawns = mergeUniqueSpawns(minedSummary?.nativeMapSpawns, communitySpawns);
-      const base = next[monsterName] ?? {};
-      next[monsterName] = { ...base, spawns: canonicalSpawns };
-    }
-    return next;
-  }, [communitySightings, monsters, weeklyConquest]);
-
-  return { monsters: resolvedMonsters, weeklyConquest };
-}
-
 function getCenteredSquareCoordinates(centerX: number, centerY: number, size: number, cols: number, rows: number) {
   const coords: Array<[number, number]> = [];
   const left = Math.floor((size - 1) / 2);
@@ -1152,7 +852,7 @@ export default function WorldMapPage() {
   }
 
   function getDeploymentCount(key: string) {
-    return deployedTiles.get(key) ?? 0;
+    return deployedTilesRef.current.get(key) ?? 0;
   }
 
   function hasDeployment(key: string) {
@@ -1184,7 +884,6 @@ export default function WorldMapPage() {
     roads: true,
     water: true,
     facilities: false,
-    weekly_conquest: false,
     chaos_setup: true,
   });
   const [historyPast, setHistoryPast] = useState<HistoryState[]>([]);
@@ -1223,9 +922,14 @@ export default function WorldMapPage() {
   const [surveysDropdownOpen, setSurveysDropdownOpen] = useState(false);
   const [floatingLayersOpen, setFloatingLayersOpen] = useState(!isTouchDevice());
   const [floatingToolsOpen, setFloatingToolsOpen] = useState(false);
-  const [weeklyConquestIconEnabled, setWeeklyConquestIconEnabled] = useState(true);
-  const [selectedWeeklyConquestAreaIndex, setSelectedWeeklyConquestAreaIndex] = useState<number | null>(null);
   const [moveDeployPreviewKeys, setMoveDeployPreviewKeys] = useState<Set<string>>(() => new Set());
+
+  const outlinedTilesRef = useRef(outlinedTiles);
+  const penTilesRef = useRef(penTiles);
+  const chaosSetupTilesRef = useRef(chaosSetupTiles);
+  const reclaimedTilesRef = useRef(reclaimedTiles);
+  const deployedTilesRef = useRef(deployedTiles);
+  const roadTilesRef = useRef(roadTiles);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const mapGridRef = useRef<HTMLDivElement>(null);
@@ -1241,6 +945,9 @@ export default function WorldMapPage() {
   const panVelocityRef = useRef({ lastX: 0, lastY: 0, lastTime: 0, vx: 0, vy: 0 });
   const lastPaintedKeysRef = useRef<Set<string>>(new Set());
   const lastTileRef = useRef<Tile | null>(null);
+  const hoveredTileRef = useRef<Tile | null>(null);
+  const previewKeysRef = useRef<Set<string>>(new Set());
+  const townhallPreviewBoundsRef = useRef<ReturnType<typeof getTownHallCoverageBounds> | null>(null);
   const lineStartTileRef = useRef<Tile | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const minimapCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -1249,15 +956,25 @@ export default function WorldMapPage() {
   const roadSnapPreviewRef = useRef<Set<string>>(new Set());
   const activeToolRef = useRef(activeTool);
   const paintModeRef = useRef(paintMode);
+  const perfDebugRef = useRef(false);
   const drawBubbleDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
   const minimapBubbleDragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
-  const previousWeeklyConquestLayerRef = useRef(layers.weekly_conquest);
   const spaceDownRef = useRef(false);
   const shiftDownRef = useRef(false);
   const pendingPointerRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
   const rafIdRef = useRef<number | null>(null);
 
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+
+  function markPerf(label: string) {
+    if (!perfDebugRef.current || typeof window === "undefined") return;
+    const startedAt = performance.now();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        console.info(`[world-map perf] ${label}: ${Math.round(performance.now() - startedAt)}ms to next paint`);
+      });
+    });
+  }
 
   function isValidScreenshotOptions(value: unknown): value is ScreenshotOptions {
     if (!value || typeof value !== "object") return false;
@@ -1313,7 +1030,7 @@ export default function WorldMapPage() {
       includeDrawArea: layers.poi,
       includeDeployments: layers.deployments,
       includeReclaimed: layers.reclaimed,
-      includeWeeklyConquest: layers.weekly_conquest,
+      includeWeeklyConquest: false,
       includeChaosSetup: layers.chaos_setup,
       includeFacilities: layers.facilities,
       includeSurveys: showSurveys,
@@ -1353,7 +1070,7 @@ export default function WorldMapPage() {
       includeDrawArea: true,
       includeDeployments: true,
       includeReclaimed: true,
-      includeWeeklyConquest: layers.weekly_conquest,
+      includeWeeklyConquest: false,
       includeChaosSetup: layers.chaos_setup,
       includeFacilities: layers.facilities,
       includeSurveys: showSurveys,
@@ -1384,16 +1101,44 @@ export default function WorldMapPage() {
     clearScreenshotPreview();
   }, [screenshotOptions, screenshotDialogOpen]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const enabled = params.has("perf") || window.localStorage.getItem("ka-world-map-perf") === "1";
+    perfDebugRef.current = enabled;
+    if (!enabled) return;
+    console.info("[world-map perf] enabled. Use ?perf=1 or localStorage ka-world-map-perf=1.");
+    if (typeof PerformanceObserver === "undefined") return;
+    let observer: PerformanceObserver | null = null;
+    try {
+      observer = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          console.warn(`[world-map perf] long task: ${Math.round(entry.duration)}ms`, entry);
+        });
+      });
+      observer.observe({ entryTypes: ["longtask"] });
+    } catch {
+      observer = null;
+    }
+    return () => observer?.disconnect();
+  }, []);
+
+  useEffect(() => { outlinedTilesRef.current = outlinedTiles; }, [outlinedTiles]);
+  useEffect(() => { penTilesRef.current = penTiles; }, [penTiles]);
+  useEffect(() => { chaosSetupTilesRef.current = chaosSetupTiles; }, [chaosSetupTiles]);
+  useEffect(() => { reclaimedTilesRef.current = reclaimedTiles; }, [reclaimedTiles]);
+  useEffect(() => { deployedTilesRef.current = deployedTiles; }, [deployedTiles]);
+  useEffect(() => { roadTilesRef.current = roadTiles; }, [roadTiles]);
   useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
   useEffect(() => { paintModeRef.current = paintMode; }, [paintMode]);
 
-  useEffect(() => {
-    const wasEnabled = previousWeeklyConquestLayerRef.current;
-    if (!wasEnabled && layers.weekly_conquest) {
-      setWeeklyConquestIconEnabled(true);
-    }
-    previousWeeklyConquestLayerRef.current = layers.weekly_conquest;
-  }, [layers.weekly_conquest]);
+  function setActiveToolImmediate(next: ToolType | ((prev: ToolType) => ToolType)) {
+    const value = typeof next === "function" ? next(activeToolRef.current) : next;
+    activeToolRef.current = value;
+    markPerf(`tool ${value}`);
+    setActiveTool(value);
+    scheduleRender();
+  }
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -1429,11 +1174,11 @@ export default function WorldMapPage() {
         e.preventDefault(); undoRedoRef.current.redo(); return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.code === "KeyP") { setActiveTool("pen"); setPaintMode("mark"); }
-      if (e.code === "KeyD") { setActiveTool("draw_area"); setPaintMode("mark"); setBrushSize((prev) => Math.max(2, prev) as BrushSize); }
-      if (e.code === "KeyR") { setActiveTool("road"); setPaintMode("mark"); }
+      if (e.code === "KeyP") { setActiveToolImmediate("pen"); setPaintMode("mark"); }
+      if (e.code === "KeyD") { setActiveToolImmediate("draw_area"); setPaintMode("mark"); setBrushSize((prev) => Math.max(2, prev) as BrushSize); }
+      if (e.code === "KeyR") { setActiveToolImmediate("road"); setPaintMode("mark"); }
       if (e.code === "KeyE") { setPaintMode((prev) => prev === "erase" ? "mark" : "erase"); }
-      if (e.code === "Escape") { setActiveTool("none"); }
+      if (e.code === "Escape") { setActiveToolImmediate("none"); }
       if (e.code === "BracketLeft") {
         if (paintModeRef.current === "erase") setEraserSize((prev) => Math.max(1, prev - 1) as BrushSize);
         else setBrushSize((prev) => Math.max(1, prev - 1) as BrushSize);
@@ -1516,6 +1261,8 @@ export default function WorldMapPage() {
           setRoadTiles((prev) => {
             const next = new Set(prev);
             keys.forEach((k) => next.add(k));
+            roadTilesRef.current = next;
+            scheduleRender();
             return next;
           });
         }
@@ -1531,6 +1278,8 @@ export default function WorldMapPage() {
           } else {
             source.sourceKeys.forEach((k) => incrementDeploymentCount(next, k));
           }
+          deployedTilesRef.current = next;
+          scheduleRender();
           return next;
         });
       }
@@ -1583,7 +1332,6 @@ export default function WorldMapPage() {
   }, []);
 
   const { grid, rows, cols, terrainCounts: baseTerrainCounts } = useMemo(() => buildTiles(), []);
-  const { monsters: conquestMonsters, weeklyConquest } = useWeeklyConquestMapData();
 
   const selectDebugTile = useCallback((x: number, y: number) => {
     const tile = grid.get(keyOf(x, y));
@@ -1599,7 +1347,7 @@ export default function WorldMapPage() {
     }
   }, [grid, tileSize]);
 
-  const isLand = (tile: Tile) => tile.buildable || reclaimedTiles.has(keyOf(tile.x, tile.y));
+  const isLand = (tile: Tile) => tile.buildable || reclaimedTilesRef.current.has(keyOf(tile.x, tile.y));
 
   const visibleInfoTile = touchMode ? selectedTile : hoveredTile ?? selectedTile;
 
@@ -1612,19 +1360,6 @@ export default function WorldMapPage() {
     } catch {
       flashNotice("Copy failed");
     }
-  }
-
-  function deploySelectedArea() {
-    if (selectedWeeklyConquestAreaIndex === null) return;
-    const area = weeklyConquestAreas[selectedWeeklyConquestAreaIndex];
-    if (!area) return;
-    const tile = grid.get(keyOf(area.centerX, area.centerY));
-    if (!tile) return;
-    pushHistory();
-    setActiveTool("deploy");
-    setPaintMode("mark");
-    setSelectedTile(tile);
-    applyPatchToSet("deploy", getDiamondCoordinates(tile.x, tile.y, deploymentSize, cols, rows), "mark");
   }
 
   const effectiveTerrainCounts = useMemo(() => {
@@ -1682,7 +1417,7 @@ export default function WorldMapPage() {
   const brushOptions: BrushSize[] = [1,2,3,4,5,6,7,8,9,10];
   const drawAreaBrushOptions: BrushSize[] = [2,3,4,5,6,7,8,9,10];
   const deploymentOptions: DeploymentSize[] = [2,3,4,5,6];
-  const layerOrder: LayerKey[] = ["levels","weekly_conquest","chaos_setup","facilities","poi","reclaimed","grid","roads","deployments"];
+  const layerOrder: LayerKey[] = ["levels","chaos_setup","facilities","poi","reclaimed","grid","roads","deployments"];
   const minimapSize = useMemo(() => {
     const maxWidth = touchMode ? 132 : 168;
     const maxHeight = touchMode ? 112 : 144;
@@ -1702,100 +1437,6 @@ export default function WorldMapPage() {
       setMinimapBubblePos((pos) => clampFloatingMapPos(pos.x, pos.y, width, height));
     });
   }, [isFullscreen, touchMode, minimapCollapsed, minimapSize.width, minimapSize.height]);
-
-  const weeklyConquestSpawnGroups = useMemo(() => {
-    const groups = new Map<string, string[]>();
-    if (!weeklyConquest?.monsters?.length) return groups;
-    for (const monsterName of weeklyConquest.monsters) {
-      const monster = conquestMonsters[monsterName];
-      if (!monster?.spawns?.length) continue;
-      for (const spawn of monster.spawns) {
-        const terrain = AREA_TERRAIN_MAP[spawn.area.trim().toLowerCase()];
-        if (!terrain || !Number.isFinite(spawn.level)) continue;
-        const key = `${terrain}|${spawn.level}`;
-        const existing = groups.get(key) ?? [];
-        if (!existing.includes(monsterName)) {
-          existing.push(monsterName);
-        }
-        groups.set(key, existing);
-      }
-    }
-    return groups;
-  }, [conquestMonsters, weeklyConquest]);
-
-  const weeklyConquestSpawnKeys = useMemo(() => new Set<string>(weeklyConquestSpawnGroups.keys()), [weeklyConquestSpawnGroups]);
-
-  const weeklyConquestTileKeys = useMemo(() => {
-    if (weeklyConquestSpawnKeys.size === 0) return new Set<string>();
-    const keys = new Set<string>();
-    grid.forEach((tile, key) => {
-      if (!isLand(tile)) return;
-      if (weeklyConquestSpawnKeys.has(`${tile.terrain}|${tile.level}`)) keys.add(key);
-    });
-    return keys;
-  }, [grid, reclaimedTiles, weeklyConquestSpawnKeys]);
-
-  const weeklyConquestAreas = useMemo(
-    () => buildWeeklyConquestAreas(weeklyConquestTileKeys, grid, weeklyConquestSpawnGroups),
-    [weeklyConquestTileKeys, grid, weeklyConquestSpawnGroups]
-  );
-
-  const weeklyConquestMonsterCoverage = useMemo(() => {
-    const counts = new Map<string, number>();
-    if (!weeklyConquest?.monsters?.length) return counts;
-    weeklyConquestAreas.forEach((area) => {
-      if (!area.monsterNames.length) return;
-      let areaCount = 0;
-      area.tiles.forEach((key) => {
-        const tileCount = getDeploymentCount(key);
-        if (tileCount > areaCount) areaCount = tileCount;
-      });
-      if (areaCount <= 0) return;
-      area.monsterNames.forEach((monsterName) => {
-        counts.set(monsterName, (counts.get(monsterName) ?? 0) + areaCount);
-      });
-    });
-    return counts;
-  }, [weeklyConquest, weeklyConquestAreas, deployedTiles]);
-
-  const weeklyConquestZoneLabels = useMemo(() => {
-    const labels = new Map<string, string[]>();
-    if (!weeklyConquest?.monsters?.length) return labels;
-
-    for (let ny = 0; ny < 10; ny += 1) {
-      for (let nx = 0; nx < 10; nx += 1) {
-        const nSX = Math.floor((nx * cols) / 10);
-        const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
-        const nSY = Math.floor((ny * rows) / 10);
-        const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
-        const zoneMatches: string[] = [];
-
-        for (const monsterName of weeklyConquest.monsters) {
-          const monster = conquestMonsters[monsterName];
-          if (!monster?.spawns?.length) continue;
-          const matchesZone = monster.spawns.some((spawn) => {
-            const terrain = AREA_TERRAIN_MAP[spawn.area.trim().toLowerCase()];
-            if (!terrain || !Number.isFinite(spawn.level)) return false;
-
-            for (let y = nSY; y <= nEY; y += 1) {
-              for (let x = nSX; x <= nEX; x += 1) {
-                const tile = grid.get(keyOf(x, y));
-                if (!tile || !isLand(tile)) continue;
-                if (tile.terrain === terrain && tile.level === spawn.level) return true;
-              }
-            }
-
-            return false;
-          });
-          if (matchesZone) zoneMatches.push(monsterName);
-        }
-
-        if (zoneMatches.length > 0) labels.set(`${nx},${ny}`, zoneMatches);
-      }
-    }
-
-    return labels;
-  }, [cols, rows, conquestMonsters, grid, weeklyConquest]);
 
   const surveyZoneData = useMemo(() => {
     const defsByZone = new Map<string, SurveyDef[]>();
@@ -1887,6 +1528,67 @@ export default function WorldMapPage() {
     return { total, newCoverage };
   }, [hoveredTile, activeTool, previewKeys, deployedTiles, reclaimedTiles]);
 
+  function buildPreviewKeysForTile(tile: Tile | null) {
+    const tool = activeToolRef.current;
+    const mode = paintModeRef.current;
+    if (tool === "road" && mode === "mark") return roadSnapPreview;
+    if (tool === "move_deploy") return moveDeployPreviewKeys;
+    if (!tile || tool === "none") return new Set<string>();
+    const coords =
+      tool === "deploy"
+        ? getDiamondCoordinates(tile.x, tile.y, deploymentSize, cols, rows)
+        : tool === "chaos_setup"
+        ? getChaosSetupFootprintCoords(tile.x, tile.y, chaosSetupPiece, cols, rows)
+        : tool === "townhall"
+        ? getCenteredSquareCoordinates(tile.x, tile.y, getTownHallCoverageSize(townhallLevel), cols, rows)
+        : tool === "pen"
+        ? getCenteredSquareCoordinates(tile.x, tile.y, mode === "erase" ? eraserSize : 1, cols, rows)
+        : getCenteredSquareCoordinates(tile.x, tile.y, brushSize, cols, rows);
+
+    const next = new Set<string>();
+    coords.forEach(([x, y]) => {
+      const key = keyOf(x, y);
+      const candidate = grid.get(key);
+      if (!candidate) return;
+      if (tool === "reclaim") {
+        next.add(key);
+        return;
+      }
+      if (tool === "chaos_setup") {
+        if (isLand(candidate)) next.add(key);
+        return;
+      }
+      if (tool === "pen") {
+        next.add(key);
+        return;
+      }
+      if (isLand(candidate)) next.add(key);
+    });
+    return next;
+  }
+
+  function updateCanvasHover(tile: Tile | null) {
+    const previous = hoveredTileRef.current;
+    if (
+      (previous === null && tile === null) ||
+      (previous !== null && tile !== null && previous.x === tile.x && previous.y === tile.y)
+    ) {
+      return;
+    }
+    hoveredTileRef.current = tile;
+    previewKeysRef.current = buildPreviewKeysForTile(tile);
+    townhallPreviewBoundsRef.current =
+      activeToolRef.current === "townhall" && tile
+        ? getTownHallCoverageBounds(tile.x, tile.y, townhallLevel, cols, rows)
+        : null;
+
+    if (activeToolRef.current === "none") {
+      setHoveredTile(tile);
+    } else {
+      scheduleRender();
+    }
+  }
+
   function flashNotice(message: string) {
     setNotice(message);
   }
@@ -1952,7 +1654,6 @@ export default function WorldMapPage() {
     renderRafRef.current = requestAnimationFrame(() => {
       renderRafRef.current = null;
       drawMap();
-      scheduleUiSync();
     });
   }
 
@@ -1989,6 +1690,7 @@ export default function WorldMapPage() {
     clampCamera(camera);
     tileSizeRef.current = tileSizeFromZoom(camera.zoom);
     scheduleRender();
+    scheduleUiSync();
     if (sync) syncMapScroll();
   }
 
@@ -2023,6 +1725,7 @@ export default function WorldMapPage() {
     clampCamera(camera);
     tileSizeRef.current = tileSizeFromZoom(camera.zoom);
     scheduleRender();
+    scheduleUiSync();
 
     const stillMoving =
       Math.abs(zoomDelta) > 0.001 ||
@@ -2070,6 +1773,12 @@ export default function WorldMapPage() {
 
   function restoreSets(state: HistoryState) {
     const restored = restoreSnapshot(state);
+    outlinedTilesRef.current = restored.outlined;
+    reclaimedTilesRef.current = restored.reclaimed;
+    deployedTilesRef.current = restored.deployed;
+    roadTilesRef.current = restored.roads;
+    penTilesRef.current = restored.penned;
+    chaosSetupTilesRef.current = restored.chaosSetup;
     setOutlinedTiles(restored.outlined);
     setReclaimedTiles(restored.reclaimed);
     setDeployedTiles(restored.deployed);
@@ -2077,6 +1786,7 @@ export default function WorldMapPage() {
     setPenTiles(restored.penned);
     setChaosSetupTiles(restored.chaosSetup);
     setTownhallPlacement(restored.townhallPlacement);
+    scheduleRender();
   }
 
   function undo() {
@@ -2098,7 +1808,7 @@ export default function WorldMapPage() {
   }
 
   function resetMap() {
-    setActiveTool("none");
+    setActiveToolImmediate("none");
     setPaintMode("mark");
     setBrushSize(1);
     setPenBrushSize(1);
@@ -2106,15 +1816,28 @@ export default function WorldMapPage() {
     setDeploymentSize(2);
     setTownhallLevel(1);
     setTownhallPlacement(null);
-    setOutlinedTiles(new Set());
-    setPenTiles(new Map());
-    setChaosSetupTiles(new Map());
-    setReclaimedTiles(new Set());
-    setDeployedTiles(new Map());
-    setRoadTiles(new Set());
+    const emptyOutlined = new Set<string>();
+    const emptyPen = new Map<string, string>();
+    const emptyChaosSetup = new Map<string, ChaosSetupPiece>();
+    const emptyReclaimed = new Set<string>();
+    const emptyDeployed = new Map<string, number>();
+    const emptyRoads = new Set<string>();
+    outlinedTilesRef.current = emptyOutlined;
+    penTilesRef.current = emptyPen;
+    chaosSetupTilesRef.current = emptyChaosSetup;
+    reclaimedTilesRef.current = emptyReclaimed;
+    deployedTilesRef.current = emptyDeployed;
+    roadTilesRef.current = emptyRoads;
+    setOutlinedTiles(emptyOutlined);
+    setPenTiles(emptyPen);
+    setChaosSetupTiles(emptyChaosSetup);
+    setReclaimedTiles(emptyReclaimed);
+    setDeployedTiles(emptyDeployed);
+    setRoadTiles(emptyRoads);
     setHistoryPast([]);
     setHistoryFuture([]);
     setCleanMode(false);
+    scheduleRender();
     flashNotice("Map reset to clean state");
   }
 
@@ -2146,6 +1869,8 @@ export default function WorldMapPage() {
           });
           if (!canPlace) return prev;
           next.set(anchorKey, chaosSetupPiece);
+          chaosSetupTilesRef.current = next;
+          scheduleRender();
           return next;
         }
 
@@ -2159,6 +1884,8 @@ export default function WorldMapPage() {
             removed = true;
           }
         });
+        chaosSetupTilesRef.current = next;
+        scheduleRender();
         return next;
       });
 
@@ -2180,6 +1907,8 @@ export default function WorldMapPage() {
           if (mode === "mark") next.add(key);
           else next.delete(key);
         });
+        outlinedTilesRef.current = next;
+        scheduleRender();
         return next;
       });
     }
@@ -2193,6 +1922,8 @@ export default function WorldMapPage() {
           if (mode === "mark") next.set(key, penColor);
           else next.delete(key);
         });
+        penTilesRef.current = next;
+        scheduleRender();
         return next;
       });
     }
@@ -2206,6 +1937,8 @@ export default function WorldMapPage() {
           if (mode === "reclaim") next.add(key);
           else next.delete(key);
         });
+        reclaimedTilesRef.current = next;
+        scheduleRender();
         return next;
       });
     }
@@ -2219,6 +1952,8 @@ export default function WorldMapPage() {
           if (mode === "mark") incrementDeploymentCount(next, key);
           else decrementDeploymentCount(next, key);
         });
+        deployedTilesRef.current = next;
+        scheduleRender();
         return next;
       });
     }
@@ -2232,6 +1967,8 @@ export default function WorldMapPage() {
           if (mode === "mark") next.add(key);
           else next.delete(key);
         });
+        roadTilesRef.current = next;
+        scheduleRender();
         return next;
       });
     }
@@ -2260,10 +1997,13 @@ export default function WorldMapPage() {
   }
 
   function handleToolAction(tile: Tile) {
+    const tool = activeToolRef.current;
+    const mode = paintModeRef.current;
+    markPerf(`action ${tool}/${mode}`);
     setSelectedTile(tile);
-    if (activeTool === "none") return;
+    if (tool === "none") return;
 
-    if (paintMode === "erase") {
+    if (mode === "erase") {
       const eraseCoords =
         eraserTarget === "deploy"
           ? getDiamondCoordinates(tile.x, tile.y, deploymentSize, cols, rows)
@@ -2281,6 +2021,8 @@ export default function WorldMapPage() {
           setDeployedTiles((prev) => {
             const next = new Map(prev);
             cluster.forEach((key) => decrementDeploymentCount(next, key));
+            deployedTilesRef.current = next;
+            scheduleRender();
             return next;
           });
         } else {
@@ -2299,6 +2041,8 @@ export default function WorldMapPage() {
           setDeployedTiles((prev) => {
             const next = new Map(prev);
             cluster.forEach((key) => decrementDeploymentCount(next, key));
+            deployedTilesRef.current = next;
+            scheduleRender();
             return next;
           });
         } else {
@@ -2308,28 +2052,28 @@ export default function WorldMapPage() {
       return;
     }
 
-    if (activeTool === "townhall") {
+    if (tool === "townhall") {
       setTownhallPlacement({ x: tile.x, y: tile.y, level: townhallLevel });
       return;
     }
 
     const coords =
-      activeTool === "deploy"
+      tool === "deploy"
         ? getDiamondCoordinates(tile.x, tile.y, deploymentSize, cols, rows)
-        : activeTool === "chaos_setup"
+        : tool === "chaos_setup"
         ? getChaosSetupFootprintCoords(tile.x, tile.y, chaosSetupPiece, cols, rows)
-        : activeTool === "pen"
+        : tool === "pen"
         ? getCenteredSquareCoordinates(tile.x, tile.y, penBrushSize, cols, rows)
         : getCenteredSquareCoordinates(tile.x, tile.y, brushSize, cols, rows);
 
-    if (activeTool === "pen") applyPatchToSet("pen", coords, "mark");
-    if (activeTool === "chaos_setup") applyPatchToSet("chaos_setup", coords, paintMode);
-    if (activeTool === "draw_area") applyPatchToSet("outline", coords, paintMode);
-    if (activeTool === "reclaim") applyPatchToSet("reclaim", coords, reclaimMode);
-    if (activeTool === "deploy") {
+    if (tool === "pen") applyPatchToSet("pen", coords, "mark");
+    if (tool === "chaos_setup") applyPatchToSet("chaos_setup", coords, mode);
+    if (tool === "draw_area") applyPatchToSet("outline", coords, mode);
+    if (tool === "reclaim") applyPatchToSet("reclaim", coords, reclaimMode);
+    if (tool === "deploy") {
       applyPatchToSet("deploy", coords, "mark");
     }
-    if (activeTool === "road") applyPatchToSet("road", coords, paintMode);
+    if (tool === "road") applyPatchToSet("road", coords, mode);
   }
 
   function tilesOnLine(x0: number, y0: number, x1: number, y1: number): Array<[number, number]> {
@@ -2352,17 +2096,19 @@ export default function WorldMapPage() {
   }
 
   function beginPaint(tile: Tile) {
+    const tool = activeToolRef.current;
+    const mode = paintModeRef.current;
     // Road+mark is handled at viewport level (for snap), skip here
-    if (activeTool === "road" && paintMode === "mark") {
+    if (tool === "road" && mode === "mark") {
       setSelectedTile(tile);
       return;
     }
-    if (activeTool === "townhall") {
+    if (tool === "townhall") {
       pushHistory();
       handleToolAction(tile);
       return;
     }
-    if (activeTool === "move_deploy") {
+    if (tool === "move_deploy") {
       const cluster = collectConnectedDeployment(keyOf(tile.x, tile.y));
       if (cluster.size === 0) return;
       pushHistory();
@@ -2374,26 +2120,28 @@ export default function WorldMapPage() {
       setDeployedTiles((prev) => {
         const next = new Map(prev);
         cluster.forEach((key) => decrementDeploymentCount(next, key));
+        deployedTilesRef.current = next;
+        scheduleRender();
         return next;
       });
       setSelectedTile(tile);
       setIsPainting(true);
       return;
     }
-    if (activeTool !== "none") {
-      if (activeTool === "deploy") {
+    if (tool !== "none") {
+      if (tool === "deploy") {
         pushHistory();
         handleToolAction(tile);
         return;
       }
-      if (activeTool === "pen" && paintMode === "mark") addRecentColor(penColor);
-      if (activeTool === "draw_area" && paintMode === "mark") addRecentColor(drawAreaColor);
+      if (tool === "pen" && mode === "mark") addRecentColor(penColor);
+      if (tool === "draw_area" && mode === "mark") addRecentColor(drawAreaColor);
       pushHistory();
       lastPaintedKeysRef.current = new Set();
       lastTileRef.current = tile;
       lineStartTileRef.current = tile;
       setIsPainting(true);
-      if (!(activeTool === "pen" && paintMode === "mark" && lineAssist)) {
+      if (!(tool === "pen" && mode === "mark" && lineAssist)) {
         handleToolAction(tile);
       }
       return;
@@ -2402,8 +2150,10 @@ export default function WorldMapPage() {
   }
 
   function continuePaint(tile: Tile) {
-    if (!isPainting || activeTool === "none") return;
-    if (activeTool === "move_deploy") {
+    const tool = activeToolRef.current;
+    const mode = paintModeRef.current;
+    if (!isPainting || tool === "none") return;
+    if (tool === "move_deploy") {
       const moveState = moveDeploySourceRef.current;
       if (!moveState) return;
       const previewKeys = translateDeploymentKeys(moveState.sourceKeys, moveState.sourceCenter, { x: tile.x, y: tile.y }, cols, rows);
@@ -2412,7 +2162,7 @@ export default function WorldMapPage() {
       setSelectedTile(tile);
       return;
     }
-    if (activeTool === "pen" && paintMode === "mark" && lineAssist) {
+    if (tool === "pen" && mode === "mark" && lineAssist) {
       const start = lineStartTileRef.current ?? tile;
       let targetX = tile.x;
       let targetY = tile.y;
@@ -2430,7 +2180,7 @@ export default function WorldMapPage() {
     if (last && (last.x !== tile.x || last.y !== tile.y)) {
       let targetX = tile.x;
       let targetY = tile.y;
-      if (activeTool === "pen" && (lineAssist || shiftDownRef.current)) {
+      if (tool === "pen" && (lineAssist || shiftDownRef.current)) {
         if (Math.abs(tile.x - last.x) >= Math.abs(tile.y - last.y)) targetY = last.y;
         else targetX = last.x;
       }
@@ -2500,16 +2250,18 @@ export default function WorldMapPage() {
   }
 
   function onViewportPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const tool = activeToolRef.current;
+    const mode = paintModeRef.current;
     if (e.button === 2) return;
     if (spaceDownRef.current) return; // space+drag handled by startPan
     if (hasConflictingPointerGesture(e.pointerId)) {
       e.preventDefault();
       return;
     }
-    setHoveredTile(null);
+    updateCanvasHover(null);
     setSurveyTooltip(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    if (activeTool === "none" || shouldUseTouchNavigation(e.pointerType)) {
+    if (tool === "none" || shouldUseTouchNavigation(e.pointerType)) {
       if (e.pointerType === "pen") {
         e.preventDefault();
         const tile = tileAtPointer(e.clientX, e.clientY);
@@ -2529,7 +2281,7 @@ export default function WorldMapPage() {
     const tile = tileAtPointer(e.clientX, e.clientY);
     if (!tile) return;
     e.preventDefault();
-    if (activeTool === "road" && paintMode === "mark") {
+    if (tool === "road" && mode === "mark") {
       pushHistory();
       activePaintPointersRef.current = new Set([e.pointerId]);
       roadSnapStartRef.current = { x: tile.x, y: tile.y };
@@ -2628,9 +2380,9 @@ export default function WorldMapPage() {
       if (hasActivePointerGesture(pos.pointerId)) return;
       const tile = tileAtPointer(pos.x, pos.y);
       if (!tile) return;
-      setHoveredTile(tile);
+      updateCanvasHover(tile);
       if (!isPainting) return;
-      if (activeTool === "road" && paintMode === "mark") {
+      if (activeToolRef.current === "road" && paintModeRef.current === "mark") {
         updateRoadSnap(tile);
       } else {
         continuePaint(tile);
@@ -2660,7 +2412,6 @@ export default function WorldMapPage() {
     const deployed = getDeploymentCount(key) > 0 && layers.deployments;
     const reclaimed = reclaimedTiles.has(key) && layers.reclaimed;
     const road = roadTiles.has(key) && layers.roads;
-    const weeklyConquestTile = weeklyConquestTileKeys.has(key) && layers.weekly_conquest;
     const preview = previewKeys.has(key);
     const parts: string[] = [];
 
@@ -2679,10 +2430,6 @@ export default function WorldMapPage() {
       parts.push(`inset 0 0 0 1px ${DEPLOY_BORDER}`);
     }
 
-    if (weeklyConquestTile) {
-      parts.push(`inset 0 0 0 9999px ${WEEKLY_CONQUEST_FILL}`);
-      parts.push(`inset 0 0 0 1px ${WEEKLY_CONQUEST_BORDER}`);
-    }
 
     if (outlined) {
       if (!outlinedTiles.has(keyOf(tile.x, tile.y - 1))) parts.push(`inset 0 2px 0 0 ${drawAreaColor}`);
@@ -2765,6 +2512,9 @@ export default function WorldMapPage() {
       const autoSize = getAutoFitTileSize();
       if (autoSize < tileSizeRef.current) {
         setCameraPosition(cameraRef.current.x, cameraRef.current.y, autoSize);
+      } else {
+        scheduleRender();
+        scheduleUiSync();
       }
     };
 
@@ -2786,6 +2536,7 @@ export default function WorldMapPage() {
     if (tileSizeRef.current < minTileSize) {
       setCameraPosition(cameraRef.current.x, cameraRef.current.y, minTileSize);
     }
+    scheduleRender();
     requestAnimationFrame(syncMapScroll);
   }, [isFullscreen, touchMode]);
 
@@ -2937,7 +2688,7 @@ export default function WorldMapPage() {
   }
 
   function selectMapTool(tool: ToolType) {
-    setActiveTool((prev) => toggleTool(prev, tool));
+    setActiveToolImmediate((prev) => toggleTool(prev, tool));
     setFloatingToolsOpen(false);
     if (tool === "draw_area" && brushSize < 2) setBrushSize(2);
   }
@@ -2961,12 +2712,21 @@ export default function WorldMapPage() {
       }
       pushHistory();
       const decoded = decodeState(text);
+      const decodedPen = new Map((decoded.penned ?? []).map((e) => [e.k, e.c]));
+      const decodedChaosSetup = new Map((decoded.chaosSetup ?? []).map((e) => [e.k, e.piece]));
+      outlinedTilesRef.current = decoded.outlined;
+      reclaimedTilesRef.current = decoded.reclaimed;
+      deployedTilesRef.current = decoded.deployed;
+      roadTilesRef.current = decoded.roads;
+      penTilesRef.current = decodedPen;
+      chaosSetupTilesRef.current = decodedChaosSetup;
       setOutlinedTiles(decoded.outlined);
       setReclaimedTiles(decoded.reclaimed);
       setDeployedTiles(decoded.deployed);
       setRoadTiles(decoded.roads);
-      setPenTiles(new Map((decoded.penned ?? []).map((e) => [e.k, e.c])));
-      setChaosSetupTiles(new Map((decoded.chaosSetup ?? []).map((e) => [e.k, e.piece])));
+      setPenTiles(decodedPen);
+      setChaosSetupTiles(decodedChaosSetup);
+      scheduleRender();
       flashNotice("Map imported from clipboard");
     } catch {
       flashNotice("No data in clipboard");
@@ -2988,12 +2748,21 @@ export default function WorldMapPage() {
     try {
       pushHistory();
       const decoded = decodeState(text);
+      const decodedPen = new Map((decoded.penned ?? []).map((e) => [e.k, e.c]));
+      const decodedChaosSetup = new Map((decoded.chaosSetup ?? []).map((e) => [e.k, e.piece]));
+      outlinedTilesRef.current = decoded.outlined;
+      reclaimedTilesRef.current = decoded.reclaimed;
+      deployedTilesRef.current = decoded.deployed;
+      roadTilesRef.current = decoded.roads;
+      penTilesRef.current = decodedPen;
+      chaosSetupTilesRef.current = decodedChaosSetup;
       setOutlinedTiles(decoded.outlined);
       setReclaimedTiles(decoded.reclaimed);
       setDeployedTiles(decoded.deployed);
       setRoadTiles(decoded.roads);
-      setPenTiles(new Map((decoded.penned ?? []).map((e) => [e.k, e.c])));
-      setChaosSetupTiles(new Map((decoded.chaosSetup ?? []).map((e) => [e.k, e.piece])));
+      setPenTiles(decodedPen);
+      setChaosSetupTiles(decodedChaosSetup);
+      scheduleRender();
       flashNotice(`Loaded slot ${slot}`);
     } catch {
       flashNotice(`Slot ${slot} is invalid`);
@@ -3021,6 +2790,7 @@ export default function WorldMapPage() {
   }
 
   function toggleFullscreen() {
+    markPerf(isFullscreen || document.fullscreenElement || isFullscreenFallback ? "exit fullscreen" : "enter fullscreen");
     if (!document.fullscreenElement && !isFullscreenFallback) {
       const requestFullscreen = fullscreenContainerRef.current?.requestFullscreen?.bind(fullscreenContainerRef.current);
       if (requestFullscreen) {
@@ -3121,14 +2891,6 @@ export default function WorldMapPage() {
           ctx.strokeRect(px + 0.5, py + 0.5, renderScale - 1, renderScale - 1);
         }
 
-        if (options.includeWeeklyConquest && weeklyConquestTileKeys.has(key)) {
-          ctx.fillStyle = WEEKLY_CONQUEST_FILL;
-          ctx.fillRect(px, py, renderScale, renderScale);
-          ctx.strokeStyle = WEEKLY_CONQUEST_BORDER;
-          ctx.lineWidth = 1;
-          ctx.strokeRect(px + 0.5, py + 0.5, renderScale - 1, renderScale - 1);
-        }
-
         if (options.includeDrawArea && outlinedTiles.has(key)) {
           ctx.strokeStyle = drawAreaColor;
           ctx.lineWidth = Math.max(1, Math.floor(renderScale / 4));
@@ -3187,9 +2949,6 @@ export default function WorldMapPage() {
       ctx.restore();
     }
 
-    if (options.includeWeeklyConquest && weeklyConquestIconEnabled) {
-      drawWeeklyConquestAreaIcons(ctx, renderScale, weeklyConquestAreas);
-    }
 
     if (options.includeSurveys) {
       const margin = 8;
@@ -3381,7 +3140,7 @@ export default function WorldMapPage() {
 
 
   // â”€â”€ Shared toolbar sections (used in both normal panel and fullscreen sidebar) â”€â”€
-  // ── Canvas rendering ──
+  // -- Canvas rendering --
   function getBaseTerrainCache(renderedTileSize: number) {
     const roundedTileSize = Math.max(0.25, Math.round(renderedTileSize * 4) / 4);
     const waterEnabled = layers.water;
@@ -3440,6 +3199,11 @@ export default function WorldMapPage() {
     ctx.fillRect(0, 0, w, h);
     const camera = cameraRef.current;
     const renderedTileSize = tileSizeFromZoom(camera.zoom);
+    const renderOutlinedTiles = outlinedTilesRef.current;
+    const renderPenTiles = penTilesRef.current;
+    const renderChaosSetupTiles = chaosSetupTilesRef.current;
+    const renderReclaimedTiles = reclaimedTilesRef.current;
+    const renderRoadTiles = roadTilesRef.current;
     const startX = Math.max(0, Math.floor((camera.x - MAP_CANVAS_MARGIN) / renderedTileSize) - 2);
     const startY = Math.max(0, Math.floor((camera.y - MAP_CANVAS_MARGIN) / renderedTileSize) - 2);
     const endX = Math.min(cols - 1, Math.ceil((camera.x + w - MAP_CANVAS_MARGIN) / renderedTileSize) + 2);
@@ -3464,6 +3228,9 @@ export default function WorldMapPage() {
     const dstW = srcW * cacheScale;
     const dstH = srcH * cacheScale;
     ctx.drawImage(baseCache, srcX, srcY, srcW, srcH, dstX, dstY, dstW, dstH);
+    const renderActiveTool = activeToolRef.current;
+    const renderPreviewKeys = previewKeysRef.current.size > 0 ? previewKeysRef.current : previewKeys;
+    const renderTownhallPreviewBounds = townhallPreviewBoundsRef.current ?? townhallPreviewBounds;
 
     for (let cy = startY; cy <= endY; cy++) {
       for (let cx = startX; cx <= endX; cx++) {
@@ -3505,11 +3272,11 @@ export default function WorldMapPage() {
           ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
         }
 
-        if (layers.roads && roadTiles.has(key)) {
+        if (layers.roads && renderRoadTiles.has(key)) {
           drawRoadTexture(ctx, px, py, pw);
         }
 
-        if (layers.reclaimed && reclaimedTiles.has(key)) {
+        if (layers.reclaimed && renderReclaimedTiles.has(key)) {
           ctx.fillStyle = RECLAIMED_FILL;
           ctx.fillRect(px, py, pw, ph);
           ctx.strokeStyle = RECLAIMED_BORDER;
@@ -3532,31 +3299,23 @@ export default function WorldMapPage() {
           ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
         }
 
-        if (layers.weekly_conquest && weeklyConquestTileKeys.has(key)) {
-          ctx.fillStyle = WEEKLY_CONQUEST_FILL;
-          ctx.fillRect(px, py, pw, ph);
-          ctx.strokeStyle = WEEKLY_CONQUEST_BORDER;
-          ctx.lineWidth = 1;
-          ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
-        }
-
-        if (layers.poi && outlinedTiles.has(key)) {
+        if (layers.poi && renderOutlinedTiles.has(key)) {
           ctx.strokeStyle = drawAreaColor;
           ctx.lineWidth = 2;
           ctx.beginPath();
-          if (!outlinedTiles.has(keyOf(cx, cy - 1))) { ctx.moveTo(px, py + 1); ctx.lineTo(px + pw, py + 1); }
-          if (!outlinedTiles.has(keyOf(cx + 1, cy))) { ctx.moveTo(px + pw - 1, py); ctx.lineTo(px + pw - 1, py + ph); }
-          if (!outlinedTiles.has(keyOf(cx, cy + 1))) { ctx.moveTo(px, py + ph - 1); ctx.lineTo(px + pw, py + ph - 1); }
-          if (!outlinedTiles.has(keyOf(cx - 1, cy))) { ctx.moveTo(px + 1, py); ctx.lineTo(px + 1, py + ph); }
+          if (!renderOutlinedTiles.has(keyOf(cx, cy - 1))) { ctx.moveTo(px, py + 1); ctx.lineTo(px + pw, py + 1); }
+          if (!renderOutlinedTiles.has(keyOf(cx + 1, cy))) { ctx.moveTo(px + pw - 1, py); ctx.lineTo(px + pw - 1, py + ph); }
+          if (!renderOutlinedTiles.has(keyOf(cx, cy + 1))) { ctx.moveTo(px, py + ph - 1); ctx.lineTo(px + pw, py + ph - 1); }
+          if (!renderOutlinedTiles.has(keyOf(cx - 1, cy))) { ctx.moveTo(px + 1, py); ctx.lineTo(px + 1, py + ph); }
           ctx.stroke();
         }
 
         if (layers.poi) {
-          const penColorTile = penTiles.get(key);
+          const penColorTile = renderPenTiles.get(key);
           if (penColorTile) { ctx.fillStyle = penColorTile; ctx.fillRect(px, py, pw, ph); }
         }
 
-        if (previewKeys.has(key) && activeTool === "chaos_setup") {
+        if (renderPreviewKeys.has(key) && renderActiveTool === "chaos_setup") {
           ctx.fillStyle = "rgba(250,204,21,0.16)";
           ctx.fillRect(px, py, pw, ph);
           ctx.strokeStyle = "rgba(250,204,21,0.85)";
@@ -3564,40 +3323,40 @@ export default function WorldMapPage() {
           ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
         }
 
-        if (previewKeys.has(key)) {
-          if (activeTool === "draw_area") {
+        if (renderPreviewKeys.has(key)) {
+          if (renderActiveTool === "draw_area") {
             ctx.fillStyle = "rgba(251,146,60,0.10)";
             ctx.fillRect(px, py, pw, ph);
             ctx.strokeStyle = PREVIEW_ORANGE;
             ctx.lineWidth = 2;
             ctx.beginPath();
-            if (!previewKeys.has(keyOf(cx, cy - 1))) { ctx.moveTo(px, py + 1); ctx.lineTo(px + pw, py + 1); }
-            if (!previewKeys.has(keyOf(cx + 1, cy))) { ctx.moveTo(px + pw - 1, py); ctx.lineTo(px + pw - 1, py + ph); }
-            if (!previewKeys.has(keyOf(cx, cy + 1))) { ctx.moveTo(px, py + ph - 1); ctx.lineTo(px + pw, py + ph - 1); }
-            if (!previewKeys.has(keyOf(cx - 1, cy))) { ctx.moveTo(px + 1, py); ctx.lineTo(px + 1, py + ph); }
+            if (!renderPreviewKeys.has(keyOf(cx, cy - 1))) { ctx.moveTo(px, py + 1); ctx.lineTo(px + pw, py + 1); }
+            if (!renderPreviewKeys.has(keyOf(cx + 1, cy))) { ctx.moveTo(px + pw - 1, py); ctx.lineTo(px + pw - 1, py + ph); }
+            if (!renderPreviewKeys.has(keyOf(cx, cy + 1))) { ctx.moveTo(px, py + ph - 1); ctx.lineTo(px + pw, py + ph - 1); }
+            if (!renderPreviewKeys.has(keyOf(cx - 1, cy))) { ctx.moveTo(px + 1, py); ctx.lineTo(px + 1, py + ph); }
             ctx.stroke();
-          } else if (activeTool === "pen") {
+          } else if (renderActiveTool === "pen") {
             ctx.fillStyle = `${penColor}88`;
             ctx.fillRect(px, py, pw, ph);
-          } else if (activeTool === "deploy") {
+          } else if (renderActiveTool === "deploy") {
             ctx.fillStyle = "rgba(34,211,238,0.12)";
             ctx.fillRect(px, py, pw, ph);
             ctx.strokeStyle = DEPLOY_BORDER;
             ctx.lineWidth = 1;
             ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
-          } else if (activeTool === "move_deploy") {
+          } else if (renderActiveTool === "move_deploy") {
             ctx.fillStyle = "rgba(34,211,238,0.18)";
             ctx.fillRect(px, py, pw, ph);
             ctx.strokeStyle = DEPLOY_BORDER;
             ctx.lineWidth = 1;
             ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
-          } else if (activeTool === "reclaim") {
+          } else if (renderActiveTool === "reclaim") {
             ctx.fillStyle = "rgba(255,255,255,0.12)";
             ctx.fillRect(px, py, pw, ph);
             ctx.strokeStyle = "rgba(255,255,255,0.92)";
             ctx.lineWidth = 1;
             ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
-          } else if (activeTool === "road") {
+          } else if (renderActiveTool === "road") {
             ctx.fillStyle = "rgba(100,116,139,0.35)";
             ctx.fillRect(px, py, pw, ph);
             ctx.strokeStyle = ROAD_BORDER;
@@ -3622,8 +3381,6 @@ export default function WorldMapPage() {
       }
     }
 
-    // Weekly conquest icons are handled elsewhere when needed.
-
     if (townhallPlacement && townhallCoverageBounds) {
       const { minX, minY, maxX, maxY } = townhallCoverageBounds;
       ctx.lineWidth = Math.max(1, renderedTileSize * 0.75);
@@ -3637,8 +3394,8 @@ export default function WorldMapPage() {
       ctx.setLineDash([]);
     }
 
-    if (activeTool === "townhall" && townhallPreviewBounds) {
-      const { minX, minY, maxX, maxY } = townhallPreviewBounds;
+    if (renderActiveTool === "townhall" && renderTownhallPreviewBounds) {
+      const { minX, minY, maxX, maxY } = renderTownhallPreviewBounds;
       ctx.strokeStyle = "rgba(56,189,248,0.95)";
       ctx.lineWidth = Math.max(1, renderedTileSize * 0.75);
       ctx.setLineDash([Math.max(4, renderedTileSize * 0.5), Math.max(4, renderedTileSize * 0.5)]);
@@ -3652,7 +3409,7 @@ export default function WorldMapPage() {
     }
 
     if (layers.chaos_setup) {
-      chaosSetupTiles.forEach((piece, placedKey) => {
+      renderChaosSetupTiles.forEach((piece, placedKey) => {
         const [x, y] = placedKey.split(",").map(Number);
         const maxPieceX = piece === "chaos_stone" ? x + 1 : x;
         const maxPieceY = piece === "chaos_stone" ? y + 1 : y;
@@ -3686,7 +3443,7 @@ export default function WorldMapPage() {
       });
     }
 
-    // ── Map facilities ──────────────────────────────────────────────────────────
+    // -- Map facilities ----------------------------------------------------------
     if (layers.facilities && renderedTileSize >= 5.5) {
       ctx.save();
       ctx.textAlign = "center";
@@ -3731,67 +3488,7 @@ export default function WorldMapPage() {
       ctx.restore();
     }
 
-    if (layers.weekly_conquest && renderedTileSize >= 5.5) {
-      ctx.save();
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      for (let ny = visibleNativeStartY; ny <= visibleNativeEndY; ny += 1) {
-        for (let nx = visibleNativeStartX; nx <= visibleNativeEndX; nx += 1) {
-          const names = weeklyConquestZoneLabels.get(`${nx},${ny}`);
-          if (!names?.length) continue;
-          const nSX = Math.floor((nx * cols) / 10);
-          const nEX = Math.floor(((nx + 1) * cols) / 10) - 1;
-          const nSY = Math.floor((ny * rows) / 10);
-          const nEY = Math.floor(((ny + 1) * rows) / 10) - 1;
-          const zoneW = (nEX - nSX + 1) * renderedTileSize;
-          const zoneH = (nEY - nSY + 1) * renderedTileSize;
-          const cxPx = nSX * renderedTileSize + zoneW / 2;
-          const cyPx = nSY * renderedTileSize + zoneH / 2 + Math.max(12, zoneH * 0.16);
-          const maxW = zoneW * 0.84;
-          let fSize = Math.max(7, Math.min(24, Math.floor(zoneW * 0.09)));
-
-          for (const name of names) {
-            ctx.font = `bold ${fSize}px Arial, sans-serif`;
-            while (ctx.measureText(name).width > maxW && fSize > 6) {
-              fSize -= 1;
-              ctx.font = `bold ${fSize}px Arial, sans-serif`;
-            }
-          }
-
-          ctx.font = `bold ${fSize}px Arial, sans-serif`;
-          const lineH = Math.max(fSize * 1.15, 8);
-          const totalH = names.length * lineH;
-          let yOff = cyPx - totalH / 2 + lineH / 2;
-
-          for (const name of names.slice(0, 3)) {
-            ctx.shadowColor = "rgba(0,0,0,0.98)";
-            ctx.shadowBlur = Math.max(3, fSize * 0.45);
-            ctx.fillStyle = "#fde68a";
-            ctx.fillText(name, cxPx, yOff);
-            ctx.shadowBlur = 0;
-            yOff += lineH;
-          }
-
-          if (names.length > 3) {
-            ctx.font = `bold ${Math.max(6, fSize - 1)}px Arial, sans-serif`;
-            ctx.fillStyle = "#fef3c7";
-            ctx.fillText(`+${names.length - 3} more`, cxPx, yOff);
-          }
-        }
-      }
-      ctx.restore();
-    }
-
-    if (layers.weekly_conquest && weeklyConquestIconEnabled) {
-      drawWeeklyConquestAreaIcons(ctx, renderedTileSize, weeklyConquestAreas, {
-        minX: startX,
-        minY: startY,
-        maxX: endX,
-        maxY: endY,
-      });
-    }
-
-    // ── Survey pins ────────────────────────────────────────────────────────────
+    // -- Survey pins ------------------------------------------------------------
     if (showSurveys) {
       const MARGIN = 8;
       const PIN_R = Math.max(5, Math.min(14, renderedTileSize * 1.6));
@@ -3858,7 +3555,7 @@ export default function WorldMapPage() {
       ctx.restore();
     }
 
-    // ── Level numbers (drawn last so they always appear on top) ────────────────
+    // -- Level numbers (drawn last so they always appear on top) ----------------
     if (layers.levels && renderedTileSize >= 5.5) {
       const zonePx = Math.floor((cols / 10) * renderedTileSize);
       const fontSize = Math.max(14, Math.min(72, Math.floor(zonePx * 0.18)));
@@ -3894,6 +3591,10 @@ export default function WorldMapPage() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const renderPenTiles = penTilesRef.current;
+    const renderChaosSetupTiles = chaosSetupTilesRef.current;
+    const renderReclaimedTiles = reclaimedTilesRef.current;
+    const renderRoadTiles = roadTilesRef.current;
     ctx.clearRect(0, 0, cols, rows);
     grid.forEach((tile) => {
       const cx = tile.x;
@@ -3902,16 +3603,15 @@ export default function WorldMapPage() {
       const land = isLand(tile);
       let bg = currentTheme.water;
       if (land) bg = TERRAIN_COLORS[tile.terrain];
-      if (layers.roads && roadTiles.has(key)) bg = "rgba(100,116,139,0.95)";
-      if (layers.weekly_conquest && weeklyConquestTileKeys.has(key)) bg = "rgba(245,158,11,0.9)";
-      if (layers.poi && penTiles.has(key)) bg = penTiles.get(key)!;
-      if (layers.reclaimed && reclaimedTiles.has(key)) bg = "#8fd3ff";
+      if (layers.roads && renderRoadTiles.has(key)) bg = "rgba(100,116,139,0.95)";
+      if (layers.poi && renderPenTiles.has(key)) bg = renderPenTiles.get(key)!;
+      if (layers.reclaimed && renderReclaimedTiles.has(key)) bg = "#8fd3ff";
       if (layers.deployments && getDeploymentCount(key) > 0) bg = "rgba(34,211,238,0.9)";
       ctx.fillStyle = bg;
       ctx.fillRect(cx, cy, 1, 1);
     });
     if (layers.chaos_setup) {
-      chaosSetupTiles.forEach((piece, placedKey) => {
+      renderChaosSetupTiles.forEach((piece, placedKey) => {
         const [x, y] = placedKey.split(",").map(Number);
         ctx.fillStyle = piece === "info_board" ? "#d4a95f" : "#6b7280";
         ctx.fillRect(x, y, piece === "info_board" ? 1 : 2, piece === "info_board" ? 1 : 2);
@@ -3928,7 +3628,6 @@ export default function WorldMapPage() {
     outlinedTiles, penTiles, chaosSetupTiles, reclaimedTiles, deployedTiles, roadTiles,
     layers, hoveredTile, selectedTile, activeTool, paintMode, drawAreaColor, penColor, deployColor, previewKeys,
     townhallPlacement, townhallLevel, townhallCoverageBounds, townhallPlacementKeys, townhallPreviewBounds,
-    weeklyConquestTileKeys, weeklyConquestAreas, weeklyConquestIconEnabled,
   ]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3937,7 +3636,7 @@ export default function WorldMapPage() {
     drawMinimap();
   }, [
     showMinimap,
-    reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles, outlinedTiles, layers, weeklyConquestTileKeys,
+    reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles, outlinedTiles, layers,
   ]);
 
   const toolbarContent = (
@@ -3946,13 +3645,13 @@ export default function WorldMapPage() {
       <div className="space-y-2">
         <div className="text-[10px] uppercase tracking-widest opacity-50 px-1">Tools</div>
         <div className="flex flex-col gap-1">
-          <Button size="sm" variant={activeTool === "pen" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "pen"))}>Pen</Button>
-          <Button size="sm" variant={activeTool === "draw_area" ? "default" : "ghost"} className="w-full justify-start" onClick={() => { setActiveTool((prev) => toggleTool(prev, "draw_area")); if (brushSize < 2) setBrushSize(2); }}>Draw area</Button>
-          <Button size="sm" variant={activeTool === "chaos_setup" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "chaos_setup"))}>Chaos setup</Button>
-          <Button size="sm" variant={activeTool === "reclaim" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "reclaim"))}>Reclaim land</Button>
-          <Button size="sm" variant={activeTool === "deploy" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "deploy"))}>Deployment mode</Button>
-          <Button size="sm" variant={activeTool === "townhall" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "townhall"))}>Town Hall</Button>
-          <Button size="sm" variant={activeTool === "road" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveTool((prev) => toggleTool(prev, "road"))}>Roads</Button>
+          <Button size="sm" variant={activeTool === "pen" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "pen"))}>Pen</Button>
+          <Button size="sm" variant={activeTool === "draw_area" ? "default" : "ghost"} className="w-full justify-start" onClick={() => { setActiveToolImmediate((prev) => toggleTool(prev, "draw_area")); if (brushSize < 2) setBrushSize(2); }}>Draw area</Button>
+          <Button size="sm" variant={activeTool === "chaos_setup" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "chaos_setup"))}>Chaos setup</Button>
+          <Button size="sm" variant={activeTool === "reclaim" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "reclaim"))}>Reclaim land</Button>
+          <Button size="sm" variant={activeTool === "deploy" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "deploy"))}>Deployment mode</Button>
+          <Button size="sm" variant={activeTool === "townhall" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "townhall"))}>Town Hall</Button>
+          <Button size="sm" variant={activeTool === "road" ? "default" : "ghost"} className="w-full justify-start" onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "road"))}>Roads</Button>
         </div>
       </div>
 
@@ -3995,7 +3694,7 @@ export default function WorldMapPage() {
               </div>
             </>
           )}
-          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setPenTiles(new Map()); }}>Clear pen</Button>
+          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); const next = new Map<string, string>(); penTilesRef.current = next; setPenTiles(next); scheduleRender(); }}>Clear pen</Button>
         </div>
       )}
 
@@ -4027,7 +3726,7 @@ export default function WorldMapPage() {
             <Button size="sm" variant={paintMode === "mark" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("mark")}>Mark</Button>
             <Button size="sm" variant={paintMode === "erase" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("erase")}>Erase</Button>
           </div>
-          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setOutlinedTiles(new Set()); }}>Clear draw area</Button>
+          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); const next = new Set<string>(); outlinedTilesRef.current = next; setOutlinedTiles(next); scheduleRender(); }}>Clear draw area</Button>
         </div>
       )}
 
@@ -4045,7 +3744,7 @@ export default function WorldMapPage() {
           <div className="text-xs opacity-60">
             Drag to place multiple pieces. Chaos Stone places as a 2×2 footprint.
           </div>
-          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setChaosSetupTiles(new Map()); }}>Clear chaos setup</Button>
+          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); const next = new Map<string, ChaosSetupPiece>(); chaosSetupTilesRef.current = next; setChaosSetupTiles(next); scheduleRender(); }}>Clear chaos setup</Button>
         </div>
       )}
 
@@ -4077,7 +3776,7 @@ export default function WorldMapPage() {
               <Button key={size} size="sm" variant={deploymentSize === size ? "default" : "outline"} onClick={() => setDeploymentSize(size)} className="px-2 py-1 text-xs">{size}</Button>
             ))}
           </div>
-          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setDeployedTiles(new Map()); }}>Clear deployments</Button>
+          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); const next = new Map<string, number>(); deployedTilesRef.current = next; setDeployedTiles(next); scheduleRender(); }}>Clear deployments</Button>
           {previewStats && <div className="text-xs opacity-60">{previewStats.total} tiles, {previewStats.newCoverage} new</div>}
         </div>
       )}
@@ -4112,7 +3811,7 @@ export default function WorldMapPage() {
             <Button size="sm" variant={paintMode === "mark" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("mark")}>Draw</Button>
             <Button size="sm" variant={paintMode === "erase" ? "default" : "outline"} className="flex-1" onClick={() => setPaintMode("erase")}>Erase</Button>
           </div>
-          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); setRoadTiles(new Set()); }}>Clear roads</Button>
+          <Button size="sm" variant="outline" className="w-full" onClick={() => { pushHistory(); const next = new Set<string>(); roadTilesRef.current = next; setRoadTiles(next); scheduleRender(); }}>Clear roads</Button>
         </div>
       )}
 
@@ -4258,7 +3957,7 @@ export default function WorldMapPage() {
             }
           }
         }}
-        onPointerLeave={() => setHoveredTile(null)}
+        onPointerLeave={() => updateCanvasHover(null)}
         onDoubleClick={(e) => { const t = tileAtPointer(e.clientX, e.clientY); if (t) centerOn(t.x, t.y); }}
         onContextMenu={(e) => e.preventDefault()}
         onClick={() => setDrawBubbleOpen(false)}
@@ -4281,7 +3980,7 @@ export default function WorldMapPage() {
               className="h-9 rounded-md px-3 text-xs font-semibold transition-colors hover:bg-white/10"
               style={{ background: activeTool === "none" ? "rgba(59,130,246,0.9)" : "transparent" }}
               onClick={() => {
-                setActiveTool("none");
+                setActiveToolImmediate("none");
                 setPaintMode("mark");
                 setFloatingToolsOpen(false);
               }}
@@ -4467,25 +4166,25 @@ export default function WorldMapPage() {
               <div className="flex flex-row gap-2 items-center" onClick={(e) => e.stopPropagation()}>
                 <button
                   title="Pan (no tool)"
-                  onClick={() => { setActiveTool("none"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
+                  onClick={() => { setActiveToolImmediate("none"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
                   className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
                   style={{ background: isNone ? "rgba(37,99,235,0.85)" : "rgba(15,23,42,0.88)", borderColor: isNone ? "#2563eb" : "rgba(255,255,255,0.18)", color: isNone ? "#fff" : "rgba(255,255,255,0.75)" }}
                 ><BubbleIconCursor /></button>
                 <button
                   title="Pen"
-                  onClick={() => { setActiveTool("pen"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
+                  onClick={() => { setActiveToolImmediate("pen"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
                   className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
                   style={{ background: isPen ? "rgba(37,99,235,0.85)" : "rgba(15,23,42,0.88)", borderColor: isPen ? "#2563eb" : "rgba(255,255,255,0.18)", color: isPen ? "#fff" : "rgba(255,255,255,0.75)" }}
                 ><BubbleIconPen /></button>
                 <button
                   title="Draw area"
-                  onClick={() => { setActiveTool("draw_area"); setPaintMode("mark"); if (brushSize < 2) setBrushSize(2); setDrawBubbleOpen(false); }}
+                  onClick={() => { setActiveToolImmediate("draw_area"); setPaintMode("mark"); if (brushSize < 2) setBrushSize(2); setDrawBubbleOpen(false); }}
                   className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
                   style={{ background: isDrawArea ? "rgba(37,99,235,0.85)" : "rgba(15,23,42,0.88)", borderColor: isDrawArea ? "#2563eb" : "rgba(255,255,255,0.18)", color: isDrawArea ? "#fff" : "rgba(255,255,255,0.75)" }}
                 ><BubbleIconDrawArea /></button>
                 <button
                   title="CS"
-                  onClick={() => { setActiveTool("chaos_setup"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
+                  onClick={() => { setActiveToolImmediate("chaos_setup"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
                   className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
                   style={{ background: isChaosSetup ? "rgba(217,119,6,0.88)" : "rgba(15,23,42,0.88)", borderColor: isChaosSetup ? "#f59e0b" : "rgba(255,255,255,0.18)", color: isChaosSetup ? "#fff" : "rgba(255,255,255,0.75)" }}
                 >
@@ -4499,13 +4198,13 @@ export default function WorldMapPage() {
                 ><BubbleIconEraser /></button>
                 <button
                   title="Town Hall"
-                  onClick={() => { setActiveTool("townhall"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
+                  onClick={() => { setActiveToolImmediate("townhall"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
                   className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
                   style={{ background: activeTool === "townhall" ? "rgba(37,99,235,0.85)" : "rgba(15,23,42,0.88)", borderColor: activeTool === "townhall" ? "#60a5fa" : "rgba(255,255,255,0.18)", color: activeTool === "townhall" ? "#fff" : "rgba(255,255,255,0.75)" }}
                 ><span className="text-[10px] font-bold">TH</span></button>
                 <button
                   title="Road"
-                  onClick={() => { setActiveTool("road"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
+                  onClick={() => { setActiveToolImmediate("road"); setPaintMode("mark"); setDrawBubbleOpen(false); }}
                   className="w-11 h-11 rounded-full border-2 flex items-center justify-center shadow-xl backdrop-blur transition-all"
                   style={{ background: isRoad ? "rgba(100,116,139,0.85)" : "rgba(15,23,42,0.88)", borderColor: isRoad ? "#94a3b8" : "rgba(255,255,255,0.18)", color: isRoad ? "#fff" : "rgba(255,255,255,0.75)" }}
                 ><BubbleIconRoad /></button>
@@ -4682,7 +4381,7 @@ export default function WorldMapPage() {
                     <span className="font-medium">{s.name}</span>
                     <span className="opacity-60 ml-1">(Lv {s.minLevel}+)</span>
                     <div className="opacity-60 text-[10px]">
-                      {s.minCost === s.maxCost ? (s.minCost === 0 ? "Free" : `${s.minCost}💎`) : `${s.minCost}–${s.maxCost}💎`}
+                      {s.minCost === s.maxCost ? (s.minCost === 0 ? "Free" : `${s.minCost}??`) : `${s.minCost}–${s.maxCost}??`}
                       {" · "}
                       {s.minRate}–{s.maxRate}% success
                       {" · "}
@@ -4829,7 +4528,6 @@ export default function WorldMapPage() {
                 ["includeRoads", "Roads"],
                 ["includeDeployments", "Deployments"],
                 ["includeReclaimed", "Reclaimed tiles"],
-                ["includeWeeklyConquest", "Weekly conquest"],
                 ["includeChaosSetup", "Chaos setup"],
                 ["includeFacilities", "Facilities"],
                 ["includeSurveys", "Survey pins"],
@@ -4941,7 +4639,7 @@ export default function WorldMapPage() {
                     Lvls
                   </button>
                   <button
-                    onClick={() => setActiveTool((prev) => toggleTool(prev, "reclaim"))}
+                    onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "reclaim"))}
                     className={`w-full h-10 rounded-xl border ${activeTool === "reclaim" ? "border-cyan-300 bg-cyan-500/20" : "border-white/10 bg-white/5"} text-white flex items-center justify-center text-sm hover:bg-white/10 transition-colors`}
                     title="Reclaim land"
                   >
@@ -4952,17 +4650,17 @@ export default function WorldMapPage() {
                     className="w-full h-10 rounded-xl border border-white/10 bg-white/5 text-white flex items-center justify-center text-sm hover:bg-white/10 transition-colors"
                     title="Undo"
                   >
-                    ↺
+                    ?
                   </button>
                   <button
                     onClick={redo}
                     className="w-full h-10 rounded-xl border border-white/10 bg-white/5 text-white flex items-center justify-center text-sm hover:bg-white/10 transition-colors"
                     title="Redo"
                   >
-                    ↻
+                    ?
                   </button>
                   <button
-                    onClick={() => setActiveTool((prev) => toggleTool(prev, "deploy"))}
+                    onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "deploy"))}
                     className={`w-full h-10 rounded-xl border ${activeTool === "deploy" ? "border-cyan-300 bg-cyan-500/20" : "border-white/10 bg-white/5"} flex items-center justify-center px-1 hover:bg-white/10 transition-colors`}
                     title="Deploy (Manhattan circle)"
                   >
@@ -5020,17 +4718,17 @@ export default function WorldMapPage() {
               {!cleanMode && !touchMode && (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2" style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
                   {/* Tools */}
-                  <Button size="sm" className="h-8 w-8 p-0" title="Pan" aria-label="Pan" variant={activeTool === "none" ? "default" : "ghost"} onClick={() => setActiveTool("none")}><BubbleIconCursor /></Button>
-                  <Button size="sm" className="h-8 w-8 p-0" title="Pen" aria-label="Pen" variant={activeTool === "pen" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "pen"))}><BubbleIconPen /></Button>
-                  <Button size="sm" variant={activeTool === "draw_area" ? "default" : "ghost"} onClick={() => { setActiveTool((prev) => toggleTool(prev, "draw_area")); if (brushSize < 2) setBrushSize(2); }}>Area</Button>
-                  <Button size="sm" variant={activeTool === "reclaim" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "reclaim"))}>Reclaim</Button>
-                  <Button size="sm" variant={activeTool === "deploy" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "deploy"))}>Deploy</Button>
-                  <Button size="sm" className="h-8 w-8 p-0" title="Eraser" aria-label="Eraser" variant={paintMode === "erase" ? "default" : "ghost"} onClick={() => { if (activeTool === "none") setActiveTool("pen"); setPaintMode((prev) => prev === "erase" ? "mark" : "erase"); }}><BubbleIconEraser /></Button>
-                  <Button size="sm" className="h-8 w-8 p-0" title="Roads" aria-label="Roads" variant={activeTool === "road" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "road"))}><BubbleIconRoad /></Button>
+                  <Button size="sm" className="h-8 w-8 p-0" title="Pan" aria-label="Pan" variant={activeTool === "none" ? "default" : "ghost"} onClick={() => setActiveToolImmediate("none")}><BubbleIconCursor /></Button>
+                  <Button size="sm" className="h-8 w-8 p-0" title="Pen" aria-label="Pen" variant={activeTool === "pen" ? "default" : "ghost"} onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "pen"))}><BubbleIconPen /></Button>
+                  <Button size="sm" variant={activeTool === "draw_area" ? "default" : "ghost"} onClick={() => { setActiveToolImmediate((prev) => toggleTool(prev, "draw_area")); if (brushSize < 2) setBrushSize(2); }}>Area</Button>
+                  <Button size="sm" variant={activeTool === "reclaim" ? "default" : "ghost"} onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "reclaim"))}>Reclaim</Button>
+                  <Button size="sm" variant={activeTool === "deploy" ? "default" : "ghost"} onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "deploy"))}>Deploy</Button>
+                  <Button size="sm" className="h-8 w-8 p-0" title="Eraser" aria-label="Eraser" variant={paintMode === "erase" ? "default" : "ghost"} onClick={() => { if (activeTool === "none") setActiveToolImmediate("pen"); setPaintMode((prev) => prev === "erase" ? "mark" : "erase"); }}><BubbleIconEraser /></Button>
+                  <Button size="sm" className="h-8 w-8 p-0" title="Roads" aria-label="Roads" variant={activeTool === "road" ? "default" : "ghost"} onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "road"))}><BubbleIconRoad /></Button>
                   <span className="w-px h-5 bg-border mx-1" />
                   {/* Undo / Redo */}
-                  <Button size="sm" title="Undo" aria-label="Undo" variant="ghost" onClick={undo}>↩</Button>
-                  <Button size="sm" title="Redo" aria-label="Redo" variant="ghost" onClick={redo}>↪</Button>
+                  <Button size="sm" title="Undo" aria-label="Undo" variant="ghost" onClick={undo}>?</Button>
+                  <Button size="sm" title="Redo" aria-label="Redo" variant="ghost" onClick={redo}>?</Button>
                   <span className="w-px h-5 bg-border mx-1" />
                   {/* Actions */}
                   <Button size="sm" className="h-8 w-8 p-0" title="Export" aria-label="Export" variant="ghost" onClick={exportToClipboard}>
@@ -5053,7 +4751,7 @@ export default function WorldMapPage() {
                       variant={layersDropdownOpen ? "default" : "ghost"}
                       onClick={() => { setLayersDropdownOpen((v) => !v); setSurveysDropdownOpen(false); }}
                     >
-                      Layers ▾
+                      Layers ?
                     </Button>
                     {layersDropdownOpen && (
                       <div
@@ -5081,7 +4779,7 @@ export default function WorldMapPage() {
                       variant={surveysDropdownOpen || showSurveys ? "default" : "ghost"}
                       onClick={() => { setSurveysDropdownOpen((v) => !v); setLayersDropdownOpen(false); }}
                     >
-                      Surveys ▾
+                      Surveys ?
                     </Button>
                     {surveysDropdownOpen && (
                       <div
@@ -5192,16 +4890,16 @@ export default function WorldMapPage() {
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
-                    <Button size="sm" className="h-8 w-8 p-0" title="Pan" aria-label="Pan" variant={activeTool === "none" ? "default" : "ghost"} onClick={() => setActiveTool("none")}><BubbleIconCursor /></Button>
-                    <Button size="sm" className="h-8 w-8 p-0" title="Pen" aria-label="Pen" variant={activeTool === "pen" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "pen"))}><BubbleIconPen /></Button>
-                    <Button size="sm" variant={activeTool === "draw_area" ? "default" : "ghost"} onClick={() => { setActiveTool((prev) => toggleTool(prev, "draw_area")); if (brushSize < 2) setBrushSize(2); }}>Area</Button>
-                    <Button size="sm" variant={activeTool === "chaos_setup" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "chaos_setup"))}>CS</Button>
-                    <Button size="sm" variant={activeTool === "reclaim" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "reclaim"))}>Reclaim</Button>
-                    <Button size="sm" variant={activeTool === "deploy" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "deploy"))}>Deploy</Button>
-                    <Button size="sm" className="h-8 w-8 p-0" title="Eraser" aria-label="Eraser" variant={paintMode === "erase" ? "default" : "ghost"} onClick={() => { if (activeTool === "none") setActiveTool("pen"); setPaintMode((prev) => prev === "erase" ? "mark" : "erase"); }}><BubbleIconEraser /></Button>
-                    <Button size="sm" className="h-8 w-8 p-0" title="Roads" aria-label="Roads" variant={activeTool === "road" ? "default" : "ghost"} onClick={() => setActiveTool((prev) => toggleTool(prev, "road"))}><BubbleIconRoad /></Button>
-                    <Button size="sm" title="Undo" aria-label="Undo" variant="ghost" onClick={undo}>↩</Button>
-                    <Button size="sm" title="Redo" aria-label="Redo" variant="ghost" onClick={redo}>↪</Button>
+                    <Button size="sm" className="h-8 w-8 p-0" title="Pan" aria-label="Pan" variant={activeTool === "none" ? "default" : "ghost"} onClick={() => setActiveToolImmediate("none")}><BubbleIconCursor /></Button>
+                    <Button size="sm" className="h-8 w-8 p-0" title="Pen" aria-label="Pen" variant={activeTool === "pen" ? "default" : "ghost"} onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "pen"))}><BubbleIconPen /></Button>
+                    <Button size="sm" variant={activeTool === "draw_area" ? "default" : "ghost"} onClick={() => { setActiveToolImmediate((prev) => toggleTool(prev, "draw_area")); if (brushSize < 2) setBrushSize(2); }}>Area</Button>
+                    <Button size="sm" variant={activeTool === "chaos_setup" ? "default" : "ghost"} onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "chaos_setup"))}>CS</Button>
+                    <Button size="sm" variant={activeTool === "reclaim" ? "default" : "ghost"} onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "reclaim"))}>Reclaim</Button>
+                    <Button size="sm" variant={activeTool === "deploy" ? "default" : "ghost"} onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "deploy"))}>Deploy</Button>
+                    <Button size="sm" className="h-8 w-8 p-0" title="Eraser" aria-label="Eraser" variant={paintMode === "erase" ? "default" : "ghost"} onClick={() => { if (activeTool === "none") setActiveToolImmediate("pen"); setPaintMode((prev) => prev === "erase" ? "mark" : "erase"); }}><BubbleIconEraser /></Button>
+                    <Button size="sm" className="h-8 w-8 p-0" title="Roads" aria-label="Roads" variant={activeTool === "road" ? "default" : "ghost"} onClick={() => setActiveToolImmediate((prev) => toggleTool(prev, "road"))}><BubbleIconRoad /></Button>
+                    <Button size="sm" title="Undo" aria-label="Undo" variant="ghost" onClick={undo}>?</Button>
+                    <Button size="sm" title="Redo" aria-label="Redo" variant="ghost" onClick={redo}>?</Button>
                   </div>
 
                   {activeTool === "chaos_setup" && (
@@ -5244,16 +4942,6 @@ export default function WorldMapPage() {
                           <span>{LAYER_LABELS[layer]}</span>
                         </button>
                       ))}
-                      {layers.weekly_conquest && (
-                        <button
-                          onClick={() => setWeeklyConquestIconEnabled((prev) => !prev)}
-                          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-white/5"
-                          style={{ color: weeklyConquestIconEnabled ? "#fff" : "rgba(255,255,255,0.4)" }}
-                        >
-                          <span className="w-3 h-3 rounded-sm border flex-shrink-0" style={{ background: weeklyConquestIconEnabled ? "#f59e0b" : "transparent", borderColor: weeklyConquestIconEnabled ? "#f59e0b" : "rgba(255,255,255,0.2)" }} />
-                          <span>Weekly conquest icons</span>
-                        </button>
-                      )}
                     </div>
                   )}
 
@@ -5294,7 +4982,7 @@ export default function WorldMapPage() {
                 </div>
               )}
 
-              <div className={cleanMode ? "" : "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]"}>
+              <div className={cleanMode || isFullscreen || activeTool !== "none" ? "" : "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]"}>
                 <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }} className={cleanMode ? "col-span-full" : ""}>
                   <CardContent className="p-4">
                     <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
@@ -5327,7 +5015,7 @@ export default function WorldMapPage() {
                   </CardContent>
                 </Card>
 
-                {!cleanMode && (
+                {!cleanMode && !isFullscreen && activeTool === "none" && (
                   <div className="space-y-6">
                     <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
                       <CardContent className="p-4 space-y-3">
@@ -5356,143 +5044,6 @@ export default function WorldMapPage() {
                           </div>
                         ) : (
                           <div className="text-sm opacity-70">Hover or tap a tile.</div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    <Card style={{ background: currentTheme.panelBg, borderColor: currentTheme.panelBorder }}>
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="font-semibold">Weekly conquest areas</div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={!layers.weekly_conquest}
-                            onClick={() => setWeeklyConquestIconEnabled((prev) => !prev)}
-                            title={!layers.weekly_conquest ? "Enable Weekly conquest layer first" : weeklyConquestIconEnabled ? "Hide weekly conquest icons" : "Show weekly conquest icons"}
-                            aria-label={weeklyConquestIconEnabled ? "Hide weekly conquest icons" : "Show weekly conquest icons"}
-                            className="gap-2 px-2"
-                          >
-                            <span className="text-sm leading-none" aria-hidden="true" style={{ filter: "saturate(1.05)" }}>⚔️</span>
-                            <span className="h-4 w-px bg-white/20" aria-hidden="true" />
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="h-4 w-4"
-                              style={{ color: weeklyConquestIconEnabled ? "#ffffff" : "rgba(255,255,255,0.45)" }}
-                              aria-hidden="true"
-                            >
-                              <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" />
-                              <circle cx="12" cy="12" r="2.5" />
-                            </svg>
-                          </Button>
-                        </div>
-                        <div className="text-sm opacity-70">Choose a conquest area, then deploy it or use the move deployment tool.</div>
-                        {!layers.weekly_conquest && (
-                          <div className="text-xs opacity-60">Turn on the Weekly conquest layer to show/remove map icons.</div>
-                        )}
-                        <div className="grid gap-2">
-                          <div className="grid gap-2 sm:grid-cols-[auto_1fr] items-center">
-                            <div className="text-xs uppercase tracking-wide opacity-70">Deploy size</div>
-                            <div className="flex flex-wrap gap-2">
-                              {deploymentOptions.map((size) => (
-                                <Button
-                                  key={size}
-                                  size="sm"
-                                  variant={deploymentSize === size ? "default" : "outline"}
-                                  onClick={() => setDeploymentSize(size)}
-                                >
-                                  {size}
-                                </Button>
-                              ))}
-                            </div>
-                          </div>
-                          {weeklyConquest?.monsters?.length ? (
-                            <div className="rounded-md border px-2 py-2 space-y-1">
-                              <div className="text-[11px] uppercase tracking-wide opacity-70">Monster coverage</div>
-                              <div className="space-y-1">
-                                {weeklyConquest.monsters.map((monster) => {
-                                  const count = weeklyConquestMonsterCoverage.get(monster) ?? 0;
-                                  const covered = count > 0;
-                                  return (
-                                    <div key={monster} className="flex items-center justify-between gap-2 text-xs">
-                                      <span className={covered ? "font-medium" : "opacity-70"}>{monster}</span>
-                                      {covered ? (
-                                        <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold">x{count}</span>
-                                      ) : (
-                                        <span className="text-[11px] opacity-50">-</span>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ) : null}
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant={activeTool === "move_deploy" ? "default" : "outline"}
-                              onClick={() => setActiveTool((prev) => toggleTool(prev, "move_deploy"))}
-                            >
-                              Move deployment
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={selectedWeeklyConquestAreaIndex !== null ? "default" : "outline"}
-                              disabled={selectedWeeklyConquestAreaIndex === null}
-                              onClick={deploySelectedArea}
-                            >
-                              Deploy selected area
-                            </Button>
-                          </div>
-                        </div>
-                        {weeklyConquestAreas.length === 0 ? (
-                          <div className="text-sm opacity-70">No weekly conquest areas are available right now.</div>
-                        ) : (
-                          <div className="grid gap-2">
-                            {weeklyConquestAreas.map((area, index) => {
-                              const active = selectedWeeklyConquestAreaIndex === index;
-                              const tile = grid.get(keyOf(area.centerX, area.centerY));
-                              const diamondKeys = tile ? getDiamondCoordinates(tile.x, tile.y, deploymentSize, cols, rows).map(([x, y]) => keyOf(x, y)) : [];
-                              const deployedCount = diamondKeys.length > 0 ? Math.min(...diamondKeys.map((key) => deployedTiles.get(key) ?? 0)) : 0;
-                              const deployed = deployedCount > 0;
-                              return (
-                                <Button
-                                  key={`${area.centerX},${area.centerY}-${index}`}
-                                  size="sm"
-                                  variant={deployed ? "default" : "outline"}
-                                  className="justify-between items-start gap-2"
-                                  onClick={() => {
-                                    if (!tile) return;
-                                    setSelectedWeeklyConquestAreaIndex(index);
-                                    setSelectedTile(tile);
-                                    pushHistory();
-                                    setDeployedTiles((prev) => {
-                                      const next = new Map(prev);
-                                      if (deployed) {
-                                        diamondKeys.forEach((key) => decrementDeploymentCount(next, key));
-                                      } else {
-                                        diamondKeys.forEach((key) => incrementDeploymentCount(next, key));
-                                      }
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  <div className="text-left">
-                                    <div className="font-medium capitalize">{area.terrain} • Lv.{area.level}</div>
-                                    <div className="text-xs opacity-70">
-                                      {area.monsterNames.join(", ")}
-                                      {deployedCount > 1 ? ` · x${deployedCount}` : ""}
-                                    </div>
-                                  </div>
-                                </Button>
-                              );
-                            })}
-                          </div>
                         )}
                       </CardContent>
                     </Card>
@@ -5559,3 +5110,5 @@ export default function WorldMapPage() {
     </>
   );
 }
+
+

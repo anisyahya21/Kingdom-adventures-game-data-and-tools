@@ -1617,8 +1617,12 @@ function answerQuestion(
   );
 }
 
-export default function AskDatabaseWidget() {
-  const [open, setOpen] = useState(false);
+type AskDatabaseWidgetProps = {
+  initialOpen?: boolean;
+};
+
+export default function AskDatabaseWidget({ initialOpen = false }: AskDatabaseWidgetProps) {
+  const [open, setOpen] = useState(initialOpen);
   const [guideOpen, setGuideOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([

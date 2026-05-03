@@ -20,6 +20,7 @@ const EggsPetsMonstersPage = lazy(() => import("@/pages/eggs-pets-monsters"));
 const ShopsPage = lazy(() => import("@/pages/shops"));
 const SyncDevicesPage = lazy(() => import("@/pages/sync-devices"));
 const WorldMapPage = lazy(() => import("@/pages/world-map"));
+const ChaosSetupLabPage = lazy(() => import("@/pages/chaos-setup-lab"));
 const Map2TestingPage = lazy(() => import("@/pages/map-2-testing"));
 const HousesPage = lazy(() => import("@/pages/houses"));
 const TownRankPage = lazy(() => import("@/pages/town-rank"));
@@ -163,6 +164,7 @@ function Router() {
         <Route path="/shops/:slug">{() => <ShopsPage />}</Route>
         <Route path="/sync-devices">{() => <SyncDevicesPage />}</Route>
         <Route path="/world-map">{() => <WorldMapPage />}</Route>
+        <Route path="/chaos-setup-lab">{() => <ChaosSetupLabPage />}</Route>
         <Route path="/map-2-testing">{() => <Map2TestingPage />}</Route>
         <Route path="/houses">{() => <HousesPage />}</Route>
         <Route path="/survey">{() => <SurveyPlanner />}</Route>
