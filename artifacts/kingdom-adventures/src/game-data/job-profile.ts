@@ -48,9 +48,9 @@ export type JobRangeRank = typeof JOB_RANGE_RANK_ORDER[number];
 export type JobRangeIndex = 0 | 1 | 2;
 
 export const JOB_RANGE_LABELS: Array<{ label: string; index: JobRangeIndex }> = [
-  { label: "Area", index: 0 },
-  { label: "General", index: 1 },
-  { label: "Legendary Cave", index: 2 },
+  { label: "Searching Range", index: 0 },
+  { label: "Deployment Range", index: 1 },
+  { label: "Defog AoE", index: 2 },
 ];
 
 export type JobRangeGroup = {
