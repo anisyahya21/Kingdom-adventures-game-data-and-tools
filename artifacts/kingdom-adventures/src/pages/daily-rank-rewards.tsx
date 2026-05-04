@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Award, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DAILY_RANK_REWARD_DRAFTS } from "@/lib/en-event-drafts";
+import { DAILY_RANK_REWARDS, getDailyRankEquipmentMismatches } from "@/game-data/daily-rank-rewards";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel, getJapanWeekday } from "@/lib/event-status";
 
 const COLUMNS = [
@@ -25,6 +25,16 @@ export default function DailyRankRewardsPage() {
 
   const currentJapanDay = getJapanWeekday(now);
 
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+    const mismatches = getDailyRankEquipmentMismatches();
+    if (mismatches.length > 0) {
+      console.warn("[daily-rank-rewards] Equipment mismatches found", mismatches);
+    }
+  }, []);
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <div className="space-y-1">
@@ -33,13 +43,13 @@ export default function DailyRankRewardsPage() {
           <h1 className="text-xl font-bold tracking-tight">Daily Rank Rewards</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Kingdom Adventures daily ranking board rewards by weekday, showing S and A rank payouts for weapons,
+          Kingdom Adventures daily ranking board rewards by weekday, showing full rank payouts from F through S for weapons,
           armor, shields, tickets, skills, and overall item rewards.
         </p>
       </div>
 
       <div className="grid gap-4">
-        {DAILY_RANK_REWARD_DRAFTS.map((entry) => {
+        {DAILY_RANK_REWARDS.map((entry) => {
           const isCurrentDay = entry.day === currentJapanDay;
           return (
           <Card key={entry.day} className={`shadow-sm ${eventStatusCardClass(isCurrentDay ? "live" : "inactive")}`}>
@@ -57,8 +67,8 @@ export default function DailyRankRewardsPage() {
                     {eventStatusLabel(isCurrentDay ? "live" : "inactive")}
                   </Badge>
                   {entry.rewards.map((reward) => (
-                    <Badge key={reward.rank} variant="outline">
-                      Rank {reward.rank}
+                    <Badge key={reward.rankValue} variant="outline">
+                      Rank {reward.rankLabel}
                     </Badge>
                   ))}
                 </div>
@@ -73,15 +83,15 @@ export default function DailyRankRewardsPage() {
               </div>
               <div className="space-y-3">
                 {entry.rewards.map((reward) => (
-                  <div key={reward.rank} className="rounded-lg border border-border/60 bg-card/60 px-3 py-3">
+                  <div key={reward.rankValue} className="rounded-lg border border-border/60 bg-card/60 px-3 py-3">
                     <div className="mb-3 lg:hidden">
-                      <Badge variant="secondary">Rank {reward.rank}</Badge>
+                      <Badge variant="secondary">Rank {reward.rankLabel}</Badge>
                     </div>
                     <div className="hidden lg:grid lg:grid-cols-[100px_repeat(7,minmax(0,1fr))] gap-3 text-sm">
-                      <div className="font-semibold text-foreground">Rank {reward.rank}</div>
+                      <div className="font-semibold text-foreground">Rank {reward.rankLabel}</div>
                       {COLUMNS.map((column) => (
                         <div key={column.key} className="text-muted-foreground">
-                          {reward[column.key]}
+                          {reward[column.key] || "-"}
                         </div>
                       ))}
                     </div>
@@ -89,7 +99,7 @@ export default function DailyRankRewardsPage() {
                       {COLUMNS.map((column) => (
                         <div key={column.key} className="rounded-md border border-border/50 bg-muted/20 px-2 py-2">
                           <div className="text-[11px] text-muted-foreground">{column.label}</div>
-                          <div className="text-sm font-medium text-foreground">{reward[column.key]}</div>
+                          <div className="text-sm font-medium text-foreground">{reward[column.key] || "-"}</div>
                         </div>
                       ))}
                     </div>

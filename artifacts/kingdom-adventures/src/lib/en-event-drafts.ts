@@ -36,13 +36,13 @@ export type KairoRoomDraft = {
 };
 
 export const JOB_CENTER_DRAFTS: JobCenterDraft[] = [
-  { day: "Sunday", professions: ["Cook", "Knight", "Viking", "Champion", "Wizard"] },
   { day: "Monday", professions: ["Merchant", "Artisan", "Mage"] },
   { day: "Tuesday", professions: ["Farmer", "Blacksmith", "Paladin"] },
   { day: "Wednesday", professions: ["Carpenter", "Doctor", "Gunner"] },
   { day: "Thursday", professions: ["Mover", "Monk", "Archer"] },
   { day: "Friday", professions: ["Trader", "Rancher", "Ninja"] },
   { day: "Saturday", professions: ["Researcher", "Guard", "Samurai", "Pirate"] },
+  { day: "Sunday", professions: ["Cook", "Knight", "Viking", "Champion", "Wizard"] },
 ];
 
 export const DAILY_RANK_REWARD_DRAFTS: DailyRankRewardDraft[] = [
@@ -98,11 +98,11 @@ export const DAILY_RANK_REWARD_DRAFTS: DailyRankRewardDraft[] = [
 ];
 
 export const KAIRO_ROOM_DRAFTS: KairoRoomDraft[] = [
-  { day: "Sunday", active: true, questName: "Kairo Kommander's Challenge", equipmentFromBox: ["A / Kairo Lance", "A / Kairo Hammer", "A / Kairo Sword", "A / Kairo Bow"] },
   { day: "Monday", active: false, questName: null, equipmentFromBox: [] },
   { day: "Tuesday", active: true, questName: "Kairobot Mage's Challenge", equipmentFromBox: ["A / Kairo Hammer", "A / Kairo Lance"] },
   { day: "Wednesday", active: false, questName: null, equipmentFromBox: [] },
   { day: "Thursday", active: true, questName: "Aloha Kairobot's Challenge", equipmentFromBox: ["A / Kairo Bow"] },
   { day: "Friday", active: false, questName: null, equipmentFromBox: [] },
   { day: "Saturday", active: true, questName: "Kairobot Knight's Challenge", equipmentFromBox: ["A / Kairo Sword"] },
+  { day: "Sunday", active: true, questName: "Kairo Kommander's Challenge", equipmentFromBox: ["A / Kairo Lance", "A / Kairo Hammer", "A / Kairo Sword", "A / Kairo Bow"] },
 ];

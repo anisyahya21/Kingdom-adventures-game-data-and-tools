@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   Loader2, Pencil, Check, X,
-  RefreshCw, BookOpen, Search, Zap, Info,
+  BookOpen, Search, Zap, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +94,7 @@ export default function SkillsPage() {
   const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_skills") ?? "");
   const [showNote, setShowNote] = useState(false);
   const qc = useQueryClient();
-  const { data, isLoading, refetch } = useSharedData();
+  const { data, isLoading } = useSharedData();
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<"name" | "studioLevel" | "craftingIntelligence" | "buyPrice" | "sellPrice">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -167,27 +167,20 @@ export default function SkillsPage() {
     <div className="min-h-screen bg-background transition-colors">
       {promptName && <NamePrompt onSave={onNameSaved} onCancel={onNamePromptCancelled} />}
 
-      {/* Header */}
-      <div className="border-b border-border bg-card">
-        <div className="max-w-5xl mx-auto px-4 py-3">
-          <PageHeader
-            icon={<BookOpen className="w-5 h-5 text-emerald-500" />}
-            title="Skills Database"
-            actions={(
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
-                  <Info className="w-3.5 h-3.5" />
-                </Button>
-                <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-muted">
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          />
-        </div>
-      </div>
-
       <div className="max-w-5xl mx-auto px-4 py-6">
+        <PageHeader
+          icon={<BookOpen className="w-5 h-5 text-emerald-500" />}
+          title="Skills Database"
+          className="mb-4"
+          actions={(
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
+                <Info className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          )}
+        />
+
         {showNote && (
           <div className="mb-4">
             <textarea
