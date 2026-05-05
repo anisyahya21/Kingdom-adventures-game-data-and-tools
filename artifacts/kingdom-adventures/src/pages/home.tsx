@@ -96,7 +96,7 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/jobs-marriage",
     title: "Jobs",
-    description: "Wiki-style jobs hub with quick links to Job Database and Match Finder & Marriage Sim.",
+    description: "Jobs, Job Database and comparing tools, Marriage finder tool, Marriage simulator, compatilibty Data.",
     icon: (
       <div className="flex items-center gap-1.5">
         <BriefcaseBusiness className="w-5 h-5 text-sky-500" />
