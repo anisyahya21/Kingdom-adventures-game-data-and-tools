@@ -134,8 +134,9 @@ export default function SkillsPage() {
 
   const saveSkills = useCallback((updated: Record<string, Skill>, desc: string) => {
     withName(() => {
+      const effectiveUserName = userName || localStorage.getItem("ka_username") || "";
       qc.setQueryData(["ka-shared"], (old: SharedData | undefined) => old ? { ...old, skills: updated } : old);
-      persistSkills(updated, userName, desc).then(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }));
+      persistSkills(updated, effectiveUserName, desc).then(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }));
     });
   }, [qc, userName, withName]);
 
@@ -154,13 +155,11 @@ export default function SkillsPage() {
       cancelEdit();
       return;
     }
-    withName(() => {
-      const updated = { ...skills };
-      updated[editingName] = { ...skills[editingName], description: editDraft.description };
-      saveSkills(updated, `Updated skill notes: ${editingName}`);
-      setEditingName(null);
-      setEditDraft(null);
-    });
+    const updated = { ...skills };
+    updated[editingName] = { ...skills[editingName], description: editDraft.description };
+    saveSkills(updated, `Updated skill notes: ${editingName}`);
+    setEditingName(null);
+    setEditDraft(null);
   };
 
   return (
