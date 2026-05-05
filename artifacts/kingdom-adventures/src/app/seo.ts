@@ -20,6 +20,10 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventures Job Database",
     description: "Compare Kingdom Adventures jobs by stats, battle type, skills, ranges, and weapon or shield access.",
   },
+  "/jobs-marriage": {
+    title: "Kingdom Adventures Jobs and Marriage Hub",
+    description: "Read a wiki-style Kingdom Adventures jobs and marriage overview, then jump to Job Database and Match Finder tools.",
+  },
   "/match-finder": {
     title: "Kingdom Adventures Match Finder",
     description: "Find strong Kingdom Adventures marriage matches and plan children, awakenings, and job pairings.",

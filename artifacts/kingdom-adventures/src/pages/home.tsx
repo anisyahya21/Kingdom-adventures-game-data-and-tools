@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link } from "wouter";
-import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, Briefcase, BookOpen, Package, Egg, Store, Home as HomeIcon, CalendarDays, BookMarked } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, BookOpen, Package, Egg, Store, Home as HomeIcon, CalendarDays, BookMarked, BriefcaseBusiness } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,11 +94,16 @@ interface CustomProject {
 
 const BUILT_IN_TOOLS = [
   {
-    slug: "/match-finder",
-    title: "Match Finder & Marriage Sim",
-    description: "Three tools in one: Match Finder, Marriage Simulator, and Pairing Data.",
-    icon: <Heart className="w-6 h-6 text-rose-500" />,
-    badge: "Marriage",
+    slug: "/jobs-marriage",
+    title: "Jobs",
+    description: "Wiki-style jobs hub with quick links to Job Database and Match Finder & Marriage Sim.",
+    icon: (
+      <div className="flex items-center gap-1.5">
+        <BriefcaseBusiness className="w-5 h-5 text-sky-500" />
+        <Heart className="w-5 h-5 text-rose-500" />
+      </div>
+    ),
+    badge: "Hub",
     badgeCategory: "marriage" satisfies KaCategory,
   },
   {
@@ -108,14 +113,6 @@ const BUILT_IN_TOOLS = [
     icon: <Sword className="w-6 h-6 text-amber-500" />,
     badge: "Equipment",
     badgeCategory: "equipment" satisfies KaCategory,
-  },
-  {
-    slug: "/jobs",
-    title: "Job Database",
-    description: "Explore all jobs with stats, ranks, and restrictions.",
-    icon: <Briefcase className="w-6 h-6 text-sky-500" />,
-    badge: "Jobs",
-    badgeCategory: "job" satisfies KaCategory,
   },
   {
     slug: "/survey",

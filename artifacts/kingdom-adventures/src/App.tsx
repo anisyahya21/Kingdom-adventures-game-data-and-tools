@@ -6,6 +6,7 @@ import { AppShell } from "@/app/app-shell";
 import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL, encodeCanonicalPath, getSeoMeta } from "@/app/seo";
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Home = lazy(() => import("@/pages/home"));
+const JobsMarriagePage = lazy(() => import("@/pages/jobs-marriage"));
 const MarriageMatcher = lazy(() => import("@/pages/marriage-matcher"));
 const EquipmentPage = lazy(() => import("@/pages/equipment"));
 const EquipmentExchangePage = lazy(() => import("@/pages/equipment-exchange"));
@@ -144,6 +145,7 @@ function Router() {
     <Suspense fallback={<RouteLoading />}>
       <Switch>
         <Route path="/">{() => <Home />}</Route>
+        <Route path="/jobs-marriage">{() => <JobsMarriagePage />}</Route>
         <Route path="/match-finder">{() => <MarriageMatcher />}</Route>
         <Route path="/equipment">{() => <EquipmentStatsExchangePage />}</Route>
         <Route path="/equipment-stats">{() => <EquipmentPage />}</Route>
