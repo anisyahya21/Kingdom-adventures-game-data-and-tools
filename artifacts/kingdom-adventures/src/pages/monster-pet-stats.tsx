@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/searchable-select";
+import { parseCsv } from "@/lib/monster-truth";
 import monsterCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Monster.csv?raw";
 
 type StatKey = "HP" | "MP" | "ATK" | "DEF" | "SPEED" | "LUCK" | "DEX";
@@ -88,22 +89,30 @@ function parseMaybeNumber(value: string | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeHeaderCell(value: string | undefined): string {
+  return (value ?? "").trim().toUpperCase();
+}
+
 function buildMonsterStats(rawCsv: string): MonsterStatRecord[] {
-  const lines = rawCsv
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const rows = parseCsv(rawCsv).map((row) => row.map((cell) => cell.trim()));
+  if (rows.length < 2) return [];
 
-  if (lines.length < 4) return [];
+  const dataHeaderIndex = rows.findIndex((row) => {
+    return normalizeHeaderCell(row[0]) === "ID" && normalizeHeaderCell(row[1]) === "NAME";
+  });
+  if (dataHeaderIndex < 0) return [];
 
-  const statHeader = lines[1].split(",");
-  const dataHeader = lines[2].split(",");
+  const dataHeader = rows[dataHeaderIndex];
+  const statHeader = dataHeaderIndex > 0 ? rows[dataHeaderIndex - 1] : [];
   const statStarts = new Map<StatKey, number>();
 
-  for (let index = 0; index < statHeader.length; index += 1) {
-    const rawLabel = statHeader[index]?.trim();
-    if (STAT_KEYS.includes(rawLabel as StatKey)) {
-      statStarts.set(rawLabel as StatKey, index);
+  for (let index = 0; index < dataHeader.length; index += 1) {
+    const statLabel = normalizeHeaderCell(statHeader[index]);
+    const dataLabel = normalizeHeaderCell(dataHeader[index]);
+    for (const key of STAT_KEYS) {
+      if (statLabel === key || dataLabel.startsWith(key)) {
+        if (!statStarts.has(key)) statStarts.set(key, index);
+      }
     }
   }
 
@@ -111,8 +120,7 @@ function buildMonsterStats(rawCsv: string): MonsterStatRecord[] {
   const hatchCategoryIndex = dataHeader.indexOf("hatchCategory");
   const allyExpRateIndex = dataHeader.indexOf("allyExpRate");
 
-  return lines.slice(3).map((line) => {
-    const cols = line.split(",");
+  return rows.slice(dataHeaderIndex + 1).map((cols) => {
     const stats = {} as Record<StatKey, StatLevels>;
 
     STAT_KEYS.forEach((key) => {
@@ -137,7 +145,7 @@ function buildMonsterStats(rawCsv: string): MonsterStatRecord[] {
       allyExpRate: allyExpRateIndex >= 0 ? parseMaybeNumber(cols[allyExpRateIndex]) : null,
       stats,
     };
-  });
+  }).filter((monster) => monster.name.trim().length > 0);
 }
 
 const MONSTERS = buildMonsterStats(monsterCsv);
@@ -319,7 +327,7 @@ export default function MonsterPetStatsPage() {
             {compareMonsters.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {compareMonsters.map((monster) => (
-                  <Badge key={monster.id} variant="outline" className="gap-2 py-1">
+                  <Badge key={`${monster.id}-${monster.name}`} variant="outline" className="gap-2 py-1">
                     {monster.name} #{monster.id}
                     <button
                       type="button"
@@ -349,7 +357,7 @@ export default function MonsterPetStatsPage() {
                   <tr className="border-b border-border text-muted-foreground">
                     <th className="text-left py-2 pr-3 font-medium">Stat</th>
                     {compareMonsters.map((monster) => (
-                      <th key={monster.id} className="text-left py-2 px-3 font-medium">
+                      <th key={`${monster.id}-${monster.name}`} className="text-left py-2 px-3 font-medium">
                         <div className="font-semibold text-foreground">{monster.name}</div>
                         <div className="text-xs text-muted-foreground">#{monster.id}</div>
                       </th>
@@ -437,7 +445,7 @@ export default function MonsterPetStatsPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {filtered.map((monster) => (
-          <Card key={monster.id} className="overflow-hidden">
+          <Card key={`${monster.id}-${monster.name}`} className="overflow-hidden">
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1">

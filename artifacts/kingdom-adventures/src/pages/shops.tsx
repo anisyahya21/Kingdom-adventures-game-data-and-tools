@@ -86,9 +86,9 @@ type SharedDataShape = {
 
 const EQUIP_SHEET_URL = googleSheetUrl("equipment");
 const ITEM_SHEET_URL = googleSheetUrl("shops-items");
-const RESTAURANT_ITEM_FLAG = 149226;
-const HARVEST_ITEM_FLAG = 65536;
-const ORCHARD_ALLOWED_CRAFT_GROUPS = new Set([30, 35, 70, 85]);
+const CRAFTABLE_ITEM_FLAG = 128;
+const COOKED_ITEM_FLAG = 1024;
+const ORCHARD_FRUIT_TREE_CRAFT_GROUP = 70;
 const VALID_SLOTS: EquipmentSlot[] = ["Head", "Weapon", "Shield", "Armor", "Accessory", "-"];
 const EQUIPMENT_VARIANT_NAME_BY_ID: Record<number, string> = {
   192: "B/ Legendary Shield (B)",
@@ -738,17 +738,15 @@ export default function ShopsPage() {
     [skillRows, skillSearch, studioFilter, intFilter]
   );
   const itemShopRows = useMemo(
-    () => itemRows.filter((row) => row.shopFlag !== RESTAURANT_ITEM_FLAG),
+    () => itemRows.filter((row) => (row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 && (row.shopFlag & COOKED_ITEM_FLAG) === 0),
     [itemRows]
   );
   const restaurantRows = useMemo(
-    () => itemRows.filter((row) => row.shopFlag === RESTAURANT_ITEM_FLAG),
+    () => itemRows.filter((row) => (row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 && (row.shopFlag & COOKED_ITEM_FLAG) !== 0),
     [itemRows]
   );
   const orchardRows = useMemo(
-    () => itemRows.filter((row) =>
-      (row.shopFlag & HARVEST_ITEM_FLAG) !== 0 && ORCHARD_ALLOWED_CRAFT_GROUPS.has(row.craftGroup)
-    ),
+    () => itemRows.filter((row) => row.craftGroup === ORCHARD_FRUIT_TREE_CRAFT_GROUP),
     [itemRows]
   );
   const filteredItemRows = useMemo(
