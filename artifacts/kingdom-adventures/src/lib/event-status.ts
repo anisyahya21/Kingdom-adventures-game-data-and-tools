@@ -22,3 +22,9 @@ export function getJapanWeekday(now = new Date()) {
     timeZone: "Asia/Tokyo",
   }).format(now);
 }
+
+export function getLocalWeekday(now = new Date()) {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+  }).format(now);
+}

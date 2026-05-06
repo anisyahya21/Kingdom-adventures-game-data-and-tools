@@ -2091,7 +2091,7 @@ export const EQUIPMENT_CATALOG = [
   },
   {
     "id": 235,
-    "name": "E/ Hat (Blue)",
+    "name": "E/ Hat (B)",
     "type": 13,
     "rank": 1,
     "rankLabel": "E",
@@ -2101,7 +2101,7 @@ export const EQUIPMENT_CATALOG = [
   },
   {
     "id": 237,
-    "name": "E/ Hat (Brown)",
+    "name": "E/ Hat (R)",
     "type": 13,
     "rank": 1,
     "rankLabel": "E",
@@ -5850,7 +5850,7 @@ export const EQUIPMENT_EXCHANGE_ROWS = [
   },
   {
     "inputId": 235,
-    "inputName": "E/ Hat (Blue)",
+    "inputName": "E/ Hat (B)",
     "inputType": 13,
     "rank": 1,
     "rankLabel": "E",
@@ -5863,7 +5863,7 @@ export const EQUIPMENT_EXCHANGE_ROWS = [
   },
   {
     "inputId": 237,
-    "inputName": "E/ Hat (Brown)",
+    "inputName": "E/ Hat (R)",
     "inputType": 13,
     "rank": 1,
     "rankLabel": "E",

@@ -19,9 +19,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl, googleSheetUrl } from "@/lib/api";
 import { parseCsv } from "@/lib/monster-truth";
+import { matchesLooseSearch } from "@/lib/search-normalize";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 import equipCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Equip.csv?raw";
 const RANKED_EQUIPMENT_NAME = /^[FSABCDE]\s*\/\s*/i;
+const VARIANT_NAME_BY_ID: Record<number, string> = {
+  192: "B/ Legendary Shield (B)",
+  198: "B/ Legendary Shield (R)",
+  235: "E/ Hat (B)",
+  237: "E/ Hat (R)",
+};
+
+function getVariantDisplayName(name: string, sourceId: number | null): string {
+  if (sourceId === null) return name;
+  return VARIANT_NAME_BY_ID[sourceId] ?? name;
+}
 
 // ─── NumInput: local-string-state to prevent typing glitch ────────────────────
 function NumInput({
@@ -280,6 +292,7 @@ function parseLocalEquipmentSnapshot(): EquipmentItem[] {
 
     const rawId = Number(row[0]);
     const sourceId = Number.isFinite(rawId) ? rawId : null;
+    const displayName = getVariantDisplayName(name, sourceId);
     const rawType = typeColIdx >= 0 ? row[typeColIdx] : null;
     const parsedType = rawType == null || rawType === "" ? null : Number(rawType);
     const sheetSlot = slotFromEquipmentType(Number.isFinite(parsedType as number) ? parsedType : rawType);
@@ -294,7 +307,7 @@ function parseLocalEquipmentSnapshot(): EquipmentItem[] {
 
     items.push({
       uid: sourceId === null ? `local-${rowIndex}` : String(sourceId),
-      name,
+      name: displayName,
       sourceName: name,
       sourceId,
       sheetSlot,
@@ -369,6 +382,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     const rawSourceId = get(0);
     const parsedSourceId = rawSourceId === null || rawSourceId === "" ? NaN : Number(rawSourceId);
     const sourceId = Number.isFinite(parsedSourceId) ? parsedSourceId : null;
+    const displayName = getVariantDisplayName(name, sourceId);
     const rawSlot = slotColIdx >= 0 ? get(slotColIdx) : null;
     const sheetSlot = slotFromEquipmentType(rawSlot);
     const baseStats: Record<string, number> = {};
@@ -384,7 +398,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
       if (baseStats[s] === undefined) baseStats[s] = 0;
       if (incStats[s] === undefined) incStats[s] = 0;
     }
-    rawItems.push({ name, sourceName: name, sourceId, sheetSlot, baseStats, incStats, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
+    rawItems.push({ name: displayName, sourceName: name, sourceId, sheetSlot, baseStats, incStats, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
   }
 
   const dedupedRawItems: Omit<EquipmentItem, "uid">[] = [];
@@ -404,23 +418,17 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     duplicateCounts.set(item.name, (duplicateCounts.get(item.name) ?? 0) + 1);
   }
 
-  const preferredSuffixById: Record<number, string> = {
-    192: "(B)",
-    198: "(R)",
-    235: "(B)",
-    237: "(R)",
-  };
   const seenDuplicateIndex = new Map<string, number>();
 
   const items = dedupedRawItems.map((item, index) => {
     const duplicateTotal = duplicateCounts.get(item.name) ?? 0;
     if (duplicateTotal <= 1) {
-      return { uid: String(index), ...item };
+      return { uid: item.sourceId === null ? String(index) : String(item.sourceId), ...item };
     }
 
     const seen = (seenDuplicateIndex.get(item.name) ?? 0) + 1;
     seenDuplicateIndex.set(item.name, seen);
-    const preferredSuffix = item.sourceId === null ? undefined : preferredSuffixById[item.sourceId];
+    const preferredSuffix = item.sourceId === null ? undefined : VARIANT_NAME_BY_ID[item.sourceId]?.match(/\([^)]*\)$/)?.[0];
     const suffix = preferredSuffix ?? `(${seen})`;
     return { uid: item.sourceId === null ? String(index) : String(item.sourceId), ...item, name: `${item.name} ${suffix}` };
   });
@@ -1170,7 +1178,7 @@ export default function EquipmentPage() {
 
   const filtered = useMemo(() => {
     let list = compareMode ? items.filter((i) => selectedUids.has(i.uid)) : items;
-    if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
+    if (search) list = list.filter((i) => matchesLooseSearch(i.name, search));
     if (slotFilters.size > 0) {
       list = list.filter((i) => {
         const a = getItemSlot(i.name);

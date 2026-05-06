@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { matchesLooseSearch } from "@/lib/search-normalize";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Check, Download, Upload } from "lucide-react";
@@ -345,13 +346,9 @@ export default function EquipmentExchangeCalculator() {
   }, [selectedEquipment]);
 
   const equipmentOptions = useMemo(() => {
-    const q = equipmentQuery.trim().toLowerCase();
+    const q = equipmentQuery.trim();
     if (!q) return PLAYER_EQUIPMENT;
-    const parts = q.split(/\s+/).filter(Boolean);
-    return PLAYER_EQUIPMENT.filter((item) => {
-      const name = item.name.toLowerCase();
-      return parts.every((part) => name.includes(part));
-    });
+    return PLAYER_EQUIPMENT.filter((item) => matchesLooseSearch(item.name, q));
   }, [equipmentQuery]);
 
   const displayedEquipmentId = useMemo(() => {
@@ -429,8 +426,8 @@ export default function EquipmentExchangeCalculator() {
     let result = entries;
     if (sourceRankFilters.size > 0) result = result.filter((e) => sourceRankFilters.has(e.rankLabel));
     if (sourceGivesFilters.size > 0) result = result.filter((e) => sourceGivesFilters.has(e.outputName));
-    const q = sourceQuery.trim().toLowerCase();
-    if (q) result = result.filter((e) => e.inputName.toLowerCase().includes(q));
+    const q = sourceQuery.trim();
+    if (q) result = result.filter((e) => matchesLooseSearch(e.inputName, q));
     return result;
   }, [entries, sourceQuery, sourceRankFilters, sourceGivesFilters]);
 

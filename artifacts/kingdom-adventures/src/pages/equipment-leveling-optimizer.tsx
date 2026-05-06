@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { parseCsv } from "@/lib/monster-truth";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
+import { matchesLooseSearch } from "@/lib/search-normalize";
 import equipCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Equip.csv?raw";
 import expCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Exp.csv?raw";
 
@@ -1536,9 +1537,9 @@ export default function EquipmentLevelingOptimizerPage() {
   }, [grandCalculated, grandCurrentLevel, grandRecipientId, grandTargetLevel, selectedGrandRows]);
 
   const filteredGrandEquipment = useMemo(() => {
-    const query = grandQuery.trim().toLowerCase();
+    const query = grandQuery.trim();
     if (!query) return EQUIPMENT.slice(0, 80);
-    return EQUIPMENT.filter((item) => item.name.toLowerCase().includes(query)).slice(0, 120);
+    return EQUIPMENT.filter((item) => matchesLooseSearch(item.name, query)).slice(0, 120);
   }, [grandQuery]);
 
   const selectedCount = Object.values(grandRows).filter((row) => row.checked).length;

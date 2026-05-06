@@ -9,6 +9,20 @@ export default function UpdatesPage() {
         </div>
 
         <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
+          <h2 className="text-lg font-bold">06/05/2026</h2>
+          <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+            <li>Fixed E/ Hat variants and B/ Legendary Shield variants so they now work correctly in Equipment pages, Exchange Calculator, and related lookups.</li>
+            <li>You no longer need to type &quot;/&quot; in equipment searches. For example, searching &quot;A Kairo Sword&quot; now correctly finds &quot;A/ Kairo Sword&quot;.</li>
+            <li>Improved zoom controls in Chaos Setup Lab with slider controls and smoother zoom behavior that keeps your map position stable.</li>
+            <li>Fixed Chaos Setup Lab stone placement checks to prevent overlapping 2x2 stone footprints.</li>
+            <li>Daily Rank now separates reward highlight timing and competition timing: rewards follow your local day, competition status follows JST.</li>
+            <li>Populated Restaurant with live item data so it now works as a full searchable database.</li>
+            <li>Added Orchard under Other Facilities in Shops.</li>
+            <li>Updated Kairo Room reward text entries to match corrected loot data.</li>
+          </ol>
+        </section>
+
+        <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
           <h2 className="text-lg font-bold">02/05/2026</h2>
           <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
             <li>Performance improvements were made across the website, so data and guides should load faster now.</li>

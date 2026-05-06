@@ -3,7 +3,7 @@ import { Award, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DAILY_RANK_REWARDS, getDailyRankEquipmentMismatches } from "@/game-data/daily-rank-rewards";
-import { eventStatusCardClass, eventStatusClass, eventStatusLabel, getJapanWeekday } from "@/lib/event-status";
+import { eventStatusCardClass, eventStatusClass, eventStatusLabel, getJapanWeekday, getLocalWeekday } from "@/lib/event-status";
 
 const COLUMNS = [
   { key: "weapon", label: "Weapon" },
@@ -23,6 +23,7 @@ export default function DailyRankRewardsPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  const currentLocalDay = getLocalWeekday(now);
   const currentJapanDay = getJapanWeekday(now);
 
   useEffect(() => {
@@ -46,13 +47,17 @@ export default function DailyRankRewardsPage() {
           Kingdom Adventures daily ranking board rewards by weekday, showing full rank payouts from F through S for weapons,
           armor, shields, tickets, skills, and overall item rewards.
         </p>
+        <p className="text-xs text-muted-foreground/90 max-w-3xl">
+          Card highlight and Reward status follow your local time. Competition status follows Japan time (JST).
+        </p>
       </div>
 
       <div className="grid gap-4">
         {DAILY_RANK_REWARDS.map((entry) => {
-          const isCurrentDay = entry.day === currentJapanDay;
+          const isCurrentRewardDay = entry.day === currentLocalDay;
+          const isCurrentCompetitionDay = entry.day === currentJapanDay;
           return (
-          <Card key={entry.day} className={`shadow-sm ${eventStatusCardClass(isCurrentDay ? "live" : "inactive")}`}>
+          <Card key={entry.day} className={`shadow-sm ${eventStatusCardClass(isCurrentRewardDay ? "live" : "inactive")}`}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -63,8 +68,11 @@ export default function DailyRankRewardsPage() {
                   <CardDescription>S and A ranking board rewards for this weekday.</CardDescription>
                 </div>
                 <div className="flex flex-wrap justify-end gap-2">
-                  <Badge variant="outline" className={eventStatusClass(isCurrentDay ? "live" : "inactive")}>
-                    {eventStatusLabel(isCurrentDay ? "live" : "inactive")}
+                  <Badge variant="outline" className={eventStatusClass(isCurrentRewardDay ? "live" : "inactive")}>
+                    Reward (Local): {eventStatusLabel(isCurrentRewardDay ? "live" : "inactive")}
+                  </Badge>
+                  <Badge variant="outline" className={eventStatusClass(isCurrentCompetitionDay ? "live" : "inactive")}>
+                    Competition (JST): {eventStatusLabel(isCurrentCompetitionDay ? "live" : "inactive")}
                   </Badge>
                   {entry.rewards.map((reward) => (
                     <Badge key={reward.rankValue} variant="outline">

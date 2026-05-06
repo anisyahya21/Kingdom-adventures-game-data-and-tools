@@ -102,8 +102,8 @@ export const KAIRO_ROOM_LOOT_GROUPS: SpecialBossLootGroup[] = [
         "45% 1 A/ Kairo Hammer, 3% 1 S/ Kairo Shield, 100% 2 - 3 Kairo Flan, 35% 1 - 1 Bounty Bag, 20% 1 - 1 Skill Slots Up, 1% 1 Kairo King Statue, 5% 1 Heal M",
       ]),
       encounter("Extreme", 200, 400, [
-        "90% 1 A/ Kairo Hammer, 10% 1 S/ Kairo Shield, 100% 5 - 5 Kairo Flan, 80% 1 - 1 Kairo Creamy Cake, 10% 1 - 1 Skill Slots Up, 2% 1 Kairo King Statue, 5% 1 Instant Construction",
-        "55% 1 A/ Kairo Hammer, 1% 1 S/ Sally Prin Figure, 100% 3 - 5 Kairo Flan, 40% 1 - 1 Bounty Bag, 25% 1 - 1 Skill Slots Up, 2% 1 Kairo King Statue, 5% 1 Heal M",
+        "90% 1 A/ Kairo Lance, 5% 1 S/ Kairo Shield, 100% 5 - 5 Kairo Flan, 80% 1 - 1 Kairo Creamy Cake, 10% 1 - 1 Skill Slots Up, 2% 1 Kairo King Statue, 5% 1 All-Out Sprint",
+        "55% 1 A/ Kairo Lance, 1% 1 S/ Sally Prin Figure, 100% 3 - 5 Kairo Flan, 40% 1 - 1 Bounty Bag, 25% 1 - 1 Skill Slots Up, 2% 1 Kairo King Statue, 5% 1 Heal M, 5% 1 F Rank Scholar",
       ]),
     ],
   },
@@ -132,19 +132,19 @@ export const KAIRO_ROOM_LOOT_GROUPS: SpecialBossLootGroup[] = [
     title: "Kairo Kommander",
     encounters: [
       encounter("Easy", 45, 90, [
-        "15% 1 A/ Kairo Sword, 8% 1 A/ Kairo Hammer, 3% 1 A/ Kairo Lance, 100% 1 - 1 Kairo Flan, 20% 1 - 1 Kairo Creamy Cake, 3% 1 - 1 Skill Slots Up, 5% 1 Direct Attack I",
+        "15% 1 A/ Kairo Sword, 8% 1 A/ Kairo Hammer, 3% 1 A/ Kairo Lance, 100% 1 - 1 Kairo Flan, 20% 1 - 1 Kairo Creamy Cake, 3% 1 - 1 Skill Slots Up, 5% 1 Direct Attack Ⅰ",
         "5% 1 A/ Kairo Sword, 8% 1 A/ Kairo Hammer, 3% 1 A/ Kairo Bow, 100% 1 - 1 Kairo Flan, 15% 1 - 1 Bounty Bag, 5% 1 - 1 Skill Slots Up, 1% 1 Kairo King Statue, 5% 1 Heal M",
       ]),
       encounter("Normal", 75, 150, [
-        "35% 1 A/ Kairo Hammer, 8% 1 A/ Kairo Lance, 3% 1 A/ Kairo Bow, 100% 2 - 2 Kairo Flan, 40% 1 - 1 Kairo Creamy Cake, 3% 1 - 1 Skill Slots Up, 5% 1 Direct Attack I",
+        "35% 1 A/ Kairo Hammer, 8% 1 A/ Kairo Lance, 3% 1 A/ Kairo Bow, 100% 2 - 2 Kairo Flan, 40% 1 - 1 Kairo Creamy Cake, 3% 1 - 1 Skill Slots Up, 5% 1 Direct Attack Ⅰ",
         "10% 1 A/ Kairo Hammer, 8% 1 A/ Kairo Lance, 3% 1 A/ Kairo Sword, 100% 1 - 2 Kairo Flan, 25% 1 - 1 Bounty Bag, 10% 1 - 1 Skill Slots Up, 1% 1 Kairo King Statue, 5% 1 Heal M",
       ]),
       encounter("Hard", 160, 320, [
-        "65% 1 A/ Kairo Lance, 8% 1 A/ Kairo Bow, 3% 1 A/ Kairo Hammer, 100% 3 - 3 Kairo Flan, 60% 1 - 1 Kairo Creamy Cake, 5% 1 - 1 Skill Slots Up, 5% 1 Area Attack I",
+        "65% 1 A/ Kairo Lance, 8% 1 A/ Kairo Bow, 3% 1 A/ Kairo Hammer, 100% 3 - 3 Kairo Flan, 60% 1 - 1 Kairo Creamy Cake, 5% 1 - 1 Skill Slots Up, 5% 1 Area Attack Ⅰ",
         "45% 1 A/ Kairo Lance, 8% 1 A/ Kairo Sword, 3% 1 A/ Kairo Bow, 100% 2 - 3 Kairo Flan, 35% 1 - 1 Bounty Bag, 20% 1 - 1 Skill Slots Up, 1% 1 Kairo King Statue, 5% 1 Heal M",
       ]),
       encounter("Extreme", 300, 600, [
-        "90% 1 A/ Kairo Bow, 8% 1 A/ Kairo Sword, 3% 1 A/ Kairo Hammer, 100% 5 - 5 Kairo Flan, 80% 1 - 1 Kairo Creamy Cake, 10% 1 - 1 Skill Slots Up, 2% 1 Kairo King Statue, 5% 1 Area Attack I",
+        "90% 1 A/ Kairo Bow, 8% 1 A/ Kairo Sword, 3% 1 A/ Kairo Hammer, 100% 5 - 5 Kairo Flan, 80% 1 - 1 Kairo Creamy Cake, 10% 1 - 1 Skill Slots Up, 2% 1 Kairo King Statue, 5% 1 Area Attack Ⅰ",
         "55% 1 A/ Kairo Bow, 8% 1 A/ Kairo Lance, 3% 1 A/ Kairo Sword, 100% 3 - 5 Kairo Flan, 40% 1 - 1 Bounty Bag, 25% 1 - 1 Skill Slots Up, 2% 1 Kairo King Statue, 5% 1 Revive 50%",
       ]),
     ],

@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Hammer,
   Package,
+  Leaf,
   Search,
   Shield,
   Sofa,
@@ -17,7 +18,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { CategoryBadge } from "@/components/ka/category-badge";
 import { CostPills } from "@/components/ka/cost-pills";
 import { DataCard } from "@/components/ka/data-card";
@@ -29,10 +29,10 @@ import { SHOP_RECORDS, type ShopRecord, type ShopSlug, type ShopBuilding, type S
 import { PLOT_SIZES, PLOT_TILES } from "@/game-data/buildings";
 import { FACILITIES } from "@/game-data/facilities";
 import { FacilityCard } from "./houses";
-import { KA_STATUS_BADGE_CLASS } from "@/design-system/category-styles";
 
 type EquipmentSlot = "Head" | "Weapon" | "Shield" | "Armor" | "Accessory" | "-";
 type EquipmentRow = {
+  sourceId: number | null;
   name: string;
   rank: string;
   slot: EquipmentSlot;
@@ -61,6 +61,7 @@ type SkillRow = {
 
 type ItemRow = {
   name: string;
+  craftGroup: number;
   studioLevel: number;
   craftingIntelligence: number;
   craftTimeSeconds: number;
@@ -68,6 +69,7 @@ type ItemRow = {
   eggBonusValue: number;
   eggBonusExp: number;
   eggBonusTime: number;
+  shopFlag: number;
 };
 
 type FurnitureRow = {
@@ -84,7 +86,16 @@ type SharedDataShape = {
 
 const EQUIP_SHEET_URL = googleSheetUrl("equipment");
 const ITEM_SHEET_URL = googleSheetUrl("shops-items");
+const RESTAURANT_ITEM_FLAG = 149226;
+const HARVEST_ITEM_FLAG = 65536;
+const ORCHARD_ALLOWED_CRAFT_GROUPS = new Set([30, 35, 70, 85]);
 const VALID_SLOTS: EquipmentSlot[] = ["Head", "Weapon", "Shield", "Armor", "Accessory", "-"];
+const EQUIPMENT_VARIANT_NAME_BY_ID: Record<number, string> = {
+  192: "B/ Legendary Shield (B)",
+  198: "B/ Legendary Shield (R)",
+  235: "E/ Hat (B)",
+  237: "E/ Hat (R)",
+};
 const RANKS = ["All", "B", "C", "D", "E", "F"] as const;
 const EXCLUDED_SKILLS = new Set(["normal attack", "gun attack", "critical hit"]);
 const FURNITURE_ROWS: FurnitureRow[] = [
@@ -135,7 +146,11 @@ const SHOP_ICONS: Record<ShopSlug, ReactNode> = {
   "furniture-shop": <Sofa className="w-5 h-5 text-orange-500" />,
   restaurant: <UtensilsCrossed className="w-5 h-5 text-rose-500" />,
   "skill-shop": <WandSparkles className="w-5 h-5 text-cyan-500" />,
+  orchard: <Leaf className="w-5 h-5 text-lime-600" />,
 };
+
+const PRIMARY_SHOPS = SHOP_RECORDS.filter((shop) => shop.category === "shop");
+const SECONDARY_FACILITIES = SHOP_RECORDS.filter((shop) => shop.category === "facility");
 
 function getRank(name: string): string {
   const match = name.trim().match(/^([FSABCDE])\s*\//i);
@@ -186,8 +201,11 @@ async function fetchEquipmentRows(): Promise<EquipmentRow[]> {
       const cells = row.c ?? [];
       const name = String(cells[nameIndex]?.v ?? "").trim();
       if (!name || !isPlayerFacingEquipmentName(name)) return null;
+      const rawSourceId = Number(cells[0]?.v ?? Number.NaN);
+      const sourceId = Number.isFinite(rawSourceId) ? rawSourceId : null;
+      const displayName = sourceId === null ? name : (EQUIPMENT_VARIANT_NAME_BY_ID[sourceId] ?? name);
       const sheetSlot = String(cells[slotIndex]?.v ?? "").trim();
-      const assignedSlot = slotAssignments[name];
+      const assignedSlot = slotAssignments[displayName] ?? slotAssignments[name];
       const slot = VALID_SLOTS.includes(assignedSlot as EquipmentSlot)
         ? assignedSlot as EquipmentSlot
         : VALID_SLOTS.includes(sheetSlot as EquipmentSlot)
@@ -198,10 +216,11 @@ async function fetchEquipmentRows(): Promise<EquipmentRow[]> {
       if (!craftable) return null;
 
       const equipmentRow: EquipmentRow = {
-        name,
-        rank: getRank(name),
+        sourceId,
+        name: displayName,
+        rank: getRank(displayName),
         slot,
-        weaponType: weaponTypes[name] ?? "",
+        weaponType: weaponTypes[displayName] ?? weaponTypes[name] ?? "",
         craftable: true,
         studioLevel: getNumeric(cells, studioIndex),
         craftingIntelligence: getNumeric(cells, intIndex),
@@ -227,6 +246,7 @@ async function fetchItemRows(): Promise<ItemRow[]> {
   const rows = data.table.rows as Array<{ c: Array<{ v: string | number | null } | null> }>;
 
   const nameIndex = fallbackIndex(findColumnIndex(cols, [/^name$/i]), 1);
+  const craftGroupIndex = fallbackIndex(findColumnIndex(cols, [/^craftgroup$/i]), 6);
   const studioIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTermStudioLevel/i, /crafttermstudiolevel/i]), 28);
   const intIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTermIntelligence/i, /crafttermintelligence/i]), 29);
   const timeIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTimeSeconds/i, /crafttimeseconds/i]), 30);
@@ -234,6 +254,7 @@ async function fetchItemRows(): Promise<ItemRow[]> {
   const eggValueIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusValue/i, /eggbonusvalue/i]), 23);
   const eggExpIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusExp/i, /eggbonusexp/i]), 24);
   const eggTimeIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusTime/i, /eggbonustime/i]), 25);
+  const shopFlagIndex = fallbackIndex(findColumnIndex(cols, [/^flag$/i]), 32);
 
   return rows
     .map((row) => {
@@ -244,6 +265,7 @@ async function fetchItemRows(): Promise<ItemRow[]> {
       if (!name || studioLevel <= 0) return null;
       return {
         name,
+        craftGroup: getNumeric(cells, craftGroupIndex),
         studioLevel,
         craftingIntelligence,
         craftTimeSeconds: getNumeric(cells, timeIndex),
@@ -251,6 +273,7 @@ async function fetchItemRows(): Promise<ItemRow[]> {
         eggBonusValue: getNumeric(cells, eggValueIndex),
         eggBonusExp: getNumeric(cells, eggExpIndex),
         eggBonusTime: getNumeric(cells, eggTimeIndex),
+        shopFlag: getNumeric(cells, shopFlagIndex),
       };
     })
     .filter((row): row is ItemRow => !!row)
@@ -258,16 +281,6 @@ async function fetchItemRows(): Promise<ItemRow[]> {
       const studioDiff = a.studioLevel - b.studioLevel;
       return studioDiff !== 0 ? studioDiff : a.name.localeCompare(b.name);
     });
-}
-
-function describeEggBonusType(type: number): string {
-  switch (type) {
-    case 1: return "Attack";
-    case 2: return "Defence";
-    case 3: return "Balanced";
-    case 4: return "Special";
-    default: return "-";
-  }
 }
 
 function ShopHeader({ selectedShop }: {
@@ -278,16 +291,11 @@ function ShopHeader({ selectedShop }: {
       className="mb-6"
       icon={selectedShop ? SHOP_ICONS[selectedShop.slug] : <Store className="w-5 h-5 text-indigo-500" />}
       title={selectedShop ? selectedShop.title : "Shops"}
-      actions={selectedShop && (
-        <Badge variant="outline" className={KA_STATUS_BADGE_CLASS[selectedShop.status]}>
-          {selectedShop.status}
-        </Badge>
-      )}
     >
       <p>
         {selectedShop
           ? selectedShop.description
-          : "Browse shop databases by owner and category. Ready shops already use translated game data; unfinished shops stay clearly marked as research-backed."}
+          : "Browse shop databases by owner and category."}
       </p>
     </PageHeader>
   );
@@ -295,21 +303,42 @@ function ShopHeader({ selectedShop }: {
 
 function ShopTabs({ currentSlug }: { currentSlug?: ShopSlug }) {
   return (
-    <div className="flex flex-wrap gap-2 mb-6">
-      {SHOP_RECORDS.map((shop) => (
-        <Link key={shop.slug} href={`/shops/${shop.slug}`}>
-          <button
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-              currentSlug === shop.slug
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/40"
-            }`}
-          >
-            {SHOP_ICONS[shop.slug]}
-            {shop.shortTitle}
-          </button>
-        </Link>
-      ))}
+    <div className="space-y-2 mb-6">
+      <div className="flex flex-wrap gap-2">
+        {PRIMARY_SHOPS.map((shop) => (
+          <Link key={shop.slug} href={`/shops/${shop.slug}`}>
+            <button
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                currentSlug === shop.slug
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/40"
+              }`}
+            >
+              {SHOP_ICONS[shop.slug]}
+              {shop.shortTitle}
+            </button>
+          </Link>
+        ))}
+      </div>
+      {SECONDARY_FACILITIES.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
+          <span className="text-[11px] font-medium text-muted-foreground mr-1">Other Facilities</span>
+          {SECONDARY_FACILITIES.map((shop) => (
+            <Link key={shop.slug} href={`/shops/${shop.slug}`}>
+              <button
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  currentSlug === shop.slug
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/40"
+                }`}
+              >
+                {SHOP_ICONS[shop.slug]}
+                {shop.shortTitle}
+              </button>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -385,22 +414,29 @@ function formatUpgTime(seconds: number): string {
 
 
 function ShopOwnerLink({ owner }: { owner: string }) {
+  const ownerSuffix = owner === "Farmer" ? "C+" : null;
+
   return (
-    <EntityLink
-      type="job"
-      name={owner}
-      onClick={(e) => e.stopPropagation()}
-      className="font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500 dark:hover:text-purple-300 transition-colors"
-    >
-      {owner}
-    </EntityLink>
+    <span className="inline-flex items-center gap-1.5">
+      <EntityLink
+        type="job"
+        name={owner}
+        onClick={(e) => e.stopPropagation()}
+        className="font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500 dark:hover:text-purple-300 transition-colors"
+      >
+        {owner}
+      </EntityLink>
+      {ownerSuffix && <span className="font-medium text-foreground">{ownerSuffix}</span>}
+    </span>
   );
 }
 
 function dedupeEquipmentRows(rows: EquipmentRow[]): EquipmentRow[] {
   const byKey = new Map<string, EquipmentRow>();
   for (const row of rows) {
-    const key = `${row.name}::${row.slot}::${row.weaponType}`;
+    const key = row.sourceId === null
+      ? `${row.name}::${row.slot}::${row.weaponType}`
+      : `id:${row.sourceId}`;
     if (!byKey.has(key)) byKey.set(key, row);
   }
   return Array.from(byKey.values());
@@ -525,9 +561,9 @@ function SkillsTable({ rows }: { rows: SkillRow[] }) {
   );
 }
 
-function ItemTable({ rows }: { rows: ItemRow[] }) {
-  type SortCol = "name" | "studio" | "int" | "craftTime" | "eggExp";
-  const [sortCol, setSortCol] = useState<SortCol>("studio");
+function ItemTable({ rows, showStudio = true }: { rows: ItemRow[]; showStudio?: boolean }) {
+  type SortCol = "name" | "studio" | "int" | "craftTime";
+  const [sortCol, setSortCol] = useState<SortCol>(showStudio ? "studio" : "name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   function toggleSort(col: SortCol) {
     if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -540,7 +576,6 @@ function ItemTable({ rows }: { rows: ItemRow[] }) {
         case "studio": return (((a.studioLevel ?? 0) - (b.studioLevel ?? 0)) * dir) || a.name.localeCompare(b.name);
         case "int": return (((a.craftingIntelligence ?? 0) - (b.craftingIntelligence ?? 0)) * dir) || a.name.localeCompare(b.name);
         case "craftTime": return (((a.craftTimeSeconds ?? 0) - (b.craftTimeSeconds ?? 0)) * dir) || a.name.localeCompare(b.name);
-        case "eggExp": return (((a.eggBonusExp ?? 0) - (b.eggBonusExp ?? 0)) * dir) || a.name.localeCompare(b.name);
         default: return a.name.localeCompare(b.name) * dir;
       }
     });
@@ -553,24 +588,18 @@ function ItemTable({ rows }: { rows: ItemRow[] }) {
         <thead className="bg-muted/40 text-muted-foreground">
           <tr>
             <th className={`${thC} text-left`} onClick={() => toggleSort("name")}>Item{arrow("name")}</th>
-            <th className={`${thC} text-center`} onClick={() => toggleSort("studio")}>Studio{arrow("studio")}</th>
+            {showStudio && <th className={`${thC} text-center`} onClick={() => toggleSort("studio")}>Studio{arrow("studio")}</th>}
             <th className={`${thC} text-center`} onClick={() => toggleSort("int")}>INT{arrow("int")}</th>
             <th className={`${thC} text-center`} onClick={() => toggleSort("craftTime")}>Craft Time{arrow("craftTime")}</th>
-            <th className="px-3 py-2 text-center font-medium">Egg Stat</th>
-            <th className="px-3 py-2 text-center font-medium">Egg +Stat</th>
-            <th className={`${thC} text-center`} onClick={() => toggleSort("eggExp")}>Egg EXP{arrow("eggExp")}</th>
           </tr>
         </thead>
         <tbody>
           {sorted.map((row) => (
             <tr key={row.name} className="border-t border-border/70">
               <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
-              <td className="px-3 py-2 text-center">{row.studioLevel}</td>
+              {showStudio && <td className="px-3 py-2 text-center">{row.studioLevel}</td>}
               <td className="px-3 py-2 text-center">{row.craftingIntelligence || "-"}</td>
               <td className="px-3 py-2 text-center">{row.craftTimeSeconds ? `${row.craftTimeSeconds}s` : "-"}</td>
-              <td className="px-3 py-2 text-center">{describeEggBonusType(row.eggBonusType)}</td>
-              <td className="px-3 py-2 text-center">{row.eggBonusValue || "-"}</td>
-              <td className="px-3 py-2 text-center">{row.eggBonusExp || "-"}</td>
             </tr>
           ))}
         </tbody>
@@ -623,52 +652,6 @@ function FurnitureTable({ rows }: { rows: FurnitureRow[] }) {
   );
 }
 
-function ResearchShopView({ shop }: { shop: ShopRecord }) {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <Card className="shadow-sm lg:col-span-2">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Current Scope</CardTitle>
-          <CardDescription className="text-xs">
-            This shop is wired into the site and navigation now, but the full player-facing data source still needs translation.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          {shop.currentScope.map((line) => (
-            <div key={line} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">{line}</div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Shop Info</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div>
-            <div className="text-xs text-muted-foreground">Owner job</div>
-            <ShopOwnerLink owner={shop.owner} />
-          </div>
-          <div>
-
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm lg:col-span-3">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Next Build Steps</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
-          {shop.nextSteps.map((line) => (
-            <div key={line} className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">{line}</div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 export default function ShopsPage() {
   const [, navigate] = useLocation();
   const [, params] = useRoute("/shops/:slug");
@@ -699,7 +682,7 @@ export default function ShopsPage() {
   useEffect(() => {
     const currentSearch = new URLSearchParams(window.location.search);
     const q = currentSearch.get("search") ?? "";
-    if (selectedShop?.slug === "item-shop") setItemSearch(q);
+    if (selectedShop?.slug === "item-shop" || selectedShop?.slug === "restaurant" || selectedShop?.slug === "orchard") setItemSearch(q);
     else if (selectedShop?.slug === "furniture-shop") setFurnitureSearch(q);
     else setSearch(q);
     setStudioFilter(new Set());
@@ -754,9 +737,31 @@ export default function ShopsPage() {
     () => skillRows.filter((row) => matchesQuery(row.name, skillSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
     [skillRows, skillSearch, studioFilter, intFilter]
   );
+  const itemShopRows = useMemo(
+    () => itemRows.filter((row) => row.shopFlag !== RESTAURANT_ITEM_FLAG),
+    [itemRows]
+  );
+  const restaurantRows = useMemo(
+    () => itemRows.filter((row) => row.shopFlag === RESTAURANT_ITEM_FLAG),
+    [itemRows]
+  );
+  const orchardRows = useMemo(
+    () => itemRows.filter((row) =>
+      (row.shopFlag & HARVEST_ITEM_FLAG) !== 0 && ORCHARD_ALLOWED_CRAFT_GROUPS.has(row.craftGroup)
+    ),
+    [itemRows]
+  );
   const filteredItemRows = useMemo(
-    () => itemRows.filter((row) => matchesQuery(row.name, itemSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
-    [itemRows, itemSearch, studioFilter, intFilter]
+    () => itemShopRows.filter((row) => matchesQuery(row.name, itemSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
+    [itemShopRows, itemSearch, studioFilter, intFilter]
+  );
+  const filteredRestaurantRows = useMemo(
+    () => restaurantRows.filter((row) => matchesQuery(row.name, itemSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
+    [restaurantRows, itemSearch, studioFilter, intFilter]
+  );
+  const filteredOrchardRows = useMemo(
+    () => orchardRows.filter((row) => matchesQuery(row.name, itemSearch) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
+    [orchardRows, itemSearch, intFilter]
   );
   const filteredFurnitureRows = useMemo(
     () => FURNITURE_ROWS.filter((row) => matchesQuery(row.name, furnitureSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
@@ -770,13 +775,15 @@ export default function ShopsPage() {
         case "armor-shop": return dedupedEquipmentRows.filter((r) => ["Head", "Armor", "Shield"].includes(r.slot) && r.craftable).map((r) => r.studioLevel);
         case "accessory-shop": return dedupedEquipmentRows.filter((r) => r.slot === "Accessory" && r.craftable).map((r) => r.studioLevel);
         case "skill-shop": return skillRows.map((r) => r.studioLevel);
-        case "item-shop": return itemRows.map((r) => r.studioLevel);
+        case "item-shop": return itemShopRows.map((r) => r.studioLevel);
+        case "restaurant": return restaurantRows.map((r) => r.studioLevel);
+        case "orchard": return [];
         case "furniture-shop": return FURNITURE_ROWS.map((r) => r.studioLevel);
         default: return [];
       }
     })();
     return [...new Set(levels.filter((v) => v > 0))].sort((a, b) => a - b);
-  }, [selectedShop, dedupedEquipmentRows, skillRows, itemRows]);
+  }, [selectedShop, dedupedEquipmentRows, skillRows, itemShopRows, restaurantRows, orchardRows]);
   const availableIntValues = useMemo(() => {
     if (!selectedShop) return [];
     type IntRow = { studioLevel: number; craftingIntelligence: number };
@@ -786,14 +793,16 @@ export default function ShopsPage() {
         case "armor-shop": return dedupedEquipmentRows.filter((r) => ["Head", "Armor", "Shield"].includes(r.slot));
         case "accessory-shop": return dedupedEquipmentRows.filter((r) => r.slot === "Accessory");
         case "skill-shop": return skillRows;
-        case "item-shop": return itemRows;
+        case "item-shop": return itemShopRows;
+        case "restaurant": return restaurantRows;
+        case "orchard": return orchardRows;
         case "furniture-shop": return FURNITURE_ROWS;
         default: return [];
       }
     })();
     const base = studioFilter.size > 0 ? allRows.filter((r) => studioFilter.has(r.studioLevel)) : allRows;
     return [...new Set(base.map((r) => r.craftingIntelligence).filter((v) => v > 0))].sort((a, b) => a - b);
-  }, [studioFilter, selectedShop, dedupedEquipmentRows, skillRows, itemRows]);
+  }, [studioFilter, selectedShop, dedupedEquipmentRows, skillRows, itemShopRows, restaurantRows, orchardRows]);
   const toggleStudio = (level: number) => {
     setStudioFilter((prev) => {
       const next = new Set(prev);
@@ -905,6 +914,10 @@ export default function ShopsPage() {
         return filteredSkillRows.length;
       case "item-shop":
         return filteredItemRows.length;
+      case "restaurant":
+        return filteredRestaurantRows.length;
+      case "orchard":
+        return filteredOrchardRows.length;
       case "furniture-shop":
         return filteredFurnitureRows.length;
       default:
@@ -915,6 +928,8 @@ export default function ShopsPage() {
     armorRows.length,
     filteredFurnitureRows.length,
     filteredItemRows.length,
+    filteredOrchardRows.length,
+    filteredRestaurantRows.length,
     filteredSkillRows.length,
     selectedShop?.slug,
     weaponRows.length,
@@ -926,30 +941,16 @@ export default function ShopsPage() {
         <div className="max-w-6xl mx-auto px-4 py-8">
           <ShopHeader />
 
-          <Card className="shadow-sm mb-4 border-primary/20">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Batch B Shop System</CardTitle>
-              <CardDescription className="text-xs">
-                Ready shops now open as real database views. Item, furniture, and restaurant stay visible too, but are clearly marked until their translated sources are fully decoded.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {SHOP_RECORDS.map((shop) => (
+            {PRIMARY_SHOPS.map((shop) => (
               <Card
                 key={shop.slug}
                 onClick={() => navigate(`/shops/${shop.slug}`)}
                 className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all group h-full cursor-pointer"
               >
                 <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
-                      {SHOP_ICONS[shop.slug]}
-                    </div>
-                    <Badge variant="outline" className={KA_STATUS_BADGE_CLASS[shop.status]}>
-                      {shop.status}
-                    </Badge>
+                  <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors w-fit">
+                    {SHOP_ICONS[shop.slug]}
                   </div>
                   <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
                 </CardHeader>
@@ -963,6 +964,34 @@ export default function ShopsPage() {
               </Card>
             ))}
           </div>
+          {SECONDARY_FACILITIES.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-sm font-semibold text-muted-foreground mb-3">Other Facilities</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {SECONDARY_FACILITIES.map((shop) => (
+                  <Card
+                    key={shop.slug}
+                    onClick={() => navigate(`/shops/${shop.slug}`)}
+                    className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all group h-full cursor-pointer"
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors w-fit">
+                        {SHOP_ICONS[shop.slug]}
+                      </div>
+                      <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <CardDescription className="text-xs leading-relaxed">{shop.description}</CardDescription>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <ShopOwnerLink owner={shop.owner} />
+
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -986,7 +1015,7 @@ export default function ShopsPage() {
 
         <Card className="shadow-sm mb-4">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Owner & Scope</CardTitle>
+            <CardTitle className="text-base">Owner</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center gap-3 text-sm">
             <span className="text-muted-foreground">Owner:</span>
@@ -1008,7 +1037,7 @@ export default function ShopsPage() {
             <CardTitle className="text-base">Weapon Shop Database</CardTitle>
             <CardDescription className="text-xs">
                   Browse Kingdom Adventures weapon shop data, weapon ranks, weapon types, crafting levels,
-                  intelligence requirements, prices, and combat stats from the translated equipment database.
+                intelligence requirements, prices, and combat stats.
             </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -1065,7 +1094,7 @@ export default function ShopsPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Accessory Shop Database</CardTitle>
                 <CardDescription className="text-xs">
-                  Accessory-only browsing from the translated equipment database.
+                  Accessory-only browsing with rank and crafting requirements.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -1093,7 +1122,7 @@ export default function ShopsPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Skill Shop Database</CardTitle>
                 <CardDescription className="text-xs">
-                  Only shop-craftable skills are shown here. Fixed skill data stays read-only.
+                  Shop-craftable skills with crafting requirements and prices.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -1122,7 +1151,7 @@ export default function ShopsPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Item Shop Database</CardTitle>
                 <CardDescription className="text-xs">
-                  Craftable items pulled from the item sheet by studio and intelligence requirements. Egg-feed columns are shown too because they already live in the same source.
+                  Craftable item-shop entries pulled from the item sheet by studio and intelligence requirements.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -1175,7 +1204,61 @@ export default function ShopsPage() {
         )}
 
         {selectedShop.slug === "restaurant" && (
-          <ResearchShopView shop={selectedShop} />
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Restaurant Database</CardTitle>
+                <CardDescription className="text-xs">
+                  Cooked goods from the item sheet with studio and intelligence requirements.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search restaurant items..." className="pl-9 h-9" />
+                  </div>
+                  <FilterDropdowns showRank={false} />
+                  <span className="text-xs text-muted-foreground">{filteredRestaurantRows.length} items</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                {itemLoading ? <p className="text-sm text-muted-foreground">Loading restaurant data...</p> : <ItemTable rows={filteredRestaurantRows} />}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {selectedShop.slug === "orchard" && (
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Orchard Database</CardTitle>
+                <CardDescription className="text-xs">
+                  Fruits and vegetables from harvest-tagged item data.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search orchard items..." className="pl-9 h-9" />
+                  </div>
+                  <FilterDropdowns showRank={false} />
+                  <span className="text-xs text-muted-foreground">{filteredOrchardRows.length} items</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                {itemLoading ? <p className="text-sm text-muted-foreground">Loading orchard data...</p> : <ItemTable rows={filteredOrchardRows} showStudio={false} />}
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

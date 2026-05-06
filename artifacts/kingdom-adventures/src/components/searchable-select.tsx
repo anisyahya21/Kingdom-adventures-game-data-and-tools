@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, X, Search } from "lucide-react";
+import { matchesLooseSearch } from "@/lib/search-normalize";
 
 export interface SSOption {
   value: string;
@@ -39,7 +40,7 @@ export function SearchableSelect({
 
   const selectedLabel = options.find((o) => o.value === value)?.label ?? (value || null);
   const filtered = query.trim()
-    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    ? options.filter((o) => matchesLooseSearch(o.label, query))
     : options;
   const useSimpleSelect = searchThreshold !== null && options.length <= searchThreshold;
 

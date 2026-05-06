@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { ChevronDown, Shield, Skull } from "lucide-react";
 import { NATIVE_MAP, mapTerrainCodeToType, parseTerrainMapCsv, type TerrainType } from "@/lib/monster-truth";
 import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
@@ -154,9 +155,14 @@ function compareAnchorScores(a: AnchorScore, b: AnchorScore) {
   return 0;
 }
 
+function clampZoom(value: number) {
+  return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +value.toFixed(2)));
+}
+
 export default function ChaosSetupLabPage() {
   const mapViewportRef = useRef<HTMLDivElement | null>(null);
   const mapGridRef = useRef<HTMLDivElement | null>(null);
+  const previousMapZoomRef = useRef<number>(1);
   const [tool, setTool] = useState<Tool>("none");
   const [reclaimMode, setReclaimMode] = useState<ReclaimMode>("claim");
   const [showCoverageCheck, setShowCoverageCheck] = useState<boolean>(false);
@@ -202,6 +208,31 @@ export default function ChaosSetupLabPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    const viewport = mapViewportRef.current;
+    const previousZoom = previousMapZoomRef.current;
+
+    if (!viewport || previousZoom === mapZoom) {
+      previousMapZoomRef.current = mapZoom;
+      return;
+    }
+
+    const centerXInBaseScale = (viewport.scrollLeft + viewport.clientWidth / 2) / Math.max(previousZoom, 0.01);
+    const centerYInBaseScale = (viewport.scrollTop + viewport.clientHeight / 2) / Math.max(previousZoom, 0.01);
+
+    requestAnimationFrame(() => {
+      const nextScrollLeft = centerXInBaseScale * mapZoom - viewport.clientWidth / 2;
+      const nextScrollTop = centerYInBaseScale * mapZoom - viewport.clientHeight / 2;
+      const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+      const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+
+      viewport.scrollLeft = Math.max(0, Math.min(maxScrollLeft, nextScrollLeft));
+      viewport.scrollTop = Math.max(0, Math.min(maxScrollTop, nextScrollTop));
+    });
+
+    previousMapZoomRef.current = mapZoom;
+  }, [mapZoom]);
 
   const baseSeaTiles = useMemo(() => {
     const out = new Set<string>();
@@ -668,6 +699,18 @@ export default function ChaosSetupLabPage() {
   function isStoneAnchorValid(anchor: Point, mapSea: Set<string>, mapPieces: Map<string, Piece>) {
     if (!inside(anchor.x, anchor.y) || !inside(anchor.x + 1, anchor.y + 1)) return false;
     const fp = stoneFootprint(anchor);
+    const footprintKeys = new Set(fp.map((p) => keyOf(p.x, p.y)));
+
+    // Prevent any 2x2 footprint intersection with already placed stones.
+    for (const [k, piece] of mapPieces.entries()) {
+      if (piece !== "stone") continue;
+      const existingAnchor = parseKey(k);
+      const existingFootprint = stoneFootprint(existingAnchor);
+      if (existingFootprint.some((p) => footprintKeys.has(keyOf(p.x, p.y)))) {
+        return false;
+      }
+    }
+
     for (const p of fp) {
       const k = keyOf(p.x, p.y);
       if (mapSea.has(k)) return false;
@@ -1654,6 +1697,12 @@ export default function ChaosSetupLabPage() {
   const unitTileStandable = openUnitTile
     ? !seaTiles.has(keyOf(openUnitTile.x, openUnitTile.y)) && !occupiedByStones.has(keyOf(openUnitTile.x, openUnitTile.y))
     : false;
+  const zoomPercent = Math.round(mapZoom * 100);
+  const handleZoomChange = (values: number[]) => {
+    const next = values[0];
+    if (typeof next !== "number" || Number.isNaN(next)) return;
+    setMapZoom(clampZoom(next));
+  };
 
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-4 p-4">
@@ -1879,9 +1928,19 @@ export default function ChaosSetupLabPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" onClick={focusSetupView}>Focus Setup</Button>
-            <Button size="sm" variant="outline" onClick={() => setMapZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))}>-</Button>
-            <Button size="sm" variant="outline" onClick={() => setMapZoom(1)}>{Math.round(mapZoom * 100)}%</Button>
-            <Button size="sm" variant="outline" onClick={() => setMapZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))}>+</Button>
+            <div className="flex min-w-[220px] items-center gap-2 rounded-md border border-border/70 px-2 py-1">
+              <span className="text-xs font-medium text-muted-foreground">Zoom</span>
+              <Slider
+                min={ZOOM_MIN}
+                max={ZOOM_MAX}
+                step={ZOOM_STEP}
+                value={[mapZoom]}
+                onValueChange={handleZoomChange}
+                aria-label="Map zoom"
+                className="w-[160px]"
+              />
+              <Button size="sm" variant="outline" onClick={() => setMapZoom(1)}>{zoomPercent}%</Button>
+            </div>
             <Button size="sm" variant="outline" onClick={copyDiagnostics}>Copy Diagnostics</Button>
             <Button size="sm" variant="outline" onClick={clearAll}>Clear</Button>
           </div>
@@ -1896,7 +1955,7 @@ export default function ChaosSetupLabPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="relative">
         <CardContent ref={mapViewportRef} className="max-h-[72vh] overflow-auto p-2">
           <div
             ref={mapGridRef}
@@ -1933,6 +1992,22 @@ export default function ChaosSetupLabPage() {
             )}
           </div>
         </CardContent>
+        <div className="pointer-events-none absolute right-2 top-1/2 z-20 -translate-y-1/2">
+          <div className="pointer-events-auto flex items-center">
+            <Slider
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              step={ZOOM_STEP}
+              value={[mapZoom]}
+              onValueChange={handleZoomChange}
+              orientation="vertical"
+              aria-label="Map zoom slider on map"
+              className="h-72 w-6 flex-col"
+              trackClassName="mx-auto h-full w-[3px] rounded-full bg-primary/20"
+              thumbClassName="h-5 w-5 border-primary/70 bg-background shadow"
+            />
+          </div>
+        </div>
       </Card>
 
       <Card>
