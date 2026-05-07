@@ -32,6 +32,7 @@ import { FACILITIES } from "@/game-data/facilities";
 import { FacilityCard } from "./houses";
 import facilityLookupCsv from "../../../../data/Sheet csv/KA GameData - Facility_lookup.csv?raw";
 import expCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Exp.csv?raw";
+import itemCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Item.csv?raw";
 import jobCsv from "../../../../data/Sheet csv/KA GameData - Job.csv?raw";
 
 type EquipmentSlot = "Head" | "Weapon" | "Shield" | "Armor" | "Accessory" | "-";
@@ -65,6 +66,8 @@ type SkillRow = {
 
 type ItemRow = {
   name: string;
+  category: number;
+  type: number;
   craftGroup: number;
   studioLevel: number;
   craftingIntelligence: number;
@@ -482,6 +485,8 @@ async function fetchItemRows(): Promise<ItemRow[]> {
   const rows = data.table.rows as Array<{ c: Array<{ v: string | number | null } | null> }>;
 
   const nameIndex = fallbackIndex(findColumnIndex(cols, [/^name$/i]), 1);
+  const categoryIndex = fallbackIndex(findColumnIndex(cols, [/^category$/i]), 2);
+  const typeIndex = fallbackIndex(findColumnIndex(cols, [/^type$/i]), 3);
   const craftGroupIndex = fallbackIndex(findColumnIndex(cols, [/^craftgroup$/i]), 6);
   const studioIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTermStudioLevel/i, /crafttermstudiolevel/i]), 28);
   const intIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTermIntelligence/i, /crafttermintelligence/i]), 29);
@@ -494,17 +499,29 @@ async function fetchItemRows(): Promise<ItemRow[]> {
   const eggValueIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusValue/i, /eggbonusvalue/i]), 23);
   const eggExpIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusExp/i, /eggbonusexp/i]), 24);
   const eggTimeIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusTime/i, /eggbonustime/i]), 25);
-  const shopFlagIndex = fallbackIndex(findColumnIndex(cols, [/^flag$/i]), 32);
+  const shopFlagIndices = cols
+    .map((col, index) => (/^flag$/i.test(col) ? index : -1))
+    .filter((index) => index >= 0);
+  const fallbackShopFlagIndex = fallbackIndex(findColumnIndex(cols, [/^flag$/i]), 32);
 
-  return rows
+  const sheetRows = rows
     .map((row) => {
       const cells = row.c ?? [];
       const name = getText(cells, nameIndex);
       const studioLevel = getNumeric(cells, studioIndex);
       const craftingIntelligence = getNumeric(cells, intIndex);
-      if (!name || studioLevel <= 0) return null;
+      if (!name) return null;
+
+      const mergedShopFlag = (shopFlagIndices.length > 0 ? shopFlagIndices : [fallbackShopFlagIndex])
+        .reduce((acc, index) => {
+          const value = Number(cells[index]?.v ?? 0);
+          return acc | (Number.isFinite(value) ? value : 0);
+        }, 0);
+
       return {
         name,
+        category: getNumeric(cells, categoryIndex),
+        type: getNumeric(cells, typeIndex),
         craftGroup: getNumeric(cells, craftGroupIndex),
         studioLevel,
         craftingIntelligence,
@@ -517,14 +534,92 @@ async function fetchItemRows(): Promise<ItemRow[]> {
         eggBonusValue: getNumeric(cells, eggValueIndex),
         eggBonusExp: getNumeric(cells, eggExpIndex),
         eggBonusTime: getNumeric(cells, eggTimeIndex),
-        shopFlag: getNumeric(cells, shopFlagIndex),
+        shopFlag: mergedShopFlag,
       };
     })
-    .filter((row): row is ItemRow => !!row)
-    .sort((a, b) => {
+    .filter((row): row is ItemRow => !!row);
+
+  const fallbackRows = parseItemRowsFromCsv(itemCsv);
+  if (fallbackRows.length === 0) {
+    return sheetRows.sort((a, b) => {
       const studioDiff = a.studioLevel - b.studioLevel;
       return studioDiff !== 0 ? studioDiff : a.name.localeCompare(b.name);
     });
+  }
+
+  const mergedByName = new Map<string, ItemRow>();
+  for (const row of fallbackRows) mergedByName.set(row.name, row);
+  for (const row of sheetRows) mergedByName.set(row.name, { ...mergedByName.get(row.name), ...row });
+
+  return Array.from(mergedByName.values()).sort((a, b) => {
+    const studioDiff = a.studioLevel - b.studioLevel;
+    return studioDiff !== 0 ? studioDiff : a.name.localeCompare(b.name);
+  });
+}
+
+function parseItemRowsFromCsv(rawCsv: string): ItemRow[] {
+  const rows = parseCsv(rawCsv);
+  if (rows.length === 0) return [];
+
+  const headerRow = rows.find((row) => row.some((cell) => /^id$/i.test(String(cell).trim())) && row.some((cell) => /^name$/i.test(String(cell).trim())));
+  if (!headerRow) return [];
+
+  const header = headerRow.map((cell) => String(cell).trim());
+  const dataStart = rows.indexOf(headerRow) + 1;
+  const indexOf = (label: string, fallback = -1) => {
+    const index = header.findIndex((cell) => cell.toLowerCase() === label.toLowerCase());
+    return index >= 0 ? index : fallback;
+  };
+
+  const nameIndex = indexOf("name", 1);
+  const categoryIndex = indexOf("category", 2);
+  const typeIndex = indexOf("type", 3);
+  const craftGroupIndex = indexOf("craftGroup", 6);
+  const bonusCategoryIndex = indexOf("bonusCategory", 18);
+  const bonusTypeIndex = indexOf("bonusType", 19);
+  const bonusMinValueIndex = indexOf("bonusMinValue", 20);
+  const bonusMaxValueIndex = indexOf("bonusMaxValue", 21);
+  const eggTypeIndex = indexOf("eggBonusType", 22);
+  const eggValueIndex = indexOf("eggBonusValue", 23);
+  const eggExpIndex = indexOf("eggBonusExp", 24);
+  const eggTimeIndex = indexOf("eggBonusTime", 25);
+  const studioIndex = indexOf("craftTermStudioLevel", 28);
+  const intIndex = indexOf("craftTermIntelligence", 29);
+  const timeIndex = indexOf("craftTimeSeconds", 30);
+  const flagIndexes = header.map((cell, index) => (/^flag$/i.test(cell) ? index : -1)).filter((index) => index >= 0);
+
+  const output: ItemRow[] = [];
+  for (const row of rows.slice(dataStart)) {
+    const name = String(row[nameIndex] ?? "").trim();
+    if (!name) continue;
+
+    const mergedShopFlag = (flagIndexes.length > 0 ? flagIndexes : [32])
+      .reduce((acc, index) => {
+        const value = Number(row[index] ?? 0);
+        return acc | (Number.isFinite(value) ? value : 0);
+      }, 0);
+
+    output.push({
+      name,
+      category: Number(row[categoryIndex] ?? 0) || 0,
+      type: Number(row[typeIndex] ?? 0) || 0,
+      craftGroup: Number(row[craftGroupIndex] ?? 0) || 0,
+      studioLevel: Number(row[studioIndex] ?? 0) || 0,
+      craftingIntelligence: Number(row[intIndex] ?? 0) || 0,
+      craftTimeSeconds: Number(row[timeIndex] ?? 0) || 0,
+      bonusCategory: Number(row[bonusCategoryIndex] ?? 0) || 0,
+      bonusType: Number(row[bonusTypeIndex] ?? 0) || 0,
+      bonusMinValue: Number(row[bonusMinValueIndex] ?? 0) || 0,
+      bonusMaxValue: Number(row[bonusMaxValueIndex] ?? 0) || 0,
+      eggBonusType: Number(row[eggTypeIndex] ?? 0) || 0,
+      eggBonusValue: Number(row[eggValueIndex] ?? 0) || 0,
+      eggBonusExp: Number(row[eggExpIndex] ?? 0) || 0,
+      eggBonusTime: Number(row[eggTimeIndex] ?? 0) || 0,
+      shopFlag: mergedShopFlag,
+    });
+  }
+
+  return output;
 }
 
 function ShopHeader({ selectedShop }: {
@@ -990,11 +1085,16 @@ export default function ShopsPage() {
     [skillRows, skillSearch, studioFilter, intFilter]
   );
   const itemShopRows = useMemo(
-    () => itemRows.filter((row) => (row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 && (row.shopFlag & COOKED_ITEM_FLAG) === 0),
+    () => itemRows.filter((row) => {
+      const isCooked = (row.shopFlag & COOKED_ITEM_FLAG) !== 0;
+      const isOrchard = row.craftGroup === ORCHARD_FRUIT_TREE_CRAFT_GROUP;
+      const isMaterialFoodItem = row.category === 5 && row.type === 1;
+      return !isCooked && !isOrchard && ((row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 || isMaterialFoodItem);
+    }),
     [itemRows]
   );
   const restaurantRows = useMemo(
-    () => itemRows.filter((row) => (row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 && (row.shopFlag & COOKED_ITEM_FLAG) !== 0),
+    () => itemRows.filter((row) => (row.shopFlag & COOKED_ITEM_FLAG) !== 0),
     [itemRows]
   );
   const orchardRows = useMemo(
@@ -1019,14 +1119,18 @@ export default function ShopsPage() {
     const byName = new Map<string, Set<string>>();
     for (const row of itemRows) {
       const bucket = byName.get(row.name) ?? new Set<string>();
-      if ((row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 && (row.shopFlag & COOKED_ITEM_FLAG) === 0) {
-        bucket.add("Item Shop");
-      }
-      if ((row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 && (row.shopFlag & COOKED_ITEM_FLAG) !== 0) {
+      const isCooked = (row.shopFlag & COOKED_ITEM_FLAG) !== 0;
+      const isOrchard = row.craftGroup === ORCHARD_FRUIT_TREE_CRAFT_GROUP;
+      const isMaterialFoodItem = row.category === 5 && row.type === 1;
+
+      if (isCooked) {
         bucket.add("Restaurant");
       }
-      if (row.craftGroup === ORCHARD_FRUIT_TREE_CRAFT_GROUP) {
+      if (isOrchard) {
         bucket.add("Orchard");
+      }
+      if (!isCooked && !isOrchard && ((row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 || isMaterialFoodItem)) {
+        bucket.add("Item Shop");
       }
       if (bucket.size === 0) {
         bucket.add("Other sources");

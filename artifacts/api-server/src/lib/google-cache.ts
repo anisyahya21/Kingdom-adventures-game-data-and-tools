@@ -4,7 +4,7 @@ import path from "path";
 
 // ─── Refresh intervals ────────────────────────────────────────────────────────
 export const GUIDE_REFRESH_MS = 60_000;          // 1 min  – guides change most often
-export const SHEET_REFRESH_MS = 5 * 60_000;      // 5 min  – stable sheet data
+export const SHEET_REFRESH_MS = 30_000;          // 30 sec – temporary faster sheet refresh
 const WEEKLY_CONQUEST_REFRESH_MS = 2 * 60_000;  // 2 min  – conquest resets weekly
 
 // ─── Whitelisted static Google sources ───────────────────────────────────────
