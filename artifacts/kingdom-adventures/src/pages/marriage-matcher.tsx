@@ -22,6 +22,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { EntityLink } from "@/components/ka/entity-link";
 import { PageHeader } from "@/components/ka/page-header";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
@@ -926,15 +927,22 @@ function PairsPanel({ pairs, jobTypeMap, jobGenMap, allJobNames }: PairsPanelPro
                     {p.affinity && (
                       <span className={`text-[10px] font-bold px-1 py-0 rounded border shrink-0 ${AFFINITY_STYLE[p.affinity] ?? "bg-muted border-border"}`}>{p.affinity}</span>
                     )}
-                    <span className="font-medium truncate">{d1}</span>
+                    <EntityLink type="job" name={d1} className="font-medium truncate hover:no-underline">
+                      {d1}
+                    </EntityLink>
                     <ArrowLeftRight className="w-3 h-3 text-muted-foreground shrink-0" />
-                    <span className="font-medium truncate">{d2}</span>
+                    <EntityLink type="job" name={d2} className="font-medium truncate hover:no-underline">
+                      {d2}
+                    </EntityLink>
                   </div>
                   {sortedChildren.length > 0 && (
                     <div className="mt-1.5 ml-6 flex flex-wrap gap-1.5">
                       {sortedChildren.map((c) => (
                         <Badge key={c} variant="secondary" className="text-xs gap-1.5 px-2 py-1">
-                          <Baby className="w-3 h-3 text-violet-500" />{c}
+                          <Baby className="w-3 h-3 text-violet-500" />
+                          <EntityLink type="job" name={c} className="hover:no-underline">
+                            {c}
+                          </EntityLink>
                         </Badge>
                       ))}
                     </div>
@@ -1193,7 +1201,9 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMa
           ) : (
             <span className="flex items-center gap-1.5 min-w-0">
               <span className="text-base font-bold text-blue-500 leading-none shrink-0">♂</span>
-              <span className="font-medium text-sm truncate">{match.maleJob}</span>
+              <EntityLink type="job" name={match.maleJob} className="font-medium text-sm truncate hover:no-underline">
+                {match.maleJob}
+              </EntityLink>
               {match.maleWasUnassigned && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1219,7 +1229,9 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMa
         ) : (
           <span className="flex items-center gap-1.5 min-w-0">
             <span className="text-base font-bold text-rose-500 leading-none shrink-0">♀</span>
-            <span className="font-medium text-sm text-rose-600 dark:text-rose-400 truncate">{match.femaleJob}</span>
+            <EntityLink type="job" name={match.femaleJob} className="font-medium text-sm text-rose-600 dark:text-rose-400 truncate hover:no-underline">
+              {match.femaleJob}
+            </EntityLink>
             {match.femaleWasUnassigned && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1255,7 +1267,9 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMa
                 return (
                   <Badge key={c} variant="outline" className={`text-[10px] px-1.5 py-0 ${isPriority ? "border-violet-400 text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30" : "text-muted-foreground"}`}>
                     {isPriority && <Star className="w-2.5 h-2.5 mr-0.5 text-violet-500" />}
-                    {c}
+                    <EntityLink type="job" name={c} className="hover:no-underline">
+                      {c}
+                    </EntityLink>
                   </Badge>
                 );
               })}
@@ -1640,7 +1654,9 @@ function SimTab({
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Child Job</p>
-                    <p className="text-sm font-semibold">{result.childJob}</p>
+                    <EntityLink type="job" name={result.childJob} className="text-sm font-semibold hover:no-underline">
+                      {result.childJob}
+                    </EntityLink>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Child Rank</p>
@@ -1734,7 +1750,12 @@ function SimTab({
               <div className="rounded-md border border-border p-3">
                 <p className="text-xs text-muted-foreground mb-2">Simulation 1</p>
                 <div className="space-y-1 text-sm">
-                  <p><span className="text-muted-foreground">Child job:</span> {(resultOne as SimResult).childJob}</p>
+                  <p>
+                    <span className="text-muted-foreground">Child job:</span>{" "}
+                    <EntityLink type="job" name={(resultOne as SimResult).childJob} className="hover:no-underline">
+                      {(resultOne as SimResult).childJob}
+                    </EntityLink>
+                  </p>
                   <p><span className="text-muted-foreground">Child rank:</span> {(resultOne as SimResult).childRank}</p>
                   <p><span className="text-muted-foreground">Affinity:</span> {(resultOne as SimResult).affinityLetter} ({(resultOne as SimResult).affinityNum}%)</p>
                   <p><span className="text-muted-foreground">Awakening:</span> {(resultOne as SimResult).childAwakening}</p>
@@ -1744,7 +1765,12 @@ function SimTab({
               <div className="rounded-md border border-border p-3">
                 <p className="text-xs text-muted-foreground mb-2">Simulation 2</p>
                 <div className="space-y-1 text-sm">
-                  <p><span className="text-muted-foreground">Child job:</span> {(resultTwo as SimResult).childJob}</p>
+                  <p>
+                    <span className="text-muted-foreground">Child job:</span>{" "}
+                    <EntityLink type="job" name={(resultTwo as SimResult).childJob} className="hover:no-underline">
+                      {(resultTwo as SimResult).childJob}
+                    </EntityLink>
+                  </p>
                   <p><span className="text-muted-foreground">Child rank:</span> {(resultTwo as SimResult).childRank}</p>
                   <p><span className="text-muted-foreground">Affinity:</span> {(resultTwo as SimResult).affinityLetter} ({(resultTwo as SimResult).affinityNum}%)</p>
                   <p><span className="text-muted-foreground">Awakening:</span> {(resultTwo as SimResult).childAwakening}</p>

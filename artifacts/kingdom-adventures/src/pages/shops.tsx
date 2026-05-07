@@ -95,18 +95,46 @@ type ItemFacilityRow = {
   facilities: string[];
 };
 
-type FeedCandidateRow = {
-  item: ItemRow;
-  sources: string[];
-  facilities: string[];
-};
-
 const JOB_PARAMETER_ORDER = ["HP", "MP", "Vigor", "ATK", "DEF", "SPEED", "LUCK", "Owned?", "INT", "DEX", "CONS", "MOVE", "Heart"] as const;
 type JobParameterKey = (typeof JOB_PARAMETER_ORDER)[number];
+const ALLY_STAT_MAX = 999;
+const CANONICAL_JOB_NAME_SET = new Set(
+  Object.keys(((localSharedData as { jobs?: Record<string, unknown> }).jobs ?? {})).map((name) => name.trim().toLowerCase())
+);
+const JOB_PARAMETER_DISPLAY_LABELS: Record<JobParameterKey, string> = {
+  HP: "HP",
+  MP: "MP",
+  Vigor: "VIG",
+  ATK: "ATK",
+  DEF: "DEF",
+  SPEED: "SPD",
+  LUCK: "LUK",
+  "Owned?": "OWN",
+  INT: "INT",
+  DEX: "DEX",
+  CONS: "GAT",
+  MOVE: "MOV",
+  Heart: "HRT",
+};
+const JOB_PARAMETER_ICON_KEYS: Partial<Record<JobParameterKey, string>> = {
+  HP: "HP",
+  MP: "MP",
+  Vigor: "Vigor",
+  ATK: "Attack",
+  DEF: "Defence",
+  SPEED: "Speed",
+  LUCK: "Luck",
+  INT: "Intelligence",
+  DEX: "Dexterity",
+  CONS: "Gather",
+  MOVE: "Move",
+  Heart: "Heart",
+};
 
 type JobNeedExpProfile = {
   name: string;
   needExpByParameter: Record<JobParameterKey, number>;
+  maxLevelByParameter: Record<JobParameterKey, number>;
 };
 
 const ITEM_SOURCE_ORDER = ["Item Shop", "Restaurant", "Orchard", "Facility only", "Other sources"] as const;
@@ -123,11 +151,14 @@ const EQUIP_SHEET_URL = googleSheetUrl("equipment");
 const ITEM_SHEET_URL = googleSheetUrl("shops-items");
 const CRAFTABLE_ITEM_FLAG = 128;
 const COOKED_ITEM_FLAG = 1024;
+const AWAKENING_LEVEL_BONUS = 30;
+const MAX_AWAKENING = 99;
 const ORCHARD_FRUIT_TREE_CRAFT_GROUP = 70;
 const KNOWN_ITEM_SHOP_FLAGS: Array<{ mask: number; label: string }> = [
   { mask: CRAFTABLE_ITEM_FLAG, label: "CRAFTABLE_ITEM_FLAG (128)" },
   { mask: COOKED_ITEM_FLAG, label: "COOKED_ITEM_FLAG (1024)" },
 ];
+const ALLY_PLANNER_STORAGE_KEY = "ka.shops.ally-feed-planner.v1";
 const FALLBACK_ITEM_CRAFT_FACILITIES = ["Item Workbench"];
 const FALLBACK_COOKED_CRAFT_FACILITIES = ["Cooking Station"];
 const VALID_SLOTS: EquipmentSlot[] = ["Head", "Weapon", "Shield", "Armor", "Accessory", "-"];
@@ -271,7 +302,8 @@ function parseExpByLevel(rawCsv: string): Map<number, number> {
   for (const row of rows.slice(headerRowIndex + 1)) {
     const level = Number(row[levelIndex] ?? "");
     const exp = Number(row[expIndex] ?? "");
-    if (!Number.isFinite(level) || level < 1 || !Number.isFinite(exp) || exp < 0) continue;
+    // Row N is EXP to go from Lv N -> Lv N+1, so only rows below cap are usable.
+    if (!Number.isFinite(level) || level < 1 || level >= ALLY_STAT_MAX || !Number.isFinite(exp) || exp < 0) continue;
     map.set(level, exp);
   }
   return map;
@@ -292,22 +324,29 @@ function parseJobNeedExpProfiles(rawCsv: string): JobNeedExpProfile[] {
   const statStartIndex = header.findIndex((cell) => /^maxLevel$/i.test(cell));
   if (nameIndex < 0 || statStartIndex < 0) return [];
 
-  const profiles: JobNeedExpProfile[] = [];
+  const profilesByBaseName = new Map<string, JobNeedExpProfile>();
+  const gradePrefix = /^(S|A|B|C|D|E|F)\s+(Grade|Rank)\s+/i;
   for (const row of rows.slice(headerRowIndex + 1)) {
-    const name = String(row[nameIndex] ?? "").trim();
-    if (!name) continue;
+    const rawName = String(row[nameIndex] ?? "").trim();
+    const baseName = rawName.replace(gradePrefix, "").trim();
+    if (CANONICAL_JOB_NAME_SET.size > 0 && !CANONICAL_JOB_NAME_SET.has(baseName.toLowerCase())) continue;
+    if (!baseName || profilesByBaseName.has(baseName)) continue;
 
     const needExpByParameter = {} as Record<JobParameterKey, number>;
+    const maxLevelByParameter = {} as Record<JobParameterKey, number>;
     JOB_PARAMETER_ORDER.forEach((parameter, index) => {
+      const maxLevelIndex = statStartIndex + (index * 5);
       const needExpIndex = statStartIndex + (index * 5) + 1;
+      const maxLevelValue = Number(row[maxLevelIndex] ?? "");
       const value = Number(row[needExpIndex] ?? "");
+      maxLevelByParameter[parameter] = Number.isFinite(maxLevelValue) && maxLevelValue > 0 ? maxLevelValue : 1;
       needExpByParameter[parameter] = Number.isFinite(value) && value > 0 ? value : 100;
     });
 
-    profiles.push({ name, needExpByParameter });
+    profilesByBaseName.set(baseName, { name: baseName, needExpByParameter, maxLevelByParameter });
   }
 
-  return profiles.sort((a, b) => a.name.localeCompare(b.name));
+  return Array.from(profilesByBaseName.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function isLvLimitBonus(item: ItemRow): boolean {
@@ -422,6 +461,26 @@ function getTotalExpNeeded(expByLevel: Map<number, number>, currentLevel: number
     total += Math.floor((baseExp * needExpPercent) / 100);
   }
   return total;
+}
+
+function getLevelAfterGainedExp(
+  expByLevel: Map<number, number>,
+  currentLevel: number,
+  maxLevel: number,
+  needExpPercent: number,
+  gainedExp: number,
+): number {
+  if (gainedExp <= 0 || currentLevel >= maxLevel) return currentLevel;
+  let level = currentLevel;
+  let remaining = gainedExp;
+  while (level < maxLevel) {
+    const baseExp = expByLevel.get(level) ?? 0;
+    const expToNext = Math.floor((baseExp * needExpPercent) / 100);
+    if (expToNext <= 0 || remaining < expToNext) break;
+    remaining -= expToNext;
+    level += 1;
+  }
+  return level;
 }
 
 async function fetchEquipmentRows(): Promise<EquipmentRow[]> {
@@ -1042,17 +1101,24 @@ export default function ShopsPage() {
   const [itemSourceFilter, setItemSourceFilter] = useState<Set<string>>(new Set());
   const [facilitySourceFilter, setFacilitySourceFilter] = useState<Set<string>>(new Set());
   const [furnitureSearch, setFurnitureSearch] = useState("");
-  const [currentAllyLevelInput, setCurrentAllyLevelInput] = useState("1");
-  const [targetAllyLevelInput, setTargetAllyLevelInput] = useState("999");
+  const [plannerAwakeningInput, setPlannerAwakeningInput] = useState("0");
   const [selectedFeedItemName, setSelectedFeedItemName] = useState("");
   const [selectedNeedExpJobName, setSelectedNeedExpJobName] = useState("");
+  const [feedItemQuery, setFeedItemQuery] = useState("");
+  const [jobQuery, setJobQuery] = useState("");
+  const [feedItemDropdownOpen, setFeedItemDropdownOpen] = useState(false);
+  const [jobDropdownOpen, setJobDropdownOpen] = useState(false);
+  const [plannerCurrentStatInputs, setPlannerCurrentStatInputs] = useState<Partial<Record<JobParameterKey, string>>>({});
   const [studioFilter, setStudioFilter] = useState<Set<number>>(new Set());
   const [intFilter, setIntFilter] = useState<Set<number>>(new Set());
   const [showItemReferenceDebug, setShowItemReferenceDebug] = useState(false);
   const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
   const [openReferenceFilterMenu, setOpenReferenceFilterMenu] = useState<"shop-source" | "facility-source" | null>(null);
+  const [plannerStateHydrated, setPlannerStateHydrated] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const referenceFilterMenuRef = useRef<HTMLDivElement>(null);
+  const feedItemDropdownRef = useRef<HTMLDivElement>(null);
+  const jobDropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) setOpenFilterMenu(null);
@@ -1066,6 +1132,41 @@ export default function ShopsPage() {
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (feedItemDropdownRef.current && !feedItemDropdownRef.current.contains(target)) setFeedItemDropdownOpen(false);
+      if (jobDropdownRef.current && !jobDropdownRef.current.contains(target)) setJobDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(ALLY_PLANNER_STORAGE_KEY);
+      if (!raw) {
+        setPlannerStateHydrated(true);
+        return;
+      }
+      const parsed = JSON.parse(raw) as {
+        selectedFeedItemName?: string;
+        selectedNeedExpJobName?: string;
+        plannerAwakeningInput?: string;
+        plannerCurrentStatInputs?: Partial<Record<JobParameterKey, string>>;
+      };
+      if (typeof parsed.selectedFeedItemName === "string") setSelectedFeedItemName(parsed.selectedFeedItemName);
+      if (typeof parsed.selectedNeedExpJobName === "string") setSelectedNeedExpJobName(parsed.selectedNeedExpJobName);
+      if (typeof parsed.plannerAwakeningInput === "string") setPlannerAwakeningInput(parsed.plannerAwakeningInput);
+      if (parsed.plannerCurrentStatInputs && typeof parsed.plannerCurrentStatInputs === "object") {
+        setPlannerCurrentStatInputs(parsed.plannerCurrentStatInputs);
+      }
+    } catch {
+      // Ignore malformed localStorage payloads and continue with defaults.
+    } finally {
+      setPlannerStateHydrated(true);
+    }
   }, []);
 
   const selectedShop = useMemo(
@@ -1285,27 +1386,10 @@ export default function ShopsPage() {
   }, [facilitySourceFilter, itemFacilityRows, itemSearch, itemSourceFilter]);
   const feedCandidateItems = useMemo(
     () => allReferenceItemRows
-      .filter((row) => row.eggBonusExp > 0)
-      .sort((a, b) => (b.eggBonusExp - a.eggBonusExp) || a.name.localeCompare(b.name)),
+      .filter((row) => row.bonusMinValue > 0 && (BONUS_TYPE_PARAMETER_KEYS[row.bonusType]?.length ?? 0) > 0)
+      .sort((a, b) => (b.bonusMinValue - a.bonusMinValue) || a.name.localeCompare(b.name)),
     [allReferenceItemRows]
   );
-  const feedCandidateRows = useMemo<FeedCandidateRow[]>(
-    () => feedCandidateItems.map((item) => ({
-      item,
-      sources: itemSourcesByName.get(item.name) ?? [],
-      facilities: itemFacilityByName.get(item.name)?.facilities ?? [],
-    })),
-    [feedCandidateItems, itemFacilityByName, itemSourcesByName]
-  );
-  const filteredFeedCandidateRows = useMemo(() => {
-    return feedCandidateRows.filter((row) => {
-      if (!matchesQuery(row.item.name, itemSearch)) return false;
-      if (itemSourceFilter.size > 0 && !row.sources.some((source) => itemSourceFilter.has(source))) return false;
-      if (facilitySourceFilter.size === 0) return true;
-      if (facilitySourceFilter.has(NO_FACILITY_SOURCE_FILTER) && row.facilities.length === 0) return true;
-      return row.facilities.some((facility) => facilitySourceFilter.has(facility));
-    });
-  }, [facilitySourceFilter, feedCandidateRows, itemSearch, itemSourceFilter]);
   const selectedShopSourceLabel = itemSourceFilter.size === 0
     ? "All shop sources"
     : itemSourceFilter.size === 1
@@ -1328,6 +1412,9 @@ export default function ShopsPage() {
     [feedCandidateItems, selectedFeedItemName]
   );
   useEffect(() => {
+    if (!feedItemDropdownOpen) setFeedItemQuery(selectedFeedItemName);
+  }, [feedItemDropdownOpen, selectedFeedItemName]);
+  useEffect(() => {
     if (selectedNeedExpJobName && jobNeedExpProfiles.some((job) => job.name === selectedNeedExpJobName)) return;
     setSelectedNeedExpJobName(jobNeedExpProfiles[0]?.name ?? "");
   }, [jobNeedExpProfiles, selectedNeedExpJobName]);
@@ -1335,56 +1422,124 @@ export default function ShopsPage() {
     () => jobNeedExpProfiles.find((job) => job.name === selectedNeedExpJobName) ?? null,
     [jobNeedExpProfiles, selectedNeedExpJobName]
   );
-  const selectedNeedExpPercent = useMemo(() => {
-    if (!selectedNeedExpJob || !selectedFeedItem) return 100;
-    const keys = BONUS_TYPE_PARAMETER_KEYS[selectedFeedItem.bonusType] ?? [];
-    if (keys.length === 0) return 100;
-    const total = keys.reduce((sum, key) => sum + (selectedNeedExpJob.needExpByParameter[key] ?? 100), 0);
-    return total / keys.length;
-  }, [selectedNeedExpJob, selectedFeedItem]);
-  const currentAllyLevel = useMemo(() => {
-    const parsed = Number.parseInt(currentAllyLevelInput, 10);
-    if (!Number.isFinite(parsed)) return 1;
-    return Math.min(Math.max(parsed, 1), maxExpLevel);
-  }, [currentAllyLevelInput, maxExpLevel]);
-  const targetAllyLevel = useMemo(() => {
-    const parsed = Number.parseInt(targetAllyLevelInput, 10);
-    if (!Number.isFinite(parsed)) return Math.min(999, maxExpLevel);
-    return Math.min(Math.max(parsed, 1), maxExpLevel);
-  }, [targetAllyLevelInput, maxExpLevel]);
-  const allyExpNeeded = useMemo(
-    () => getTotalExpNeeded(expByLevel, currentAllyLevel, targetAllyLevel, selectedNeedExpPercent),
-    [currentAllyLevel, expByLevel, selectedNeedExpPercent, targetAllyLevel]
+  useEffect(() => {
+    if (!jobDropdownOpen) setJobQuery(selectedNeedExpJobName);
+  }, [jobDropdownOpen, selectedNeedExpJobName]);
+  const filteredFeedItemOptions = useMemo(
+    () => feedCandidateItems.filter((item) => matchesQuery(item.name, feedItemQuery)),
+    [feedCandidateItems, feedItemQuery]
   );
-  const feedItemsNeeded = useMemo(() => {
-    if (!selectedFeedItem || selectedFeedItem.eggBonusExp <= 0) return null;
-    if (allyExpNeeded <= 0) return 0;
-    return Math.ceil(allyExpNeeded / selectedFeedItem.eggBonusExp);
-  }, [allyExpNeeded, selectedFeedItem]);
-  const selectedFeedTotalBonusRange = useMemo(() => {
-    if (!selectedFeedItem || feedItemsNeeded === null || feedItemsNeeded <= 0) return 0;
+  const filteredJobOptions = useMemo(
+    () => jobNeedExpProfiles.filter((job) => matchesQuery(job.name, jobQuery)),
+    [jobNeedExpProfiles, jobQuery]
+  );
+  const plannerAwakening = useMemo(() => {
+    const parsed = Number.parseInt(plannerAwakeningInput, 10);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.min(Math.max(parsed, 0), MAX_AWAKENING);
+  }, [plannerAwakeningInput]);
+  const selectedFeedStatKeys = useMemo<JobParameterKey[]>(() => {
+    if (!selectedFeedItem) return [];
+    return BONUS_TYPE_PARAMETER_KEYS[selectedFeedItem.bonusType] ?? [];
+  }, [selectedFeedItem]);
+  const selectedFeedStatExpRows = useMemo(() => {
+    return selectedFeedStatKeys.map((key) => {
+      const baseMaxLevel = selectedNeedExpJob?.maxLevelByParameter[key] ?? 1;
+      const targetStatLevel = Math.min(ALLY_STAT_MAX, maxExpLevel + 1, baseMaxLevel + (AWAKENING_LEVEL_BONUS * plannerAwakening));
+      const rawInput = plannerCurrentStatInputs[key] ?? "1";
+      const parsed = Number.parseInt(rawInput, 10);
+      const currentStatLevel = Number.isFinite(parsed)
+        ? Math.min(Math.max(parsed, 1), targetStatLevel)
+        : 1;
+      const needExpPercent = selectedNeedExpJob?.needExpByParameter[key] ?? 100;
+      const expNeeded = getTotalExpNeeded(expByLevel, currentStatLevel, targetStatLevel, needExpPercent);
+      return {
+        key,
+        targetStatLevel,
+        currentStatLevel,
+        needExpPercent,
+        expNeeded,
+      };
+    });
+  }, [expByLevel, maxExpLevel, plannerAwakening, plannerCurrentStatInputs, selectedFeedStatKeys, selectedNeedExpJob]);
+  const plannerTotalExpNeeded = useMemo(() => {
+    if (selectedFeedStatExpRows.length === 0) return 0;
+    return Math.max(...selectedFeedStatExpRows.map((row) => row.expNeeded));
+  }, [selectedFeedStatExpRows]);
+  const selectedNeedExpRange = useMemo(() => {
+    if (selectedFeedStatExpRows.length === 0) return null;
+    const values = selectedFeedStatExpRows.map((row) => row.needExpPercent);
     return {
-      min: selectedFeedItem.bonusMinValue * feedItemsNeeded,
-      max: selectedFeedItem.bonusMaxValue * feedItemsNeeded,
+      min: Math.min(...values),
+      max: Math.max(...values),
     };
-  }, [feedItemsNeeded, selectedFeedItem]);
-  const expPreviewRows = useMemo(() => {
-    const start = Math.max(1, Math.min(currentAllyLevel, targetAllyLevel));
-    const end = Math.min(maxExpLevel, start + 9);
-    let cumulative = 0;
-    for (let level = 1; level < start; level += 1) {
-      cumulative += expByLevel.get(level) ?? 0;
+  }, [selectedFeedStatExpRows]);
+  const selectedFeedExpPerItem = useMemo(() => {
+    if (!selectedFeedItem) return 0;
+    return Math.max(0, selectedFeedItem.bonusMinValue);
+  }, [selectedFeedItem]);
+  const feedItemsNeeded = useMemo(() => {
+    if (!selectedFeedItem || selectedFeedExpPerItem <= 0) return null;
+    if (plannerTotalExpNeeded <= 0) return 0;
+    return Math.ceil(plannerTotalExpNeeded / selectedFeedExpPerItem);
+  }, [plannerTotalExpNeeded, selectedFeedExpPerItem, selectedFeedItem]);
+  useEffect(() => {
+    if (selectedFeedStatKeys.length === 0) {
+      setPlannerCurrentStatInputs({});
+      return;
     }
+    setPlannerCurrentStatInputs((prev) => {
+      const next: Partial<Record<JobParameterKey, string>> = {};
+      selectedFeedStatKeys.forEach((key) => {
+        next[key] = prev[key] ?? "1";
+      });
+      return next;
+    });
+  }, [selectedFeedStatKeys]);
+  useEffect(() => {
+    if (typeof window === "undefined" || !plannerStateHydrated) return;
+    const payload = {
+      selectedFeedItemName,
+      selectedNeedExpJobName,
+      plannerAwakeningInput,
+      plannerCurrentStatInputs,
+    };
+    window.localStorage.setItem(ALLY_PLANNER_STORAGE_KEY, JSON.stringify(payload));
+  }, [plannerAwakeningInput, plannerCurrentStatInputs, plannerStateHydrated, selectedFeedItemName, selectedNeedExpJobName]);
+  const selectedFeedStatProjection = useMemo(() => {
+    if (!selectedFeedItem || selectedFeedStatKeys.length === 0) return [];
+    const itemCount = feedItemsNeeded ?? 0;
+    const expFromPlannedFeed = selectedFeedExpPerItem * itemCount;
 
-    const rows: Array<{ level: number; expToNext: number; cumulativeToNext: number }> = [];
-    for (let level = start; level <= end; level += 1) {
-      const baseExp = expByLevel.get(level) ?? 0;
-      const expToNext = Math.floor((baseExp * selectedNeedExpPercent) / 100);
-      cumulative += expToNext;
-      rows.push({ level, expToNext, cumulativeToNext: cumulative });
-    }
-    return rows;
-  }, [currentAllyLevel, expByLevel, maxExpLevel, selectedNeedExpPercent, targetAllyLevel]);
+    return selectedFeedStatKeys.map((key) => {
+      const expRow = selectedFeedStatExpRows.find((row) => row.key === key);
+      const statCap = expRow?.targetStatLevel ?? 1;
+      const currentStat = expRow?.currentStatLevel ?? 1;
+      const expNeeded = expRow?.expNeeded ?? 0;
+      const needExpPercent = expRow?.needExpPercent ?? 100;
+      const projectedLevel = getLevelAfterGainedExp(expByLevel, currentStat, statCap, needExpPercent, expFromPlannedFeed);
+      const addedLevels = Math.max(0, projectedLevel - currentStat);
+      const itemsToMax = selectedFeedExpPerItem > 0 ? Math.ceil(expNeeded / selectedFeedExpPerItem) : null;
+
+      return {
+        key,
+        label: JOB_PARAMETER_DISPLAY_LABELS[key],
+        statCap,
+        currentStat,
+        addedMin: addedLevels,
+        addedMax: addedLevels,
+        itemsToCapEarliest: itemsToMax,
+        itemsToCapLatest: itemsToMax,
+      };
+    });
+  }, [expByLevel, feedItemsNeeded, selectedFeedExpPerItem, selectedFeedItem, selectedFeedStatExpRows, selectedFeedStatKeys]);
+  const selectedFeedEarliestCapItems = useMemo(() => {
+    const values = selectedFeedStatProjection
+      .map((row) => row.itemsToCapEarliest)
+      .filter((value): value is number => value !== null);
+    if (values.length === 0) return null;
+    return Math.min(...values);
+  }, [selectedFeedStatProjection]);
   const filteredItemRows = useMemo(
     () => itemShopRows.filter((row) => matchesQuery(row.name, itemSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
     [itemShopRows, itemSearch, studioFilter, intFilter]
@@ -2016,159 +2171,294 @@ export default function ShopsPage() {
 
                 <div className="space-y-2 pt-1">
                   <h3 className="text-sm font-semibold">Ally Feed Planner</h3>
-                  <p className="text-xs text-muted-foreground">Target-level estimator layout is ready and will use finalized XP inputs once available.</p>
+                  <p className="text-xs text-muted-foreground">Pick a job and awakening first. Max stat levels are auto-derived per stat from that profile.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground">Current ally level</label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={maxExpLevel}
-                      value={currentAllyLevelInput}
-                      onChange={(e) => setCurrentAllyLevelInput(e.target.value)}
-                      className="h-9 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Target ally level</label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={maxExpLevel}
-                      value={targetAllyLevelInput}
-                      onChange={(e) => setTargetAllyLevelInput(e.target.value)}
-                      className="h-9 mt-1"
-                    />
-                  </div>
-                  <div>
                     <label className="text-xs text-muted-foreground">Feed item</label>
-                    <select
-                      value={selectedFeedItemName}
-                      onChange={(e) => setSelectedFeedItemName(e.target.value)}
-                      className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                      {feedCandidateItems.map((item) => (
-                        <option key={item.name} value={item.name}>
-                          {item.name} (Ally EXP {item.eggBonusExp})
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative mt-1" ref={feedItemDropdownRef}>
+                      <Input
+                        value={feedItemDropdownOpen ? feedItemQuery : selectedFeedItemName}
+                        onChange={(e) => {
+                          setFeedItemQuery(e.target.value);
+                          setFeedItemDropdownOpen(true);
+                        }}
+                        onFocus={() => {
+                          setFeedItemQuery(selectedFeedItemName);
+                          setFeedItemDropdownOpen(true);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") {
+                            setFeedItemDropdownOpen(false);
+                            return;
+                          }
+                          if (e.key === "Enter" && filteredFeedItemOptions[0]) {
+                            e.preventDefault();
+                            setSelectedFeedItemName(filteredFeedItemOptions[0].name);
+                            setFeedItemQuery(filteredFeedItemOptions[0].name);
+                            setFeedItemDropdownOpen(false);
+                          }
+                        }}
+                        placeholder="Type to filter feed items"
+                        className={`h-9 pr-9 ${feedItemDropdownOpen ? "rounded-b-none border-primary ring-1 ring-primary" : ""}`}
+                        role="combobox"
+                        aria-expanded={feedItemDropdownOpen}
+                        aria-controls="feed-item-results"
+                      />
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setFeedItemDropdownOpen((open) => !open);
+                        }}
+                        className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label={feedItemDropdownOpen ? "Close feed items" : "Open feed items"}
+                      >
+                        <ChevronDown className={`h-4 w-4 transition-transform ${feedItemDropdownOpen ? "rotate-180" : ""}`} />
+                      </button>
+                      {feedItemDropdownOpen && (
+                        <div
+                          id="feed-item-results"
+                          className="absolute left-0 right-0 top-full z-50 max-h-64 overflow-y-auto rounded-b-md border border-t-0 border-primary bg-popover shadow-lg"
+                        >
+                          {filteredFeedItemOptions.length === 0 ? (
+                            <div className="px-3 py-3 text-center text-xs text-muted-foreground">No matching feed items</div>
+                          ) : (
+                            filteredFeedItemOptions.map((item) => (
+                              <button
+                                key={item.name}
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setSelectedFeedItemName(item.name);
+                                  setFeedItemQuery(item.name);
+                                  setFeedItemDropdownOpen(false);
+                                }}
+                                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
+                                  item.name === selectedFeedItemName ? "bg-primary/10 font-medium text-foreground" : ""
+                                }`}
+                              >
+                                <span className="truncate">{item.name}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">Job needExp profile</label>
-                    <select
-                      value={selectedNeedExpJobName}
-                      onChange={(e) => setSelectedNeedExpJobName(e.target.value)}
-                      className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                      {jobNeedExpProfiles.map((job) => (
-                        <option key={job.name} value={job.name}>
-                          {job.name}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="text-xs text-muted-foreground">Job</label>
+                    <div className="relative mt-1" ref={jobDropdownRef}>
+                      <Input
+                        value={jobDropdownOpen ? jobQuery : selectedNeedExpJobName}
+                        onChange={(e) => {
+                          setJobQuery(e.target.value);
+                          setJobDropdownOpen(true);
+                        }}
+                        onFocus={() => {
+                          setJobQuery(selectedNeedExpJobName);
+                          setJobDropdownOpen(true);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") {
+                            setJobDropdownOpen(false);
+                            return;
+                          }
+                          if (e.key === "Enter" && filteredJobOptions[0]) {
+                            e.preventDefault();
+                            setSelectedNeedExpJobName(filteredJobOptions[0].name);
+                            setJobQuery(filteredJobOptions[0].name);
+                            setJobDropdownOpen(false);
+                          }
+                        }}
+                        placeholder="Type to filter jobs"
+                        className={`h-9 pr-9 ${jobDropdownOpen ? "rounded-b-none border-primary ring-1 ring-primary" : ""}`}
+                        role="combobox"
+                        aria-expanded={jobDropdownOpen}
+                        aria-controls="job-results"
+                      />
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setJobDropdownOpen((open) => !open);
+                        }}
+                        className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label={jobDropdownOpen ? "Close jobs" : "Open jobs"}
+                      >
+                        <ChevronDown className={`h-4 w-4 transition-transform ${jobDropdownOpen ? "rotate-180" : ""}`} />
+                      </button>
+                      {jobDropdownOpen && (
+                        <div
+                          id="job-results"
+                          className="absolute left-0 right-0 top-full z-50 max-h-64 overflow-y-auto rounded-b-md border border-t-0 border-primary bg-popover shadow-lg"
+                        >
+                          {filteredJobOptions.length === 0 ? (
+                            <div className="px-3 py-3 text-center text-xs text-muted-foreground">No matching jobs</div>
+                          ) : (
+                            filteredJobOptions.map((job) => (
+                              <button
+                                key={job.name}
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setSelectedNeedExpJobName(job.name);
+                                  setJobQuery(job.name);
+                                  setJobDropdownOpen(false);
+                                }}
+                                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
+                                  job.name === selectedNeedExpJobName ? "bg-primary/10 font-medium text-foreground" : ""
+                                }`}
+                              >
+                                <span className="truncate">{job.name}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Awakening</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={MAX_AWAKENING}
+                      value={plannerAwakeningInput}
+                      onChange={(e) => setPlannerAwakeningInput(e.target.value)}
+                      className="h-9 mt-1"
+                    />
                   </div>
                 </div>
 
+                {selectedFeedStatKeys.length > 0 && (
+                  <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+                    <div className="text-xs text-muted-foreground">Current ally stat levels for affected stats (Current / Max from job + awakening)</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {selectedFeedStatKeys.map((key) => {
+                        const expRow = selectedFeedStatExpRows.find((row) => row.key === key);
+                        const statCap = expRow?.targetStatLevel ?? 1;
+                        return (
+                        <div key={key} className="rounded-md border border-border bg-background/60 px-2 py-1.5 flex items-center justify-between gap-2">
+                          <div className="inline-flex items-center gap-1.5 min-w-0">
+                            {statIcons[JOB_PARAMETER_ICON_KEYS[key] ?? ""] ? (
+                              <img
+                                src={statIcons[JOB_PARAMETER_ICON_KEYS[key] ?? ""]}
+                                alt={JOB_PARAMETER_DISPLAY_LABELS[key]}
+                                className="h-4 w-4 object-contain"
+                              />
+                            ) : null}
+                            <span className="text-xs font-medium text-foreground">{JOB_PARAMETER_DISPLAY_LABELS[key]}</span>
+                          </div>
+                          <div className="inline-flex items-center gap-1">
+                            <span className="text-[11px] text-muted-foreground">Lv</span>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={statCap}
+                              value={plannerCurrentStatInputs[key] ?? "1"}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setPlannerCurrentStatInputs((prev) => ({ ...prev, [key]: value }));
+                              }}
+                              className="h-7 w-20 text-xs px-2 text-center"
+                            />
+                            <span className="text-[11px] text-muted-foreground">/ {statCap}</span>
+                          </div>
+                        </div>
+                      );})}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
                   <div className="rounded-md border border-border p-3">
-                    <div className="text-xs text-muted-foreground">EXP table max level</div>
-                    <div className="font-semibold">{maxExpLevel}</div>
+                    <div className="text-xs text-muted-foreground">Awakening (applied)</div>
+                    <div className="font-semibold">+{plannerAwakening}</div>
                   </div>
                   <div className="rounded-md border border-border p-3">
-                    <div className="text-xs text-muted-foreground">Total EXP needed</div>
-                    <div className="font-semibold">{allyExpNeeded.toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground">Total EXP needed (max affected stat)</div>
+                    <div className="font-semibold">{plannerTotalExpNeeded.toLocaleString()}</div>
                   </div>
                   <div className="rounded-md border border-border p-3">
-                    <div className="text-xs text-muted-foreground">needExp multiplier</div>
-                    <div className="font-semibold">{selectedNeedExpPercent.toFixed(1)}%</div>
+                    <div className="text-xs text-muted-foreground">Selected item EXP each (per affected stat)</div>
+                    <div className="font-semibold">{selectedFeedExpPerItem > 0 ? selectedFeedExpPerItem.toLocaleString() : "-"}</div>
                   </div>
                   <div className="rounded-md border border-border p-3">
-                    <div className="text-xs text-muted-foreground">Selected item EXP each</div>
-                    <div className="font-semibold">{selectedFeedItem?.eggBonusExp?.toLocaleString() ?? "-"}</div>
+                    <div className="text-xs text-muted-foreground">needExp multiplier range</div>
+                    <div className="font-semibold">
+                      {selectedNeedExpRange
+                        ? selectedNeedExpRange.min === selectedNeedExpRange.max
+                          ? `${selectedNeedExpRange.min.toFixed(1)}%`
+                          : `${selectedNeedExpRange.min.toFixed(1)}% to ${selectedNeedExpRange.max.toFixed(1)}%`
+                        : "-"}
+                    </div>
                   </div>
                   <div className="rounded-md border border-border p-3">
                     <div className="text-xs text-muted-foreground">Items needed</div>
                     <div className="font-semibold">{feedItemsNeeded === null ? "-" : feedItemsNeeded.toLocaleString()}</div>
                   </div>
                   <div className="rounded-md border border-border p-3">
-                    <div className="text-xs text-muted-foreground">Total ally bonus effect (selected item)</div>
-                    <div className="font-semibold">
-                      {selectedFeedTotalBonusRange
-                        ? renderAllyBonusEffect(selectedFeedItem as ItemRow, statIcons, feedItemsNeeded ?? 0)
-                        : "-"}
-                    </div>
+                    <div className="text-xs text-muted-foreground">Earliest max hit (items)</div>
+                    <div className="font-semibold">{selectedFeedEarliestCapItems === null ? "-" : selectedFeedEarliestCapItems.toLocaleString()}</div>
                   </div>
                 </div>
 
-                <div className="space-y-2 pt-1">
-                  <h3 className="text-sm font-semibold">EXP Curve Preview (From Exp Sheet)</h3>
-                  <p className="text-xs text-muted-foreground">Per-level EXP and cumulative EXP for the current planning window after applying selected job needExp multiplier.</p>
-                </div>
-
-                <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/40 text-muted-foreground">
-                      <tr>
-                        <th className="px-3 py-2 text-center font-medium">Level</th>
-                        <th className="px-3 py-2 text-center font-medium">EXP to next level</th>
-                        <th className="px-3 py-2 text-center font-medium">Cumulative EXP to next level</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {expPreviewRows.map((row) => (
-                        <tr key={row.level} className="border-t border-border/70">
-                          <td className="px-3 py-2 text-center">{row.level}</td>
-                          <td className="px-3 py-2 text-center">{row.expToNext.toLocaleString()}</td>
-                          <td className="px-3 py-2 text-center">{row.cumulativeToNext.toLocaleString()}</td>
+                {selectedFeedStatProjection.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                      Job: <span className="font-semibold text-primary">{selectedNeedExpJob?.name ?? "-"}</span>
+                    </div>
+                    <div className="overflow-x-auto rounded-lg border border-border">
+                      <table className="w-full text-sm">
+                      <thead className="bg-muted/40 text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Stat</th>
+                          <th className="px-3 py-2 text-center font-medium">Current</th>
+                          <th className="px-3 py-2 text-center font-medium">Target</th>
+                          <th className="px-3 py-2 text-center font-medium">needExp</th>
+                          <th className="px-3 py-2 text-center font-medium">EXP to target</th>
+                          <th className="px-3 py-2 text-center font-medium">Levels gained by target feed</th>
+                          <th className="px-3 py-2 text-center font-medium">Items to max</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="space-y-2 pt-1">
-                  <h3 className="text-sm font-semibold">Feed Item Pool</h3>
-                  <p className="text-xs text-muted-foreground">Dedicated source list of items currently carrying ally feed values.</p>
-                </div>
-
-                <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/40 text-muted-foreground">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium">Item</th>
-                        <th className="px-3 py-2 text-left font-medium">Source(s)</th>
-                        <th className="px-3 py-2 text-left font-medium">Ally bonus effect</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredFeedCandidateRows.map((row) => {
-                        const isCraftable = (row.item.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0;
-                        const isCooked = (row.item.shopFlag & COOKED_ITEM_FLAG) !== 0;
-                        const knownFlags = getKnownItemFlagNames(row.item.shopFlag);
-                        const unknownFlags = getUnknownItemFlagBits(row.item.shopFlag);
-                        return (
-                        <tr key={row.item.name} className="border-t border-border/70 align-top">
-                          <td className="px-3 py-2 font-medium text-foreground">
-                            <div>{row.item.name}</div>
-                            {showItemReferenceDebug && (
-                              <div className="mt-1.5 space-y-1 text-[11px] font-normal leading-4 text-muted-foreground">
-                                <div>shopFlag: {row.item.shopFlag}</div>
-                                <div>known flags: {knownFlags.length > 0 ? knownFlags.join(" | ") : "none"}</div>
-                                <div>unknown flag bits: {unknownFlags.length > 0 ? unknownFlags.join(", ") : "none"}</div>
-                                <div>isCraftable(128): {String(isCraftable)} | hasCooked(1024): {String(isCooked)}</div>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground">{row.sources.length > 0 ? row.sources.join(" / ") : "-"}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{renderAllyBonusEffect(row.item, statIcons)}</td>
-                        </tr>
-                      );})}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {selectedFeedStatProjection.map((row) => {
+                          const expRow = selectedFeedStatExpRows.find((expValue) => expValue.key === row.key);
+                          return (
+                          <tr key={row.key} className="border-t border-border/70">
+                            <td className="px-3 py-2 font-medium text-foreground">
+                              <span className="inline-flex items-center gap-1.5">
+                                {statIcons[JOB_PARAMETER_ICON_KEYS[row.key] ?? ""] ? (
+                                  <img
+                                    src={statIcons[JOB_PARAMETER_ICON_KEYS[row.key] ?? ""]}
+                                    alt={row.label}
+                                    className="h-4 w-4 object-contain"
+                                  />
+                                ) : null}
+                                <span>{row.label}</span>
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-center">Lv {row.currentStat}</td>
+                            <td className="px-3 py-2 text-center">Lv {row.statCap}</td>
+                            <td className="px-3 py-2 text-center">{expRow ? `${expRow.needExpPercent.toFixed(1)}%` : "-"}</td>
+                            <td className="px-3 py-2 text-center">{expRow ? expRow.expNeeded.toLocaleString() : "-"}</td>
+                            <td className="px-3 py-2 text-center">+{row.addedMin.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-center">
+                              {row.itemsToCapEarliest === null
+                                ? "-"
+                                : row.itemsToCapLatest === null || row.itemsToCapLatest === row.itemsToCapEarliest
+                                  ? row.itemsToCapEarliest.toLocaleString()
+                                  : `${row.itemsToCapEarliest.toLocaleString()} to ${row.itemsToCapLatest.toLocaleString()}`}
+                            </td>
+                          </tr>
+                        );})}
+                      </tbody>
+                    </table>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

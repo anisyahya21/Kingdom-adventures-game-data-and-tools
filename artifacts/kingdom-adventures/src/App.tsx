@@ -3,6 +3,7 @@ import { Route, Switch, Router as WouterRouter, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/app/app-shell";
+import { GlobalJobPreview } from "@/components/ka/global-job-preview";
 import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL, encodeCanonicalPath, getSeoMeta } from "@/app/seo";
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Home = lazy(() => import("@/pages/home"));
@@ -242,6 +243,7 @@ const App = memo(function App() {
         <AppShell>
           <Router />
         </AppShell>
+        <GlobalJobPreview />
       </WouterRouter>
       <Toaster />
     </TooltipProvider>
