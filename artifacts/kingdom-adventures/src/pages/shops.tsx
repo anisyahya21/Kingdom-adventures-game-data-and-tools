@@ -110,8 +110,6 @@ type JobNeedExpProfile = {
 };
 
 const ITEM_SOURCE_ORDER = ["Item Shop", "Restaurant", "Orchard", "Other sources"] as const;
-const ALL_ITEM_SOURCE_FILTER = "__all__";
-const ALL_FACILITY_SOURCE_FILTER = "__all__";
 const NO_FACILITY_SOURCE_FILTER = "__none__";
 
 type SharedDataShape = {
@@ -1003,8 +1001,8 @@ export default function ShopsPage() {
   const [armorSlotFilter, setArmorSlotFilter] = useState<"All" | "Head" | "Armor" | "Shield">("All");
   const [skillSearch, setSkillSearch] = useState("");
   const [itemSearch, setItemSearch] = useState("");
-  const [itemSourceFilter, setItemSourceFilter] = useState<string>(ALL_ITEM_SOURCE_FILTER);
-  const [facilitySourceFilter, setFacilitySourceFilter] = useState<string>(ALL_FACILITY_SOURCE_FILTER);
+  const [itemSourceFilter, setItemSourceFilter] = useState<Set<string>>(new Set());
+  const [facilitySourceFilter, setFacilitySourceFilter] = useState<Set<string>>(new Set());
   const [furnitureSearch, setFurnitureSearch] = useState("");
   const [currentAllyLevelInput, setCurrentAllyLevelInput] = useState("1");
   const [targetAllyLevelInput, setTargetAllyLevelInput] = useState("999");
@@ -1047,8 +1045,8 @@ export default function ShopsPage() {
     if (selectedShop?.slug === "item-shop" || selectedShop?.slug === "restaurant" || selectedShop?.slug === "orchard") setItemSearch(q);
     else if (selectedShop?.slug === "furniture-shop") setFurnitureSearch(q);
     else setSearch(q);
-    setItemSourceFilter(ALL_ITEM_SOURCE_FILTER);
-    setFacilitySourceFilter(ALL_FACILITY_SOURCE_FILTER);
+    setItemSourceFilter(new Set());
+    setFacilitySourceFilter(new Set());
     setStudioFilter(new Set());
     setIntFilter(new Set());
   }, [currentUrlSearch, selectedShop?.slug]);
@@ -1214,13 +1212,35 @@ export default function ShopsPage() {
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [itemFacilityRows]);
+  const toggleItemSourceFilter = (source: string) => {
+    setItemSourceFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(source)) {
+        next.delete(source);
+      } else {
+        next.add(source);
+      }
+      return next;
+    });
+  };
+  const toggleFacilitySourceFilter = (source: string) => {
+    setFacilitySourceFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(source)) {
+        next.delete(source);
+      } else {
+        next.add(source);
+      }
+      return next;
+    });
+  };
   const filteredItemFacilityRows = useMemo(() => {
     return itemFacilityRows.filter((row) => {
       if (!matchesQuery(row.item.name, itemSearch)) return false;
-      if (itemSourceFilter !== ALL_ITEM_SOURCE_FILTER && !row.sources.includes(itemSourceFilter)) return false;
-      if (facilitySourceFilter === ALL_FACILITY_SOURCE_FILTER) return true;
-      if (facilitySourceFilter === NO_FACILITY_SOURCE_FILTER) return row.facilities.length === 0;
-      return row.facilities.includes(facilitySourceFilter);
+      if (itemSourceFilter.size > 0 && !row.sources.some((source) => itemSourceFilter.has(source))) return false;
+      if (facilitySourceFilter.size === 0) return true;
+      if (facilitySourceFilter.has(NO_FACILITY_SOURCE_FILTER) && row.facilities.length === 0) return true;
+      return row.facilities.some((facility) => facilitySourceFilter.has(facility));
     });
   }, [facilitySourceFilter, itemFacilityRows, itemSearch, itemSourceFilter]);
   const feedCandidateItems = useMemo(
@@ -1240,18 +1260,24 @@ export default function ShopsPage() {
   const filteredFeedCandidateRows = useMemo(() => {
     return feedCandidateRows.filter((row) => {
       if (!matchesQuery(row.item.name, itemSearch)) return false;
-      if (itemSourceFilter !== ALL_ITEM_SOURCE_FILTER && !row.sources.includes(itemSourceFilter)) return false;
-      if (facilitySourceFilter === ALL_FACILITY_SOURCE_FILTER) return true;
-      if (facilitySourceFilter === NO_FACILITY_SOURCE_FILTER) return row.facilities.length === 0;
-      return row.facilities.includes(facilitySourceFilter);
+      if (itemSourceFilter.size > 0 && !row.sources.some((source) => itemSourceFilter.has(source))) return false;
+      if (facilitySourceFilter.size === 0) return true;
+      if (facilitySourceFilter.has(NO_FACILITY_SOURCE_FILTER) && row.facilities.length === 0) return true;
+      return row.facilities.some((facility) => facilitySourceFilter.has(facility));
     });
   }, [facilitySourceFilter, feedCandidateRows, itemSearch, itemSourceFilter]);
-  const selectedShopSourceLabel = itemSourceFilter === ALL_ITEM_SOURCE_FILTER ? "All shop sources" : itemSourceFilter;
-  const selectedFacilitySourceLabel = facilitySourceFilter === ALL_FACILITY_SOURCE_FILTER
+  const selectedShopSourceLabel = itemSourceFilter.size === 0
+    ? "All shop sources"
+    : itemSourceFilter.size === 1
+      ? (Array.from(itemSourceFilter)[0] ?? "All shop sources")
+      : `${itemSourceFilter.size} selected`;
+  const selectedFacilitySourceLabel = facilitySourceFilter.size === 0
     ? "All facility sources"
-    : facilitySourceFilter === NO_FACILITY_SOURCE_FILTER
-      ? "No facility"
-      : facilitySourceFilter;
+    : facilitySourceFilter.size === 1
+      ? (facilitySourceFilter.has(NO_FACILITY_SOURCE_FILTER)
+        ? "No facility"
+        : (Array.from(facilitySourceFilter)[0] ?? "All facility sources"))
+      : `${facilitySourceFilter.size} selected`;
   useEffect(() => {
     if (selectedFeedItemName && feedCandidateItems.some((item) => item.name === selectedFeedItemName)) return;
     const topGradeMeat = feedCandidateItems.find((item) => item.name === "Top-Grade Meat");
@@ -1772,30 +1798,37 @@ export default function ShopsPage() {
                     <button
                       type="button"
                       onClick={() => setOpenReferenceFilterMenu((prev) => prev === "shop-source" ? null : "shop-source")}
-                      className="h-9 rounded-md border border-border px-3 text-sm inline-flex items-center gap-2"
+                      className={`h-9 rounded-md border px-3 text-sm inline-flex items-center gap-2 font-medium transition-colors ${itemSourceFilter.size > 0 ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
                     >
                       Shop: {selectedShopSourceLabel}
-                      <ChevronDown className="w-4 h-4" />
+                      <ChevronDown className={`w-4 h-4 transition-transform ${openReferenceFilterMenu === "shop-source" ? "rotate-180" : ""}`} />
                     </button>
                     {openReferenceFilterMenu === "shop-source" && (
-                      <div className="absolute z-20 mt-1 w-56 rounded-md border border-border bg-background shadow-md p-1 max-h-64 overflow-auto">
+                      <div className="absolute z-50 top-full mt-1 left-0 min-w-[180px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden max-h-64 overflow-y-auto">
                         <button
                           type="button"
-                          onClick={() => { setItemSourceFilter(ALL_ITEM_SOURCE_FILTER); setOpenReferenceFilterMenu(null); }}
-                          className={`w-full text-left px-2 py-1.5 rounded text-sm ${itemSourceFilter === ALL_ITEM_SOURCE_FILTER ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setItemSourceFilter(new Set());
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground"
                         >
+                          <span className={`w-3.5 h-3.5 shrink-0 ${itemSourceFilter.size === 0 ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
                           All shop sources
                         </button>
                         {itemSourceFilterOptions.map((source) => (
                           <button
                             key={source}
                             type="button"
-                            onClick={() => {
-                              setItemSourceFilter((prev) => (prev === source ? ALL_ITEM_SOURCE_FILTER : source));
-                              setOpenReferenceFilterMenu(null);
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleItemSourceFilter(source);
                             }}
-                            className={`w-full text-left px-2 py-1.5 rounded text-sm ${itemSourceFilter === source ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground"
                           >
+                            <span className={`w-3.5 h-3.5 shrink-0 ${itemSourceFilter.has(source) ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
                             {source}
                           </button>
                         ))}
@@ -1807,46 +1840,68 @@ export default function ShopsPage() {
                     <button
                       type="button"
                       onClick={() => setOpenReferenceFilterMenu((prev) => prev === "facility-source" ? null : "facility-source")}
-                      className="h-9 rounded-md border border-border px-3 text-sm inline-flex items-center gap-2"
+                      className={`h-9 rounded-md border px-3 text-sm inline-flex items-center gap-2 font-medium transition-colors ${facilitySourceFilter.size > 0 ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
                     >
                       Facility: {selectedFacilitySourceLabel}
-                      <ChevronDown className="w-4 h-4" />
+                      <ChevronDown className={`w-4 h-4 transition-transform ${openReferenceFilterMenu === "facility-source" ? "rotate-180" : ""}`} />
                     </button>
                     {openReferenceFilterMenu === "facility-source" && (
-                      <div className="absolute z-20 mt-1 w-64 rounded-md border border-border bg-background shadow-md p-1 max-h-64 overflow-auto">
+                      <div className="absolute z-50 top-full mt-1 left-0 min-w-[220px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden max-h-64 overflow-y-auto">
                         <button
                           type="button"
-                          onClick={() => { setFacilitySourceFilter(ALL_FACILITY_SOURCE_FILTER); setOpenReferenceFilterMenu(null); }}
-                          className={`w-full text-left px-2 py-1.5 rounded text-sm ${facilitySourceFilter === ALL_FACILITY_SOURCE_FILTER ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setFacilitySourceFilter(new Set());
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground"
                         >
+                          <span className={`w-3.5 h-3.5 shrink-0 ${facilitySourceFilter.size === 0 ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
                           All facility sources
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setFacilitySourceFilter((prev) => (prev === NO_FACILITY_SOURCE_FILTER ? ALL_FACILITY_SOURCE_FILTER : NO_FACILITY_SOURCE_FILTER));
-                            setOpenReferenceFilterMenu(null);
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleFacilitySourceFilter(NO_FACILITY_SOURCE_FILTER);
                           }}
-                          className={`w-full text-left px-2 py-1.5 rounded text-sm ${facilitySourceFilter === NO_FACILITY_SOURCE_FILTER ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground"
                         >
+                          <span className={`w-3.5 h-3.5 shrink-0 ${facilitySourceFilter.has(NO_FACILITY_SOURCE_FILTER) ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
                           No facility
                         </button>
                         {facilitySourceFilterOptions.map((facility) => (
                           <button
                             key={facility}
                             type="button"
-                            onClick={() => {
-                              setFacilitySourceFilter((prev) => (prev === facility ? ALL_FACILITY_SOURCE_FILTER : facility));
-                              setOpenReferenceFilterMenu(null);
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleFacilitySourceFilter(facility);
                             }}
-                            className={`w-full text-left px-2 py-1.5 rounded text-sm ${facilitySourceFilter === facility ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground"
                           >
+                            <span className={`w-3.5 h-3.5 shrink-0 ${facilitySourceFilter.has(facility) ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
                             {facility}
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
+
+                  {(itemSourceFilter.size > 0 || facilitySourceFilter.size > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setItemSourceFilter(new Set());
+                        setFacilitySourceFilter(new Set());
+                      }}
+                      className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      ✕ clear
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-2">
