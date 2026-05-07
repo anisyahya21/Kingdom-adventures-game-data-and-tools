@@ -317,7 +317,7 @@ function isLvLimitBonus(item: ItemRow): boolean {
 const BONUS_TYPE_PARAMETER_LABELS: Record<number, string[]> = {
   10: ["HP"],
   11: ["MP"],
-  12: ["ENG"],
+  12: ["VIG"],
   13: ["ATK"],
   14: ["DEF"],
   15: ["SPD"],
@@ -327,10 +327,10 @@ const BONUS_TYPE_PARAMETER_LABELS: Record<number, string[]> = {
   20: ["GAT"],
   21: ["MOV"],
   22: ["HRT"],
-  31: ["HP", "MP", "ENG"],
+  31: ["HP", "MP", "VIG"],
   32: ["ATK", "DEF", "SPD", "LUK"],
   33: ["INT", "DEX", "GAT", "MOV", "HRT"],
-  34: ["HP", "MP", "ENG", "ATK", "DEF", "SPD", "LUK", "INT", "DEX", "GAT", "MOV", "HRT"],
+  34: ["HP", "MP", "VIG", "ATK", "DEF", "SPD", "LUK", "INT", "DEX", "GAT", "MOV", "HRT"],
 };
 
 const BONUS_TYPE_PARAMETER_KEYS: Record<number, JobParameterKey[]> = {
@@ -669,6 +669,25 @@ function ShopTabs({ currentSlug }: { currentSlug?: ShopSlug }) {
         <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
           <span className="text-[11px] font-medium text-muted-foreground mr-1">Other Facilities</span>
           {SECONDARY_FACILITIES.map((shop) => (
+            <Link key={shop.slug} href={`/shops/${shop.slug}`}>
+              <button
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  currentSlug === shop.slug
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/40"
+                }`}
+              >
+                {SHOP_ICONS[shop.slug]}
+                {shop.shortTitle}
+              </button>
+            </Link>
+          ))}
+        </div>
+      )}
+      {ITEMS_REFERENCE_SHOPS.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
+          <span className="text-[11px] font-medium text-muted-foreground mr-1">References</span>
+          {ITEMS_REFERENCE_SHOPS.map((shop) => (
             <Link key={shop.slug} href={`/shops/${shop.slug}`}>
               <button
                 className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
