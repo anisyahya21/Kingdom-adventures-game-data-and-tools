@@ -109,7 +109,7 @@ type JobNeedExpProfile = {
   needExpByParameter: Record<JobParameterKey, number>;
 };
 
-const ITEM_SOURCE_ORDER = ["Item Shop", "Facility only", "Other sources"] as const;
+const ITEM_SOURCE_ORDER = ["Item Shop", "Restaurant", "Orchard", "Facility only", "Other sources"] as const;
 const NO_FACILITY_SOURCE_FILTER = "__none__";
 
 type SharedDataShape = {
@@ -1174,10 +1174,19 @@ export default function ShopsPage() {
       const bucket = byName.get(row.name) ?? new Set<string>();
       const isCooked = (row.shopFlag & COOKED_ITEM_FLAG) !== 0;
       const isCraftable = (row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0;
+      const isOrchard = row.craftGroup === ORCHARD_FRUIT_TREE_CRAFT_GROUP;
+      const hasMappedFacility = row.craftGroup >= 0;
 
       if (isCraftable && !isCooked) {
         bucket.add("Item Shop");
-      } else {
+      }
+      if (isCooked) {
+        bucket.add("Restaurant");
+      }
+      if (isOrchard) {
+        bucket.add("Orchard");
+      }
+      if (!isCooked && !isOrchard && !bucket.has("Item Shop") && hasMappedFacility) {
         bucket.add("Facility only");
       }
       if (bucket.size === 0) {
