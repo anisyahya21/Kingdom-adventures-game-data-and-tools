@@ -1576,7 +1576,7 @@ export default function ShopsPage() {
           <div className="space-y-4">
             <Card className="shadow-sm">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Items Reference and Ally Feed Planner</CardTitle>
+                <CardTitle className="text-base">Item Reference</CardTitle>
                 <CardDescription className="text-xs">
                   Separate cross-shop item card. Includes Item Shop, Restaurant, Orchard, and other shop-item entries.
                 </CardDescription>
@@ -1626,7 +1626,7 @@ export default function ShopsPage() {
                 </div>
 
                 <div className="space-y-2 pt-1">
-                  <h3 className="text-sm font-semibold">Ally XP Planner Structure</h3>
+                  <h3 className="text-sm font-semibold">Ally Feed Planner</h3>
                   <p className="text-xs text-muted-foreground">Target-level estimator layout is ready and will use finalized XP inputs once available.</p>
                 </div>
 
