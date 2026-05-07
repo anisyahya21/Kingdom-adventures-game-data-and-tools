@@ -332,6 +332,11 @@ interface RowState {
   dirty:  boolean;
 }
 
+type RowDisplayState = {
+  rank: string;
+  levels: Record<string, number>;
+};
+
 function makeRowState(job: Job): RowState {
   const availRanks = job.generation === 1 ? GEN1_RANKS : GEN2_RANKS;
   const existingRanks = Object.keys(job.ranks);
@@ -354,7 +359,7 @@ function commitOnEnter(e: React.KeyboardEvent<HTMLInputElement>, commit: () => v
   }
 }
 
-function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, bulkApply, statRanks }: {
+function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, bulkApply, statRanks, onDisplayStateChange }: {
   jobName: string;
   job: Job;
   statIcons: Record<string, string>;
@@ -363,8 +368,15 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
   mobile?: boolean;
   bulkApply?: { rank?: string; allLevel?: number; awakening?: number; seq: number };
   statRanks?: Record<string, number>;
+  onDisplayStateChange?: (jobName: string, state: RowDisplayState) => void;
 }) {
   const [rs, setRs] = useState<RowState>(() => makeRowState(job));
+  const [syncSortState, setSyncSortState] = useState(false);
+
+  useEffect(() => {
+    if (!syncSortState) return;
+    onDisplayStateChange?.(jobName, { rank: rs.rank, levels: rs.levels });
+  }, [jobName, onDisplayStateChange, rs.levels, rs.rank, syncSortState]);
 
   useEffect(() => {
     if (!bulkApply || bulkApply.seq === 0) return;
@@ -400,6 +412,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
         }
         next = { ...next, levels, levelInputs };
       }
+      setSyncSortState(true);
       return next;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -449,6 +462,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
   const commitLevel = (stat: string, raw: string) => {
     const parsed = parseInt(raw, 10);
     const clamped = isNaN(parsed) ? 1 : clampLevel(parsed);
+    setSyncSortState(true);
     setRs((r) => ({
       ...r,
       levels: { ...r.levels, [stat]: clamped },
@@ -471,10 +485,12 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
       newLevels[s] = clamped;
       newLevelInputs[s] = String(clamped);
     }
+    setSyncSortState(true);
     setRs((r) => ({ ...r, levels: newLevels, levelInputs: newLevelInputs }));
   };
 
   const changeRank = (rank: string) => {
+    setSyncSortState(true);
     setRs((r) => ({ ...r, rank, draft: {}, dirty: false }));
   };
 
@@ -965,6 +981,7 @@ function AdvancedCompareDialog({
   const [showSkills, setShowSkills] = useState(true);
   const [showRanges, setShowRanges] = useState<Record<JobRangeIndex, boolean>>({ 0: false, 1: false, 2: false });
   const [showWeaponAccess, setShowWeaponAccess] = useState(false);
+  const [showRankings, setShowRankings] = useState(false);
 
   const level = clampLevel(parseInt(levelInput, 10) || 1);
   const awakening = clampAwakening(parseInt(awakeningInput, 10) || 0);
@@ -1024,6 +1041,10 @@ function AdvancedCompareDialog({
       const direction = sortDir === "desc" ? -1 : 1;
       if (sortKey === "name") return direction * left.name.localeCompare(right.name);
       if (sortKey === "type") return direction * ((left.job.type ?? "").localeCompare(right.job.type ?? ""));
+      if (sortKey.startsWith("stat-")) {
+        const stat = sortKey.replace("stat-", "");
+        return direction * ((left.statValues[stat] ?? -Infinity) - (right.statValues[stat] ?? -Infinity));
+      }
       if (sortKey.startsWith("range-")) {
         const index = Number(sortKey.replace("range-", "")) as JobRangeIndex;
         return direction * ((left.rangeValues[index] ?? -Infinity) - (right.rangeValues[index] ?? -Infinity));
@@ -1109,6 +1130,38 @@ function AdvancedCompareDialog({
     () => showWeaponAccess ? [] : STAT_ORDER.filter((stat) => activeGroups.some((group) => group.stats.includes(stat))),
     [activeGroups, showWeaponAccess],
   );
+  const statRankMaps = useMemo((): Record<string, Record<string, number>> | null => {
+    if (!showRankings || selectedStats.length === 0) return null;
+    const result: Record<string, Record<string, number>> = {};
+    for (const stat of selectedStats) {
+      const ranked = rows
+        .map((row) => ({ name: row.name, value: row.statValues[stat] ?? -Infinity }))
+        .sort((left, right) => right.value - left.value);
+      let denseRank = 0;
+      let lastValue: number | undefined;
+      for (const entry of ranked) {
+        if (entry.value !== lastValue) {
+          denseRank += 1;
+          lastValue = entry.value;
+        }
+        if (!result[entry.name]) result[entry.name] = {};
+        result[entry.name][stat] = denseRank;
+      }
+    }
+    return result;
+  }, [rows, selectedStats, showRankings]);
+  const SortIcon = ({ keyName }: { keyName: string }) => {
+    if (sortKey !== keyName) return <ArrowUpDown className="w-3 h-3 opacity-25" />;
+    return sortDir === "desc" ? <ArrowDown className="w-3 h-3 text-primary" /> : <ArrowUp className="w-3 h-3 text-primary" />;
+  };
+
+  useEffect(() => {
+    if (sortKey.startsWith("stat-") && !selectedStats.includes(sortKey.replace("stat-", ""))) {
+      setSortKey("name");
+      setSortDir("asc");
+    }
+  }, [selectedStats, sortKey]);
+
   const showBattleColumn = showBattleType;
   const expandedTableWidth = 104
     + (showBattleColumn ? 80 : 0)
@@ -1282,6 +1335,12 @@ function AdvancedCompareDialog({
                     onToggle={() => setShowRanges((current) => ({ ...current, [range.index]: !current[range.index] }))}
                   />
                 ))}
+                <OptionPill
+                  label="#Rankings"
+                  checked={showRankings}
+                  disabled={showWeaponAccess || selectedStats.length === 0}
+                  onToggle={() => setShowRankings((value) => !value)}
+                />
               </div>
             </div>
             <div className="mt-3 border-t border-border pt-3">
@@ -1430,7 +1489,7 @@ function AdvancedCompareDialog({
                   <tr className="bg-muted/50 border-b border-border">
                     <th className="sticky left-0 z-10 bg-muted/50 text-left pl-2 pr-0.5 py-2 text-xs font-semibold text-muted-foreground">
                       <button onClick={() => toggleSort("name")} className="inline-flex items-center gap-1 hover:text-foreground">
-                        Job <ArrowUpDown className="w-3 h-3" />
+                        Job <SortIcon keyName="name" />
                       </button>
                     </th>
                     {showBattleColumn && (
@@ -1440,7 +1499,7 @@ function AdvancedCompareDialog({
                           className={`${compactTable ? "w-full justify-center gap-0.5" : "gap-1"} inline-flex items-center hover:text-foreground`}
                           title="Battle-Type"
                         >
-                          {compactTable ? "Type" : "Battle-Type"} <ArrowUpDown className={`${compactTable ? "w-2.5 h-2.5" : "w-3 h-3"} shrink-0`} />
+                          {compactTable ? "Type" : "Battle-Type"} <SortIcon keyName="type" />
                         </button>
                       </th>
                     )}
@@ -1493,10 +1552,11 @@ function AdvancedCompareDialog({
                         ))}
                         {selectedStats.map((stat) => (
                           <th key={stat} className="text-center px-1 py-2 text-xs font-semibold text-muted-foreground">
-                            <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => toggleSort(`stat-${stat}`)} className="inline-flex items-center justify-center gap-1 hover:text-foreground">
                               {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
                               <span>{STAT_SHORT[stat] ?? stat}</span>
-                            </div>
+                              <SortIcon keyName={`stat-${stat}`} />
+                            </button>
                           </th>
                         ))}
                       </>
@@ -1580,7 +1640,12 @@ function AdvancedCompareDialog({
                             ))}
                             {selectedStats.map((stat) => (
                               <td key={stat} className="px-1 py-2 text-center tabular-nums text-muted-foreground">
-                                {formatCompareNumber(row.statValues[stat])}
+                                <span className="inline-flex items-center justify-center gap-1">
+                                  {formatCompareNumber(row.statValues[stat])}
+                                  {showRankings && statRankMaps?.[row.name]?.[stat] ? (
+                                    <span className="text-[10px] font-semibold text-primary/80">#{statRankMaps[row.name][stat]}</span>
+                                  ) : null}
+                                </span>
                               </td>
                             ))}
                           </>
@@ -1634,6 +1699,7 @@ function JobsTable({
   const [bulkApply, setBulkApply] = useState<{ rank?: string; allLevel?: number; awakening?: number; seq: number }>({ seq: 0 });
   const [showRankings, setShowRankings] = useState(false);
   const [showAdvancedCompare, setShowAdvancedCompare] = useState(false);
+  const [rowDisplayStates, setRowDisplayStates] = useState<Record<string, RowDisplayState>>({});
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1683,6 +1749,16 @@ function JobsTable({
     setTypeFilter((current) => (current === next ? "all" : next));
   };
 
+  const handleDisplayStateChange = useCallback((jobName: string, state: RowDisplayState) => {
+    setRowDisplayStates((prev) => {
+      const existing = prev[jobName];
+      if (existing && existing.rank === state.rank && existing.levels === state.levels) {
+        return prev;
+      }
+      return { ...prev, [jobName]: state };
+    });
+  }, []);
+
   const addExclude = (name: string) => {
     setExcludedJobs((prev) => new Set([...prev, name]));
     setExcludeSearch("");
@@ -1730,32 +1806,36 @@ function JobsTable({
   const sortedEntries = useMemo(() => {
     const entries = [...filteredEntries];
     if (sortCol) {
-      const sortLevel = parseInt(bulkLevelInput) || 1;
-      entries.sort(([, a], [, b]) => {
-        const getV = (job: Job) => {
-          const rd = job.ranks[bulkRankInput] ?? Object.values(job.ranks)[0];
-          const s = rd?.stats[sortCol];
-          if (!s) return -Infinity;
-          return sortByGrowth ? s.inc : statAtLevel(s, sortLevel);
+      entries.sort(([nameA, a], [nameB, b]) => {
+        const getV = (jobName: string, job: Job) => {
+          const rowState = rowDisplayStates[jobName];
+          const fallback = makeRowState(job);
+          const rank = rowState?.rank ?? fallback.rank;
+          const level = rowState?.levels?.[sortCol] ?? (sortByGrowth ? 1 : parseInt(bulkLevelInput) || 1);
+          const statEntry = getJobStatEntry(job, rank, sortCol);
+          if (!statEntry) return -Infinity;
+          return sortByGrowth ? statEntry.inc : statAtLevel(statEntry, level);
         };
-        return sortDir === "desc" ? getV(b) - getV(a) : getV(a) - getV(b);
+        return sortDir === "desc" ? getV(nameB, b) - getV(nameA, a) : getV(nameA, a) - getV(nameB, b);
       });
     } else {
       entries.sort(([a], [b]) => a.localeCompare(b));
     }
     return entries;
-  }, [filteredEntries, sortCol, sortDir, sortByGrowth, bulkRankInput, bulkLevelInput]);
+  }, [filteredEntries, sortCol, sortDir, sortByGrowth, bulkLevelInput, rowDisplayStates]);
 
   const statRankMaps = useMemo((): Record<string, Record<string, number>> | null => {
     if (!showRankings) return null;
-    const rankLevel = parseInt(bulkLevelInput) || 1;
     const result: Record<string, Record<string, number>> = {};
     for (const stat of STAT_ORDER) {
       const vals = sortedEntries
         .map(([name, job]) => {
-          const rd = job.ranks[bulkRankInput] ?? Object.values(job.ranks)[0];
-          const s = rd?.stats[stat];
-          const v = s ? (sortByGrowth ? s.inc : statAtLevel(s, rankLevel)) : -Infinity;
+          const rowState = rowDisplayStates[name];
+          const fallback = makeRowState(job);
+          const rank = rowState?.rank ?? fallback.rank;
+          const level = rowState?.levels?.[stat] ?? (sortByGrowth ? 1 : parseInt(bulkLevelInput) || 1);
+          const statEntry = getJobStatEntry(job, rank, stat);
+          const v = statEntry ? (sortByGrowth ? statEntry.inc : statAtLevel(statEntry, level)) : -Infinity;
           return { name, v };
         })
         .sort((a, b) => b.v - a.v);
@@ -1768,7 +1848,7 @@ function JobsTable({
       });
     }
     return result;
-  }, [showRankings, sortedEntries, sortByGrowth, bulkRankInput, bulkLevelInput]);
+  }, [showRankings, sortedEntries, sortByGrowth, bulkLevelInput, rowDisplayStates]);
 
   const SortIcon = ({ col }: { col: string }) => {
     if (sortCol !== col) return <ArrowUpDown className="w-3 h-3 opacity-25" />;
@@ -2028,7 +2108,7 @@ function JobsTable({
       {sortCol && !compactView && (
         <div className="mb-3 flex items-center gap-2">
           <p className="text-xs text-muted-foreground">
-            Sorted by <strong className="text-foreground">{sortCol}</strong> - {sortDir === "desc" ? "highest first" : "lowest first"} - {sortByGrowth ? <><strong className="text-foreground">Growth +Lv</strong></> : <>rank <strong className="text-foreground">{bulkRankInput}</strong> at <strong className="text-foreground">Lv {parseInt(bulkLevelInput) || 1}</strong></>}
+            Sorted by <strong className="text-foreground">{sortCol}</strong> - {sortDir === "desc" ? "highest first" : "lowest first"} - {sortByGrowth ? <><strong className="text-foreground">Growth +Lv</strong> at each row's selected rank</> : <>using each row's selected rank and shown Lv</>}
           </p>
           <button onClick={() => setSortCol("")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-3.5 h-3.5" />
@@ -2140,6 +2220,7 @@ function JobsTable({
                       onToggleFav={() => toggleFav(name)}
                       bulkApply={bulkApply}
                       statRanks={statRankMaps?.[name]}
+                      onDisplayStateChange={handleDisplayStateChange}
                     />
                   ))
                 )}

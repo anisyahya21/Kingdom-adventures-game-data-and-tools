@@ -68,6 +68,7 @@ type ItemRow = {
   name: string;
   category: number;
   type: number;
+  buyPrice: number;
   craftGroup: number;
   studioLevel: number;
   craftingIntelligence: number;
@@ -418,7 +419,7 @@ function renderAllyBonusEffect(item: ItemRow, statIcons: Record<string, string>,
 
   const value = base * multiplier;
   if (labels.length === 0) {
-    return `Bonus +${value.toLocaleString()}`;
+    return "Bonus";
   }
 
   const iconKeyByLabel: Record<string, string> = {
@@ -437,20 +438,39 @@ function renderAllyBonusEffect(item: ItemRow, statIcons: Record<string, string>,
     HRT: "Heart",
   };
 
+  if (labels.length === 1) {
+    const label = labels[0];
+    const iconSrc = statIcons[iconKeyByLabel[label] ?? ""];
+    return (
+      <span className="inline-flex items-center gap-1">
+        {iconSrc ? <img src={iconSrc} alt={label} className="h-3.5 w-3.5 object-contain" /> : null}
+        <span>{label}</span>
+      </span>
+    );
+  }
+
   return (
-    <span className="flex flex-wrap items-center gap-1">
-      {labels.map((label, index) => {
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {labels.map((label) => {
         const iconSrc = statIcons[iconKeyByLabel[label] ?? ""];
         return (
-          <span key={`${label}-${index}`} className="inline-flex items-center gap-1">
+          <span key={label} className="inline-flex items-center gap-1">
             {iconSrc ? <img src={iconSrc} alt={label} className="h-3.5 w-3.5 object-contain" /> : null}
-            <span>{label} +{value.toLocaleString()}</span>
-            {index < labels.length - 1 ? <span className="text-muted-foreground">/</span> : null}
+            <span>{label}</span>
           </span>
         );
       })}
     </span>
   );
+}
+
+function getAllyExpGained(item: ItemRow, multiplier = 1): number {
+  const base = Number.isFinite(item.bonusMinValue) && item.bonusMinValue > 0 ? item.bonusMinValue : 0;
+  return base * multiplier;
+}
+
+function hasFeedExp(item: ItemRow): boolean {
+  return item.bonusMinValue > 0 && (BONUS_TYPE_PARAMETER_KEYS[item.bonusType]?.length ?? 0) > 0;
 }
 
 function getTotalExpNeeded(expByLevel: Map<number, number>, currentLevel: number, targetLevel: number, needExpPercent = 100): number {
@@ -461,26 +481,6 @@ function getTotalExpNeeded(expByLevel: Map<number, number>, currentLevel: number
     total += Math.floor((baseExp * needExpPercent) / 100);
   }
   return total;
-}
-
-function getLevelAfterGainedExp(
-  expByLevel: Map<number, number>,
-  currentLevel: number,
-  maxLevel: number,
-  needExpPercent: number,
-  gainedExp: number,
-): number {
-  if (gainedExp <= 0 || currentLevel >= maxLevel) return currentLevel;
-  let level = currentLevel;
-  let remaining = gainedExp;
-  while (level < maxLevel) {
-    const baseExp = expByLevel.get(level) ?? 0;
-    const expToNext = Math.floor((baseExp * needExpPercent) / 100);
-    if (expToNext <= 0 || remaining < expToNext) break;
-    remaining -= expToNext;
-    level += 1;
-  }
-  return level;
 }
 
 async function fetchEquipmentRows(): Promise<EquipmentRow[]> {
@@ -552,6 +552,7 @@ async function fetchItemRows(): Promise<ItemRow[]> {
   const nameIndex = fallbackIndex(findColumnIndex(cols, [/^name$/i]), 1);
   const categoryIndex = fallbackIndex(findColumnIndex(cols, [/^category$/i]), 2);
   const typeIndex = fallbackIndex(findColumnIndex(cols, [/^type$/i]), 3);
+  const buyPriceIndex = fallbackIndex(findColumnIndex(cols, [/prices\/buyprice/i, /buyprice/i, /prices\/buy/i]), 14);
   const craftGroupIndex = fallbackIndex(findColumnIndex(cols, [/^craftgroup$/i]), 6);
   const studioIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTermStudioLevel/i, /crafttermstudiolevel/i]), 28);
   const intIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTermIntelligence/i, /crafttermintelligence/i]), 29);
@@ -587,6 +588,7 @@ async function fetchItemRows(): Promise<ItemRow[]> {
         name,
         category: getNumeric(cells, categoryIndex),
         type: getNumeric(cells, typeIndex),
+        buyPrice: getNumeric(cells, buyPriceIndex),
         craftGroup: getNumeric(cells, craftGroupIndex),
         studioLevel,
         craftingIntelligence,
@@ -639,6 +641,7 @@ function parseItemRowsFromCsv(rawCsv: string): ItemRow[] {
   const nameIndex = indexOf("name", 1);
   const categoryIndex = indexOf("category", 2);
   const typeIndex = indexOf("type", 3);
+  const buyPriceIndex = indexOf("buyPrice", 14);
   const craftGroupIndex = indexOf("craftGroup", 6);
   const bonusCategoryIndex = indexOf("bonusCategory", 18);
   const bonusTypeIndex = indexOf("bonusType", 19);
@@ -668,6 +671,7 @@ function parseItemRowsFromCsv(rawCsv: string): ItemRow[] {
       name,
       category: Number(row[categoryIndex] ?? 0) || 0,
       type: Number(row[typeIndex] ?? 0) || 0,
+      buyPrice: Number(row[buyPriceIndex] ?? 0) || 0,
       craftGroup: Number(row[craftGroupIndex] ?? 0) || 0,
       studioLevel: Number(row[studioIndex] ?? 0) || 0,
       craftingIntelligence: Number(row[intIndex] ?? 0) || 0,
@@ -1112,11 +1116,13 @@ export default function ShopsPage() {
   const [studioFilter, setStudioFilter] = useState<Set<number>>(new Set());
   const [intFilter, setIntFilter] = useState<Set<number>>(new Set());
   const [showItemReferenceDebug, setShowItemReferenceDebug] = useState(false);
+  const [showHiddenNoExpItems, setShowHiddenNoExpItems] = useState(false);
   const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
   const [openReferenceFilterMenu, setOpenReferenceFilterMenu] = useState<"shop-source" | "facility-source" | null>(null);
   const [plannerStateHydrated, setPlannerStateHydrated] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const referenceFilterMenuRef = useRef<HTMLDivElement>(null);
+  const plannerSectionRef = useRef<HTMLDivElement>(null);
   const feedItemDropdownRef = useRef<HTMLDivElement>(null);
   const jobDropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1378,12 +1384,17 @@ export default function ShopsPage() {
   const filteredItemFacilityRows = useMemo(() => {
     return itemFacilityRows.filter((row) => {
       if (!matchesQuery(row.item.name, itemSearch)) return false;
+      if (!showHiddenNoExpItems && !hasFeedExp(row.item)) return false;
       if (itemSourceFilter.size > 0 && !row.sources.some((source) => itemSourceFilter.has(source))) return false;
       if (facilitySourceFilter.size === 0) return true;
       if (facilitySourceFilter.has(NO_FACILITY_SOURCE_FILTER) && row.facilities.length === 0) return true;
       return row.facilities.some((facility) => facilitySourceFilter.has(facility));
     });
-  }, [facilitySourceFilter, itemFacilityRows, itemSearch, itemSourceFilter]);
+  }, [facilitySourceFilter, itemFacilityRows, itemSearch, itemSourceFilter, showHiddenNoExpItems]);
+  const hiddenNoExpItemCount = useMemo(
+    () => itemFacilityRows.filter((row) => !hasFeedExp(row.item)).length,
+    [itemFacilityRows]
+  );
   const feedCandidateItems = useMemo(
     () => allReferenceItemRows
       .filter((row) => row.bonusMinValue > 0 && (BONUS_TYPE_PARAMETER_KEYS[row.bonusType]?.length ?? 0) > 0)
@@ -1478,11 +1489,19 @@ export default function ShopsPage() {
     if (!selectedFeedItem) return 0;
     return Math.max(0, selectedFeedItem.bonusMinValue);
   }, [selectedFeedItem]);
+  const selectedFeedCopperPerItem = useMemo(() => {
+    if (!selectedFeedItem) return 0;
+    return Math.max(0, selectedFeedItem.buyPrice);
+  }, [selectedFeedItem]);
   const feedItemsNeeded = useMemo(() => {
     if (!selectedFeedItem || selectedFeedExpPerItem <= 0) return null;
     if (plannerTotalExpNeeded <= 0) return 0;
     return Math.ceil(plannerTotalExpNeeded / selectedFeedExpPerItem);
   }, [plannerTotalExpNeeded, selectedFeedExpPerItem, selectedFeedItem]);
+  const selectedFeedTotalCopperNeeded = useMemo(() => {
+    if (feedItemsNeeded === null) return null;
+    return selectedFeedCopperPerItem * feedItemsNeeded;
+  }, [feedItemsNeeded, selectedFeedCopperPerItem]);
   useEffect(() => {
     if (selectedFeedStatKeys.length === 0) {
       setPlannerCurrentStatInputs({});
@@ -1508,17 +1527,12 @@ export default function ShopsPage() {
   }, [plannerAwakeningInput, plannerCurrentStatInputs, plannerStateHydrated, selectedFeedItemName, selectedNeedExpJobName]);
   const selectedFeedStatProjection = useMemo(() => {
     if (!selectedFeedItem || selectedFeedStatKeys.length === 0) return [];
-    const itemCount = feedItemsNeeded ?? 0;
-    const expFromPlannedFeed = selectedFeedExpPerItem * itemCount;
 
     return selectedFeedStatKeys.map((key) => {
       const expRow = selectedFeedStatExpRows.find((row) => row.key === key);
       const statCap = expRow?.targetStatLevel ?? 1;
       const currentStat = expRow?.currentStatLevel ?? 1;
       const expNeeded = expRow?.expNeeded ?? 0;
-      const needExpPercent = expRow?.needExpPercent ?? 100;
-      const projectedLevel = getLevelAfterGainedExp(expByLevel, currentStat, statCap, needExpPercent, expFromPlannedFeed);
-      const addedLevels = Math.max(0, projectedLevel - currentStat);
       const itemsToMax = selectedFeedExpPerItem > 0 ? Math.ceil(expNeeded / selectedFeedExpPerItem) : null;
 
       return {
@@ -1526,13 +1540,11 @@ export default function ShopsPage() {
         label: JOB_PARAMETER_DISPLAY_LABELS[key],
         statCap,
         currentStat,
-        addedMin: addedLevels,
-        addedMax: addedLevels,
         itemsToCapEarliest: itemsToMax,
         itemsToCapLatest: itemsToMax,
       };
     });
-  }, [expByLevel, feedItemsNeeded, selectedFeedExpPerItem, selectedFeedItem, selectedFeedStatExpRows, selectedFeedStatKeys]);
+  }, [selectedFeedExpPerItem, selectedFeedItem, selectedFeedStatExpRows, selectedFeedStatKeys]);
   const selectedFeedEarliestCapItems = useMemo(() => {
     const values = selectedFeedStatProjection
       .map((row) => row.itemsToCapEarliest)
@@ -1825,6 +1837,19 @@ export default function ShopsPage() {
         <ShopHeader selectedShop={selectedShop} />
         <ShopTabs currentSlug={selectedShop.slug} />
 
+        {selectedShop.slug === "items-reference" && (
+          <div className="mb-4 flex justify-start">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-primary/60 bg-primary/10 text-primary hover:bg-primary/15"
+              onClick={() => plannerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            >
+              Go to Ally Feed Planner
+            </Button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <ShopBuildingPanel shop={selectedShop} />
           {selectedShop.workbench && (
@@ -1835,22 +1860,24 @@ export default function ShopsPage() {
           )}
         </div>
 
-        <Card className="shadow-sm mb-4">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Owner</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="text-muted-foreground">Owner:</span>
-            <ShopOwnerLink owner={selectedShop.owner} />
+        {selectedShop.slug !== "items-reference" && (
+          <Card className="shadow-sm mb-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Owner</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="text-muted-foreground">Owner:</span>
+              <ShopOwnerLink owner={selectedShop.owner} />
 
-            {selectedShopResults !== null && (
-              <>
-                <span className="text-muted-foreground">Results:</span>
-                <span className="font-medium text-foreground">{selectedShopResults}</span>
-              </>
-            )}
-          </CardContent>
-        </Card>
+              {selectedShopResults !== null && (
+                <>
+                  <span className="text-muted-foreground">Results:</span>
+                  <span className="font-medium text-foreground">{selectedShopResults}</span>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {selectedShop.slug === "weapon-shop" && (
           <div className="space-y-4">
@@ -1972,15 +1999,8 @@ export default function ShopsPage() {
             <Card className="shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Item Reference</CardTitle>
-                <CardDescription className="text-xs">
-                  Separate cross-shop item card. Includes Item Shop, Restaurant, Orchard, and other shop-item entries.
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                  XP uses the Exp sheet directly ({expByLevel.size.toLocaleString()} levels loaded). Required EXP is adjusted by Job.csv `needExp` using: `requiredExp = ExpSheetExp * needExp / 100` (e.g. needExp 200 = 2x EXP). Ally bonus display uses Item.csv bonus fields (`bonusCategory`, `bonusType`, `bonusMinValue`, `bonusMaxValue`) and treats category-2 feed entries as `BONUS_TYPE_LV_LIMIT`.
-                </div>
-
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -2099,20 +2119,26 @@ export default function ShopsPage() {
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold">Item Source and Facility Matrix</h3>
-                  <p className="text-xs text-muted-foreground">All item entries with where they come from and what facilities they need (when applicable).</p>
-                </div>
-
                 <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowItemReferenceDebug((prev) => !prev)}
+                      className={`h-8 px-3 text-xs rounded-md border font-medium transition-colors ${showItemReferenceDebug ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {showItemReferenceDebug ? "Debug: on" : "Debug: off"}
+                    </button>
+                    <span className="text-xs text-muted-foreground">Developer only: shows raw attributes and source classification inputs.</span>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setShowItemReferenceDebug((prev) => !prev)}
-                    className={`h-8 px-3 text-xs rounded-md border font-medium transition-colors ${showItemReferenceDebug ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
+                    onClick={() => setShowHiddenNoExpItems((prev) => !prev)}
+                    className="ml-auto h-7 px-2 text-[11px] rounded-md border border-input text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
                   >
-                    {showItemReferenceDebug ? "Debug: on" : "Debug: off"}
+                    {showHiddenNoExpItems
+                      ? "Hide hidden"
+                      : `Show hidden (${hiddenNoExpItemCount.toLocaleString()})`}
                   </button>
-                  <span className="text-xs text-muted-foreground">Developer only: shows raw attributes and source classification inputs.</span>
                 </div>
 
                 <div className="overflow-x-auto rounded-lg border border-border">
@@ -2122,8 +2148,10 @@ export default function ShopsPage() {
                         <th className="px-3 py-2 text-left font-medium">Item</th>
                         <th className="px-3 py-2 text-left font-medium">Shop source(s)</th>
                         <th className="px-3 py-2 text-left font-medium">Facility source(s)</th>
+                        <th className="px-3 py-2 text-center font-medium">Copper coin</th>
                         <th className="px-3 py-2 text-center font-medium">Studio</th>
                         <th className="px-3 py-2 text-center font-medium">INT</th>
+                        <th className="px-3 py-2 text-center font-medium">Exp gained</th>
                         <th className="px-3 py-2 text-left font-medium">Ally bonus effect</th>
                       </tr>
                     </thead>
@@ -2160,8 +2188,10 @@ export default function ShopsPage() {
                               </div>
                             )}
                           </td>
+                          <td className="px-3 py-2 text-center">{row.item.buyPrice > 0 ? row.item.buyPrice.toLocaleString() : "-"}</td>
                           <td className="px-3 py-2 text-center">{row.item.studioLevel}</td>
                           <td className="px-3 py-2 text-center">{row.item.craftingIntelligence || "-"}</td>
+                          <td className="px-3 py-2 text-center">{getAllyExpGained(row.item) > 0 ? `+${getAllyExpGained(row.item).toLocaleString()}` : "-"}</td>
                           <td className="px-3 py-2 text-muted-foreground">{renderAllyBonusEffect(row.item, statIcons)}</td>
                         </tr>
                       );})}
@@ -2169,7 +2199,7 @@ export default function ShopsPage() {
                   </table>
                 </div>
 
-                <div className="space-y-2 pt-1">
+                <div ref={plannerSectionRef} className="space-y-2 pt-1">
                   <h3 className="text-sm font-semibold">Ally Feed Planner</h3>
                   <p className="text-xs text-muted-foreground">Pick a job and awakening first. Max stat levels are auto-derived per stat from that profile.</p>
                 </div>
@@ -2386,6 +2416,10 @@ export default function ShopsPage() {
                     <div className="font-semibold">{selectedFeedExpPerItem > 0 ? selectedFeedExpPerItem.toLocaleString() : "-"}</div>
                   </div>
                   <div className="rounded-md border border-border p-3">
+                    <div className="text-xs text-muted-foreground">Copper coin per item</div>
+                    <div className="font-semibold">{selectedFeedCopperPerItem > 0 ? selectedFeedCopperPerItem.toLocaleString() : "-"}</div>
+                  </div>
+                  <div className="rounded-md border border-border p-3">
                     <div className="text-xs text-muted-foreground">needExp multiplier range</div>
                     <div className="font-semibold">
                       {selectedNeedExpRange
@@ -2400,6 +2434,10 @@ export default function ShopsPage() {
                     <div className="font-semibold">{feedItemsNeeded === null ? "-" : feedItemsNeeded.toLocaleString()}</div>
                   </div>
                   <div className="rounded-md border border-border p-3">
+                    <div className="text-xs text-muted-foreground">Total copper coin needed</div>
+                    <div className="font-semibold">{selectedFeedTotalCopperNeeded === null ? "-" : selectedFeedTotalCopperNeeded.toLocaleString()}</div>
+                  </div>
+                  <div className="rounded-md border border-border p-3">
                     <div className="text-xs text-muted-foreground">Earliest max hit (items)</div>
                     <div className="font-semibold">{selectedFeedEarliestCapItems === null ? "-" : selectedFeedEarliestCapItems.toLocaleString()}</div>
                   </div>
@@ -2408,7 +2446,14 @@ export default function ShopsPage() {
                 {selectedFeedStatProjection.length > 0 && (
                   <div className="space-y-2">
                     <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                      Job: <span className="font-semibold text-primary">{selectedNeedExpJob?.name ?? "-"}</span>
+                      Job:{" "}
+                      {selectedNeedExpJob?.name ? (
+                        <EntityLink type="job" name={selectedNeedExpJob.name} className="font-semibold text-primary hover:no-underline">
+                          {selectedNeedExpJob.name}
+                        </EntityLink>
+                      ) : (
+                        <span className="font-semibold text-primary">-</span>
+                      )}
                     </div>
                     <div className="overflow-x-auto rounded-lg border border-border">
                       <table className="w-full text-sm">
@@ -2419,7 +2464,6 @@ export default function ShopsPage() {
                           <th className="px-3 py-2 text-center font-medium">Target</th>
                           <th className="px-3 py-2 text-center font-medium">needExp</th>
                           <th className="px-3 py-2 text-center font-medium">EXP to target</th>
-                          <th className="px-3 py-2 text-center font-medium">Levels gained by target feed</th>
                           <th className="px-3 py-2 text-center font-medium">Items to max</th>
                         </tr>
                       </thead>
@@ -2444,7 +2488,6 @@ export default function ShopsPage() {
                             <td className="px-3 py-2 text-center">Lv {row.statCap}</td>
                             <td className="px-3 py-2 text-center">{expRow ? `${expRow.needExpPercent.toFixed(1)}%` : "-"}</td>
                             <td className="px-3 py-2 text-center">{expRow ? expRow.expNeeded.toLocaleString() : "-"}</td>
-                            <td className="px-3 py-2 text-center">+{row.addedMin.toLocaleString()}</td>
                             <td className="px-3 py-2 text-center">
                               {row.itemsToCapEarliest === null
                                 ? "-"
