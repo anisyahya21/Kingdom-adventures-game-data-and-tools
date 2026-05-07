@@ -19,6 +19,7 @@ export type ShopFacility = {
 };
 
 export type ShopSlug =
+  | "items-reference"
   | "weapon-shop"
   | "armor-shop"
   | "accessory-shop"
@@ -44,6 +45,14 @@ export type ShopRecord = {
 };
 
 export const SHOP_RECORDS: ShopRecord[] = [
+  {
+    slug: "items-reference",
+    category: "shop",
+    title: "Items Reference",
+    shortTitle: "Items Ref",
+    description: "Cross-shop item reference and ally feed planner.",
+    owner: "Reference",
+  },
   {
     slug: "weapon-shop",
     category: "shop",

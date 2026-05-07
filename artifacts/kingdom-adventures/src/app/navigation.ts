@@ -1,7 +1,6 @@
 import { SHOP_RECORDS } from "@/lib/shop-utils";
 
 export type NavLink = { href: string; label: string; beta?: boolean };
-
 export type NavSection = {
   title: string;
   primary?: NavLink;
@@ -51,8 +50,8 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Shops",
-    primary: { href: "/shops", label: "Shops" },
+    title: "Shops and items",
+    primary: { href: "/shops", label: "Shops and items" },
     children: SHOP_RECORDS.map((shop) => ({
       href: `/shops/${shop.slug}`,
       label: shop.shortTitle,

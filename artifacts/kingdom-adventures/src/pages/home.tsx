@@ -156,8 +156,8 @@ const BUILT_IN_TOOLS = [
   },
   {
     slug: "/shops",
-    title: "Shops",
-    description: "Browse shop systems by type and drill into each shop.",
+    title: "Shops and items",
+    description: "Browse shops, required crafting facilities, and item feed planning in one place.",
     icon: <Store className="w-6 h-6 text-indigo-500" />,
     badge: "Shops",
     badgeCategory: "shop" satisfies KaCategory,

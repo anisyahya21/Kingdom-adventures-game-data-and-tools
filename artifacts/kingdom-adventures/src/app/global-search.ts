@@ -84,7 +84,7 @@ export function buildGlobalSearchEntries(): GlobalSearchEntry[] {
   );
 
   SHOP_RECORDS.forEach((shop) =>
-    entries.push({ label: shop.title, subtitle: "Shops", href: `/shops/${shop.slug}` }),
+    entries.push({ label: shop.title, subtitle: "Shops and items", href: `/shops/${shop.slug}` }),
   );
 
   return entries;

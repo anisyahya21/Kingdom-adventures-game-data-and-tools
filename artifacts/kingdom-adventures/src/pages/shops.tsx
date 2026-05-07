@@ -25,10 +25,14 @@ import { PageHeader } from "@/components/ka/page-header";
 import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { EntityLink } from "@/components/ka/entity-link";
 import { localSharedData } from "@/lib/local-shared-data";
+import { parseCsv } from "@/lib/monster-truth";
 import { SHOP_RECORDS, type ShopRecord, type ShopSlug, type ShopBuilding, type ShopFacility } from "@/lib/shop-utils";
 import { PLOT_SIZES, PLOT_TILES } from "@/game-data/buildings";
 import { FACILITIES } from "@/game-data/facilities";
 import { FacilityCard } from "./houses";
+import facilityLookupCsv from "../../../../data/Sheet csv/KA GameData - Facility_lookup.csv?raw";
+import expCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Exp.csv?raw";
+import jobCsv from "../../../../data/Sheet csv/KA GameData - Job.csv?raw";
 
 type EquipmentSlot = "Head" | "Weapon" | "Shield" | "Armor" | "Accessory" | "-";
 type EquipmentRow = {
@@ -65,6 +69,10 @@ type ItemRow = {
   studioLevel: number;
   craftingIntelligence: number;
   craftTimeSeconds: number;
+  bonusCategory: number;
+  bonusType: number;
+  bonusMinValue: number;
+  bonusMaxValue: number;
   eggBonusType: number;
   eggBonusValue: number;
   eggBonusExp: number;
@@ -78,10 +86,32 @@ type FurnitureRow = {
   craftingIntelligence: number;
 };
 
+type ItemFacilityRow = {
+  item: ItemRow;
+  sources: string[];
+  facilities: string[];
+};
+
+type FeedCandidateRow = {
+  item: ItemRow;
+  sources: string[];
+};
+
+const JOB_PARAMETER_ORDER = ["HP", "MP", "Vigor", "ATK", "DEF", "SPEED", "LUCK", "Owned?", "INT", "DEX", "CONS", "MOVE", "Heart"] as const;
+type JobParameterKey = (typeof JOB_PARAMETER_ORDER)[number];
+
+type JobNeedExpProfile = {
+  name: string;
+  needExpByParameter: Record<JobParameterKey, number>;
+};
+
+const ITEM_SOURCE_ORDER = ["Item Shop", "Restaurant", "Orchard", "Other sources"] as const;
+
 type SharedDataShape = {
   slotAssignments?: Record<string, string>;
   weaponTypes?: Record<string, string>;
   skills?: Record<string, SkillRow>;
+  statIcons?: Record<string, string>;
 };
 
 const EQUIP_SHEET_URL = googleSheetUrl("equipment");
@@ -89,6 +119,8 @@ const ITEM_SHEET_URL = googleSheetUrl("shops-items");
 const CRAFTABLE_ITEM_FLAG = 128;
 const COOKED_ITEM_FLAG = 1024;
 const ORCHARD_FRUIT_TREE_CRAFT_GROUP = 70;
+const FALLBACK_ITEM_CRAFT_FACILITIES = ["Item Workbench"];
+const FALLBACK_COOKED_CRAFT_FACILITIES = ["Cooking Station"];
 const VALID_SLOTS: EquipmentSlot[] = ["Head", "Weapon", "Shield", "Armor", "Accessory", "-"];
 const EQUIPMENT_VARIANT_NAME_BY_ID: Record<number, string> = {
   192: "B/ Legendary Shield (B)",
@@ -139,6 +171,7 @@ const FURNITURE_ROWS: FurnitureRow[] = [
 ];
 
 const SHOP_ICONS: Record<ShopSlug, ReactNode> = {
+  "items-reference": <Package className="w-5 h-5 text-indigo-500" />,
   "weapon-shop": <Hammer className="w-5 h-5 text-amber-500" />,
   "armor-shop": <Shield className="w-5 h-5 text-sky-500" />,
   "accessory-shop": <Store className="w-5 h-5 text-violet-500" />,
@@ -149,7 +182,8 @@ const SHOP_ICONS: Record<ShopSlug, ReactNode> = {
   orchard: <Leaf className="w-5 h-5 text-lime-600" />,
 };
 
-const PRIMARY_SHOPS = SHOP_RECORDS.filter((shop) => shop.category === "shop");
+const ITEMS_REFERENCE_SHOPS = SHOP_RECORDS.filter((shop) => shop.slug === "items-reference");
+const PRIMARY_SHOPS = SHOP_RECORDS.filter((shop) => shop.category === "shop" && shop.slug !== "items-reference");
 const SECONDARY_FACILITIES = SHOP_RECORDS.filter((shop) => shop.category === "facility");
 
 function getRank(name: string): string {
@@ -177,6 +211,208 @@ function findColumnIndex(cols: string[], patterns: RegExp[]): number {
 
 function fallbackIndex(index: number, fallback: number): number {
   return index >= 0 ? index : fallback;
+}
+
+function parseFacilityCraftGroupMap(rawCsv: string): Map<number, string[]> {
+  const rows = parseCsv(rawCsv);
+  if (rows.length === 0) return new Map();
+  const headerRowIndex = rows.findIndex((row) => {
+    const normalized = row.map((cell) => cell.trim());
+    return normalized.includes("name") && normalized.includes("craftGroup");
+  });
+  if (headerRowIndex < 0) return new Map();
+
+  const header = rows[headerRowIndex].map((cell) => cell.trim());
+  const craftGroupIndex = header.findIndex((cell) => /^craftGroup$/i.test(cell));
+  const nameIndex = header.findIndex((cell) => /^name$/i.test(cell));
+  if (craftGroupIndex < 0 || nameIndex < 0) return new Map();
+
+  const map = new Map<number, Set<string>>();
+  for (const row of rows.slice(headerRowIndex + 1)) {
+    const name = String(row[nameIndex] ?? "").trim();
+    const craftGroup = Number(row[craftGroupIndex] ?? "");
+    if (!name || name === "#N/A" || !Number.isFinite(craftGroup) || craftGroup < 0) continue;
+    const bucket = map.get(craftGroup) ?? new Set<string>();
+    bucket.add(name);
+    map.set(craftGroup, bucket);
+  }
+
+  const output = new Map<number, string[]>();
+  for (const [group, names] of map.entries()) {
+    output.set(group, Array.from(names).sort((a, b) => a.localeCompare(b)));
+  }
+  return output;
+}
+
+function parseExpByLevel(rawCsv: string): Map<number, number> {
+  const rows = parseCsv(rawCsv);
+  if (rows.length === 0) return new Map();
+  const headerRowIndex = rows.findIndex((row) => {
+    const normalized = row.map((cell) => cell.trim());
+    return normalized.includes("id") && normalized.includes("exp");
+  });
+  if (headerRowIndex < 0) return new Map();
+
+  const header = rows[headerRowIndex].map((cell) => cell.trim());
+  const levelIndex = header.findIndex((cell) => /^id$/i.test(cell));
+  const expIndex = header.findIndex((cell) => /^exp$/i.test(cell));
+  if (levelIndex < 0 || expIndex < 0) return new Map();
+
+  const map = new Map<number, number>();
+  for (const row of rows.slice(headerRowIndex + 1)) {
+    const level = Number(row[levelIndex] ?? "");
+    const exp = Number(row[expIndex] ?? "");
+    if (!Number.isFinite(level) || level < 1 || !Number.isFinite(exp) || exp < 0) continue;
+    map.set(level, exp);
+  }
+  return map;
+}
+
+function parseJobNeedExpProfiles(rawCsv: string): JobNeedExpProfile[] {
+  const rows = parseCsv(rawCsv);
+  if (rows.length === 0) return [];
+
+  const headerRowIndex = rows.findIndex((row) => {
+    const normalized = row.map((cell) => cell.trim());
+    return normalized.includes("id") && normalized.includes("name") && normalized.includes("maxLevel");
+  });
+  if (headerRowIndex < 0) return [];
+
+  const header = rows[headerRowIndex].map((cell) => cell.trim());
+  const nameIndex = header.findIndex((cell) => /^name$/i.test(cell));
+  const statStartIndex = header.findIndex((cell) => /^maxLevel$/i.test(cell));
+  if (nameIndex < 0 || statStartIndex < 0) return [];
+
+  const profiles: JobNeedExpProfile[] = [];
+  for (const row of rows.slice(headerRowIndex + 1)) {
+    const name = String(row[nameIndex] ?? "").trim();
+    if (!name) continue;
+
+    const needExpByParameter = {} as Record<JobParameterKey, number>;
+    JOB_PARAMETER_ORDER.forEach((parameter, index) => {
+      const needExpIndex = statStartIndex + (index * 5) + 1;
+      const value = Number(row[needExpIndex] ?? "");
+      needExpByParameter[parameter] = Number.isFinite(value) && value > 0 ? value : 100;
+    });
+
+    profiles.push({ name, needExpByParameter });
+  }
+
+  return profiles.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function isLvLimitBonus(item: ItemRow): boolean {
+  return item.bonusCategory === 2 && item.bonusType > 0;
+}
+
+const BONUS_TYPE_PARAMETER_LABELS: Record<number, string[]> = {
+  10: ["HP"],
+  11: ["MP"],
+  12: ["ENG"],
+  13: ["ATK"],
+  14: ["DEF"],
+  15: ["SPD"],
+  16: ["LUK"],
+  18: ["INT"],
+  19: ["DEX"],
+  20: ["GAT"],
+  21: ["MOV"],
+  22: ["HRT"],
+  31: ["HP", "MP", "ENG"],
+  32: ["ATK", "DEF", "SPD", "LUK"],
+  33: ["INT", "DEX", "GAT", "MOV", "HRT"],
+  34: ["HP", "MP", "ENG", "ATK", "DEF", "SPD", "LUK", "INT", "DEX", "GAT", "MOV", "HRT"],
+};
+
+const BONUS_TYPE_PARAMETER_KEYS: Record<number, JobParameterKey[]> = {
+  10: ["HP"],
+  11: ["MP"],
+  12: ["Vigor"],
+  13: ["ATK"],
+  14: ["DEF"],
+  15: ["SPEED"],
+  16: ["LUCK"],
+  18: ["INT"],
+  19: ["DEX"],
+  20: ["CONS"],
+  21: ["MOVE"],
+  22: ["Heart"],
+  31: ["HP", "MP", "Vigor"],
+  32: ["ATK", "DEF", "SPEED", "LUCK"],
+  33: ["INT", "DEX", "CONS", "MOVE", "Heart"],
+  34: ["HP", "MP", "Vigor", "ATK", "DEF", "SPEED", "LUCK", "INT", "DEX", "CONS", "MOVE", "Heart"],
+};
+
+function formatAllyBonusType(item: ItemRow): string {
+  if (item.bonusType <= 0) return "-";
+  if (isLvLimitBonus(item)) {
+    return `BONUS_TYPE_LV_LIMIT (${item.bonusType})`;
+  }
+  return `BONUS_TYPE_${item.bonusType}`;
+}
+
+function formatAllyBonusRange(minValue: number, maxValue: number): string {
+  const min = Number.isFinite(minValue) && minValue > 0 ? minValue : 0;
+  const max = Number.isFinite(maxValue) && maxValue > 0 ? maxValue : 0;
+  if (min <= 0 && max <= 0) return "-";
+  if (min > 0 && max > 0) {
+    if (min === max) return `+${min}`;
+    return `+${min} to +${max}`;
+  }
+  const only = max > 0 ? max : min;
+  return `+${only}`;
+}
+
+function renderAllyBonusEffect(item: ItemRow, statIcons: Record<string, string>, multiplier = 1): ReactNode {
+  const labels = BONUS_TYPE_PARAMETER_LABELS[item.bonusType] ?? [];
+  const base = Number.isFinite(item.bonusMinValue) && item.bonusMinValue > 0 ? item.bonusMinValue : 0;
+  if (base <= 0) return "-";
+
+  const value = base * multiplier;
+  if (labels.length === 0) {
+    return `Bonus +${value.toLocaleString()}`;
+  }
+
+  const iconKeyByLabel: Record<string, string> = {
+    HP: "HP",
+    MP: "MP",
+    ENG: "Vigor",
+    VIG: "Vigor",
+    ATK: "Attack",
+    DEF: "Defence",
+    SPD: "Speed",
+    LUK: "Luck",
+    INT: "Intelligence",
+    DEX: "Dexterity",
+    GAT: "Gather",
+    MOV: "Move",
+    HRT: "Heart",
+  };
+
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {labels.map((label, index) => {
+        const iconSrc = statIcons[iconKeyByLabel[label] ?? ""];
+        return (
+          <span key={`${label}-${index}`} className="inline-flex items-center gap-1">
+            {iconSrc ? <img src={iconSrc} alt={label} className="h-3.5 w-3.5 object-contain" /> : null}
+            <span>{label} +{value.toLocaleString()}</span>
+            {index < labels.length - 1 ? <span className="text-muted-foreground">/</span> : null}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function getTotalExpNeeded(expByLevel: Map<number, number>, currentLevel: number, targetLevel: number, needExpPercent = 100): number {
+  if (targetLevel <= currentLevel) return 0;
+  let total = 0;
+  for (let level = currentLevel; level < targetLevel; level += 1) {
+    const baseExp = expByLevel.get(level) ?? 0;
+    total += Math.floor((baseExp * needExpPercent) / 100);
+  }
+  return total;
 }
 
 async function fetchEquipmentRows(): Promise<EquipmentRow[]> {
@@ -250,6 +486,10 @@ async function fetchItemRows(): Promise<ItemRow[]> {
   const studioIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTermStudioLevel/i, /crafttermstudiolevel/i]), 28);
   const intIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTermIntelligence/i, /crafttermintelligence/i]), 29);
   const timeIndex = fallbackIndex(findColumnIndex(cols, [/prices\/craftTimeSeconds/i, /crafttimeseconds/i]), 30);
+  const bonusCategoryIndex = fallbackIndex(findColumnIndex(cols, [/prices\/bonusCategory/i, /bonuscategory/i]), 18);
+  const bonusTypeIndex = fallbackIndex(findColumnIndex(cols, [/prices\/bonusType/i, /bonustype/i]), 19);
+  const bonusMinValueIndex = fallbackIndex(findColumnIndex(cols, [/prices\/bonusMinValue/i, /bonusminvalue/i]), 20);
+  const bonusMaxValueIndex = fallbackIndex(findColumnIndex(cols, [/prices\/bonusMaxValue/i, /bonusmaxvalue/i]), 21);
   const eggTypeIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusType/i, /eggbonustype/i]), 22);
   const eggValueIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusValue/i, /eggbonusvalue/i]), 23);
   const eggExpIndex = fallbackIndex(findColumnIndex(cols, [/prices\/eggBonusExp/i, /eggbonusexp/i]), 24);
@@ -269,6 +509,10 @@ async function fetchItemRows(): Promise<ItemRow[]> {
         studioLevel,
         craftingIntelligence,
         craftTimeSeconds: getNumeric(cells, timeIndex),
+        bonusCategory: getNumeric(cells, bonusCategoryIndex),
+        bonusType: getNumeric(cells, bonusTypeIndex),
+        bonusMinValue: getNumeric(cells, bonusMinValueIndex),
+        bonusMaxValue: getNumeric(cells, bonusMaxValueIndex),
         eggBonusType: getNumeric(cells, eggTypeIndex),
         eggBonusValue: getNumeric(cells, eggValueIndex),
         eggBonusExp: getNumeric(cells, eggExpIndex),
@@ -290,12 +534,12 @@ function ShopHeader({ selectedShop }: {
     <PageHeader
       className="mb-6"
       icon={selectedShop ? SHOP_ICONS[selectedShop.slug] : <Store className="w-5 h-5 text-indigo-500" />}
-      title={selectedShop ? selectedShop.title : "Shops"}
+      title={selectedShop ? selectedShop.title : "Shops and items"}
     >
       <p>
         {selectedShop
           ? selectedShop.description
-          : "Browse shop databases by owner and category."}
+          : "Browse shops, item requirements, and ally feed planning data in one place."}
       </p>
     </PageHeader>
   );
@@ -661,6 +905,10 @@ export default function ShopsPage() {
   const [skillSearch, setSkillSearch] = useState("");
   const [itemSearch, setItemSearch] = useState("");
   const [furnitureSearch, setFurnitureSearch] = useState("");
+  const [currentAllyLevelInput, setCurrentAllyLevelInput] = useState("1");
+  const [targetAllyLevelInput, setTargetAllyLevelInput] = useState("999");
+  const [selectedFeedItemName, setSelectedFeedItemName] = useState("");
+  const [selectedNeedExpJobName, setSelectedNeedExpJobName] = useState("");
   const [studioFilter, setStudioFilter] = useState<Set<number>>(new Set());
   const [intFilter, setIntFilter] = useState<Set<number>>(new Set());
   const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
@@ -677,6 +925,10 @@ export default function ShopsPage() {
     () => SHOP_RECORDS.find((shop) => shop.slug === params?.slug) ?? null,
     [params]
   );
+  const statIcons = useMemo(() => {
+    const shared = localSharedData as SharedDataShape;
+    return shared.statIcons ?? {};
+  }, []);
   const currentUrlSearch = typeof window !== "undefined" ? window.location.search : "";
 
   useEffect(() => {
@@ -749,6 +1001,150 @@ export default function ShopsPage() {
     () => itemRows.filter((row) => row.craftGroup === ORCHARD_FRUIT_TREE_CRAFT_GROUP),
     [itemRows]
   );
+  const facilityByCraftGroup = useMemo(() => parseFacilityCraftGroupMap(facilityLookupCsv), []);
+  const expByLevel = useMemo(() => parseExpByLevel(expCsv), []);
+  const jobNeedExpProfiles = useMemo(() => parseJobNeedExpProfiles(jobCsv), []);
+  const maxExpLevel = useMemo(() => {
+    const levels = Array.from(expByLevel.keys());
+    return levels.length > 0 ? Math.max(...levels) : 1;
+  }, [expByLevel]);
+  const allReferenceItemRows = useMemo(() => {
+    const byName = new Map<string, ItemRow>();
+    for (const row of itemRows) {
+      if (!byName.has(row.name)) byName.set(row.name, row);
+    }
+    return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [itemRows]);
+  const itemSourcesByName = useMemo(() => {
+    const byName = new Map<string, Set<string>>();
+    for (const row of itemRows) {
+      const bucket = byName.get(row.name) ?? new Set<string>();
+      if ((row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 && (row.shopFlag & COOKED_ITEM_FLAG) === 0) {
+        bucket.add("Item Shop");
+      }
+      if ((row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 && (row.shopFlag & COOKED_ITEM_FLAG) !== 0) {
+        bucket.add("Restaurant");
+      }
+      if (row.craftGroup === ORCHARD_FRUIT_TREE_CRAFT_GROUP) {
+        bucket.add("Orchard");
+      }
+      if (bucket.size === 0) {
+        bucket.add("Other sources");
+      }
+      byName.set(row.name, bucket);
+    }
+
+    const output = new Map<string, string[]>();
+    for (const [name, sources] of byName.entries()) {
+      const knownSourceOrder = new Map<string, number>(
+        ITEM_SOURCE_ORDER.map((source, index) => [source, index])
+      );
+      output.set(
+        name,
+        Array.from(sources).sort((a, b) => {
+          const aKnown = knownSourceOrder.has(a);
+          const bKnown = knownSourceOrder.has(b);
+          if (aKnown && bKnown) return (knownSourceOrder.get(a) ?? 0) - (knownSourceOrder.get(b) ?? 0);
+          if (aKnown) return -1;
+          if (bKnown) return 1;
+          return a.localeCompare(b);
+        })
+      );
+    }
+    return output;
+  }, [itemRows]);
+  const itemFacilityRows = useMemo<ItemFacilityRow[]>(() => {
+    return allReferenceItemRows.map((item) => {
+      const mapped = facilityByCraftGroup.get(item.craftGroup) ?? [];
+      const sources = itemSourcesByName.get(item.name) ?? [];
+      const needsCraftFallback = item.craftGroup < 0 && (sources.includes("Item Shop") || sources.includes("Restaurant"));
+      const fallback = needsCraftFallback
+        ? (sources.includes("Restaurant") ? FALLBACK_COOKED_CRAFT_FACILITIES : FALLBACK_ITEM_CRAFT_FACILITIES)
+        : [];
+      const facilities = mapped.length > 0 ? mapped : fallback;
+      return { item, sources, facilities };
+    });
+  }, [allReferenceItemRows, facilityByCraftGroup, itemSourcesByName]);
+  const feedCandidateItems = useMemo(
+    () => allReferenceItemRows
+      .filter((row) => row.eggBonusExp > 0)
+      .sort((a, b) => (b.eggBonusExp - a.eggBonusExp) || a.name.localeCompare(b.name)),
+    [allReferenceItemRows]
+  );
+  const feedCandidateRows = useMemo<FeedCandidateRow[]>(
+    () => feedCandidateItems.map((item) => ({
+      item,
+      sources: itemSourcesByName.get(item.name) ?? [],
+    })),
+    [feedCandidateItems, itemSourcesByName]
+  );
+  useEffect(() => {
+    if (selectedFeedItemName && feedCandidateItems.some((item) => item.name === selectedFeedItemName)) return;
+    const topGradeMeat = feedCandidateItems.find((item) => item.name === "Top-Grade Meat");
+    setSelectedFeedItemName(topGradeMeat?.name ?? feedCandidateItems[0]?.name ?? "");
+  }, [feedCandidateItems, selectedFeedItemName]);
+  const selectedFeedItem = useMemo(
+    () => feedCandidateItems.find((item) => item.name === selectedFeedItemName) ?? null,
+    [feedCandidateItems, selectedFeedItemName]
+  );
+  useEffect(() => {
+    if (selectedNeedExpJobName && jobNeedExpProfiles.some((job) => job.name === selectedNeedExpJobName)) return;
+    setSelectedNeedExpJobName(jobNeedExpProfiles[0]?.name ?? "");
+  }, [jobNeedExpProfiles, selectedNeedExpJobName]);
+  const selectedNeedExpJob = useMemo(
+    () => jobNeedExpProfiles.find((job) => job.name === selectedNeedExpJobName) ?? null,
+    [jobNeedExpProfiles, selectedNeedExpJobName]
+  );
+  const selectedNeedExpPercent = useMemo(() => {
+    if (!selectedNeedExpJob || !selectedFeedItem) return 100;
+    const keys = BONUS_TYPE_PARAMETER_KEYS[selectedFeedItem.bonusType] ?? [];
+    if (keys.length === 0) return 100;
+    const total = keys.reduce((sum, key) => sum + (selectedNeedExpJob.needExpByParameter[key] ?? 100), 0);
+    return total / keys.length;
+  }, [selectedNeedExpJob, selectedFeedItem]);
+  const currentAllyLevel = useMemo(() => {
+    const parsed = Number.parseInt(currentAllyLevelInput, 10);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.min(Math.max(parsed, 1), maxExpLevel);
+  }, [currentAllyLevelInput, maxExpLevel]);
+  const targetAllyLevel = useMemo(() => {
+    const parsed = Number.parseInt(targetAllyLevelInput, 10);
+    if (!Number.isFinite(parsed)) return Math.min(999, maxExpLevel);
+    return Math.min(Math.max(parsed, 1), maxExpLevel);
+  }, [targetAllyLevelInput, maxExpLevel]);
+  const allyExpNeeded = useMemo(
+    () => getTotalExpNeeded(expByLevel, currentAllyLevel, targetAllyLevel, selectedNeedExpPercent),
+    [currentAllyLevel, expByLevel, selectedNeedExpPercent, targetAllyLevel]
+  );
+  const feedItemsNeeded = useMemo(() => {
+    if (!selectedFeedItem || selectedFeedItem.eggBonusExp <= 0) return null;
+    if (allyExpNeeded <= 0) return 0;
+    return Math.ceil(allyExpNeeded / selectedFeedItem.eggBonusExp);
+  }, [allyExpNeeded, selectedFeedItem]);
+  const selectedFeedTotalBonusRange = useMemo(() => {
+    if (!selectedFeedItem || feedItemsNeeded === null || feedItemsNeeded <= 0) return 0;
+    return {
+      min: selectedFeedItem.bonusMinValue * feedItemsNeeded,
+      max: selectedFeedItem.bonusMaxValue * feedItemsNeeded,
+    };
+  }, [feedItemsNeeded, selectedFeedItem]);
+  const expPreviewRows = useMemo(() => {
+    const start = Math.max(1, Math.min(currentAllyLevel, targetAllyLevel));
+    const end = Math.min(maxExpLevel, start + 9);
+    let cumulative = 0;
+    for (let level = 1; level < start; level += 1) {
+      cumulative += expByLevel.get(level) ?? 0;
+    }
+
+    const rows: Array<{ level: number; expToNext: number; cumulativeToNext: number }> = [];
+    for (let level = start; level <= end; level += 1) {
+      const baseExp = expByLevel.get(level) ?? 0;
+      const expToNext = Math.floor((baseExp * selectedNeedExpPercent) / 100);
+      cumulative += expToNext;
+      rows.push({ level, expToNext, cumulativeToNext: cumulative });
+    }
+    return rows;
+  }, [currentAllyLevel, expByLevel, maxExpLevel, selectedNeedExpPercent, targetAllyLevel]);
   const filteredItemRows = useMemo(
     () => itemShopRows.filter((row) => matchesQuery(row.name, itemSearch) && (studioFilter.size === 0 || studioFilter.has(row.studioLevel)) && (intFilter.size === 0 || intFilter.has(row.craftingIntelligence))),
     [itemShopRows, itemSearch, studioFilter, intFilter]
@@ -902,6 +1298,8 @@ export default function ShopsPage() {
   );
   const selectedShopResults = useMemo(() => {
     switch (selectedShop?.slug) {
+      case "items-reference":
+        return itemFacilityRows.filter((row) => matchesQuery(row.item.name, itemSearch)).length;
       case "weapon-shop":
         return weaponRows.length;
       case "armor-shop":
@@ -924,6 +1322,8 @@ export default function ShopsPage() {
   }, [
     accessoryRows.length,
     armorRows.length,
+    itemFacilityRows,
+    itemSearch,
     filteredFurnitureRows.length,
     filteredItemRows.length,
     filteredOrchardRows.length,
@@ -967,6 +1367,35 @@ export default function ShopsPage() {
               <h2 className="text-sm font-semibold text-muted-foreground mb-3">Other Facilities</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {SECONDARY_FACILITIES.map((shop) => (
+                  <Card
+                    key={shop.slug}
+                    onClick={() => navigate(`/shops/${shop.slug}`)}
+                    className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all group h-full cursor-pointer"
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors w-fit">
+                        {SHOP_ICONS[shop.slug]}
+                      </div>
+                      <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <CardDescription className="text-xs leading-relaxed">{shop.description}</CardDescription>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <ShopOwnerLink owner={shop.owner} />
+
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {ITEMS_REFERENCE_SHOPS.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-sm font-semibold text-muted-foreground mb-3">Items Reference</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {ITEMS_REFERENCE_SHOPS.map((shop) => (
                   <Card
                     key={shop.slug}
                     onClick={() => navigate(`/shops/${shop.slug}`)}
@@ -1138,6 +1567,204 @@ export default function ShopsPage() {
             <Card className="shadow-sm">
               <CardContent className="pt-6">
                 <SkillsTable rows={filteredSkillRows} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {selectedShop.slug === "items-reference" && (
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Items Reference and Ally Feed Planner</CardTitle>
+                <CardDescription className="text-xs">
+                  Separate cross-shop item card. Includes Item Shop, Restaurant, Orchard, and other shop-item entries.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  XP uses the Exp sheet directly ({expByLevel.size.toLocaleString()} levels loaded). Required EXP is adjusted by Job.csv `needExp` using: `requiredExp = ExpSheetExp * needExp / 100` (e.g. needExp 200 = 2x EXP). Ally bonus display uses Item.csv bonus fields (`bonusCategory`, `bonusType`, `bonusMinValue`, `bonusMaxValue`) and treats category-2 feed entries as `BONUS_TYPE_LV_LIMIT`.
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search items..." className="pl-9 h-9" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">Item Source and Facility Matrix</h3>
+                  <p className="text-xs text-muted-foreground">All item entries with where they come from and what facilities they need (when applicable).</p>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Item</th>
+                        <th className="px-3 py-2 text-left font-medium">Shop source(s)</th>
+                        <th className="px-3 py-2 text-left font-medium">Facility source(s)</th>
+                        <th className="px-3 py-2 text-center font-medium">Studio</th>
+                        <th className="px-3 py-2 text-center font-medium">INT</th>
+                        <th className="px-3 py-2 text-left font-medium">Ally bonus effect</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemFacilityRows.filter((row) => matchesQuery(row.item.name, itemSearch)).map((row) => (
+                        <tr key={row.item.name} className="border-t border-border/70">
+                          <td className="px-3 py-2 font-medium text-foreground">{row.item.name}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{row.sources.length > 0 ? row.sources.join(" / ") : "-"}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{row.facilities.length > 0 ? row.facilities.join(" / ") : "-"}</td>
+                          <td className="px-3 py-2 text-center">{row.item.studioLevel}</td>
+                          <td className="px-3 py-2 text-center">{row.item.craftingIntelligence || "-"}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{renderAllyBonusEffect(row.item, statIcons)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <h3 className="text-sm font-semibold">Ally XP Planner Structure</h3>
+                  <p className="text-xs text-muted-foreground">Target-level estimator layout is ready and will use finalized XP inputs once available.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Current ally level</label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={maxExpLevel}
+                      value={currentAllyLevelInput}
+                      onChange={(e) => setCurrentAllyLevelInput(e.target.value)}
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Target ally level</label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={maxExpLevel}
+                      value={targetAllyLevelInput}
+                      onChange={(e) => setTargetAllyLevelInput(e.target.value)}
+                      className="h-9 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Feed item</label>
+                    <select
+                      value={selectedFeedItemName}
+                      onChange={(e) => setSelectedFeedItemName(e.target.value)}
+                      className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      {feedCandidateItems.map((item) => (
+                        <option key={item.name} value={item.name}>
+                          {item.name} (Ally EXP {item.eggBonusExp})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Job needExp profile</label>
+                    <select
+                      value={selectedNeedExpJobName}
+                      onChange={(e) => setSelectedNeedExpJobName(e.target.value)}
+                      className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      {jobNeedExpProfiles.map((job) => (
+                        <option key={job.name} value={job.name}>
+                          {job.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm">
+                  <div className="rounded-md border border-border p-3">
+                    <div className="text-xs text-muted-foreground">EXP table max level</div>
+                    <div className="font-semibold">{maxExpLevel}</div>
+                  </div>
+                  <div className="rounded-md border border-border p-3">
+                    <div className="text-xs text-muted-foreground">Total EXP needed</div>
+                    <div className="font-semibold">{allyExpNeeded.toLocaleString()}</div>
+                  </div>
+                  <div className="rounded-md border border-border p-3">
+                    <div className="text-xs text-muted-foreground">needExp multiplier</div>
+                    <div className="font-semibold">{selectedNeedExpPercent.toFixed(1)}%</div>
+                  </div>
+                  <div className="rounded-md border border-border p-3">
+                    <div className="text-xs text-muted-foreground">Selected item EXP each</div>
+                    <div className="font-semibold">{selectedFeedItem?.eggBonusExp?.toLocaleString() ?? "-"}</div>
+                  </div>
+                  <div className="rounded-md border border-border p-3">
+                    <div className="text-xs text-muted-foreground">Items needed</div>
+                    <div className="font-semibold">{feedItemsNeeded === null ? "-" : feedItemsNeeded.toLocaleString()}</div>
+                  </div>
+                  <div className="rounded-md border border-border p-3">
+                    <div className="text-xs text-muted-foreground">Total ally bonus effect (selected item)</div>
+                    <div className="font-semibold">
+                      {selectedFeedTotalBonusRange
+                        ? renderAllyBonusEffect(selectedFeedItem as ItemRow, statIcons, feedItemsNeeded ?? 0)
+                        : "-"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <h3 className="text-sm font-semibold">EXP Curve Preview (From Exp Sheet)</h3>
+                  <p className="text-xs text-muted-foreground">Per-level EXP and cumulative EXP for the current planning window after applying selected job needExp multiplier.</p>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-center font-medium">Level</th>
+                        <th className="px-3 py-2 text-center font-medium">EXP to next level</th>
+                        <th className="px-3 py-2 text-center font-medium">Cumulative EXP to next level</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expPreviewRows.map((row) => (
+                        <tr key={row.level} className="border-t border-border/70">
+                          <td className="px-3 py-2 text-center">{row.level}</td>
+                          <td className="px-3 py-2 text-center">{row.expToNext.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-center">{row.cumulativeToNext.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <h3 className="text-sm font-semibold">Feed Item Pool</h3>
+                  <p className="text-xs text-muted-foreground">Dedicated source list of items currently carrying ally feed values.</p>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Item</th>
+                        <th className="px-3 py-2 text-left font-medium">Source(s)</th>
+                        <th className="px-3 py-2 text-left font-medium">Ally bonus effect</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {feedCandidateRows.filter((row) => matchesQuery(row.item.name, itemSearch)).map((row) => (
+                        <tr key={row.item.name} className="border-t border-border/70">
+                          <td className="px-3 py-2 font-medium text-foreground">{row.item.name}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{row.sources.length > 0 ? row.sources.join(" / ") : "-"}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{renderAllyBonusEffect(row.item, statIcons)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </CardContent>
             </Card>
           </div>
