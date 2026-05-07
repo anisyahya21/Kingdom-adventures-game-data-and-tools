@@ -98,6 +98,7 @@ type ItemFacilityRow = {
 type FeedCandidateRow = {
   item: ItemRow;
   sources: string[];
+  facilities: string[];
 };
 
 const JOB_PARAMETER_ORDER = ["HP", "MP", "Vigor", "ATK", "DEF", "SPEED", "LUCK", "Owned?", "INT", "DEX", "CONS", "MOVE", "Heart"] as const;
@@ -109,6 +110,9 @@ type JobNeedExpProfile = {
 };
 
 const ITEM_SOURCE_ORDER = ["Item Shop", "Restaurant", "Orchard", "Other sources"] as const;
+const ALL_ITEM_SOURCE_FILTER = "__all__";
+const ALL_FACILITY_SOURCE_FILTER = "__all__";
+const NO_FACILITY_SOURCE_FILTER = "__none__";
 
 type SharedDataShape = {
   slotAssignments?: Record<string, string>;
@@ -999,6 +1003,8 @@ export default function ShopsPage() {
   const [armorSlotFilter, setArmorSlotFilter] = useState<"All" | "Head" | "Armor" | "Shield">("All");
   const [skillSearch, setSkillSearch] = useState("");
   const [itemSearch, setItemSearch] = useState("");
+  const [itemSourceFilter, setItemSourceFilter] = useState<string>(ALL_ITEM_SOURCE_FILTER);
+  const [facilitySourceFilter, setFacilitySourceFilter] = useState<string>(ALL_FACILITY_SOURCE_FILTER);
   const [furnitureSearch, setFurnitureSearch] = useState("");
   const [currentAllyLevelInput, setCurrentAllyLevelInput] = useState("1");
   const [targetAllyLevelInput, setTargetAllyLevelInput] = useState("999");
@@ -1007,10 +1013,19 @@ export default function ShopsPage() {
   const [studioFilter, setStudioFilter] = useState<Set<number>>(new Set());
   const [intFilter, setIntFilter] = useState<Set<number>>(new Set());
   const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
+  const [openReferenceFilterMenu, setOpenReferenceFilterMenu] = useState<"shop-source" | "facility-source" | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  const referenceFilterMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) setOpenFilterMenu(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (referenceFilterMenuRef.current && !referenceFilterMenuRef.current.contains(e.target as Node)) setOpenReferenceFilterMenu(null);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -1032,6 +1047,8 @@ export default function ShopsPage() {
     if (selectedShop?.slug === "item-shop" || selectedShop?.slug === "restaurant" || selectedShop?.slug === "orchard") setItemSearch(q);
     else if (selectedShop?.slug === "furniture-shop") setFurnitureSearch(q);
     else setSearch(q);
+    setItemSourceFilter(ALL_ITEM_SOURCE_FILTER);
+    setFacilitySourceFilter(ALL_FACILITY_SOURCE_FILTER);
     setStudioFilter(new Set());
     setIntFilter(new Set());
   }, [currentUrlSearch, selectedShop?.slug]);
@@ -1169,6 +1186,43 @@ export default function ShopsPage() {
       return { item, sources, facilities };
     });
   }, [allReferenceItemRows, facilityByCraftGroup, itemSourcesByName]);
+  const itemFacilityByName = useMemo(() => {
+    const map = new Map<string, ItemFacilityRow>();
+    for (const row of itemFacilityRows) map.set(row.item.name, row);
+    return map;
+  }, [itemFacilityRows]);
+  const itemSourceFilterOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of itemFacilityRows) {
+      const sources = row.sources.length > 0 ? row.sources : ["Other sources"];
+      for (const source of sources) set.add(source);
+    }
+    const knownOrder = new Map<string, number>(ITEM_SOURCE_ORDER.map((source, index) => [source, index]));
+    return Array.from(set).sort((a, b) => {
+      const aKnown = knownOrder.has(a);
+      const bKnown = knownOrder.has(b);
+      if (aKnown && bKnown) return (knownOrder.get(a) ?? 0) - (knownOrder.get(b) ?? 0);
+      if (aKnown) return -1;
+      if (bKnown) return 1;
+      return a.localeCompare(b);
+    });
+  }, [itemFacilityRows]);
+  const facilitySourceFilterOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of itemFacilityRows) {
+      for (const facility of row.facilities) set.add(facility);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [itemFacilityRows]);
+  const filteredItemFacilityRows = useMemo(() => {
+    return itemFacilityRows.filter((row) => {
+      if (!matchesQuery(row.item.name, itemSearch)) return false;
+      if (itemSourceFilter !== ALL_ITEM_SOURCE_FILTER && !row.sources.includes(itemSourceFilter)) return false;
+      if (facilitySourceFilter === ALL_FACILITY_SOURCE_FILTER) return true;
+      if (facilitySourceFilter === NO_FACILITY_SOURCE_FILTER) return row.facilities.length === 0;
+      return row.facilities.includes(facilitySourceFilter);
+    });
+  }, [facilitySourceFilter, itemFacilityRows, itemSearch, itemSourceFilter]);
   const feedCandidateItems = useMemo(
     () => allReferenceItemRows
       .filter((row) => row.eggBonusExp > 0)
@@ -1179,9 +1233,25 @@ export default function ShopsPage() {
     () => feedCandidateItems.map((item) => ({
       item,
       sources: itemSourcesByName.get(item.name) ?? [],
+      facilities: itemFacilityByName.get(item.name)?.facilities ?? [],
     })),
-    [feedCandidateItems, itemSourcesByName]
+    [feedCandidateItems, itemFacilityByName, itemSourcesByName]
   );
+  const filteredFeedCandidateRows = useMemo(() => {
+    return feedCandidateRows.filter((row) => {
+      if (!matchesQuery(row.item.name, itemSearch)) return false;
+      if (itemSourceFilter !== ALL_ITEM_SOURCE_FILTER && !row.sources.includes(itemSourceFilter)) return false;
+      if (facilitySourceFilter === ALL_FACILITY_SOURCE_FILTER) return true;
+      if (facilitySourceFilter === NO_FACILITY_SOURCE_FILTER) return row.facilities.length === 0;
+      return row.facilities.includes(facilitySourceFilter);
+    });
+  }, [facilitySourceFilter, feedCandidateRows, itemSearch, itemSourceFilter]);
+  const selectedShopSourceLabel = itemSourceFilter === ALL_ITEM_SOURCE_FILTER ? "All shop sources" : itemSourceFilter;
+  const selectedFacilitySourceLabel = facilitySourceFilter === ALL_FACILITY_SOURCE_FILTER
+    ? "All facility sources"
+    : facilitySourceFilter === NO_FACILITY_SOURCE_FILTER
+      ? "No facility"
+      : facilitySourceFilter;
   useEffect(() => {
     if (selectedFeedItemName && feedCandidateItems.some((item) => item.name === selectedFeedItemName)) return;
     const topGradeMeat = feedCandidateItems.find((item) => item.name === "Top-Grade Meat");
@@ -1697,6 +1767,88 @@ export default function ShopsPage() {
                   </div>
                 </div>
 
+                <div ref={referenceFilterMenuRef} className="flex flex-wrap items-center gap-2">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpenReferenceFilterMenu((prev) => prev === "shop-source" ? null : "shop-source")}
+                      className="h-9 rounded-md border border-border px-3 text-sm inline-flex items-center gap-2"
+                    >
+                      Shop: {selectedShopSourceLabel}
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                    {openReferenceFilterMenu === "shop-source" && (
+                      <div className="absolute z-20 mt-1 w-56 rounded-md border border-border bg-background shadow-md p-1 max-h-64 overflow-auto">
+                        <button
+                          type="button"
+                          onClick={() => { setItemSourceFilter(ALL_ITEM_SOURCE_FILTER); setOpenReferenceFilterMenu(null); }}
+                          className={`w-full text-left px-2 py-1.5 rounded text-sm ${itemSourceFilter === ALL_ITEM_SOURCE_FILTER ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                        >
+                          All shop sources
+                        </button>
+                        {itemSourceFilterOptions.map((source) => (
+                          <button
+                            key={source}
+                            type="button"
+                            onClick={() => {
+                              setItemSourceFilter((prev) => (prev === source ? ALL_ITEM_SOURCE_FILTER : source));
+                              setOpenReferenceFilterMenu(null);
+                            }}
+                            className={`w-full text-left px-2 py-1.5 rounded text-sm ${itemSourceFilter === source ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                          >
+                            {source}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpenReferenceFilterMenu((prev) => prev === "facility-source" ? null : "facility-source")}
+                      className="h-9 rounded-md border border-border px-3 text-sm inline-flex items-center gap-2"
+                    >
+                      Facility: {selectedFacilitySourceLabel}
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                    {openReferenceFilterMenu === "facility-source" && (
+                      <div className="absolute z-20 mt-1 w-64 rounded-md border border-border bg-background shadow-md p-1 max-h-64 overflow-auto">
+                        <button
+                          type="button"
+                          onClick={() => { setFacilitySourceFilter(ALL_FACILITY_SOURCE_FILTER); setOpenReferenceFilterMenu(null); }}
+                          className={`w-full text-left px-2 py-1.5 rounded text-sm ${facilitySourceFilter === ALL_FACILITY_SOURCE_FILTER ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                        >
+                          All facility sources
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFacilitySourceFilter((prev) => (prev === NO_FACILITY_SOURCE_FILTER ? ALL_FACILITY_SOURCE_FILTER : NO_FACILITY_SOURCE_FILTER));
+                            setOpenReferenceFilterMenu(null);
+                          }}
+                          className={`w-full text-left px-2 py-1.5 rounded text-sm ${facilitySourceFilter === NO_FACILITY_SOURCE_FILTER ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                        >
+                          No facility
+                        </button>
+                        {facilitySourceFilterOptions.map((facility) => (
+                          <button
+                            key={facility}
+                            type="button"
+                            onClick={() => {
+                              setFacilitySourceFilter((prev) => (prev === facility ? ALL_FACILITY_SOURCE_FILTER : facility));
+                              setOpenReferenceFilterMenu(null);
+                            }}
+                            className={`w-full text-left px-2 py-1.5 rounded text-sm ${facilitySourceFilter === facility ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                          >
+                            {facility}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold">Item Source and Facility Matrix</h3>
                   <p className="text-xs text-muted-foreground">All item entries with where they come from and what facilities they need (when applicable).</p>
@@ -1715,7 +1867,7 @@ export default function ShopsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {itemFacilityRows.filter((row) => matchesQuery(row.item.name, itemSearch)).map((row) => (
+                      {filteredItemFacilityRows.map((row) => (
                         <tr key={row.item.name} className="border-t border-border/70">
                           <td className="px-3 py-2 font-medium text-foreground">{row.item.name}</td>
                           <td className="px-3 py-2 text-muted-foreground">{row.sources.length > 0 ? row.sources.join(" / ") : "-"}</td>
@@ -1859,7 +2011,7 @@ export default function ShopsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {feedCandidateRows.filter((row) => matchesQuery(row.item.name, itemSearch)).map((row) => (
+                      {filteredFeedCandidateRows.map((row) => (
                         <tr key={row.item.name} className="border-t border-border/70">
                           <td className="px-3 py-2 font-medium text-foreground">{row.item.name}</td>
                           <td className="px-3 py-2 text-muted-foreground">{row.sources.length > 0 ? row.sources.join(" / ") : "-"}</td>
