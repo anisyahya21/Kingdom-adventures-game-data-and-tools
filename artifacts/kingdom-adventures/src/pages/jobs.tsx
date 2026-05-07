@@ -975,7 +975,7 @@ function AdvancedCompareDialog({
   const [sortKey, setSortKey] = useState("group-1");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [groups, setGroups] = useState<CompareGroup[]>([
-    { id: 1, name: "Total Value", stats: ["HP", "MP", "Attack", "Defence", "Speed", "Intelligence"] },
+    { id: 1, name: "Total Value", stats: ["HP", "MP", "Attack", "Defence", "Speed", "Luck", "Intelligence"] },
   ]);
   const [showBattleType, setShowBattleType] = useState(true);
   const [showSkills, setShowSkills] = useState(true);
