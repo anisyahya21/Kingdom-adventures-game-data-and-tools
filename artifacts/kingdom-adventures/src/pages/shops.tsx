@@ -109,7 +109,7 @@ type JobNeedExpProfile = {
   needExpByParameter: Record<JobParameterKey, number>;
 };
 
-const ITEM_SOURCE_ORDER = ["Item Shop", "Restaurant", "Orchard", "Other sources"] as const;
+const ITEM_SOURCE_ORDER = ["Item Shop", "Facility only", "Other sources"] as const;
 const NO_FACILITY_SOURCE_FILTER = "__none__";
 
 type SharedDataShape = {
@@ -1102,9 +1102,8 @@ export default function ShopsPage() {
   const itemShopRows = useMemo(
     () => itemRows.filter((row) => {
       const isCooked = (row.shopFlag & COOKED_ITEM_FLAG) !== 0;
-      const isOrchard = row.craftGroup === ORCHARD_FRUIT_TREE_CRAFT_GROUP;
-      const isMaterialFoodItem = row.category === 5 && row.type === 1;
-      return !isCooked && !isOrchard && ((row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 || isMaterialFoodItem);
+      const isCraftable = (row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0;
+      return isCraftable && !isCooked;
     }),
     [itemRows]
   );
@@ -1135,17 +1134,12 @@ export default function ShopsPage() {
     for (const row of itemRows) {
       const bucket = byName.get(row.name) ?? new Set<string>();
       const isCooked = (row.shopFlag & COOKED_ITEM_FLAG) !== 0;
-      const isOrchard = row.craftGroup === ORCHARD_FRUIT_TREE_CRAFT_GROUP;
-      const isMaterialFoodItem = row.category === 5 && row.type === 1;
+      const isCraftable = (row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0;
 
-      if (isCooked) {
-        bucket.add("Restaurant");
-      }
-      if (isOrchard) {
-        bucket.add("Orchard");
-      }
-      if (!isCooked && !isOrchard && ((row.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0 || isMaterialFoodItem)) {
+      if (isCraftable && !isCooked) {
         bucket.add("Item Shop");
+      } else {
+        bucket.add("Facility only");
       }
       if (bucket.size === 0) {
         bucket.add("Other sources");
@@ -1176,10 +1170,8 @@ export default function ShopsPage() {
     return allReferenceItemRows.map((item) => {
       const mapped = facilityByCraftGroup.get(item.craftGroup) ?? [];
       const sources = itemSourcesByName.get(item.name) ?? [];
-      const needsCraftFallback = item.craftGroup < 0 && (sources.includes("Item Shop") || sources.includes("Restaurant"));
-      const fallback = needsCraftFallback
-        ? (sources.includes("Restaurant") ? FALLBACK_COOKED_CRAFT_FACILITIES : FALLBACK_ITEM_CRAFT_FACILITIES)
-        : [];
+      const needsCraftFallback = item.craftGroup < 0 && sources.includes("Item Shop");
+      const fallback = needsCraftFallback ? FALLBACK_ITEM_CRAFT_FACILITIES : [];
       const facilities = mapped.length > 0 ? mapped : fallback;
       return { item, sources, facilities };
     });
