@@ -124,6 +124,10 @@ const ITEM_SHEET_URL = googleSheetUrl("shops-items");
 const CRAFTABLE_ITEM_FLAG = 128;
 const COOKED_ITEM_FLAG = 1024;
 const ORCHARD_FRUIT_TREE_CRAFT_GROUP = 70;
+const KNOWN_ITEM_SHOP_FLAGS: Array<{ mask: number; label: string }> = [
+  { mask: CRAFTABLE_ITEM_FLAG, label: "CRAFTABLE_ITEM_FLAG (128)" },
+  { mask: COOKED_ITEM_FLAG, label: "COOKED_ITEM_FLAG (1024)" },
+];
 const FALLBACK_ITEM_CRAFT_FACILITIES = ["Item Workbench"];
 const FALLBACK_COOKED_CRAFT_FACILITIES = ["Cooking Station"];
 const VALID_SLOTS: EquipmentSlot[] = ["Head", "Weapon", "Shield", "Armor", "Accessory", "-"];
@@ -798,6 +802,21 @@ function matchesQuery(name: string, query: string): boolean {
   return parts.every((part) => normalizedName.includes(part));
 }
 
+function getKnownItemFlagNames(shopFlag: number): string[] {
+  return KNOWN_ITEM_SHOP_FLAGS.filter((flag) => (shopFlag & flag.mask) !== 0).map((flag) => flag.label);
+}
+
+function getUnknownItemFlagBits(shopFlag: number): number[] {
+  const knownMask = KNOWN_ITEM_SHOP_FLAGS.reduce((mask, flag) => mask | flag.mask, 0);
+  const unknownMask = (shopFlag & ~knownMask) >>> 0;
+  const bits: number[] = [];
+  for (let bit = 0; bit < 31; bit += 1) {
+    const value = 1 << bit;
+    if ((unknownMask & value) !== 0) bits.push(value);
+  }
+  return bits;
+}
+
 function EquipmentTable({ rows, showWeaponType = false }: { rows: EquipmentRow[]; showWeaponType?: boolean }) {
   type SortCol = "name" | "rank" | "studio" | "int";
   const [sortCol, setSortCol] = useState<SortCol>("studio");
@@ -1010,6 +1029,7 @@ export default function ShopsPage() {
   const [selectedNeedExpJobName, setSelectedNeedExpJobName] = useState("");
   const [studioFilter, setStudioFilter] = useState<Set<number>>(new Set());
   const [intFilter, setIntFilter] = useState<Set<number>>(new Set());
+  const [showItemReferenceDebug, setShowItemReferenceDebug] = useState(false);
   const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
   const [openReferenceFilterMenu, setOpenReferenceFilterMenu] = useState<"shop-source" | "facility-source" | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
@@ -1901,6 +1921,17 @@ export default function ShopsPage() {
                   <p className="text-xs text-muted-foreground">All item entries with where they come from and what facilities they need (when applicable).</p>
                 </div>
 
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowItemReferenceDebug((prev) => !prev)}
+                    className={`h-8 px-3 text-xs rounded-md border font-medium transition-colors ${showItemReferenceDebug ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {showItemReferenceDebug ? "Debug: on" : "Debug: off"}
+                  </button>
+                  <span className="text-xs text-muted-foreground">Developer only: shows raw attributes and source classification inputs.</span>
+                </div>
+
                 <div className="overflow-x-auto rounded-lg border border-border">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40 text-muted-foreground">
@@ -1914,16 +1945,43 @@ export default function ShopsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredItemFacilityRows.map((row) => (
-                        <tr key={row.item.name} className="border-t border-border/70">
-                          <td className="px-3 py-2 font-medium text-foreground">{row.item.name}</td>
+                      {filteredItemFacilityRows.map((row) => {
+                        const isCraftable = (row.item.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0;
+                        const isCooked = (row.item.shopFlag & COOKED_ITEM_FLAG) !== 0;
+                        const knownFlags = getKnownItemFlagNames(row.item.shopFlag);
+                        const unknownFlags = getUnknownItemFlagBits(row.item.shopFlag);
+                        const classifiedAsItemShop = isCraftable && !isCooked;
+                        const classification = classifiedAsItemShop ? "Item Shop" : "Facility only";
+                        const binaryFlag = row.item.shopFlag.toString(2).padStart(12, "0");
+                        return (
+                        <tr key={row.item.name} className="border-t border-border/70 align-top">
+                          <td className="px-3 py-2 font-medium text-foreground">
+                            <div>{row.item.name}</div>
+                            {showItemReferenceDebug && (
+                              <div className="mt-1.5 space-y-1 text-[11px] font-normal leading-4 text-muted-foreground">
+                                <div>shopFlag: {row.item.shopFlag} (0b{binaryFlag})</div>
+                                <div>known flags: {knownFlags.length > 0 ? knownFlags.join(" | ") : "none"}</div>
+                                <div>unknown flag bits: {unknownFlags.length > 0 ? unknownFlags.join(", ") : "none"}</div>
+                                <div>isCraftable(128): {String(isCraftable)} | hasCooked(1024): {String(isCooked)}</div>
+                                <div>craftGroup: {row.item.craftGroup} | category: {row.item.category} | type: {row.item.type}</div>
+                                <div>classified as: {classification}</div>
+                              </div>
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-muted-foreground">{row.sources.length > 0 ? row.sources.join(" / ") : "-"}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{row.facilities.length > 0 ? row.facilities.join(" / ") : "-"}</td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {row.facilities.length > 0 ? row.facilities.join(" / ") : "-"}
+                            {showItemReferenceDebug && (
+                              <div className="mt-1 text-[11px] leading-4 text-muted-foreground/90">
+                                fallbackUsed: {String(row.facilities.length > 0 && row.item.craftGroup < 0 && row.sources.includes("Item Shop"))}
+                              </div>
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-center">{row.item.studioLevel}</td>
                           <td className="px-3 py-2 text-center">{row.item.craftingIntelligence || "-"}</td>
                           <td className="px-3 py-2 text-muted-foreground">{renderAllyBonusEffect(row.item, statIcons)}</td>
                         </tr>
-                      ))}
+                      );})}
                     </tbody>
                   </table>
                 </div>
@@ -2058,13 +2116,28 @@ export default function ShopsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredFeedCandidateRows.map((row) => (
-                        <tr key={row.item.name} className="border-t border-border/70">
-                          <td className="px-3 py-2 font-medium text-foreground">{row.item.name}</td>
+                      {filteredFeedCandidateRows.map((row) => {
+                        const isCraftable = (row.item.shopFlag & CRAFTABLE_ITEM_FLAG) !== 0;
+                        const isCooked = (row.item.shopFlag & COOKED_ITEM_FLAG) !== 0;
+                        const knownFlags = getKnownItemFlagNames(row.item.shopFlag);
+                        const unknownFlags = getUnknownItemFlagBits(row.item.shopFlag);
+                        return (
+                        <tr key={row.item.name} className="border-t border-border/70 align-top">
+                          <td className="px-3 py-2 font-medium text-foreground">
+                            <div>{row.item.name}</div>
+                            {showItemReferenceDebug && (
+                              <div className="mt-1.5 space-y-1 text-[11px] font-normal leading-4 text-muted-foreground">
+                                <div>shopFlag: {row.item.shopFlag}</div>
+                                <div>known flags: {knownFlags.length > 0 ? knownFlags.join(" | ") : "none"}</div>
+                                <div>unknown flag bits: {unknownFlags.length > 0 ? unknownFlags.join(", ") : "none"}</div>
+                                <div>isCraftable(128): {String(isCraftable)} | hasCooked(1024): {String(isCooked)}</div>
+                              </div>
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-muted-foreground">{row.sources.length > 0 ? row.sources.join(" / ") : "-"}</td>
                           <td className="px-3 py-2 text-muted-foreground">{renderAllyBonusEffect(row.item, statIcons)}</td>
                         </tr>
-                      ))}
+                      );})}
                     </tbody>
                   </table>
                 </div>
