@@ -170,6 +170,7 @@ export default function ChaosSetupLabPage() {
   const [demoAxis, setDemoAxis] = useState<"x" | "y">("x");
   const [demoSeamMode, setDemoSeamMode] = useState<DemoSeamMode>("auto");
   const [showDebugLabels, setShowDebugLabels] = useState<boolean>(false);
+  const [showLevelOverlay, setShowLevelOverlay] = useState<boolean>(false);
   const [mapZoom, setMapZoom] = useState<number>(1);
   const [pickSetupAreaFromMap, setPickSetupAreaFromMap] = useState<boolean>(false);
   const [selectedSetupArea, setSelectedSetupArea] = useState<Point | null>(null);
@@ -331,6 +332,31 @@ export default function ChaosSetupLabPage() {
       }
     }
     return byLevel;
+  }, []);
+
+  const nativeLevelLabelByKey = useMemo(() => {
+    const labels = new Map<string, number>();
+    const nativeRows = NATIVE_MAP.length;
+    const nativeCols = NATIVE_MAP[0]?.length ?? 0;
+
+    for (let ny = 0; ny < nativeRows; ny += 1) {
+      for (let nx = 0; nx < nativeCols; nx += 1) {
+        const native = NATIVE_MAP[ny]?.[nx];
+        if (!native) continue;
+
+        const minX = Math.floor((nx * COLS) / nativeCols);
+        const maxX = Math.floor(((nx + 1) * COLS) / nativeCols) - 1;
+        const minY = Math.floor((ny * ROWS) / nativeRows);
+        const maxY = Math.floor(((ny + 1) * ROWS) / nativeRows) - 1;
+        if (maxX < minX || maxY < minY) continue;
+
+        const centerX = Math.floor((minX + maxX) / 2);
+        const centerY = Math.floor((minY + maxY) / 2);
+        labels.set(keyOf(centerX, centerY), native.level);
+      }
+    }
+
+    return labels;
   }, []);
 
   useEffect(() => {
@@ -1504,6 +1530,22 @@ export default function ChaosSetupLabPage() {
     const selectedArea = selectedSetupArea && selectedSetupArea.x === x && selectedSetupArea.y === y;
     const leak = showCoverageCheck && leakTiles.has(k);
     const inPlacementPreview = placementPreview.cells.has(k);
+    const nativeRows = NATIVE_MAP.length;
+    const nativeCols = NATIVE_MAP[0]?.length ?? 0;
+    const ny = getNativeIndex(y, ROWS, nativeRows);
+    const nx = getNativeIndex(x, COLS, nativeCols);
+    const nSX = Math.floor((nx * COLS) / nativeCols);
+    const nEX = Math.floor(((nx + 1) * COLS) / nativeCols) - 1;
+    const nSY = Math.floor((ny * ROWS) / nativeRows);
+    const nEY = Math.floor(((ny + 1) * ROWS) / nativeRows) - 1;
+    const overlayBorders = showLevelOverlay
+      ? {
+          right: x === nEX,
+          left: x === nSX && nx === 0,
+          bottom: y === nEY,
+          top: y === nSY && ny === 0,
+        }
+      : null;
 
     const overlayShadow = [
       selectedArea ? "inset 0 0 0 1px #fde047" : null,
@@ -1518,6 +1560,10 @@ export default function ChaosSetupLabPage() {
     if (seaTiles.has(k)) {
       return {
         backgroundColor: WORLD_MAP_WATER_COLOR,
+        borderRight: overlayBorders?.right ? "1px solid rgba(0,0,0,0.62)" : undefined,
+        borderLeft: overlayBorders?.left ? "1px solid rgba(0,0,0,0.62)" : undefined,
+        borderBottom: overlayBorders?.bottom ? "1px solid rgba(0,0,0,0.62)" : undefined,
+        borderTop: overlayBorders?.top ? "1px solid rgba(0,0,0,0.62)" : undefined,
         boxShadow: overlayShadow,
       };
     }
@@ -1529,10 +1575,15 @@ export default function ChaosSetupLabPage() {
 
     if (reclaimed) {
       const reclaimedBase = terrain ? TERRAIN_COLORS[terrain] : "#6f8f3a";
+      const reclaimedPattern =
+        "repeating-linear-gradient(135deg, rgba(255,255,255,0.16) 0 2px, rgba(0,0,0,0.10) 2px 4px)";
       return {
         backgroundColor: reclaimedBase,
-        backgroundImage:
-          "repeating-linear-gradient(135deg, rgba(255,255,255,0.16) 0 2px, rgba(0,0,0,0.10) 2px 4px)",
+        backgroundImage: reclaimedPattern,
+        borderRight: overlayBorders?.right ? "1px solid rgba(0,0,0,0.62)" : undefined,
+        borderLeft: overlayBorders?.left ? "1px solid rgba(0,0,0,0.62)" : undefined,
+        borderBottom: overlayBorders?.bottom ? "1px solid rgba(0,0,0,0.62)" : undefined,
+        borderTop: overlayBorders?.top ? "1px solid rgba(0,0,0,0.62)" : undefined,
         boxShadow: overlayShadow,
       };
     }
@@ -1540,6 +1591,10 @@ export default function ChaosSetupLabPage() {
     if (!terrain) return undefined;
     return {
       backgroundColor: TERRAIN_COLORS[terrain],
+      borderRight: overlayBorders?.right ? "1px solid rgba(0,0,0,0.62)" : undefined,
+      borderLeft: overlayBorders?.left ? "1px solid rgba(0,0,0,0.62)" : undefined,
+      borderBottom: overlayBorders?.bottom ? "1px solid rgba(0,0,0,0.62)" : undefined,
+      borderTop: overlayBorders?.top ? "1px solid rgba(0,0,0,0.62)" : undefined,
       boxShadow: overlayShadow,
     };
   }
@@ -1757,6 +1812,12 @@ export default function ChaosSetupLabPage() {
             <Button size="sm" variant={showDebugLabels ? "default" : "outline"} onClick={() => setShowDebugLabels((prev) => !prev)}>
               {showDebugLabels ? "Hide Labels" : "Show Labels"}
             </Button>
+            <Button size="sm" variant={showLevelOverlay ? "default" : "outline"} onClick={() => setShowLevelOverlay((prev) => !prev)}>
+              {showLevelOverlay ? "Hide Levels" : "Level Overlay"}
+            </Button>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Level overlay draws native area borders and shows each area's Lv label in the center.
           </div>
 
           <div className="space-y-2 rounded-md border border-border/60 p-2">
@@ -1968,6 +2029,10 @@ export default function ChaosSetupLabPage() {
             {Array.from({ length: ROWS }).map((_, y) =>
               Array.from({ length: COLS }).map((__, x) => {
                 const k = keyOf(x, y);
+                const levelLabel = showLevelOverlay ? nativeLevelLabelByKey.get(k) : undefined;
+                const shouldShowLevelLabel =
+                  levelLabel != null &&
+                  !showDebugLabels;
                 return (
                   <button
                     key={k}
@@ -1981,6 +2046,16 @@ export default function ChaosSetupLabPage() {
                     className={`relative overflow-visible text-[8px] leading-none ${tileStyle(x, y)}`}
                   >
                     {tileDecor(x, y)}
+                    {shouldShowLevelLabel && (
+                      <span className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center font-semibold text-slate-50 [text-shadow:0_1px_2px_rgba(0,0,0,0.96)]">
+                        <span
+                          className="leading-none"
+                          style={{ fontSize: `${Math.max(8, Math.min(16, Math.round(mapZoom * 2)))}px` }}
+                        >
+                          Lv {levelLabel}
+                        </span>
+                      </span>
+                    )}
                     {showDebugLabels && (
                       <span className="pointer-events-none relative z-10 text-[8px] leading-none text-slate-50 [text-shadow:0_1px_1px_rgba(0,0,0,0.85)]">
                         {tileLabel(x, y)}

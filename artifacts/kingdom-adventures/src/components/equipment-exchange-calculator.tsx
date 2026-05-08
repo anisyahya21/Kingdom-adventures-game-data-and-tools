@@ -585,7 +585,7 @@ export default function EquipmentExchangeCalculator() {
                     e.preventDefault();
                     setEquipmentDropdownOpen((open) => !open);
                   }}
-                  className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-primary hover:bg-primary/10"
                   aria-label={equipmentDropdownOpen ? "Close equipment results" : "Open equipment results"}
                 >
                   <svg className={`h-4 w-4 transition-transform ${equipmentDropdownOpen ? "rotate-180" : ""}`} viewBox="0 0 12 12" fill="none">

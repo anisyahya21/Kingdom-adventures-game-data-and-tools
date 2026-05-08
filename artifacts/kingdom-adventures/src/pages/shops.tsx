@@ -2242,7 +2242,7 @@ export default function ShopsPage() {
                           e.preventDefault();
                           setFeedItemDropdownOpen((open) => !open);
                         }}
-                        className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-primary hover:bg-primary/10"
                         aria-label={feedItemDropdownOpen ? "Close feed items" : "Open feed items"}
                       >
                         <ChevronDown className={`h-4 w-4 transition-transform ${feedItemDropdownOpen ? "rotate-180" : ""}`} />
@@ -2314,7 +2314,7 @@ export default function ShopsPage() {
                           e.preventDefault();
                           setJobDropdownOpen((open) => !open);
                         }}
-                        className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-primary hover:bg-primary/10"
                         aria-label={jobDropdownOpen ? "Close jobs" : "Open jobs"}
                       >
                         <ChevronDown className={`h-4 w-4 transition-transform ${jobDropdownOpen ? "rotate-180" : ""}`} />

@@ -1,7 +1,10 @@
-type LootLine = {
+export type LootLine = {
   item: string;
   chance: string;
   quantity: string;
+  chancePercent: number;
+  minQty: number;
+  maxQty: number;
 };
 
 export type EncounterLoot = {
@@ -20,32 +23,46 @@ function parseLootSummary(summary: string): LootLine[] {
   return summary.split(", ").map((part) => {
     const match = part.match(/^(\d+)%\s+(.+)$/);
     if (!match) {
-      return { item: part, chance: "-", quantity: "-" };
+      return { item: part, chance: "-", quantity: "-", chancePercent: 0, minQty: 0, maxQty: 0 };
     }
 
     const [, percent, rest] = match;
+    const pct = Number(percent);
+    const fmtChance = `1/${(100 / pct).toFixed(pct >= 10 ? 1 : 2).replace(/\.0$/, "")}`;
+
     const rangeMatch = rest.match(/^(\d+\s*-\s*\d+)\s+(.+)$/);
     if (rangeMatch) {
+      const [qmin, qmax] = rangeMatch[1].split("-").map((s) => Number(s.trim()));
       return {
         item: rangeMatch[2],
-        chance: `1/${(100 / Number(percent)).toFixed(Number(percent) >= 10 ? 1 : 2).replace(/\.0$/, "")}`,
+        chance: fmtChance,
         quantity: rangeMatch[1].replace(/\s*/g, ""),
+        chancePercent: pct,
+        minQty: qmin,
+        maxQty: qmax,
       };
     }
 
     const singleMatch = rest.match(/^(\d+)\s+(.+)$/);
     if (singleMatch) {
+      const qty = Number(singleMatch[1]);
       return {
         item: singleMatch[2],
-        chance: `1/${(100 / Number(percent)).toFixed(Number(percent) >= 10 ? 1 : 2).replace(/\.0$/, "")}`,
+        chance: fmtChance,
         quantity: singleMatch[1],
+        chancePercent: pct,
+        minQty: qty,
+        maxQty: qty,
       };
     }
 
     return {
       item: rest,
-      chance: `1/${(100 / Number(percent)).toFixed(Number(percent) >= 10 ? 1 : 2).replace(/\.0$/, "")}`,
+      chance: fmtChance,
       quantity: "1",
+      chancePercent: pct,
+      minQty: 1,
+      maxQty: 1,
     };
   });
 }

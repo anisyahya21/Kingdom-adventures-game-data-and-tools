@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clock3, ShieldAlert } from "lucide-react";
+import { Calculator, Clock3, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
+import { WairoFarmingCalculator } from "@/components/wairo-farming-calculator";
 
 type WarioDungeonEntry = { day: number; hour: number };
 type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
@@ -110,14 +111,26 @@ export default function WarioDungeonPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Clock3 className="w-5 h-5 text-muted-foreground" />
-          <h1 className="text-xl font-bold tracking-tight">Wairo Dungeon</h1>
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Clock3 className="w-5 h-5 text-muted-foreground" />
+            <h1 className="text-xl font-bold tracking-tight">Wairo Dungeon</h1>
+          </div>
+          <p className="text-sm text-muted-foreground max-w-3xl">
+            Monthly dungeon spawn windows plus cleaned mined loot tables for the Wairo raid chain.
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground max-w-3xl">
-          Monthly dungeon spawn windows plus cleaned mined loot tables for the Wairo raid chain.
-        </p>
+        <button
+          type="button"
+          onClick={() =>
+            document.getElementById("wairo-farming-calc")?.scrollIntoView({ behavior: "smooth" })
+          }
+          className="w-full flex items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+        >
+          <Calculator className="w-4 h-4" />
+          Jump to Farming Calculator — find the best run for any drop
+        </button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -241,6 +254,8 @@ export default function WarioDungeonPage() {
           </div>
         </CardContent>
       </Card>
+
+      <WairoFarmingCalculator />
     </div>
   );
 }

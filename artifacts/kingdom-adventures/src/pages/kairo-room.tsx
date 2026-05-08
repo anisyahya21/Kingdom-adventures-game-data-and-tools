@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, ShieldAlert, Wand2 } from "lucide-react";
+import { CalendarDays, Calculator, ShieldAlert, Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { KAIRO_ROOM_DRAFTS } from "@/lib/en-event-drafts";
 import { KAIRO_ROOM_LOOT_GROUPS } from "@/lib/special-boss-loot";
 import { getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel } from "@/lib/event-status";
+import { KairoFarmingCalculator } from "@/components/kairo-farming-calculator";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
@@ -27,14 +28,26 @@ export default function KairoRoomPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Wand2 className="w-5 h-5 text-muted-foreground" />
-          <h1 className="text-xl font-bold tracking-tight">Kairo Room</h1>
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Wand2 className="w-5 h-5 text-muted-foreground" />
+            <h1 className="text-xl font-bold tracking-tight">Kairo Room</h1>
+          </div>
+          <p className="text-sm text-muted-foreground max-w-3xl">
+            Weekly Kairo Room schedule plus cleaned mined loot tables for each challenge and difficulty.
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground max-w-3xl">
-          Weekly Kairo Room schedule plus cleaned mined loot tables for each challenge and difficulty.
-        </p>
+        <button
+          type="button"
+          onClick={() =>
+            document.getElementById("kairo-farming-calc")?.scrollIntoView({ behavior: "smooth" })
+          }
+          className="w-full flex items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+        >
+          <Calculator className="w-4 h-4" />
+          Jump to Farming Calculator — find the best run for any drop
+        </button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -154,6 +167,8 @@ export default function KairoRoomPage() {
           ))}
         </CardContent>
       </Card>
+
+      <KairoFarmingCalculator currentDay={currentEventDay} />
     </div>
   );
 }
