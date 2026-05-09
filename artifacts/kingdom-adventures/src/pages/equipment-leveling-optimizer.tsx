@@ -132,10 +132,6 @@ type TwoItemStep = {
 
 type GrandRow = { checked: boolean; level: number };
 
-const catalogById = new Map(
-  (EQUIPMENT_CATALOG as readonly { id: number; buyPrice: number }[]).map((item) => [item.id, item]),
-);
-
 const exchangeCostByInputId = new Map<number, number>();
 for (const row of EQUIPMENT_EXCHANGE_ROWS as readonly { inputId: number; buyPrice: number; tradable: boolean }[]) {
   if (!row.tradable) continue;
@@ -163,9 +159,8 @@ function rankLabelFromName(name: string) {
 
 function parseEquipment(): Equipment[] {
   const rows = parseCsv(equipCsv);
-  const statLabels = rows[1] ?? [];
-  const header = rows[2] ?? [];
-  const nameIndex = header.indexOf("name");
+  const headerIndex = rows.findIndex((row) => row.includes("name") && row.includes("expRate"));
+  const header = rows[headerIndex] ?? [];
   const categoryIndex = header.indexOf("category");
   const rankIndex = header.indexOf("rank");
   const typeIndex = header.indexOf("type");
@@ -174,9 +169,12 @@ function parseEquipment(): Equipment[] {
 
   const statColumns: Array<{ name: string; start: number; increment: number }> = [];
   for (let index = 0; index < header.length - 1; index += 1) {
-    if (header[index] !== "start" || header[index + 1] !== "increment") continue;
-    const name = (statLabels[index] ?? "").trim();
-    if (!name) continue;
+    const startHeader = (header[index] ?? "").trim();
+    const nextHeader = (header[index + 1] ?? "").trim();
+    const name = startHeader.endsWith(" start")
+      ? startHeader.replace(/\s+start$/, "").trim()
+      : "";
+    if (!name || nextHeader !== "increment") continue;
     const normalizedName =
       name === "Atk" ? "Attack" :
       name === "Def" ? "Defence" :
@@ -192,24 +190,39 @@ function parseEquipment(): Equipment[] {
     statColumns.push({ name: normalizedName, start: index, increment: index + 1 });
   }
 
-  return rows
-    .slice(3)
-    .map((row) => {
-      const id = toNumber(row[0]);
-      const name = (row[nameIndex] ?? "").trim();
+  const rawById = new Map(
+    rows
+      .slice(headerIndex + 1)
+      .map((row) => {
+        const id = toNumber(row[0]);
+        return [id, row] as const;
+      })
+      .filter(([id]) => id > 0),
+  );
+
+  return (EQUIPMENT_CATALOG as readonly {
+    id: number;
+    name: string;
+    rank: number;
+    rankLabel: string;
+    type: number;
+    buyPrice: number;
+  }[])
+    .map((catalogItem) => {
+      const row = rawById.get(catalogItem.id) ?? [];
+      const name = catalogItem.name;
       const stats = statColumns.reduce<Record<string, EquipStat>>((acc, stat) => {
         acc[stat.name] = { base: toNumber(row[stat.start]), inc: toNumber(row[stat.increment]) };
         return acc;
       }, {});
-      const catalogItem = catalogById.get(id);
-      const exchangeCost = exchangeCostByInputId.get(id);
+      const exchangeCost = exchangeCostByInputId.get(catalogItem.id);
       return {
-        id,
+        id: catalogItem.id,
         name,
         category: toNumber(row[categoryIndex]),
-        rank: toNumber(row[rankIndex]),
-        rankLabel: rankLabelFromName(name),
-        type: toNumber(row[typeIndex]),
+        rank: catalogItem.rank || toNumber(row[rankIndex]),
+        rankLabel: catalogItem.rankLabel || rankLabelFromName(name),
+        type: catalogItem.type || toNumber(row[typeIndex]),
         expRate: toNumber(row[expRateIndex]),
         mixBonusExp: toNumber(row[mixBonusExpIndex]),
         buyPrice: exchangeCost ?? catalogItem?.buyPrice ?? null,
