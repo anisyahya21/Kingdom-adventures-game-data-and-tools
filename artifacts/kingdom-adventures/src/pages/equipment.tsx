@@ -6,7 +6,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
   Loader2, AlertTriangle, Info, X, ImageIcon, Pencil,
   ChevronDown, ChevronRight, Download, History, CheckSquare, GripVertical,
-  Plus, Copy, Settings2, Clock, CheckCircle2,
+  Plus, Copy, Settings2, Clock, CheckCircle2, Eye, EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -969,6 +969,8 @@ export default function EquipmentPage() {
   const [search, setSearch] = useState("");
   const [slotFilters, setSlotFilters] = useState<Set<string>>(new Set());
   const [rankFilters, setRankFilters] = useState<Set<string>>(new Set());
+  const [excludeStatFilters, setExcludeStatFilters] = useState<Set<string>>(new Set());
+  const [hideExcludedStatColumns, setHideExcludedStatColumns] = useState(false);
   const [studioFilters, setStudioFilters] = useState<Set<number>>(new Set());
   const [intFilters, setIntFilters] = useState<Set<number>>(new Set());
   const [craftFilter, setCraftFilter] = useState<CraftFilter>("All");
@@ -1155,10 +1157,11 @@ export default function EquipmentPage() {
     return [...new Set(base.map((i) => i.crafterIntelligence).filter((v) => v > 0))].sort((a, b) => a - b);
   }, [items, studioFilters]);
 
-  const anyFilterActive = slotFilters.size > 0 || rankFilters.size > 0 || studioFilters.size > 0 || intFilters.size > 0 || craftFilter !== "All" || search.length > 0;
+  const anyFilterActive = slotFilters.size > 0 || rankFilters.size > 0 || excludeStatFilters.size > 0 || studioFilters.size > 0 || intFilters.size > 0 || craftFilter !== "All" || search.length > 0;
   const clearAllFilters = useCallback(() => {
     setSlotFilters(new Set());
     setRankFilters(new Set());
+    setExcludeStatFilters(new Set());
     setStudioFilters(new Set());
     setIntFilters(new Set());
     setCraftFilter("All");
@@ -1189,6 +1192,16 @@ export default function EquipmentPage() {
     if (rankFilters.size > 0) {
       list = list.filter((i) => rankFilters.has(getEquipmentRank(i.name)));
     }
+    if (excludeStatFilters.size > 0) {
+      list = list.filter((i) => {
+        for (const stat of excludeStatFilters) {
+          const base = getEffectiveStat(i, stat, "base", overrides);
+          const inc = getEffectiveStat(i, stat, "inc", overrides);
+          if (base !== 0 || inc !== 0) return false;
+        }
+        return true;
+      });
+    }
     if (studioFilters.size > 0) {
       list = list.filter((i) => studioFilters.has(i.crafterStudioLevel));
     }
@@ -1214,7 +1227,7 @@ export default function EquipmentPage() {
       });
     }
     return list;
-  }, [items, compareMode, selectedUids, search, slotFilters, rankFilters, studioFilters, intFilters, craftFilter, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemSlot]);
+  }, [items, compareMode, selectedUids, search, slotFilters, rankFilters, excludeStatFilters, studioFilters, intFilters, craftFilter, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemSlot]);
 
   const visibleItems = useMemo(() => {
     if (rowsToShow === "all") return filtered;
@@ -1263,7 +1276,21 @@ export default function EquipmentPage() {
     return sortDir === "asc" ? <ArrowUp className="w-3 h-3 text-primary shrink-0" /> : <ArrowDown className="w-3 h-3 text-primary shrink-0" />;
   };
 
-  const colCount = 8 + STAT_ORDER.length; // drag, checkbox, icon, name, level, slot, craftable, ...stats
+  const visibleStats = useMemo(() => {
+    if (!hideExcludedStatColumns || excludeStatFilters.size === 0) return STAT_ORDER;
+    return STAT_ORDER.filter((stat) => !excludeStatFilters.has(stat));
+  }, [hideExcludedStatColumns, excludeStatFilters]);
+
+  const colCount = 8 + visibleStats.length; // drag, checkbox, icon, name, level, slot, craftable, ...stats
+
+  useEffect(() => {
+    if (!sortCol) return;
+    if (!hideExcludedStatColumns) return;
+    if (excludeStatFilters.size === 0) return;
+    if (STAT_ORDER.includes(sortCol) && !visibleStats.includes(sortCol)) {
+      setSortCol(null);
+    }
+  }, [sortCol, hideExcludedStatColumns, excludeStatFilters, visibleStats]);
 
   // Most recent "stat" (base/inc) history entry per item — for the Last Edit column
   const lastStatEdit = useMemo<Record<string, HistoryEntry>>(() => {
@@ -1457,6 +1484,39 @@ export default function EquipmentPage() {
               </div>
             )}
           </div>
+          {/* Does not have stats */}
+          <div className="relative">
+            <button
+              onClick={() => setOpenFilterMenu((v) => v === "exclude-stats" ? null : "exclude-stats")}
+              className={`h-8 px-3 text-xs rounded-md border font-medium flex items-center gap-1.5 transition-colors ${
+                excludeStatFilters.size > 0 ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Does not have{excludeStatFilters.size > 0 ? ` (${excludeStatFilters.size})` : ""}
+              <ChevronDown className={`w-3 h-3 transition-transform ${openFilterMenu === "exclude-stats" ? "rotate-180" : ""}`} />
+            </button>
+            {openFilterMenu === "exclude-stats" && (
+              <div className="absolute z-50 top-full mt-1 left-0 min-w-[180px] rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+                {STAT_ORDER.map((stat) => (
+                  <button key={stat} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setExcludeStatFilters((prev) => { const next = new Set(prev); next.has(stat) ? next.delete(stat) : next.add(stat); return next; }); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground">
+                    <span className={`w-3.5 h-3.5 shrink-0 ${excludeStatFilters.has(stat) ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                    {STAT_SHORT[stat] ?? stat}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setHideExcludedStatColumns((v) => !v)}
+            className={`h-8 w-8 rounded-md border transition-colors inline-flex items-center justify-center ${
+              hideExcludedStatColumns ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"
+            }`}
+            title={hideExcludedStatColumns ? "Show all stat columns" : "Hide excluded stat columns"}
+            aria-label={hideExcludedStatColumns ? "Show all stat columns" : "Hide excluded stat columns"}
+          >
+            {hideExcludedStatColumns ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          </button>
           {/* Craft */}
           <div className="relative">
             <button
@@ -1602,7 +1662,7 @@ export default function EquipmentPage() {
                           <button onClick={() => handleSort("intReq")} className="flex items-center gap-1 hover:text-foreground">INT Req <SortIcon col="intReq" /></button>
                         </div>
                       </th>
-                    {STAT_ORDER.map((stat) => (
+                    {visibleStats.map((stat) => (
   <th key={stat} className="text-center px-1.5 py-2 font-medium text-muted-foreground">
     <button
       onClick={() => handleSort(stat)}
@@ -1706,7 +1766,7 @@ export default function EquipmentPage() {
                                 ? <span className="text-destructive text-xs font-medium">Not craftable</span>
                                 : <span className="text-xs"><strong>{item.crafterStudioLevel}</strong>{item.crafterIntelligence > 0 && <> / INT <strong>{item.crafterIntelligence}</strong></>}</span>}
                             </td>
-                          {STAT_ORDER.map((stat) => {
+                          {visibleStats.map((stat) => {
   const unset = isStatUnset(item, stat, overrides);
 
   if (unset) {
