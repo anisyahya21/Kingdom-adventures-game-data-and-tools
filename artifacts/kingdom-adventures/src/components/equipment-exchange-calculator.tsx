@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { matchesLooseSearch } from "@/lib/search-normalize";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Check, Download, Upload } from "lucide-react";
+import { Ban, Check, Download, Upload } from "lucide-react";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
@@ -59,6 +59,7 @@ interface EquipmentExchangeSavedState {
   sourceRankFilters: string[];
   sourceGivesFilters: string[];
   currentPriceInputs: Record<number, string>;
+  unavailableSourceIds: number[];
   funFactRanks: string[];
 }
 
@@ -75,6 +76,7 @@ const DEFAULT_EQUIPMENT_EXCHANGE_STATE: EquipmentExchangeSavedState = {
   sourceRankFilters: [],
   sourceGivesFilters: [],
   currentPriceInputs: {},
+  unavailableSourceIds: [],
   funFactRanks: [...RANK_TOGGLES],
 };
 
@@ -173,6 +175,85 @@ function summarizeCopperCoinRoute(items: EquipmentCatalogItem[], targetLevel = 9
   return KAIRO_OUTPUTS.reduce((sum, output) => sum + getCheapestCopperBuyForTarget(output, summary.counts[output]), 0);
 }
 
+function buildRoute(
+  routeEntries: readonly ExchangeRow[],
+  parsedCurrentPrices: Record<number, number>,
+  targetCount: number,
+) {
+  const safeTargetCount = Math.max(0, targetCount);
+  const states = routeEntries.map((entry) => ({
+    entry,
+    currentExchange: parsedCurrentPrices[entry.inputId] ?? entry.startPrice,
+    used: 0,
+    totalBuy: 0,
+    totalExchange: 0,
+  }));
+
+  const picks: Array<{ item: string; tradeCost: number; buyCost: number; totalCost: number }> = [];
+  let totalBuy = 0;
+  let totalExchange = 0;
+
+  if (states.length === 0) {
+    return {
+      totalBuy,
+      totalExchange,
+      totalCombined: 0,
+      usedEntries: [],
+      picks,
+    };
+  }
+
+  for (let i = 0; i < safeTargetCount; i += 1) {
+    let best = states[0];
+    let bestCombined = Number.POSITIVE_INFINITY;
+    for (const state of states) {
+      const combined = state.entry.buyPrice * state.currentExchange;
+      if (
+        combined < bestCombined ||
+        (combined === bestCombined && state.currentExchange < best.currentExchange) ||
+        (combined === bestCombined &&
+          state.currentExchange === best.currentExchange &&
+          state.entry.inputName < best.entry.inputName)
+      ) {
+        best = state;
+        bestCombined = combined;
+      }
+    }
+
+    if (!best) break;
+
+    const tradeCost = best.entry.buyPrice * best.currentExchange;
+    best.used += 1;
+    best.totalBuy += tradeCost;
+    best.totalExchange += best.currentExchange;
+    totalBuy += tradeCost;
+    totalExchange += best.currentExchange;
+    picks.push({
+      item: best.entry.inputName,
+      tradeCost: best.currentExchange,
+      buyCost: best.entry.buyPrice,
+      totalCost: tradeCost,
+    });
+    best.currentExchange += best.entry.priceStep;
+  }
+
+  const usedEntries = states
+    .filter((state) => state.used > 0)
+    .map((state) => ({ ...state, nextExchange: state.currentExchange }))
+    .sort((a, b) => {
+      if (b.used !== a.used) return b.used - a.used;
+      return a.entry.inputName.localeCompare(b.entry.inputName);
+    });
+
+  return {
+    totalBuy,
+    totalExchange,
+    totalCombined: totalBuy + totalExchange,
+    usedEntries,
+    picks,
+  };
+}
+
 export default function EquipmentExchangeCalculator() {
   const [savedExchangeState, setSavedExchangeState] = useLocalFeature<EquipmentExchangeSavedState>(
     STORAGE_KEY,
@@ -195,6 +276,7 @@ export default function EquipmentExchangeCalculator() {
   const [equipmentDropdownOpen, setEquipmentDropdownOpen] = useState(false);
   const equipmentDropdownRef = useRef<HTMLDivElement>(null);
   const [currentPriceInputs, setCurrentPriceInputs] = useState<Record<number, string>>(savedExchangeState.currentPriceInputs ?? {});
+  const [unavailableSourceIds, setUnavailableSourceIds] = useState<Set<number>>(new Set(savedExchangeState.unavailableSourceIds ?? []));
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -225,6 +307,7 @@ export default function EquipmentExchangeCalculator() {
       sourceRankFilters: Array.from(sourceRankFilters),
       sourceGivesFilters: Array.from(sourceGivesFilters),
       currentPriceInputs,
+      unavailableSourceIds: Array.from(unavailableSourceIds),
       funFactRanks: Array.from(funFactRanks),
     }),
     [
@@ -241,6 +324,7 @@ export default function EquipmentExchangeCalculator() {
       target,
       targetCount,
       targetLevel,
+      unavailableSourceIds,
     ],
   );
 
@@ -269,6 +353,7 @@ export default function EquipmentExchangeCalculator() {
       sourceRankFilters: Array.from(sourceRankFilters),
       sourceGivesFilters: Array.from(sourceGivesFilters),
       currentPriceInputs,
+      unavailableSourceIds: Array.from(unavailableSourceIds),
       funFactRanks: Array.from(funFactRanks),
     });
   }, [
@@ -284,6 +369,7 @@ export default function EquipmentExchangeCalculator() {
     sourceRankFilters,
     sourceGivesFilters,
     currentPriceInputs,
+    unavailableSourceIds,
     funFactRanks,
     setSavedExchangeState,
   ]);
@@ -298,6 +384,7 @@ export default function EquipmentExchangeCalculator() {
         sourceGivesFilters: parsed.sourceGivesFilters ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.sourceGivesFilters,
         funFactRanks: parsed.funFactRanks ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.funFactRanks,
         currentPriceInputs: parsed.currentPriceInputs ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.currentPriceInputs,
+        unavailableSourceIds: parsed.unavailableSourceIds ?? DEFAULT_EQUIPMENT_EXCHANGE_STATE.unavailableSourceIds,
       };
       setSavedExchangeState(nextState);
       setTarget(nextState.target);
@@ -312,6 +399,7 @@ export default function EquipmentExchangeCalculator() {
       setSourceRankFilters(new Set(nextState.sourceRankFilters));
       setSourceGivesFilters(new Set(nextState.sourceGivesFilters));
       setCurrentPriceInputs(nextState.currentPriceInputs);
+      setUnavailableSourceIds(new Set(nextState.unavailableSourceIds));
       setFunFactRanks(new Set(nextState.funFactRanks));
       setClipboardStatus({ type: "ok", message: "Imported from clipboard" });
       return true;
@@ -409,6 +497,11 @@ export default function EquipmentExchangeCalculator() {
     [entries, target],
   );
 
+  const availableRouteEntries = useMemo(
+    () => routeEntries.filter((entry) => !unavailableSourceIds.has(entry.inputId)),
+    [routeEntries, unavailableSourceIds],
+  );
+
   const parsedCurrentPrices = useMemo(() => {
     const parsed: Record<number, number> = {};
     for (const entry of routeEntries) {
@@ -431,68 +524,31 @@ export default function EquipmentExchangeCalculator() {
     return result;
   }, [entries, sourceQuery, sourceRankFilters, sourceGivesFilters]);
 
-  const route = useMemo(() => {
-    const safeTargetCount = Math.max(0, targetCount);
-    const states = routeEntries.map((entry) => ({
-      entry,
-      currentExchange: parsedCurrentPrices[entry.inputId] ?? entry.startPrice,
-      used: 0,
-      totalBuy: 0,
-      totalExchange: 0,
-    }));
+  const routeWithUnavailableIncluded = useMemo(
+    () => buildRoute(routeEntries, parsedCurrentPrices, targetCount),
+    [routeEntries, parsedCurrentPrices, targetCount],
+  );
 
-    const picks: Array<{ item: string; tradeCost: number; buyCost: number; totalCost: number }> = [];
-    let totalBuy = 0;
-    let totalExchange = 0;
+  const route = useMemo(
+    () => buildRoute(availableRouteEntries, parsedCurrentPrices, targetCount),
+    [availableRouteEntries, parsedCurrentPrices, targetCount],
+  );
 
-    for (let i = 0; i < safeTargetCount; i += 1) {
-      let best = states[0];
-      let bestCombined = Number.POSITIVE_INFINITY;
-      for (const state of states) {
-        const combined = state.entry.buyPrice * state.currentExchange;
-        if (
-          combined < bestCombined ||
-          (combined === bestCombined && state.currentExchange < best.currentExchange) ||
-          (combined === bestCombined &&
-            state.currentExchange === best.currentExchange &&
-            state.entry.inputName < best.entry.inputName)
-        ) {
-          best = state;
-          bestCombined = combined;
-        }
+  const routeChangesByInputId = useMemo(() => {
+    const baseline = new Map(routeWithUnavailableIncluded.usedEntries.map((state) => [state.entry.inputId, state]));
+    const changes: Record<number, { previousExchange: number; previousBuy: number }> = {};
+    for (const state of route.usedEntries) {
+      const previous = baseline.get(state.entry.inputId);
+      if (!previous) continue;
+      if (previous.totalExchange !== state.totalExchange || previous.totalBuy !== state.totalBuy) {
+        changes[state.entry.inputId] = {
+          previousExchange: previous.totalExchange,
+          previousBuy: previous.totalBuy,
+        };
       }
-
-      const tradeCost = best.entry.buyPrice * best.currentExchange;
-      best.used += 1;
-      best.totalBuy += tradeCost;
-      best.totalExchange += best.currentExchange;
-      totalBuy += tradeCost;
-      totalExchange += best.currentExchange;
-      picks.push({
-        item: best.entry.inputName,
-        tradeCost: best.currentExchange,
-        buyCost: best.entry.buyPrice,
-        totalCost: tradeCost,
-      });
-      best.currentExchange += best.entry.priceStep;
     }
-
-    const usedEntries = states
-      .filter((state) => state.used > 0)
-      .map((state) => ({ ...state, nextExchange: state.currentExchange }))
-      .sort((a, b) => {
-        if (b.used !== a.used) return b.used - a.used;
-        return a.entry.inputName.localeCompare(b.entry.inputName);
-      });
-
-    return {
-      totalBuy,
-      totalExchange,
-      totalCombined: totalBuy + totalExchange,
-      usedEntries,
-      picks,
-    };
-  }, [routeEntries, parsedCurrentPrices, targetCount]);
+    return changes;
+  }, [route.usedEntries, routeWithUnavailableIncluded.usedEntries]);
 
   const funFactItems = useMemo(
     () => PLAYER_EQUIPMENT.filter((item) => funFactRanks.has(item.rankLabel as (typeof RANK_TOGGLES)[number])),
@@ -763,12 +819,36 @@ export default function EquipmentExchangeCalculator() {
             </div>
           </div>
           <div className="grid gap-2 md:grid-cols-2">
-            {route.usedEntries.map((state) => (
-              <div key={state.entry.inputId} className="rounded-md border border-border bg-background/60 px-3 py-2 text-xs">
+            {route.usedEntries.map((state) => {
+              const change = unavailableSourceIds.size > 0 ? routeChangesByInputId[state.entry.inputId] : undefined;
+              return (
+              <div
+                key={state.entry.inputId}
+                className={`rounded-md border px-3 py-2 text-xs ${
+                  change ? "border-amber-400/70 bg-amber-500/10" : "border-border bg-background/60"
+                }`}
+              >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{state.entry.inputName}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="tabular-nums font-semibold">Buy {state.totalExchange}</span>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <span className={`tabular-nums font-semibold ${change ? "text-amber-700 dark:text-amber-300" : ""}`}>
+                      Buy {change ? `${change.previousExchange} -> ${state.totalExchange}` : state.totalExchange}
+                    </span>
+                    <button
+                      type="button"
+                      title="Unavailable or not unlocked - remove from this route"
+                      onClick={() => {
+                        setUnavailableSourceIds((prev) => {
+                          const next = new Set(prev);
+                          next.add(state.entry.inputId);
+                          return next;
+                        });
+                      }}
+                      className="flex h-6 items-center gap-1 rounded-md border border-amber-500/50 bg-amber-500/10 px-2 text-[10px] font-medium text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+                    >
+                      <Ban className="h-3.5 w-3.5" />
+                      Unavailable
+                    </button>
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-muted-foreground">marks done &amp; updates rate ➜</span>
                       <button
@@ -790,10 +870,22 @@ export default function EquipmentExchangeCalculator() {
                   </div>
                 </div>
                 <div className="mt-0.5 text-[11px] text-muted-foreground">{state.totalExchange} × {state.entry.buyPrice}¢ = {state.totalBuy}¢ total &nbsp;·&nbsp; used {state.used}×</div>
+                {change && (
+                  <div className="mt-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                    Changed from Buy {change.previousExchange} / {change.previousBuy}c before unavailable items were removed.
+                  </div>
+                )}
                 <div className="mt-0.5 text-[11px] text-muted-foreground">Rate after: <span className="font-medium text-foreground">{state.nextExchange}</span></div>
               </div>
-            ))}
+              );
+            })}
           </div>
+          {unavailableSourceIds.size > 0 && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+              {unavailableSourceIds.size} unavailable source item{unavailableSourceIds.size === 1 ? "" : "s"} removed from the route.
+              Yellow rows changed compared with the route before unavailable items were removed.
+            </div>
+          )}
         </div>
 
         <details className="rounded-md border border-border bg-background/40">
@@ -832,6 +924,15 @@ export default function EquipmentExchangeCalculator() {
               >
                 Reset current trades
               </button>
+              {unavailableSourceIds.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setUnavailableSourceIds(new Set())}
+                  className="rounded-md border border-amber-500/50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-500/10 dark:text-amber-300"
+                >
+                  Clear unavailable
+                </button>
+              )}
             </div>
           </div>
 
@@ -930,6 +1031,7 @@ export default function EquipmentExchangeCalculator() {
                   <th className="px-3 py-2 text-right font-medium">Start trade price</th>
                   <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">Step</th>
                   <th className="px-3 py-2 text-right font-medium">Your current trade</th>
+                  <th className="px-3 py-2 text-center font-medium">Availability</th>
                   <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">Total copper cost</th>
                 </tr>
               </thead>
@@ -939,8 +1041,9 @@ export default function EquipmentExchangeCalculator() {
                   const parsed = Number(raw);
                   const isValid = raw.trim() === "" || isValidTradeValue(parsed, entry.startPrice, entry.priceStep);
                   const current = isValid && raw.trim() !== "" ? parsed : entry.startPrice;
+                  const isUnavailable = unavailableSourceIds.has(entry.inputId);
                   return (
-                    <tr key={entry.inputId} className="border-t border-border">
+                    <tr key={entry.inputId} className={`border-t border-border ${isUnavailable ? "bg-amber-500/10 text-muted-foreground" : ""}`}>
                       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{index + 1}</td>
                       <td className="px-3 py-2 font-medium">{entry.inputName}</td>
                       <td className="px-3 py-2 text-muted-foreground">{entry.rankLabel}</td>
@@ -966,6 +1069,27 @@ export default function EquipmentExchangeCalculator() {
                             Must follow {entry.startPrice} + n x {entry.priceStep}
                           </div>
                         )}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setUnavailableSourceIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(entry.inputId)) next.delete(entry.inputId);
+                              else next.add(entry.inputId);
+                              return next;
+                            })
+                          }
+                          className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[10px] font-medium ${
+                            isUnavailable
+                              ? "border-amber-500/60 bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                              : "border-border hover:bg-muted"
+                          }`}
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                          {isUnavailable ? "Unavailable" : "Available"}
+                        </button>
                       </td>
                       <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{current * entry.buyPrice}</td>
                     </tr>
