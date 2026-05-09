@@ -61,19 +61,19 @@ type SharedData = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// Canonical short stat keys used throughout (Move is merged into Speed)
-const STAT_KEYS = ["hp","mp","vig","atk","def","spd","lck","int","dex","gth","hrt"] as const;
+// Canonical short stat keys used throughout
+const STAT_KEYS = ["hp","mp","vig","atk","def","spd","lck","int","dex","gth","mov","hrt"] as const;
 const STAT_LABEL: Record<string, string> = {
   hp:"HP", mp:"MP", vig:"Vig", atk:"Atk", def:"Def",
-  spd:"Spd", lck:"Lck", int:"Int", dex:"Dex", gth:"Gth", hrt:"Hrt",
+  spd:"Spd", lck:"Lck", int:"Int", dex:"Dex", gth:"Gth", mov:"Mov", hrt:"Hrt",
 };
 const STAT_FULL: Record<string, string> = {
   hp:"HP", mp:"MP", vig:"Vigor", atk:"Attack", def:"Defence",
   spd:"Speed", lck:"Luck", int:"Intelligence", dex:"Dexterity",
-  gth:"Gather", hrt:"Heart",
+  gth:"Gather", mov:"Move", hrt:"Heart",
 };
 // Universal stat alias map — normalises any spelling/abbreviation to the canonical short key.
-// All variants are lowercased before lookup. Move & Movement are treated as Speed per game rules.
+// All variants are lowercased before lookup.
 const STAT_CANONICAL: Record<string, string> = {
   // HP
   hp:"hp",
@@ -85,9 +85,8 @@ const STAT_CANONICAL: Record<string, string> = {
   atk:"atk", att:"atk", attack:"atk",
   // Defence / Defense
   def:"def", defence:"def", defense:"def",
-  // Speed  (Move / Movement are aliases)
+  // Speed
   spd:"spd", speed:"spd",
-  move:"spd", mov:"spd", movement:"spd",
   // Luck
   lck:"lck", luck:"lck",
   // Intelligence
@@ -96,6 +95,8 @@ const STAT_CANONICAL: Record<string, string> = {
   dex:"dex", dext:"dex", dexterity:"dex",
   // Gather
   gth:"gth", gather:"gth",
+  // Move / Movement
+  mov:"mov", move:"mov", movement:"mov",
   // Heart
   hrt:"hrt", heart:"hrt",
 };

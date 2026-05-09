@@ -135,7 +135,7 @@ function statAtLevel(entry: JobStatEntry, level: number): number {
   return entry.base + (level - 1) * entry.inc;
 }
 
-const STAT_DISPLAY_ALIASES: Record<string, string[]> = { Speed: ["Move", "Movement"] };
+const STAT_DISPLAY_ALIASES: Record<string, string[]> = {};
 
 function getJobStatEntry(job: Job, rank: string, stat: string): JobStatEntry | null {
   const stats = job.ranks[rank]?.stats ?? job.ranks[Object.keys(job.ranks)[0]]?.stats ?? {};
@@ -399,7 +399,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
         const levels: Record<string, number> = {};
         const levelInputs: Record<string, string> = {};
         for (const stat of STAT_ORDER) {
-          const aliases = stat === "Speed" ? ["Speed", "Move", "Movement"] : [stat];
+          const aliases = [stat];
           const baseMax = aliases.reduce<number>((maxSoFar, alias) => {
             const candidate = selectedRankStats[alias]?.maxLevel;
             return typeof candidate === "number" ? Math.max(maxSoFar, candidate) : maxSoFar;
