@@ -1,6 +1,5 @@
-import { forwardRef, useEffect, useMemo, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Calculator, CheckCircle2, Route, Sigma, TableProperties } from "lucide-react";
-import { SearchableSelect } from "@/components/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ButtonProps } from "@/components/ui/button";
@@ -233,7 +232,6 @@ function parseExpByLevel() {
 
 const EQUIPMENT = parseEquipment();
 const EXP_BY_LEVEL = parseExpByLevel();
-const EQUIPMENT_OPTIONS = EQUIPMENT.map((item) => ({ value: String(item.id), label: item.name }));
 const EQUIPMENT_BY_ID = new Map(EQUIPMENT.map((item) => [String(item.id), item]));
 const OPTIMIZER_STORAGE_KEY = "equipment-leveling-optimizer:state";
 const GRAND_STORAGE_KEY = "equipment-leveling-optimizer:grand";
@@ -867,18 +865,107 @@ function EquipmentSelect({
   onChange: (value: string) => void;
   id: string;
 }) {
+  const selectedItem = EQUIPMENT_BY_ID.get(value) ?? null;
+  const [query, setQuery] = useState(selectedItem?.name ?? "");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const listId = `${id}-equipment-results`;
+
+  useEffect(() => {
+    setQuery(selectedItem?.name ?? "");
+  }, [selectedItem?.name]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const filteredOptions = useMemo(() => {
+    const trimmed = query.trim();
+    if (!trimmed) return EQUIPMENT.slice(0, 80);
+    return EQUIPMENT.filter((item) => matchesLooseSearch(item.name, trimmed)).slice(0, 120);
+  }, [query]);
+
+  const selectItem = (item: Equipment) => {
+    onChange(String(item.id));
+    setQuery(item.name);
+    setOpen(false);
+  };
+
   return (
     <div className="space-y-1.5">
       <Label className="text-xs" htmlFor={id}>
         {label}
       </Label>
-      <SearchableSelect
-        value={value}
-        onChange={onChange}
-        options={EQUIPMENT_OPTIONS}
-        placeholder="Choose equipment"
-        triggerClassName="h-9 text-sm"
-      />
+      <div className="relative" ref={containerRef}>
+        <Input
+          id={id}
+          value={query}
+          onChange={(event) => {
+            const nextQuery = event.target.value;
+            setQuery(nextQuery);
+            setOpen(true);
+            if (!nextQuery.trim()) onChange("");
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setOpen(false);
+            if (event.key === "Enter" && filteredOptions.length > 0) {
+              event.preventDefault();
+              selectItem(filteredOptions[0]);
+            }
+          }}
+          placeholder="Choose equipment"
+          className={`h-9 pr-9 text-sm ${open ? "rounded-b-none border-primary ring-1 ring-primary" : ""}`}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listId}
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            setOpen((current) => !current);
+          }}
+          className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded text-primary hover:bg-primary/10"
+          aria-label={open ? "Close equipment results" : "Open equipment results"}
+        >
+          <svg className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 12 12" fill="none">
+            <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        {open && (
+          <div
+            id={listId}
+            className="absolute left-0 right-0 top-full z-50 max-h-64 overflow-y-auto rounded-b-md border border-t-0 border-primary bg-popover shadow-lg"
+          >
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-3 text-center text-xs text-muted-foreground">No matching equipment</div>
+            ) : (
+              filteredOptions.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    selectItem(item);
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
+                    String(item.id) === value ? "bg-primary/10 font-medium text-foreground" : ""
+                  }`}
+                >
+                  <span className="truncate">{item.name}</span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
