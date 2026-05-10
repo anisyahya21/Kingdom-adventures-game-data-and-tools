@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/ka/page-header";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl, googleSheetUrl } from "@/lib/api";
+import { getEquipmentIcon, getEquipmentIconKeys } from "@/lib/equipment-icons";
 import { parseCsv } from "@/lib/monster-truth";
 import { matchesLooseSearch } from "@/lib/search-normalize";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
@@ -492,8 +493,9 @@ function useShared() {
     queryKey: ["ka-shared"],
     queryFn: fetchShared,
     initialData: () => ({ ...EMPTY_SHARED, ...(JSON.parse(JSON.stringify(localSharedData)) as Partial<SharedState>) }),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
+    staleTime: 15000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
   });
 
   const invalidate = useCallback(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }), [qc]);
@@ -623,14 +625,41 @@ function IconUpload({ iconKey, icons, onSave, size = 28 }: {
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [editMode, setEditMode] = useState(false);
-  const existing = icons[iconKey];
+  const { userName } = useUserName();
+  const existing = iconKey.startsWith("equip:")
+    ? getEquipmentIcon(icons, iconKey.slice("equip:".length))
+    : icons[iconKey];
+
+  // Only allow removal if the icon was uploaded by this user (by convention, store uploader in localStorage)
+  const canRemove = (() => {
+    // Store uploaded icons with a key: "ka_uploaded_icon:{iconKey}" = userName
+    if (!userName) return false;
+    try {
+      const uploader = localStorage.getItem(`ka_uploaded_icon:${iconKey}`);
+      return uploader === userName;
+    } catch { return false; }
+  })();
+
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     onSave({ ...icons, [iconKey]: await fileToDataUrl(file) }); e.target.value = "";
+    // Mark uploader in localStorage
+    if (userName) localStorage.setItem(`ka_uploaded_icon:${iconKey}`, userName);
     setEditMode(false);
   };
   const handleRemove = (e: React.MouseEvent) => {
-    e.stopPropagation(); const next = { ...icons }; delete next[iconKey]; onSave(next); setEditMode(false);
+    e.stopPropagation();
+    if (!canRemove) return;
+    const next = { ...icons };
+    if (iconKey.startsWith("equip:")) {
+      for (const key of getEquipmentIconKeys(iconKey.slice("equip:".length))) delete next[key];
+    } else {
+      delete next[iconKey];
+    }
+    onSave(next);
+    // Remove uploader mark
+    localStorage.removeItem(`ka_uploaded_icon:${iconKey}`);
+    setEditMode(false);
   };
   return (
     <div className="group relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
@@ -639,7 +668,9 @@ function IconUpload({ iconKey, icons, onSave, size = 28 }: {
           <img src={existing} alt="" className="rounded object-contain w-full h-full" />
           {editMode ? (
             <>
-              <button onClick={handleRemove} className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center z-10" title="Remove icon"><X className="w-2 h-2" /></button>
+              {canRemove && (
+                <button onClick={handleRemove} className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center z-10" title="Remove icon"><X className="w-2 h-2" /></button>
+              )}
               <button onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }} className="absolute inset-0 rounded bg-black/30 flex items-center justify-center" title="Replace icon">
                 <ImageIcon className="w-3 h-3 text-white" />
               </button>
@@ -2152,8 +2183,8 @@ export default function EquipmentPage() {
                                         <span className="text-[10px]">Drop here</span>
                                       </div>
                                     )}
-                                    {entry.itemName && equipIcons[`equip:${entry.itemName}`] && (
-                                      <img src={equipIcons[`equip:${entry.itemName}`]} alt={entry.itemName} className="w-10 h-10 object-contain rounded mx-auto" />
+                                    {entry.itemName && getEquipmentIcon(equipIcons, entry.itemName) && (
+                                      <img src={getEquipmentIcon(equipIcons, entry.itemName)} alt={entry.itemName} className="w-10 h-10 object-contain rounded mx-auto" />
                                     )}
                                     <SearchableSelect
                                       value={entry.itemName}
