@@ -109,6 +109,9 @@ interface RankSlot {
   unassigned: number;
 }
 
+type RankSlotCountField = "males" | "females" | "unassigned";
+type QuickInputResult = { ok: boolean; message: string };
+
 interface Pair {
   id: string;
   jobA: string;
@@ -462,9 +465,151 @@ interface RankTableProps {
   slots: RankSlot[];
   availableJobs: string[];
   totalFirstGenCount: number;
-  onUpdate: (id: string, field: "males" | "females" | "unassigned", value: number) => void;
+  onUpdate: (id: string, field: RankSlotCountField, value: number) => void;
   onRemove: (id: string) => void;
   onAdd: (rank: Rank, jobName: string) => void;
+  onQuickAdd: (raw: string, fixedRank?: Rank) => QuickInputResult;
+}
+
+function formatCountField(field: RankSlotCountField) {
+  if (field === "males") return "Male";
+  if (field === "females") return "Female";
+  return "Unassigned";
+}
+
+function parseQuickCountToken(token: string) {
+  const cleaned = token.trim().toLowerCase().replace(/^x/, "").replace(/^\+/, "");
+  if (!/^\d+$/.test(cleaned)) return null;
+  const parsed = parseInt(cleaned, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseQuickGenderToken(token: string): RankSlotCountField | null {
+  const key = token.trim().toLowerCase();
+  if (["m", "male", "man", "men", "boy"].includes(key)) return "males";
+  if (["f", "female", "woman", "women", "girl"].includes(key)) return "females";
+  if (["u", "unassigned", "unknown", "any", "unset"].includes(key)) return "unassigned";
+  return null;
+}
+
+function matchQuickJob(jobQuery: string, jobNames: string[]): { jobName?: string; error?: string } {
+  const query = normJob(jobQuery);
+  if (!query) return { error: "Add a job name." };
+
+  const exact = jobNames.find((job) => normJob(job) === query);
+  if (exact) return { jobName: exact };
+
+  const startsWithMatches = jobNames.filter((job) => normJob(job).startsWith(query));
+  if (startsWithMatches.length === 1) return { jobName: startsWithMatches[0] };
+  if (startsWithMatches.length > 1) return { error: `Too many jobs match "${jobQuery}". Type a little more.` };
+
+  const containsMatches = jobNames.filter((job) => normJob(job).includes(query));
+  if (containsMatches.length === 1) return { jobName: containsMatches[0] };
+  if (containsMatches.length > 1) return { error: `Too many jobs match "${jobQuery}". Type a little more.` };
+
+  return { error: `No job found for "${jobQuery}".` };
+}
+
+function parseQuickRankInput(
+  raw: string,
+  jobNames: string[],
+  fixedRank?: Rank,
+): { rank: Rank; jobName: string; field: RankSlotCountField; amount: number } | { error: string } {
+  const tokens = raw.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return { error: "Type a rank, job, and gender." };
+
+  let rank = fixedRank;
+  let field: RankSlotCountField | null = null;
+  let amount = 1;
+  const jobTokens: string[] = [];
+
+  for (const token of tokens) {
+    const lower = token.toLowerCase();
+    const maybeRank = token.toUpperCase() as Rank;
+    if (!fixedRank && RANKS.includes(maybeRank)) {
+      rank = maybeRank;
+      continue;
+    }
+    if (lower === "rank") continue;
+
+    const maybeGender = parseQuickGenderToken(token);
+    if (maybeGender) {
+      field = maybeGender;
+      continue;
+    }
+
+    const maybeCount = parseQuickCountToken(token);
+    if (maybeCount !== null) {
+      amount = maybeCount;
+      continue;
+    }
+
+    jobTokens.push(token);
+  }
+
+  if (!rank) return { error: "Add a rank, like A rank Cook Female." };
+  if (!field) return { error: "Add Male, Female, or Unassigned." };
+
+  const jobQuery = jobTokens.join(" ").trim();
+  const matched = matchQuickJob(jobQuery, jobNames);
+  if (matched.error || !matched.jobName) return { error: matched.error ?? "Pick a valid job." };
+
+  return { rank, jobName: matched.jobName, field, amount };
+}
+
+function QuickRankInput({
+  fixedRank,
+  onSubmit,
+  className = "",
+}: {
+  fixedRank?: Rank;
+  onSubmit: (raw: string, fixedRank?: Rank) => QuickInputResult;
+  className?: string;
+}) {
+  const [value, setValue] = useState("");
+  const [status, setStatus] = useState<QuickInputResult | null>(null);
+
+  const submit = useCallback(() => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setStatus({ ok: false, message: fixedRank ? "Type a job and gender." : "Type a rank, job, and gender." });
+      return;
+    }
+    const result = onSubmit(trimmed, fixedRank);
+    setStatus(result);
+    if (result.ok) setValue("");
+  }, [fixedRank, onSubmit, value]);
+
+  return (
+    <div className={`space-y-1.5 ${className}`}>
+      <div className="flex gap-2">
+        <Input
+          value={value}
+          onChange={(event) => {
+            setValue(event.target.value);
+            if (status) setStatus(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              submit();
+            }
+          }}
+          placeholder={fixedRank ? "Job + gender" : "Rank + job + gender"}
+          className="h-9"
+        />
+        <Button type="button" size="sm" onClick={submit} className="h-9 shrink-0 gap-1.5">
+          <Plus className="h-3.5 w-3.5" />
+          Add
+        </Button>
+      </div>
+      {status && (
+        <p className={`text-xs ${status.ok ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+          {status.message}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function CountInput({
@@ -515,7 +660,7 @@ function CountInput({
   );
 }
 
-function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, onRemove, onAdd }: RankTableProps) {
+function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, onRemove, onAdd, onQuickAdd }: RankTableProps) {
   const style = RANK_STYLE[rank];
   const maleTotal = slots.reduce((s, j) => s + j.males, 0);
   const femaleTotal = slots.reduce((s, j) => s + j.females, 0);
@@ -539,6 +684,7 @@ function RankTable({ rank, slots, availableJobs, totalFirstGenCount, onUpdate, o
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 pt-0">
+        <QuickRankInput fixedRank={rank} onSubmit={onQuickAdd} className="mt-3" />
         {slots.length > 0 && (
           <div className="rounded-md border border-border overflow-hidden mt-3 mb-3 w-full">
             <div className={`grid ${RANK_TABLE_GRID} bg-muted/40 px-2 py-1.5 text-xs font-medium text-muted-foreground sm:px-3`}>
@@ -2101,7 +2247,7 @@ export default function MarriageMatcher() {
   const markStale = useCallback(() => setIsStale(true), []);
 
   // ââ Slot actions ââ
-  const updateSlot = useCallback((id: string, field: "males" | "females" | "unassigned", value: number) => {
+  const updateSlot = useCallback((id: string, field: RankSlotCountField, value: number) => {
     setRankSlots((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: Math.max(0, value) } : s)));
     markStale();
   }, [markStale]);
@@ -2120,6 +2266,41 @@ export default function MarriageMatcher() {
     });
     markStale();
   }, [markStale]);
+
+  const applyQuickRankInput = useCallback((raw: string, fixedRank?: Rank): QuickInputResult => {
+    const parsed = parseQuickRankInput(raw, sortedJobNames, fixedRank);
+    if ("error" in parsed) return { ok: false, message: parsed.error };
+
+    setRankSlots((prev) => {
+      const existing = prev.find((slot) => slot.rank === parsed.rank && normJob(slot.jobName) === normJob(parsed.jobName));
+      if (existing) {
+        return prev.map((slot) => (
+          slot.id === existing.id
+            ? { ...slot, [parsed.field]: slot[parsed.field] + parsed.amount }
+            : slot
+        ));
+      }
+
+      return [
+        ...prev,
+        {
+          id: generateId(),
+          rank: parsed.rank,
+          jobName: parsed.jobName,
+          males: parsed.field === "males" ? parsed.amount : 0,
+          females: parsed.field === "females" ? parsed.amount : 0,
+          unassigned: parsed.field === "unassigned" ? parsed.amount : 0,
+        },
+      ];
+    });
+    markStale();
+
+    const amountLabel = parsed.amount === 1 ? "" : `${parsed.amount} `;
+    return {
+      ok: true,
+      message: `Added ${amountLabel}${formatCountField(parsed.field)} ${parsed.jobName} to Rank ${parsed.rank}.`,
+    };
+  }, [markStale, sortedJobNames]);
 
   // ââ Pair actions ââ
   const addPair = useCallback((a: string, b: string): string | null => {
@@ -2466,6 +2647,18 @@ export default function MarriageMatcher() {
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,0.85fr)] items-start">
           <div className="min-w-0 space-y-4">
+            <Card className="shadow-sm border-primary/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-primary" />
+                  Quick Add
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <QuickRankInput onSubmit={applyQuickRankInput} />
+              </CardContent>
+            </Card>
+
             {/* Rank tables */}
             <div className="grid gap-4 md:grid-cols-2">
               {RANKS.map((rank) => (
@@ -2474,6 +2667,7 @@ export default function MarriageMatcher() {
                   availableJobs={availablePerRank[rank]}
                   totalFirstGenCount={sortedJobNames.length}
                   onUpdate={updateSlot} onRemove={removeSlot} onAdd={addSlot}
+                  onQuickAdd={applyQuickRankInput}
                 />
               ))}
             </div>
