@@ -1,0 +1,92 @@
+[
+  {
+    "id": "capture_1778390246929_weapon",
+    "name": "E- Gnarly Club",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778390013587_weapon",
+    "name": "D- Spiked Club",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778389560574_weapon",
+    "name": "D- Grief Staff",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778387487226_shield",
+    "name": "S- Kairo Shield",
+    "slotKind": "shield",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778374654142",
+    "name": "D- Scarf",
+    "slotKind": "accessory",
+    "note": "auto from mapping"
+  },
+  {
+    "id": "capture_1778374645432",
+    "name": "E- Yellow Garment",
+    "slotKind": "armor",
+    "note": "auto from mapping"
+  },
+  {
+    "id": "capture_1778374559967",
+    "name": "F- Wooden Shield",
+    "slotKind": "shield",
+    "note": "auto from mapping"
+  },
+  {
+    "id": "capture_1778374554578",
+    "name": "E- Hat (B)",
+    "slotKind": "head",
+    "note": "auto from mapping"
+  },
+  {
+    "id": "capture_1778374519659",
+    "name": "D- Sturdy Staff",
+    "slotKind": "weapon",
+    "note": "auto from mapping"
+  },
+  {
+    "id": "capture_1778373962747",
+    "name": "dur",
+    "slotKind": "armor",
+    "note": "auto from mapping"
+  },
+  {
+    "id": "capture_1778373194305",
+    "name": "B- Purple Cape",
+    "slotKind": "armor",
+    "note": "auto from mapping"
+  },
+  {
+    "id": "capture_1778373188350",
+    "name": "C- Mage's Hat",
+    "slotKind": "head",
+    "note": "auto from mapping"
+  },
+  {
+    "id": "capture_1778373172902",
+    "name": "D- Loafers",
+    "slotKind": "accessory",
+    "note": "auto from mapping"
+  },
+  {
+    "id": "capture_1778373154671",
+    "name": "C- Magic Staff",
+    "slotKind": "weapon",
+    "note": "auto from mapping"
+  },
+  {
+    "id": "capture_1778373149962",
+    "name": "A- Legendary Spear",
+    "slotKind": "weapon",
+    "note": "auto from mapping"
+  }
+]

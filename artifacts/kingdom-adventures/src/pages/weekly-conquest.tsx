@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { buildLocalAutomaticWeeklyConquestTimeline, fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { apiUrl } from "@/lib/api";
+import { getEquipmentIcon } from "@/lib/equipment-icons";
 import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +28,7 @@ type Monster = { icon?: string; spawns: MonsterSpawn[] };
 type WeeklyReward = { jobName: string; jobRank: string; diamonds: number; equipment: string };
 type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; updatedBy?: string; updatedAt?: number } | null;
 type WeeklyMonsterEntry = { name: string; monster?: Monster; spawns: MonsterSpawn[] };
+type WeeklySharedData = { monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest; equipIcons?: Record<string, string> };
 
 const FULL_TERRAIN_MAP = parseTerrainMapCsv(fullTerrainCsv);
 
@@ -251,16 +253,18 @@ function WeeklySpawnMiniMap({
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<{ monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest }>(apiUrl("/shared")),
-    initialData: () => localSharedData as { monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest },
-    staleTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
+    queryFn: () => fetchSharedWithFallback<WeeklySharedData>(apiUrl("/shared")),
+    initialData: () => localSharedData as WeeklySharedData,
+    staleTime: 15000,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
   });
 }
 
 export default function WeeklyConquestPage() {
   const { data, isLoading } = useSharedData();
   const monsters = data?.monsters ?? {};
+  const equipIcons = data?.equipIcons ?? {};
   const fallbackWeeklyConquest: WeeklyConquest = data?.weeklyConquest ?? null;
   const [showConquestCalendar, setShowConquestCalendar] = useState(false);
   const [timeNow, setTimeNow] = useState(() => Date.now());
@@ -523,6 +527,9 @@ export default function WeeklyConquestPage() {
                     )}
                     {weeklyConquest?.reward?.equipment ? (
                       <span className="inline-flex items-center gap-1.5 bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 rounded-full px-3 py-1 text-[10px] font-medium">
+                        {getEquipmentIcon(equipIcons, weeklyConquest.reward.equipment) && (
+                          <img src={getEquipmentIcon(equipIcons, weeklyConquest.reward.equipment)} alt="" className="h-4 w-4 rounded object-contain" />
+                        )}
                         {weeklyConquest.reward.equipment}
                       </span>
                     ) : (

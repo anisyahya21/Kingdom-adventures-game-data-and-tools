@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Calculator, CheckCircle2, Route, Sigma, TableProperties } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { parseCsv } from "@/lib/monster-truth";
+import { apiUrl } from "@/lib/api";
+import { getEquipmentIcon } from "@/lib/equipment-icons";
+import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
 import { matchesLooseSearch } from "@/lib/search-normalize";
 import equipCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Equip.csv?raw";
@@ -40,6 +44,10 @@ type Equipment = {
   mixBonusExp: number;
   buyPrice: number | null;
   stats: Record<string, EquipStat>;
+};
+
+type SharedData = {
+  equipIcons?: Record<string, string>;
 };
 
 type CalcSnapshot = {
@@ -872,13 +880,16 @@ function EquipmentSelect({
   value,
   onChange,
   id,
+  equipIcons,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   id: string;
+  equipIcons?: Record<string, string>;
 }) {
   const selectedItem = EQUIPMENT_BY_ID.get(value) ?? null;
+  const selectedIcon = getEquipmentIcon(equipIcons, selectedItem?.name);
   const [query, setQuery] = useState(selectedItem?.name ?? "");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -933,12 +944,15 @@ function EquipmentSelect({
             }
           }}
           placeholder="Choose equipment"
-          className={`h-9 pr-9 text-sm ${open ? "rounded-b-none border-primary ring-1 ring-primary" : ""}`}
+          className={`h-9 pr-9 text-sm ${selectedIcon ? "pl-9" : ""} ${open ? "rounded-b-none border-primary ring-1 ring-primary" : ""}`}
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}
           autoComplete="off"
         />
+        {selectedIcon && (
+          <img src={selectedIcon} alt="" className="pointer-events-none absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 rounded object-contain" />
+        )}
         <button
           type="button"
           onMouseDown={(event) => {
@@ -960,21 +974,27 @@ function EquipmentSelect({
             {filteredOptions.length === 0 ? (
               <div className="px-3 py-3 text-center text-xs text-muted-foreground">No matching equipment</div>
             ) : (
-              filteredOptions.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    selectItem(item);
-                  }}
-                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
-                    String(item.id) === value ? "bg-primary/10 font-medium text-foreground" : ""
-                  }`}
-                >
-                  <span className="truncate">{item.name}</span>
-                </button>
-              ))
+              filteredOptions.map((item) => {
+                const icon = getEquipmentIcon(equipIcons, item.name);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      selectItem(item);
+                    }}
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
+                      String(item.id) === value ? "bg-primary/10 font-medium text-foreground" : ""
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      {icon ? <img src={icon} alt="" className="h-5 w-5 shrink-0 rounded object-contain" /> : <span className="h-5 w-5 shrink-0" />}
+                      <span className="truncate">{item.name}</span>
+                    </span>
+                  </button>
+                );
+              })
             )}
           </div>
         )}
@@ -1421,6 +1441,13 @@ function TwoItemFormulaDialog({
 }
 
 export default function EquipmentLevelingOptimizerPage() {
+  const { data: sharedData } = useQuery({
+    queryKey: ["ka-shared"],
+    queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
+    staleTime: 15000,
+    refetchInterval: 15000,
+  });
+  const equipIcons = sharedData?.equipIcons ?? {};
   const firstItem = EQUIPMENT[0]?.id ? String(EQUIPMENT[0].id) : "";
   const secondItem = EQUIPMENT[1]?.id ? String(EQUIPMENT[1].id) : "";
   const optimizerStored = useMemo(() => readOptimizerStorage(), []);
@@ -1699,7 +1726,7 @@ export default function EquipmentLevelingOptimizerPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-3">
-            <EquipmentSelect id="recipient" label="EXP Recipient" value={recipientId} onChange={setRecipientId} />
+            <EquipmentSelect id="recipient" label="EXP Recipient" value={recipientId} onChange={setRecipientId} equipIcons={equipIcons} />
             <div className="space-y-1.5">
               <Label htmlFor="recipient-current" className="text-xs">Recipient Current Level</Label>
               <NumberInput id="recipient-current" value={recipientCurrentLevel} onChange={setRecipientCurrentLevel} />
@@ -1708,7 +1735,7 @@ export default function EquipmentLevelingOptimizerPage() {
               <Label htmlFor="recipient-target" className="text-xs">Recipient Target Level</Label>
               <NumberInput id="recipient-target" value={recipientTargetLevel} onChange={setRecipientTargetLevel} />
             </div>
-            <EquipmentSelect id="source" label="EXP Source" value={sourceId} onChange={setSourceId} />
+            <EquipmentSelect id="source" label="EXP Source" value={sourceId} onChange={setSourceId} equipIcons={equipIcons} />
             <div className="space-y-1.5">
               <Label htmlFor="source-level" className="text-xs">Source Level</Label>
               <NumberInput id="source-level" value={sourceLevel} onChange={setSourceLevel} />
@@ -1810,6 +1837,7 @@ export default function EquipmentLevelingOptimizerPage() {
                   setItemAId(value);
                   setTwoCalculated(false);
                 }}
+                equipIcons={equipIcons}
               />
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -1832,6 +1860,7 @@ export default function EquipmentLevelingOptimizerPage() {
                   setItemBId(value);
                   setTwoCalculated(false);
                 }}
+                equipIcons={equipIcons}
               />
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -1996,7 +2025,16 @@ export default function EquipmentLevelingOptimizerPage() {
                           onChange={(event) => updateGrandRow(String(item.id), { checked: event.target.checked })}
                         />
                       </td>
-                      <td className="px-3 py-2 font-medium">{item.name}</td>
+                      <td className="px-3 py-2 font-medium">
+                        <div className="flex items-center gap-2">
+                          {getEquipmentIcon(equipIcons, item.name) ? (
+                            <img src={getEquipmentIcon(equipIcons, item.name)} alt="" className="h-5 w-5 rounded object-contain" />
+                          ) : (
+                            <span className="h-5 w-5" />
+                          )}
+                          <span>{item.name}</span>
+                        </div>
+                      </td>
                       <td className="px-3 py-2 text-muted-foreground">{item.rankLabel}</td>
                       <td className="px-3 py-2">
                         <LevelStepper

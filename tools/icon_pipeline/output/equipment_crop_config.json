@@ -1,0 +1,43 @@
+{
+  "expectedScreenSize": [
+    1668,
+    2388
+  ],
+  "boxes": [
+    {
+      "label": "slot_1",
+      "left": 833,
+      "top": 1610,
+      "right": 974,
+      "bottom": 1751
+    },
+    {
+      "label": "slot_2",
+      "left": 981,
+      "top": 1610,
+      "right": 1122,
+      "bottom": 1751
+    },
+    {
+      "label": "slot_3",
+      "left": 1128,
+      "top": 1610,
+      "right": 1269,
+      "bottom": 1751
+    },
+    {
+      "label": "slot_4",
+      "left": 1275,
+      "top": 1610,
+      "right": 1416,
+      "bottom": 1751
+    },
+    {
+      "label": "slot_5",
+      "left": 1422,
+      "top": 1610,
+      "right": 1563,
+      "bottom": 1751
+    }
+  ]
+}

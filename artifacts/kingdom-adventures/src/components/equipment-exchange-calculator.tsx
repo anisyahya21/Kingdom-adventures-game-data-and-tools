@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { matchesLooseSearch } from "@/lib/search-normalize";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Ban, Check, Download, Upload } from "lucide-react";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
+import { apiUrl } from "@/lib/api";
+import { getEquipmentIcon } from "@/lib/equipment-icons";
+import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
 
 type KairoEquipmentName =
@@ -20,6 +24,7 @@ type RequirementMode = "auto" | "manual";
 
 type EquipmentCatalogItem = (typeof EQUIPMENT_CATALOG)[number];
 type ExchangeRow = (typeof EQUIPMENT_EXCHANGE_ROWS)[number];
+type SharedData = { equipIcons?: Record<string, string> };
 
 const KAIRO_OUTPUTS: KairoEquipmentName[] = [
   "A/ Kairo Sword",
@@ -255,6 +260,13 @@ function buildRoute(
 }
 
 export default function EquipmentExchangeCalculator() {
+  const { data: sharedData } = useQuery({
+    queryKey: ["ka-shared"],
+    queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
+    staleTime: 15000,
+    refetchInterval: 15000,
+  });
+  const equipIcons = sharedData?.equipIcons ?? {};
   const [savedExchangeState, setSavedExchangeState] = useLocalFeature<EquipmentExchangeSavedState>(
     STORAGE_KEY,
     DEFAULT_EQUIPMENT_EXCHANGE_STATE,
@@ -656,22 +668,28 @@ export default function EquipmentExchangeCalculator() {
                     {equipmentOptions.length === 0 ? (
                       <div className="px-3 py-3 text-center text-xs text-muted-foreground">No matching equipment</div>
                     ) : (
-                      equipmentOptions.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            selectEquipment(item);
-                          }}
-                          className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
-                            item.id === displayedEquipmentId ? "bg-primary/10 font-medium text-foreground" : ""
-                          }`}
-                        >
-                          <span className="truncate">{item.name}</span>
-                          {item.id === selectedEquipmentId && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
-                        </button>
-                      ))
+                      equipmentOptions.map((item) => {
+                        const icon = getEquipmentIcon(equipIcons, item.name);
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              selectEquipment(item);
+                            }}
+                            className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
+                              item.id === displayedEquipmentId ? "bg-primary/10 font-medium text-foreground" : ""
+                            }`}
+                          >
+                            <span className="flex min-w-0 items-center gap-2">
+                              {icon ? <img src={icon} alt="" className="h-5 w-5 shrink-0 rounded object-contain" /> : <span className="h-5 w-5 shrink-0" />}
+                              <span className="truncate">{item.name}</span>
+                            </span>
+                            {item.id === selectedEquipmentId && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                          </button>
+                        );
+                      })
                     )}
                   </div>
                 )}
@@ -703,7 +721,12 @@ export default function EquipmentExchangeCalculator() {
                 <Card>
                   <CardContent className="p-3">
                     <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Equipment</div>
-                    <div className="mt-1 text-sm font-semibold">{selectedEquipment.name}</div>
+                    <div className="mt-1 flex items-center gap-2 text-sm font-semibold">
+                      {getEquipmentIcon(equipIcons, selectedEquipment.name) && (
+                        <img src={getEquipmentIcon(equipIcons, selectedEquipment.name)} alt="" className="h-6 w-6 rounded object-contain" />
+                      )}
+                      <span>{selectedEquipment.name}</span>
+                    </div>
                   </CardContent>
                 </Card>
                 <Card>
@@ -829,7 +852,12 @@ export default function EquipmentExchangeCalculator() {
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{state.entry.inputName}</span>
+                  <span className="flex min-w-0 items-center gap-2 font-medium">
+                    {getEquipmentIcon(equipIcons, state.entry.inputName) && (
+                      <img src={getEquipmentIcon(equipIcons, state.entry.inputName)} alt="" className="h-5 w-5 shrink-0 rounded object-contain" />
+                    )}
+                    <span className="truncate">{state.entry.inputName}</span>
+                  </span>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <span className={`tabular-nums font-semibold ${change ? "text-amber-700 dark:text-amber-300" : ""}`}>
                       Buy {change ? `${change.previousExchange} -> ${state.totalExchange}` : state.totalExchange}
@@ -895,8 +923,12 @@ export default function EquipmentExchangeCalculator() {
             <div className="grid gap-1">
               {route.picks.map((pick, index) => (
                 <div key={`${pick.item}-${index}`} className="flex items-center justify-between gap-3 text-xs">
-                  <span className="truncate">
-                    {index + 1}. {pick.item}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="shrink-0">{index + 1}.</span>
+                    {getEquipmentIcon(equipIcons, pick.item) && (
+                      <img src={getEquipmentIcon(equipIcons, pick.item)} alt="" className="h-4 w-4 shrink-0 rounded object-contain" />
+                    )}
+                    <span className="truncate">{pick.item}</span>
                   </span>
                   <span className="shrink-0 tabular-nums text-muted-foreground">
                     {pick.tradeCost} × {pick.buyCost}¢ = <span className="font-medium text-foreground">{pick.totalCost}¢</span>
@@ -1045,7 +1077,16 @@ export default function EquipmentExchangeCalculator() {
                   return (
                     <tr key={entry.inputId} className={`border-t border-border ${isUnavailable ? "bg-amber-500/10 text-muted-foreground" : ""}`}>
                       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{index + 1}</td>
-                      <td className="px-3 py-2 font-medium">{entry.inputName}</td>
+                      <td className="px-3 py-2 font-medium">
+                        <div className="flex items-center gap-2">
+                          {getEquipmentIcon(equipIcons, entry.inputName) ? (
+                            <img src={getEquipmentIcon(equipIcons, entry.inputName)} alt="" className="h-5 w-5 rounded object-contain" />
+                          ) : (
+                            <span className="h-5 w-5" />
+                          )}
+                          <span>{entry.inputName}</span>
+                        </div>
+                      </td>
                       <td className="px-3 py-2 text-muted-foreground">{entry.rankLabel}</td>
                       <td className="px-3 py-2 text-muted-foreground">{entry.outputName.replace("A/ ", "")}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{entry.buyPrice}</td>

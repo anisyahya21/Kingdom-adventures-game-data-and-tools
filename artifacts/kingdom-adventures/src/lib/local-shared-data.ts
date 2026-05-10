@@ -3,15 +3,34 @@ import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 
 export const localSharedData = fallbackSharedData as Record<string, unknown>;
 
+function mergeSharedData<T>(base: unknown, overlay: unknown): T {
+  const baseRecord = typeof base === "object" && base !== null ? base as Record<string, unknown> : {};
+  const overlayRecord = typeof overlay === "object" && overlay !== null ? overlay as Record<string, unknown> : {};
+  return {
+    ...baseRecord,
+    ...overlayRecord,
+    equipIcons: {
+      ...(baseRecord.equipIcons as Record<string, string> | undefined),
+      ...(overlayRecord.equipIcons as Record<string, string> | undefined),
+    },
+    statIcons: {
+      ...(baseRecord.statIcons as Record<string, string> | undefined),
+      ...(overlayRecord.statIcons as Record<string, string> | undefined),
+    },
+  } as T;
+}
+
 export async function fetchSharedWithFallback<T>(url: string): Promise<T> {
   const cacheKey = "shared-data";
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Shared API returned ${res.status}`);
-    const data = await res.json() as T;
+    const data = mergeSharedData<T>(localSharedData, await res.json());
     writeBrowserCache(cacheKey, data);
     return data;
   } catch {
-    return readBrowserCache<T>(cacheKey) ?? JSON.parse(JSON.stringify(localSharedData)) as T;
+    const local = JSON.parse(JSON.stringify(localSharedData));
+    const cached = readBrowserCache<unknown>(cacheKey);
+    return cached ? mergeSharedData<T>(local, cached) : local as T;
   }
 }

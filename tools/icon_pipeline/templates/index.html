@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kingdom Adventures Icon Pipeline</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>Icon Pipeline</h1>
+        <p>Local screenshot crops, manual name mapping, and clean PNG export.</p>
+      </div>
+      <div class="save-state" id="saveState">Saved</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel upload-panel">
+        <div class="section-title">
+          <h2>Screenshot Upload</h2>
+          <span id="screenshotCount">0 screenshots</span>
+        </div>
+        <label id="dropZone" class="drop-zone" for="fileInput">
+          <input id="fileInput" type="file" multiple accept="image/png,image/jpeg">
+          <span>Drop PNG/JPG screenshots here or click to choose files</span>
+        </label>
+        <div class="actions">
+          <button id="clearUploadsButton" type="button">Clear Uploaded Screenshots</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <h2>Cropper Controls</h2>
+          <span id="cropCount">0 crops</span>
+        </div>
+        <div class="actions">
+          <button id="runEquipmentButton" type="button">Run Equipment Cropper</button>
+          <button id="runInventoryButton" type="button">Run Inventory Cropper</button>
+          <button id="clearRawCropsButton" type="button">Clear Raw Crops</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <h2>Requested Equipment Screenshot</h2>
+          <span>Equip these 5 items, upload one profile screenshot, then process</span>
+        </div>
+        <div id="equipmentProgress" class="progress-strip"></div>
+        <div id="equipmentGoalGrid" class="goal-grid"></div>
+        <label class="goal-upload" for="goalScreenshotInput">
+          <input id="goalScreenshotInput" type="file" accept="image/png,image/jpeg">
+          <span>Upload the screenshot for these requested items</span>
+        </label>
+        <div class="actions">
+          <button id="uploadProcessGoalButton" type="button">Upload + Process Goal Screenshot</button>
+          <button id="processGoalButton" type="button">Process Uploaded Goal Screenshot</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <h2>Screenshot Capture Log</h2>
+          <span id="captureLogCount">0 planned</span>
+        </div>
+        <div class="capture-form">
+          <div class="name-picker capture-name-picker">
+            <input
+              id="captureNameInput"
+              type="text"
+              placeholder="Search or type item already screenshotted"
+              autocomplete="off"
+              role="combobox"
+              aria-expanded="false"
+              aria-autocomplete="list"
+            >
+            <div class="suggestions" role="listbox" hidden></div>
+          </div>
+          <select id="captureSlotInput" aria-label="Slot type">
+            <option value="">Any slot</option>
+            <option value="head">Head</option>
+            <option value="weapon">Weapon</option>
+            <option value="shield">Shield</option>
+            <option value="armor">Armor</option>
+            <option value="accessory">Accessory</option>
+          </select>
+          <input id="captureNoteInput" type="text" placeholder="Optional note">
+          <button id="addCaptureButton" type="button">Add</button>
+        </div>
+        <div id="captureLogList" class="capture-list"></div>
+        <div class="missing-tools">
+          <div class="section-title compact-title">
+            <h3>Still Missing</h3>
+            <span id="missingCount">0 missing</span>
+          </div>
+          <div class="toolbar">
+            <input id="missingSearchInput" type="search" placeholder="Search missing equipment">
+            <div class="segmented missing-slots" aria-label="Missing slot filter">
+              <button class="active" data-slot="" type="button">All</button>
+              <button data-slot="head" type="button">Head</button>
+              <button data-slot="weapon" type="button">Weapon</button>
+              <button data-slot="shield" type="button">Shield</button>
+              <button data-slot="armor" type="button">Armor</button>
+              <button data-slot="accessory" type="button">Accessory</button>
+            </div>
+          </div>
+          <div id="missingList" class="missing-list"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <h2>Equipment Crop Calibration</h2>
+          <span>Drag the 5 boxes once, then save</span>
+        </div>
+        <div id="calibrationEmpty" class="empty">Upload one profile screenshot to calibrate equipment slots.</div>
+        <div id="calibrationTool" class="calibration-tool" hidden>
+          <div id="calibrationStage" class="calibration-stage">
+            <img id="calibrationImage" alt="Equipment crop calibration preview">
+          </div>
+          <div class="actions">
+            <button id="saveCalibrationButton" type="button">Save Equipment Crop Boxes</button>
+            <button id="resetCalibrationButton" type="button">Reset To Default 5 Slots</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel tools-panel">
+        <div class="section-title">
+          <h2>Icon Mapping</h2>
+          <span id="duplicateCount">0 duplicates</span>
+        </div>
+        <div id="nameSourceStatus" class="source-status"></div>
+        <div class="toolbar">
+          <input id="searchInput" type="search" placeholder="Filter by filename or mapped name">
+          <div id="mappingFilterButtons" class="segmented" aria-label="Mapping filter">
+            <button class="active" data-filter="all" type="button">All</button>
+            <button data-filter="mapped" type="button">Mapped</button>
+            <button data-filter="unmapped" type="button">Unmapped</button>
+            <button data-filter="duplicates" type="button">Duplicates</button>
+            <button data-filter="image-duplicates" type="button">Image Dupes</button>
+          </div>
+        </div>
+        <div id="cropGrid" class="crop-grid"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <h2>Finalize / Export</h2>
+          <span>Writes renamed copies only</span>
+        </div>
+        <div class="actions">
+          <button id="saveMappingButton" type="button">Save + Publish Icons</button>
+          <button id="finalizeButton" type="button">Finalize Mapped Icons</button>
+          <button id="backupButton" type="button">Create Backup Snapshot</button>
+          <button id="cleanupFulfilledButton" type="button">Clean Done From Planning UI</button>
+          <button id="clearMappedButton" type="button">Clear Export Folder</button>
+        </div>
+      </section>
+
+      <section class="panel log-panel">
+        <div class="section-title">
+          <h2>Processing Log</h2>
+          <button id="clearLogButton" type="button">Clear Log</button>
+        </div>
+        <pre id="logOutput"></pre>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

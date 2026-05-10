@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { WairoFarmingCalculator } from "@/components/wairo-farming-calculator";
+import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
+import { getEquipmentIcon } from "@/lib/equipment-icons";
 
 type WarioDungeonEntry = { day: number; hour: number };
 type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
@@ -89,6 +91,7 @@ function formatCountdown(ms: number): string {
 }
 
 export default function WarioDungeonPage() {
+  const equipIcons = useEquipmentIcons();
   const [now, setNow] = useState(() => new Date());
   const [eventOffset] = useEventHourOffset();
 
@@ -177,7 +180,16 @@ export default function WarioDungeonPage() {
                             <tbody>
                               {table.map((line) => (
                                 <tr key={`${index}-${line.item}`} className="border-t border-border/60">
-                                  <td className="px-3 py-2 text-foreground">{line.item}</td>
+                                  <td className="px-3 py-2 text-foreground">
+                                    <div className="flex items-center gap-2">
+                                      {getEquipmentIcon(equipIcons, line.item) ? (
+                                        <img src={getEquipmentIcon(equipIcons, line.item)} alt="" className="h-5 w-5 rounded object-contain" />
+                                      ) : (
+                                        <span className="h-5 w-5" />
+                                      )}
+                                      <span>{line.item}</span>
+                                    </div>
+                                  </td>
                                   <td className="px-3 py-2 text-muted-foreground">{line.quantity}</td>
                                   <td className="px-3 py-2">
                                     <Badge variant="secondary" className="font-mono text-[11px]">

@@ -24,6 +24,7 @@ import { ToneBadge } from "@/components/ka/badges";
 import { toPng } from "html-to-image";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
+import { getEquipmentIcon } from "@/lib/equipment-icons";
 import { simulateBatch, simulateDuel, type Combatant, type BattleResult, type BatchResult } from "@/lib/combat-simulator";
 import { getJobProfile } from "@/game-data/job-profile";
 import { KA_RANK_BADGE_CLASS } from "@/design-system/category-styles";
@@ -221,6 +222,7 @@ function useSharedData() {
     queryKey: ["ka-shared"],
     queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
     staleTime: 15000,
+    refetchInterval: 15000,
   });
 }
 
@@ -1423,7 +1425,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                     {EQUIP_SLOTS.map(({ slot, Icon }) => {
                       const eq = slotToEquip[slot];
                       const globalIdx = eq ? loadout.equipment.findIndex((e) => e.name === eq.name) : -1;
-                      const icon = eq ? iconMap[eq.name] : null;
+                      const icon = eq ? getEquipmentIcon(iconMap, eq.name) : null;
                       const slotItems = Object.entries(slotMap)
                         .filter(([, s]) => s === slot)
                         .map(([n]) => n)
@@ -1517,7 +1519,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                           const idx = loadout.equipment.findIndex((e) => e.name === eq.name);
                           return (
                             <div key={eq.name} className="flex items-center gap-1.5 bg-muted/30 rounded-md px-2 py-1">
-                              {iconMap[eq.name] ? <img src={iconMap[eq.name]} alt="" className="w-4 h-4 object-contain" /> : <div className="w-4 h-4" />}
+                              {getEquipmentIcon(iconMap, eq.name) ? <img src={getEquipmentIcon(iconMap, eq.name)} alt="" className="w-4 h-4 object-contain" /> : <div className="w-4 h-4" />}
                               <span className="text-xs flex-1 truncate font-medium">{eq.name}</span>
                               <span className="text-[10px] text-muted-foreground">Lv</span>
                               <Input type="text" inputMode="numeric" value={equipLevelInputs[idx] ?? String(eq.level)}
@@ -1756,7 +1758,7 @@ export default function LoadoutPage() {
                         {loadout.equipment.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
                             {loadout.equipment.map((eq) => {
-                              const icon = data?.equipIcons?.[eq.name];
+                              const icon = getEquipmentIcon(data?.equipIcons, eq.name);
                               const slot = data?.slotAssignments?.[eq.name];
                               const rule = data ? getEquipRuleState(loadout, data, eq.name) : null;
                               return (

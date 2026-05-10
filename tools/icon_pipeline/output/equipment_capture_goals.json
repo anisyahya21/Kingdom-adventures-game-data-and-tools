@@ -1,0 +1,265 @@
+{
+  "goals": {},
+  "skipped": [
+    "A- Black Headpiece",
+    "A- Dragon Headpiece",
+    "A- Kairo Hat",
+    "A- Legendary Hat",
+    "A- Robot Helmet",
+    "A- Tiara",
+    "B- Iron Headpiece",
+    "B- Iron Mask",
+    "B- Mystic Hat",
+    "B- Shampoo Hat",
+    "B- Wizard's Hat",
+    "A- Crystal Shield",
+    "A- Golden Shield",
+    "A- Hero Shield",
+    "A- Holy Shield",
+    "A- Heavy Armor",
+    "A- Royal Robe",
+    "A- Verdant Armor",
+    "A- Golden Bell",
+    "A- Golden Collar",
+    "A- Golden Earrings",
+    "A- Light Ring",
+    "A- Red Pendant",
+    "A- Ribbon",
+    "A- Silk Gloves",
+    "A- Silver Boots",
+    "A- Angelic Club",
+    "A- Emerald Club",
+    "A- Frosty Rod",
+    "A- Giga Ninja Star",
+    "A- Golden Knife",
+    "A- Golden Spear",
+    "B- Fine Robe",
+    "B- Silver Armor",
+    "A- Ice Scalpel",
+    "A- Immortal Sword",
+    {
+      "name": "B- Gold Bag",
+      "slotKind": "accessory"
+    },
+    {
+      "name": "B- Golden Bracelet",
+      "slotKind": "accessory"
+    },
+    {
+      "name": "B- Leather Gloves",
+      "slotKind": "accessory"
+    },
+    {
+      "name": "B- Red Ribbon",
+      "slotKind": "accessory"
+    },
+    {
+      "name": "A- Legendary Staff",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "A- Mighty Rifle",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "A- Royal Sword",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "A- Steel Club",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "A- Steel Spear",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "A- Sword of Rage",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "A- Teardop Sword",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "Axe",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Battle Axe",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Big Bad Hammer",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Commander's Spear",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Destruction Sword",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Diamond Staff",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Frosty Sword",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Hero Club",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Hero Sword",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Iron Club",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Lightning Scalpel",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Gold Medal",
+      "slotKind": "accessory"
+    },
+    {
+      "name": "S- Golden Ring",
+      "slotKind": "accessory"
+    },
+    {
+      "name": "S- Royal Earrings",
+      "slotKind": "accessory"
+    },
+    {
+      "name": "B- Master's Katana",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Santa Shield",
+      "slotKind": "shield"
+    },
+    {
+      "name": "B- Musket",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Paintbrush",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Red Spear",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Black Chainmail",
+      "slotKind": "armor"
+    },
+    {
+      "name": "S- Golden Armor",
+      "slotKind": "armor"
+    },
+    {
+      "name": "B- Silver Hammer",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Sword of the Void",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Tree Branch",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "B- Trident",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "Bare-Handed",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Royal Crown",
+      "slotKind": "head"
+    },
+    {
+      "name": "C- Artistic Club",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "Fishing Net",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "Fishing Rod",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "Garden Hoe",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "Hammer",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "Net",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "Pickaxe",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "Rake",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Black Spear",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Conqueror's Sword",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Fire Hammer",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Fire Sword",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Golden Gun",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Golden Club",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Golden Hammer",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Legendary Sword",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Santa Staff",
+      "slotKind": "weapon"
+    },
+    {
+      "name": "S- Yggdrasil Sword",
+      "slotKind": "weapon"
+    }
+  ]
+}

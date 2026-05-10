@@ -7,10 +7,13 @@ import { KAIRO_ROOM_LOOT_GROUPS } from "@/lib/special-boss-loot";
 import { getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel } from "@/lib/event-status";
 import { KairoFarmingCalculator } from "@/components/kairo-farming-calculator";
+import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
+import { getEquipmentIcon } from "@/lib/equipment-icons";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
 export default function KairoRoomPage() {
+  const equipIcons = useEquipmentIcons();
   const [now, setNow] = useState(() => new Date());
   const [eventOffset] = useEventHourOffset();
   useEffect(() => {
@@ -84,6 +87,9 @@ export default function KairoRoomPage() {
                     <div className="flex flex-wrap gap-2">
                       {entry.equipmentFromBox.map((item) => (
                         <Badge key={item} variant="secondary" className="text-xs">
+                          {getEquipmentIcon(equipIcons, item) && (
+                            <img src={getEquipmentIcon(equipIcons, item)} alt="" className="mr-1 inline h-4 w-4 rounded object-contain align-[-3px]" />
+                          )}
                           {item}
                         </Badge>
                       ))}
@@ -145,7 +151,16 @@ export default function KairoRoomPage() {
                               <tbody>
                                 {table.map((line) => (
                                   <tr key={`${index}-${line.item}`} className="border-t border-border/60">
-                                    <td className="px-3 py-2 text-foreground">{line.item}</td>
+                                    <td className="px-3 py-2 text-foreground">
+                                      <div className="flex items-center gap-2">
+                                        {getEquipmentIcon(equipIcons, line.item) ? (
+                                          <img src={getEquipmentIcon(equipIcons, line.item)} alt="" className="h-5 w-5 rounded object-contain" />
+                                        ) : (
+                                          <span className="h-5 w-5" />
+                                        )}
+                                        <span>{line.item}</span>
+                                      </div>
+                                    </td>
                                     <td className="px-3 py-2 text-muted-foreground">{line.quantity}</td>
                                     <td className="px-3 py-2">
                                       <Badge variant="secondary" className="font-mono text-[11px]">

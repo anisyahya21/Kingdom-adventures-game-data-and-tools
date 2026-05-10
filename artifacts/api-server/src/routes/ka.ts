@@ -156,6 +156,9 @@ type SharedState = {
   skills: Record<string, Skill>;
   loadouts: Loadout[];
   loadoutsUpdatedAt: number | null;
+  loadoutBoxSetups: unknown[];
+  loadoutBoxSetupsUpdatedAt: number | null;
+  loadoutBoxSetupShares: Record<string, { id: string; setup: unknown; createdAt: number; updatedAt: number }>;
   syncedDevices: Array<{ id: string; name: string; createdAt: number; syncGroupId?: string }>;
   communitySightings: Record<string, CommunitySighting[]>;
   communityGuides: CommunityGuide[];
@@ -177,6 +180,9 @@ const DEFAULT_STATE: SharedState = {
   skills: {},
   loadouts: [],
   loadoutsUpdatedAt: null,
+  loadoutBoxSetups: [],
+  loadoutBoxSetupsUpdatedAt: null,
+  loadoutBoxSetupShares: {},
   syncedDevices: [],
   communitySightings: {},
   communityGuides: [],
@@ -203,6 +209,9 @@ function readState(): SharedState {
       skills: {},
       loadouts: [],
       loadoutsUpdatedAt: null,
+      loadoutBoxSetups: [],
+      loadoutBoxSetupsUpdatedAt: null,
+      loadoutBoxSetupShares: {},
       syncedDevices: [],
       communitySightings: {},
       communityGuides: [],
@@ -695,6 +704,39 @@ router.put("/ka/loadouts", (req, res) => {
   state.loadoutsUpdatedAt = Date.now();
   writeState(state);
   res.json({ ok: true });
+});
+
+router.put("/ka/loadout-box-setups", (req, res) => {
+  const { data } = req.body as { data: unknown[] };
+  const state = readState();
+  state.loadoutBoxSetups = Array.isArray(data) ? data : [];
+  state.loadoutBoxSetupsUpdatedAt = Date.now();
+  writeState(state);
+  res.json({ ok: true });
+});
+
+router.post("/ka/loadout-box-setups/share", (req, res) => {
+  const { setup } = req.body as { setup?: unknown };
+  if (!setup || typeof setup !== "object") {
+    res.status(400).json({ error: "setup is required" });
+    return;
+  }
+  const state = readState();
+  const id = crypto.randomBytes(6).toString("base64url");
+  const now = Date.now();
+  state.loadoutBoxSetupShares[id] = { id, setup, createdAt: now, updatedAt: now };
+  writeState(state);
+  res.json({ id });
+});
+
+router.get("/ka/loadout-box-setups/share/:id", (req, res) => {
+  const state = readState();
+  const share = state.loadoutBoxSetupShares[req.params.id];
+  if (!share) {
+    res.status(404).json({ error: "Shared setup not found" });
+    return;
+  }
+  res.json(share);
 });
 
 // ─── Device Sync (persisted) ──────────────────────────────────────────────────

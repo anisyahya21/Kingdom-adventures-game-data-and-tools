@@ -857,6 +857,13 @@ function formatCompactStatNumber(value: number | null | undefined) {
 type CompareScope = "current" | "all" | "favorites" | "manual";
 type CompareLevelMode = "level" | "awakening";
 
+const COMPARE_SCOPE_OPTIONS: Array<{ value: CompareScope; label: string }> = [
+  { value: "current", label: "Current filtered jobs" },
+  { value: "all", label: "All jobs" },
+  { value: "favorites", label: "Favorites only" },
+  { value: "manual", label: "Manual selection" },
+];
+
 function formatCompareNumber(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) return "-";
   return Math.round(value * 100) / 100;
@@ -1193,29 +1200,35 @@ function AdvancedCompareDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[96vw] w-[1180px] max-h-[90vh] overflow-hidden p-0">
-        <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-[1180px] max-h-[calc(100dvh-1rem)] overflow-hidden p-0 sm:w-[calc(100vw-2rem)] sm:max-h-[calc(100dvh-2rem)]">
+        <DialogHeader className="px-4 py-3 pr-14 border-b border-border sm:px-5 sm:pt-5 sm:pb-3 sm:pr-16">
           <DialogTitle>Advanced Compare</DialogTitle>
         </DialogHeader>
 
-        <div className="overflow-y-auto max-h-[calc(90vh-74px)] px-5 pb-5 space-y-4">
+        <div className="overflow-y-auto max-h-[calc(100dvh-4.75rem)] px-3 pb-4 space-y-4 sm:max-h-[calc(100dvh-6.5rem)] sm:px-5 sm:pb-5">
           <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-4">
             <div className="rounded-lg border border-border bg-card/70 p-3">
-              <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold text-foreground">Compare jobs</div>
                   <div className="text-xs text-muted-foreground">{rows.length} job{rows.length === 1 ? "" : "s"} in this comparison</div>
                 </div>
-                <select
-                  value={scope}
-                  onChange={(e) => setScope(e.target.value as CompareScope)}
-                  className="h-8 rounded border border-border bg-background px-2 text-xs text-foreground"
-                >
-                  <option value="current">Current filtered jobs</option>
-                  <option value="all">All jobs</option>
-                  <option value="favorites">Favorites only</option>
-                  <option value="manual">Manual selection</option>
-                </select>
+                <div className="grid w-full grid-cols-2 gap-1 sm:flex sm:w-auto sm:flex-wrap">
+                  {COMPARE_SCOPE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setScope(option.value)}
+                      className={`min-h-11 rounded-md border px-3 text-sm font-medium transition-colors touch-manipulation sm:min-h-8 sm:text-xs ${
+                        scope === option.value
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-input bg-background text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {scope === "manual" && (

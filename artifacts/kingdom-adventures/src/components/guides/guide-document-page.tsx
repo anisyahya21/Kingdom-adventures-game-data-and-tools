@@ -27,6 +27,7 @@ import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS, getShopHref } from "@/lib/shop-utils";
 import { getJobProfile } from "@/game-data/job-profile";
 import { googleSheetUrl, googleDocUrl } from "@/lib/api";
+import { getEquipmentIcon } from "@/lib/equipment-icons";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 import { AffinityBadge, RankBadge } from "@/components/ka/badges";
 import { getEntityHref } from "@/components/ka/entity-link";
@@ -598,7 +599,7 @@ function findGuideEquipmentPreview(href: string, label: string): EquipmentPrevie
     shopName: equipmentShopFromType(item.type),
     studioLevel: shared.skills?.[item.name]?.studioLevel,
     craftingIntelligence: shared.skills?.[item.name]?.craftingIntelligence,
-    equipIcon: shared.equipIcons?.[`equip:${item.name}`],
+    equipIcon: getEquipmentIcon(shared.equipIcons, item.name),
     statIcons: shared.statIcons ?? {},
     stats,
   };

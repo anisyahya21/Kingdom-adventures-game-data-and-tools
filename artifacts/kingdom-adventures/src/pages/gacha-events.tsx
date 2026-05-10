@@ -13,7 +13,9 @@ import { getEntityHref } from "@/components/ka/entity-link";
 import { FACILITY_GACHA_EVENTS } from "@/game-data/facility-gacha-events";
 import { EQUIPMENT_CATALOG } from "@/lib/generated-equipment-data";
 import { localSharedData } from "@/lib/local-shared-data";
+import { getEquipmentIcon } from "@/lib/equipment-icons";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
+import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 
 type EventKind = "jobs" | "facilities" | "weapons" | "items";
 
@@ -346,7 +348,7 @@ function statAtLevel(base: number, inc: number, level: number) {
   return Math.round(base + (level - 1) * inc);
 }
 
-function buildWeaponPreviewItem(name: string): WeaponPreviewItem | null {
+function buildWeaponPreviewItem(name: string, equipIcons?: Record<string, string>): WeaponPreviewItem | null {
   const item = findEquipmentCatalogItem(name);
   if (!item) return null;
   const shared = localSharedData as {
@@ -373,7 +375,7 @@ function buildWeaponPreviewItem(name: string): WeaponPreviewItem | null {
     requiredKairo: item.requiredKairo,
     weaponType: shared.weaponTypes?.[item.name],
     shopName: equipmentShopFromType(item.type),
-    equipIcon: shared.equipIcons?.[`equip:${item.name}`],
+    equipIcon: getEquipmentIcon(equipIcons ?? shared.equipIcons, item.name),
     statIcons: shared.statIcons ?? {},
     stats,
   };
@@ -729,10 +731,12 @@ function PlainEventRow({
   event,
   now,
   onOpenWeapon,
+  equipIcons,
 }: {
   event: ResolvedEvent;
   now: Date;
   onOpenWeapon: (name: string) => void;
+  equipIcons?: Record<string, string>;
 }) {
   const rowClass = event.isActive
     ? "rounded-lg border border-emerald-500/60 bg-emerald-500/5 px-3 py-3"
@@ -744,16 +748,22 @@ function PlainEventRow({
         <button
           type="button"
           onClick={() => onOpenWeapon(weaponNames[0])}
-          className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+          className="inline-flex items-center gap-1 font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
         >
+          {getEquipmentIcon(equipIcons, weaponNames[0]) && (
+            <img src={getEquipmentIcon(equipIcons, weaponNames[0])} alt="" className="h-4 w-4 rounded object-contain" />
+          )}
           {weaponNames[0]}
         </button>
         {" + "}
         <button
           type="button"
           onClick={() => onOpenWeapon(weaponNames[1])}
-          className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+          className="inline-flex items-center gap-1 font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
         >
+          {getEquipmentIcon(equipIcons, weaponNames[1]) && (
+            <img src={getEquipmentIcon(equipIcons, weaponNames[1])} alt="" className="h-4 w-4 rounded object-contain" />
+          )}
           {weaponNames[1]}
         </button>
       </span>
@@ -761,8 +771,11 @@ function PlainEventRow({
       <button
         type="button"
         onClick={() => onOpenWeapon(weaponNames[0] ?? event.title)}
-        className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+        className="inline-flex items-center gap-1 font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
       >
+        {getEquipmentIcon(equipIcons, weaponNames[0] ?? event.title) && (
+          <img src={getEquipmentIcon(equipIcons, weaponNames[0] ?? event.title)} alt="" className="h-4 w-4 rounded object-contain" />
+        )}
         {event.title}
       </button>
     ) : (
@@ -784,8 +797,11 @@ function PlainEventRow({
                   <button
                     type="button"
                     onClick={() => onOpenWeapon(name)}
-                    className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+                    className="inline-flex items-center gap-1 font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
                   >
+                    {getEquipmentIcon(equipIcons, name) && (
+                      <img src={getEquipmentIcon(equipIcons, name)} alt="" className="h-4 w-4 rounded object-contain" />
+                    )}
                     {name}
                   </button>
                   {index < weaponNames.length - 1 ? " | " : ""}
@@ -812,12 +828,14 @@ function SummaryCard({
   upcoming,
   now,
   onOpenWeapon,
+  equipIcons,
 }: {
   kind: EventKind;
   active: ResolvedEvent | null;
   upcoming: ResolvedEvent | null;
   now: Date;
   onOpenWeapon: (name: string) => void;
+  equipIcons?: Record<string, string>;
 }) {
   const focus = active ?? upcoming;
   const weaponNames = focus && kind === "weapons" ? weaponNamesFromEvent(focus) : [];
@@ -843,8 +861,11 @@ function SummaryCard({
                       <button
                         type="button"
                         onClick={() => onOpenWeapon(name)}
-                        className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+                        className="inline-flex items-center gap-1 font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
                       >
+                        {getEquipmentIcon(equipIcons, name) && (
+                          <img src={getEquipmentIcon(equipIcons, name)} alt="" className="h-4 w-4 rounded object-contain" />
+                        )}
                         {name}
                       </button>
                       {index < weaponNames.length - 1 ? " + " : ""}
@@ -855,8 +876,11 @@ function SummaryCard({
                 <button
                   type="button"
                   onClick={() => onOpenWeapon(focus.title)}
-                  className="font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
+                  className="inline-flex items-center gap-1 font-medium text-foreground/85 underline decoration-foreground/30 underline-offset-2 hover:text-foreground"
                 >
+                  {getEquipmentIcon(equipIcons, focus.title) && (
+                    <img src={getEquipmentIcon(equipIcons, focus.title)} alt="" className="h-4 w-4 rounded object-contain" />
+                  )}
                   {focus.title}
                 </button>
               ) : (
@@ -898,6 +922,7 @@ function SummaryCard({
 }
 
 export default function GachaEventsPage() {
+  const equipIcons = useEquipmentIcons();
   const [now, setNow] = useState(() => new Date());
   const [eventOffset] = useEventHourOffset();
   const [weaponPreview, setWeaponPreview] = useState<WeaponPreviewItem | null>(null);
@@ -955,7 +980,7 @@ export default function GachaEventsPage() {
   }, [resolved]);
 
   const handleOpenWeapon = (name: string) => {
-    const preview = buildWeaponPreviewItem(normalizeWeaponSearchName(name));
+    const preview = buildWeaponPreviewItem(normalizeWeaponSearchName(name), equipIcons);
     if (!preview) return;
     setWeaponPreview(preview);
     setWeaponPreviewOpen(true);
@@ -981,6 +1006,7 @@ export default function GachaEventsPage() {
             upcoming={summary.upcoming}
             now={now}
             onOpenWeapon={handleOpenWeapon}
+            equipIcons={equipIcons}
           />
         ))}
       </div>
@@ -1006,7 +1032,7 @@ export default function GachaEventsPage() {
         />
         <div className="grid gap-2 md:grid-cols-2">
           {facilityEvents.map((event) => (
-            <PlainEventRow key={event.id} event={event} now={now} onOpenWeapon={handleOpenWeapon} />
+          <PlainEventRow key={event.id} event={event} now={now} onOpenWeapon={handleOpenWeapon} equipIcons={equipIcons} />
           ))}
         </div>
       </section>
@@ -1025,7 +1051,7 @@ export default function GachaEventsPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {upcomingSWeapons.map((event) => (
-                <PlainEventRow key={event.id} event={event} now={now} onOpenWeapon={handleOpenWeapon} />
+                <PlainEventRow key={event.id} event={event} now={now} onOpenWeapon={handleOpenWeapon} equipIcons={equipIcons} />
               ))}
             </CardContent>
           </Card>
@@ -1036,7 +1062,7 @@ export default function GachaEventsPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {upcomingKairo.map((event) => (
-                <PlainEventRow key={event.id} event={event} now={now} onOpenWeapon={handleOpenWeapon} />
+                <PlainEventRow key={event.id} event={event} now={now} onOpenWeapon={handleOpenWeapon} equipIcons={equipIcons} />
               ))}
             </CardContent>
           </Card>

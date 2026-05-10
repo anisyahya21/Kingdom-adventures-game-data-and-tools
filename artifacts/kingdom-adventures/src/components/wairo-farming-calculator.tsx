@@ -12,6 +12,8 @@ import {
   getAllWairoItems,
   type Difficulty,
 } from "@/lib/farming-calc";
+import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
+import { getEquipmentIcon } from "@/lib/equipment-icons";
 
 const ALL_ITEMS = getAllWairoItems();
 
@@ -25,6 +27,7 @@ type ResultRow = {
 };
 
 export function WairoFarmingCalculator() {
+  const equipIcons = useEquipmentIcons();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -45,6 +48,7 @@ export function WairoFarmingCalculator() {
     () => (query.trim() ? ALL_ITEMS.filter((i) => matchesLooseSearch(i, query)) : ALL_ITEMS),
     [query],
   );
+  const selectedIcon = getEquipmentIcon(equipIcons, selectedItem);
 
   function selectItem(item: string) {
     setSelectedItem(item);
@@ -116,11 +120,14 @@ export function WairoFarmingCalculator() {
                   if (e.key === "Enter" && filteredItems.length > 0) selectItem(filteredItems[0]);
                 }}
                 placeholder="Search item…"
-                className={`h-9 pr-9 ${open ? "rounded-b-none border-primary ring-1 ring-primary" : ""}`}
+                className={`h-9 pr-9 ${selectedIcon ? "pl-9" : ""} ${open ? "rounded-b-none border-primary ring-1 ring-primary" : ""}`}
                 role="combobox"
                 aria-expanded={open}
                 aria-controls="wairo-item-results"
               />
+              {selectedIcon && (
+                <img src={selectedIcon} alt="" className="pointer-events-none absolute left-2 top-1/2 h-5 w-5 -translate-y-1/2 rounded object-contain" />
+              )}
               <button
                 type="button"
                 onMouseDown={(e) => {
@@ -154,24 +161,30 @@ export function WairoFarmingCalculator() {
                       No matching items
                     </div>
                   ) : (
-                    filteredItems.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          selectItem(item);
-                        }}
-                        className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
-                          item === selectedItem ? "bg-primary/10 font-medium text-foreground" : ""
-                        }`}
-                      >
-                        <span className="truncate">{item}</span>
-                        {item === selectedItem && (
-                          <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
-                        )}
-                      </button>
-                    ))
+                    filteredItems.map((item) => {
+                      const icon = getEquipmentIcon(equipIcons, item);
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectItem(item);
+                          }}
+                          className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
+                            item === selectedItem ? "bg-primary/10 font-medium text-foreground" : ""
+                          }`}
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            {icon ? <img src={icon} alt="" className="h-5 w-5 shrink-0 rounded object-contain" /> : <span className="h-5 w-5 shrink-0" />}
+                            <span className="truncate">{item}</span>
+                          </span>
+                          {item === selectedItem && (
+                            <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                          )}
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               )}
