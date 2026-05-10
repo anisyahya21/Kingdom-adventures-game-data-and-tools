@@ -1,10 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-// For environment banner
-const ENV_BANNER = import.meta.env.MODE?.toUpperCase?.() || (process.env.NODE_ENV?.toUpperCase?.() ?? "UNKNOWN");
-const ENV_HOST = window?.location?.host || "?";
-const ENV_BASE = import.meta.env.BASE_URL || "/";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   Plus, Trash2, Loader2, Camera,
@@ -66,7 +62,8 @@ type BoxUnitRule = {
   recommendedGear: Record<string, string[] | undefined>;
   notes: string;
 };
-type BoxGridCell = { id: string; rule?: BoxUnitRule };
+type BoxPetRule = { minLevel?: number; maxLevel?: number };
+type BoxGridCell = { id: string; rule?: BoxUnitRule; assignedToPet?: boolean; assignedToFiller?: boolean; petRule?: BoxPetRule };
 type BoxSetup = {
   id: BoxSetupKind;
   title: string;
@@ -74,14 +71,17 @@ type BoxSetup = {
   rows: number;
   cells: BoxGridCell[];
   updatedAt?: number;
+  publishedAt?: number;
+  publishedBy?: string;
 };
-type BoxAttempt = Record<string, string>;
+type BoxAttempt = Record<string, string | string[]>;
 type SharedData = {
   jobs?: Record<string, Job>;
   skills?: Record<string, Skill>;
   overrides?: Record<string, Record<string, { base?: number; inc?: number }>>;
   slotAssignments?: Record<string, string>;
   equipIcons?: Record<string, string>;
+  statIcons?: Record<string, string>;
   weaponTypes?: Record<string, string>;
   weaponCategories?: string[];
   pairs?: Array<{ id: string; jobA: string; jobB: string; children?: string[]; affinity?: string; affinityNum?: number }>;
@@ -105,6 +105,16 @@ const STAT_FULL: Record<string, string> = {
   spd:"Speed", lck:"Luck", int:"Intelligence", dex:"Dexterity",
   gth:"Gather", mov:"Move", hrt:"Heart",
 };
+function StatLabel({ stat, icons, full = false, iconClassName = "h-3.5 w-3.5" }: { stat: string; icons?: Record<string, string>; full?: boolean; iconClassName?: string }) {
+  const label = full ? (STAT_FULL[stat] ?? stat) : (STAT_LABEL[stat] ?? stat);
+  const icon = icons?.[stat] ?? icons?.[STAT_FULL[stat] ?? ""] ?? icons?.[STAT_LABEL[stat] ?? ""];
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      {icon && <img src={icon} alt="" className={`${iconClassName} shrink-0 object-contain`} />}
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
 // Universal stat alias map — normalises any spelling/abbreviation to the canonical short key.
 // All variants are lowercased before lookup.
 const STAT_CANONICAL: Record<string, string> = {
@@ -146,6 +156,73 @@ type EquipSlot = typeof EQUIP_SLOTS[number]["slot"];
 const RANK_COLORS: Record<string, string> = {
   ...KA_RANK_BADGE_CLASS,
 };
+
+function LoadoutMiniSummary({
+  loadout,
+  data,
+  onRemove,
+}: {
+  loadout: Loadout;
+  data: SharedData;
+  onRemove?: () => void;
+}) {
+  const stats = calcStats(loadout, data);
+  const topStats = STAT_KEYS.filter((key) => stats[key]).slice(0, 5);
+  const equipment = loadout.equipment.slice(0, 5);
+
+  return (
+    <span className="block rounded-md border border-border/70 bg-background/75 px-2 py-1.5 text-left">
+      <span className="flex items-start justify-between gap-2">
+        <span className="min-w-0">
+          <span className="block truncate text-xs font-semibold text-foreground">{loadout.name || "Unnamed Loadout"}</span>
+          <span className="block truncate text-[10px] text-primary">{loadout.jobName || "No job"}{loadout.rank ? ` - Rank ${loadout.rank}` : ""}</span>
+        </span>
+        {onRemove && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove();
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              event.stopPropagation();
+              onRemove();
+            }}
+            className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-destructive"
+            aria-label={`Remove ${loadout.name || "loadout"} from this slot`}
+          >
+            <X className="h-3 w-3" />
+          </span>
+        )}
+      </span>
+      {topStats.length > 0 && (
+        <span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+          {topStats.map((stat) => (
+            <span key={stat} className="inline-flex items-center gap-1 text-[10px] tabular-nums text-muted-foreground">
+              <StatLabel stat={stat} icons={data.statIcons} iconClassName="h-3.5 w-3.5" />
+              <strong className="text-xs leading-none text-foreground">{stats[stat].toLocaleString()}</strong>
+            </span>
+          ))}
+        </span>
+      )}
+      {equipment.length > 0 && (
+        <span className="mt-1.5 flex flex-wrap gap-1">
+          {equipment.map((item) => {
+            const icon = getEquipmentIcon(data.equipIcons, item.name);
+            return (
+              <span key={`${item.name}-${item.level}`} className="flex h-9 w-9 items-center justify-center rounded border border-border/60 bg-muted/30">
+                {icon ? <img src={icon} alt={item.name} title={`${item.name} Lv${item.level}`} className="h-8 w-8 object-contain" /> : <span className="text-muted-foreground">?</span>}
+              </span>
+            );
+          })}
+        </span>
+      )}
+    </span>
+  );
+}
 
 function generateId() { return Math.random().toString(36).slice(2, 9); }
 
@@ -310,6 +387,7 @@ const DEFAULT_BOX_SETUPS: BoxSetup[] = [
   createEmptyBoxSetup("kairo", "Multi Box Kairo Setup"),
   createEmptyBoxSetup("wairo", "Multi Box Wairo Setup"),
 ];
+const BOX_SETUPS_STORAGE_KEY = "ka_loadout_box_setups";
 
 function normalizeBoxSetups(value: unknown): BoxSetup[] {
   const incoming = Array.isArray(value) ? value : [];
@@ -318,7 +396,13 @@ function normalizeBoxSetups(value: unknown): BoxSetup[] {
     const rows = Math.max(1, Math.min(12, Number(found?.rows) || fallback.rows));
     const cells = Array.from({ length: rows * 5 }, (_, index) => {
       const existing = found?.cells?.[index];
-      return existing && typeof existing === "object" ? { id: existing.id || `${fallback.id}-${index}`, rule: existing.rule } : { id: `${fallback.id}-${index}` };
+      return existing && typeof existing === "object" ? {
+        id: existing.id || `${fallback.id}-${index}`,
+        rule: existing.rule,
+        assignedToPet: existing.assignedToPet === true,
+        assignedToFiller: existing.assignedToFiller === true,
+        petRule: existing.petRule && typeof existing.petRule === "object" ? existing.petRule : undefined,
+      } : { id: `${fallback.id}-${index}` };
     });
     return {
       ...fallback,
@@ -327,41 +411,26 @@ function normalizeBoxSetups(value: unknown): BoxSetup[] {
       rows,
       cells,
       notes: typeof found?.notes === "string" ? found.notes : "",
+      publishedAt: typeof found?.publishedAt === "number" ? found.publishedAt : undefined,
+      publishedBy: typeof found?.publishedBy === "string" ? found.publishedBy : undefined,
     };
   });
 }
 
 function useCommunityBoxSetups(sharedData: SharedData | undefined) {
-  const [setups, setSetups] = useLocalFeature<BoxSetup[]>("ka_loadout_box_setups", DEFAULT_BOX_SETUPS);
+  const [setups, setSetups] = useLocalFeature<BoxSetup[]>(BOX_SETUPS_STORAGE_KEY, DEFAULT_BOX_SETUPS);
   const hydratedRef = useRef(false);
-  const skipNextEchoRef = useRef(false);
-  const putTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hadLocalDraftRef = useRef(
+    typeof window !== "undefined" && window.localStorage.getItem(BOX_SETUPS_STORAGE_KEY) !== null,
+  );
 
   useEffect(() => {
     if (hydratedRef.current || !sharedData) return;
     hydratedRef.current = true;
-    skipNextEchoRef.current = true;
-    setSetups(normalizeBoxSetups(sharedData.loadoutBoxSetups));
-  }, [sharedData, setSetups]);
-
-  useEffect(() => {
-    if (!hydratedRef.current) return;
-    if (skipNextEchoRef.current) {
-      skipNextEchoRef.current = false;
-      return;
+    if (!hadLocalDraftRef.current) {
+      setSetups(normalizeBoxSetups(sharedData.loadoutBoxSetups));
     }
-    if (putTimerRef.current) clearTimeout(putTimerRef.current);
-    putTimerRef.current = setTimeout(() => {
-      fetch(apiUrl("/loadout-box-setups"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: normalizeBoxSetups(setups) }),
-      }).catch(() => {});
-    }, 500);
-    return () => {
-      if (putTimerRef.current) clearTimeout(putTimerRef.current);
-    };
-  }, [setups]);
+  }, [sharedData, setSetups]);
 
   const save = useCallback((next: BoxSetup[]) => setSetups(normalizeBoxSetups(next)), [setSetups]);
   return { setups: normalizeBoxSetups(setups), save };
@@ -744,6 +813,58 @@ function unitMatchesRule(loadout: Loadout | null, rule: BoxUnitRule | undefined,
   return "pass";
 }
 
+function getAttemptIds(attempt: BoxAttempt, cellId: string): string[] {
+  const raw = attempt[cellId];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  return raw ? [raw] : [];
+}
+
+function setAttemptIds(attempt: BoxAttempt, cellId: string, ids: string[]): BoxAttempt {
+  const next = { ...attempt };
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) delete next[cellId];
+  else next[cellId] = unique;
+  return next;
+}
+
+function addAttemptId(attempt: BoxAttempt, cellId: string, id: string): BoxAttempt {
+  return setAttemptIds(attempt, cellId, [...getAttemptIds(attempt, cellId), id]);
+}
+
+function removeAttemptId(attempt: BoxAttempt, cellId: string, id: string): BoxAttempt {
+  return setAttemptIds(attempt, cellId, getAttemptIds(attempt, cellId).filter((item) => item !== id));
+}
+
+function BoxPetRuleEditor({ rule, onChange }: { rule: BoxPetRule | undefined; onChange: (next: BoxPetRule) => void }) {
+  const current = rule ?? {};
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <label className="space-y-1 text-xs">
+        <span className="font-medium text-muted-foreground">Minimum pet level</span>
+        <ThemedNumberInput
+          value={current.minLevel ?? 0}
+          min={0}
+          max={999}
+          onValueChange={(value) => onChange({ ...current, minLevel: value > 0 ? value : undefined })}
+          className="h-8"
+          ariaLabel="Minimum pet level"
+        />
+      </label>
+      <label className="space-y-1 text-xs">
+        <span className="font-medium text-muted-foreground">Maximum pet level</span>
+        <ThemedNumberInput
+          value={current.maxLevel ?? 0}
+          min={0}
+          max={999}
+          onValueChange={(value) => onChange({ ...current, maxLevel: value > 0 ? value : undefined })}
+          className="h-8"
+          ariaLabel="Maximum pet level"
+        />
+      </label>
+    </div>
+  );
+}
+
 function BoxUnitRuleEditor({ rule, data, onChange }: { rule: BoxUnitRule; data: SharedData; onChange: (next: BoxUnitRule) => void }) {
   const jobs = Object.keys(data.jobs ?? {}).sort();
   const skills = Object.keys(data.skills ?? {}).sort();
@@ -757,20 +878,8 @@ function BoxUnitRuleEditor({ rule, data, onChange }: { rule: BoxUnitRule; data: 
   }, [data.slotAssignments]);
   const setStatRule = (stat: string, next: BoxStatRule | undefined) => onChange({ ...rule, stats: { ...rule.stats, [stat]: next } });
 
-  // --- ENVIRONMENT BANNER ---
-  // Only show once at the top of the page
-  useEffect(() => {
-    const banner = document.getElementById("env-banner-ka-loadout");
-    if (banner) banner.style.display = "block";
-    return () => { if (banner) banner.style.display = "none"; };
-  }, []);
-
   return (
     <div className="space-y-4">
-      {/* ENVIRONMENT BANNER */}
-      <div id="env-banner-ka-loadout" style={{display:'block',marginBottom:8,padding:8,background:'#22263a',color:'#b5baff',borderRadius:6,fontSize:13,fontWeight:600,letterSpacing:1}}>
-        ENV: {ENV_BANNER} &nbsp;|&nbsp; HOST: {ENV_HOST} &nbsp;|&nbsp; BASE: {ENV_BASE}
-      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="space-y-1 text-xs">
           <span className="font-medium text-muted-foreground">Slot label</span>
@@ -784,13 +893,13 @@ function BoxUnitRuleEditor({ rule, data, onChange }: { rule: BoxUnitRule; data: 
 
       {!rule.anyJob && (
         <div className="space-y-2 text-xs">
-          <span className="font-medium text-muted-foreground">Allowed jobs or classes</span>
+          <span className="font-medium text-muted-foreground">Allowed job requirement</span>
           <SearchableSelect
             value=""
             clearOnSelect
             onChange={(value) => onChange({ ...rule, jobOptions: addUnique(rule.jobOptions, value) })}
             options={jobs.filter((job) => !rule.jobOptions.includes(job)).map((job) => ({ value: job, label: job }))}
-            placeholder="Add allowed job"
+            placeholder="Add job that can fill this slot"
             triggerClassName="h-8 text-xs"
           />
           <div className="flex min-h-6 flex-wrap gap-1">
@@ -930,6 +1039,8 @@ function BoxSetupCard({
   loadouts,
   data,
   onChange,
+  onPublish,
+  publishStatus,
   onCreateLoadout,
   readOnly = false,
 }: {
@@ -937,12 +1048,15 @@ function BoxSetupCard({
   loadouts: Loadout[];
   data: SharedData;
   onChange: (next: BoxSetup) => void;
+  onPublish: (setup: BoxSetup) => void;
+  publishStatus?: "working" | "ok" | "error";
   onCreateLoadout: () => string;
   readOnly?: boolean;
 }) {
   const [mode, setMode] = useState<"rules" | "try">("rules");
   const [openCellIndex, setOpenCellIndex] = useState<number | null>(null);
   const [attempt, setAttempt] = useLocalFeature<BoxAttempt>(`ka_box_attempt_${setup.id}`, {});
+  const [exampleViewIndex, setExampleViewIndex] = useState<Record<string, number>>({});
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [shareStatus, setShareStatus] = useState<null | "working" | "ok" | "error">(null);
   const openCell = openCellIndex == null ? null : setup.cells[openCellIndex] ?? null;
@@ -951,6 +1065,15 @@ function BoxSetupCard({
   const updateCell = (index: number, cell: BoxGridCell) => {
     if (readOnly) return;
     onChange({ ...setup, cells: setup.cells.map((item, i) => i === index ? cell : item), updatedAt: Date.now() });
+  };
+  const toggleSpecialSlot = (index: number, type: "pet" | "filler") => {
+    if (readOnly) return;
+    const cell = setup.cells[index];
+    if (!cell) return;
+    const nextCell = type === "pet"
+      ? { ...cell, assignedToPet: !cell.assignedToPet, assignedToFiller: false }
+      : { ...cell, assignedToFiller: !cell.assignedToFiller, assignedToPet: false };
+    updateCell(index, nextCell);
   };
   const setRows = (rows: number) => {
     if (readOnly) return;
@@ -974,7 +1097,13 @@ function BoxSetupCard({
     setAttempt({ ...attempt, [fromId]: attempt[toId] ?? "", [toId]: attempt[fromId] ?? "" });
   };
   const rulesCount = setup.cells.filter((cell) => cell.rule).length;
-  const passCount = setup.cells.filter((cell) => unitMatchesRule(loadouts.find((loadout) => loadout.id === attempt[cell.id]) ?? null, cell.rule, data) === "pass").length;
+  const passCount = setup.cells.filter((cell) => {
+    if (!cell.rule) return false;
+    const examples = getAttemptIds(attempt, cell.id)
+      .map((id) => loadouts.find((loadout) => loadout.id === id) ?? null)
+      .filter(Boolean) as Loadout[];
+    return examples.some((loadout) => unitMatchesRule(loadout, cell.rule, data) === "pass");
+  }).length;
   const shareSetup = async () => {
     setShareStatus("working");
     try {
@@ -1005,14 +1134,27 @@ function BoxSetupCard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-base">{setup.title}</CardTitle>
-            <p className="text-xs text-muted-foreground">{readOnly ? "Shared link snapshot. Your matching attempt is private to this device." : "Shared setup rules. Your matching attempt is private to this device."}</p>
+            <p className="text-xs text-muted-foreground">
+              {readOnly
+                ? "Shared link snapshot. Your matching attempt is private to this device."
+                : setup.publishedBy
+                  ? `Local draft. Last published by ${setup.publishedBy}. Your matching attempt is private.`
+                  : "Local draft. Publish when this setup should show for everyone."}
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {!readOnly && (
-              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={shareSetup} disabled={shareStatus === "working"}>
-                {shareStatus === "working" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
-                {shareStatus === "ok" ? "Copied" : shareStatus === "error" ? "Failed" : "Share setup"}
-              </Button>
+              <>
+                <Button size="sm" variant={publishStatus === "ok" ? "default" : "outline"} className="h-8 text-xs" onClick={() => onPublish(setup)} disabled={publishStatus === "working"}>
+                  {publishStatus === "working" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {publishStatus === "ok" && <Check className="h-3.5 w-3.5" />}
+                  {publishStatus === "ok" ? "Published" : publishStatus === "error" ? "Failed" : "Publish"}
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={shareSetup} disabled={shareStatus === "working"}>
+                  {shareStatus === "working" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+                  {shareStatus === "ok" ? "Copied" : shareStatus === "error" ? "Failed" : "Share setup"}
+                </Button>
+              </>
             )}
             <div className="flex rounded-md border border-border p-0.5">
               <button onClick={() => setMode("rules")} className={`h-8 rounded px-3 text-xs ${mode === "rules" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Rules</button>
@@ -1026,60 +1168,248 @@ function BoxSetupCard({
           <Badge variant="outline" className="text-xs">{rulesCount} required positions</Badge>
           {mode === "try" && <Badge variant="outline" className="text-xs text-emerald-700 dark:text-emerald-300">{passCount}/{rulesCount} matched</Badge>}
         </div>
+        <p className="text-xs text-muted-foreground">
+          {mode === "rules"
+            ? "Click a spot to add or edit its required unit rules. Switch to Try match when you want to place your own loadouts."
+            : "Click a spot to choose one of your saved loadouts for that position."}
+        </p>
         <textarea value={setup.notes} onChange={(e) => !readOnly && onChange({ ...setup, notes: e.target.value, updatedAt: Date.now() })} readOnly={readOnly} placeholder="Shared notes, rewards, farming steps, herbs per round, or setup context." className="min-h-16 w-full resize-y rounded-md border border-input bg-muted/15 px-3 py-2 text-xs" />
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-5 gap-2">
           {setup.cells.map((cell, index) => {
-            const selected = loadouts.find((loadout) => loadout.id === attempt[cell.id]) ?? null;
-            const match = unitMatchesRule(selected, cell.rule, data);
-            const stateClass = mode === "try" && cell.rule ? (match === "pass" ? "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/15" : "border-red-500 bg-red-50/40 dark:bg-red-950/15") : cell.rule ? "border-primary/50 bg-primary/5" : "border-dashed border-border bg-muted/15";
+            const examples = getAttemptIds(attempt, cell.id)
+              .map((id) => loadouts.find((loadout) => loadout.id === id) ?? null)
+              .filter(Boolean) as Loadout[];
+            const activeExampleIndex = examples.length > 0 ? Math.min(exampleViewIndex[cell.id] ?? 0, examples.length - 1) : 0;
+            const activeExample = examples[activeExampleIndex] ?? null;
+            const rotateExample = (delta: number) => {
+              if (examples.length <= 1) return;
+              setExampleViewIndex((prev) => ({
+                ...prev,
+                [cell.id]: (activeExampleIndex + delta + examples.length) % examples.length,
+              }));
+            };
+            const removeExample = (id: string) => {
+              setAttempt(removeAttemptId(attempt, cell.id, id));
+              setExampleViewIndex((prev) => ({ ...prev, [cell.id]: Math.max(0, activeExampleIndex - 1) }));
+            };
+            const match = cell.rule && examples.some((loadout) => unitMatchesRule(loadout, cell.rule, data) === "pass") ? "pass" : examples.length > 0 ? "fail" : "missing";
+            const stateClass = cell.assignedToPet
+              ? "border-amber-400/70 bg-amber-50/40 dark:bg-amber-950/10"
+              : cell.assignedToFiller
+                ? "border-sky-400/70 bg-sky-50/40 dark:bg-sky-950/10"
+                : mode === "try" && cell.rule
+                  ? (match === "pass" ? "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/15" : "border-red-500 bg-red-50/40 dark:bg-rose-950/15")
+                  : cell.rule
+                    ? "border-primary/50 bg-primary/5"
+                    : "border-dashed border-border bg-muted/15";
             return (
-              <button key={cell.id} draggable onDragStart={() => setDragIndex(index)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (dragIndex != null) moveCell(dragIndex, index); setDragIndex(null); }} onClick={() => setOpenCellIndex(index)} className={`min-h-28 rounded-md border-2 p-2 text-left transition-colors ${stateClass}`}>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[10px] font-semibold text-muted-foreground">Spot {index + 1}</span>
-                  {mode === "try" && cell.rule && <span className={`text-[10px] font-bold ${match === "pass" ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}>{match === "pass" ? "OK" : "Check"}</span>}
+              <div key={cell.id} role="button" tabIndex={0} draggable onDragStart={() => setDragIndex(index)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (dragIndex != null) moveCell(dragIndex, index); setDragIndex(null); }} onClick={() => setOpenCellIndex(index)} onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                setOpenCellIndex(index);
+              }} className={`min-h-36 rounded-md border-2 p-2 text-left transition-colors ${stateClass}`}>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="font-semibold text-muted-foreground">Spot {index + 1}</span>
+                  {cell.rule && <span className="truncate font-semibold text-foreground">{cell.rule.label || "Required unit"}</span>}
+                  {cell.rule && <span className="min-w-0 truncate text-muted-foreground">Rule: {cell.rule.anyJob ? "Any job" : cell.rule.jobOptions.join(" / ") || "Job not set"}</span>}
+                  {mode === "try" && cell.rule && <span className={`ml-auto shrink-0 font-bold ${match === "pass" ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}>{match === "pass" ? "OK" : "Check"}</span>}
                 </div>
-                {cell.rule ? (
-                  <div className="mt-2 space-y-1">
-                    <div className="line-clamp-2 text-xs font-semibold text-foreground">{cell.rule.label || "Required unit"}</div>
-                    <div className="line-clamp-2 text-[11px] text-muted-foreground">{cell.rule.anyJob ? "Any job" : cell.rule.jobOptions.join(" / ") || "Job not set"}</div>
+                {cell.assignedToPet || cell.assignedToFiller ? (
+                  <div className="mt-2 flex min-h-28 flex-col items-center justify-center gap-3 text-xs text-muted-foreground">
+                    <div className={`w-full rounded-md border px-3 py-4 text-center text-lg font-black tracking-wide ${cell.assignedToPet ? "border-amber-400/70 bg-amber-400/10 text-amber-600 dark:text-amber-300" : "border-sky-400/70 bg-sky-400/10 text-sky-600 dark:text-sky-300"}`}>
+                      {cell.assignedToPet ? "PET" : "FILLER UNIT"}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(event) => { event.stopPropagation(); event.preventDefault(); toggleSpecialSlot(index, cell.assignedToPet ? "pet" : "filler"); }}
+                      className={`inline-flex w-full justify-center rounded-md border px-2 py-2 text-[10px] font-medium ${cell.assignedToPet ? "border-amber-400/70 text-amber-600 dark:text-amber-300" : "border-sky-400/70 text-sky-600 dark:text-sky-300"}`}
+                    >
+                      Unassign {cell.assignedToPet ? "pet" : "filler unit"}
+                    </button>
+                  </div>
+                ) : cell.rule ? (
+                  <div className="mt-1.5 flex min-h-28 flex-col space-y-1.5">
                     {cell.rule.skillRules.length > 0 && <div className="text-[10px] text-muted-foreground">{cell.rule.skillRules.length} skill rule{cell.rule.skillRules.length === 1 ? "" : "s"}</div>}
-                    {mode === "try" && <div className="line-clamp-2 text-[11px] font-medium text-foreground">{selected?.name || "No loadout selected"}</div>}
+                    {activeExample && (
+                      <div className="space-y-1">
+                        <LoadoutMiniSummary loadout={activeExample} data={data} onRemove={() => removeExample(activeExample.id)} />
+                      </div>
+                    )}
+                    <div className="mt-auto flex items-center gap-1.5">
+                      <span className="inline-flex w-fit items-center gap-1 rounded-md border border-border bg-background/70 px-2 py-1 text-[10px] font-medium text-primary">
+                        {mode === "rules" ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                        {mode === "rules" ? "Edit slot" : examples.length > 0 ? "Change examples" : "Choose examples"}
+                      </span>
+                      {examples.length > 1 && (
+                        <span className="ml-auto inline-flex items-center gap-1">
+                          <span className="text-[10px] text-muted-foreground">{activeExampleIndex + 1}/{examples.length}</span>
+                          <span className="inline-flex overflow-hidden rounded border border-border text-[10px] text-muted-foreground">
+                            <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); rotateExample(-1); }} className="px-2 py-1 hover:bg-muted">{"<"}</span>
+                            <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); rotateExample(1); }} className="border-l border-border px-2 py-1 hover:bg-muted">{">"}</span>
+                          </span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  <div className="mt-6 text-center text-xs text-muted-foreground">Empty</div>
+                  <div className="flex min-h-28 flex-col justify-center gap-2 text-xs text-muted-foreground">
+                    {activeExample ? (
+                      <div className="space-y-1">
+                        <LoadoutMiniSummary loadout={activeExample} data={data} onRemove={() => removeExample(activeExample.id)} />
+                      </div>
+                    ) : <span className="text-center">Empty</span>}
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 rounded-md border border-dashed border-border bg-background/70 px-2 py-1 text-[10px] font-medium text-primary">
+                        {mode === "rules" ? <Plus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                        {mode === "rules" ? examples.length > 0 ? "Add requirement" : "Add examples or rules" : examples.length > 0 ? "Change examples" : "Choose examples"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); event.preventDefault(); toggleSpecialSlot(index, "pet"); }}
+                        className="inline-flex w-fit items-center rounded-md border border-border bg-background/70 px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        Assign to pet
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); event.preventDefault(); toggleSpecialSlot(index, "filler"); }}
+                        className="inline-flex w-fit items-center rounded-md border border-border bg-background/70 px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        Assign to filler unit
+                      </button>
+                      {examples.length > 1 && (
+                        <span className="ml-auto inline-flex items-center gap-1">
+                          <span className="text-[10px] text-muted-foreground">{activeExampleIndex + 1}/{examples.length}</span>
+                          <span className="inline-flex overflow-hidden rounded border border-border text-[10px] text-muted-foreground">
+                            <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); rotateExample(-1); }} className="px-2 py-1 hover:bg-muted">{"<"}</span>
+                            <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); rotateExample(1); }} className="border-l border-border px-2 py-1 hover:bg-muted">{">"}</span>
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
 
-        <Dialog open={openCellIndex != null} onOpenChange={(open) => { if (!open) setOpenCellIndex(null); }}>
-          <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-sm">{setup.title} spot {(openCellIndex ?? 0) + 1}</DialogTitle>
+        <Dialog modal={false} open={openCellIndex != null} onOpenChange={(open) => { if (!open) setOpenCellIndex(null); }}>
+          <DialogContent className="bottom-[5.5rem] top-[calc(5.5rem+env(safe-area-inset-top))] flex h-auto max-h-none w-[calc(100vw-3rem)] max-w-5xl translate-y-0 flex-col overflow-hidden p-0">
+            <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-14">
+              <DialogTitle className="text-sm">
+                {openCell?.assignedToFiller ? "Edit filler rules" : openCell?.assignedToPet ? "Edit pet rules" : mode === "rules" ? "Edit requirements" : "Choose loadout"} - {setup.title} spot {(openCellIndex ?? 0) + 1}
+              </DialogTitle>
             </DialogHeader>
-            {openCellIndex != null && (
-              <div className="space-y-4">
-                <div className="rounded-md border border-border bg-muted/15 p-3">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Your loadout for this spot</p>
-                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                    <SearchableSelect value={attempt[setup.cells[openCellIndex].id] ?? ""} onChange={(value) => setAttempt({ ...attempt, [setup.cells[openCellIndex].id]: value })} options={loadouts.map((loadout) => ({ value: loadout.id, label: loadout.name || "Unnamed Loadout" }))} placeholder="Choose one of your loadouts" triggerClassName="h-8 text-xs" />
-                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { const id = onCreateLoadout(); setAttempt({ ...attempt, [setup.cells[openCellIndex].id]: id }); }}>
-                      <Plus className="h-3.5 w-3.5" />New loadout
-                    </Button>
-                  </div>
-                </div>
-                <BoxUnitRuleEditor rule={openRule} data={data} onChange={(next) => updateCell(openCellIndex, { ...setup.cells[openCellIndex], rule: next })} />
-                <div className="flex justify-between gap-2">
-                  <Button size="sm" variant="destructive" onClick={() => updateCell(openCellIndex, { ...setup.cells[openCellIndex], rule: undefined })}>
-                    <Trash2 className="h-3.5 w-3.5" />Clear rules
-                  </Button>
-                  <Button size="sm" onClick={() => setOpenCellIndex(null)}>Done</Button>
-                </div>
-              </div>
-            )}
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              {openCellIndex != null && (
+                (() => {
+                  const cellId = setup.cells[openCellIndex].id;
+                  const exampleIds = getAttemptIds(attempt, cellId);
+                  const exampleLoadouts = exampleIds
+                    .map((id) => loadouts.find((loadout) => loadout.id === id) ?? null)
+                    .filter(Boolean) as Loadout[];
+                  const availableExampleOptions = loadouts
+                    .filter((loadout) => !exampleIds.includes(loadout.id))
+                    .map((loadout) => ({ value: loadout.id, label: `${loadout.name || "Unnamed Loadout"}${loadout.jobName ? ` - ${loadout.jobName}` : ""}` }));
+
+                  return (
+                    <div className="space-y-4">
+                      <section className="rounded-md border border-border bg-muted/15 p-3">
+                        <div className="mb-3">
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            {openCell?.assignedToFiller ? "Section 1 - Filler rules" : openCell?.assignedToPet ? "Section 1 - Pet rules" : "Section 1 - Slot rules"}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {openCell?.assignedToFiller
+                              ? "Filler slots only use level requirements."
+                              : openCell?.assignedToPet
+                                ? "Pet slots only use pet level requirements."
+                                : "These are the public requirements for this position after you publish the setup."}
+                          </p>
+                        </div>
+                        {openCell?.assignedToPet || openCell?.assignedToFiller ? (
+                          <BoxPetRuleEditor
+                            rule={openCell.petRule}
+                            onChange={(next) => updateCell(openCellIndex, { ...setup.cells[openCellIndex], petRule: next })}
+                          />
+                        ) : mode === "rules" ? (
+                          <BoxUnitRuleEditor rule={openRule} data={data} onChange={(next) => updateCell(openCellIndex, { ...setup.cells[openCellIndex], rule: next })} />
+                        ) : (
+                          <div className="rounded-md border border-border bg-background/60 p-3 text-xs text-muted-foreground">
+                            Switch to Rules to edit this slot's public job, stat, skill, and gear requirements.
+                          </div>
+                        )}
+                      </section>
+
+                      {!openCell?.assignedToPet && !openCell?.assignedToFiller && <section className="rounded-md border border-border bg-muted/15 p-3">
+                        <div className="mb-3">
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Section 2 - Example units</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Add one or more of your Loadout Builder units as private examples for this slot.</p>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                          <SearchableSelect
+                            value=""
+                            clearOnSelect
+                            onChange={(value) => setAttempt(addAttemptId(attempt, cellId, value))}
+                            options={availableExampleOptions}
+                            placeholder="Add example from Loadout Builder"
+                            triggerClassName="h-8 text-xs"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            onClick={() => {
+                              const id = onCreateLoadout();
+                              setAttempt(addAttemptId(attempt, cellId, id));
+                              setOpenCellIndex(null);
+                              window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+                            }}
+                          >
+                            <Plus className="h-3.5 w-3.5" />Make new unit
+                          </Button>
+                        </div>
+                        <div className="mt-3 flex min-h-6 flex-wrap gap-1.5">
+                          {exampleLoadouts.map((loadout) => {
+                            const match = unitMatchesRule(loadout, openCell?.rule, data);
+                            return (
+                              <ToneBadge key={loadout.id} category="job" className="gap-1 px-2 py-0.5 text-xs">
+                                {loadout.name || "Unnamed Loadout"}{loadout.jobName ? ` - ${loadout.jobName}` : ""}
+                                {openCell?.rule && (
+                                  <span className={match === "pass" ? "text-emerald-600 dark:text-emerald-300" : "text-amber-600 dark:text-amber-300"}>
+                                    {match === "pass" ? "OK" : "Check"}
+                                  </span>
+                                )}
+                                <button onClick={() => setAttempt(removeAttemptId(attempt, cellId, loadout.id))} className="hover:text-destructive">
+                                  <X className="h-2.5 w-2.5" />
+                                </button>
+                              </ToneBadge>
+                            );
+                          })}
+                          {exampleLoadouts.length === 0 && <span className="text-xs text-muted-foreground/60">No example units yet.</span>}
+                        </div>
+                      </section>}
+
+                      <div className="sticky bottom-0 -mx-5 flex justify-between gap-2 border-t border-border bg-background px-5 py-3">
+                        {openCell?.assignedToPet || openCell?.assignedToFiller ? (
+                          <Button size="sm" variant="destructive" onClick={() => updateCell(openCellIndex, { ...setup.cells[openCellIndex], petRule: undefined })}>
+                            <Trash2 className="h-3.5 w-3.5" />Clear {openCell?.assignedToPet ? "pet" : "filler"} rules
+                          </Button>
+                        ) : mode === "rules" ? (
+                          <Button size="sm" variant="destructive" onClick={() => updateCell(openCellIndex, { ...setup.cells[openCellIndex], rule: undefined })}>
+                            <Trash2 className="h-3.5 w-3.5" />Clear rules
+                          </Button>
+                        ) : <span />}
+                        <Button size="sm" onClick={() => setOpenCellIndex(null)}>Done</Button>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </CardContent>
@@ -1156,6 +1486,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 
   const jobs = data.jobs ?? {};
   const allSkills = Object.keys(data.skills ?? {}).sort();
+  const statIcons = data.statIcons ?? {};
   const allEquip = Object.keys(data.overrides ?? {}).filter((n) =>
     data.slotAssignments?.[n] || (data.overrides?.[n] && Object.keys(data.overrides[n]).length > 0)
   ).sort();
@@ -1367,8 +1698,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                 <table className="w-full text-xs border-collapse">
                   <thead>
                     <tr>
-                      <th className="text-left pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium">Stat</th>
-                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-center w-16">Level</th>
+                      <th className="text-left pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium">Stat level</th>
                       <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right w-14">Job</th>
                       <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right w-14">Equip</th>
                       <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right w-14">Total</th>
@@ -1382,13 +1712,17 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                       const total = (jobStats[k] ?? 0) + (eq ?? 0);
                       return (
                         <tr key={k} className="border-t border-border/30">
-                          <td className="py-0.5 pr-2 text-muted-foreground uppercase text-[10px] font-medium">{STAT_FULL[k] ?? k}</td>
-                          <td className="py-0.5 text-center">
-                            <Input type="text" inputMode="numeric" value={statLevelInputs[k] ?? String(lv)}
-                              onChange={(e) => setStatLevelInput(k, e.target.value)}
-                              onKeyDown={(e) => commitOnEnter(e, () => commitStatLevel(k, e.currentTarget.value))}
-                              onBlur={(e) => commitStatLevel(k, e.target.value)}
-                              className="h-5 text-[11px] text-center px-0 w-14" />
+                          <td className="py-1 pr-2">
+                            <div className="flex items-center gap-2">
+                              <span className="min-w-28 text-muted-foreground uppercase text-[10px] font-medium">
+                                <StatLabel stat={k} icons={statIcons} full />
+                              </span>
+                              <Input type="text" inputMode="numeric" value={statLevelInputs[k] ?? String(lv)}
+                                onChange={(e) => setStatLevelInput(k, e.target.value)}
+                                onKeyDown={(e) => commitOnEnter(e, () => commitStatLevel(k, e.currentTarget.value))}
+                                onBlur={(e) => commitStatLevel(k, e.target.value)}
+                                className="h-6 text-[11px] text-center px-0 w-14" />
+                            </div>
                           </td>
                           <td className="py-0.5 text-right tabular-nums text-foreground/80">{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
                           <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">—</span>}</td>
@@ -1573,8 +1907,43 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function PublishNameDialog({
+  onSave,
+  onCancel,
+}: {
+  onSave: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(() => localStorage.getItem("ka_username") ?? "");
+  const trimmed = value.trim();
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="max-w-xs">
+        <DialogHeader>
+          <DialogTitle>Publish setup</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">Enter your name so people know who published this setup.</p>
+        <Input
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          placeholder="Your name"
+          className="h-8 text-sm"
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && trimmed) onSave(trimmed);
+          }}
+        />
+        <Button onClick={() => trimmed && onSave(trimmed)} disabled={!trimmed} className="h-8">
+          Publish
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function LoadoutPage() {
   const { data, isLoading } = useSharedData();
+  const queryClient = useQueryClient();
   const { loadouts, save } = usePrivateLoadouts();
   const { setups, save: saveSetups } = useCommunityBoxSetups(data);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -1583,6 +1952,8 @@ export default function LoadoutPage() {
   const [activeToolTab, setActiveToolTab] = useState<BoxSetupKind | "combat">("kairo");
   const [sharedSetup, setSharedSetup] = useState<BoxSetupShare | null>(null);
   const [shareLoadError, setShareLoadError] = useState<string | null>(null);
+  const [publishNameSetup, setPublishNameSetup] = useState<BoxSetup | null>(null);
+  const [publishStatus, setPublishStatus] = useState<Partial<Record<BoxSetupKind, "working" | "ok" | "error">>>({});
 
   const addLoadout = () => {
     const id = generateId();
@@ -1614,6 +1985,57 @@ export default function LoadoutPage() {
     saveSetups(setups.map((setup) => setup.id === updated.id ? updated : setup));
   }, [setups, saveSetups]);
 
+  const publishSetupWithName = useCallback(async (setup: BoxSetup, name: string) => {
+    const publisher = name.trim();
+    if (!publisher) return;
+    localStorage.setItem("ka_username", publisher);
+    setPublishNameSetup(null);
+    setPublishStatus((prev) => ({ ...prev, [setup.id]: "working" }));
+
+    const now = Date.now();
+    const publishedSetup: BoxSetup = { ...setup, updatedAt: now, publishedAt: now, publishedBy: publisher };
+    const nextSetups = normalizeBoxSetups(setups.map((item) => item.id === setup.id ? publishedSetup : item));
+
+    try {
+      const response = await fetch(apiUrl("/loadout-box-setups"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: nextSetups,
+          history: {
+            userName: publisher,
+            changeType: "loadout",
+            itemName: setup.title,
+            description: `Published ${setup.title}`,
+          },
+        }),
+      });
+      if (!response.ok) throw new Error("Publish failed");
+      saveSetups(nextSetups);
+      queryClient.invalidateQueries({ queryKey: ["ka-shared"] });
+      setPublishStatus((prev) => ({ ...prev, [setup.id]: "ok" }));
+    } catch {
+      setPublishStatus((prev) => ({ ...prev, [setup.id]: "error" }));
+    } finally {
+      setTimeout(() => {
+        setPublishStatus((prev) => {
+          const next = { ...prev };
+          delete next[setup.id];
+          return next;
+        });
+      }, 2500);
+    }
+  }, [queryClient, saveSetups, setups]);
+
+  const publishSetup = useCallback((setup: BoxSetup) => {
+    const savedName = localStorage.getItem("ka_username")?.trim();
+    if (savedName) {
+      publishSetupWithName(setup, savedName);
+      return;
+    }
+    setPublishNameSetup(setup);
+  }, [publishSetupWithName]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const shareId = params.get("share");
@@ -1643,6 +2065,12 @@ export default function LoadoutPage() {
 
   return (
     <div className="min-h-screen bg-background transition-colors">
+      {publishNameSetup && (
+        <PublishNameDialog
+          onSave={(name) => publishSetupWithName(publishNameSetup, name)}
+          onCancel={() => setPublishNameSetup(null)}
+        />
+      )}
       {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="max-w-5xl mx-auto px-4 py-3">
@@ -1745,30 +2173,36 @@ export default function LoadoutPage() {
                       <div className="pl-6 mt-2 space-y-2">
                         {/* All stats */}
                         {hasStats && (
-                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                          <div className="flex flex-wrap gap-x-5 gap-y-1.5">
                             {STAT_KEYS.filter((k) => stats[k]).map((k) => (
-                              <span key={k} className="text-xs tabular-nums">
-                                <span className="text-muted-foreground">{STAT_LABEL[k]} </span>
-                                <strong className="text-foreground">{stats[k].toLocaleString()}</strong>
+                              <span key={k} className="inline-flex items-center gap-1.5 text-sm tabular-nums">
+                                <span className="text-muted-foreground">
+                                  <StatLabel stat={k} icons={data?.statIcons} iconClassName="h-4.5 w-4.5" />
+                                </span>
+                                <strong className="text-base leading-none text-foreground">{stats[k].toLocaleString()}</strong>
                               </span>
                             ))}
                           </div>
                         )}
                         {/* Equipment chips */}
                         {loadout.equipment.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
+                          <div className="flex flex-wrap items-start gap-2.5">
                             {loadout.equipment.map((eq) => {
                               const icon = getEquipmentIcon(data?.equipIcons, eq.name);
                               const slot = data?.slotAssignments?.[eq.name];
                               const rule = data ? getEquipRuleState(loadout, data, eq.name) : null;
                               return (
-                                <span key={eq.name} className="inline-flex items-center gap-1.5 bg-muted/50 border border-border/50 rounded-md px-2 py-0.5 text-xs">
-                                  {slot && <span className="text-muted-foreground/60 font-medium">{slot}:</span>}
-                                  {icon && <img src={icon} alt="" className="w-4 h-4 object-contain shrink-0" />}
-                                  <span className="font-medium">{eq.name}</span>
-                                  <span className="text-muted-foreground">Lv{eq.level}</span>
-                                  {rule?.blocked && <span className="text-orange-600 dark:text-orange-400 font-semibold">Can't</span>}
-                                  {rule?.appliesPenalty && <span className="text-amber-600 dark:text-amber-400 font-semibold">Weak</span>}
+                                <span key={eq.name} className="flex w-24 flex-col items-center gap-1 rounded-md border border-border/50 bg-muted/35 px-1.5 py-2 text-center text-[10px]">
+                                  {icon ? (
+                                    <img src={icon} alt="" className="h-14 w-14 shrink-0 object-contain" />
+                                  ) : (
+                                    <span className="flex h-14 w-14 items-center justify-center rounded bg-muted/40 text-muted-foreground">?</span>
+                                  )}
+                                  <span className="text-[10px] font-semibold uppercase leading-none text-muted-foreground/70">{slot ?? "Gear"}</span>
+                                  <span className="line-clamp-2 min-h-7 text-[11px] font-medium leading-tight text-foreground">{eq.name}</span>
+                                  <span className="text-[10px] leading-none text-muted-foreground">Lv{eq.level}</span>
+                                  {rule?.blocked && <span className="text-[10px] font-semibold leading-none text-orange-600 dark:text-orange-400">Can't</span>}
+                                  {rule?.appliesPenalty && <span className="text-[10px] font-semibold leading-none text-amber-600 dark:text-amber-400">Weak</span>}
                                 </span>
                               );
                             })}
@@ -1856,6 +2290,8 @@ export default function LoadoutPage() {
                   loadouts={loadouts}
                   data={data}
                   onChange={sharedSetup?.setup.id === setup.id ? () => {} : updateSetup}
+                  onPublish={publishSetup}
+                  publishStatus={publishStatus[setup.id]}
                   onCreateLoadout={addLoadout}
                   readOnly={sharedSetup?.setup.id === setup.id}
                 />

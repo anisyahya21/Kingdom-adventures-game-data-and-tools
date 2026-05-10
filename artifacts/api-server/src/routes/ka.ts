@@ -31,7 +31,7 @@ export interface HistoryEntry {
   id: string;
   timestamp: number;
   userName: string;
-  changeType: "stat" | "slot" | "equip-icon" | "stat-icon" | "weapon-type" | "weapon-category" | "monster" | "weekly-conquest" | "job";
+  changeType: "stat" | "slot" | "equip-icon" | "stat-icon" | "weapon-type" | "weapon-category" | "monster" | "weekly-conquest" | "job" | "loadout";
   itemName: string;
   description: string;
 }
@@ -707,10 +707,11 @@ router.put("/ka/loadouts", (req, res) => {
 });
 
 router.put("/ka/loadout-box-setups", (req, res) => {
-  const { data } = req.body as { data: unknown[] };
+  const { data, history } = req.body as { data: unknown[]; history?: Omit<HistoryEntry, "id" | "timestamp"> };
   const state = readState();
   state.loadoutBoxSetups = Array.isArray(data) ? data : [];
   state.loadoutBoxSetupsUpdatedAt = Date.now();
+  if (history) appendHistory(state, history);
   writeState(state);
   res.json({ ok: true });
 });
