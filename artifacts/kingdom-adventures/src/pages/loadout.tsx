@@ -1,4 +1,8 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+// For environment banner
+const ENV_BANNER = import.meta.env.MODE?.toUpperCase?.() || (process.env.NODE_ENV?.toUpperCase?.() ?? "UNKNOWN");
+const ENV_HOST = window?.location?.host || "?";
+const ENV_BASE = import.meta.env.BASE_URL || "/";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -46,6 +50,31 @@ type Loadout = {
   equipment: EquipEntry[];
   skills: string[];
 };
+type BoxSetupKind = "kairo" | "wairo";
+type BoxStatRuleMode = "level" | "value";
+type BoxStatRule = { mode: BoxStatRuleMode; min?: number; max?: number };
+type BoxSkillRule = { id: string; name: string; alternatives: string[] };
+type BoxUnitRule = {
+  id: string;
+  label: string;
+  anyJob: boolean;
+  jobOptions: string[];
+  recommendedJobs: string;
+  stats: Record<string, BoxStatRule | undefined>;
+  skillRules: BoxSkillRule[];
+  recommendedGear: Record<string, string[] | undefined>;
+  notes: string;
+};
+type BoxGridCell = { id: string; rule?: BoxUnitRule };
+type BoxSetup = {
+  id: BoxSetupKind;
+  title: string;
+  notes: string;
+  rows: number;
+  cells: BoxGridCell[];
+  updatedAt?: number;
+};
+type BoxAttempt = Record<string, string>;
 type SharedData = {
   jobs?: Record<string, Job>;
   skills?: Record<string, Skill>;
@@ -57,7 +86,10 @@ type SharedData = {
   pairs?: Array<{ id: string; jobA: string; jobB: string; children?: string[]; affinity?: string; affinityNum?: number }>;
   loadouts?: Loadout[];
   loadoutsUpdatedAt?: number | null;
+  loadoutBoxSetups?: BoxSetup[];
+  loadoutBoxSetupsUpdatedAt?: number | null;
 };
+type BoxSetupShare = { id: string; setup: BoxSetup; createdAt: number; updatedAt: number };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -259,6 +291,78 @@ function usePrivateLoadouts() {
   }, [setLoadouts]);
 
   return { loadouts, save };
+}
+
+function createEmptyBoxSetup(id: BoxSetupKind, title: string): BoxSetup {
+  const rows = 2;
+  return {
+    id,
+    title,
+    notes: "",
+    rows,
+    cells: Array.from({ length: rows * 5 }, (_, index) => ({ id: `${id}-${index}` })),
+  };
+}
+
+const DEFAULT_BOX_SETUPS: BoxSetup[] = [
+  createEmptyBoxSetup("kairo", "Multi Box Kairo Setup"),
+  createEmptyBoxSetup("wairo", "Multi Box Wairo Setup"),
+];
+
+function normalizeBoxSetups(value: unknown): BoxSetup[] {
+  const incoming = Array.isArray(value) ? value : [];
+  return DEFAULT_BOX_SETUPS.map((fallback) => {
+    const found = incoming.find((item) => item && typeof item === "object" && (item as Partial<BoxSetup>).id === fallback.id) as Partial<BoxSetup> | undefined;
+    const rows = Math.max(1, Math.min(12, Number(found?.rows) || fallback.rows));
+    const cells = Array.from({ length: rows * 5 }, (_, index) => {
+      const existing = found?.cells?.[index];
+      return existing && typeof existing === "object" ? { id: existing.id || `${fallback.id}-${index}`, rule: existing.rule } : { id: `${fallback.id}-${index}` };
+    });
+    return {
+      ...fallback,
+      ...found,
+      title: fallback.title,
+      rows,
+      cells,
+      notes: typeof found?.notes === "string" ? found.notes : "",
+    };
+  });
+}
+
+function useCommunityBoxSetups(sharedData: SharedData | undefined) {
+  const [setups, setSetups] = useLocalFeature<BoxSetup[]>("ka_loadout_box_setups", DEFAULT_BOX_SETUPS);
+  const hydratedRef = useRef(false);
+  const skipNextEchoRef = useRef(false);
+  const putTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (hydratedRef.current || !sharedData) return;
+    hydratedRef.current = true;
+    skipNextEchoRef.current = true;
+    setSetups(normalizeBoxSetups(sharedData.loadoutBoxSetups));
+  }, [sharedData, setSetups]);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    if (skipNextEchoRef.current) {
+      skipNextEchoRef.current = false;
+      return;
+    }
+    if (putTimerRef.current) clearTimeout(putTimerRef.current);
+    putTimerRef.current = setTimeout(() => {
+      fetch(apiUrl("/loadout-box-setups"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: normalizeBoxSetups(setups) }),
+      }).catch(() => {});
+    }, 500);
+    return () => {
+      if (putTimerRef.current) clearTimeout(putTimerRef.current);
+    };
+  }, [setups]);
+
+  const save = useCallback((next: BoxSetup[]) => setSetups(normalizeBoxSetups(next)), [setSetups]);
+  return { setups: normalizeBoxSetups(setups), save };
 }
 
 // ─── Stat Calculators ─────────────────────────────────────────────────────────
@@ -583,6 +687,403 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
 }
 
 // ─── Screenshot Card (portal-rendered) ───────────────────────────────────────
+
+function createBoxUnitRule(): BoxUnitRule {
+  return {
+    id: generateId(),
+    label: "Required unit",
+    anyJob: false,
+    jobOptions: [],
+    recommendedJobs: "",
+    stats: {},
+    skillRules: [],
+    recommendedGear: {},
+    notes: "",
+  };
+}
+
+function parseList(value: string) {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function formatList(value: string[]) {
+  return value.join(", ");
+}
+
+function addUnique(value: string[], next: string) {
+  if (!next || value.includes(next)) return value;
+  return [...value, next];
+}
+
+function removeValue(value: string[], target: string) {
+  return value.filter((item) => item !== target);
+}
+
+function statRulePasses(loadout: Loadout, stats: Record<string, number>, stat: string, rule: BoxStatRule | undefined) {
+  if (!rule) return true;
+  const value = rule.mode === "level" ? getStatLevel(loadout, stat) : (stats[stat] ?? 0);
+  if (rule.min != null && value < rule.min) return false;
+  if (rule.max != null && value > rule.max) return false;
+  return true;
+}
+
+function unitMatchesRule(loadout: Loadout | null, rule: BoxUnitRule | undefined, data: SharedData) {
+  if (!rule) return "empty";
+  if (!loadout) return "missing";
+  const stats = calcStats(loadout, data);
+  if (!rule.anyJob && rule.jobOptions.length > 0 && !rule.jobOptions.includes(loadout.jobName)) return "fail";
+  for (const stat of STAT_KEYS) {
+    if (!statRulePasses(loadout, stats, stat, rule.stats[stat])) return "fail";
+  }
+  for (const skillRule of rule.skillRules) {
+    const allowed = [skillRule.name, ...skillRule.alternatives].filter(Boolean);
+    if (allowed.length > 0 && !allowed.some((skill) => loadout.skills.includes(skill))) return "fail";
+  }
+  return "pass";
+}
+
+function BoxUnitRuleEditor({ rule, data, onChange }: { rule: BoxUnitRule; data: SharedData; onChange: (next: BoxUnitRule) => void }) {
+  const jobs = Object.keys(data.jobs ?? {}).sort();
+  const skills = Object.keys(data.skills ?? {}).sort();
+  const equipBySlot = useMemo(() => {
+    const slotMap = data.slotAssignments ?? {};
+    const out: Record<string, string[]> = {};
+    for (const { slot } of EQUIP_SLOTS) {
+      out[slot] = Object.entries(slotMap).filter(([, itemSlot]) => itemSlot === slot).map(([name]) => name).sort();
+    }
+    return out;
+  }, [data.slotAssignments]);
+  const setStatRule = (stat: string, next: BoxStatRule | undefined) => onChange({ ...rule, stats: { ...rule.stats, [stat]: next } });
+
+  // --- ENVIRONMENT BANNER ---
+  // Only show once at the top of the page
+  useEffect(() => {
+    const banner = document.getElementById("env-banner-ka-loadout");
+    if (banner) banner.style.display = "block";
+    return () => { if (banner) banner.style.display = "none"; };
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      {/* ENVIRONMENT BANNER */}
+      <div id="env-banner-ka-loadout" style={{display:'block',marginBottom:8,padding:8,background:'#22263a',color:'#b5baff',borderRadius:6,fontSize:13,fontWeight:600,letterSpacing:1}}>
+        ENV: {ENV_BANNER} &nbsp;|&nbsp; HOST: {ENV_HOST} &nbsp;|&nbsp; BASE: {ENV_BASE}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1 text-xs">
+          <span className="font-medium text-muted-foreground">Slot label</span>
+          <Input value={rule.label} onChange={(e) => onChange({ ...rule, label: e.target.value })} className="h-8 text-xs" />
+        </label>
+        <label className="flex items-center gap-2 pt-5 text-xs text-muted-foreground">
+          <input type="checkbox" checked={rule.anyJob} onChange={(e) => onChange({ ...rule, anyJob: e.currentTarget.checked })} />
+          Any job can satisfy this position
+        </label>
+      </div>
+
+      {!rule.anyJob && (
+        <div className="space-y-2 text-xs">
+          <span className="font-medium text-muted-foreground">Allowed jobs or classes</span>
+          <SearchableSelect
+            value=""
+            clearOnSelect
+            onChange={(value) => onChange({ ...rule, jobOptions: addUnique(rule.jobOptions, value) })}
+            options={jobs.filter((job) => !rule.jobOptions.includes(job)).map((job) => ({ value: job, label: job }))}
+            placeholder="Add allowed job"
+            triggerClassName="h-8 text-xs"
+          />
+          <div className="flex min-h-6 flex-wrap gap-1">
+            {rule.jobOptions.map((job) => (
+              <ToneBadge key={job} category="job" className="gap-1 px-2 py-0.5 text-xs">
+                {job}
+                <button onClick={() => onChange({ ...rule, jobOptions: removeValue(rule.jobOptions, job) })} className="hover:text-destructive">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </ToneBadge>
+            ))}
+            {rule.jobOptions.length === 0 && <span className="text-xs text-muted-foreground/60">No job restriction yet.</span>}
+          </div>
+        </div>
+      )}
+
+      <label className="block space-y-1 text-xs">
+        <span className="font-medium text-muted-foreground">Recommended jobs</span>
+        <Input value={rule.recommendedJobs} onChange={(e) => onChange({ ...rule, recommendedJobs: e.target.value })} placeholder="Optional notes about rank, stat scaling, or role" className="h-8 text-xs" />
+      </label>
+
+      <div>
+        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Must-match stat rules</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {STAT_KEYS.map((stat) => {
+            const statRule = rule.stats[stat];
+            return (
+              <div key={stat} className={`rounded-md border border-border bg-muted/15 p-2 ${statRule ? 'ring-2 ring-primary/60' : ''}`}>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold">{STAT_LABEL[stat]}</span>
+                  <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <input type="checkbox" checked={!!statRule} onChange={(e) => setStatRule(stat, e.currentTarget.checked ? { mode: "value" } : undefined)} />
+                    Rule
+                  </label>
+                </div>
+                {statRule && (
+                  <div className="grid grid-cols-[88px_1fr_1fr] gap-1.5 items-center">
+                    <select value={statRule.mode} onChange={(e) => setStatRule(stat, { ...statRule, mode: e.target.value as BoxStatRuleMode })} className="h-7 rounded-md border border-input bg-background px-1 text-[11px]">
+                      <option value="value">Value</option>
+                      <option value="level">Level</option>
+                    </select>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-muted-foreground pl-1">Min</span>
+                      <ThemedNumberInput value={statRule.min ?? 0} min={0} onValueChange={(value) => setStatRule(stat, { ...statRule, min: value || undefined })} className="h-7 text-xs" ariaLabel={`${stat} min`} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-muted-foreground pl-1">Max</span>
+                      <ThemedNumberInput value={statRule.max ?? 0} min={0} onValueChange={(value) => setStatRule(stat, { ...statRule, max: value || undefined })} className="h-7 text-xs" ariaLabel={`${stat} max`} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Required skill order</p>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onChange({ ...rule, skillRules: [...rule.skillRules, { id: generateId(), name: "", alternatives: [] }] })}>
+            <Plus className="h-3 w-3" />Skill
+          </Button>
+        </div>
+        <div className="space-y-2">
+          {rule.skillRules.map((skillRule, index) => (
+            <div key={skillRule.id} className="grid gap-2 rounded-md border border-border bg-muted/15 p-2 sm:grid-cols-[76px_1fr_1fr_28px]">
+              <div className="pt-2 text-xs font-semibold text-muted-foreground">Skill {index + 1}</div>
+              <SearchableSelect value={skillRule.name} onChange={(value) => onChange({ ...rule, skillRules: rule.skillRules.map((item) => item.id === skillRule.id ? { ...item, name: value } : item) })} options={skills.map((skill) => ({ value: skill, label: skill }))} placeholder="Primary skill" triggerClassName="h-8 text-xs" />
+              <div className="space-y-1">
+                <SearchableSelect
+                  value=""
+                  clearOnSelect
+                  onChange={(value) => onChange({ ...rule, skillRules: rule.skillRules.map((item) => item.id === skillRule.id ? { ...item, alternatives: addUnique(item.alternatives, value) } : item) })}
+                  options={skills.filter((skill) => !skillRule.alternatives.includes(skill) && skill !== skillRule.name).map((skill) => ({ value: skill, label: skill }))}
+                  placeholder="Add replacement"
+                  triggerClassName="h-8 text-xs"
+                />
+                <div className="flex flex-wrap gap-1">
+                  {skillRule.alternatives.map((skill) => (
+                    <ToneBadge key={skill} category="skill" className="gap-1 px-1.5 py-0.5 text-[10px]">
+                      {skill}
+                      <button onClick={() => onChange({ ...rule, skillRules: rule.skillRules.map((item) => item.id === skillRule.id ? { ...item, alternatives: removeValue(item.alternatives, skill) } : item) })} className="hover:text-destructive">
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </ToneBadge>
+                  ))}
+                </div>
+              </div>
+              <button onClick={() => onChange({ ...rule, skillRules: rule.skillRules.filter((item) => item.id !== skillRule.id) })} className="text-muted-foreground hover:text-destructive">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Recommended gear</p>
+        <div className="grid gap-2 sm:grid-cols-5">
+          {EQUIP_SLOTS.map(({ slot }) => (
+            <div key={slot} className="space-y-1">
+              <span className="text-[10px] font-semibold text-muted-foreground">{slot}</span>
+              <SearchableSelect
+                value=""
+                clearOnSelect
+                onChange={(value) => onChange({ ...rule, recommendedGear: { ...rule.recommendedGear, [slot]: addUnique(Array.isArray(rule.recommendedGear[slot]) ? rule.recommendedGear[slot] : [], value) } })}
+                options={(equipBySlot[slot] ?? []).filter((name) => !(rule.recommendedGear[slot] ?? []).includes(name)).map((name) => ({ value: name, label: name }))}
+                placeholder="Add item"
+                triggerClassName="h-8 text-[10px]"
+              />
+              <div className="flex min-h-5 flex-wrap gap-1">
+                {(Array.isArray(rule.recommendedGear[slot]) ? rule.recommendedGear[slot] : []).map((item) => (
+                  <ToneBadge key={item} category="equipment" className="gap-1 px-1.5 py-0.5 text-[10px]">
+                    {item}
+                    <button onClick={() => onChange({ ...rule, recommendedGear: { ...rule.recommendedGear, [slot]: removeValue(Array.isArray(rule.recommendedGear[slot]) ? rule.recommendedGear[slot] : [], item) } })} className="hover:text-destructive">
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </ToneBadge>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <label className="block space-y-1 text-xs">
+        <span className="font-medium text-muted-foreground">Notes</span>
+        <textarea value={rule.notes} onChange={(e) => onChange({ ...rule, notes: e.target.value })} className="min-h-20 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-xs" />
+      </label>
+    </div>
+  );
+}
+
+function BoxSetupCard({
+  setup,
+  loadouts,
+  data,
+  onChange,
+  onCreateLoadout,
+  readOnly = false,
+}: {
+  setup: BoxSetup;
+  loadouts: Loadout[];
+  data: SharedData;
+  onChange: (next: BoxSetup) => void;
+  onCreateLoadout: () => string;
+  readOnly?: boolean;
+}) {
+  const [mode, setMode] = useState<"rules" | "try">("rules");
+  const [openCellIndex, setOpenCellIndex] = useState<number | null>(null);
+  const [attempt, setAttempt] = useLocalFeature<BoxAttempt>(`ka_box_attempt_${setup.id}`, {});
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [shareStatus, setShareStatus] = useState<null | "working" | "ok" | "error">(null);
+  const openCell = openCellIndex == null ? null : setup.cells[openCellIndex] ?? null;
+  const openRule = openCell?.rule ?? createBoxUnitRule();
+
+  const updateCell = (index: number, cell: BoxGridCell) => {
+    if (readOnly) return;
+    onChange({ ...setup, cells: setup.cells.map((item, i) => i === index ? cell : item), updatedAt: Date.now() });
+  };
+  const setRows = (rows: number) => {
+    if (readOnly) return;
+    const nextRows = Math.max(1, Math.min(12, rows));
+    const cells = Array.from({ length: nextRows * 5 }, (_, index) => setup.cells[index] ?? { id: `${setup.id}-${index}` });
+    onChange({ ...setup, rows: nextRows, cells, updatedAt: Date.now() });
+  };
+  const moveCell = (from: number, to: number) => {
+    if (from === to) return;
+    if (readOnly && mode === "rules") return;
+    if (mode === "rules") {
+      const cells = [...setup.cells];
+      const [moved] = cells.splice(from, 1);
+      cells.splice(to, 0, moved);
+      onChange({ ...setup, cells, updatedAt: Date.now() });
+      return;
+    }
+    const fromId = setup.cells[from]?.id;
+    const toId = setup.cells[to]?.id;
+    if (!fromId || !toId) return;
+    setAttempt({ ...attempt, [fromId]: attempt[toId] ?? "", [toId]: attempt[fromId] ?? "" });
+  };
+  const rulesCount = setup.cells.filter((cell) => cell.rule).length;
+  const passCount = setup.cells.filter((cell) => unitMatchesRule(loadouts.find((loadout) => loadout.id === attempt[cell.id]) ?? null, cell.rule, data) === "pass").length;
+  const shareSetup = async () => {
+    setShareStatus("working");
+    try {
+      const response = await fetch(apiUrl("/loadout-box-setups/share"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ setup: { ...setup, updatedAt: Date.now() } }),
+      });
+      if (!response.ok) throw new Error("share failed");
+      const payload = await response.json() as { id: string };
+      const url = new URL(window.location.href);
+      url.pathname = "/loadout";
+      url.search = "";
+      url.searchParams.set("setup", setup.id);
+      url.searchParams.set("share", payload.id);
+      await navigator.clipboard.writeText(url.toString());
+      setShareStatus("ok");
+    } catch {
+      setShareStatus("error");
+    } finally {
+      setTimeout(() => setShareStatus(null), 2500);
+    }
+  };
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">{setup.title}</CardTitle>
+            <p className="text-xs text-muted-foreground">{readOnly ? "Shared link snapshot. Your matching attempt is private to this device." : "Shared setup rules. Your matching attempt is private to this device."}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {!readOnly && (
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={shareSetup} disabled={shareStatus === "working"}>
+                {shareStatus === "working" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+                {shareStatus === "ok" ? "Copied" : shareStatus === "error" ? "Failed" : "Share setup"}
+              </Button>
+            )}
+            <div className="flex rounded-md border border-border p-0.5">
+              <button onClick={() => setMode("rules")} className={`h-8 rounded px-3 text-xs ${mode === "rules" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Rules</button>
+              <button onClick={() => setMode("try")} className={`h-8 rounded px-3 text-xs ${mode === "try" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Try match</button>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Rows</span>
+          <ThemedNumberInput value={setup.rows} min={1} max={12} onValueChange={setRows} className="h-8 w-20" ariaLabel={`${setup.title} rows`} disabled={readOnly} />
+          <Badge variant="outline" className="text-xs">{rulesCount} required positions</Badge>
+          {mode === "try" && <Badge variant="outline" className="text-xs text-emerald-700 dark:text-emerald-300">{passCount}/{rulesCount} matched</Badge>}
+        </div>
+        <textarea value={setup.notes} onChange={(e) => !readOnly && onChange({ ...setup, notes: e.target.value, updatedAt: Date.now() })} readOnly={readOnly} placeholder="Shared notes, rewards, farming steps, herbs per round, or setup context." className="min-h-16 w-full resize-y rounded-md border border-input bg-muted/15 px-3 py-2 text-xs" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-5 gap-2">
+          {setup.cells.map((cell, index) => {
+            const selected = loadouts.find((loadout) => loadout.id === attempt[cell.id]) ?? null;
+            const match = unitMatchesRule(selected, cell.rule, data);
+            const stateClass = mode === "try" && cell.rule ? (match === "pass" ? "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/15" : "border-red-500 bg-red-50/40 dark:bg-red-950/15") : cell.rule ? "border-primary/50 bg-primary/5" : "border-dashed border-border bg-muted/15";
+            return (
+              <button key={cell.id} draggable onDragStart={() => setDragIndex(index)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (dragIndex != null) moveCell(dragIndex, index); setDragIndex(null); }} onClick={() => setOpenCellIndex(index)} className={`min-h-28 rounded-md border-2 p-2 text-left transition-colors ${stateClass}`}>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground">Spot {index + 1}</span>
+                  {mode === "try" && cell.rule && <span className={`text-[10px] font-bold ${match === "pass" ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}>{match === "pass" ? "OK" : "Check"}</span>}
+                </div>
+                {cell.rule ? (
+                  <div className="mt-2 space-y-1">
+                    <div className="line-clamp-2 text-xs font-semibold text-foreground">{cell.rule.label || "Required unit"}</div>
+                    <div className="line-clamp-2 text-[11px] text-muted-foreground">{cell.rule.anyJob ? "Any job" : cell.rule.jobOptions.join(" / ") || "Job not set"}</div>
+                    {cell.rule.skillRules.length > 0 && <div className="text-[10px] text-muted-foreground">{cell.rule.skillRules.length} skill rule{cell.rule.skillRules.length === 1 ? "" : "s"}</div>}
+                    {mode === "try" && <div className="line-clamp-2 text-[11px] font-medium text-foreground">{selected?.name || "No loadout selected"}</div>}
+                  </div>
+                ) : (
+                  <div className="mt-6 text-center text-xs text-muted-foreground">Empty</div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <Dialog open={openCellIndex != null} onOpenChange={(open) => { if (!open) setOpenCellIndex(null); }}>
+          <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-sm">{setup.title} spot {(openCellIndex ?? 0) + 1}</DialogTitle>
+            </DialogHeader>
+            {openCellIndex != null && (
+              <div className="space-y-4">
+                <div className="rounded-md border border-border bg-muted/15 p-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Your loadout for this spot</p>
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <SearchableSelect value={attempt[setup.cells[openCellIndex].id] ?? ""} onChange={(value) => setAttempt({ ...attempt, [setup.cells[openCellIndex].id]: value })} options={loadouts.map((loadout) => ({ value: loadout.id, label: loadout.name || "Unnamed Loadout" }))} placeholder="Choose one of your loadouts" triggerClassName="h-8 text-xs" />
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { const id = onCreateLoadout(); setAttempt({ ...attempt, [setup.cells[openCellIndex].id]: id }); }}>
+                      <Plus className="h-3.5 w-3.5" />New loadout
+                    </Button>
+                  </div>
+                </div>
+                <BoxUnitRuleEditor rule={openRule} data={data} onChange={(next) => updateCell(openCellIndex, { ...setup.cells[openCellIndex], rule: next })} />
+                <div className="flex justify-between gap-2">
+                  <Button size="sm" variant="destructive" onClick={() => updateCell(openCellIndex, { ...setup.cells[openCellIndex], rule: undefined })}>
+                    <Trash2 className="h-3.5 w-3.5" />Clear rules
+                  </Button>
+                  <Button size="sm" onClick={() => setOpenCellIndex(null)}>Done</Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
 
 function ScreenshotCard({ loadout, stats }: { loadout: Loadout; stats: Record<string, number> }) {
   const hasStats = STAT_KEYS.some((k) => stats[k]);
@@ -1073,15 +1574,20 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 export default function LoadoutPage() {
   const { data, isLoading } = useSharedData();
   const { loadouts, save } = usePrivateLoadouts();
+  const { setups, save: saveSetups } = useCommunityBoxSetups(data);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_loadout", "");
   const [showNote, setShowNote] = useState(false);
+  const [activeToolTab, setActiveToolTab] = useState<BoxSetupKind | "combat">("kairo");
+  const [sharedSetup, setSharedSetup] = useState<BoxSetupShare | null>(null);
+  const [shareLoadError, setShareLoadError] = useState<string | null>(null);
 
   const addLoadout = () => {
     const id = generateId();
     const newLoadout: Loadout = { id, name: "New Loadout", jobName: "", rank: "", statLevels: {}, equipment: [], skills: [] };
     save([...loadouts, newLoadout]);
     setExpandedId(id);
+    return id;
   };
 
   const updateLoadout = useCallback((updated: Loadout) => {
@@ -1101,6 +1607,37 @@ export default function LoadoutPage() {
     save([...loadouts, duplicate]);
     setExpandedId(newId);
   }, [loadouts, save]);
+
+  const updateSetup = useCallback((updated: BoxSetup) => {
+    saveSetups(setups.map((setup) => setup.id === updated.id ? updated : setup));
+  }, [setups, saveSetups]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareId = params.get("share");
+    const setupKind = params.get("setup");
+    if (!shareId) return;
+    let cancelled = false;
+    setShareLoadError(null);
+    fetch(apiUrl(`/loadout-box-setups/share/${encodeURIComponent(shareId)}`))
+      .then((response) => {
+        if (!response.ok) throw new Error("Shared setup not found");
+        return response.json() as Promise<BoxSetupShare>;
+      })
+      .then((share) => {
+        if (cancelled) return;
+        const normalized = normalizeBoxSetups([share.setup]).find((setup) => setup.id === share.setup.id || setup.id === setupKind);
+        if (!normalized) throw new Error("Shared setup is not a Kairo or Wairo setup");
+        setSharedSetup({ ...share, setup: normalized });
+        setActiveToolTab(normalized.id);
+      })
+      .catch((error: Error) => {
+        if (!cancelled) setShareLoadError(error.message || "Could not load shared setup");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background transition-colors">
@@ -1285,7 +1822,48 @@ export default function LoadoutPage() {
         )}
 
         {!isLoading && data && (
-          <LoadoutCombatTool loadouts={loadouts} data={data} />
+          <div className="mt-6 space-y-3">
+            {(sharedSetup || shareLoadError) && (
+              <div className={`rounded-md border px-3 py-2 text-xs ${shareLoadError ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-200"}`}>
+                {shareLoadError ? shareLoadError : `Viewing shared setup link: ${sharedSetup?.setup.title}. Try match uses your private loadouts.`}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2">
+              {setups.map((setup) => (
+                <button
+                  key={setup.id}
+                  onClick={() => setActiveToolTab(setup.id)}
+                  className={`h-9 rounded-md px-3 text-sm font-medium transition-colors ${activeToolTab === setup.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
+                >
+                  {setup.title}
+                </button>
+              ))}
+              <button
+                onClick={() => setActiveToolTab("combat")}
+                className={`h-9 rounded-md px-3 text-sm font-medium transition-colors ${activeToolTab === "combat" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
+              >
+                Combat Sandbox
+              </button>
+            </div>
+
+            {setups.map((setup) => (
+              activeToolTab === setup.id ? (
+                <BoxSetupCard
+                  key={setup.id}
+                  setup={sharedSetup?.setup.id === setup.id ? sharedSetup.setup : setup}
+                  loadouts={loadouts}
+                  data={data}
+                  onChange={sharedSetup?.setup.id === setup.id ? () => {} : updateSetup}
+                  onCreateLoadout={addLoadout}
+                  readOnly={sharedSetup?.setup.id === setup.id}
+                />
+              ) : null
+            ))}
+
+            {activeToolTab === "combat" && (
+              <LoadoutCombatTool loadouts={loadouts} data={data} />
+            )}
+          </div>
         )}
 
         <p className="text-xs text-muted-foreground mt-4 text-center">
