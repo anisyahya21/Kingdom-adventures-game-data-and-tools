@@ -6,7 +6,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
   Loader2, AlertTriangle, Info, X, ImageIcon, Pencil,
   ChevronDown, ChevronRight, Download, History, CheckSquare, GripVertical,
-  Plus, Copy, Settings2, Clock, CheckCircle2, Eye, EyeOff,
+  Plus, Copy, Settings2, Clock, CheckCircle2, Star, Eye, EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1028,11 +1028,29 @@ export default function EquipmentPage() {
   // Comparison checkboxes
   const [selectedUids, setSelectedUids] = useState<Set<string>>(new Set());
   const [compareMode, setCompareMode] = useState(false);
+  const [favs, setFavs] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem("ka_fav_equipment");
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const [favsOnly, setFavsOnly] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("ka_fav_equipment", JSON.stringify([...favs]));
+    } catch {
+      // ignore write errors
+    }
+  }, [favs]);
 
   const toggleSelect = (uid: string) =>
     setSelectedUids((prev) => { const next = new Set(prev); next.has(uid) ? next.delete(uid) : next.add(uid); return next; });
   const leaveCompareMode = () => setCompareMode(false);
   const clearSelection = () => { setSelectedUids(new Set()); setCompareMode(false); };
+  const toggleFav = (uid: string) => setFavs((prev) => { const next = new Set(prev); next.has(uid) ? next.delete(uid) : next.add(uid); return next; });
 
   // Character builder — personal
   const [loadout, setLoadout] = useState<LoadoutState>(() => {
@@ -1188,7 +1206,7 @@ export default function EquipmentPage() {
     return [...new Set(base.map((i) => i.crafterIntelligence).filter((v) => v > 0))].sort((a, b) => a - b);
   }, [items, studioFilters]);
 
-  const anyFilterActive = slotFilters.size > 0 || rankFilters.size > 0 || excludeStatFilters.size > 0 || studioFilters.size > 0 || intFilters.size > 0 || craftFilter !== "All" || search.length > 0;
+  const anyFilterActive = slotFilters.size > 0 || rankFilters.size > 0 || excludeStatFilters.size > 0 || studioFilters.size > 0 || intFilters.size > 0 || craftFilter !== "All" || search.length > 0 || favsOnly;
   const clearAllFilters = useCallback(() => {
     setSlotFilters(new Set());
     setRankFilters(new Set());
@@ -1196,6 +1214,7 @@ export default function EquipmentPage() {
     setStudioFilters(new Set());
     setIntFilters(new Set());
     setCraftFilter("All");
+    setFavsOnly(false);
     setSearch("");
   }, []);
 
@@ -1242,6 +1261,9 @@ export default function EquipmentPage() {
     if (craftFilter !== "All") {
       list = list.filter((i) => craftFilter === "Craftable" ? i.crafterStudioLevel > 0 : i.crafterStudioLevel === 0);
     }
+    if (favsOnly) {
+      list = list.filter((i) => favs.has(i.uid));
+    }
     if (sortCol) {
       list = [...list].sort((a, b) => {
         let av: number | string, bv: number | string;
@@ -1258,7 +1280,7 @@ export default function EquipmentPage() {
       });
     }
     return list;
-  }, [items, compareMode, selectedUids, search, slotFilters, rankFilters, excludeStatFilters, studioFilters, intFilters, craftFilter, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemSlot]);
+  }, [items, compareMode, selectedUids, search, slotFilters, rankFilters, excludeStatFilters, studioFilters, intFilters, craftFilter, favsOnly, favs, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemSlot]);
 
   const visibleItems = useMemo(() => {
     if (rowsToShow === "all") return filtered;
@@ -1312,7 +1334,7 @@ export default function EquipmentPage() {
     return STAT_ORDER.filter((stat) => !excludeStatFilters.has(stat));
   }, [hideExcludedStatColumns, excludeStatFilters]);
 
-  const colCount = 8 + visibleStats.length; // drag, checkbox, icon, name, level, slot, craftable, ...stats
+  const colCount = 9 + visibleStats.length; // drag, checkbox, favorite, icon, name, level, slot, craftable, ...stats
 
   useEffect(() => {
     if (!sortCol) return;
@@ -1409,6 +1431,16 @@ export default function EquipmentPage() {
             ]}
             triggerClassName="h-8 text-sm w-36"
           />
+          <Button
+            size="sm"
+            variant={favsOnly ? "outline" : "ghost"}
+            className={`h-8 gap-2 ${favsOnly ? "border-primary text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            onClick={() => setFavsOnly((v) => !v)}
+            title="Show only favorited equipment"
+          >
+            <Star className={`w-3.5 h-3.5 ${favsOnly ? "fill-yellow-400 text-yellow-400" : ""}`} />
+            Favorites{favsOnly && favs.size > 0 ? ` (${favs.size})` : ""}
+          </Button>
           <SearchableSelect
             value={rowsToShow}
             onChange={(v) => setRowsToShow(v as typeof rowsToShow)}
@@ -1450,9 +1482,14 @@ export default function EquipmentPage() {
             </Button>
           )}
           {compareMode && (
-            <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={leaveCompareMode}>
-              <X className="w-3.5 h-3.5" />Show all
-            </Button>
+            <>
+              <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={leaveCompareMode}>
+                <Eye className="w-3.5 h-3.5" />Show all
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 gap-1 text-muted-foreground hover:text-foreground" onClick={clearSelection}>
+                <X className="w-3 h-3" />Clear selection
+              </Button>
+            </>
           )}
           {anyFilterActive && (
             <Button size="sm" variant="ghost" className="h-8 gap-1 text-muted-foreground hover:text-foreground" onClick={clearAllFilters}>
@@ -1657,7 +1694,10 @@ export default function EquipmentPage() {
               <div className="mb-3 flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs text-primary font-medium">
                 <CheckSquare className="w-4 h-4" />
                 Comparing {selectedUids.size} items
-                <button onClick={clearSelection} className="ml-auto flex items-center gap-1 hover:underline"><X className="w-3 h-3" />Clear & show all</button>
+                <div className="ml-auto flex items-center gap-2">
+                  <button onClick={leaveCompareMode} className="flex items-center gap-1 hover:underline"><Eye className="w-3 h-3" />Show all</button>
+                  <button onClick={clearSelection} className="flex items-center gap-1 hover:underline"><X className="w-3 h-3" />Clear selection</button>
+                </div>
               </div>
             )}
 
@@ -1679,6 +1719,9 @@ export default function EquipmentPage() {
                           }} title="Select all visible" />
                       </th>
                       <th className="px-2 py-2 w-8 shrink-0" />
+                      <th className="px-2 py-2 w-8 shrink-0 text-muted-foreground/70" title="Favorites">
+                        <Star className="w-3.5 h-3.5 mx-auto" />
+                      </th>
                       <th className="text-left px-2 py-2 font-medium text-muted-foreground whitespace-nowrap">
                         <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-foreground">Name <SortIcon col="name" /></button>
                       </th>
@@ -1762,6 +1805,11 @@ export default function EquipmentPage() {
                             </td>
                             <td className="px-2 py-1.5 text-center">
                               <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(item.uid)} className="rounded border-border cursor-pointer" />
+                            </td>
+                            <td className="px-2 py-1.5 text-center">
+                              <button type="button" onClick={() => toggleFav(item.uid)} className="text-muted-foreground hover:text-yellow-400" title={favs.has(item.uid) ? "Remove from favorites" : "Add to favorites"}>
+                                <Star className={`w-4 h-4 ${favs.has(item.uid) ? "fill-yellow-400 text-yellow-400" : ""}`} />
+                              </button>
                             </td>
                             <td className="px-2 py-1.5">
                               <IconUpload iconKey={`equip:${item.name}`} icons={equipIcons}
@@ -2009,6 +2057,12 @@ export default function EquipmentPage() {
                                 ))}
                               </div>
                             )}
+                          </div>
+
+                          <div className="shrink-0 flex items-center pt-1">
+                            <button type="button" onClick={() => toggleFav(item.uid)} className="text-muted-foreground hover:text-yellow-400" title={favs.has(item.uid) ? "Remove from favorites" : "Add to favorites"}>
+                              <Star className={`w-5 h-5 ${favs.has(item.uid) ? "fill-yellow-400 text-yellow-400" : ""}`} />
+                            </button>
                           </div>
 
                           <div className="shrink-0">
