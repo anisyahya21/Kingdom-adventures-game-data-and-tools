@@ -79,6 +79,44 @@ select {
   background: #fff;
 }
 
+.header-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.network-links {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 310px;
+  font-size: 14px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.network-links a {
+  color: var(--accent-strong);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.network-links a:hover {
+  text-decoration: underline;
+}
+
+.network-links .phone-link {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.network-links .phone-link a {
+  color: var(--accent);
+}
+
 .app-header h1 {
   margin: 0;
   font-size: 28px;

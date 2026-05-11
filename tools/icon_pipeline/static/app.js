@@ -25,6 +25,7 @@ const state = {
   pollTimer: null,
   eventSource: null,
   lastStateSignature: "",
+  network: null,
 };
 
 const dropZone = document.getElementById("dropZone");
@@ -38,6 +39,7 @@ const goalScreenshotInput = document.getElementById("goalScreenshotInput");
 const cropGrid = document.getElementById("cropGrid");
 const searchInput = document.getElementById("searchInput");
 const saveState = document.getElementById("saveState");
+const networkLinks = document.getElementById("networkLinks");
 const logOutput = document.getElementById("logOutput");
 const captureNameInput = document.getElementById("captureNameInput");
 const captureSlotInput = document.getElementById("captureSlotInput");
@@ -123,6 +125,7 @@ async function loadState() {
   state.equipmentGoals = data.equipmentGoals || {};
   state.skippedEquipmentGoals = data.skippedEquipmentGoals || [];
   state.equipmentProgress = data.equipmentProgress || null;
+  state.network = data.network || null;
   state.mapping = { ...data.mapping };
   state.duplicateNames = data.duplicateNames;
   render();
@@ -161,6 +164,7 @@ async function pollState() {
     state.equipmentGoals = data.equipmentGoals || {};
     state.skippedEquipmentGoals = data.skippedEquipmentGoals || [];
     state.equipmentProgress = data.equipmentProgress || null;
+    state.network = data.network || null;
     state.mapping = { ...data.mapping };
     state.duplicateNames = data.duplicateNames;
     render();
@@ -243,11 +247,22 @@ function renderCounts() {
 function render() {
   updateDuplicateNames();
   renderCounts();
+  renderNetworkLinks();
   renderNameSources();
   renderEquipmentProgress();
   renderEquipmentGoals();
   renderCaptureLog();
   renderCropGrid();
+}
+
+function renderNetworkLinks() {
+  if (!networkLinks) return;
+  const localUrl = state.network?.localUrl || window.location.origin;
+  const lanUrl = state.network?.lanUrl || "";
+  networkLinks.innerHTML = `
+    <span>Computer <a href="${escapeHtml(localUrl)}">${escapeHtml(localUrl)}</a></span>
+    ${lanUrl ? `<span class="phone-link">Phone/iPad <a href="${escapeHtml(lanUrl)}">${escapeHtml(lanUrl)}</a></span>` : ""}
+  `;
 }
 
 function renderEquipmentProgress() {
@@ -458,7 +473,6 @@ function allEquipmentTargets() {
 
 function completedNameKeys() {
   const keys = new Set();
-  state.captureLog.forEach((entry) => keys.add(displaySearchKey(entry.name)));
   Object.values(state.mapping).forEach((name) => keys.add(displaySearchKey(name)));
   return keys;
 }

@@ -12,7 +12,15 @@
         <h1>Icon Pipeline</h1>
         <p>Local screenshot crops, manual name mapping, and clean PNG export.</p>
       </div>
-      <div class="save-state" id="saveState">Saved</div>
+      <div class="header-tools">
+        <div class="network-links" id="networkLinks" aria-live="polite">
+          <span>Computer <a href="{{ network.localUrl }}">{{ network.localUrl }}</a></span>
+          {% if network.lanUrl %}
+          <span class="phone-link">Phone/iPad <a href="{{ network.lanUrl }}">{{ network.lanUrl }}</a></span>
+          {% endif %}
+        </div>
+        <div class="save-state" id="saveState">Saved</div>
+      </div>
     </header>
 
     <main class="layout">

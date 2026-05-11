@@ -7,6 +7,7 @@ import os
 import queue
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -177,6 +178,26 @@ def publish_mapped_icons_to_website(mapping: dict[str, str]) -> dict[str, object
     if not isinstance(equip_icons, dict):
         equip_icons = {}
 
+    current_website_names = {
+        website_equipment_name(mapped_name)
+        for mapped_name in mapping.values()
+        if str(mapped_name).strip()
+    }
+    known_equipment_names = {
+        website_equipment_name(name)
+        for name in load_name_source(NAME_SOURCE_FILES[0])
+        if str(name).strip()
+    }
+    removed_stale: list[str] = []
+    for website_name in sorted(known_equipment_names - current_website_names):
+        removed_any = False
+        for key in (f"equip:{website_name}", website_name):
+            if key in equip_icons:
+                equip_icons.pop(key, None)
+                removed_any = True
+        if removed_any:
+            removed_stale.append(website_name)
+
     published = 0
     missing_sources: list[str] = []
     skipped: list[str] = []
@@ -202,6 +223,7 @@ def publish_mapped_icons_to_website(mapping: dict[str, str]) -> dict[str, object
     api_updated = try_put_equip_icons_to_api(equip_icons)
     return {
         "published": published,
+        "removedStale": removed_stale,
         "missingSources": missing_sources,
         "skipped": skipped,
         "apiUpdated": api_updated,
@@ -355,11 +377,6 @@ def equipment_progress() -> dict[str, int]:
         for name in load_mapping().values()
         if name
     }
-    fulfilled.update(
-        website_equipment_name(entry["name"]).lower()
-        for entry in load_capture_log()
-        if entry.get("name")
-    )
     skipped = {
         website_equipment_name(record["name"]).lower()
         for record in skipped_goal_records()
@@ -448,7 +465,6 @@ def create_backup_snapshot() -> Path:
 
 def done_equipment_names() -> set[str]:
     done = {website_equipment_name(name) for name in load_mapping().values()}
-    done.update(website_equipment_name(entry["name"]) for entry in load_capture_log())
     return done
 
 
@@ -489,9 +505,9 @@ def requeue_requested_item(name: str, slot_kind: str) -> None:
 def handle_mapping_corrections(previous_mapping: dict[str, str], next_mapping: dict[str, str]) -> list[str]:
     metadata = load_raw_crop_metadata()
     requeued: list[str] = []
-    for raw_filename, new_name in next_mapping.items():
-        old_name = previous_mapping.get(raw_filename, "")
-        if not old_name or website_equipment_name(old_name).lower() == website_equipment_name(new_name).lower():
+    for raw_filename, old_name in previous_mapping.items():
+        new_name = next_mapping.get(raw_filename, "")
+        if website_equipment_name(old_name).lower() == website_equipment_name(new_name).lower():
             continue
         crop_metadata = metadata.get(raw_filename, {})
         requested_name = str(crop_metadata.get("requestedName", "")).strip()
@@ -630,6 +646,30 @@ def name_source_status() -> list[dict[str, object]]:
     return statuses
 
 
+def lan_ip_address() -> str:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            return sock.getsockname()[0]
+    except OSError:
+        try:
+            for address in socket.gethostbyname_ex(socket.gethostname())[2]:
+                if address and not address.startswith("127."):
+                    return address
+        except OSError:
+            return ""
+    return ""
+
+
+def network_urls() -> dict[str, str]:
+    lan_ip = lan_ip_address()
+    port = request.host.split(":")[-1]
+    return {
+        "localUrl": request.host_url.rstrip("/"),
+        "lanUrl": f"http://{lan_ip}:{port}" if lan_ip else "",
+    }
+
+
 def duplicate_names(mapping: dict[str, str]) -> set[str]:
     counts: dict[str, int] = {}
     for name in mapping.values():
@@ -733,7 +773,7 @@ def run_script(script_name: str, extra_env: dict[str, str] | None = None) -> tup
 @app.route("/")
 def index():
     ensure_dirs()
-    return render_template("index.html")
+    return render_template("index.html", network=network_urls())
 
 
 @app.route("/api/events")
@@ -799,6 +839,7 @@ def state():
             "equipmentGoals": ensure_equipment_goals().get("goals", {}),
             "skippedEquipmentGoals": skipped_goal_records(),
             "equipmentProgress": equipment_progress(),
+            "network": network_urls(),
         }
     )
 
