@@ -28,7 +28,7 @@ const HousesPage = lazy(() => import("@/pages/houses"));
 const TownRankPage = lazy(() => import("@/pages/town-rank"));
 const GachaEventsPage = lazy(() => import("@/pages/gacha-events"));
 const TimedEventsPage = lazy(() => import("@/pages/timed-events"));
-const InstallPage = lazy(() => import("@/pages/install"));
+const EventReminderAppPage = lazy(() => import("@/pages/event-reminder-app"));
 const MonstersPetsPage = lazy(() => import("@/pages/monsters-pets"));
 const WeeklyConquestPage = lazy(() => import("@/pages/weekly-conquest"));
 const WarioDungeonPage = lazy(() => import("@/pages/wario-dungeon"));
@@ -174,7 +174,7 @@ function Router() {
         <Route path="/survey">{() => <SurveyPlanner />}</Route>
         <Route path="/survey-planner">{() => <SurveyPlanner />}</Route>
         <Route path="/timed-events">{() => <TimedEventsPage />}</Route>
-        <Route path="/install">{() => <InstallPage />}</Route>
+        <Route path="/event-reminders">{() => <EventReminderAppPage />}</Route>
         <Route path="/wario-dungeon">{() => <WarioDungeonPage />}</Route>
         <Route path="/daily-rank-rewards">{() => <DailyRankRewardsPage />}</Route>
         <Route path="/job-center">{() => <JobCenterPage />}</Route>
@@ -242,14 +242,26 @@ const App = memo(function App() {
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <SeoManager />
         <ScrollToTopOnRouteChange />
-        <AppShell>
-          <Router />
-        </AppShell>
-        <GlobalJobPreview />
+        <StandaloneAwareShell />
       </WouterRouter>
       <Toaster />
     </TooltipProvider>
   );
 });
+
+function StandaloneAwareShell() {
+  const [pathname] = useLocation();
+
+  if (pathname === "/event-reminders") {
+    return <Router />;
+  }
+
+  return (
+    <AppShell>
+      <Router />
+      <GlobalJobPreview />
+    </AppShell>
+  );
+}
 
 export default App;

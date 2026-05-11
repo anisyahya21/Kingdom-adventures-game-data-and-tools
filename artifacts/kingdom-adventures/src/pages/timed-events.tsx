@@ -3,7 +3,6 @@ import { Link } from "wouter";
 import { BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award, AlertTriangle, Plus, Minus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { EventReminderManager } from "@/components/event-reminders";
 import { useEventRefresh } from "@/lib/event-refresh";
 import { useEventHourOffset } from "@/lib/event-time";
 import { KAIRO_ROOM_DRAFTS } from "@/lib/en-event-drafts";
@@ -148,8 +147,6 @@ export default function TimedEventsPage() {
           return card.disabled ? <div key={card.title}>{content}</div> : <Link key={card.href} href={card.href}>{content}</Link>;
         })}
       </div>
-
-      <EventReminderManager />
     </div>
   );
 }

@@ -2,15 +2,16 @@ import { Router } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import admin from "firebase-admin";
+import webpush, { type PushSubscription } from "web-push";
 
 const router = Router();
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "event-reminder-subscriptions.json");
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
+const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
 
-type ReminderMode = "start" | "one-hour-and-start" | "daily-check";
+type ReminderMode = "start" | "one-hour-and-start";
 type GachaEvent = {
   id: string;
   kind: string;
@@ -25,14 +26,14 @@ type GachaEvent = {
 type ReminderDefinition =
   | { type: "gacha"; event: GachaEvent }
   | { type: "wairo"; event: { day: number; hour: number } }
-  | { type: "page-daily"; hour: number };
+  | { type: "weekly-conquest" };
 
 type ReminderSubscription = {
   id: string;
-  token: string;
+  endpoint: string;
+  pushSubscription: PushSubscription;
   subscriptionId: string;
   title: string;
-  href: string;
   offsetHours: number;
   mode: ReminderMode;
   definition: ReminderDefinition;
@@ -64,10 +65,16 @@ function normalizeOffset(value: unknown) {
   return Math.min(23, Math.max(-23, parsed));
 }
 
+function isPushSubscription(value: unknown): value is PushSubscription {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as PushSubscription;
+  return Boolean(candidate.endpoint && candidate.keys?.auth && candidate.keys?.p256dh);
+}
+
 function isValidDefinition(value: unknown): value is ReminderDefinition {
   if (!value || typeof value !== "object") return false;
   const definition = value as ReminderDefinition;
-  if (definition.type === "page-daily") return Number.isFinite(definition.hour);
+  if (definition.type === "weekly-conquest") return true;
   if (definition.type === "wairo") return Number.isFinite(definition.event?.day) && Number.isFinite(definition.event?.hour);
   if (definition.type === "gacha") {
     const event = definition.event;
@@ -76,34 +83,17 @@ function isValidDefinition(value: unknown): value is ReminderDefinition {
   return false;
 }
 
-function subscriptionHash(token: string, subscriptionId: string) {
-  return crypto.createHash("sha256").update(`${token}:${subscriptionId}`).digest("hex");
+function subscriptionHash(endpoint: string, subscriptionId: string) {
+  return crypto.createHash("sha256").update(`${endpoint}:${subscriptionId}`).digest("hex");
 }
 
-function initializeFirebase() {
-  if (admin.apps.length) return true;
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-  try {
-    if (serviceAccountJson) {
-      admin.initializeApp({ credential: admin.credential.cert(JSON.parse(serviceAccountJson)) });
-      return true;
-    }
-    if (projectId && clientEmail && privateKey) {
-      admin.initializeApp({ credential: admin.credential.cert({ projectId, clientEmail, privateKey }) });
-      return true;
-    }
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      admin.initializeApp({ credential: admin.credential.applicationDefault() });
-      return true;
-    }
-  } catch {
-    return false;
-  }
-  return false;
+function configureWebPush() {
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  const subject = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
+  if (!publicKey || !privateKey) return false;
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+  return true;
 }
 
 function eventClockDateToLocalDate(date: Date, offset: number) {
@@ -133,11 +123,9 @@ function nextWairoStart(entry: { day: number; hour: number }, now: Date, offset:
   return candidates.filter((date) => date.getTime() >= now.getTime() - 5 * 60 * 1000).sort((a, b) => a.getTime() - b.getTime())[0];
 }
 
-function nextDailyStart(hour: number, now: Date, offset: number) {
-  const eventClockNow = new Date(now.getTime() + offset * HOUR_MS);
-  const today = eventClockDateToLocalDate(new Date(eventClockNow.getFullYear(), eventClockNow.getMonth(), eventClockNow.getDate(), hour, 0, 0, 0), offset);
-  if (today.getTime() >= now.getTime() - 5 * 60 * 1000) return today;
-  return new Date(today.getTime() + DAY_MS);
+function nextWeeklyConquestStart(now: Date) {
+  const offset = Math.floor((now.getTime() - WEEKLY_ANCHOR_START) / (7 * DAY_MS)) + 1;
+  return new Date(WEEKLY_ANCHOR_START + offset * 7 * DAY_MS);
 }
 
 function notificationTimes(subscription: ReminderSubscription, now: Date) {
@@ -145,7 +133,7 @@ function notificationTimes(subscription: ReminderSubscription, now: Date) {
   let startAt: Date | undefined;
   if (subscription.definition.type === "gacha") startAt = nextGachaStart(subscription.definition.event, now, offset);
   if (subscription.definition.type === "wairo") startAt = nextWairoStart(subscription.definition.event, now, offset);
-  if (subscription.definition.type === "page-daily") startAt = nextDailyStart(subscription.definition.hour, now, offset);
+  if (subscription.definition.type === "weekly-conquest") startAt = nextWeeklyConquestStart(now);
   if (!startAt) return [];
 
   const times = [{ kind: "start", at: startAt }];
@@ -157,48 +145,43 @@ function notificationTimes(subscription: ReminderSubscription, now: Date) {
 
 async function sendReminder(subscription: ReminderSubscription, kind: string, scheduledAt: Date) {
   const oneHour = kind === "one-hour";
-  await admin.messaging().send({
-    token: subscription.token,
-    notification: {
-      title: oneHour ? `${subscription.title} in 1 hour` : subscription.title,
-      body: oneHour ? "Your one-hour warning is ready." : "Your subscribed event is starting.",
-    },
-    data: {
-      url: subscription.href,
-      subscriptionId: subscription.subscriptionId,
-      scheduledAt: scheduledAt.toISOString(),
-    },
-    webpush: {
-      fcmOptions: {
-        link: subscription.href,
-      },
-    },
+  const payload = JSON.stringify({
+    title: oneHour ? `${subscription.title} in 1 hour` : subscription.title,
+    body: oneHour ? "One-hour warning." : "Your event is starting.",
+    tag: subscription.subscriptionId,
+    url: "/event-reminders",
+    scheduledAt: scheduledAt.toISOString(),
   });
+  await webpush.sendNotification(subscription.pushSubscription, payload);
 }
 
+router.get("/event-reminders/config", (_req, res) => {
+  const publicKey = process.env.VAPID_PUBLIC_KEY || "";
+  res.json({ configured: Boolean(publicKey && process.env.VAPID_PRIVATE_KEY), publicKey });
+});
+
 router.post("/event-reminders/subscriptions", (req, res) => {
-  const token = String(req.body?.token || "");
+  const pushSubscription = req.body?.pushSubscription;
   const subscriptionId = String(req.body?.subscriptionId || "");
   const title = String(req.body?.title || "");
-  const href = String(req.body?.href || "/timed-events");
   const mode = String(req.body?.mode || "start") as ReminderMode;
   const definition = req.body?.definition;
 
-  if (!token || !subscriptionId || !title || !["start", "one-hour-and-start", "daily-check"].includes(mode) || !isValidDefinition(definition)) {
+  if (!isPushSubscription(pushSubscription) || !subscriptionId || !title || !["start", "one-hour-and-start"].includes(mode) || !isValidDefinition(definition)) {
     res.status(400).json({ error: "Invalid reminder subscription payload." });
     return;
   }
 
   const store = readStore();
-  const id = subscriptionHash(token, subscriptionId);
+  const id = subscriptionHash(pushSubscription.endpoint, subscriptionId);
   const now = Date.now();
   const existing = store.subscriptions.find((subscription) => subscription.id === id);
   const next: ReminderSubscription = {
     id,
-    token,
+    endpoint: pushSubscription.endpoint,
+    pushSubscription,
     subscriptionId,
     title,
-    href,
     offsetHours: normalizeOffset(req.body?.offsetHours),
     mode,
     definition,
@@ -213,16 +196,14 @@ router.post("/event-reminders/subscriptions", (req, res) => {
 });
 
 router.delete("/event-reminders/subscriptions", (req, res) => {
-  const token = String(req.body?.token || "");
+  const endpoint = String(req.body?.endpoint || "");
   const subscriptionId = String(req.body?.subscriptionId || "");
-  if (!token || !subscriptionId) {
-    res.status(400).json({ error: "Token and subscriptionId are required." });
+  if (!endpoint || !subscriptionId) {
+    res.status(400).json({ error: "Endpoint and subscriptionId are required." });
     return;
   }
   const store = readStore();
-
-  store.subscriptions = store.subscriptions.filter((subscription) => subscription.id !== subscriptionHash(token, subscriptionId));
-
+  store.subscriptions = store.subscriptions.filter((subscription) => subscription.id !== subscriptionHash(endpoint, subscriptionId));
   writeStore(store);
   res.json({ ok: true });
 });
@@ -233,8 +214,8 @@ router.post("/event-reminders/send-due", async (req, res) => {
     res.status(401).json({ error: "Unauthorized." });
     return;
   }
-  if (!initializeFirebase()) {
-    res.status(503).json({ error: "Firebase Admin is not configured." });
+  if (!configureWebPush()) {
+    res.status(503).json({ error: "Web Push VAPID keys are not configured." });
     return;
   }
 

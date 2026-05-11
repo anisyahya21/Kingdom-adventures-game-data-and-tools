@@ -14,8 +14,9 @@ registerServiceWorker();
 function DeferredAskDatabaseWidget() {
   const [requested, setRequested] = useState(false);
   const isWorldMap = window.location.pathname === "/world-map";
+  const isEventReminderApp = window.location.pathname === "/event-reminders";
 
-  if (isWorldMap) return null;
+  if (isWorldMap || isEventReminderApp) return null;
 
   if (!requested) {
     return (

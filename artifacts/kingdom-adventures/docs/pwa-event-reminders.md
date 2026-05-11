@@ -1,152 +1,62 @@
-# Event Reminder PWA
+# Standalone Event Reminder PWA
 
-## Files added or changed
+The reminder PWA is a separate one-page app at `/event-reminders`. It is intentionally not the full Kingdom Adventures website and does not link users into the rest of the site.
 
-- `public/manifest.json` - small install manifest for the event reminder PWA.
-- `public/pwa-icon.svg` - install icon used by the manifest and notifications.
-- `public/firebase-messaging-sw.js` - service worker for install support, notification clicks, and FCM background messages.
-- `public/firebase-messaging-config.json` - optional static Firebase config for hosted service-worker startup.
-- `index.html` - links the manifest and mobile install metadata.
-- `src/main.tsx` - registers the service worker.
-- `src/lib/pwa.ts` - install prompt and service-worker helper functions.
-- `src/lib/fcm.ts` - Firebase Cloud Messaging setup and token creation.
-- `src/lib/event-refresh.ts` - refresh-on-open, refresh-on-focus, and timed refresh hook.
-- `src/pages/install.tsx` - install page with generated QR code.
-- `src/components/event-reminders.tsx` - reminder subscription UI on the Events page.
-- `src/pages/timed-events.tsx` - embeds the reminder manager and refresh behavior.
-- `src/pages/gacha-events.tsx` - exports existing gacha schedule data/resolvers for reuse.
-- `src/pages/wario-dungeon.tsx` - exports existing Wairo schedule data for reuse.
-- `artifacts/api-server/src/routes/event-reminders.ts` - anonymous subscription storage and scheduled send endpoint.
-- `artifacts/api-server/src/routes/index.ts` - mounts the reminder API routes.
-- `package.json` / `pnpm-lock.yaml` - adds `firebase`, `qrcode`, `@types/qrcode`, and `firebase-admin`.
+## Files
 
-## Key snippets
+- `public/manifest.json` - starts the installed PWA at `/event-reminders` and scopes it to that page.
+- `public/event-reminder-sw.js` - service worker for standard Web Push and notification taps.
+- `public/pwa-icon.svg` - Home Screen/install icon.
+- `src/lib/pwa.ts` - registers the service worker.
+- `src/lib/web-push.ts` - browser Push API helpers and iOS standalone detection.
+- `src/pages/event-reminder-app.tsx` - the mobile-first standalone reminder app.
+- `src/App.tsx` - renders `/event-reminders` without the normal site shell/header.
+- `src/main.tsx` - hides the Ask Database floating button inside the reminder app.
+- `src/pages/timed-events.tsx` - no embedded reminder manager; the full site remains normal.
+- `artifacts/api-server/src/routes/event-reminders.ts` - stores anonymous browser push subscriptions and sends due reminders.
 
-Manifest:
+## Notifications
 
-```json
-{
-  "name": "Kingdom Adventures Event Reminders",
-  "short_name": "KA Reminders",
-  "start_url": "/timed-events",
-  "scope": "/",
-  "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#2563eb",
-  "icons": [{ "src": "/pwa-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
-}
-```
+This uses the standard browser Push API with VAPID keys, not Firebase Cloud Messaging. That matters because iOS Safari web push works only for installed Home Screen web apps and uses Safari Web Push behavior.
 
-Service worker registration:
-
-```ts
-export function registerServiceWorker() {
-  if (!("serviceWorker" in navigator)) return;
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/firebase-messaging-sw.js").catch(() => {});
-  });
-}
-```
-
-QR code install page:
-
-```ts
-const installUrl = `${window.location.origin}/timed-events`;
-QRCode.toDataURL(installUrl, { margin: 2, width: 240 }).then(setQrCodeUrl);
-```
-
-FCM subscription setup:
-
-```ts
-const permission = await Notification.requestPermission();
-const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-const token = await getToken(getMessaging(app), {
-  vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
-  serviceWorkerRegistration: registration,
-});
-```
-
-Backend subscription save endpoint:
-
-```ts
-router.post("/event-reminders/subscriptions", (req, res) => {
-  const id = subscriptionHash(req.body.token, req.body.subscriptionId);
-  store.subscriptions = [...store.subscriptions.filter((sub) => sub.id !== id), nextSubscription];
-  writeStore(store);
-  res.json({ ok: true, id });
-});
-```
-
-Backend scheduled send endpoint:
-
-```ts
-router.post("/event-reminders/send-due", async (req, res) => {
-  const due = notificationTimes(subscription, now).filter(({ at }) => {
-    const diff = at.getTime() - now.getTime();
-    return diff >= -5 * 60_000 && diff <= lookAheadMs;
-  });
-  await admin.messaging().send({ token, notification, data: { url: subscription.href } });
-});
-```
-
-Event refresh logic:
-
-```ts
-useEventRefresh(() => setNow(new Date()), 180_000);
-```
-
-## Firebase configuration
-
-Frontend environment variables:
+Required backend env vars:
 
 ```txt
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
-VITE_FIREBASE_VAPID_KEY=
-```
-
-Backend environment variables, choose one credential style:
-
-```txt
-FIREBASE_SERVICE_ACCOUNT_JSON=
-```
-
-or:
-
-```txt
-FIREBASE_PROJECT_ID=
-FIREBASE_CLIENT_EMAIL=
-FIREBASE_PRIVATE_KEY=
-```
-
-Optional scheduled endpoint protection:
-
-```txt
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:you@example.com
 EVENT_REMINDER_CRON_SECRET=
 ```
 
-Call `POST /ka-api/ka/event-reminders/send-due` from a cron job every few minutes. If `EVENT_REMINDER_CRON_SECRET` is set, include `x-cron-secret`.
+Generate VAPID keys:
 
-## Platform testing
+```bat
+pnpm --filter @workspace/api-server exec web-push generate-vapid-keys
+```
 
-Android Chrome:
+Schedule this endpoint every few minutes:
 
-1. Open `/install`, scan the QR code, and install the app.
-2. Open `/timed-events`, allow notifications, and subscribe to an S Rank event or Wairo spawn.
-3. Run the cron endpoint near a due event and tap the notification. It should open the correct event page.
+```txt
+POST /ka-api/ka/event-reminders/send-due
+x-cron-secret: your secret
+```
 
-Desktop Chrome or Edge:
+## Supported Reminder Types
 
-1. Open `/install` and use Install app.
-2. Subscribe from `/timed-events`.
-3. Confirm the saved token appears in `artifacts/api-server/data/event-reminder-subscriptions.json`.
+- Wairo Dungeon spawn
+  - spawn notification only
+  - one-hour warning plus spawn notification
+- Individual S Rank gacha events
+- Weekly Conquest reset notification
 
-iPhone Safari:
+There is no daily Weekly Conquest reminder.
 
-1. Open `/install`, tap Share, then Add to Home Screen.
-2. Open the installed app from the home screen.
-3. Confirm event times refresh on open, focus, periodic refresh, and pull down in the reminder panel. Do not expect true background Firebase push on iPhone Safari.
+## iPhone Testing
+
+1. Open `https://kingdom-adventures-community-tools.vercel.app/event-reminders` in Safari.
+2. Tap Share.
+3. Tap Add to Home Screen.
+4. Open `KA Events` from the Home Screen icon.
+5. Tap a reminder and allow notifications.
+
+On iOS, notification permission is expected to work only after opening the installed Home Screen app.
