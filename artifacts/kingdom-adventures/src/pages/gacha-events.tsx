@@ -17,9 +17,9 @@ import { getEquipmentIcon } from "@/lib/equipment-icons";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 
-type EventKind = "jobs" | "facilities" | "weapons" | "items";
+export type EventKind = "jobs" | "facilities" | "weapons" | "items";
 
-type GachaEvent = {
+export type GachaEvent = {
   id: string;
   kind: EventKind;
   title: string;
@@ -255,21 +255,21 @@ const WEAPON_EVENTS: GachaEvent[] = [
   { id: "sweapon-36", kind: "weapons", title: namedWeaponPoolTitle(SWORD_POOL), poolLabel: "One-day S weapon pool", startMonth: 12, startDay: 28, endMonth: 12, endDay: 28, notes: SWORD_POOL.join(" | ") },
 ];
 
-const ALL_EVENTS: GachaEvent[] = [...JOB_EVENTS, ...FACILITY_PATTERN, ...WEAPON_EVENTS, ...ITEM_EVENTS];
+export const ALL_GACHA_EVENTS: GachaEvent[] = [...JOB_EVENTS, ...FACILITY_PATTERN, ...WEAPON_EVENTS, ...ITEM_EVENTS];
 
-function buildEventWindow(event: GachaEvent, year: number, offset: number) {
+export function buildGachaEventWindow(event: GachaEvent, year: number, offset: number) {
   return {
     startAt: eventClockDateToLocalDate(new Date(year, event.startMonth - 1, event.startDay, 0, 0, 0, 0), offset),
     endAt: eventClockDateToLocalDate(new Date(year, event.endMonth - 1, event.endDay, 23, 59, 59, 999), offset),
   };
 }
 
-function resolveEvent(event: GachaEvent, now: Date, offset: number): ResolvedEvent {
+export function resolveGachaEvent(event: GachaEvent, now: Date, offset: number): ResolvedEvent {
   const year = getOffsetAdjustedNow(now, offset).getFullYear();
   const windows = [
-    buildEventWindow(event, year - 1, offset),
-    buildEventWindow(event, year, offset),
-    buildEventWindow(event, year + 1, offset),
+    buildGachaEventWindow(event, year - 1, offset),
+    buildGachaEventWindow(event, year, offset),
+    buildGachaEventWindow(event, year + 1, offset),
   ];
   const activeWindow = windows.find((window) => window.startAt.getTime() <= now.getTime() && window.endAt.getTime() >= now.getTime());
   const upcomingWindow = windows
@@ -933,7 +933,7 @@ export default function GachaEventsPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const resolved = useMemo(() => ALL_EVENTS.map((event) => resolveEvent(event, now, eventOffset)), [eventOffset, now]);
+  const resolved = useMemo(() => ALL_GACHA_EVENTS.map((event) => resolveGachaEvent(event, now, eventOffset)), [eventOffset, now]);
   const activeEvents = useMemo(() => resolved.filter((event) => event.isActive), [resolved]);
   const nextOverall = useMemo(
     () =>

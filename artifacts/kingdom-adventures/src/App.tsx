@@ -28,6 +28,7 @@ const HousesPage = lazy(() => import("@/pages/houses"));
 const TownRankPage = lazy(() => import("@/pages/town-rank"));
 const GachaEventsPage = lazy(() => import("@/pages/gacha-events"));
 const TimedEventsPage = lazy(() => import("@/pages/timed-events"));
+const InstallPage = lazy(() => import("@/pages/install"));
 const MonstersPetsPage = lazy(() => import("@/pages/monsters-pets"));
 const WeeklyConquestPage = lazy(() => import("@/pages/weekly-conquest"));
 const WarioDungeonPage = lazy(() => import("@/pages/wario-dungeon"));
@@ -173,6 +174,7 @@ function Router() {
         <Route path="/survey">{() => <SurveyPlanner />}</Route>
         <Route path="/survey-planner">{() => <SurveyPlanner />}</Route>
         <Route path="/timed-events">{() => <TimedEventsPage />}</Route>
+        <Route path="/install">{() => <InstallPage />}</Route>
         <Route path="/wario-dungeon">{() => <WarioDungeonPage />}</Route>
         <Route path="/daily-rank-rewards">{() => <DailyRankRewardsPage />}</Route>
         <Route path="/job-center">{() => <JobCenterPage />}</Route>

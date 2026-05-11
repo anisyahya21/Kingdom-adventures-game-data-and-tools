@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award, AlertTriangle, Plus, Minus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EventReminderManager } from "@/components/event-reminders";
+import { useEventRefresh } from "@/lib/event-refresh";
 import { useEventHourOffset } from "@/lib/event-time";
 import { KAIRO_ROOM_DRAFTS } from "@/lib/en-event-drafts";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventStatus } from "@/lib/event-status";
@@ -58,11 +60,13 @@ type EventCard = (typeof EVENT_CARDS)[number] & { disabled?: boolean };
 export default function TimedEventsPage() {
   const [offset, setOffset] = useEventHourOffset();
   const [now, setNow] = useState(() => new Date());
+  const refreshNow = useCallback(() => setNow(new Date()), []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+  useEventRefresh(refreshNow);
 
   const localDay = new Date(now.getTime() + offset * 60 * 60 * 1000).toLocaleDateString("en-US", { weekday: "long" });
   const kairoRoomLive = Boolean(KAIRO_ROOM_DRAFTS.find((entry) => entry.day === localDay)?.active);
@@ -144,6 +148,8 @@ export default function TimedEventsPage() {
           return card.disabled ? <div key={card.title}>{content}</div> : <Link key={card.href} href={card.href}>{content}</Link>;
         })}
       </div>
+
+      <EventReminderManager />
     </div>
   );
 }

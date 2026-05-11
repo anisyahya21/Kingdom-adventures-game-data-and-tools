@@ -8,10 +8,10 @@ import { WairoFarmingCalculator } from "@/components/wairo-farming-calculator";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 import { getEquipmentIcon } from "@/lib/equipment-icons";
 
-type WarioDungeonEntry = { day: number; hour: number };
-type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
+export type WarioDungeonEntry = { day: number; hour: number };
+export type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
 
-const WARIO_DUNGEON_SCHEDULE: WarioDungeonEntry[] = [
+export const WAIRO_DUNGEON_SCHEDULE: WarioDungeonEntry[] = [
   { day: 1, hour: 9 }, { day: 1, hour: 13 }, { day: 1, hour: 18 },
   { day: 2, hour: 15 }, { day: 2, hour: 23 },
   { day: 3, hour: 12 }, { day: 3, hour: 17 },
@@ -47,7 +47,7 @@ const WARIO_DUNGEON_SCHEDULE: WarioDungeonEntry[] = [
 
 function buildWarioScheduleForEventMonth(year: number, monthIndex: number, offset: number): WarioDungeonSpawn[] {
   const entries: WarioDungeonSpawn[] = [];
-  for (const entry of WARIO_DUNGEON_SCHEDULE) {
+  for (const entry of WAIRO_DUNGEON_SCHEDULE) {
     const eventClockStartsAt = new Date(year, monthIndex, entry.day, entry.hour, 0, 0, 0);
     if (eventClockStartsAt.getMonth() !== monthIndex) continue;
     const startsAt = eventClockDateToLocalDate(eventClockStartsAt, offset);

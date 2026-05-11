@@ -4,9 +4,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics } from "@vercel/analytics/react";
 import App from "./App";
 import "./index.css";
+import { registerServiceWorker } from "./lib/pwa";
 
 const queryClient = new QueryClient();
 const AskDatabaseWidget = lazy(() => import("./components/AskDatabaseWidget"));
+
+registerServiceWorker();
 
 function DeferredAskDatabaseWidget() {
   const [requested, setRequested] = useState(false);

@@ -48,6 +48,7 @@
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@types/node": "catalog:",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
@@ -82,7 +83,9 @@
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
+    "firebase": "^12.13.0",
     "html-to-image": "^1.11.13",
+    "qrcode": "^1.5.4",
     "react-markdown": "^10.1.0"
   }
 }
