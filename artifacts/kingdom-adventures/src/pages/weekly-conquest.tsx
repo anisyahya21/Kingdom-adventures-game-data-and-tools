@@ -29,30 +29,82 @@ type WeeklyReward = { jobName: string; jobRank: string; diamonds: number; equipm
 type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; updatedBy?: string; updatedAt?: number } | null;
 type WeeklyMonsterEntry = { name: string; monster?: Monster; spawns: MonsterSpawn[] };
 type WeeklySharedData = { monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest; equipIcons?: Record<string, string> };
+type WeeklyMonsterStyle = { color: string; patternIndex: number };
 
 const FULL_TERRAIN_MAP = parseTerrainMapCsv(fullTerrainCsv);
 
 const TERRAIN_COLORS: Record<TerrainType, string> = {
-  grass: "#2f7d32",
-  sand: "#c6ad62",
-  volcano: "#b94f45",
-  swamp: "#2f7d73",
-  rock: "#8a8f98",
-  snow: "#a9c8dc",
-  ground: "#a87b1d",
+  grass: "#38761d",
+  sand: "#e9ddb2",
+  volcano: "#ea7b70",
+  swamp: "#3e948b",
+  rock: "#d9d9d9",
+  snow: "#f3f3f3",
+  ground: "#c89a00",
 };
 
-function desaturateHex(hex: string, mix = 0.92) {
+function hexToRgb(hex: string) {
   const normalized = hex.replace("#", "");
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  return `#${[r, g, b].map((channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function getRelativeLuminance(hex: string) {
+  const { r, g, b } = hexToRgb(hex);
+  const channels = [r, g, b].map((channel) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+}
+
+function getReadableTextColor(background: string) {
+  return getRelativeLuminance(background) > 0.46 ? "#0f172a" : "#ffffff";
+}
+
+function getPatternOverlayColor(background: string, alpha = 0.42) {
+  const rgb = getRelativeLuminance(background) > 0.46 ? "15,23,42" : "255,255,255";
+  return `rgba(${rgb},${alpha})`;
+}
+
+function desaturateHex(hex: string, mix = 0.92) {
+  const { r, g, b } = hexToRgb(hex);
   const gray = Math.round(r * 0.299 + g * 0.587 + b * 0.114);
   const mixed = [r, g, b].map((channel) => Math.round(channel * (1 - mix) + gray * mix));
   return `rgb(${mixed[0]},${mixed[1]},${mixed[2]})`;
 }
 
-const MONSTER_COLORS = ["#a855f7", "#38bdf8", "#f97316", "#22c55e", "#f43f5e"];
+function mixHex(hex: string, target: string, amount: number) {
+  const sourceRgb = hexToRgb(hex);
+  const targetRgb = hexToRgb(target);
+  return rgbToHex(
+    sourceRgb.r + (targetRgb.r - sourceRgb.r) * amount,
+    sourceRgb.g + (targetRgb.g - sourceRgb.g) * amount,
+    sourceRgb.b + (targetRgb.b - sourceRgb.b) * amount,
+  );
+}
+
+function shadeBiomeColor(hex: string, shadeIndex: number) {
+  const variants = [
+    { target: "#000000", amount: 0.18 },
+    { target: "#1d4ed8", amount: 0.34 },
+    { target: "#ffffff", amount: 0.42 },
+    { target: "#1d4ed8", amount: 0.28 },
+    { target: "#f97316", amount: 0.3 },
+    { target: "#7c3aed", amount: 0.3 },
+  ];
+  const variant = variants[Math.abs(shadeIndex) % variants.length] ?? variants[0];
+  return mixHex(hex, variant.target, variant.amount);
+}
+
+const FALLBACK_MONSTER_COLORS = ["#a855f7", "#38bdf8", "#f97316", "#22c55e", "#f43f5e"];
 
 const TERRAIN_TYPE_TO_AREA: Record<TerrainType, string> = {
   grass: "Grass",
@@ -64,12 +116,89 @@ const TERRAIN_TYPE_TO_AREA: Record<TerrainType, string> = {
   ground: "Ground",
 };
 
+const AREA_TO_TERRAIN_TYPE = Object.fromEntries(
+  Object.entries(TERRAIN_TYPE_TO_AREA).map(([terrain, area]) => [area.toLowerCase(), terrain]),
+) as Record<string, TerrainType>;
+
 function getNativeIndex(index: number, cellCount: number, nativeCount: number) {
   return Math.min(nativeCount - 1, Math.floor((index * nativeCount) / cellCount));
 }
 
 function areaKey(spawn: MonsterSpawn) {
   return `${spawn.area.trim().toLowerCase()}|${spawn.level}`;
+}
+
+function getEntryTerrain(entry: WeeklyMonsterEntry) {
+  const spawn = entry.spawns.find((candidate) => candidate.area && candidate.area.toLowerCase() !== "dispatch");
+  return spawn ? AREA_TO_TERRAIN_TYPE[spawn.area.trim().toLowerCase()] : undefined;
+}
+
+function getWeeklyMonsterStyles(entries: WeeklyMonsterEntry[]) {
+  const biomeCounts = new Map<TerrainType, number>();
+  return new Map(entries.map((entry, index) => {
+    const terrain = getEntryTerrain(entry);
+    if (!terrain) {
+      return [entry.name, {
+        color: FALLBACK_MONSTER_COLORS[index % FALLBACK_MONSTER_COLORS.length],
+        patternIndex: index,
+      }];
+    }
+    const shadeIndex = biomeCounts.get(terrain) ?? 0;
+    biomeCounts.set(terrain, shadeIndex + 1);
+    return [entry.name, {
+      color: shadeBiomeColor(TERRAIN_COLORS[terrain], shadeIndex),
+      patternIndex: shadeIndex,
+    }];
+  }));
+}
+
+function drawMonsterTilePattern(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  cellSize: number,
+  style: WeeklyMonsterStyle,
+) {
+  const pattern = style.patternIndex % 6;
+  if (pattern === 0 || cellSize < 2) return;
+  const size = Math.ceil(cellSize);
+  const stroke = Math.max(1, Math.floor(cellSize / 5));
+  ctx.save();
+  ctx.strokeStyle = getPatternOverlayColor(style.color, 0.52);
+  ctx.fillStyle = getPatternOverlayColor(style.color, 0.5);
+  ctx.lineWidth = stroke;
+  ctx.globalAlpha = 1;
+
+  if (pattern === 1) {
+    ctx.beginPath();
+    ctx.moveTo(px, py + size);
+    ctx.lineTo(px + size, py);
+    ctx.stroke();
+  } else if (pattern === 2) {
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + size, py + size);
+    ctx.stroke();
+  } else if (pattern === 3) {
+    ctx.fillRect(px, py + Math.floor(size / 2), size, stroke);
+  } else if (pattern === 4) {
+    ctx.fillRect(px + Math.floor(size / 2), py, stroke, size);
+  } else {
+    const dotSize = Math.max(1, Math.floor(cellSize / 2));
+    ctx.fillRect(px + Math.floor((size - dotSize) / 2), py + Math.floor((size - dotSize) / 2), dotSize, dotSize);
+  }
+  ctx.restore();
+}
+
+function getSelectorPatternBackground(style: WeeklyMonsterStyle) {
+  const overlay = getPatternOverlayColor(style.color, 0.34);
+  const pattern = style.patternIndex % 6;
+  if (pattern === 1) return `repeating-linear-gradient(135deg, transparent 0 6px, ${overlay} 6px 9px)`;
+  if (pattern === 2) return `repeating-linear-gradient(45deg, transparent 0 6px, ${overlay} 6px 9px)`;
+  if (pattern === 3) return `repeating-linear-gradient(0deg, transparent 0 7px, ${overlay} 7px 10px)`;
+  if (pattern === 4) return `repeating-linear-gradient(90deg, transparent 0 7px, ${overlay} 7px 10px)`;
+  if (pattern === 5) return `radial-gradient(circle at center, ${overlay} 0 3px, transparent 3px)`;
+  return undefined;
 }
 
 function WeeklySpawnMiniMap({
@@ -91,6 +220,7 @@ function WeeklySpawnMiniMap({
 
   const disabledSet = useMemo(() => new Set(disabledMonsters), [disabledMonsters]);
   const coveredSet = useMemo(() => new Set(coveredAreaKeys), [coveredAreaKeys]);
+  const monsterStyles = useMemo(() => getWeeklyMonsterStyles(entries), [entries]);
   const spawnMap = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const entry of entries) {
@@ -138,7 +268,7 @@ function WeeklySpawnMiniMap({
       const rows = FULL_TERRAIN_MAP.length;
       const cols = FULL_TERRAIN_MAP[0]?.length ?? 0;
       const rect = wrap.getBoundingClientRect();
-      const size = Math.max(280, Math.min(520, Math.floor(rect.width)));
+      const size = Math.max(320, Math.min(760, Math.floor(rect.width)));
       const width = size;
       const height = size;
       const dpr = window.devicePixelRatio || 1;
@@ -177,10 +307,24 @@ function WeeklySpawnMiniMap({
           ctx.fillRect(px, py, Math.ceil(cellSize), Math.ceil(cellSize));
           ctx.globalAlpha = 1;
           if (hasActiveSpawn) {
-            ctx.fillStyle = MONSTER_COLORS[entries.findIndex((entry) => entry.name === activeMonsters[0]) % MONSTER_COLORS.length] ?? "#a855f7";
-            ctx.globalAlpha = 0.32;
-            ctx.fillRect(px, py, Math.ceil(cellSize), Math.ceil(cellSize));
-            ctx.globalAlpha = 1;
+            const activeStyles = activeMonsters
+              .map((name, index) => monsterStyles.get(name) ?? { color: FALLBACK_MONSTER_COLORS[index % FALLBACK_MONSTER_COLORS.length], patternIndex: index });
+            if (activeStyles.length === 1) {
+              const style = activeStyles[0];
+              ctx.fillStyle = style.color;
+              ctx.globalAlpha = 0.68;
+              ctx.fillRect(px, py, Math.ceil(cellSize), Math.ceil(cellSize));
+              ctx.globalAlpha = 1;
+              drawMonsterTilePattern(ctx, px, py, cellSize, style);
+            } else {
+              const checkerIndex = (x + y) % activeStyles.length;
+              const style = activeStyles[checkerIndex] ?? activeStyles[0];
+              ctx.fillStyle = style.color;
+              ctx.globalAlpha = 0.72;
+              ctx.fillRect(px, py, Math.ceil(cellSize), Math.ceil(cellSize));
+              ctx.globalAlpha = 1;
+              drawMonsterTilePattern(ctx, px, py, cellSize, style);
+            }
           }
           if (isCovered && hasWeeklySpawn) {
             ctx.fillStyle = "rgba(16,185,129,0.72)";
@@ -194,26 +338,37 @@ function WeeklySpawnMiniMap({
     const observer = new ResizeObserver(draw);
     observer.observe(wrap);
     return () => observer.disconnect();
-  }, [coveredSet, disabledSet, entries, spawnMap]);
+  }, [coveredSet, disabledSet, entries, monsterStyles, spawnMap]);
 
   return (
-    <div className="mx-auto w-full max-w-[560px] rounded-lg border border-border bg-muted/10 p-2">
+    <div className="mx-auto w-full max-w-[800px] rounded-lg border border-border bg-muted/10 p-2">
       <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Weekly Spawn Map</p>
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+      <div className="mb-2 flex flex-wrap items-start gap-2">
         {entries.map((entry, index) => {
           const disabled = disabledSet.has(entry.name);
+          const monsterStyle = monsterStyles.get(entry.name) ?? { color: FALLBACK_MONSTER_COLORS[index % FALLBACK_MONSTER_COLORS.length], patternIndex: index };
+          const textColor = getReadableTextColor(monsterStyle.color);
           return (
             <button
               key={entry.name}
               type="button"
               onClick={() => onToggleMonster(entry.name)}
               className={cn(
-                "rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors",
-                disabled ? "border-border bg-muted/30 text-muted-foreground/50" : "border-transparent text-white",
+                "flex w-[86px] flex-col items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-semibold leading-tight transition-colors",
+                disabled ? "border-border bg-muted/30 text-muted-foreground/50" : "border-transparent",
               )}
-              style={disabled ? undefined : { backgroundColor: MONSTER_COLORS[index % MONSTER_COLORS.length] }}
+              style={disabled ? undefined : { backgroundColor: monsterStyle.color, backgroundImage: getSelectorPatternBackground(monsterStyle), color: textColor }}
             >
-              {entry.name}
+              <span className="h-11 w-11 overflow-hidden rounded border border-black/15 bg-background/40">
+                {entry.monster?.icon ? (
+                  <img src={entry.monster.icon} alt="" className="h-full w-full object-cover object-center" loading="lazy" />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center">
+                    <Trophy className="w-3.5 h-3.5 opacity-50" />
+                  </span>
+                )}
+              </span>
+              <span className="line-clamp-2 min-h-[1.5rem] break-words">{entry.name}</span>
             </button>
           );
         })}
@@ -221,7 +376,7 @@ function WeeklySpawnMiniMap({
       <div ref={wrapRef} className="relative aspect-square w-full overflow-hidden rounded-md border border-border/60 bg-background/70">
         <canvas
           ref={canvasRef}
-          className="block aspect-square w-full cursor-pointer"
+          className="mx-auto block aspect-square w-full cursor-pointer"
           onMouseMove={(event) => setHovered(getSpawnAtPoint(event.clientX, event.clientY))}
           onMouseLeave={() => setHovered(null)}
           onClick={(event) => {
