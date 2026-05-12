@@ -238,7 +238,7 @@ function WeeklySpawnMiniMap({
     const rect = canvas.getBoundingClientRect();
     const rows = FULL_TERRAIN_MAP.length;
     const cols = FULL_TERRAIN_MAP[0]?.length ?? 0;
-    const cellSize = Math.max(1, Math.floor(Math.min(rect.width / cols, rect.height / rows)));
+    const cellSize = Math.max(1, Math.min(rect.width / cols, rect.height / rows));
     const mapWidth = cellSize * cols;
     const mapHeight = cellSize * rows;
     const offsetX = (rect.width - mapWidth) / 2;
@@ -281,7 +281,7 @@ function WeeklySpawnMiniMap({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, width, height);
-      const cellSize = Math.max(1, Math.floor(Math.min(width / cols, height / rows)));
+      const cellSize = Math.max(1, Math.min(width / cols, height / rows));
       const mapWidth = cellSize * cols;
       const mapHeight = cellSize * rows;
       const offsetX = (width - mapWidth) / 2;
