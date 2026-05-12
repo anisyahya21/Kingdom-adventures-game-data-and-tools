@@ -11,7 +11,13 @@ export function configuredApiBase() {
     return queryBase;
   }
 
-  return (window.localStorage.getItem(STORED_API_BASE_KEY) || envBase).replace(/\/$/, "");
+  const storedBase = (window.localStorage.getItem(STORED_API_BASE_KEY) || "").replace(/\/$/, "");
+  if (window.location.protocol === "https:" && /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.)/i.test(storedBase)) {
+    window.localStorage.removeItem(STORED_API_BASE_KEY);
+    return envBase;
+  }
+
+  return (storedBase || envBase).replace(/\/$/, "");
 }
 
 export function saveConfiguredApiBase(value: string) {

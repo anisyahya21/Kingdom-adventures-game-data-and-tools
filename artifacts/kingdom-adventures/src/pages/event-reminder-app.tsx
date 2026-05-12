@@ -2,18 +2,19 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, BellOff, Check, ChevronDown, Clock3, Info, Loader2, Minus, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { apiUrl, configuredApiBase, saveConfiguredApiBase } from "@/lib/api";
+import { apiUrl } from "@/lib/api";
 import { useEventRefresh } from "@/lib/event-refresh";
 import { useEventHourOffset } from "@/lib/event-time";
 import {
   getBrowserPushStatus,
   getCurrentBrowserPushSubscription,
   isIosDevice,
+  scheduleLocalTestNotification,
   subscribeBrowserPush,
   type BrowserPushStatus,
 } from "@/lib/web-push";
 import { buildLocalAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
-import { ALL_GACHA_EVENTS, resolveGachaEvent, type GachaEvent } from "@/pages/gacha-events";
+import { ALL_GACHA_EVENTS, buildGachaEventWindow, type GachaEvent } from "@/pages/gacha-events";
 import { getNextWarioDungeonSpawn, WAIRO_DUNGEON_SCHEDULE, type WarioDungeonEntry } from "@/pages/wario-dungeon";
 
 type ReminderMode = "start" | "one-hour-and-start";
@@ -24,7 +25,7 @@ type ReminderDefinition =
 
 type ReminderOption = {
   id: string;
-  group: "Wairo" | "S Rank Gacha" | "Weekly";
+  group: "Wairo" | "S Rank Gacha" | "S Rank Facility" | "Weekly";
   title: string;
   detail: string;
   startsAt: Date;
@@ -70,6 +71,15 @@ function formatDate(target: Date) {
 
 function offsetLabel(offset: number) {
   return offset >= 0 ? `+${offset}h` : `${offset}h`;
+}
+
+function nextReminderGachaEvent(event: GachaEvent, now: Date, offset: number) {
+  const eventClockYear = new Date(now.getTime() + offset * 60 * 60 * 1000).getFullYear();
+  const windows = [eventClockYear - 1, eventClockYear, eventClockYear + 1, eventClockYear + 2]
+    .map((year) => buildGachaEventWindow(event, year, offset))
+    .filter((window) => window.endAt.getTime() >= now.getTime())
+    .sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
+  return windows[0] ?? buildGachaEventWindow(event, eventClockYear + 1, offset);
 }
 
 function StatusGrid({ status }: { status: BrowserPushStatus | null }) {
@@ -204,7 +214,6 @@ export default function EventReminderAppPage() {
   const [expanded, setExpanded] = useState<"all" | "gacha">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [testBusy, setTestBusy] = useState(false);
-  const [apiBaseInput, setApiBaseInput] = useState(() => configuredApiBase());
 
   const refresh = useCallback(() => {
     setNow(new Date());
@@ -245,13 +254,13 @@ export default function EventReminderAppPage() {
     }] : [];
 
     const gacha = ALL_GACHA_EVENTS
-      .filter((event) => event.title.startsWith("S Rank"))
+      .filter((event) => event.title.startsWith("S Rank") || event.kind === "facilities")
       .map((event): ReminderOption => {
-        const resolved = resolveGachaEvent(event, now, eventOffset);
+        const resolved = nextReminderGachaEvent(event, now, eventOffset);
         const id = `gacha:${event.id}`;
         return {
           id,
-          group: "S Rank Gacha",
+          group: event.kind === "facilities" ? "S Rank Facility" : "S Rank Gacha",
           title: event.title,
           detail: event.poolLabel,
           startsAt: resolved.startAt,
@@ -324,23 +333,11 @@ export default function EventReminderAppPage() {
 
   const needsIosInstall = isIosDevice() && status?.supported && !status.standalone;
   const blockedReason = status && !status.supported ? status.supportReason : "";
-  const saveNotificationServer = () => {
-    const clean = saveConfiguredApiBase(apiBaseInput);
-    setApiBaseInput(clean);
-    setMessage(clean ? `Notification server set to ${clean}.` : "Notification server reset to the site default.");
-  };
   const sendTestNotification = async () => {
     setTestBusy(true);
     setMessage("Scheduling a test notification for 5 seconds from now...");
     try {
-      saveConfiguredApiBase(apiBaseInput);
-      const pushSubscription = await subscribeBrowserPush();
-      const response = await fetch(apiUrl("/event-reminders/test"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pushSubscription: pushSubscription.toJSON(), delaySeconds: 5 }),
-      });
-      if (!response.ok) throw new Error("The reminder server could not schedule a test notification.");
+      await scheduleLocalTestNotification(5);
       setMessage("Test notification scheduled. It should arrive in about 5 seconds.");
       await syncStatus();
     } catch (error) {
@@ -388,24 +385,12 @@ export default function EventReminderAppPage() {
           {message ? <div className="rounded-2xl border border-white/10 bg-white/10 p-3 text-sm text-slate-100">{message}</div> : null}
 
           <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-sky-300">Notification server</div>
-            <div className="mt-2 flex gap-2">
-              <input
-                value={apiBaseInput}
-                onChange={(event) => setApiBaseInput(event.target.value)}
-                placeholder="https://your-backend-url"
-                className="min-w-0 flex-1 rounded-xl bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
-              />
-              <Button type="button" onClick={saveNotificationServer} className="bg-slate-700 text-white hover:bg-slate-700">
-                Save
-              </Button>
-            </div>
-            <div className="mt-2 text-xs text-slate-500">Use this when testing with a local backend tunnel.</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-sky-300">Test mode</div>
             <Button type="button" onClick={sendTestNotification} disabled={testBusy || Boolean(blockedReason)} className="mt-3 w-full bg-violet-500 text-white hover:bg-violet-500 disabled:bg-slate-700">
               {testBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
               {testBusy ? "Scheduling..." : "Send test notification in 5 seconds"}
             </Button>
-            {blockedReason ? <div className="mt-2 text-xs text-amber-200">{blockedReason}</div> : null}
+            {blockedReason ? <div className="mt-2 text-xs text-amber-200">{blockedReason}</div> : <div className="mt-2 text-xs text-slate-500">This tests the installed app notification permission without waiting for an event.</div>}
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-3">

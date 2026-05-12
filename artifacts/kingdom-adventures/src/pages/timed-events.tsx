@@ -11,13 +11,6 @@ import { isWarioDungeonLive } from "@/pages/wario-dungeon";
 
 const EVENT_CARDS = [
   {
-    href: "/event-reminders",
-    title: "Event Reminders",
-    description: "Standalone mobile PWA for Wairo, Weekly Conquest reset, and S Rank gacha notifications.",
-    icon: Bell,
-    status: "live" as EventStatus,
-  },
-  {
     href: "/gacha-events",
     title: "Gacha Events",
     description: "Featured S-rank jobs, S facilities, Kairo windows, and weapon banner timing.",
@@ -126,6 +119,22 @@ export default function TimedEventsPage() {
         </button>
         <span className="text-xs text-muted-foreground">(applies to Kairo Room, Job Center, Wairo Dungeon, Gacha Events)</span>
       </div>
+
+      <Link href="/event-reminders">
+        <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 transition-colors hover:border-sky-400/60 hover:bg-sky-500/15">
+          <div className="flex items-start gap-3">
+            <div className="rounded-md bg-sky-500/15 p-2">
+              <Bell className="h-5 w-5 text-sky-300" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-sky-100">Open Event Reminder App</div>
+              <div className="mt-1 text-xs leading-relaxed text-sky-100/75">
+                One-page mobile PWA for Wairo, Weekly Conquest reset, S Rank gacha, and S Rank facility notifications.
+              </div>
+            </div>
+          </div>
+        </div>
+      </Link>
 
       <div className="grid gap-4 md:grid-cols-2">
         {(EVENT_CARDS as EventCard[]).map((card) => {

@@ -127,6 +127,32 @@ export async function subscribeBrowserPush() {
   });
 }
 
+export async function scheduleLocalTestNotification(delaySeconds = 5) {
+  if (isIosDevice() && !isStandaloneDisplay()) {
+    throw new Error("On iPhone, add this app to the Home Screen first, then open it from the icon.");
+  }
+  if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+    throw new Error("This browser does not support app notifications.");
+  }
+
+  await navigator.serviceWorker.register("/event-reminder-sw.js");
+  const registration = await navigator.serviceWorker.ready;
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    throw new Error("Notifications are not allowed yet.");
+  }
+
+  window.setTimeout(() => {
+    registration.showNotification("KA Events test", {
+      body: "This is your test notification.",
+      icon: "/pwa-icon.svg",
+      badge: "/pwa-icon.svg",
+      tag: `ka-event-local-test-${Date.now()}`,
+      data: { url: "/event-reminders" },
+    });
+  }, Math.max(1, delaySeconds) * 1000);
+}
+
 export async function getCurrentBrowserPushSubscription() {
   if (!("serviceWorker" in navigator)) return null;
   const registration = await navigator.serviceWorker.getRegistration("/event-reminder-sw.js")
