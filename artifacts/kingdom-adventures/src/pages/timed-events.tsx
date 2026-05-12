@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award, AlertTriangle, Plus, Minus } from "lucide-react";
+import { Bell, BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award, AlertTriangle, Plus, Minus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useEventRefresh } from "@/lib/event-refresh";
@@ -10,6 +10,13 @@ import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventSta
 import { isWarioDungeonLive } from "@/pages/wario-dungeon";
 
 const EVENT_CARDS = [
+  {
+    href: "/event-reminders",
+    title: "Event Reminders",
+    description: "Standalone mobile PWA for Wairo, Weekly Conquest reset, and S Rank gacha notifications.",
+    icon: Bell,
+    status: "live" as EventStatus,
+  },
   {
     href: "/gacha-events",
     title: "Gacha Events",

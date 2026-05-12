@@ -203,6 +203,7 @@ export default function EventReminderAppPage() {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<"all" | "gacha">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [testBusy, setTestBusy] = useState(false);
   const [apiBaseInput, setApiBaseInput] = useState(() => configuredApiBase());
 
   const refresh = useCallback(() => {
@@ -328,6 +329,26 @@ export default function EventReminderAppPage() {
     setApiBaseInput(clean);
     setMessage(clean ? `Notification server set to ${clean}.` : "Notification server reset to the site default.");
   };
+  const sendTestNotification = async () => {
+    setTestBusy(true);
+    setMessage("Scheduling a test notification for 5 seconds from now...");
+    try {
+      saveConfiguredApiBase(apiBaseInput);
+      const pushSubscription = await subscribeBrowserPush();
+      const response = await fetch(apiUrl("/event-reminders/test"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pushSubscription: pushSubscription.toJSON(), delaySeconds: 5 }),
+      });
+      if (!response.ok) throw new Error("The reminder server could not schedule a test notification.");
+      setMessage("Test notification scheduled. It should arrive in about 5 seconds.");
+      await syncStatus();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not send a test notification.");
+    } finally {
+      setTestBusy(false);
+    }
+  };
 
   return (
     <main className="min-h-dvh bg-black text-white">
@@ -380,6 +401,11 @@ export default function EventReminderAppPage() {
               </Button>
             </div>
             <div className="mt-2 text-xs text-slate-500">Use this when testing with a local backend tunnel.</div>
+            <Button type="button" onClick={sendTestNotification} disabled={testBusy || Boolean(blockedReason)} className="mt-3 w-full bg-violet-500 text-white hover:bg-violet-500 disabled:bg-slate-700">
+              {testBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+              {testBusy ? "Scheduling..." : "Send test notification in 5 seconds"}
+            </Button>
+            {blockedReason ? <div className="mt-2 text-xs text-amber-200">{blockedReason}</div> : null}
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-3">

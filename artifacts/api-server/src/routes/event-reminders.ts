@@ -208,6 +208,38 @@ router.delete("/event-reminders/subscriptions", (req, res) => {
   res.json({ ok: true });
 });
 
+router.post("/event-reminders/test", (req, res) => {
+  const pushSubscription = req.body?.pushSubscription;
+  const delaySeconds = Math.max(3, Math.min(30, Number(req.body?.delaySeconds || 5)));
+  if (!isPushSubscription(pushSubscription)) {
+    res.status(400).json({ error: "A browser push subscription is required." });
+    return;
+  }
+  if (!configureWebPush()) {
+    res.status(503).json({ error: "Web Push VAPID keys are not configured." });
+    return;
+  }
+
+  setTimeout(async () => {
+    const payload = JSON.stringify({
+      title: "KA Events test",
+      body: "This is your test notification.",
+      tag: `ka-event-test-${Date.now()}`,
+      url: "/event-reminders",
+      scheduledAt: new Date().toISOString(),
+    });
+
+    try {
+      await webpush.sendNotification(pushSubscription, payload);
+    } catch {
+      // The caller already got the scheduling response; failed test sends are
+      // intentionally not retried from this endpoint.
+    }
+  }, delaySeconds * 1000);
+
+  res.json({ ok: true, delaySeconds });
+});
+
 router.post("/event-reminders/send-due", async (req, res) => {
   const secret = process.env.EVENT_REMINDER_CRON_SECRET;
   if (secret && req.header("x-cron-secret") !== secret) {
