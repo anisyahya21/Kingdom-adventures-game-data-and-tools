@@ -302,9 +302,12 @@ function WeeklySpawnMiniMap({
           const terrainColor = terrain ? TERRAIN_COLORS[terrain] : "#172033";
           ctx.fillStyle = hasActiveSpawn ? terrainColor : desaturateHex(terrainColor);
           ctx.globalAlpha = hasActiveSpawn ? 0.95 : hasWeeklySpawn ? 0.62 : 0.42;
-          const px = offsetX + x * cellSize;
-          const py = offsetY + y * cellSize;
-          ctx.fillRect(px, py, Math.ceil(cellSize), Math.ceil(cellSize));
+          const px = Math.floor(offsetX + x * cellSize);
+          const py = Math.floor(offsetY + y * cellSize);
+          const tileWidth = Math.ceil(offsetX + (x + 1) * cellSize) - px;
+          const tileHeight = Math.ceil(offsetY + (y + 1) * cellSize) - py;
+          const patternSize = Math.max(tileWidth, tileHeight);
+          ctx.fillRect(px, py, tileWidth, tileHeight);
           ctx.globalAlpha = 1;
           if (hasActiveSpawn) {
             const activeStyles = activeMonsters
@@ -313,22 +316,22 @@ function WeeklySpawnMiniMap({
               const style = activeStyles[0];
               ctx.fillStyle = style.color;
               ctx.globalAlpha = 0.68;
-              ctx.fillRect(px, py, Math.ceil(cellSize), Math.ceil(cellSize));
+              ctx.fillRect(px, py, tileWidth, tileHeight);
               ctx.globalAlpha = 1;
-              drawMonsterTilePattern(ctx, px, py, cellSize, style);
+              drawMonsterTilePattern(ctx, px, py, patternSize, style);
             } else {
               const checkerIndex = (x + y) % activeStyles.length;
               const style = activeStyles[checkerIndex] ?? activeStyles[0];
               ctx.fillStyle = style.color;
               ctx.globalAlpha = 0.72;
-              ctx.fillRect(px, py, Math.ceil(cellSize), Math.ceil(cellSize));
+              ctx.fillRect(px, py, tileWidth, tileHeight);
               ctx.globalAlpha = 1;
-              drawMonsterTilePattern(ctx, px, py, cellSize, style);
+              drawMonsterTilePattern(ctx, px, py, patternSize, style);
             }
           }
           if (isCovered && hasWeeklySpawn) {
             ctx.fillStyle = "rgba(16,185,129,0.72)";
-            ctx.fillRect(px, py, Math.max(1, cellSize * 0.45), Math.max(1, cellSize * 0.45));
+            ctx.fillRect(px, py, Math.max(1, tileWidth * 0.45), Math.max(1, tileHeight * 0.45));
           }
         }
       }
