@@ -19,7 +19,7 @@ The reminder PWA is a separate one-page app at `/event-reminders`. It is intenti
 
 This uses the standard browser Push API with VAPID keys, not Firebase Cloud Messaging. That matters because iOS Safari web push works only for installed Home Screen web apps and uses Safari Web Push behavior.
 
-Required backend env vars:
+Recommended backend env vars:
 
 ```txt
 VAPID_PUBLIC_KEY=
@@ -27,6 +27,8 @@ VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:you@example.com
 EVENT_REMINDER_CRON_SECRET=
 ```
+
+If `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are missing, the API server will generate a server-side key pair in `data/event-reminder-vapid-keys.json`. This is enough for testing and simple hosting, but stable production secrets are better because existing browser subscriptions depend on the same public/private key pair staying available across deploys.
 
 Generate VAPID keys:
 

@@ -7,6 +7,7 @@ import webpush, { type PushSubscription } from "web-push";
 const router = Router();
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "event-reminder-subscriptions.json");
+const VAPID_KEY_FILE = path.join(DATA_DIR, "event-reminder-vapid-keys.json");
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
@@ -79,6 +80,13 @@ type Store = {
   subscriptions: ReminderSubscription[];
 };
 
+type VapidKeyPair = {
+  publicKey: string;
+  privateKey: string;
+};
+
+let cachedVapidKeys: VapidKeyPair | null = null;
+
 function readStore(): Store {
   try {
     return JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
@@ -121,12 +129,50 @@ function subscriptionHash(endpoint: string, subscriptionId: string) {
 }
 
 function configureWebPush() {
-  const publicKey = process.env.VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  const keyPair = getVapidKeys();
+  const publicKey = keyPair?.publicKey;
+  const privateKey = keyPair?.privateKey;
   const subject = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
   if (!publicKey || !privateKey) return false;
   webpush.setVapidDetails(subject, publicKey, privateKey);
   return true;
+}
+
+function readGeneratedVapidKeys(): VapidKeyPair | null {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(VAPID_KEY_FILE, "utf8")) as Partial<VapidKeyPair>;
+    if (parsed.publicKey && parsed.privateKey) return { publicKey: parsed.publicKey, privateKey: parsed.privateKey };
+  } catch {
+    // Missing generated keys are expected on first boot.
+  }
+  return null;
+}
+
+function writeGeneratedVapidKeys(keys: VapidKeyPair) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(VAPID_KEY_FILE, JSON.stringify(keys, null, 2));
+}
+
+function getVapidKeys(): VapidKeyPair | null {
+  const envPublicKey = process.env.VAPID_PUBLIC_KEY;
+  const envPrivateKey = process.env.VAPID_PRIVATE_KEY;
+  if (envPublicKey && envPrivateKey) {
+    cachedVapidKeys = { publicKey: envPublicKey, privateKey: envPrivateKey };
+    return cachedVapidKeys;
+  }
+
+  if (cachedVapidKeys) return cachedVapidKeys;
+
+  const generatedKeys = readGeneratedVapidKeys();
+  if (generatedKeys) {
+    cachedVapidKeys = generatedKeys;
+    return cachedVapidKeys;
+  }
+
+  const freshKeys = webpush.generateVAPIDKeys();
+  cachedVapidKeys = { publicKey: freshKeys.publicKey, privateKey: freshKeys.privateKey };
+  writeGeneratedVapidKeys(cachedVapidKeys);
+  return cachedVapidKeys;
 }
 
 function eventClockDateToLocalDate(date: Date, offset: number) {
@@ -199,8 +245,8 @@ async function sendReminder(subscription: ReminderSubscription, kind: string, sc
 }
 
 router.get("/event-reminders/config", (_req, res) => {
-  const publicKey = process.env.VAPID_PUBLIC_KEY || "";
-  res.json({ configured: Boolean(publicKey && process.env.VAPID_PRIVATE_KEY), publicKey });
+  const keyPair = getVapidKeys();
+  res.json({ configured: Boolean(keyPair?.publicKey && keyPair.privateKey), publicKey: keyPair?.publicKey || "" });
 });
 
 router.post("/event-reminders/subscriptions", (req, res) => {
