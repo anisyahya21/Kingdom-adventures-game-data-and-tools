@@ -222,17 +222,19 @@ function ReminderRow({
   onTap: () => void;
 }) {
   const disabled = Boolean(disabledReason);
+  const turningOn = busy && !active;
+  const turningOff = busy && active;
 
   return (
-    <div className={`rounded-2xl border p-4 transition-colors ${active ? "border-emerald-400/40 bg-emerald-400/10" : "border-white/10 bg-slate-900/70"}`}>
+    <div className={`rounded-2xl border p-4 transition-colors ${active || turningOn ? "border-emerald-400/40 bg-emerald-400/10" : "border-white/10 bg-slate-900/70"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-300">{option.group}</div>
           <div className="mt-1 truncate text-base font-semibold text-white">{option.title}</div>
           <div className="mt-1 text-xs text-slate-400">{option.detail}</div>
         </div>
-        {active ? (
-          <div className="rounded-full bg-emerald-400/15 px-2 py-1 text-xs font-semibold text-emerald-300">On</div>
+        {active || turningOn ? (
+          <div className="rounded-full bg-emerald-400/15 px-2 py-1 text-xs font-semibold text-emerald-300">{turningOn ? "Turning on" : "On"}</div>
         ) : (
           <div className="rounded-full bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-400">Off</div>
         )}
@@ -259,18 +261,19 @@ function ReminderRow({
       <div className="mt-3 flex items-center justify-between gap-3">
         <OffsetControl value={option.offsetHours} disabled={active} onChange={onOffsetChange} />
         {active ? (
-          <Button type="button" variant="outline" onClick={onUnsubscribe} disabled={busy} className="border-white/15 bg-white/5 text-white">
+          <Button type="button" variant="outline" onClick={onUnsubscribe} disabled={busy} className="border-red-300/30 bg-red-500/10 text-red-50 hover:bg-red-500/20">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellOff className="h-4 w-4" />}
-            Disable
+            {turningOff ? "Stopping..." : "Stop"}
           </Button>
         ) : (
           <Button type="button" onClick={disabled ? onTap : onSubscribe} disabled={busy} className={`${disabled ? "bg-slate-700 text-slate-100 hover:bg-slate-700" : "bg-sky-500 text-white hover:bg-sky-500"}`}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
-            {busy ? "Checking..." : "Notify me"}
+            {turningOn ? "Turning on..." : "Notify me"}
           </Button>
         )}
       </div>
-      {active ? <div className="mt-2 text-xs text-slate-500">Disable this reminder to change its offset.</div> : null}
+      {active ? <div className="mt-2 text-xs text-slate-500">Stop this reminder to change its offset.</div> : null}
+      {turningOn ? <div className="mt-2 text-xs text-emerald-200">Asking the browser and saving this reminder...</div> : null}
       {!active && disabledReason ? <div className="mt-2 text-xs text-amber-200">{disabledReason}</div> : null}
     </div>
   );
