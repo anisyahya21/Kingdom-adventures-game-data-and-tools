@@ -15,12 +15,12 @@ import {
 } from "@/lib/web-push";
 import { buildLocalAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { ALL_GACHA_EVENTS, buildGachaEventWindow, type GachaEvent } from "@/pages/gacha-events";
-import { getNextWarioDungeonSpawn, WAIRO_DUNGEON_SCHEDULE, type WarioDungeonEntry } from "@/pages/wario-dungeon";
+import { getNextWarioDungeonSpawn } from "@/pages/wario-dungeon";
 
 type ReminderMode = "start" | "one-hour-and-start";
 type ReminderDefinition =
   | { type: "gacha"; event: GachaEvent }
-  | { type: "wairo"; event: WarioDungeonEntry }
+  | { type: "wairo" }
   | { type: "weekly-conquest" };
 
 type ReminderOption = {
@@ -228,16 +228,15 @@ export default function EventReminderAppPage() {
 
   const options = useMemo(() => {
     const nextWairo = getNextWarioDungeonSpawn(now, eventOffset);
-    const wairoEntry = nextWairo ? WAIRO_DUNGEON_SCHEDULE.find((entry) => entry.day === nextWairo.day && entry.hour === nextWairo.hour) : null;
-    const wairo: ReminderOption[] = nextWairo && wairoEntry ? [{
-      id: `wairo:${wairoEntry.day}:${wairoEntry.hour}`,
+    const wairo: ReminderOption[] = nextWairo ? [{
+      id: "wairo:all",
       group: "Wairo",
-      title: "Wairo Dungeon spawn",
-      detail: wairoTwoStep ? "Notify one hour before and when it spawns." : "Notify when it spawns.",
+      title: "All Wairo Dungeon spawns",
+      detail: wairoTwoStep ? "Notify one hour before and when every Wairo spawn starts." : "Notify when every Wairo spawn starts.",
       startsAt: nextWairo.startsAt,
-      offsetHours: customOffsets[`wairo:${wairoEntry.day}:${wairoEntry.hour}`] ?? saved[`wairo:${wairoEntry.day}:${wairoEntry.hour}`]?.offsetHours ?? eventOffset,
+      offsetHours: customOffsets["wairo:all"] ?? saved["wairo:all"]?.offsetHours ?? eventOffset,
       mode: wairoTwoStep ? "one-hour-and-start" : "start",
-      definition: { type: "wairo", event: wairoEntry },
+      definition: { type: "wairo" },
     }] : [];
 
     const weeklyTimeline = buildLocalAutomaticWeeklyConquestTimeline(now, 1);

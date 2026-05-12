@@ -10,6 +10,39 @@ const STORE_FILE = path.join(DATA_DIR, "event-reminder-subscriptions.json");
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
+const WAIRO_DUNGEON_SCHEDULE = [
+  { day: 1, hour: 9 }, { day: 1, hour: 13 }, { day: 1, hour: 18 },
+  { day: 2, hour: 15 }, { day: 2, hour: 23 },
+  { day: 3, hour: 12 }, { day: 3, hour: 17 },
+  { day: 4, hour: 19 },
+  { day: 5, hour: 21 }, { day: 5, hour: 6 },
+  { day: 6, hour: 8 },
+  { day: 7, hour: 12 },
+  { day: 8, hour: 14 },
+  { day: 9, hour: 19 },
+  { day: 10, hour: 22 },
+  { day: 11, hour: 21 },
+  { day: 12, hour: 16 },
+  { day: 13, hour: 11 },
+  { day: 14, hour: 19 },
+  { day: 15, hour: 20 },
+  { day: 16, hour: 8 },
+  { day: 17, hour: 16 },
+  { day: 18, hour: 20 },
+  { day: 19, hour: 22 },
+  { day: 20, hour: 1 },
+  { day: 21, hour: 17 },
+  { day: 22, hour: 16 },
+  { day: 23, hour: 19 },
+  { day: 24, hour: 11 },
+  { day: 25, hour: 23 },
+  { day: 26, hour: 0 },
+  { day: 27, hour: 11 },
+  { day: 28, hour: 16 },
+  { day: 29, hour: 14 },
+  { day: 30, hour: 15 }, { day: 30, hour: 22 },
+  { day: 31, hour: 10 }, { day: 31, hour: 21 },
+];
 
 type ReminderMode = "start" | "one-hour-and-start";
 type GachaEvent = {
@@ -25,7 +58,7 @@ type GachaEvent = {
 };
 type ReminderDefinition =
   | { type: "gacha"; event: GachaEvent }
-  | { type: "wairo"; event: { day: number; hour: number } }
+  | { type: "wairo"; event?: { day: number; hour: number } }
   | { type: "weekly-conquest" };
 
 type ReminderSubscription = {
@@ -75,7 +108,7 @@ function isValidDefinition(value: unknown): value is ReminderDefinition {
   if (!value || typeof value !== "object") return false;
   const definition = value as ReminderDefinition;
   if (definition.type === "weekly-conquest") return true;
-  if (definition.type === "wairo") return Number.isFinite(definition.event?.day) && Number.isFinite(definition.event?.hour);
+  if (definition.type === "wairo") return true;
   if (definition.type === "gacha") {
     const event = definition.event;
     return Boolean(event?.id && event.title && Number.isFinite(event.startMonth) && Number.isFinite(event.startDay) && Number.isFinite(event.endMonth) && Number.isFinite(event.endDay));
@@ -112,15 +145,24 @@ function nextGachaStart(event: GachaEvent, now: Date, offset: number) {
     .sort((a, b) => a.getTime() - b.getTime())[0];
 }
 
-function nextWairoStart(entry: { day: number; hour: number }, now: Date, offset: number) {
+function wairoNotificationTimes(subscription: ReminderSubscription, now: Date) {
+  const offset = subscription.offsetHours;
   const eventClockNow = new Date(now.getTime() + offset * HOUR_MS);
-  const candidates: Date[] = [];
-  for (let monthOffset = 0; monthOffset <= 2; monthOffset += 1) {
-    const eventClockStart = new Date(eventClockNow.getFullYear(), eventClockNow.getMonth() + monthOffset, entry.day, entry.hour, 0, 0, 0);
-    if (eventClockStart.getDate() !== entry.day) continue;
-    candidates.push(eventClockDateToLocalDate(eventClockStart, offset));
+  const candidates: Array<{ kind: string; at: Date }> = [];
+  for (let monthOffset = -1; monthOffset <= 2; monthOffset += 1) {
+    const year = eventClockNow.getFullYear();
+    const month = eventClockNow.getMonth() + monthOffset;
+    for (const entry of WAIRO_DUNGEON_SCHEDULE) {
+      const eventClockStart = new Date(year, month, entry.day, entry.hour, 0, 0, 0);
+      if (eventClockStart.getDate() !== entry.day) continue;
+      const startAt = eventClockDateToLocalDate(eventClockStart, offset);
+      candidates.push({ kind: "start", at: startAt });
+      if (subscription.mode === "one-hour-and-start") {
+        candidates.push({ kind: "one-hour", at: new Date(startAt.getTime() - HOUR_MS) });
+      }
+    }
   }
-  return candidates.filter((date) => date.getTime() >= now.getTime() - 5 * 60 * 1000).sort((a, b) => a.getTime() - b.getTime())[0];
+  return candidates.sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
 function nextWeeklyConquestStart(now: Date) {
@@ -129,10 +171,11 @@ function nextWeeklyConquestStart(now: Date) {
 }
 
 function notificationTimes(subscription: ReminderSubscription, now: Date) {
+  if (subscription.definition.type === "wairo") return wairoNotificationTimes(subscription, now);
+
   const offset = subscription.offsetHours;
   let startAt: Date | undefined;
   if (subscription.definition.type === "gacha") startAt = nextGachaStart(subscription.definition.event, now, offset);
-  if (subscription.definition.type === "wairo") startAt = nextWairoStart(subscription.definition.event, now, offset);
   if (subscription.definition.type === "weekly-conquest") startAt = nextWeeklyConquestStart(now);
   if (!startAt) return [];
 
