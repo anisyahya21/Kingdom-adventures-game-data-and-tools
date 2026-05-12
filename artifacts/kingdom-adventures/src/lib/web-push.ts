@@ -106,6 +106,14 @@ export async function subscribeBrowserPush() {
     throw new Error("This browser does not support web push notifications.");
   }
 
+  await navigator.serviceWorker.register("/event-reminder-sw.js");
+  const readyRegistration = await navigator.serviceWorker.ready;
+
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    throw new Error("Notifications are not allowed yet.");
+  }
+
   const configResponse = await fetch(apiUrl("/event-reminders/config"));
   if (!configResponse.ok) throw new Error("Could not load notification server config.");
   const config = await configResponse.json() as { configured?: boolean; publicKey?: string };
@@ -113,13 +121,6 @@ export async function subscribeBrowserPush() {
     throw new Error("Notification server is missing VAPID keys.");
   }
 
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") {
-    throw new Error("Notifications are not allowed yet.");
-  }
-
-  const registration = await navigator.serviceWorker.register("/event-reminder-sw.js");
-  const readyRegistration = await navigator.serviceWorker.ready;
   return readyRegistration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(config.publicKey),
