@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Bell, BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award, AlertTriangle, Plus, Minus } from "lucide-react";
+import QRCode from "qrcode";
+import { Bell, BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award, AlertTriangle, Plus, Minus, ExternalLink, Smartphone } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useEventRefresh } from "@/lib/event-refresh";
@@ -55,6 +57,76 @@ const EVENT_CARDS = [
 ];
 
 type EventCard = (typeof EVENT_CARDS)[number] & { disabled?: boolean };
+
+function EventReminderInstallPanel() {
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [installUrl, setInstallUrl] = useState("/event-reminders");
+
+  useEffect(() => {
+    const url = `${window.location.origin}/event-reminders`;
+    setInstallUrl(url);
+    QRCode.toDataURL(url, {
+      width: 132,
+      margin: 1,
+      color: {
+        dark: "#020617",
+        light: "#f8fafc",
+      },
+    }).then(setQrCodeUrl).catch(() => setQrCodeUrl(""));
+  }, []);
+
+  return (
+    <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-4">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="rounded-md bg-sky-500/15 p-2">
+              <Bell className="h-5 w-5 text-sky-300" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-sky-100">Event Reminder App</div>
+              <div className="mt-1 text-xs leading-relaxed text-sky-100/75">
+                One-page mobile PWA for Wairo, Weekly Conquest reset, S Rank gacha, and S Rank facility notifications.
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-2 text-xs text-sky-100/75 sm:grid-cols-3">
+            <div className="rounded-md bg-black/15 px-3 py-2">1. Scan the QR code with your phone.</div>
+            <div className="rounded-md bg-black/15 px-3 py-2">2. Open the reminder app page.</div>
+            <div className="rounded-md bg-black/15 px-3 py-2">3. iPhone: Share, then Add to Home Screen. Android: tap Install if prompted.</div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button asChild className="bg-sky-500 text-white hover:bg-sky-500">
+              <Link href="/event-reminders">
+                <Smartphone className="h-4 w-4" />
+                Open reminder app
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="border-sky-400/40 bg-transparent text-sky-100 hover:bg-sky-500/10">
+              <a href={installUrl} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-4 w-4" />
+                Open in new tab
+              </a>
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
+          {qrCodeUrl ? (
+            <img src={qrCodeUrl} alt="QR code for the Event Reminder App" className="h-32 w-32 rounded-md bg-white p-1" />
+          ) : (
+            <div className="grid h-32 w-32 place-items-center rounded-md bg-white/10 text-xs text-sky-100/60">QR</div>
+          )}
+          <div className="max-w-40 text-xs leading-relaxed text-sky-100/70">
+            Generated on this page from the current website URL. It only opens the reminder app; it cannot secretly install anything.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TimedEventsPage() {
   const [offset, setOffset] = useEventHourOffset();
@@ -120,21 +192,7 @@ export default function TimedEventsPage() {
         <span className="text-xs text-muted-foreground">(applies to Kairo Room, Job Center, Wairo Dungeon, Gacha Events)</span>
       </div>
 
-      <Link href="/event-reminders">
-        <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 transition-colors hover:border-sky-400/60 hover:bg-sky-500/15">
-          <div className="flex items-start gap-3">
-            <div className="rounded-md bg-sky-500/15 p-2">
-              <Bell className="h-5 w-5 text-sky-300" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-sky-100">Open Event Reminder App</div>
-              <div className="mt-1 text-xs leading-relaxed text-sky-100/75">
-                One-page mobile PWA for Wairo, Weekly Conquest reset, S Rank gacha, and S Rank facility notifications.
-              </div>
-            </div>
-          </div>
-        </div>
-      </Link>
+      <EventReminderInstallPanel />
 
       <div className="grid gap-4 md:grid-cols-2">
         {(EVENT_CARDS as EventCard[]).map((card) => {
