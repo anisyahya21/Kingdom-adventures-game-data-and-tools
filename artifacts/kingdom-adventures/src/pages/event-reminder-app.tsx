@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, BellOff, Check, ChevronDown, Clock3, Info, Loader2, Minus, Plus, RefreshCw, Search } from "lucide-react";
+import { Bell, BellOff, Check, ChevronDown, Clock3, Info, Loader2, Minus, Plus, RefreshCw, Search, Share, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { apiUrl } from "@/lib/api";
 import { useEventRefresh } from "@/lib/event-refresh";
 import { useEventHourOffset } from "@/lib/event-time";
+import { getDeferredInstallPrompt, listenForInstallPrompt, promptInstall } from "@/lib/pwa";
 import {
   getBrowserPushStatus,
   getCurrentBrowserPushSubscription,
@@ -124,6 +125,79 @@ function OffsetControl({ value, disabled, onChange }: { value: number; disabled?
   );
 }
 
+function InstallAssistCard({
+  status,
+  installPromptAvailable,
+  onInstall,
+  onDismiss,
+}: {
+  status: BrowserPushStatus | null;
+  installPromptAvailable: boolean;
+  onInstall: () => void;
+  onDismiss: () => void;
+}) {
+  const isIos = isIosDevice();
+  const isInstalled = Boolean(status?.standalone);
+
+  return (
+    <div className="rounded-2xl border border-sky-400/40 bg-sky-400/10 p-4 text-sky-50 shadow-xl">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-sky-300">Install KA Events</div>
+          <div className="mt-1 text-lg font-bold text-white">{isInstalled ? "App is installed" : "Add this reminder app"}</div>
+        </div>
+        <button type="button" onClick={onDismiss} className="rounded-full bg-white/10 px-3 py-1 text-xs text-sky-100">
+          Hide
+        </button>
+      </div>
+
+      {isIos ? (
+        <div className="mt-4 space-y-3">
+          <div className="rounded-xl bg-black/25 p-3 text-sm leading-relaxed">
+            iPhone requires one manual step. Tap Safari Share, then tap Add to Home Screen.
+          </div>
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 text-sm">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-sky-500 text-white">
+              <Share className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-white">1. Tap the Share button</div>
+              <div className="text-sky-100/75">It is in Safari's bottom bar.</div>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-sky-500 text-white">
+              <Plus className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-white">2. Tap Add to Home Screen</div>
+              <div className="text-sky-100/75">Then press Add on the screen that opens.</div>
+            </div>
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-sky-500 text-white">
+              <Smartphone className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-white">3. Open KA Events</div>
+              <div className="text-sky-100/75">Notifications only unlock after opening the Home Screen app.</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-3">
+          <div className="rounded-xl bg-black/25 p-3 text-sm leading-relaxed">
+            Tap the button below to install KA Events as a small standalone reminder app.
+          </div>
+          <Button type="button" onClick={onInstall} disabled={!installPromptAvailable || isInstalled} className="w-full bg-sky-500 text-white hover:bg-sky-500 disabled:bg-slate-700">
+            <Smartphone className="h-4 w-4" />
+            {isInstalled ? "Installed" : installPromptAvailable ? "Install app" : "Install prompt not available yet"}
+          </Button>
+          {!installPromptAvailable && !isInstalled ? (
+            <div className="text-xs text-sky-100/70">If your browser does not show an install prompt, use its menu and choose Install app or Add to Home Screen.</div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReminderRow({
   option,
   now,
@@ -207,6 +281,8 @@ export default function EventReminderAppPage() {
   const [eventOffset] = useEventHourOffset();
   const [status, setStatus] = useState<BrowserPushStatus | null>(null);
   const [message, setMessage] = useState("");
+  const [showInstallHelp, setShowInstallHelp] = useState(() => new URLSearchParams(window.location.search).get("install") === "1");
+  const [installPromptAvailable, setInstallPromptAvailable] = useState(() => Boolean(getDeferredInstallPrompt()));
   const [saved, setSaved] = useState<Record<string, SavedReminder>>(() => readSaved());
   const [customOffsets, setCustomOffsets] = useState<Record<string, number>>({});
   const [wairoTwoStep, setWairoTwoStep] = useState(true);
@@ -225,6 +301,10 @@ export default function EventReminderAppPage() {
   useEffect(() => {
     writeSaved(saved);
   }, [saved]);
+
+  useEffect(() => {
+    return listenForInstallPrompt(() => setInstallPromptAvailable(Boolean(getDeferredInstallPrompt())));
+  }, []);
 
   const options = useMemo(() => {
     const nextWairo = getNextWarioDungeonSpawn(now, eventOffset);
@@ -346,6 +426,15 @@ export default function EventReminderAppPage() {
     }
   };
 
+  const installApp = async () => {
+    const result = await promptInstall();
+    setInstallPromptAvailable(Boolean(getDeferredInstallPrompt()));
+    if (result === "accepted") setMessage("KA Events was installed.");
+    else if (result === "dismissed") setMessage("Install was dismissed. You can try again from your browser menu.");
+    else setMessage("Install prompt is not available in this browser yet.");
+    await syncStatus();
+  };
+
   return (
     <main className="min-h-dvh bg-black text-white">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-6 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -362,6 +451,15 @@ export default function EventReminderAppPage() {
         </div>
 
         <div className="space-y-4">
+          {showInstallHelp ? (
+            <InstallAssistCard
+              status={status}
+              installPromptAvailable={installPromptAvailable}
+              onInstall={installApp}
+              onDismiss={() => setShowInstallHelp(false)}
+            />
+          ) : null}
+
           <StatusGrid status={status} />
 
           {needsIosInstall || status?.installRequired ? (

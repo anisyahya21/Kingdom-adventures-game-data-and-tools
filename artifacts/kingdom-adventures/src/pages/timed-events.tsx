@@ -60,10 +60,10 @@ type EventCard = (typeof EVENT_CARDS)[number] & { disabled?: boolean };
 
 function EventReminderInstallPanel() {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
-  const [installUrl, setInstallUrl] = useState("/event-reminders");
+  const [installUrl, setInstallUrl] = useState("/event-reminders?install=1");
 
   useEffect(() => {
-    const url = `${window.location.origin}/event-reminders`;
+    const url = `${window.location.origin}/event-reminders?install=1`;
     setInstallUrl(url);
     QRCode.toDataURL(url, {
       width: 132,
@@ -93,15 +93,15 @@ function EventReminderInstallPanel() {
 
           <div className="grid gap-2 text-xs text-sky-100/75 sm:grid-cols-3">
             <div className="rounded-md bg-black/15 px-3 py-2">1. Scan the QR code with your phone.</div>
-            <div className="rounded-md bg-black/15 px-3 py-2">2. Open the reminder app page.</div>
-            <div className="rounded-md bg-black/15 px-3 py-2">3. iPhone: Share, then Add to Home Screen. Android: tap Install if prompted.</div>
+            <div className="rounded-md bg-black/15 px-3 py-2">2. Follow the big install prompt.</div>
+            <div className="rounded-md bg-black/15 px-3 py-2">3. iPhone still needs Share, then Add to Home Screen.</div>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <Button asChild className="bg-sky-500 text-white hover:bg-sky-500">
-              <Link href="/event-reminders">
+              <Link href="/event-reminders?install=1">
                 <Smartphone className="h-4 w-4" />
-                Open reminder app
+                Open install screen
               </Link>
             </Button>
             <Button asChild variant="outline" className="border-sky-400/40 bg-transparent text-sky-100 hover:bg-sky-500/10">
@@ -120,7 +120,7 @@ function EventReminderInstallPanel() {
             <div className="grid h-32 w-32 place-items-center rounded-md bg-white/10 text-xs text-sky-100/60">QR</div>
           )}
           <div className="max-w-40 text-xs leading-relaxed text-sky-100/70">
-            Generated on this page from the current website URL. It only opens the reminder app; it cannot secretly install anything.
+            Generated on this page from this website. Scan it to open the install help screen for KA Events.
           </div>
         </div>
       </div>
