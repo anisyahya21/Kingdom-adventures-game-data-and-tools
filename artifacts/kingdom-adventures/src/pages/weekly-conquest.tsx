@@ -278,14 +278,16 @@ function WeeklySpawnMiniMap({
       canvas.style.height = `${height}px`;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.imageSmoothingEnabled = false;
-      ctx.clearRect(0, 0, width, height);
-      const cellSize = Math.max(1, Math.min(width / cols, height / rows));
+      const drawWidth = canvas.width;
+      const drawHeight = canvas.height;
+      ctx.clearRect(0, 0, drawWidth, drawHeight);
+      const cellSize = Math.max(1, Math.min(drawWidth / cols, drawHeight / rows));
       const mapWidth = cellSize * cols;
       const mapHeight = cellSize * rows;
-      const offsetX = (width - mapWidth) / 2;
-      const offsetY = (height - mapHeight) / 2;
+      const offsetX = (drawWidth - mapWidth) / 2;
+      const offsetY = (drawHeight - mapHeight) / 2;
 
       for (let y = 0; y < rows; y += 1) {
         for (let x = 0; x < cols; x += 1) {
@@ -302,10 +304,10 @@ function WeeklySpawnMiniMap({
           const terrainColor = terrain ? TERRAIN_COLORS[terrain] : "#172033";
           ctx.fillStyle = hasActiveSpawn ? terrainColor : desaturateHex(terrainColor);
           ctx.globalAlpha = hasActiveSpawn ? 0.95 : hasWeeklySpawn ? 0.62 : 0.42;
-          const px = Math.floor(offsetX + x * cellSize);
-          const py = Math.floor(offsetY + y * cellSize);
-          const tileWidth = Math.ceil(offsetX + (x + 1) * cellSize) - px;
-          const tileHeight = Math.ceil(offsetY + (y + 1) * cellSize) - py;
+          const px = Math.round(offsetX + x * cellSize);
+          const py = Math.round(offsetY + y * cellSize);
+          const tileWidth = Math.max(1, Math.round(offsetX + (x + 1) * cellSize) - px);
+          const tileHeight = Math.max(1, Math.round(offsetY + (y + 1) * cellSize) - py);
           const patternSize = Math.max(tileWidth, tileHeight);
           ctx.fillRect(px, py, tileWidth, tileHeight);
           ctx.globalAlpha = 1;
