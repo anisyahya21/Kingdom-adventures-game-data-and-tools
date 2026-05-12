@@ -209,6 +209,7 @@ function ReminderRow({
   onOffsetChange,
   onWairoModeChange,
   onTap,
+  error,
 }: {
   option: ReminderOption;
   now: Date;
@@ -220,6 +221,7 @@ function ReminderRow({
   onOffsetChange: (value: number) => void;
   onWairoModeChange?: (enabled: boolean) => void;
   onTap: () => void;
+  error?: string;
 }) {
   const disabled = Boolean(disabledReason);
   const turningOn = busy && !active;
@@ -274,6 +276,7 @@ function ReminderRow({
       </div>
       {active ? <div className="mt-2 text-xs text-slate-500">Stop this reminder to change its offset.</div> : null}
       {turningOn ? <div className="mt-2 text-xs text-emerald-200">Asking the browser and saving this reminder...</div> : null}
+      {!active && error ? <div className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-100">{error}</div> : null}
       {!active && disabledReason ? <div className="mt-2 text-xs text-amber-200">{disabledReason}</div> : null}
     </div>
   );
@@ -287,6 +290,7 @@ export default function EventReminderAppPage() {
   const [showInstallHelp, setShowInstallHelp] = useState(() => new URLSearchParams(window.location.search).get("install") === "1");
   const [installPromptAvailable, setInstallPromptAvailable] = useState(() => Boolean(getDeferredInstallPrompt()));
   const [saved, setSaved] = useState<Record<string, SavedReminder>>(() => readSaved());
+  const [reminderErrors, setReminderErrors] = useState<Record<string, string>>({});
   const [customOffsets, setCustomOffsets] = useState<Record<string, number>>({});
   const [wairoTwoStep, setWairoTwoStep] = useState(true);
   const [search, setSearch] = useState("");
@@ -361,6 +365,11 @@ export default function EventReminderAppPage() {
 
   const subscribe = async (option: ReminderOption) => {
     setBusyId(option.id);
+    setReminderErrors((current) => {
+      const next = { ...current };
+      delete next[option.id];
+      return next;
+    });
     setMessage(`Checking notification support for ${option.title}...`);
     try {
       const pushSubscription = await subscribeBrowserPush();
@@ -376,12 +385,17 @@ export default function EventReminderAppPage() {
           definition: option.definition,
         }),
       });
-      if (!response.ok) throw new Error("The reminder server could not save this subscription.");
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(errorBody?.error || "The reminder server could not save this subscription.");
+      }
       setSaved((current) => ({ ...current, [option.id]: { id: option.id, offsetHours: option.offsetHours, mode: option.mode, savedAt: Date.now() } }));
       setMessage(`${option.title} reminders are on.`);
       await syncStatus();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not subscribe.");
+      const errorMessage = error instanceof Error ? error.message : "Could not subscribe.";
+      setReminderErrors((current) => ({ ...current, [option.id]: errorMessage }));
+      setMessage(errorMessage);
     } finally {
       setBusyId(null);
     }
@@ -400,6 +414,11 @@ export default function EventReminderAppPage() {
         });
       }
       setSaved((current) => {
+        const next = { ...current };
+        delete next[option.id];
+        return next;
+      });
+      setReminderErrors((current) => {
         const next = { ...current };
         delete next[option.id];
         return next;
@@ -523,6 +542,7 @@ export default function EventReminderAppPage() {
                 onOffsetChange={(value) => setCustomOffsets((current) => ({ ...current, [option.id]: value }))}
                 onWairoModeChange={option.definition.type === "wairo" ? setWairoTwoStep : undefined}
                 onTap={() => setMessage(blockedReason || "Notifications are not available in this browser.")}
+                error={reminderErrors[option.id]}
               />
             ))}
           </div>

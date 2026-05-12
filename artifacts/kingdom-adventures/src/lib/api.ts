@@ -16,6 +16,19 @@ export function configuredApiBase() {
     window.localStorage.removeItem(STORED_API_BASE_KEY);
     return envBase;
   }
+  if (storedBase && window.location.protocol === "https:") {
+    try {
+      const storedUrl = new URL(storedBase);
+      const liveApiOverride = storedUrl.origin !== window.location.origin && storedUrl.origin !== envBase;
+      if (liveApiOverride && !/^(localhost|127\.0\.0\.1|192\.168\.)$/i.test(window.location.hostname)) {
+        window.localStorage.removeItem(STORED_API_BASE_KEY);
+        return envBase;
+      }
+    } catch {
+      window.localStorage.removeItem(STORED_API_BASE_KEY);
+      return envBase;
+    }
+  }
 
   return (storedBase || envBase).replace(/\/$/, "");
 }
