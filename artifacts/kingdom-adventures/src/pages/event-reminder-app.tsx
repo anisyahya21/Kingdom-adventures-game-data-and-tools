@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, BellOff, Check, ChevronDown, Clock3, Info, Loader2, Minus, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { apiUrl } from "@/lib/api";
+import { apiUrl, configuredApiBase, saveConfiguredApiBase } from "@/lib/api";
 import { useEventRefresh } from "@/lib/event-refresh";
 import { useEventHourOffset } from "@/lib/event-time";
 import {
@@ -203,6 +203,7 @@ export default function EventReminderAppPage() {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<"all" | "gacha">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [apiBaseInput, setApiBaseInput] = useState(() => configuredApiBase());
 
   const refresh = useCallback(() => {
     setNow(new Date());
@@ -322,6 +323,11 @@ export default function EventReminderAppPage() {
 
   const needsIosInstall = isIosDevice() && status?.supported && !status.standalone;
   const blockedReason = status && !status.supported ? status.supportReason : "";
+  const saveNotificationServer = () => {
+    const clean = saveConfiguredApiBase(apiBaseInput);
+    setApiBaseInput(clean);
+    setMessage(clean ? `Notification server set to ${clean}.` : "Notification server reset to the site default.");
+  };
 
   return (
     <main className="min-h-dvh bg-black text-white">
@@ -359,6 +365,22 @@ export default function EventReminderAppPage() {
           ) : null}
 
           {message ? <div className="rounded-2xl border border-white/10 bg-white/10 p-3 text-sm text-slate-100">{message}</div> : null}
+
+          <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-sky-300">Notification server</div>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={apiBaseInput}
+                onChange={(event) => setApiBaseInput(event.target.value)}
+                placeholder="https://your-backend-url"
+                className="min-w-0 flex-1 rounded-xl bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+              />
+              <Button type="button" onClick={saveNotificationServer} className="bg-slate-700 text-white hover:bg-slate-700">
+                Save
+              </Button>
+            </div>
+            <div className="mt-2 text-xs text-slate-500">Use this when testing with a local backend tunnel.</div>
+          </div>
 
           <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
             <div className="flex items-center gap-2 rounded-xl bg-black/30 px-3 py-2">

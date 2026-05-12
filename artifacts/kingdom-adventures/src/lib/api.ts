@@ -1,6 +1,6 @@
 const STORED_API_BASE_KEY = "kaApiBaseUrl";
 
-function configuredApiBase() {
+export function configuredApiBase() {
   const envBase = String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
   if (typeof window === "undefined") return envBase;
 
@@ -12,6 +12,13 @@ function configuredApiBase() {
   }
 
   return (window.localStorage.getItem(STORED_API_BASE_KEY) || envBase).replace(/\/$/, "");
+}
+
+export function saveConfiguredApiBase(value: string) {
+  const clean = value.trim().replace(/\/$/, "");
+  if (!clean) window.localStorage.removeItem(STORED_API_BASE_KEY);
+  else window.localStorage.setItem(STORED_API_BASE_KEY, clean);
+  return clean;
 }
 
 const SHEET_FALLBACK_URLS: Record<string, string> = {
