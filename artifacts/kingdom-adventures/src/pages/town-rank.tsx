@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 // "rankupTimeSeconds" = upgrade time to reach this rank from the previous one
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface RankEntry {
+export interface RankEntry {
   rank:          number;
   exp:           number;  // XP needed to unlock upgrade
   upgradeTime:   number;  // seconds
@@ -128,7 +128,7 @@ const RAW: [number,number,number,number,number,number,number,number,number,numbe
   [100,  150000, 907200, 120,208,248, 10, 43, 7, 88],
 ];
 
-const RANKS: RankEntry[] = RAW.map(r => ({
+export const RANKS: RankEntry[] = RAW.map(r => ({
   rank:          r[0],
   exp:           r[1],
   upgradeTime:   r[2],
@@ -140,6 +140,16 @@ const RANKS: RankEntry[] = RAW.map(r => ({
   maxDungeonCap: r[8],
   warehouseCap:  r[9],
 }));
+
+export function getTownRankStaminaPumpCapacity(rank: number): number {
+  const safeRank = Math.min(100, Math.max(0, Math.floor(rank)));
+  return RANKS[safeRank]?.staminaPump ?? 0;
+}
+
+export function getTownRankStaminaCapacity(rank: number): number {
+  const safeRank = Math.min(100, Math.max(0, Math.floor(rank)));
+  return RANKS[safeRank]?.staminaCap ?? 0;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -224,7 +234,7 @@ export default function TownRankPage() {
               <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">XP req.</th>
               <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Upgrade time</th>
               <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Residents</th>
-              <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Stamina pump</th>
+              <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Stamina pump capacity</th>
               <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Stamina cap</th>
               <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Dungeons</th>
               <th className="px-3 py-2 text-right font-semibold whitespace-nowrap">Map enemies</th>
