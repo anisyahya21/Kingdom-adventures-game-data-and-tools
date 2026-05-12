@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, BellOff, Check, ChevronDown, Clock3, Minus, Plus, RefreshCw, Search } from "lucide-react";
+import { Bell, BellOff, Check, ChevronDown, Clock3, Info, Loader2, Minus, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { apiUrl } from "@/lib/api";
@@ -91,6 +91,11 @@ function StatusGrid({ status }: { status: BrowserPushStatus | null }) {
           <div className="truncate text-slate-100">{value}</div>
         </div>
       ))}
+      {status?.supportReason ? (
+        <div className="mt-3 rounded-xl bg-black/25 p-3 font-sans text-xs leading-relaxed text-slate-300">
+          {status.supportReason}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -114,22 +119,28 @@ function ReminderRow({
   now,
   active,
   busy,
+  disabledReason,
   onSubscribe,
   onUnsubscribe,
   onOffsetChange,
   onWairoModeChange,
+  onTap,
 }: {
   option: ReminderOption;
   now: Date;
   active: boolean;
   busy: boolean;
+  disabledReason?: string;
   onSubscribe: () => void;
   onUnsubscribe: () => void;
   onOffsetChange: (value: number) => void;
   onWairoModeChange?: (enabled: boolean) => void;
+  onTap: () => void;
 }) {
+  const disabled = Boolean(disabledReason);
+
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+    <div className={`rounded-2xl border p-4 transition-colors ${active ? "border-emerald-400/40 bg-emerald-400/10" : "border-white/10 bg-slate-900/70"}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-300">{option.group}</div>
@@ -165,17 +176,18 @@ function ReminderRow({
         <OffsetControl value={option.offsetHours} disabled={active} onChange={onOffsetChange} />
         {active ? (
           <Button type="button" variant="outline" onClick={onUnsubscribe} disabled={busy} className="border-white/15 bg-white/5 text-white">
-            <BellOff className="h-4 w-4" />
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellOff className="h-4 w-4" />}
             Disable
           </Button>
         ) : (
-          <Button type="button" onClick={onSubscribe} disabled={busy} className="bg-sky-500 text-white hover:bg-sky-500">
-            <Bell className="h-4 w-4" />
-            Notify me
+          <Button type="button" onClick={disabled ? onTap : onSubscribe} disabled={busy} className={`${disabled ? "bg-slate-700 text-slate-100 hover:bg-slate-700" : "bg-sky-500 text-white hover:bg-sky-500"}`}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+            {busy ? "Checking..." : "Notify me"}
           </Button>
         )}
       </div>
       {active ? <div className="mt-2 text-xs text-slate-500">Disable this reminder to change its offset.</div> : null}
+      {!active && disabledReason ? <div className="mt-2 text-xs text-amber-200">{disabledReason}</div> : null}
     </div>
   );
 }
@@ -256,7 +268,7 @@ export default function EventReminderAppPage() {
 
   const subscribe = async (option: ReminderOption) => {
     setBusyId(option.id);
-    setMessage("");
+    setMessage(`Checking notification support for ${option.title}...`);
     try {
       const pushSubscription = await subscribeBrowserPush();
       const response = await fetch(apiUrl("/event-reminders/subscriptions"), {
@@ -284,7 +296,7 @@ export default function EventReminderAppPage() {
 
   const unsubscribe = async (option: ReminderOption) => {
     setBusyId(option.id);
-    setMessage("");
+    setMessage(`Turning off ${option.title} reminders...`);
     try {
       const pushSubscription = await getCurrentBrowserPushSubscription();
       if (pushSubscription) {
@@ -309,6 +321,7 @@ export default function EventReminderAppPage() {
   };
 
   const needsIosInstall = isIosDevice() && status?.supported && !status.standalone;
+  const blockedReason = status && !status.supported ? status.supportReason : "";
 
   return (
     <main className="min-h-dvh bg-black text-white">
@@ -328,9 +341,20 @@ export default function EventReminderAppPage() {
         <div className="space-y-4">
           <StatusGrid status={status} />
 
-          {needsIosInstall ? (
+          {needsIosInstall || status?.installRequired ? (
             <div className="rounded-2xl border border-sky-400/30 bg-sky-400/10 p-4 text-sm text-sky-50">
               On iPhone, tap Share, choose Add to Home Screen, then open KA Events from the new icon. Safari only enables web push for installed Home Screen apps.
+            </div>
+          ) : null}
+
+          {status && !status.supported && !status.installRequired ? (
+            <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-50">
+              <div className="flex items-center gap-2 font-semibold">
+                <Info className="h-4 w-4" />
+                Push is unavailable here
+              </div>
+              <p className="mt-1 text-amber-50/85">{status.supportReason}</p>
+              {isIosDevice() ? <p className="mt-2 text-amber-50/75">For iPhone, web push needs iOS 16.4 or newer and the app must be opened from the Home Screen icon.</p> : null}
             </div>
           ) : null}
 
@@ -360,10 +384,12 @@ export default function EventReminderAppPage() {
                 now={now}
                 active={Boolean(saved[option.id])}
                 busy={busyId === option.id}
+                disabledReason={blockedReason}
                 onSubscribe={() => subscribe(option)}
                 onUnsubscribe={() => unsubscribe(option)}
                 onOffsetChange={(value) => setCustomOffsets((current) => ({ ...current, [option.id]: value }))}
                 onWairoModeChange={option.definition.type === "wairo" ? setWairoTwoStep : undefined}
+                onTap={() => setMessage(blockedReason || "Notifications are not available in this browser.")}
               />
             ))}
           </div>

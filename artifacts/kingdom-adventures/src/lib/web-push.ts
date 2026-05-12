@@ -3,6 +3,8 @@ import { apiUrl } from "@/lib/api";
 export type BrowserPushStatus = {
   supported: boolean;
   standalone: boolean;
+  installRequired: boolean;
+  supportReason: string;
   notificationPermission: NotificationPermission | "unsupported";
   serviceWorkerState: string;
   subscriptionState: "subscribed" | "unsubscribed" | "unsupported";
@@ -45,8 +47,27 @@ function osName() {
   return "Unknown";
 }
 
+function osVersion() {
+  const ua = window.navigator.userAgent;
+  const ios = ua.match(/OS (\d+)[._](\d+)(?:[._](\d+))?/);
+  if (ios) return `${ios[1]}.${ios[2]}${ios[3] ? `.${ios[3]}` : ""}`;
+  const android = ua.match(/Android (\d+(?:\.\d+)?)/);
+  if (android) return android[1];
+  return "";
+}
+
 export async function getBrowserPushStatus(): Promise<BrowserPushStatus> {
-  const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const standalone = isStandaloneDisplay();
+  const installRequired = isIosDevice() && !standalone;
+  const hasServiceWorker = "serviceWorker" in navigator;
+  const hasPushManager = "PushManager" in window;
+  const hasNotification = "Notification" in window;
+  const supported = !installRequired && hasServiceWorker && hasPushManager && hasNotification;
+  let supportReason = "Ready for web push.";
+  if (installRequired) supportReason = "Open this from the Home Screen icon to enable iPhone web push.";
+  else if (!hasServiceWorker) supportReason = "Service workers are not available in this browser.";
+  else if (!hasPushManager) supportReason = "PushManager is not available in this installed app.";
+  else if (!hasNotification) supportReason = "The Notification API is not available in this browser.";
   let serviceWorkerState = "unsupported";
   let subscriptionState: BrowserPushStatus["subscriptionState"] = supported ? "unsubscribed" : "unsupported";
 
@@ -64,23 +85,25 @@ export async function getBrowserPushStatus(): Promise<BrowserPushStatus> {
 
   return {
     supported,
-    standalone: isStandaloneDisplay(),
+    standalone,
+    installRequired,
+    supportReason,
     notificationPermission: "Notification" in window ? Notification.permission : "unsupported",
     serviceWorkerState,
     subscriptionState,
     browserName: browserName(),
-    osName: osName(),
+    osName: osVersion() ? `${osName()} ${osVersion()}` : osName(),
     deviceType: /Mobi|Android|iPad|iPhone|iPod/.test(window.navigator.userAgent) ? "mobile" : "desktop",
   };
 }
 
 export async function subscribeBrowserPush() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
-    throw new Error("This browser does not support web push notifications.");
-  }
-
   if (isIosDevice() && !isStandaloneDisplay()) {
     throw new Error("On iPhone, add this app to the Home Screen first, then open it from the icon.");
+  }
+
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    throw new Error("This browser does not support web push notifications.");
   }
 
   const configResponse = await fetch(apiUrl("/event-reminders/config"));
