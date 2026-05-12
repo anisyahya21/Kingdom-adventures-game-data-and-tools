@@ -238,9 +238,9 @@ export const SYNC_REGISTRY: readonly SyncFeature[] = [
     enabled: true,
     notes:
       "Link plane only. Carries device identity, not feature payloads. " +
-      "syncedDevices and syncCodes in the backend are in-memory Maps — device " +
-      "links do not survive server restarts. Durable persistent store is a " +
-      "Phase 2 hardening task. Sync Center UI must not imply permanent linking.",
+      "syncedDevices are persisted in the shared state file; one-time syncCodes " +
+      "remain in-memory and expire quickly. Sync Center UI must distinguish " +
+      "durable linked devices from short-lived linking codes.",
   },
 
 ] satisfies readonly SyncFeature[];

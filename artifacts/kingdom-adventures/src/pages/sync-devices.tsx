@@ -86,13 +86,13 @@ export default function SyncDevicesPage() {
 		}
 	}, [currentDevice, deviceName, showEnter]);
 
-	async function loadDevices() {
+	async function loadDevices(deviceId = currentDeviceId) {
 		setIsLoadingDevices(true);
 
 		try {
 			const url = new URL(apiUrl("/sync/devices"), window.location.origin);
-			if (currentDeviceId) {
-				url.searchParams.set("currentDeviceId", currentDeviceId);
+			if (deviceId) {
+				url.searchParams.set("currentDeviceId", deviceId);
 			}
 
 			const res = await fetch(url.toString());
@@ -102,7 +102,8 @@ export default function SyncDevicesPage() {
 				throw new Error((data as ApiError).error || "Failed to load devices.");
 			}
 
-			setDevices(Array.isArray(data) ? data : []);
+			const nextDevices = Array.isArray(data) ? data : [];
+			setDevices(nextDevices);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to load devices.");
 		} finally {
@@ -179,6 +180,8 @@ export default function SyncDevicesPage() {
 				throw new Error(data.error || "Failed to generate code.");
 			}
 
+			const nextCurrentDeviceId = data.currentDeviceId || currentDeviceId;
+
 			if (data.currentDeviceId) {
 				setCurrentDeviceId(data.currentDeviceId);
 			}
@@ -194,7 +197,7 @@ export default function SyncDevicesPage() {
 			setNow(Date.now());
 			setMessage("Sync code generated.");
 
-			await loadDevices();
+			await loadDevices(nextCurrentDeviceId);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to generate code.");
 		} finally {
@@ -262,6 +265,8 @@ export default function SyncDevicesPage() {
 				throw new Error(data.error || "Failed to link device.");
 			}
 
+			const nextCurrentDeviceId = data.currentDeviceId || currentDeviceId;
+
 			if (data.currentDeviceId) {
 				setCurrentDeviceId(data.currentDeviceId);
 			}
@@ -277,7 +282,7 @@ export default function SyncDevicesPage() {
 			setCopied(false);
 			setMessage(data.message || "Device linked successfully.");
 
-			await loadDevices();
+			await loadDevices(nextCurrentDeviceId);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to link device.");
 		} finally {
@@ -313,13 +318,15 @@ export default function SyncDevicesPage() {
 				throw new Error(data.error || "Failed to remove device.");
 			}
 
+			const nextCurrentDeviceId = id === currentDeviceId ? "" : currentDeviceId;
+
 			if (id === currentDeviceId) {
 				setCurrentDeviceId("");
 				localStorage.removeItem(LOCAL_DEVICE_ID_KEY);
 			}
 
 			setMessage("Device removed.");
-			await loadDevices();
+			await loadDevices(nextCurrentDeviceId);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to remove device.");
 		} finally {
