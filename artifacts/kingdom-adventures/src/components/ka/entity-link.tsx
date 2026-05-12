@@ -9,6 +9,7 @@ export type KaEntityType =
   | "building"
   | "facility"
   | "equipment"
+  | "skill"
   | "monster"
   | "guide";
 
@@ -36,6 +37,8 @@ export function getEntityHref(type: KaEntityType, name: string): string | null {
       return `/houses?tab=facilities&search=${encodeURIComponent(cleanName)}`;
     case "equipment":
       return `/equipment-stats?search=${encodeURIComponent(cleanName)}`;
+    case "skill":
+      return `/skills?search=${encodeURIComponent(cleanName)}`;
     case "monster":
       return `/monsters?search=${encodeURIComponent(cleanName)}`;
     case "guide":

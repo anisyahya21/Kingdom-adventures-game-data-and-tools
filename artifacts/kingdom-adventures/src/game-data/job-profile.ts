@@ -1,4 +1,5 @@
 import { JOB_RANGE_DATA } from "@/lib/generated-job-range-data";
+import { JOB_SKILL_DATA } from "@/lib/generated-job-skill-data";
 import { getJobsForBuilding, KNOWN_JOB_SHOPS, splitBuildingRankNote, type BuildingJobOwner } from "./job-buildings";
 import { getResolvedShieldAccess, getResolvedWeaponAccess, type WeaponValue } from "./job-equipment";
 import { getResolvedSkillAccess, type SkillAccessMap } from "./job-skills";
@@ -58,6 +59,11 @@ export type JobRangeGroup = {
   value: number;
 };
 
+export type JobSkillGroup = {
+  label: string;
+  skills: string[];
+};
+
 export type JobProfile = {
   name: string;
   job: ProfileJob;
@@ -73,6 +79,7 @@ export type JobProfile = {
     weapons: Record<string, WeaponValue | undefined>;
   };
   rangeGroups: Array<{ label: string; index: JobRangeIndex; groups: JobRangeGroup[] }>;
+  learnedSkillGroups: JobSkillGroup[];
   marriage: {
     pairs: JobProfilePair[];
     children: string[];
@@ -80,9 +87,14 @@ export type JobProfile = {
 };
 
 const JOB_RANGES = JOB_RANGE_DATA as Record<string, Partial<Record<JobRangeRank, readonly [number, number, number]>>>;
+const JOB_SKILLS = JOB_SKILL_DATA as Record<string, Partial<Record<JobRangeRank, readonly string[]>>>;
 
 function formatRangeRankLabel(start: JobRangeRank, end: JobRangeRank) {
   return start === end ? start : `${start}-${end}`;
+}
+
+function sameSkills(a: readonly string[], b: readonly string[]) {
+  return a.length === b.length && a.every((skill, index) => skill === b[index]);
 }
 
 function getCollapsedRangeGroups(jobName: string, rangeIndex: JobRangeIndex): JobRangeGroup[] {
@@ -115,6 +127,39 @@ function getCollapsedRangeGroups(jobName: string, rangeIndex: JobRangeIndex): Jo
   }
 
   groups.push({ label: formatRangeRankLabel(start, end), value });
+  return groups;
+}
+
+function getCollapsedSkillGroups(jobName: string): JobSkillGroup[] {
+  const skillsByRank = JOB_SKILLS[jobName];
+  if (!skillsByRank) return [];
+
+  const entries = JOB_RANGE_RANK_ORDER
+    .map((rank) => {
+      const skills = skillsByRank[rank];
+      return skills?.length ? { rank, skills } : null;
+    })
+    .filter((entry): entry is { rank: JobRangeRank; skills: readonly string[] } => Boolean(entry));
+
+  if (entries.length === 0) return [];
+
+  const groups: JobSkillGroup[] = [];
+  let start = entries[0].rank;
+  let end = entries[0].rank;
+  let skills = entries[0].skills;
+
+  for (const entry of entries.slice(1)) {
+    if (sameSkills(entry.skills, skills)) {
+      end = entry.rank;
+    } else {
+      groups.push({ label: formatRangeRankLabel(start, end), skills: [...skills] });
+      start = entry.rank;
+      end = entry.rank;
+      skills = entry.skills;
+    }
+  }
+
+  groups.push({ label: formatRangeRankLabel(start, end), skills: [...skills] });
   return groups;
 }
 
@@ -177,6 +222,7 @@ export function getJobProfile(
     rangeGroups: JOB_RANGE_LABELS
       .map((range) => ({ ...range, groups: getCollapsedRangeGroups(name, range.index) }))
       .filter((range) => range.groups.length > 0),
+    learnedSkillGroups: getCollapsedSkillGroups(name),
     marriage: {
       pairs,
       children: Array.from(new Set(pairs.flatMap((pair) => pair.children))).sort(),

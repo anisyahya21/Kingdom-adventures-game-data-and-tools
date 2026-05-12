@@ -95,7 +95,10 @@ export default function SkillsPage() {
   const [showNote, setShowNote] = useState(false);
   const qc = useQueryClient();
   const { data, isLoading } = useSharedData();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("search") ?? "";
+  });
   const [sortKey, setSortKey] = useState<"name" | "studioLevel" | "craftingIntelligence" | "buyPrice" | "sellPrice">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 

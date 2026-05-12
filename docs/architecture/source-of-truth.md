@@ -9,6 +9,7 @@ This site is a Kingdom Adventures reference database. Game facts should have one
 | Shop metadata and shop routes | `artifacts/kingdom-adventures/src/lib/shop-utils.ts` | Includes shop owners, shop slugs, and shop-page metadata. Building stats come from `src/game-data/buildings.ts`. |
 | Job to building/shop relationships | `artifacts/kingdom-adventures/src/game-data/job-buildings.ts` | Used by Jobs, Guides, Houses, and Survey. Do not duplicate `KNOWN_JOB_SHOPS`. |
 | Job range data | `artifacts/kingdom-adventures/src/lib/generated-job-range-data.ts` | Generated data. Do not hand-edit unless regenerating is unavailable. |
+| Job learned skills by rank | `artifacts/kingdom-adventures/src/lib/generated-job-skill-data.ts` | Generated from `KA GameData - Job.csv` skill ids and `KA GameData - Skill.csv` names. Do not hand-edit unless regenerating is unavailable. |
 | Equipment data | `artifacts/kingdom-adventures/src/lib/generated-equipment-data.ts` | Generated equipment catalog and exchange data. |
 | Local shared data fallback | `artifacts/kingdom-adventures/src/lib/local-shared-data.ts` | App-wide fallback data used when API/shared data is unavailable. |
 | Monster truth/parsing helpers | `artifacts/kingdom-adventures/src/lib/monster-truth.ts` | CSV parsing and monster data helpers. |

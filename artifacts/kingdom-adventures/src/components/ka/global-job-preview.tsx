@@ -156,9 +156,13 @@ function JobQuickPreviewDialog({
                     {profile.rangeGroups.map((range) => (
                       <div key={range.label} className="flex flex-wrap items-center gap-2 text-xs">
                         <span className="font-medium text-muted-foreground">{range.label}</span>
-                        {range.groups.map((group) => (
-                          <Badge key={`${range.label}-${group.label}`} variant="outline">{group.label}: {group.value}</Badge>
-                        ))}
+                        {range.groups.length === 1 ? (
+                          <Badge variant="outline">{range.groups[0].value}</Badge>
+                        ) : (
+                          range.groups.map((group) => (
+                            <Badge key={`${range.label}-${group.label}`} variant="outline">{group.label}: {group.value}</Badge>
+                          ))
+                        )}
                       </div>
                     ))}
                   </div>

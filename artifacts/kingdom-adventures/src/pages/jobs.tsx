@@ -2349,6 +2349,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
   const savedShops = profile?.shops ?? [];
   const visibleShops = editing ? (draft.shops ?? []) : savedShops;
   const jobRangeRows = profile?.rangeGroups ?? [];
+  const learnedSkillGroups = profile?.learnedSkillGroups ?? [];
 
   const setStat = (stat: string, field: "base"|"inc", val: number) => {
     setDraft((d) => ({
@@ -2714,6 +2715,28 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                   })}
                 </div>
               </div>
+
+              {learnedSkillGroups.length > 0 && (
+                <div className="rounded-lg border border-border bg-background/40 p-3">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Rank Skills</p>
+                  <div className="space-y-2">
+                    {learnedSkillGroups.map((group) => (
+                      <div key={group.label} className="rounded-lg border border-border bg-background/60 px-3 py-2">
+                        <div className="mb-2 text-[10px] font-semibold text-primary">{group.label} rank</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {group.skills.map((skill) => (
+                            <EntityLink key={`${group.label}-${skill}`} type="skill" name={skill}>
+                              <Badge variant="outline" className="cursor-pointer hover:border-primary/50 hover:text-primary">
+                                {skill}
+                              </Badge>
+                            </EntityLink>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
