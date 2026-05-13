@@ -1086,10 +1086,16 @@ function AdvancedCompareDialog({
         return direction * ((left.needExpValues[stat] ?? -Infinity) - (right.needExpValues[stat] ?? -Infinity));
       }
       const groupId = Number(sortKey.replace("group-", ""));
+      const group = groups.find((g) => g.id === groupId);
+      if (showNeedExp && group) {
+        const leftSum = group.stats.reduce((s, stat) => s + (left.needExpValues[stat] ?? 0), 0);
+        const rightSum = group.stats.reduce((s, stat) => s + (right.needExpValues[stat] ?? 0), 0);
+        return direction * (leftSum - rightSum);
+      }
       return direction * ((left.groupTotals[groupId] ?? 0) - (right.groupTotals[groupId] ?? 0));
     });
     return built;
-  }, [awakening, comparedEntries, groups, level, levelMode, rank, sortDir, sortKey, weaponCategories]);
+  }, [awakening, comparedEntries, groups, level, levelMode, rank, showNeedExp, sortDir, sortKey, weaponCategories]);
 
   const summaries = useMemo(() => {
     return activeGroups.map((group) => {
@@ -1700,7 +1706,9 @@ function AdvancedCompareDialog({
                             ))}
                             {activeGroups.map((group) => (
                               <td key={group.id} className="px-0.5 py-2 text-center font-semibold tabular-nums text-foreground">
-                                {formatCompareNumber(row.groupTotals[group.id])}
+                                {showNeedExp
+                                  ? `${group.stats.reduce((sum, stat) => sum + (row.needExpValues[stat] ?? 0), 0)}%`
+                                  : formatCompareNumber(row.groupTotals[group.id])}
                               </td>
                             ))}
                             {selectedStats.map((stat) => (
