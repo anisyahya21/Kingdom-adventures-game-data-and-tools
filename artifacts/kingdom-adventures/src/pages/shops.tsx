@@ -26,6 +26,12 @@ import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { EntityLink } from "@/components/ka/entity-link";
 import { localSharedData } from "@/lib/local-shared-data";
 import { parseCsv } from "@/lib/monster-truth";
+import {
+  JOB_PARAMETER_ORDER,
+  type JobParameterKey,
+  type JobNeedExpProfile,
+  parseJobNeedExpProfiles as parseJobNeedExpProfilesShared,
+} from "@/game-data/job-needexp";
 import { SHOP_RECORDS, type ShopRecord, type ShopSlug, type ShopBuilding, type ShopFacility } from "@/lib/shop-utils";
 import { PLOT_SIZES, PLOT_TILES } from "@/game-data/buildings";
 import { FACILITIES } from "@/game-data/facilities";
@@ -97,8 +103,7 @@ type ItemFacilityRow = {
 };
 type ItemReferenceSortKey = "name" | "exp";
 
-const JOB_PARAMETER_ORDER = ["HP", "MP", "Vigor", "ATK", "DEF", "SPEED", "LUCK", "Owned?", "INT", "DEX", "CONS", "MOVE", "Heart"] as const;
-type JobParameterKey = (typeof JOB_PARAMETER_ORDER)[number];
+// JOB_PARAMETER_ORDER and JobParameterKey are now imported from @/game-data/job-needexp
 const ALLY_STAT_MAX = 999;
 const CANONICAL_JOB_NAME_SET = new Set(
   Object.keys(((localSharedData as { jobs?: Record<string, unknown> }).jobs ?? {})).map((name) => name.trim().toLowerCase())
@@ -134,11 +139,7 @@ const JOB_PARAMETER_ICON_KEYS: Partial<Record<JobParameterKey, string>> = {
 };
 const FEED_FILTER_STAT_KEYS = JOB_PARAMETER_ORDER.filter((key) => key !== "Owned?");
 
-type JobNeedExpProfile = {
-  name: string;
-  needExpByParameter: Record<JobParameterKey, number>;
-  maxLevelByParameter: Record<JobParameterKey, number>;
-};
+// JobNeedExpProfile is now imported from @/game-data/job-needexp
 
 const ITEM_SOURCE_ORDER = ["Item Shop", "Restaurant", "Orchard", "Facility only", "Other sources"] as const;
 const NO_FACILITY_SOURCE_FILTER = "__none__";
@@ -313,43 +314,7 @@ function parseExpByLevel(rawCsv: string): Map<number, number> {
 }
 
 function parseJobNeedExpProfiles(rawCsv: string): JobNeedExpProfile[] {
-  const rows = parseCsv(rawCsv);
-  if (rows.length === 0) return [];
-
-  const headerRowIndex = rows.findIndex((row) => {
-    const normalized = row.map((cell) => cell.trim());
-    return normalized.includes("id") && normalized.includes("name") && normalized.includes("maxLevel");
-  });
-  if (headerRowIndex < 0) return [];
-
-  const header = rows[headerRowIndex].map((cell) => cell.trim());
-  const nameIndex = header.findIndex((cell) => /^name$/i.test(cell));
-  const statStartIndex = header.findIndex((cell) => /^maxLevel$/i.test(cell));
-  if (nameIndex < 0 || statStartIndex < 0) return [];
-
-  const profilesByBaseName = new Map<string, JobNeedExpProfile>();
-  const gradePrefix = /^(S|A|B|C|D|E|F)\s+(Grade|Rank)\s+/i;
-  for (const row of rows.slice(headerRowIndex + 1)) {
-    const rawName = String(row[nameIndex] ?? "").trim();
-    const baseName = rawName.replace(gradePrefix, "").trim();
-    if (CANONICAL_JOB_NAME_SET.size > 0 && !CANONICAL_JOB_NAME_SET.has(baseName.toLowerCase())) continue;
-    if (!baseName || profilesByBaseName.has(baseName)) continue;
-
-    const needExpByParameter = {} as Record<JobParameterKey, number>;
-    const maxLevelByParameter = {} as Record<JobParameterKey, number>;
-    JOB_PARAMETER_ORDER.forEach((parameter, index) => {
-      const maxLevelIndex = statStartIndex + (index * 5);
-      const needExpIndex = statStartIndex + (index * 5) + 1;
-      const maxLevelValue = Number(row[maxLevelIndex] ?? "");
-      const value = Number(row[needExpIndex] ?? "");
-      maxLevelByParameter[parameter] = Number.isFinite(maxLevelValue) && maxLevelValue > 0 ? maxLevelValue : 1;
-      needExpByParameter[parameter] = Number.isFinite(value) && value > 0 ? value : 100;
-    });
-
-    profilesByBaseName.set(baseName, { name: baseName, needExpByParameter, maxLevelByParameter });
-  }
-
-  return Array.from(profilesByBaseName.values()).sort((a, b) => a.name.localeCompare(b.name));
+  return parseJobNeedExpProfilesShared(rawCsv, CANONICAL_JOB_NAME_SET);
 }
 
 function isLvLimitBonus(item: ItemRow): boolean {
