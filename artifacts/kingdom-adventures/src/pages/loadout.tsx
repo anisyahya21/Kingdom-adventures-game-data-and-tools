@@ -97,6 +97,11 @@ type BoxSetupShare = { id: string; setup: BoxSetup; createdAt: number; updatedAt
 
 // Canonical short stat keys used throughout
 const STAT_KEYS = ["hp","mp","vig","atk","def","spd","lck","int","dex","gth","mov","hrt"] as const;
+const GAME_STAT_ROWS: Array<Array<typeof STAT_KEYS[number]>> = [
+  ["hp", "mp", "vig", "atk", "def"],
+  ["spd", "lck", "int", "dex"],
+  ["gth", "mov", "hrt"],
+];
 const STAT_LABEL: Record<string, string> = {
   hp:"HP", mp:"MP", vig:"Vig", atk:"Atk", def:"Def",
   spd:"Spd", lck:"Lck", int:"Int", dex:"Dex", gth:"Gth", mov:"Mov", hrt:"Hrt",
@@ -2294,20 +2299,30 @@ export default function LoadoutPage() {
                       const weaponEntry = loadout.equipment.find((e) => slotMap[e.name] === "Weapon");
                       const shieldEntry = loadout.equipment.find((e) => slotMap[e.name] === "Shield");
                       return (
-                      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(160px,210px)_minmax(0,1fr)] sm:items-start">
-                        <div className="min-w-0 space-y-2">
-                          {hasStats && (
-                            <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-2">
-                              {STAT_KEYS.filter((k) => stats[k]).map((k) => (
-                                <span key={k} className="inline-flex min-w-0 items-center gap-1 text-[10px] leading-none tabular-nums text-muted-foreground">
-                                  <StatLabel stat={k} icons={data?.statIcons} iconClassName="h-3.5 w-3.5" />
-                                  <strong className="truncate text-xs leading-none text-foreground">{stats[k].toLocaleString()}</strong>
-                                </span>
-                              ))}
+                      <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(150px,205px)_minmax(0,1fr)] sm:items-start">
+                        {hasStats && (
+                          <div className="sm:col-span-2 px-1 py-1">
+                            <div className="space-y-1.5">
+                              {GAME_STAT_ROWS.map((row, rowIndex) => {
+                                const visibleStats = row.filter((k) => stats[k]);
+                                if (visibleStats.length === 0) return null;
+                                return (
+                                  <div key={rowIndex} className="flex flex-wrap items-center gap-x-6 gap-y-1">
+                                    {visibleStats.map((k) => (
+                                      <span key={k} className="inline-flex min-w-[86px] items-center gap-1.5 text-sm leading-none tabular-nums text-muted-foreground">
+                                        <StatLabel stat={k} icons={data?.statIcons} iconClassName="h-4.5 w-4.5" />
+                                        <strong className="text-base leading-none text-foreground">{stats[k].toLocaleString()}</strong>
+                                      </span>
+                                    ))}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          )}
+                          </div>
+                        )}
+                        <div className="min-w-0">
                           {loadout.jobName && (
-                            <div className="flex min-h-[170px] items-center justify-center">
+                            <div className="flex min-h-[155px] items-start justify-center pt-1">
                               <CollapsedCharPreview
                                 jobName={loadout.jobName}
                                 rank={loadout.rank}
@@ -2319,21 +2334,23 @@ export default function LoadoutPage() {
                         </div>
                         <div className="min-w-0 space-y-2">
                           {loadout.equipment.length > 0 && (
-                            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-5">
+                            <div className="grid grid-cols-5 gap-x-1.5 gap-y-2 sm:grid-cols-5">
                               {loadout.equipment.map((eq) => {
                                 const icon = getEquipmentIcon(data?.equipIcons, eq.name);
                                 const slot = data?.slotAssignments?.[eq.name];
                                 const rule = data ? getEquipRuleState(loadout, data, eq.name) : null;
                                 return (
-                                  <span key={eq.name} className="flex min-w-0 flex-col items-center gap-0.5 rounded-md border border-border/50 bg-muted/30 px-1 py-1.5 text-center">
-                                    {icon ? (
-                                      <img src={icon} alt="" className="h-10 w-10 shrink-0 object-contain" />
-                                    ) : (
-                                      <span className="flex h-10 w-10 items-center justify-center rounded bg-muted/40 text-xs text-muted-foreground">?</span>
-                                    )}
+                                  <span key={eq.name} className="flex min-w-0 flex-col items-center gap-1 text-center">
+                                    <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/50 bg-muted/30">
+                                      {icon ? (
+                                        <img src={icon} alt="" className="h-14 w-14 max-w-none shrink-0 object-contain" />
+                                      ) : (
+                                        <span className="flex h-11 w-11 items-center justify-center text-xs text-muted-foreground">?</span>
+                                      )}
+                                      <span className="absolute bottom-0 right-0 rounded-tl bg-background/90 px-0.5 text-[8px] font-semibold leading-3 text-muted-foreground">Lv{eq.level}</span>
+                                    </span>
                                     <span className="text-[8px] font-semibold uppercase leading-none text-muted-foreground/70">{slot ?? "Gear"}</span>
                                     <span className="line-clamp-2 min-h-6 text-[10px] font-medium leading-tight text-foreground">{eq.name}</span>
-                                    <span className="text-[9px] leading-none text-muted-foreground">Lv{eq.level}</span>
                                     {rule?.blocked && <span className="text-[9px] font-semibold leading-none text-orange-600 dark:text-orange-400">Can't</span>}
                                     {rule?.appliesPenalty && <span className="text-[9px] font-semibold leading-none text-amber-600 dark:text-amber-400">Weak</span>}
                                   </span>
