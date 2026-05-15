@@ -1,0 +1,9 @@
+size   			= 24,30
+merge  			= off
+compare			= off
+external_merge   	= off
+external_compare 	= off
+level			= 2
+color_range		= 10
+width			= 64
+output		 	= optim
