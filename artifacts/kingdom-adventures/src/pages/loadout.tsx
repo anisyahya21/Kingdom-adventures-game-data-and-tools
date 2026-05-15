@@ -97,10 +97,10 @@ type BoxSetupShare = { id: string; setup: BoxSetup; createdAt: number; updatedAt
 
 // Canonical short stat keys used throughout
 const STAT_KEYS = ["hp","mp","vig","atk","def","spd","lck","int","dex","gth","mov","hrt"] as const;
-const GAME_STAT_ROWS: Array<Array<typeof STAT_KEYS[number]>> = [
-  ["hp", "mp", "vig", "atk", "def"],
-  ["spd", "lck", "int", "dex"],
-  ["gth", "mov", "hrt"],
+const GAME_STAT_COLUMNS: Array<Array<typeof STAT_KEYS[number]>> = [
+  ["hp", "mp", "vig"],
+  ["atk", "def", "spd", "lck"],
+  ["int", "dex", "gth", "mov", "hrt"],
 ];
 const STAT_LABEL: Record<string, string> = {
   hp:"HP", mp:"MP", vig:"Vig", atk:"Atk", def:"Def",
@@ -2198,7 +2198,7 @@ export default function LoadoutPage() {
       )}
       {/* Header */}
       <div className="border-b border-border bg-card">
-        <div className="max-w-5xl mx-auto px-4 py-3">
+        <div className="max-w-7xl mx-auto px-4 py-3">
           <PageHeader
             icon={<Package className="w-5 h-5 text-orange-500" />}
             title="Loadout Builder"
@@ -2302,14 +2302,14 @@ export default function LoadoutPage() {
                       <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(150px,205px)_minmax(0,1fr)] sm:items-start">
                         {hasStats && (
                           <div className="sm:col-span-2 px-1 py-1">
-                            <div className="space-y-1.5">
-                              {GAME_STAT_ROWS.map((row, rowIndex) => {
-                                const visibleStats = row.filter((k) => stats[k]);
+                            <div className="grid grid-cols-3 gap-x-4 gap-y-2 sm:max-w-[620px]">
+                              {GAME_STAT_COLUMNS.map((column, columnIndex) => {
+                                const visibleStats = column.filter((k) => stats[k]);
                                 if (visibleStats.length === 0) return null;
                                 return (
-                                  <div key={rowIndex} className="flex flex-wrap items-center gap-x-6 gap-y-1">
+                                  <div key={columnIndex} className="flex min-w-0 flex-col gap-1.5">
                                     {visibleStats.map((k) => (
-                                      <span key={k} className="inline-flex min-w-[86px] items-center gap-1.5 text-sm leading-none tabular-nums text-muted-foreground">
+                                      <span key={k} className="inline-flex min-w-0 items-center gap-1.5 text-sm leading-none tabular-nums text-muted-foreground">
                                         <StatLabel stat={k} icons={data?.statIcons} iconClassName="h-4.5 w-4.5" />
                                         <strong className="text-base leading-none text-foreground">{stats[k].toLocaleString()}</strong>
                                       </span>
@@ -2347,7 +2347,7 @@ export default function LoadoutPage() {
                                       ) : (
                                         <span className="flex h-11 w-11 items-center justify-center text-xs text-muted-foreground">?</span>
                                       )}
-                                      <span className="absolute bottom-0 right-0 rounded-tl bg-background/90 px-0.5 text-[8px] font-semibold leading-3 text-muted-foreground">Lv{eq.level}</span>
+                                      <span className="absolute bottom-0 right-[-2px] rounded-tl bg-background/90 px-0.5 pl-1 text-[8px] font-semibold leading-3 text-muted-foreground">Lv{eq.level}</span>
                                     </span>
                                     <span className="text-[8px] font-semibold uppercase leading-none text-muted-foreground/70">{slot ?? "Gear"}</span>
                                     <span className="line-clamp-2 min-h-6 text-[10px] font-medium leading-tight text-foreground">{eq.name}</span>
