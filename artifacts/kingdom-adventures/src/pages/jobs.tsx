@@ -2667,22 +2667,22 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
 
       {/* Stats (all ranks) */}
       <Card className="shadow-sm mb-4">
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-2 2xl:pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-sm">Stats</CardTitle>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">All Lv</span>
+            <CardTitle className="text-sm 2xl:text-2xl">Stats</CardTitle>
+            <div className="flex items-center gap-2 2xl:gap-3 flex-wrap">
+              <div className="flex items-center gap-1 2xl:gap-2">
+                <span className="text-xs 2xl:text-xl text-muted-foreground">All Lv</span>
                 <Input type="text" inputMode="numeric" value={levelInput}
                   onChange={(e) => setAllPreviewLevelInput(e.target.value)}
                   onKeyDown={(e) => commitOnEnter(e, () => commitAllPreviewLevel(e.currentTarget.value))}
                   onBlur={(e) => commitAllPreviewLevel(e.target.value)}
-                  className="h-6 w-16 text-xs text-center" />
+                  className="h-6 w-16 text-xs text-center 2xl:h-10 2xl:w-24 2xl:text-xl" />
               </div>
-              <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex items-center gap-1 2xl:gap-2 flex-wrap">
                 {rankList.map((r) => (
                   <button key={r} onClick={() => setSelRank(r)}
-                    className={`px-2.5 py-0.5 text-xs rounded font-medium border transition-colors ${selRank === r ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"}`}>
+                    className={`px-2.5 py-0.5 2xl:px-4 2xl:py-1.5 text-xs 2xl:text-xl rounded font-medium border transition-colors ${selRank === r ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"}`}>
                     {r}
                   </button>
                 ))}
@@ -2691,7 +2691,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-2 2xl:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {STAT_ORDER.map((stat) => {
               const s = rankData?.stats[stat];
               const effLevel = statLevels[stat] ?? level;
@@ -2700,20 +2700,20 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
               const needExpKey = STAT_TO_NEEDEXP_KEY[stat];
               const needExpPct = needExpKey && needExpProfile ? needExpProfile.needExpByParameter[needExpKey] : undefined;
               return (
-                <div key={stat} className="rounded border border-border bg-background/50 p-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="h-5 w-5 shrink-0 object-contain" />}
+                <div key={stat} className="rounded border border-border bg-background/50 p-2.5 2xl:p-4">
+                  <div className="flex items-start justify-between gap-2 2xl:gap-3">
+                    <div className="flex min-w-0 items-center gap-2 2xl:gap-3">
+                      {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="h-5 w-5 shrink-0 object-contain 2xl:h-11 2xl:w-11" />}
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold leading-tight">{stat}</div>
-                        <div className="text-[11px] leading-tight text-muted-foreground">Lv {effLevel}</div>
+                        <div className="truncate text-sm font-semibold leading-tight 2xl:text-2xl">{stat}</div>
+                        <div className="text-[11px] leading-tight text-muted-foreground 2xl:text-xl">Lv {effLevel}</div>
                       </div>
                     </div>
-                    <span className={`text-xl font-bold leading-none tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
+                    <span className={`text-xl font-bold leading-none tabular-nums 2xl:text-4xl ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
                       {v === null || v === 0 ? "-" : Math.round(v * 100) / 100}
                     </span>
                   </div>
-                  <div className="mt-2 grid grid-cols-3 gap-x-2 text-[11px] leading-tight text-muted-foreground">
+                  <div className="mt-2 grid grid-cols-3 gap-x-2 text-[11px] leading-tight text-muted-foreground 2xl:mt-4 2xl:text-xl">
                     <div>
                       <div>Start</div>
                       <div className="font-semibold tabular-nums text-foreground">{s ? Math.round(s.base * 100) / 100 : "-"}</div>
@@ -2729,7 +2729,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                       </div>
                     )}
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground 2xl:mt-4 2xl:text-xl">
                     <span>Preview Lv</span>
                       {s ? (
                         <span className="flex items-center gap-2">
@@ -2740,7 +2740,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                             onChange={(e) => setPreviewLevelInput(stat, e.target.value)}
                             onKeyDown={(e) => commitOnEnter(e, () => commitPreviewLevel(stat, e.currentTarget.value))}
                             onBlur={(e) => commitPreviewLevel(stat, e.target.value)}
-                            className="h-6 w-14 px-1 text-center text-xs"
+                            className="h-6 w-14 px-1 text-center text-xs 2xl:h-10 2xl:w-20 2xl:text-xl"
                           />
                         </span>
                       ) : (
