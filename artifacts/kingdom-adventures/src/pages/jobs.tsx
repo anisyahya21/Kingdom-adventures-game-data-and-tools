@@ -2416,7 +2416,28 @@ function JobCharacterPreview({ jobName }: { jobName: string }) {
   const poseFrame = useJobIdlePose();
 
   return (
-    <div className="flex shrink-0 items-end gap-2 self-center">
+    <div className="grid shrink-0 grid-cols-[minmax(116px,auto)_auto] items-end gap-4 self-center px-2 py-1">
+      <div className="flex flex-col items-end gap-2 pb-2">
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {JOB_RENDER_RANKS.map((r) => (
+            <button
+              key={r}
+              onClick={() => setRank(r)}
+              className={`h-7 min-w-7 rounded px-2 text-xs font-semibold leading-none border transition-colors ${rank === r ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"}`}
+            >{r}</button>
+          ))}
+        </div>
+        <div className="flex justify-end gap-1.5">
+          <button
+            onClick={() => setGender(1)}
+            className={`flex h-7 min-w-10 items-center justify-center gap-1 rounded px-2 text-xs font-semibold leading-none border transition-colors ${gender === 1 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"}`}
+          ><img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-4 h-5" style={{ imageRendering: "pixelated" }} />M</button>
+          <button
+            onClick={() => setGender(2)}
+            className={`flex h-7 min-w-10 items-center justify-center gap-1 rounded px-2 text-xs font-semibold leading-none border transition-colors ${gender === 2 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"}`}
+          ><img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-4 h-5" style={{ imageRendering: "pixelated" }} />F</button>
+        </div>
+      </div>
       <CharacterPreviewCanvas
         jobName={jobName}
         rank={rank}
@@ -2427,23 +2448,6 @@ function JobCharacterPreview({ jobName }: { jobName: string }) {
         label={`${jobName} ${rank} rank`}
         className="rounded"
       />
-      <div className="grid grid-cols-2 gap-1 pb-1">
-        {JOB_RENDER_RANKS.map((r) => (
-          <button
-            key={r}
-            onClick={() => setRank(r)}
-            className={`h-5 min-w-5 rounded px-1 text-[10px] font-medium leading-none border transition-colors ${rank === r ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-          >{r}</button>
-        ))}
-        <button
-          onClick={() => setGender(1)}
-          className={`flex h-5 min-w-5 items-center justify-center rounded px-1 text-[10px] font-medium leading-none border transition-colors ${gender === 1 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-        ><img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-3 h-4" style={{ imageRendering: "pixelated" }} /></button>
-        <button
-          onClick={() => setGender(2)}
-          className={`flex h-5 min-w-5 items-center justify-center rounded px-1 text-[10px] font-medium leading-none border transition-colors ${gender === 2 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-        ><img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-3 h-4" style={{ imageRendering: "pixelated" }} /></button>
-      </div>
     </div>
   );
 }
