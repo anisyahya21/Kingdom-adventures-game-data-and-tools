@@ -2341,13 +2341,15 @@ export default function LoadoutPage() {
                                 const rule = data ? getEquipRuleState(loadout, data, eq.name) : null;
                                 return (
                                   <span key={eq.name} className="flex min-w-0 flex-col items-center gap-1 text-center">
-                                    <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/50 bg-muted/30">
-                                      {icon ? (
-                                        <img src={icon} alt="" className="h-14 w-14 max-w-none shrink-0 object-contain" />
-                                      ) : (
-                                        <span className="flex h-11 w-11 items-center justify-center text-xs text-muted-foreground">?</span>
-                                      )}
-                                      <span className="absolute bottom-0 right-[-2px] rounded-tl bg-background/90 px-0.5 pl-1 text-[8px] font-semibold leading-3 text-muted-foreground">Lv{eq.level}</span>
+                                    <span className="relative h-11 w-[68px] shrink-0">
+                                      <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-md border border-border/50 bg-muted/30">
+                                        {icon ? (
+                                          <img src={icon} alt="" className="h-14 w-14 max-w-none shrink-0 object-contain" />
+                                        ) : (
+                                          <span className="flex h-11 w-11 items-center justify-center text-xs text-muted-foreground">?</span>
+                                        )}
+                                      </span>
+                                      <span className="absolute bottom-0 left-[46px] rounded-sm bg-background/95 px-1 text-[10px] font-bold leading-4 text-muted-foreground shadow-sm ring-1 ring-border/60">Lv{eq.level}</span>
                                     </span>
                                     <span className="text-[8px] font-semibold uppercase leading-none text-muted-foreground/70">{slot ?? "Gear"}</span>
                                     <span className="line-clamp-2 min-h-6 text-[10px] font-medium leading-tight text-foreground">{eq.name}</span>
