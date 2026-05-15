@@ -2416,34 +2416,33 @@ function JobCharacterPreview({ jobName }: { jobName: string }) {
   const poseFrame = useJobIdlePose();
 
   return (
-    <div className="flex flex-col items-center gap-2 shrink-0">
+    <div className="flex shrink-0 items-end gap-2 self-center">
       <CharacterPreviewCanvas
         jobName={jobName}
         rank={rank}
         variant={gender}
         equipState="right"
-        scale={6}
+        scale={5}
         poseFrame={poseFrame}
         label={`${jobName} ${rank} rank`}
         className="rounded"
       />
-      <div className="flex items-center gap-1 flex-wrap justify-center">
+      <div className="grid grid-cols-2 gap-1 pb-1">
         {JOB_RENDER_RANKS.map((r) => (
           <button
             key={r}
             onClick={() => setRank(r)}
-            className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${rank === r ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+            className={`h-5 min-w-5 rounded px-1 text-[10px] font-medium leading-none border transition-colors ${rank === r ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
           >{r}</button>
         ))}
-        <span className="w-px h-3 bg-border mx-0.5" />
         <button
           onClick={() => setGender(1)}
-          className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors flex items-center gap-1 ${gender === 1 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-        ><img src="/website_icons/gender/gender_0_male.png" alt="" className="w-4 h-5" style={{ imageRendering: "pixelated" }} />M</button>
+          className={`flex h-5 min-w-5 items-center justify-center rounded px-1 text-[10px] font-medium leading-none border transition-colors ${gender === 1 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+        ><img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-3 h-4" style={{ imageRendering: "pixelated" }} /></button>
         <button
           onClick={() => setGender(2)}
-          className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors flex items-center gap-1 ${gender === 2 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-        ><img src="/website_icons/gender/gender_1_female.png" alt="" className="w-4 h-5" style={{ imageRendering: "pixelated" }} />F</button>
+          className={`flex h-5 min-w-5 items-center justify-center rounded px-1 text-[10px] font-medium leading-none border transition-colors ${gender === 2 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+        ><img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-3 h-4" style={{ imageRendering: "pixelated" }} /></button>
       </div>
     </div>
   );
@@ -2612,10 +2611,10 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
 
       {/* Header card */}
       <Card className="shadow-sm mb-4">
-        <CardContent className="pt-4">
-          <div className="flex items-start gap-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1 min-w-0">
-              <div className="flex items-start gap-4 mb-3">
+              <div className="flex items-start gap-4">
                 {editing
                   ? <IconUploadSmall value={draft.icon} onChange={(icon) => setDraft((d) => ({ ...d, icon }))} />
                   : <div className="w-14 h-14 rounded-xl border border-border bg-muted/40 flex items-center justify-center overflow-hidden shrink-0">

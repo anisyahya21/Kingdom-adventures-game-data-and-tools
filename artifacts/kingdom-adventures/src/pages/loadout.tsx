@@ -1516,10 +1516,10 @@ function CollapsedCharPreview({ jobName, rank, weaponName, shieldName }: { jobNa
       equipState="right"
       weaponName={weaponName}
       shieldName={shieldName}
-      scale={3}
+      scale={5}
       poseFrame={poseFrame}
       label="character"
-      className="shrink-0 rounded"
+      className="mx-auto shrink-0 rounded"
     />
   );
 }
@@ -1540,7 +1540,7 @@ function CharacterPreview({
   const poseFrame = useIdlePreviewPose();
 
   return (
-    <div className="flex flex-col items-center gap-2 py-2">
+    <div className="flex flex-col items-center gap-2 py-1">
       <CharacterPreviewCanvas
         jobName={jobName}
         rank={rank}
@@ -1548,7 +1548,7 @@ function CharacterPreview({
         equipState={equipState}
         weaponName={weaponName}
         shieldName={shieldName}
-        scale={4}
+        scale={5}
         poseFrame={poseFrame}
         label={`${jobName} character`}
         className="rounded"
@@ -2218,7 +2218,7 @@ export default function LoadoutPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         {showNote && (
           <div className="mb-4">
             <textarea
@@ -2243,7 +2243,7 @@ export default function LoadoutPage() {
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="grid gap-3 xl:grid-cols-2">
           {loadouts.map((loadout) => {
             const isOpen = expandedId === loadout.id;
             const job = data?.jobs?.[loadout.jobName];
@@ -2251,7 +2251,7 @@ export default function LoadoutPage() {
             const hasStats = STAT_KEYS.some((k) => stats[k]);
 
             return (
-              <Card key={loadout.id} className="shadow-sm overflow-hidden">
+              <Card key={loadout.id} className={`shadow-sm overflow-hidden ${isOpen ? "xl:col-span-2" : ""}`}>
                 {/* Summary bar */}
                 <button
                   className="w-full text-left"
@@ -2294,67 +2294,65 @@ export default function LoadoutPage() {
                       const weaponEntry = loadout.equipment.find((e) => slotMap[e.name] === "Weapon");
                       const shieldEntry = loadout.equipment.find((e) => slotMap[e.name] === "Shield");
                       return (
-                      <div className="pl-6 mt-2 flex gap-3 items-start">
-                        {loadout.jobName && (
-                          <CollapsedCharPreview
-                            jobName={loadout.jobName}
-                            rank={loadout.rank}
-                            weaponName={weaponEntry?.name}
-                            shieldName={shieldEntry?.name}
-                          />
-                        )}
-                        <div className="flex-1 min-w-0 space-y-2">
-                        {/* All stats */}
-                        {hasStats && (
-                          <div className="flex flex-wrap gap-x-5 gap-y-1.5">
-                            {STAT_KEYS.filter((k) => stats[k]).map((k) => (
-                              <span key={k} className="inline-flex items-center gap-1.5 text-sm tabular-nums">
-                                <span className="text-muted-foreground">
-                                  <StatLabel stat={k} icons={data?.statIcons} iconClassName="h-4.5 w-4.5" />
+                      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(160px,210px)_minmax(0,1fr)] sm:items-start">
+                        <div className="min-w-0 space-y-2">
+                          {hasStats && (
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-2">
+                              {STAT_KEYS.filter((k) => stats[k]).map((k) => (
+                                <span key={k} className="inline-flex min-w-0 items-center gap-1 text-[10px] leading-none tabular-nums text-muted-foreground">
+                                  <StatLabel stat={k} icons={data?.statIcons} iconClassName="h-3.5 w-3.5" />
+                                  <strong className="truncate text-xs leading-none text-foreground">{stats[k].toLocaleString()}</strong>
                                 </span>
-                                <strong className="text-base leading-none text-foreground">{stats[k].toLocaleString()}</strong>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {/* Equipment chips */}
-                        {loadout.equipment.length > 0 && (
-                          <div className="flex flex-wrap items-start gap-2.5">
-                            {loadout.equipment.map((eq) => {
-                              const icon = getEquipmentIcon(data?.equipIcons, eq.name);
-                              const slot = data?.slotAssignments?.[eq.name];
-                              const rule = data ? getEquipRuleState(loadout, data, eq.name) : null;
-                              return (
-                                <span key={eq.name} className="flex w-24 flex-col items-center gap-1 rounded-md border border-border/50 bg-muted/35 px-1.5 py-2 text-center text-[10px]">
-                                  {icon ? (
-                                    <img src={icon} alt="" className="h-14 w-14 shrink-0 object-contain" />
-                                  ) : (
-                                    <span className="flex h-14 w-14 items-center justify-center rounded bg-muted/40 text-muted-foreground">?</span>
-                                  )}
-                                  <span className="text-[10px] font-semibold uppercase leading-none text-muted-foreground/70">{slot ?? "Gear"}</span>
-                                  <span className="line-clamp-2 min-h-7 text-[11px] font-medium leading-tight text-foreground">{eq.name}</span>
-                                  <span className="text-[10px] leading-none text-muted-foreground">Lv{eq.level}</span>
-                                  {rule?.blocked && <span className="text-[10px] font-semibold leading-none text-orange-600 dark:text-orange-400">Can't</span>}
-                                  {rule?.appliesPenalty && <span className="text-[10px] font-semibold leading-none text-amber-600 dark:text-amber-400">Weak</span>}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {/* Skill pills */}
-                        {loadout.skills.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-xs font-medium text-muted-foreground/70 shrink-0">Skills:</span>
-                            {loadout.skills.map((s) => (
-                              <ToneBadge key={s} category="skill" className="inline-block rounded-md px-2 py-0.5 text-xs">
-                                {s}
-                              </ToneBadge>
-                            ))}
-                          </div>
-                        )}
-                        {!hasStats && loadout.equipment.length === 0 && loadout.skills.length === 0 && (
-                          <span className="text-xs text-muted-foreground/50">Empty loadout — click to configure</span>
-                        )}
+                              ))}
+                            </div>
+                          )}
+                          {loadout.jobName && (
+                            <div className="flex min-h-[170px] items-center justify-center">
+                              <CollapsedCharPreview
+                                jobName={loadout.jobName}
+                                rank={loadout.rank}
+                                weaponName={weaponEntry?.name}
+                                shieldName={shieldEntry?.name}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 space-y-2">
+                          {loadout.equipment.length > 0 && (
+                            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-5">
+                              {loadout.equipment.map((eq) => {
+                                const icon = getEquipmentIcon(data?.equipIcons, eq.name);
+                                const slot = data?.slotAssignments?.[eq.name];
+                                const rule = data ? getEquipRuleState(loadout, data, eq.name) : null;
+                                return (
+                                  <span key={eq.name} className="flex min-w-0 flex-col items-center gap-0.5 rounded-md border border-border/50 bg-muted/30 px-1 py-1.5 text-center">
+                                    {icon ? (
+                                      <img src={icon} alt="" className="h-10 w-10 shrink-0 object-contain" />
+                                    ) : (
+                                      <span className="flex h-10 w-10 items-center justify-center rounded bg-muted/40 text-xs text-muted-foreground">?</span>
+                                    )}
+                                    <span className="text-[8px] font-semibold uppercase leading-none text-muted-foreground/70">{slot ?? "Gear"}</span>
+                                    <span className="line-clamp-2 min-h-6 text-[10px] font-medium leading-tight text-foreground">{eq.name}</span>
+                                    <span className="text-[9px] leading-none text-muted-foreground">Lv{eq.level}</span>
+                                    {rule?.blocked && <span className="text-[9px] font-semibold leading-none text-orange-600 dark:text-orange-400">Can't</span>}
+                                    {rule?.appliesPenalty && <span className="text-[9px] font-semibold leading-none text-amber-600 dark:text-amber-400">Weak</span>}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {loadout.skills.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1">
+                              {loadout.skills.map((s) => (
+                                <ToneBadge key={s} category="skill" className="inline-block rounded-md px-1.5 py-0.5 text-[10px]">
+                                  {s}
+                                </ToneBadge>
+                              ))}
+                            </div>
+                          )}
+                          {!hasStats && loadout.equipment.length === 0 && loadout.skills.length === 0 && (
+                            <span className="text-xs text-muted-foreground/50">Empty loadout - click to configure</span>
+                          )}
                         </div>
                       </div>
                       );

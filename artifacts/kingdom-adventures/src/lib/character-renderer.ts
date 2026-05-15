@@ -80,6 +80,25 @@ type AssetRef = {
   strip: boolean;
 };
 
+type AlphaBounds = [number, number, number, number];
+
+type RenderEnvelope = {
+  rules: CharacterRules;
+  job: JobRow;
+  variant: number;
+  weaponId: number | null;
+  shieldId: number | null;
+  poseName: string;
+  width: number;
+  height: number;
+  originX: number;
+  originY: number;
+  cropX: number;
+  cropY: number;
+  cropW: number;
+  cropH: number;
+};
+
 export type CharacterRenderParams = {
   jobName: string;
   rank?: string | null;
@@ -93,6 +112,7 @@ export type CharacterRenderParams = {
 
 let rulesPromise: Promise<CharacterRules> | null = null;
 const imageCache = new Map<string, Promise<HTMLImageElement | null>>();
+const envelopeCache = new Map<string, Promise<RenderEnvelope | null>>();
 
 function loadCharacterRules(): Promise<CharacterRules> {
   if (!rulesPromise) {
@@ -296,7 +316,7 @@ async function blitStrip(ctx: CanvasRenderingContext2D, rules: CharacterRules, a
   drawCrop(ctx, image, op.u * op.w, op.v * op.h, op.w, op.h, xOffset, yOffset, false);
 }
 
-function alphaBounds(source: HTMLCanvasElement): [number, number, number, number] | null {
+function alphaBounds(source: HTMLCanvasElement): AlphaBounds | null {
   const ctx = source.getContext("2d");
   if (!ctx) return null;
   const pixels = ctx.getImageData(0, 0, source.width, source.height).data;
@@ -317,29 +337,53 @@ function alphaBounds(source: HTMLCanvasElement): [number, number, number, number
   return [minX, minY, maxX, maxY];
 }
 
-function trimTransparentPadding(source: HTMLCanvasElement): HTMLCanvasElement | null {
-  const bounds = alphaBounds(source);
-  if (!bounds) return null;
-  const [minX, minY, maxX, maxY] = bounds;
-  const padding = 1;
-  const cropX = Math.max(0, minX - padding);
-  const cropY = Math.max(0, minY - padding);
-  const cropRight = Math.min(source.width, maxX + padding + 1);
-  const cropBottom = Math.min(source.height, maxY + padding + 1);
-  const trimmed = document.createElement("canvas");
-  trimmed.width = Math.max(1, cropRight - cropX);
-  trimmed.height = Math.max(1, cropBottom - cropY);
-  const ctx = trimmed.getContext("2d");
-  if (!ctx) return null;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(source, cropX, cropY, trimmed.width, trimmed.height, 0, 0, trimmed.width, trimmed.height);
-  return trimmed;
+function unionBounds(a: AlphaBounds | null, b: AlphaBounds): AlphaBounds {
+  if (!a) return b;
+  return [
+    Math.min(a[0], b[0]),
+    Math.min(a[1], b[1]),
+    Math.max(a[2], b[2]),
+    Math.max(a[3], b[3]),
+  ];
 }
 
-export async function renderCharacterPreview(canvas: HTMLCanvasElement, params: CharacterRenderParams): Promise<boolean> {
+async function drawFrameToCanvas(ctx: CanvasRenderingContext2D, envelope: Omit<RenderEnvelope, "cropX" | "cropY" | "cropW" | "cropH">, poseFrame: number): Promise<void> {
+  const drawOps = getPoseOps(envelope.rules, envelope.poseName, poseFrame);
+  const [bodyOx, , refOy] = poseRefs(drawOps);
+  ctx.clearRect(0, 0, envelope.width, envelope.height);
+  let shieldDrawn = false;
+  for (const op of drawOps) {
+    if (op.type === 12) {
+      if (shieldDrawn) continue;
+      shieldDrawn = true;
+    }
+    const asset = resolveLayerAsset(envelope.rules, envelope.job, envelope.variant, op, envelope.weaponId, envelope.shieldId);
+    if (!asset) continue;
+    const layerX = op.ox - bodyOx + envelope.originX;
+    const layerY = op.oy - refOy + envelope.originY;
+    if (asset.strip) {
+      await blitStrip(ctx, envelope.rules, asset, op, layerX, layerY);
+    } else {
+      await blitOpt(ctx, envelope.rules, asset, op.v, op.u, layerX, layerY, op.type, op.type === 12 && envelope.poseName === "equip_wait_right.seb");
+    }
+  }
+}
+
+function envelopeKey(params: CharacterRenderParams): string {
+  return JSON.stringify({
+    jobName: params.jobName,
+    rank: params.rank ?? null,
+    variant: params.variant,
+    equipState: params.equipState,
+    weaponName: params.weaponName ?? null,
+    shieldName: params.shieldName ?? null,
+  });
+}
+
+async function createRenderEnvelope(params: CharacterRenderParams): Promise<RenderEnvelope | null> {
   const rules = await loadCharacterRules();
   const job = findJob(rules, params.jobName, params.rank);
-  if (!job) return false;
+  if (!job) return null;
 
   const variant = clamp(params.variant, 0, 2);
   let weaponId = job.weapon;
@@ -349,11 +393,7 @@ export async function renderCharacterPreview(canvas: HTMLCanvasElement, params: 
 
   const hasEquipment = (weaponId != null && weaponId >= 0) || (shieldId != null && shieldId >= 0);
   const poseName = params.equipState === "up" ? "equip_wait_up.seb" : hasEquipment ? "equip_wait_right.seb" : "wait_right.seb";
-  const poseFrame = clamp(params.poseFrame, 0, 3);
-  const drawOps = getPoseOps(rules, poseName, poseFrame);
-  if (!drawOps.length) return false;
 
-  const [bodyOx, , refOy] = poseRefs(drawOps);
   const extentValues: Array<[number, number, number, number]> = [];
   for (let frame = 0; frame < 4; frame += 1) {
     const extentOps = getPoseOps(rules, poseName, frame);
@@ -365,41 +405,78 @@ export async function renderCharacterPreview(canvas: HTMLCanvasElement, params: 
   const minY = Math.min(...extentValues.map((extent) => extent[1]));
   const maxX = Math.max(...extentValues.map((extent) => extent[2]));
   const maxY = Math.max(...extentValues.map((extent) => extent[3]));
+  const width = Math.max(1, maxX - minX);
+  const height = Math.max(1, maxY - minY);
+  const probe = document.createElement("canvas");
+  probe.width = width;
+  probe.height = height;
+  const probeCtx = probe.getContext("2d");
+  if (!probeCtx) return null;
+  probeCtx.imageSmoothingEnabled = false;
+
+  const envelopeBase = {
+    rules,
+    job,
+    variant,
+    weaponId,
+    shieldId,
+    poseName,
+    width,
+    height,
+    originX: -minX,
+    originY: -minY,
+  };
+
+  let bounds: AlphaBounds | null = null;
+  for (let frame = 0; frame < 4; frame += 1) {
+    await drawFrameToCanvas(probeCtx, envelopeBase, frame);
+    const frameBounds = alphaBounds(probe);
+    if (frameBounds) bounds = unionBounds(bounds, frameBounds);
+  }
+  if (!bounds) return null;
+  const [alphaMinX, alphaMinY, alphaMaxX, alphaMaxY] = bounds;
+  const padding = 1;
+  const cropX = Math.max(0, alphaMinX - padding);
+  const cropY = Math.max(0, alphaMinY - padding);
+  const cropRight = Math.min(width, alphaMaxX + padding + 1);
+  const cropBottom = Math.min(height, alphaMaxY + padding + 1);
+
+  return {
+    ...envelopeBase,
+    cropX,
+    cropY,
+    cropW: Math.max(1, cropRight - cropX),
+    cropH: Math.max(1, cropBottom - cropY),
+  };
+}
+
+function getRenderEnvelope(params: CharacterRenderParams): Promise<RenderEnvelope | null> {
+  const key = envelopeKey(params);
+  const cached = envelopeCache.get(key);
+  if (cached) return cached;
+  const promise = createRenderEnvelope(params);
+  envelopeCache.set(key, promise);
+  return promise;
+}
+
+export async function renderCharacterPreview(canvas: HTMLCanvasElement, params: CharacterRenderParams): Promise<boolean> {
+  const envelope = await getRenderEnvelope(params);
+  if (!envelope) return false;
+  const poseFrame = clamp(params.poseFrame, 0, 3);
   const base = document.createElement("canvas");
-  base.width = Math.max(1, maxX - minX);
-  base.height = Math.max(1, maxY - minY);
+  base.width = envelope.width;
+  base.height = envelope.height;
   const baseCtx = base.getContext("2d");
   if (!baseCtx) return false;
   baseCtx.imageSmoothingEnabled = false;
-
-  const originX = -minX;
-  const originY = -minY;
-  let shieldDrawn = false;
-  for (const op of drawOps) {
-    if (op.type === 12) {
-      if (shieldDrawn) continue;
-      shieldDrawn = true;
-    }
-    const asset = resolveLayerAsset(rules, job, variant, op, weaponId, shieldId);
-    if (!asset) continue;
-    const layerX = op.ox - bodyOx + originX;
-    const layerY = op.oy - refOy + originY;
-    if (asset.strip) {
-      await blitStrip(baseCtx, rules, asset, op, layerX, layerY);
-    } else {
-      await blitOpt(baseCtx, rules, asset, op.v, op.u, layerX, layerY, op.type, op.type === 12 && params.equipState === "right");
-    }
-  }
-
-  const trimmed = trimTransparentPadding(base);
-  if (!trimmed) return false;
+  await drawFrameToCanvas(baseCtx, envelope, poseFrame);
   const scale = clamp(params.scale, 1, 16);
-  canvas.width = trimmed.width * scale;
-  canvas.height = trimmed.height * scale;
+  canvas.width = envelope.cropW * scale;
+  canvas.height = envelope.cropH * scale;
   const ctx = canvas.getContext("2d");
   if (!ctx) return false;
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(trimmed, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(base, envelope.cropX, envelope.cropY, envelope.cropW, envelope.cropH, 0, 0, canvas.width, canvas.height);
   return true;
 }
