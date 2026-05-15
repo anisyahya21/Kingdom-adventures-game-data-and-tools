@@ -1,0 +1,24 @@
+0	Resident	0	-1	5	136	0	0	0
+1	Enemy	1	-1	5	136	0	0	0
+2	Lester Sheep	2	-1	5	28	0	0	1
+3	Customer	3	128	5	136	0	0	0
+4	Pumpkin	2	-1	5	136	0	0	0
+5	Chimpan Z	2	-1	5	136	1	0	0
+6	Grizzly Bearington	2	-1	5	136	2	0	0
+7	Wairobot	2	-1	5	136	3	0	0
+8	King Ackbar	2	-1	5	136	4	0	0
+9	Forest Girl	2	-1	5	136	5	0	0
+10	Forest Boy	2	-1	5	136	6	0	0
+11	Master Smithy	2	-1	5	136	0	1	0
+12	Lester Sheep	2	-1	5	136	1	1	0
+13	Palace Guard Boy	2	-1	5	136	2	1	0
+14	Mystery Kingdom King	2	-1	5	136	3	1	0
+15	Mystery Kingdom Princess	2	-1	5	136	4	1	0
+16	Farm Boy	2	-1	5	136	5	1	0
+17	Village Girl	2	-1	5	136	6	1	0
+18	Kingdom Association Chairman	2	-1	5	136	0	2	0
+19	Neighboring King	2	-1	5	136	1	2	0
+20	Trophy King	2	-1	5	136	2	2	0
+21	Kairobot	2	-1	5	136	3	2	0
+22	Mover Spirit	2	-1	5	136	4	2	0
+23	Collector Mochipon	2	-1	5	136	3

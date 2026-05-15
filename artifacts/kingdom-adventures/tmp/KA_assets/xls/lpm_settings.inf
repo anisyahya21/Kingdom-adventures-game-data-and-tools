@@ -1,0 +1,11 @@
+﻿[Config]
+Includes=
+Keeps	= 
+
+[FileAttributes]
+File	= Manual
+Type	= data
+SegCode	= 
+LineCode= \n
+Includes= 
+Keep

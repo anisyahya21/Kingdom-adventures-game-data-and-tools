@@ -1,0 +1,36 @@
+歴代	not use
+週間	Week(s)
+ｻﾎﾟｰﾄ	Support
+おまかせ	Auto
+全部	All
+中身	Contents
+予想	Forecast
+全員帰還	Recall All
+並び順	Sort
+復元	Restore
+ﾘｾｯﾄ	Reset
+決定	OK
+終了	Quit
+戻る	Back
+はい	Yes
+いいえ	No
+確認	Confirm
+セーブ	Save
+メニュー	Menu
+自分	You
+上位	Top
+ｻｲﾄ	Site
+階層	Floor
+ﾊﾟｽﾜｰﾄﾞ	Password
+改名	Rename
+回転	Rotate
+外す	Remove
+切替	Switch
+中止	Quit
+次へ	Next
+閉じる	Close
+履歴	History
+追跡	Follow
+x1	x1
+x10	x10
+x50

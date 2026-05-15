@@ -1,0 +1,1200 @@
+盾	Shield
+服	Clothing
+頭部	Head
+ｱｸｾｻﾘ	Accessory
+武器	Weapon
+経験値量	EXP
+回復量	Recovery
+耐久上限	Max Durability
+狙われ度	Provoke
+<0>回復	Heal <0>
+標的ｺｽﾄ	Target Cost
+耐久度	Durability
+雑用系	General
+戦闘系	Battle
+お店系	Shop
+<0>個ｾｯﾄ	Set of <0>
+モンスター	Monsters
+資源	Materials:
+研究	Research
+装備	Equipment
+施設	Facility
+技	Skill
+職業	Job
+特別な宝箱を見つけました。	You found some special treasure.
+から<0>｢<1>｣の権利を<2>回ゲット	Acquired <0> <1> rights x<2>
+から<0>｢<1>｣を<2>個ゲット	Acquired <0> <1> x<2>
+新しいエリアを見つけました。	You discovered a new area.
+未開拓地	Unexplored
+撤退	Remove
+平均Lv	Average Lv.
+ﾒﾝﾊﾞｰ	Members
+あきらめる\t再開(あと<0>回)	Give Up\tRestart (<0> more)
+すぐ開始	Start Now
+キャンセル	Cancel
+ボスを見つけました。	You found a boss monster.
+別のボス討伐が進行中です。	Currently fighting another boss.
+この位置でいいですか	Start from here?
+工事	Construction
+通れない	No access
+どこまで敷きますか	Select end point.
+どこから敷きますか	Select starting point.
+<po=m><co=ff0000>近くに看板がありません	No signs nearby.
+<po=m><co=ff0000>近くに防壁玄関がありません	No defensive wall gates nearby.
+工事数が最大です	Max constructions reached.
+ﾀﾞｲﾔｼｮｯﾌﾟで販売中	Available at the Diamond Shop
+初撃破!	First victory!
+報酬	Reward
+レベルアップ中は撤去できません	Cannot remove while leveling up.
+研究中は撤去できません	Cannot remove while researching.
+担当者を外してからにしてください	Take away leadership first.
+街が複数ある	You have more than one town.
+街の住民 0人 (引越し等)	Residents: 0 (Moving, etc.)
+街の拡張施設を撤去済み	Demolition of expansion facilities complete.
+街の施設がﾚﾍﾞﾙｱｯﾌﾟ中ではない	Unavailable while facilities are leveling up.
+街同士で物資を移動中ではない	Unavailable while goods are moved.
+街に工事が必要な施設がない	No facilities that need construction.
+ﾓﾝｽﾀｰが襲撃中ではない	No attacking monsters.
+タウンホール撤去条件	Town Hall Demolition Requirements
+<po=m>銅貨箱や仲間ﾓﾝｽﾀｰも<br>あらかじめ避難ください。	Keep your coin boxes and ally monsters safe.
+どこまで撤去しますか?	Remove up to where?
+何を撤去しますか?	Remove which?
+<po=m><0>を撤去しますか?<br>※撤去すると失います	<po=m>Remove <0>?<br>*It will be lost permanently.
+撤去\t<po=lm><si=9><bo=fefefe>手元に戻す</bo></si>&<po=rm><pic=money><0>	Remove\t<po=lm><si=9><bo=fefefe>and return to? </bo></si>&<po=rm><pic=money><0>
+<po=m><0>と全施設を<br>撤去します	Remove all facilities and <0>?
+<po=m>建て直す際、街ランクは<br>保持されません	If you rebuild your town it will lose its current rank.
+すでに調査中です	A survey is already in progress.
+派遣先	Destination
+<po=m><0>さんを派遣<br>場所を選んで下さい	Select where to deploy <0>
+<po=m>マップの明るいところを<br>選んで下さい	Select a clear part of the map.
+<po=m><0>さんの派遣内容<br>を変更しますか?	Change <0>'s quest objective?
+帰還する\t場所変更	Retreat\tChange Destination
+<0>さんが帰還します。	<0> is heading back.
+参加 <0>人	Participating: <0>
+上限	Max
+低	Low
+高	High
+洞窟が出現しました	A cave has appeared.
+研究中	Researching...
+達成 / また次回	Completed / Next
+本日分を登録	Register Today
+達成 <0>件	Completed: <0>
+<po=m>フレンドを招待することが出来ます<br>フレンドを探そう	<po=m>You can now invite friends to your kingdom.<br>Try adding some new friends.
+フレンドを招待しますか	Invite a friend?
+招待できる人がいませんでした	No friends to invite.
+街の領域外です	Out of bounds.
+<0>が足りません	Not enough <0>
+観光船を呼びましょう	Invite a tourist ship
+得意地形!	Specialty terrain!
+<0>を撤去しますか?	Remove <0>?
+今日のミッションを中断しますか？	Do you want to abort today's challenge?
+はい\tいいえ	OK\tCancel
+小	Maddy
+中	Medium
+大	L
+特大	XL
+土地を与える	Give Land
+撤去する	Remove
+玄関を建てる	Build an entrance.
+土地を撤去しますか?	Remove plot?
+<0>はモンスター牧場に向かった	<0> went to the Monster Farm.
+<0>は自然に帰っていった	<0> returned to the wild.
+対戦する	Battle
+<pic=stamina>が満杯です	<pic=stamina> full.
+<0>を最大まで回復します	Fully recover <0>
+<0>さん 調査完了	<0> finished their survey.
+<po=m><0>を<br>すぐに完了します	Instant <0>
+調査	Survey
+<0> ﾗﾝｸﾎﾟｲﾝﾄ満ﾀﾝ!	<0> Rank Points full!
+<0>つ目の街	Town No. <0>
+どうしようかな	What to do?
+ランクアップ	Rank Up
+冒険者	Adventurer
+滞在	Stay
+観光客が最大です。	Max number of tourists reached.
+近くに看板が必要です	You need a sign nearby.
+<po=m>ｶｲﾛﾗﾝﾄﾞ<br>ﾀﾞｲﾔGET	<po=m>Get<br>Diamonds<br>with Kairo Land
+<po=m>Tapjoy<br>ﾀﾞｲﾔGET	<po=m>Get<br>Diamonds<br>with Tapjoy
+<po=m>撮影で<br>ﾀﾞｲﾔGET	<po=m>Get<br>Diamonds<br>for pics
+<po=m>動画で<br>ﾀﾞｲﾔGET	<po=m>Get<br>Diamonds<br>for videos
+<po=m>国王の<br>相談室	<po=m>Royal<br>Chamber
+国王たろう	Rex Regis
+国王はな子	Carrie Regis
+環境	Env.
+ 資源	Materials
+ 設備	Amenity
+ 室内	Indoors
+ 中	 Medium
+ 高	 High
+ 無	 None
+やさしい	Easy
+ふつう	Normal
+むずかしい	Hard
+さいきょう	Lunatic
+そこそこ	Not Bad
+良い	Good
+豪華	Luxury
+課金	Premium
+ダイヤ	Diamonds
+ポイント	Points
+特別アイテム(全体用)	Special Items (Group)
+特別アイテム(個別)	Special Items (Individual)
+高め	High
+低め	Low
+経験値2倍チャンス!	Double EXP!
+宝箱大発生チャンス!	Get more Treasure Chests!
+はりきって調査した所…	I went all out on this survey...
+ルンルン気分で調査した結果	I set out on my survey feeling really happy...
+調子がいい状態で調査した結果	I set out on this survey full of energy...
+ノリノリで調査した所…	My spirits were really up on this survey...
+朝の占いは凶でしたが…なんと	My horoscope for today wasn't looking good...
+元気よく調査した所…	I was feeling pretty good for this survey...
+たまに逆立ちして調査した所	I ran into some problems on this survey...
+諦めて帰ろうとした所…なんと	I was going to give up and come home, but then...
+奇跡につぐ奇跡が起き…	I witnessed a real miracle!
+なんと出かけてすぐに	As soon as I set out...
+なんということでしょう…	How should I put this...
+こんな奇跡は初めて…	I'd never seen anything like it.
+やりました！	It was a success!
+勢いよく出かけた結果…	I set out on this survey ready to give it my all...
+気合を入れて調査した結果	I set out on this survey feeling inspired...
+はりきってたが靴ひもがほどけ…	Right after I got going, all my ropes came undone...
+途中で突き指をした結果…	The survey wasn't looking good, but I got a second wind...
+ノリにのりまくって調査した所…	I decided to just go with the flow...
+大成功だ!と豪語して出た所…	I was really confident this survey would go well...
+途中崖から落ちてしまった結果…	I walked right off the edge of a cliff...
+気づいたらまだベッドにいた所…	I can't believe I overslept on the big day...
+寝不足のまま挑戦した結果…	I was feeling groggy from lack of sleep...
+諦めて帰ろうとした結果…	I had to give up and come home...
+靴を左右間違えていたので	I realized I was wearing my shoes on the wrong feet...
+よくみたら違う場所にいた結果	I got lost and went to the wrong place...
+朝ご飯を抜いて出かけた結果	I skipped breakfast and set off early...
+なんと！	You won't believe this!
+けっこう頑張ってみたところ…	I put in a really good effort...
+本人はまだ認めたくないが…	I still refuse to believe it but...
+困ったことに…	Things took a turn for the worse...
+おやつの時間になったため…	I took a break to eat some snacks...
+動物のエサを置いて見つけよう	Place some Monster Feed and see what happens.
+釣り堀を置いて見つけよう	Place a Fishing Pond and see what happens.
+アトリエを置いて見つけよう	Place a Studio and see what happens.
+虫スポットを置いて見つけよう	Place a Bug Trap and see what happens.
+失敗した…	We failed...
+帰りました	We got home safely.
+楽しかった!	That was a blast!
+うまくいった!	We totally crushed it!
+大成功だよ	It was a great success.
+<po=m>ランクアップをすぐに完了します<br>あと <0>	<po=m>Instantly Rank Up<br><0> more
+<po=m>ﾚﾍﾞﾙｱｯﾌﾟなどの際に所属した街から<br>費用が引かれます。<br>ﾚﾍﾞﾙ上限は所属ﾀｳﾝﾎｰﾙから算出されます。	<po=m>The cost of leveling up is deducted from the corresponding town.<br>Your max level depends on your Town Hall.
+施設を撤去します	Remove facility
+施設を入れ替えます	Change facility
+<po=m>動画を最後まで見ると<br>ダイヤがもらえるよ!	Watch the whole video to get Diamonds!
+<po=m>冒険キングダム島で王国を作っているよ。一緒に冒険しよう。<br>#カイロソフト<br>	<po=m>I'm creating my own kingdom in Kingdom Adventurers. Who wants to come explore with me?<br>#kairosoft<br>
+<po=m>王国を撮影して<br>SNSでシェアしよう	Take a pic of your kingdom and share it on social media
+<po=m>戦闘を取りやめて撤退します<br>※宝箱は獲得できません	<po=m>End the battle and retreat?<br>You will not receive any treasure.
+<po=m>ﾊﾞﾄﾙﾎﾟｲﾝﾄを1日1回登録して<br>ﾗﾝｷﾝｸﾞ上位を目指そう!<br>ﾓﾝｽﾀｰを倒すとﾎﾟｲﾝﾄが貯まるよ!<br>※結果発表は、翌日になります。	<po=m>Register your Battle Points every day and aim for<br>the top rank!<br>Defeat monsters to earn points.<br>*Results will be posted the next day.
+<po=m>ﾀﾞﾒｰｼﾞを与えるとﾎﾟｲﾝﾄUP<br>ﾀﾞﾒｰｼﾞを受けるとﾎﾟｲﾝﾄDown<br>うまく戦って高得点を目指そう<br>翌日に報酬をもらってね	<po=m>Your score will go up when you deal damage and<br>decrease when you take damage. Plan out your <br>battles to get the highest score and win<br>daily rewards!
+<po=m>全員復活して途中から<br>再挑戦しますか<br><pic=money><0>	<po=m>Revive all and resume the battle?<br><pic=money><0>
+<po=m>ﾌﾚﾝﾄﾞと討伐数をｼｪｱできます。<br>全ﾓﾝｽﾀｰを倒して賞品をもらおう	<po=m>You can share news of your victory<br>with friends.<br>Defeat all monsters to earn rewards.
+<po=m>取得したアイテムを与える街を選んで下さい。<br>アイテム倉庫にしまわれます。<br>溢れた分は受け取れないので注意してください。	<po=m>Choose a town to send your items to.<br>Items will go to the Item Storehouse.<br>Any items left over will be lost.
+<po=m>担当を取り消しますか<br>※溜めたポイントはなくなります	<po=m>Recall the leader?<br>*You will lose the points you've earned so far.
+<po=m>担当中の研究がリセットされます。<br>よろしいですか	The current research project will be reset. Proceed?
+<0>さん  洞窟撃破!	<0> conquered the cave!
+<0>さん  洞窟で敗北…	The cave proved too much for <0>...
+<po=m>他のプレイヤーとフレンドに<br>なると討伐で協力してもらえるよ<br>「ﾌﾚﾝﾄﾞ郵便局」に行ってみよう!	<po=m>Adding friends will allow you to help<br>each other during conquests.<br>Take a look at the Friend Post Office.
+<po=m>対戦をお断りします。<br>よろしいですか。	Cancel the battle?
+<po=m>経験値を<0>%受け継ぎます。<br>同じ職業だと<1>%ボーナス	<0>% of EXP will be carried over. Residents with the same job will get a <1>% bonus.
+<po=m>能力と経験値を他の住民に渡します。<br>設定すると街に戻せなくなります。	<po=m>You can transfer stats and EXP to other residents.<br>Once assigned they cannot return to town.
+<po=m>師匠に設定します。<br>※街に戻せなくなります。	<po=m>Assign as Instructor?<br>*They won't be able to return to town.
+<po=m><0>は<br>荒野に去っていきました	<po=m><0><br>wandered off into the wasteland.
+お得ﾀﾞｲﾔ	<po=m>Diamond<br>Deals
+<po=m>資源やアイテムは派遣と<br>討伐を繰り返すと入手できます	<po=m>Deploy residents on quests and<br>conquests to get materials and items.
+冒険者 <0>さん 滞在を終え帰国	Adventurer <0> returned to their homeland.
+冒険者 <0>さん 力尽きました…	Adventurer <0> is exhausted...
+<po=m><pic=money><0>を使用して<br>ゲージを回復しますか?	<po=m>Use <pic=money><0><br>to refill gage?
+ワイロダンジョンが出現しました	The Wairo Dungeon has appeared!
+ワイロダンジョンが消滅しました	The Wairo Dungeon disappeared.
+参加モンスターが経験値 <0> GET!	Participating Monsters got <0> EXP!
+派遣をキャンセルしますか?	Cancel deployment?
+<po=m>冒険キングダム島で今!<br>ワイロダンジョンが出現中だよ!<br>急げ!<br>#カイロソフト<br>	<po=m>Wairo Dungeons are now appearing in Kingdom Adventurers! Check them out before they're gone!<br>#kairosoft<br>
+<po=m>スクリーンショットのシェアで<br>1度だけ<pic=stamina>が回復します。<br>お友達に拡散しよう	<po=m>Share a screenshot to recover <pic=stamina>.<br>(one time only)<br>Whose will be the best?
+<po=m><0> を<br>モンスター牧場へ入れますか?	<po=m>Send <0> to<br>the Monster Farm?
+<po=m>設定すると他の街で呼ぶまで<br>街からいなくなります	<po=m>They will be gone from the town until you call them<br>at another town.
+<po=m>呼び出すには空きのある<br>タウンホールを選択してください	Select a Town Hall with empty spaces.
+<po=m>このエリアのボスを塞ぎますか?<br>エリアは再び雲に覆われます。	<po=m>Lock up this area's boss?<br>The fog will return to this area.
+色んな装備を集めて交換してね	<po=m>Find lots of equipment and trade<br>it for new items.
+曜日によって職業が変わります。	Jobs change according to days of the week.
+襲撃が収まりました。	The attack's over.
+ﾗﾝｸで技装備枠が増加します	More skill slots will be unlocked at higher ranks.
+<po=m>ｱﾌﾟﾘの更新が必要です<br>ｱﾝｲﾝｽﾄｰﾙしないで下さい	<po=m>A software update is required.<br>Please do not uninstall.
+<po=m>枠を <0> 個追加しますか<br><pic=money><1>	<po=m>Increase available slots by <0>?<br><pic=money><1>
+<po=m>枠を <0> 個追加しました<br>現在 最大 <1>	<po=m>Increased slots by <0>.<br>Current max: <1>
+<po=m>大人になった第二世代の民<br>保育所には戻せなくなります。	<po=m>Residents' children who have grown up cannot be placed<br>in day care.
+さらに<0>%UP!	Extra <0>%!
+<0>日	<0>D
+<0>時間	<0>hr
+<0>分	<0> min
+<0>秒	<0>s
+<0>カイロパークへ接続します	<0> Connect to Kairopark
+ゲームを終了して<br>	Quit the game and<br>
+<po=m>ロードに失敗しました<br>１つ前のデータへ戻しますか？	Load failed. Return to previous data?
+アプリの再起動をお願いします	Please restart the app.
+フレンドID：「<0>」	Friend ID: <0>
+読み込み中({0:f2}%)	Loading ({0:f2}%)
+―	―
+＼	＼
+｜	｜
+／	／
+しばらくお待ちください	Please wait...
+ﾃﾞﾊﾞｯｸﾞﾓｰﾄﾞではﾀｲﾑｽﾀﾝﾌﾟの確認を行いません。	debug mode
+<po=m>ｱﾌﾟﾘ情報に間違いがあります。<br>ｽﾄｱから再ｲﾝｽﾄｰﾙしてください。	App data is corrupted. Please re-install from the store.
+撮影	Screenshot
+アイテム倉庫表示を変更	Change Item Storehouse Display
+万	G
+万円	G
+自分の順位を表示	not use
+ランキングを表示	not use
+1週間	not use
+歴代	not use
+現在のﾌﾟﾚｲﾎﾟｲﾝﾄ	not use
+いつのﾗﾝｷﾝｸﾞ	not use
+を見ますか？	not use
+[以前のスコア]	not use
+エラーが発生しました	An error occurred.
+<0>のﾗﾝｷﾝｸﾞ	not use
+<0>位	#<0>
+(未登録)	not use
+---位/---位	not use
+前回から <0> ｱｯﾌﾟ!	not use
+前回から <0> ﾀﾞｳﾝ!	not use
+<0>位/<1>位	<0>/<1>
+平均レベル	Average Level
+攻撃	ATK
+防御	DEF
+ランク	Rank
+お気に	Fave
+職種	Job
+お問合せﾃﾞｰﾀの送信	Send inquiry
+お問合せコードを入力	Enter inquiry code
+エラー内容	Error details
+※デバッグ※	not use
+'save.bin'をダウンロードしますか？	Download "save.bin"?
+まるごと送信します	Sending everything.
+<po=m>お問合せデータを送信します<br>個人情報は送信されません	<po=m>Your personal information will not<br>be included in the message.
+<po=m>送信ありがとうございました。<br>調査完了まで時間がかかる場合がございます。<br><br>※ストアで最新版をご確認ください。<br>※アプリは削除しないでください。	<po=m>Thank you for notifying us of the error.<br>It may take us some time to investigate it.<br><br>*Please check if there is a newer version in the store.<br>*Please do not delete the app.
+<po=m>送信を完了しました。<br>ご協力ありがとうございます。<br>サポートへのご連絡も<br>お願い致します。	<po=m>Sent.<br>Thank you for your co-operation.<br>Please also contact our customer<br>support.
+エラー	Error
+データに互換性がありません	Incompatible data detected.
+システムデータも上書きしますか	Overwrite system data?
+ﾌﾚﾝﾄﾞID以外を上書きしますか	Overwrite all except Friend ID?
+失敗	Failed.
+ファイルが見つかりません。	File not found.
+受信完了しました。<0>	Data received successfully. <0>
+<br>ｱﾌﾟﾘを終了します	<br>The app will now close.
+該当するデータが存在しません。	No corresponding data found.
+データの受信中	Receiving data
+リスト	List
+貿易	Trade
+ショップ	SHOP
+攻撃的	Attack
+守備的	Defense
+平均的	Balanced
+特殊	Special
+解像度	Resolution
+人	Characters
+夜演出	Night/Day
+描画	Rendering
+ｵｰﾄｾｰﾌﾞ	Autosave
+ｽｸﾘｰﾝ	Screen
+ズーム	Zoom
+ﾌｷﾀﾞｼON	Speech ON
+ﾌｷﾀﾞｼOFF	Speech OFF
+多め	More
+少なめ	Less
+ﾌﾙ	All
+ﾉｰﾏﾙ	Standard
+父の職業	Father's Job
+組合せ職業	Compatible Job
+母の職業	Mother's Job
+購入履歴	Purchases
+増減状況	Balance Changes
+購入履歴はありません	No purchase history.
+増減状況はありません	No balance changes.
+ｹﾞｰﾑ中	In game
+通信関連	Connection
+ｼｮｯﾌﾟ	Shop
+起動ﾎﾞｰﾅｽ	Activity Bonuses
+有効期間切れ	Expired
+動物	Animal
+魚	Fish
+美術品	Art
+虫	Bug
+派遣	Deployment
+討伐	Conquest
+初の出発	First Quest
+あたま	Head
+防具	Armor
+頭	Head
+ｱｸｾ	Acc.
+回復	Recovery
+仲間の数	Allies
+範囲(ﾏｽ数)	Range (Tiles)
+敗北回数	Defeats
+ﾀｳﾝﾎｰﾙ収納資源	Stored Town Hall Materials
+ｴﾅｼﾞｰ収穫	Collected Energy
+ｴﾅｼﾞｰ収穫時間	Energy Collection Time
+全体用ｱｲﾃﾑ	Group Items
+モンスター牧場へようこそ	Welcome to the Monster Farm
+連れていくモンスターを選んでください	Select monsters to take with you.
+合成するモンスターを選んでください	Select monsters to fuse.
+強化したいモンスターを選んでください	Select monsters to strengthen.
+アイテム	Items
+住民入替え	Switch Residents
+派遣する住民	Deploy Residents
+担当者を選択	Select Leader
+討伐メンバー	Conquest Party Members
+協力フレンド	Friends
+同居者を選択	Select Roommate
+出場者を選択	Select Participants
+引越し候補	Can Be Moved
+降順	Descending
+昇順	Ascending
+別れる	Dismiss
+ｱｲﾃﾑ屋	Item Shop
+装備屋	Equipment Shop
+家具屋	Furniture Shop
+技屋	Skill Shop
+新しく探す	Search Again
+取得済み	Acquired
+埋蔵量	Deposits
+回復時間	Recovery Time
+採掘量	Ores
+採掘時間	Mining Time
+いいえ\tはい	Cancel\tOK
+<po=m><0>です。<br>撤去できません	<po=m><0>.<br>Cannot be removed.
+調査中	Surveying
+デート中	On a Date
+回収する\t<pic=money><0>	Collect\t<pic=money><0>
+通常の方法で探す	Normal Search
+引越し屋から探す	Mover Search
+保育所から探す	Day Care Search
+タマゴをセット	Set Egg
+モンスターを呼ぶ	Call Monsters
+※<0>が必要です	*<0> required
+牧場に入れる	Send to Farm
+<po=m>牧場に入れる<br><0>/<1>	<po=m>Send to Farm<br><0>/<1>
+育成する	Train
+合成する<br>	Fuse<br>
+お別れする	Release
+HPは全快です	HP already full
+HP回復	HP while walking.
+日替りモンスターの購入	Purchase Daily Monster
+<0>をあげる	Give <0>
+<0> → <1>	<0> to <1>
+<po=m><0><br>あと<1>匹休めます	<po=m><0><br><1> more can rest
+相性◎	Compatibility OK!
+装備品にスワイプしましょう	Swipe that equipment!
+<po=m>この装備品は既に限界まで<br>鍛えられています。	This equipment has already been upgraded to its max level.
+<0>個で解除	<0> to unlock
+所持数	Stock
+<pic=money> <0> ロック解除	<pic=money> <0> Unlock
+ロックの解除方法を選んでください	Select an unlock method.
+<po=m><0>と<br>お別れします	<po=m>Send away<br><0>
+<po=m><0>の<br>HPが回復しました!	<po=m><0>'s HP<br>has been refilled!
+<po=m>アイテムを消費して<br><0>を上昇させますか	<po=m>Use items to level up<br><0>?
+販売ランク	Sales Rank
+販売レベル	Sales Level
+<0>軒	<0>
+討伐数:<0>体	Vanquished: <0>
+<po=m>フレンドが増えると<br>討伐しやすくなるかも	Adding more friends will make battles easier.
+今週の討伐が達成されました!	Completed weekly conquest!
+食べ物	Food
+食べ物以外	Not Food
+<po=m><0>さん<br><1>さん<br>の子供が成長して…	<0> and <1>'s kid has grown up.
+大人になる時が来た!	It's time to take that big step into adulthood!
+<po=m>ﾗﾝｸ<0><br>職業  <1>  になった!	They became a Rank <0> <1>!
+<po=m><0>さん<br><1>さん<br><2>人目の子供がうまれました!	<po=m><0> and <1>'s baby has been born!<br>They now have <2> offspring.
+<0>で詳細が確認できます	Check the details under <0>.
+おや…? 王様の様子が…	Oh, will you look at the king...
+<0>ランクになった!	Rank <0> reached!
+研究担当の決定	Research Leader
+誰に研究してもらいますか	Who will you ask to do research?
+<po=m>研究できる人が居ません<br>職業「<0>」を街に招こう	<po=m>No researchers available.<br>Try inviting a <0> to town.
+研究中は他のことはできなくなります。	They won't be able to perform any other tasks while researching.
+新しい研究を発見!	New research project discovered!
+お試しフレンドは見つかりませんでした。	No suggested friends found.
+<po=m>気になるユーザーに積極的に<br>申請してみよう	Send a request to other players to add them as friends.
+申請	Request
+忙しい…	Busy...
+でかける	Depart
+いくつ購入しますか?	Purchase how many?
+<pic=money>が足りません	Not enough <pic=money>.
+ダイヤを増やす	Add Diamonds
+<po=m>あたらしい住民を追加するには<br>貿易で<co=20f0f0>職業を入手</co>しましょう。	Trade to get new jobs and then you'll be able to add more residents.
+コイン <0>枚 手に入れた！	Got <0> coin(s)!
+モンスター育成	Raise Monsters
+倉庫にあるタマゴを投入できます	You have hatchable eggs in your storehouse.
+タマゴがありません	No eggs.
+同ﾗﾝｸ未満の同色のﾀﾏｺﾞでﾚﾍﾞﾙ上限1UP	Increase max level using eggs of same color and  rank or lower.
+与える	Give
+プロフィール	Profile
+ﾗﾝｸ	Rank
+攻め込まれた時に防衛してくれます	Will defend the town when under attack.
+家主が行く討伐についていきます	Will join quests the Household Head goes on.
+育成	Train
+技一覧	Skill List
+空き	Empty
+追加する	Add
+エリアをひとつ解放した!	You unlocked a new area!
+対戦履歴	Battle History
+全ての戦績	All Battle Records
+<0>戦<1>勝<2>敗	<0> Battles <1> Wins <2> Losses
+挑まれた戦績	Challenges Accepted 
+挑んだ戦績	Challenges Made
+対戦履歴はありません。	No battle history.
+履歴は最大<0>件までです	Max <0> records are kept.
+◎勝利	Victory
+×敗北	Defeat
+あと<0>時間<1>分	Time Left: <0>:<1>
+リベンジ	Rematch
+ﾊﾞﾄﾙﾗﾝｸ	Battle Rank
+ﾊﾞﾄﾙPt	Battle Points
+<0>勝<1>敗	Wins: <0> Losses: <1>
+挑まれた戦績 <0>戦<1>勝<2>敗	Challenges Accepted: <0> Wins: <1> Losses: <2>
+<po=m>ﾘﾍﾞﾝｼﾞ成功!<br>×<0>	<po=m>You won the rematch!<br>x<0>
+ランクダウン	Rank Down
+また今度	Not now
+フレンド申請	Friend Request
+勝利をおさめました	You emerged victorious!
+負けてしまいました…	You were defeated...
+<0>を手に入れた!	You got <0>!
+対戦相手	Opponent
+<po=m>出場<br>ﾒﾝﾊﾞｰ<br><0>/<1>	<po=m>Participants<br><0>/<1>
+相手変更	Change Opponent
+お断りする	Decline
+ﾊﾞﾄﾙpt +<0>	Battle Points +<0>
+過去のスコア 	Previous Score 
+最高	Max
+未登録	Not Registered
+送信済のハイスコアはありません	No high scores sent
+登録	Register
+結果発表待ち	Waiting for Results
+期限切れ	Expired
+再取得	Reacquire
+<0>ランク報酬	Rank <0> Reward
+昨日のポイント	Yesterday's Points
+<0>人中	Out of <0>
+本日のスコア	Today's Score
+本日のポイント	Today's Points
+0時前後の10分間は登録できません	You can't register between 23:50 and 00:10.
+本日はまだポイントを獲得していません	You haven't got any points yet today.
+送信する	Send
+登録済 : <0>	Registered <0>
+再登録する	Re-register
+所属する街の選択	Assign to a town
+未所属	Not assigned a town
+どの街に所属させますか	Assign to which town?
+まだ発見されていません…	Not discovered yet
+なにを建築しますか	What would you like to build?
+<po=m><0>完成!!<br>収納上限が<1>UP!	<po=m><0> complete!<br>Max Capacity +<1>!
+建築物一覧	Building List
+設置数	Placed:
+住所	Location
+建築物がありません	No buildings.
+<po=m>銅貨1枚と交換します。<br>街を選んでください。	<po=m>Exchange for 1 Copper Coin.<br>Select a town.
+更新	Update
+残り	Left
+フレンド討伐状況	Friends' Quest Status
+<0>の討伐数	Conquests: <0>
+今回の報酬	Today's Rewards
+中身を見る	Check Contents
+達成	Done
+残り<0>体	<0> Left
+<po=m><0><br><1>体倒せ!	<po=m>Defeat <0><br>x<1>!
+あなた	You
+ﾌﾚﾝﾄﾞ	Friend
+討伐ボーナス	Conquest Bonus
+荷車の設定	Pushcart Settings
+他の街から資源をもらいます	Get materials from other towns.
+がんばるぞ	Let's do this!
+担当者	Leader
+行先	Destination
+運ぶ資源	Materials to Carry
+休止する	Cancel
+職業の選択	Choose Job
+職業を選んで下さい	Select a job.
+強い親同士の子供ほど強くなるかも	Strong parents will raise strong kids, it's just common sense.
+×<0>	x<0>
+有料の<0>から先に使用されます	Paid <0>s are used up first.
+購入した<0>の有効期間は<1>日です	Your <0> purchase is valid for <1> D.
+有効期間が過ぎました	Expired.
+使用済み	Already used
+あと <0>個	<0> left
+有効期間 <0>日	Expires in <0> D
+有料	Paid
+無料	Free
+<0>⇒<1>	<0> ⇒ <1>
+ビギナー応援	Newbie Support
+お得なキャンペーン	Great Deals
+お得セール	Special Sale
+月に1度きり!	Only once a month!
+ログイン5日毎のお得セール	Sale every 5th day played!
+購入ﾀﾞｲﾔの有効期間は180日	Diamonds expire after 180 days
+販売終了:<0>	Sale ends: <0>
+いまだけお得なダイヤ増量セール	Only now! Special Diamond deal!
+購入済です	Purchased
+買う	Buy
+ダイヤショップ	Diamond Shop
+所持	Owned
+<0>枚	<0>
+購入ﾀﾞｲﾔの有効期間は180日です	Purchased Diamonds expire after 180 days.
+￥9,999	not use
+金貨ショップ	Gold Shop
+<po=m>金貨をしまう街を選んでから<br>交換を選んでください。	Select a town which stores Gold Coins to trade.
+交換する	Exchange
+収集リスト	Collection
+最高記録 B<0>F	Record: B<0>F
+討伐に出発	Go on a Quest
+ﾒﾝﾊﾞｰを選んで出発しましょう	Pick your team members and head out!
+出撃メンバーを選択	Choose Team Members
+フレンド選択	Choose Friends
+挑戦する	Challenge!
+住民 <0>人	Residents: <0>
+ｷｬﾝｾﾙ	Cancel
+<po=m>一旦<br>塞ぐ	Blocked Off
+相性 <0>	Compat. <0>
+帰宅	Go home
+親密度 <0>%UP!	Affection +<0>%!
+デートスポット	Dating Spot
+あと<0>組	<0> More
+所要 <0>時間	Time: <0> hr
+親密になるかも	I think they could really hit it off.
+出発すると街からしばらくいなくなります	Once they depart, they'll be away from the town for a while.
+保育所	Day Care
+成長すると街に配属できます	Can be assigned to a town once grown up.
+成長まで	Grows up in:
+大人になれます	Ready for adulthood!
+Lv平均	Average Lv.
+私も行きます!	I'm going too!
+<po=m><0>さん<br><1>先に出発します!	<0> departed for <1>!
+「更新できない場合」	About Update Errors
+タマゴを育成	Hatch Egg
+孵化 <0>	Incubate <0>
+ -<0>分	 -<0> min
+投入残り	Item Uses Left
+アイテム投入	Use Item
+タマゴ一覧	Egg List
+街名 <0>	Town Name: <0>
+選択できるタマゴはありません	No available eggs.
+育成するタマゴを選んで下さい	Choose an egg to hatch.
+うっ…	Nrgh...
+<0>の<1>さん	<1> from <0>
+寿命が尽きました…	has passed away...
+装備交換所	Equipment Exchange
+現在、交換できるものがありません。	Nothing to exchange.
+ロック	Lock
+属性	Element
+<0>個ずつ	<0> Each
+装備する <0>/<1>	Equip: <0>/<1>
+苦手	Weak
+技を変更	Change Skill
+<po=m>戦闘系<br>のみ	<po=m>Battle-Type<br>Only
+全員	All
+<po=m>フレンドがしばらく<br>滞在してくれるようです!	Your friends will stick around for a little while longer.
+<po=m><0>さん<br><1>	<po=m><0><br><1>
+<po=m><0>に<br>引越ししてきました	Moved to <0>.
+<0> と交換	Traded for <0>.
+経験値を獲得しました	Got EXP!
+周囲効果	Area of Effect
+満タン	Max
+<0>家	<0> Family
+展示品	Exhibition Hall
+価値	Price
+閲覧数	Views
+販売商品	On Sale
+王	Monarch
+容量	Capacity
+レベルアップ	Level up
+ランクアップ完了!	Ranked up!
+レベルアップ完了!	Leveled up!
+銅貨箱が必要	Copper Coin Box Required
+ロック解除	Unlock
+所要	Owned:
+<po=m>お気に<br>設定中	Favorited
+<po=m>お気に<br>OFF	<po=m>Remove<br>from<br>Faves
+発見!	Discovered!
+次回から募集できます。	You can now start recruiting.
+新しい職業	New Job
+<0>さんが自分の王国へ帰りました	<0> returned to their homeland.
+フレンド　<0>/<1>	Friends: <0>/<1>
+フレンドに討伐を協力してもらおう!	Team up with your friends!
+フレンドリスト更新	Update Friend List
+フレンドからお礼が届きました	Someone wants to thank you.
+新規	New
+<0>件	<0>
+<0>件達成! !	<0> completed!
+次は <0>件でボーナス	<0> more for next bonus
+フレンドにお礼	Thank Your Friends
+ﾌﾚﾝﾄﾞ <0>さん	Friend: <0>
+<po=m><0>さんに<br>お礼を伝えました	You thanked <0>.
+お礼を伝える	Thank the friend.
+今回は何もしない	Not this time.
+結果	Result
+<0>ﾗﾝｸ	Rank <0>
+フレンドのおかげですね	Where would we be without friends?
+<0>を紹介してもらいました	Provided with <0>.
+<0>回	<0>
+紹介	Intro
+所持数を確認	View Stock
+で<0>回ひく	for <0> go(es)
+<0>出現一覧	<0> probabilities
+下記リストから抽選で出現	Selected at random from the following list:
+<0> ランク	Rank <0>
+確率<0>%	Rate: <0>%
+S級出現中	S Rank Available
+貿易センター	Trade Center
+レアなものをゲットしましょう	This is your chance to pick up some rare finds!
+ﾘｽﾄ	List
+カイロの間	Kairo Room
+<po=m>今日は開催してないよ。<br>違う日にまた来てね。	<po=m>We're not doing anything today.<br>Please try again later.
+<0>限定	<0> only
+ワイロダンジョン	Wairo Dungeon
+ゲリラ出現	Surprise Encounter
+難易度  <0>	Difficulty: <0>
+報酬 <0>	Reward: <0>
+ｸﾘｱ済	Completed
+<po=m><bo=1e1e1e>ｼｪｱで</bo><br><pic=stamina><bo=1e1e1e>回復</bo>	<po=m>Share on <bo=1e1e1e> and get</bo><br><pic=stamina><bo=1e1e1e>!
+ランク <0> ハイスコア	Rank <0> High Score
+合計ポイント	Total Points:
+さらなる高みを目指しましょう!	Aim for an even higher score!
+ｽｺｱ	Score
+<po=m>ランキング<br>登録	<po=m>Ranking<br>Registration
+<po=m>シェア<br>する	Share
+住居の方針	Housing
+どのタイプの家にしましょう	Build what kind of house?
+ﾗﾝｸ:<0>	Rank: <0>
+継承中	Transferring
+能力伝承中<0>	Imparting Stats<0>
+<po=m>能力を受け継いで<br>パラメータが上昇した!	<po=m>It worked!<br>Stats have gone up!
+<po=m>師匠<0>さんは<br>全ての役割を果たし<br>静かに去っていった	Instructor <0> fulfilled their duty and rode off into the sunset.
+師匠の部屋	Instructor's Room
+師匠から能力を引き継げます	Inherit Stats from Instructor
+あと<0>回	<0> left
+師匠を作成	Create an Instructor
+街の選択	Select Town
+アイテム取得	Give Items
+どの街に与えますか	Give to which town?
+アイテム倉庫	Item Storehouse
+<po=m>鍛冶屋へようこそ<br>装備同士を組み合わせて強化できるよ	Welcome! I can strengthen your equipment.
+どの装備を鍛えますか	Select equipment to upgrade.
+<po=m>投入種類 : <0>/<1><br>投入数   : <2>/<3>	<po=m>Types used: <0>/<1><br>Amount: <2>/<3>
+装備中	Equipped
+女性用	Female-Only
+扱えない	Can't upgrade
+職業権利数	Approved Jobs:
+街の住民が呼べる時に使用できます	Used when calling town residents
+所持x	Owned: x
+選べません	Can't use this.
+なし	None
+<0>級	Grade <0>
+<0>ランク	Rank <0>
+現在、販売品はありません。	No products at the moment.
+再入荷 +<0>	Restock +<0>
+ﾌﾟﾚｲ時間	Time Played
+平和度	Peace Level
+王様ランクアップ!	Royal Rank Up!
+見張りの設定	Lookout Settings
+見張りを設定して防衛に専念します	Select a lookout to improve the town's defenses.
+蓄えていた資源が半減した…	Half of the materials stored away were lost...
+冒険キングダム島	Kingdom Adventurers
+ 体験版	not use
+結婚	Marriage
+教会	Church
+どなたが結婚しますか	Who do you want to marry?
+同じ部屋に住むと親密度がアップします	Living in the the same room will increase affection.
+親密度が高いと費用が下がります	Residents with higher affection consume less resources.
+<po=m>アイテム倉庫に<br><0>を<1>個しまった	<po=m>Stored <0> x<1><br>in the Item Storehouse.
+素材ショップ	Material Shop
+<po=m><0>のある街を選んでから<br><1>を選んでください。	Select a town with <0> and <1>.
+購入する素材	materials to purchase
+残り<0>	<0> Left
+所持 <0>	Owned: <0>
+ﾊﾞﾄﾙﾗﾝｸ : <0>	Battle Rank: <0>
+鉱山作業者の設定	Miner Settings
+鉱山で資源を採掘しましょう	Collect resources from the mine.
+今日のミッション	Daily Challenge
+現在、ミッションはありません	No Challenges
+<po=m>達成で <0> <co=2020f0><1></co> もらえる!	Complete to get <0> <1>!
+あと <0>件	<0> More
+〆切 あと<0>	Time Left: <0>
+本日のミッション達成済み	Daily Challenge Complete
+<po=m>誕生!<br><0>	<po=m>A New Arrival!<br><0>
+中身予想	Egg Forecast
+<po=m>リストの中のいずれかの<br>モンスターが生まれそうです	One of these monsters might hatch.
+モンスター牧場 <0>/<1>	Monster Farm <0>/<1>
+預かっているモンスターはいません	No monsters at the moment.
+ﾓﾝｽﾀｰ合成	Monster Fusion
+合成するﾓﾝｽﾀｰを選んでください	Select monsters to fuse.
+育てるﾓﾝｽﾀｰ	Monster to Upgrade
+素材モンスター	Monsters to Use as Materials
+モンスターから経験値をもらいます	Get EXP from Monsters
+合成する	Fuse
+モンスター図鑑	Monsterpedia
+<0>体	Total: <0>
+ﾓﾝｽﾀｰ屋	Monster Shop
+ﾓﾝｽﾀｰ	Monsters
+ニューゲーム	New Game
+キャラクタの作成	Create Character
+国王の名前:	Monarch Name:
+性別も選んでくださいね	Choose gender
+建国開始	Found Kingdom
+新しい仲間	New Ally
+名前を変える	Change Name
+採用!	Hire!
+誰を仲間にしますか	Select who to recruit.
+<0>人目	Total: <0>
+職業を探す	Search for Jobs
+権利	Rights
+まだ発見されていません	None discovered.
+仲間にする	Add to Allies
+新しいタウンホール	New Town Hall
+街に名前をつけましょう	Time to give this town a name.
+名前:	Name:
+街の名前を付ける	Name the town
+覚醒!!	Awakened!
+<0>回目	#<0>
+レベルの上限 <0>UP!	Max Level +<0>!
+おめでとう！	Congratulations!
+<0> 入手	<0> acquired
+<0>人追加	Townsfolk +<0>
+引越し屋	Movers
+他の街に引越したい住民を選んでください	Choose a resident to move to another town.
+<po=m>引越し屋 +<0>個拡張<br><pic=money><1>	<po=m>Mover +<0> Expansion(s)<br><pic=money><1>
+研究者の設定	Researcher Settings
+研究ｽｷﾙを持った人を担当させましょう。	Let's put some people with Research skills in charge of this.
+研究室からのお知らせ	Research Notice
+お、できた!	It's complete!
+担当者: <0>/<1>	Assigned: <0>/<1>
+未発見	Undiscovered
+発見条件	Required for Discovery
+研究 復活まで	Research Recovery Time:
+担当選択	Select Leader
+覚醒 <0>回	Awakenings: <0>
+仲間にｽﾜｲﾌﾟして与えましょう	Swipe your allies to assign.
+あと<0>人	<0> more
+該当する住民がいません…	No applicable residents.
+全員再開	Resume All
+誰を派遣しましょう	Select who to deploy
+<po=m>現在<0>人が<br>ここに派遣されています	Currently deployed: <0>
+<po=m>討伐ﾒﾝﾊﾞｰを最大<0>人<br>選んで下さい	Choose up to <0> team members.
+<po=m>誰が受け継ぎますか<br>※1人<0>回のみ	<po=m>Who will inherit?<br>Max <0> per person.
+異なる街のﾒﾝﾊﾞｰを選択する事は出来ません。	Members must be from the same town.
+<po=m>出場ﾒﾝﾊﾞｰを最大<0>人<br>選んで下さい	Choose up to <0> participants.
+<po=m>引越し予定者を<br>選んでください	Choose a resident to move.
+<po=m>装備を変更する住民を<br>選んで下さい	Choose an adventurer to change equipment.
+攻	Attack
+出撃不可	Cannot depart.
+受け継ぎ回数	Times inherited:
+すでに家があります	Already has a house.
+寿命	Lifespan
+∞	∞
+覚醒	Awakening
+空ｽﾛｯﾄ	Empty Slot
+ソート条件	Sort By
+ソート設定	Sort Settings
+条件<0>	Reqs. <0>
+<po=m>並び順を設定できます。<br>上の条件から優先されます。	<po=m>Choose a sorting method.<br>The top requirements are prioritized.
+親密トップ3	Affection Top 3
+準備中	Prepping...
+家主のみ親密度があがります	Only the Household Head's affection will increase.
+子供<0>人目	Kid <0>
+他の島にいきました	On another island
+<0>使用	Use: <0>
+登録キャラ選択	Select Characters to Register
+使用する	Use
+お別れ	Dismiss
+受け継ぐ	Inherit
+師匠にする	Appoint as Instructor
+仲間ﾒﾆｭｰ	Allies Menu
+結婚相手	Marriage Partner
+いなくなりました	Gone.
+2世は結婚できません	Second generation can't marry.
+まだいません	None yet.
+調査完了	Survey Complete
+ただいま	I'm back!
+<po=m><0>さん<br>調査から帰ってきました	<0> returned from their survey.
+<po=m>寿命+<0><br><br><pic=money><1>	<po=m>Lifespan +<0><br><br><pic=money><1>
+あきらめる	Give Up
+<0>は復活した!	<0> was revived!
+街にあるお店	Stores in Town
+どのお店に行きますか	Go to which store?
+何を設定しますか	Set skill to:
+空スロット	Empty Slot
+発動率	Activation Rate
+技の変更 <0>/<1>	Skill Changes: <0>/<1>
+技を設定しよう	Set skills.
+技を選んで下さい	Select skills.
+空き <0>枠	Free slots: <0>
+人里離れた民家	Residents outside town
+今リセットすると本日分がなくなります。	If you reset now you will lose today's share.
+次のスロットまで あと<0>日ログイン	Log in on <0> more day(s) for the next slot.
+またきてね。	Please come again.
+プレゼントをもらう	Get Gifts
+いい押しっぷりです!	Nice work!
+お見事です!	Wonderful!
+次は期待してください	Better luck next time.
+応援してます!	Good luck!
+ﾄﾞｷﾄﾞｷ	Oh my, oh my!
+すごいですね!	That's amazing!
+ストップ	Stop
+建国開始!	Everything starts here!
+がんばります!	I'll do my best!
+調査の結果	Survey Result
+<0>さん帰還	Recall <0>
+調査する	Survey
+計<0>分	Total: <0> min
+街のお店	Town Stores
+宝箱の中身は…	Looked inside the Treasure Chest...
+さらに宝箱の中に…	There's something else in there...
+<0>の権利が<1>回入っていた!	Got <0> rights x<1>!
+<0>が<1>個入っていた!	Got <0> x<1>!
+王国がさらに発展しそうですね	The kingdom can develop even more.
+お試しフレンド屋	Friends Agency
+<0>人紹介	New people introduced: <0>
+あと<0>回 無料	x<0> more for free
+<po=m>フレンドになれるかもしれない<br>プレイヤーを紹介するよ	Let's take a look at some other players you could add as friends.
+トロフィ	Trophy
+副賞を受け取った	Received an extra reward.
+現在:<0>	Current: <0>
+入手!	Acquired!
+秘宝の購入	Purchase Treasure
+購入する	Purchase
+幻の秘宝 <0>種	Mystic Treasure: <0>
+幻の秘宝を手に入れる <0>種	Available Mystic Treasure: <0>
+現在、秘宝はありません。	No treasure.
+<po=m><bo=1e1e1e>全エリア制覇<br>おめでとう!</bo>	<po=m><bo=1e1e1e>All areas conquered!<br>Congratulations!</bo>
+職業紹介	Job Spotlight
+装備紹介	Equipment Spotlight
+施設紹介	Facility Spotlight
+アイテム紹介	Item Spotlight
+フレンドボーナス	Friend Bonus
+現在地点に派遣中の住民	Adventurers deployed:
+<po=m><0><br>限定	<0>-only
+<po=m><0>級以上<br><1><br>限定	<po=m>Rank <0>+<br><1>-only
+登録中	Registering...
+現在開催されている討伐キャンペーンはありません。	No conquest events in progress.
+<po=m>情報の取得に失敗しました。<br>再度ショップを開いてください。	<po=m>Failed to get data.<br>Please reopen the Shop and try again.
+施設の情報	Facility Info
+<0>が使えるようになった!!	<0> is now available!
+<0> +<1> <2> になった	<0> +<1>. Total: <2>
+～利用時の効果が高まった～	Effect Up!
+ｴﾅｼﾞｰの発掘量が増えた	Mined Energy increased.
+～船からのお客さんが増えそうだ～	Reel in some new visitors from the ships!
+工房の作成内容が向上した	Workshop lineup was improved!
+世界の平和度	Peace Level
+敵討伐数	Enemies Vanquished
+全ポイント合計	Total Points
+住民の合計能力	Total Resident Stats
+街のランク	Town Rank
+住民数	Residents
+装備品発見数	Discovered Equipment
+アイテム発見数	Discovered Items
+家具発見数	Discovered Furniture
+ﾗﾝｸ <0>	Rank <0>
+施設の数	Facilities
+土地の数	Land Plots
+仲間の人数	Allies
+発見した技	Discovered Skills
+最高街ランク	Top Town Rank
+街の名前1	Town Name 1
+住民一覧	Resident List
+王国の情報	Kingdom Info
+秘宝	Treasure
+名前変更	Change Name
+チャット	Chat
+サイトへ	Go to Site
+ﾓﾝｽﾀｰ図鑑	Monsterpedia
+ゲーム終了	End Game
+施設にモンスターがいません	No monsters here.
+惜しくも失敗!	Too bad, it failed!
+ダイヤを消費しませんでした	Diamonds weren't spent.
+<po=m>時間短縮にダイヤ<0>個<br>消費しますか？	<po=m>Use <0> Diamond(s)<br>to shorten the time?
+達成済	Complete
+現在	Current
+挑戦中	In progress
+可能性<0><1>	Possibility: <0><1>
+<po=m>モンスター牧場<br>+<0>個拡張<br><pic=money><1>	<po=m>Monster Farm Expansion<br>+<0><br><pic=money><1>
+討伐数	Vanquished
+初	First
+街に<0>人	Townsfolk: <0>
+ロックしました	Locked.
+ロック解除しました	Unlocked.
+<po=m>ランクの高い装備です<br>消費しますか?	<po=m>This is high rank equipment.<br>Are you sure you want to use it as materials?
+上限に達しています	Level limit reached.
+装備を変更しました	Changed equipment.
+スキルを変更しました	Changed skill.
+<po=m>対戦相手が見つかりませんでした。<br>時間をおいてお試しください	<po=m>No opponents found.<br>Please try again later.
+子供の名前	Child's Name
+住民の名前	Resident Name
+(全角<0>文字)	(<0>-character limit)
+街の名前	Town Name
+お宝ｹﾞｯﾄ!	Got treasure!
+<0> で獲得しますか	Collect with <0>?
+調査失敗!	Survey failed!
++<0>分	+<0> min
+確率 <0>%	Rate: <0>%
+分	mins 
+秒	secs
+あと<0><1>で調査可能	<0> <1> more until next survey.
+レベル上限に達しています	Max level reached.
+初期スキルは変更できません	Cannot change basic skills.
+<po=m><0> <1>を<br>装備しました。	Equipped <0> <1>.
+技装備枠を追加しますか?	Add Skill Slots?
+技装備枠を <0>つ追加しました。	Skill Slots +<0>.
+初期スキルは外せません	Cannot remove basic skills.
+出場メンバーを選択してください	Choose competitors.
+順位ボーナス	Rank Bonus
+現在のポイントを登録しますか?	Register your current score?
+<po=m>登録しました。<br>結果は明日発表されます	<po=m>Registration complete.<br>Results will be posted tomorrow.
+<po=m><0>を<1>枚入手<br>計<2>枚になった	<po=m>Got <0> x<1>.<br>Total: <2>
+銅貨	Copper Coin
+街に銅貨箱がありません	No Copper Coin Box in town.
+<po=m>これ以降<br>表示しませんか?	Hide the following?
+<0>に空きがありません。	No space in <0>.
+金貨箱	Gold Coin Box
+金貨	Gold Coin
+いいえ\t塞ぐ	No\tLock Up
+あと<0>で帰宅します	Returning in <0>.
+<0>で短縮	Spend <0> to speed up?
+<po=m>キャンセルしますか?<br><co=d94646>※親密度は上がりません	<po=m>Cancel?<br>Affection will not increase.
+デート	Date
+ﾃﾞｰﾄｽﾎﾟｯﾄ	Date Spot
+いってきます!	Here we go!
+<po=m><0>さん達<br><1>先に出発します!	<po=m><0>'s team<br>departed for <1>!
+大人までの成長	Growth Into Adulthood
+投入数が最大を超えています	That will exceed the limit.
+<po=m>アイテムの投入が完了していませんが<br>戻りますか	Leave without finishing choosing items to use as materials?
+<po=m><0>を1つ入手<br>計<1>個になった	<po=m>Got <0> x1.<br>Total: <1>
+<po=m><0>を<1>個<br>消費してロックを解除します<br>所持数<2>個になります	<po=m>Use <0> x<1><br>to unlock?<br>You'll have <2> left.
+<po=m><0>を<1>個<br>消費してロックを解除します	<po=m>Use <0> x<1><br>to unlock?
+あと<0>分で選べます	Can be selected after <0> more minutes.
+<po=m><0>が不足しています。<br>最大まで回復します	<po=m>Not enough <0>.<br>Fully replenish?
+<0>が不足しています	Not enough <0>.
+最大人数に達しています	Maximum number of members reached.
+<po=m>費用が足りません。<br><0><1>個でお礼しますか?	<po=m>Insufficient funds.<br>Send <0> x<1> as thanks?
+いいえ\t<pic=money><0>	No\t<pic=money><0>
+<po=m>ハイスコア更新!<br><0>pt	<po=m>New hi-score!<br><0> pts
+<po=m>アイテムを<br>使用しますか?	Use this item?
+<po=m>食べ物のアイテムを<br>仲間に使用しますか?	Use item on ally?
+<po=m>装備を<br>仲間に渡しますか?	Give equipment to ally?
+<po=m>技を<br>仲間に渡しますか?	Give skill to ally?
+使う\t戻る	Use\tCancel
+投入数が最大です	Can't use any more.
+投入種類が最大です	Can't use any more types.
+<po=m><0> <1>回を<br>再入荷しました	Restocked <0> x<1>.
+<po=m><0><br>が足りません	Not enough <0>.
+倉庫の空きがないため追加できませんでした。	No free space in the Storehouse.
+牧場が満員です。	The farm is full.
+<po=m><0>を購入して<br>モンスター牧場へ預けました	Purchased <0> and sent it to the Monster Farm.
+国王の名前	Monarch Name
+<po=m>ダイヤ<0>個<br>消費しますか？	Use <0> Diamond(s)?
+いいえ\t + <po=lm><pic=money><0>&<po=rm><bo=fefefe><1></bo>	No\t+<po=lm><pic=money><0>&<po=rm><bo=fefefe><1></bo>
+使用	Use
+資源を投入して下さい	Insert Materials
+研究所が動作しません	Cannot use Research Lab.
+<po=m><0>を<br>すぐに復活します	<po=m>Revive<br><0>?
+<po=m><0>さんに<br><1>さんの<br>経験値を引き継ぎます	<po=m>Transfer <1>'s EXP to<br><0>?
+<po=m><0>の派遣を<br>全員再開します<br><pic=stamina> <1>/<2>	<po=m>Resume all of <0>'s expeditions?<br><pic=stamina>: <1>/<2>
+再開	Resume
+派遣中の人を全員帰還させます	Make all adventurers return to town?
+戻る\t帰還する	Cancel\tRetreat
+<po=m><0>さんと<br>お別れします<br><co=d94646>※戻ってこれなくなります	<po=m>Dismiss <0>?<br>They won't come back.
+設定しました	Set.
+<po=m><0>さんと<br>お別れします	Say goodbye to <0>?
+セーブに失敗しました【<0>】<1>	Save failed: <0> <1>.
+<po=m>街からいなくなる際に<br>装備中の技は消滅します。<br>※技の入替えは可能です。	<po=m>Equipped skills will be lost when the character disappears from the town.<br>Skills can be swapped.
+<po=m><0> を使用して<br>報酬を獲得しますか?	<po=m>Use <0><br>and collect your rewards?
+動画を見る\t閉じる	View videos\tClose
+<0> を倉庫に入れました。	Sent <0> to the Storehouse.
+<po=m><0> を購入しました。<br>現在 <1>個	<po=m>Purchased <0>.<br>Current: <1>
+購入\t戻る	Purchase\tBack
+<po=m><0><1>個で<br><2>を購入します	<po=m>Spend <0> x<1><br>to buy <2>
+王国へ戻りますか?	Return to the kingdom?
+耐久	Durability
+敵が定期的に出現する	Enemies appear at set times.
+利用者 <0>	User: <0>
+満タン <0>	Max <0>
+ミッション達成!	Challenge Complete!
+報酬を受取	Collect Rewards
+<po=m><co=ff0000><0></co>が<br>攻め込まれています!	<po=m><0><br>is under attack!
+マイページ	Your Profile
+再ログイン	Re-log
+リセット	Reset
+退会	Leave
+カイロアカウント	Kairo Account
+ログイン中	Logged in
+退会しました。	Left.
+毎日	Every day
+日曜日	Sunday
+月曜日	Monday
+火曜日	Tuesday
+水曜日	Wednesday
+木曜日	Thursday
+金曜日	Friday
+土曜日	Saturday
+億	0,000G
+街に帰還しました…	Retreated back to town...
+投資計画書	not use
+<0>が足りないようです。	You need more <0>.
+TAPJOY\tショップ	Tapjoy\tShop
+時間	hrs 
+個	　
+<po=m>起動できません。<br>権限：ストレージを許可して起動し直してください。<br>※ゲームの保存に必要となります。	<po=m>Could not start the app.<br>Enable storage access and start the app again.<br>*Necessary to save game data.
+<po=m>エラーが発生しました<br>問題解決の為にエラー情報を送信して頂けませんか？<br>（※個人情報は送信されません）	<po=m>An error has occurred. Would you please send the error information to aid in solving the issue?<br>(*No personal information will be sent.)
+草	Grass
+木	Wood
+食糧	Food
+鉄	Ore
+魔石	Mystic Ore
+エナジー	Energy
+宝箱	Treasure Chest
+卵	Egg
+元気	Vigor
+早さ	SPD
+運	LUCK
+頭脳	INT
+器用	DEX
+採集	Gather
+移動	Move
+ﾊｰﾄ	Heart
+生命力	Life
+エナジー貯蔵量	Stored Energy:
+利用回数	Times Used
+銀貨	Silver Coin
+継承数	Transfers:
+ｺｲﾝ	Coin
+食	Food
+魔	MAG
+ｽﾀﾐﾅ	Stamina
+宝	Treasure
+元	VIG
+防	DEF
+早	SPD
+器	DEX
+採	Gather
+移	Move
+愛	Aff.
+ｽﾀﾐﾅ貯蔵	Stamina Stock
+埋蔵	Bury
+利用	Use
+金	Gold
+銀	Silver
+銅	Bronze
+継承	Transfer
+攻的	ATK
+守的	DEF
+平均	Average
+土地の移動	Move Land
+土地の撤去	Demolish Land
+住民リスト	Residents
+玄関を増やす	Add an Entrance
+セーブ開始	Save
+ﾀﾞｲﾔ|個|個ｾｯﾄ	Diamonds:| | Set
+データが更新されました。	Data updated successfully.
+購入が正常に完了しませんでした。	The server is undergoing maintenance.
+サーバーメンテナンス中です。	not use
+<po=m>サーバーメンテナンス中です。<br><br>時間を置いてから<br>以下の方法で商品が届きます。<br><br>・購入履歴から復元<br>・アプリ再起動	<po=m>The server is undergoing maintenance.<br><br>To receive your purchased items, wait a short time and then restart the app or recover the items from purchase history.
+存在しないサービスID:<0>	not use
+その他	Other
+ﾘｶﾊﾞﾘ	Recover Data
+引継	Transfer Data
+ｲﾝｽﾄｰﾙﾎﾞｰﾅｽ	Installation Bonus
+ｻﾎﾟｰﾄ	Support
+通知	Notifications
+購入の注意点	Before You Buy
+ダイヤ|個	Diamonds:|
+<0><1>個	<0> x<1>
+<0> <1>回	<0> x<1>
+ﾌﾟﾚｲ時間 +<0>分	Time played: +<0> min
+<po=m>ﾌﾟｯｼｭ通知により<br>ﾎﾞｰﾅｽが届きました	You got a push notification bonus.
+過去の購入履歴	Purchase History
+現在の購入状態	Purchase Status
+通信を許可し電波を確認して再起動してください。	Enable wireless communication and ensure you are connected to the internet, then restart the app.
+おまかせロック等をご利用の方は解除をご確認ください。	not use
+ｷｯｽﾞiﾓｰﾄﾞﾌｨﾙﾀ設定中は一部機能がご利用頂けません。	not use
+読込中	Loading
+時刻取得中	Syncing Time...
+まもなく到着します	We will be arriving soon
+～ひつじさんのヒント日誌～	Tips 'n' Tricks
+フレンド申請を送ります	Send a friend request.
+申請する\tやめる	Send\tCancel
+フレンド申請がありました!	New friend request!
+承認する\t拒否する	Accept\tDecline
+ﾆｯｸﾈｰﾑ 	Nickname
+フレンドのID 	Friend ID
+<po=m>フレンドが<br>見つかりませんでした。&入力内容を確認してください。	<po=m>No friends found.<br>&Please double-check the info entered.
+<po=m>ちなみに<co=ff0000>アプリは削除しないで</co>下さいね。削除するとフレンドが全部消えて戻せなくなってしまいます。	<po=m>By the way, <co=ff0000>don't delete this app</co> or all of your friend data will be lost for good.
+申請リスト	Requests
+フレンド郵便局	Friend Post Office
+ｷｬﾗ登録	Register Character
+ボーナスまであと <0>人	<0> more until bonus.
+ともだちを探して申請しよう	Search for new friends.
+申請 <0>件	Requests: <0>
+見る	View
+<po=m>カイロランドの<br>フレンドから探す	Search Kairo Land Friends
+自分のキャラを確認	View Your Character
+どちらにしましょう	Pick one
+ゲームの前に…	Before you play...
+利用規約を確認する	View Terms of Service
+ﾆｯｸﾈｰﾑを入力	Enter Nickname
+※あとで変更可	*Can be changed later
+規約に同意して	Accept Terms
+滞在中	Staying
+探す	Search
+<po=m>全国に散らばるユーザーを<br>フレンドとして最大<0>人まで<br>登録できます。<br>フレンドの合計ﾌﾟﾚｲ時間に<br>よって起動時にボーナスが<br>入ります。IDを聞いて友達<br>に申請してみましょう。	<po=m>You can register up to <0> friends from around the world.<br>You'll get a bonus based on your friends' total play time when you start up the game.<br>Ask friends for their IDs to send them friend requests.
+<po=m>全国のユーザー達とフレンドになると<br>ともに助け合うことができます。<br><br>まずは自分のキャラを登録しましょう	<po=m>Adding friends will allow you to help out other players in their games.<br><br>Start by registering your character.
+<po=m>設定していたキャラクターがいなくなりました。<br>あたらしく設定してください	<po=m>Your registered character has been lost.<br>Please set a new character.
+相手が上限の場合もあります	Keep in mind the other player might have reached the maximum number of friends.
+, % \" は利用できません	You cannot use , % \ "
+ゲームデータの移行を始めます	Start transfer of game data.
+データ受信	Recieve Data
+ｺｰﾄﾞ入力	Enter Code
+<po=m>最終更新[<0>]<br>カイロアカウントに紐づいたデータが見つかりました。<br>このデータで復元しますか?	<po=m>Latest Version: <0><br>Could not find data linked to your Kairo Account.<br>Restore using this data?
+ﾃﾞｰﾀｺｰﾄﾞを入力して下さい	Enter a data code.
+ﾃﾞｰﾀｺｰﾄﾞ	data code
+<po=m><co=3c64c8>◆ ゲームデータの移行方法 ◆	<po=m><co=3c64c8>◆Transferring Game Data◆
+異なるプラットフォーム	other platform
+<po=m>① 現在プレイしている端末で<br>「ゲームデータを送る」を選び、<br>表示されるデータコードをメモします。<br><br>② 移行先の端末でアプリを起動し<br>「ゲームデータを受け取る」を選び、<br>パスワードを入力してダウンロードします。<br><br><co=ff4000>データコードの有効期限は1週間です<br>移行元の端末ではプレイ出来なくなります<br><0>から<1>へのデータ移行は出来ません	<po=m>1. Select Send Game Data on your current device and make a note of the displayed data code.<br>2. Start up the app on the device you want to transfer your data to, select Receive Game Data, enter your password and download the data.<br><co=ff4000><br>Data codes are valid for 1 week. After transfer, your will no longer be able to play the game on the old device.<br>Data from <0> to <1>, or can not data migration of different to the language version of the app
+ゲームデータを送る	Send Game Data
+ゲームデータを受け取る	Receive Game Data
+<po=m>データの移行が完了しました。<br>アプリを再起動して下さい	<po=m>Data transfer complete.<br>Please restart the app.
+<0> <1>個	<0> x<1>
+<po=m>カレンシーセールが<br>始まりました！	Currency sales has started !
+この後、オファーウォールが表示されるよ	After this, the offer wall will be displayed,
+<po=m>Tapjoyの機能をご利用する際には<br>追跡型広告制限を解除し、アプリを再起動してください。<br>設定アプリ > プライバシー > 広告 > 追跡型広告制限	<po=m>How to use TapJoy<br>- Terminate "Limit Ad Tracking" and restart the game.<br>* Setting app > Privacy > Advertising > Limit Ad Tracking
+フレンド申請 冒険キングダム島	Kingdom Adventurers Friend Request
+<po=m>冒険キングダム島 で<br>フレンド申請したよ!<br>承認してね。	Let's be friends in Kingdom Adventurers!
+<po=m>冒険キングダム島 をインストールして<br>フレンドで<br>ID：「<0>」<br>を探してね。<br><br>DLはこっちだよ<br>	Install Kingdom Adventurers and search for my ID:<0> under "Friends."\nDownload the game here!\n
+フレンド申請 お住まい夢物語	not use
+<po=m>お住まい夢物語for Androidで<br>フレンド申請したよ!<br>承認してね。	not use
+<po=m>お住まい夢物語for Androidをインストールして<br>フレンドで<br>ID：「<0>」<br>を探してね。<br><br>DLはこっちだよ<br>	<po=m>Check out Dream House Days for Android and add me to your friends!<br>My Friend ID: <0><br><br>Get the game here!
+0&メッセージ&ダイヤを<0>もらいました&<0>	0&Message&You got <0> Diamond(s)&<0>
+<po=m>移行先の端末を起動して、<br>ﾃﾞｰﾀｺｰﾄﾞを入力してください。<br><br>ﾃﾞｰﾀｺｰﾄﾞ『<co=ffff00><0></co>』	<po=m>Start up the device you want to transfer data to and enter the data code.<br><br>Data code: <0>
+<po=m>データの移行が完了しました。<br>こちらのアプリは削除して下さい。<br>ﾃﾞｰﾀｺｰﾄﾞ『<0>』	<po=m>Data transfer complete. Please delete this app.<br>Data code: <0>
+データ移行を中止します	Cancel data transfer.
+フレンドガチャ	Friend Picker
+期日	Deadline
+<0> で実行します	Run with <0>
+ﾊｲｽｺｱ	High Score
+HP	HP
+MP	MP
+ON	ON
+OFF	OFF
+Lv.<0>	Lv.<0>
+Lv<0>	Lv<0>
+Lv.<0>/<1>	Lv.<0>/<1>
+MP <0>	MP <0>
+Lv	Lv
+GET	GET
+<0>pt	<0>pt
+EXP	EXP
+<0>UP!	<0

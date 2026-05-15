@@ -1,0 +1,10 @@
+0	bg_sky.png,bin,q-10
+1	bg_ground.png,bin,q-1
+2	bg_cloud_00.png,bin,q-9
+3	bg_cloud_01.png,bin,q-8
+4	bg_cloud_02.png,bin,q-7
+5	bg_cloud_03.png,bin,q-6
+6	ship.png,bin,q-5
+7	capsule_box.png,bin,q-4
+8	capsule_curtain.png,bin,q-4
+9	result_window.png,bin

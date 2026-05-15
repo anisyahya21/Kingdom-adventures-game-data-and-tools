@@ -1,0 +1,9 @@
+size   			 = 16,16
+merge  			 = off
+compare			 = off
+external_merge   = off
+external_compare = off
+level			 = 2
+color_range		 = 10
+width			 = -1, 16, 32, 48, 64, 96, 120, 140, 160, 180, 200, 220, 240
+output		 	 = optim

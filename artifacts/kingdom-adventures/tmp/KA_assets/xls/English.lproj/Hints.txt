@@ -1,0 +1,38 @@
+0	Hi there. We'll be founding your kingdom in just moment.	0	1
+1	Too much stuff on screen?<br>Check out different Settings<br>in the Menu.	350	0
+2	Uninstalling the game<br>deletes your save data,<br>so be careful!	1000	0
+3	Make sure to play where you have a strong signal!	350	0
+4	Be sure to save before you stop playing. The game will also autosave at set times.	1000	0
+5	App data will be saved to your device. Please ensure you have enough free space.	1000	0
+6	Build Stables to help your allies out when they're deployed on a quest.	350	0
+7	Dispel the fog to increase your town's rank.	350	0
+8	Materials - Grass<br>Get by creating Fields.	350	0
+9	Materials - Wood<br>Get by creating Plantations.	350	0
+10	Materials - Food<br>Get by recruiting a Farmer.	1000	0
+11	Materials - Ore<br>Get by mining Deserts and Caverns.	1000	0
+12	Materials - Mystic Ore<br>Get by mining Red Stones.	1000	0
+13	Build some mining facilities to excavate Energy.	1000	0
+14	The more materials you gather, the more storehouses you'll need to keep them in. How about building a couple?	350	0
+15	When the full moon rises, monsters get rowdy. Get out there and defeat them before they can attack the town!	1000	0
+16	Explore the area for treasure. It'll help us make the kingdom a better place to live!	350	0
+17	It's time to take care of that fog! Deploy some allies and expand our territory!	350	0
+18	Adventurers that stop at inns may help us fight boss monsters.	1000	0
+19	Try equipping one of the skills you've acquired.	1000	0
+20	Weapons and armor produced by town stores are available for purchase.	1000	0
+21	A shiny monster has appeared. Deploy a party to take it on before it disappears!	1000	0
+22	Put up some signs to guide visitors from the port to our town.	1000	0
+23	Find the legendary blacksmith and upgrade your weapons!	350	0
+24	Helping out your friends with conquests could get you some neat rewards.	350	0
+25	Getting tourists to visit your town and use your stores is a great way to get copper coins.	350	0
+26	You can get bonuses for logging in to your Kairo Account.	0	0
+27	When you discover a new area, move your deployed allies towards the boss.	1000	0
+28	Fighting in an area with good weapon compatibility will boost your attack power.	350	0
+29	Increasing the workshop level of Weapon and Armor Shops could lead to some exciting new discoveries.	1000	0
+30	When you've got a boss monster on the ropes, it'll start summoning more enemies.	1000	0
+31	Expanding your territory will allow you to add more friends. Blaze that trail!	1000	0
+32	Think carefully about the best way to use items that affect several residents at once. You'll find them in the List menu.	350	0
+33	Build lots of storehouses of the same type to increase their storage capacity.	1000	0
+34	Press × to skip the tutorial.	350	0
+35	There are items out there that can restore wasteland to its former state.	1000	0
+36	Items which are too far away don't get picked up.	1000	0
+37	Keep those coins safe and secure in a Copper Coin Box!	10

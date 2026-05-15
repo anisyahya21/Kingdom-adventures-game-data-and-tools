@@ -1,0 +1,144 @@
+0	Not used	0	0
+1	We're lost...	1	0
+2	I'm lost...	1	0
+3	Where are we?	1	0
+4	I'm beat.	2	0
+5	One, two...	2	0
+6	・・・	536870978	0
+7	Nice to meet you!	4	32768
+8	Howdy!	4	0
+9	Hello!	4	294912
+10	Defeated...	8	0
+11	What to do...	8	0
+12	Gwah!	8	0
+13	Argh!	8	0
+14	Oh no!	8	0
+15	I can't do it...	8	0
+16	It's too much!	8	0
+17	Keep it together.	16	0
+18	It's all good.	16	0
+19	Sigh...	16	0
+20	Oh my!	16	0
+21	Yikes!	16	0
+22	Don't get rattled.	16	0
+23	Morning!	32	0
+24	I slept like a log.	32	0
+25	Still sleepy...	32	0
+26	Yawn...	96	0
+27	Mumble...	32	0
+28	Beautiful morning!	32	0
+29	So tired...	64	0
+30	Bedtime.	64	0
+31	Goodnight.	64	0
+32	See ya tomorrow.	64	0
+33	This'll do.	128	0
+34	This looks good.	128	0
+35	Maybe this one.	128	0
+36	Hmm... This one.	128	0
+37	I'll take this.	512	0
+38	I'll go for this one.	512	0
+39	Oh yeah!	1024	0
+40	Yee-haw!	1049600	32768
+41	Great!	525312	32768
+42	Aah, perfect!	1024	1024
+43	I got it!	1024	0
+44	Wow!	1024	163840
+45	Awesome!	1024	164096
+46	Nice.	1024	0
+47	I can do it!	10240	0
+48	Can't wait!	10240	0
+49	Leave it to me!	2048	0
+50	Take that!	10240	65536
+51	We're done.	20480	0
+52	It's finished.	20480	0
+53	Nice work.	16384	0
+54	This came out pretty nice.	16384	0
+55	Harvest time, y'all!	32768	0
+56	We've got tons of crops.	32768	0
+57	Perfect time of year.	32768	0
+58	One, two...	65536	0
+59	Off we go...	131072	0
+60	Hrnf...	196608	0
+61	There we go...	196608	0
+62	Oof.	131072	0
+63	It's heavy...	65536	0
+64	One-two!	65536	0
+65	No problems here.	262144	0
+66	It's sold out, huh?	256	0
+67	Nothing here...	256	0
+68	What a relief.	524288	256
+69	Thanks.	524288	1026
+70	Oh!	524288	128
+71	How's this?	524288	128
+72	How ya like that?	1048576	128
+73	I won!	1048576	0
+74	Victory!	1048576	0
+75	Boring...	538968064	0
+76	No one coming?	2097152	0
+77	Nice weather.	538968064	0
+78	There!	4194304	0
+79	Whoa!	4194304	0
+80	Nghhh...	339738624	128
+81	Oh my	4194304	0
+82	Whoopsie.	4194304	128
+83	Ah!	4194304	0
+84	Come on in.	8388608	8
+85	Come again!	8388608	0
+86	Thanks!	8388608	0
+87	There we go.	16777216	0
+88	There, there.	16777216	0
+89	Aah!	16777216	0
+90	Hey ho!	33554432	0
+91	Take a look.	33554432	8192
+92	Man, it's hot.	33554432	0
+93	Not feelin' it today...	67108864	0
+94	Where was it...?	67108864	0
+95	It's in use...	134217728	0
+96	What the...?	268435456	0
+97	Oooh!	268435456	164096
+98	Hmm...	268435456	4096
+99	…	536870912	0
+100	Hum-de-dum...	536870912	0
+101	What next?	536870912	0
+102	♪	536870912	262144
+103	Someone!	1073741824	0
+104	Anyone?	1073741824	0
+105	Ting!	1073741824	0
+106	That was hard work.	0	1
+107	Did that help?	0	513
+108	I'll come again!	0	1
+109	See you later.	0	514
+110	Sweet dreams.	64	0
+111	Wh-What?!	0	260
+112	Oh, welcome!	0	8
+113	I'm the ruler!	0	8
+114	*cough*	0	8
+115	Helloes!	0	262152
+116	Welcome!	0	8
+117	...	0	131080
+118	Take it easy.	0	16
+119	Thanks for everything.	0	64
+120	Let's get started.	0	48
+121	Doo dee doo...	536870912	0
+122	Ay!	0	2048
+123	Hiyah!	0	2048
+124	Hm.	0	2048
+125	Hrah!	0	2048
+126	Get 'em!	0	2048
+127	Haaah!	0	2048
+128	I see...	0	266240
+129	Let's see...	0	135168
+130	*tap tap*	0	8192
+131	Just check this out!	0	8192
+132	Off we go.	0	8192
+133	Let's kick it up a gear.	0	8192
+134	I'll clobber ya!	0	8192
+135	Ba-zap!	0	8192
+136	I'm training.	0	16384
+137	Time to train.	0	16384
+138	Oh my, oh my!	0	32768
+139	I'm so nervous.	0	32768
+140	Like that!	0	262144
+141	Like this!	0	262144
+142	Yadda yadda...	0	262144
+143	We failed...	0	52

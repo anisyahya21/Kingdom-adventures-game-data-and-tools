@@ -1,0 +1,417 @@
+0	2	4	Greetings! I'll be your advisor, assisting you as best as I can with building your kingdom.	I was here during the old king's reign. This country used to be a bustling hub of culture and civilization.	Look at it now... Just a barren wasteland.	But that's where you come in! Let's get the kingdom back on the road. First, we need a town hall.
+1	2	1	Not used
+2	14	4	Salutations. I'm an advisor from another kingdom.	I heard rumors that some courageous warriors had been defeating monsters plaguing this land.	I see, so you're the one responsible... You have the power to change the future, I can see it in your eyes.	I happen to have some spare Energy. I'd be happy to share it with you.
+3	14	4	Hello! I heard you've reached Royal Rank 5 already.	I thought to myself, now there's someone worth keeping an eye on. You've made so much progress in such a short amount of time.	Looks like you're a little closer to my own country's rank. I'll have to call a council to discuss this...	Would you like some more Energy? I'd be happy to share some, if you can make good use of it.
+4	14	5	Hello. It's good to see you again.	You're really catching up to me, rank-wise. But I haven't been standing idle.	I got to Rank 7 yesterday! Just thought I'd come by to let you know I still have the lead.	Wait, you're...Rank 7? You...caught up to me...?	Excuse me, I have to get back and call an urgent meeting. Here, take this as a parting gift.
+5	14	3	Been a while! Haven't you been busy as a bee?	News of your progress is music to my ears. I even heard about it with my earplugs in!	As always, I've brought you some extra Energy. I hope you'll make good use of it. Goodbye.
+6	14	4	Hello. It's good to see you again.	Thanks to all the hard work you've been doing, even my kingdom is seeing a lot less monster attacks.	That means less work for me! I've really been getting into my TV shows and social media now that I have more spare time.	I hope you'll continue your efforts to make this world a peaceful place to live. And here, have some Energy. It's on me.
+7	14	4	Been a while! Keeping busy as always, aren't you?	I heard all about it on a letter attached to an arrow. It just narrowly missed my head!	Actually, it was less a letter and more...a USB drive. Technology really has come a long way.	I hope you'll continue your efforts to make this world a peaceful place to live. And here, have some Energy. It's on me.
+8	14	3	Hello. It's good to see you again.	Thanks to you, I barely ever need to leave the house any more. Feels like years since I last got any exercise.	I hope you'll continue your efforts to make this world one where I can be indulgently lazy. And here, have some Energy. It's on me.
+9	14	3	Greetings! Everyone's talking about your meteoric rise to stardom.	I sleep better at night knowing I have such a dependable neighbor.	I expect even more great things from you! Here, a little extra Energy as incentive.
+10	14	1	Farewell, until we meet again!
+11	2	1	No <0> available.
+12	2	1	<0> can't be equipped.
+13	2	1	<0>? You've already got that equipped.
+14	2	1	Your storehouse is complete.<br>The town can now hold more materials.
+15	2	1	You need more <pic=money>.
+16	2	1	You need more <pic=grass>.
+17	2	1	You need more <pic=wood>.
+18	2	1	You need more <pic=food>.
+19	2	1	You need more <pic=iron>.
+20	2	1	You need more <pic=magic>.
+21	2	1	There aren't any rewards available at the moment.
+22	2	2	Goodbye, <0>...	Skills and equipment have been returned.
+23	2	2	You can't part ways with them right now.	Your residents aren't doing anything right now.<br>Check back in later.
+24	2	1	There's no one left to restore the kingdom...
+25	2	1	This hasn't been discovered yet.
+26	2	1	No <0> available.
+27	2	1	You need more <pic=stamina>.
+28	2	1	We've reached the maximum possible number of storehouses for a town of this rank.
+29	2	1	You need more items.
+30	2	1	You don't have permission to employ them.
+31	2	1	<s0><s1><v0><s2><v1>
+32	2	1	Not used
+33	2	1	Not used
+34	2	1	Not used
+35	2	3	F-finally! Everywhere has been restored to normal...	The kingdom looks just like it used to in its heyday.	You've astonished everybody on this island! Congratulations!
+36	5	2	Hi there! Looks like you're making friends left, right, and center.	The Banana Kingdom has sent us a prize.
+37	5	2	Friends can help you out during conquests and other activities. Everything's better with a little company.	Farewell for now.
+38	2	1	How about that - there are still unexplored areas on this island!
+39	2	1	Let's get to work building a town hall. Pick anywhere you like.
+40	2	3	That's set the boundaries of your town.	From here on, you'll be able to add houses, shops, storehouses... Everything brings us a step closer to regaining the kingdom's former glory.	Next up, we should try digging out some spare plots of land.
+41	2	1	Let's use this as the foundation for the Royal Room.
+42	2	2	Oh shoot, we forgot to recruit some residents to live here!	With its current rank, the town can have up to three residents. Select them from the Town Hall.
+43	2	4	I'll be praying for the success of this quest.	Deploying allies to dispel the fog will help you get more land for expansion.	I recently acquired the tools of a master craftsman from the old king's reign. I think you'll find them useful.	Just hold to use them. Your construction work will progress by leaps and bounds!
+44	2	3	You'll need to get through the outer walls to venture outside town.	It would be...more convenient if you put a gate in there somewhere.	Let's install one right away!
+45	2	3	Looking good. Now let's deploy some residents to look for treasure!	They might find a way to get rid of this terrible fog.	Just choose who to deploy and they'll get moving.
+46	2	2	You're going to need some storehouses for all these materials you're gathering.	Start out by building two storehouses near the town hall.
+47	2	1	Build a new storehouse to keep your <pic=grass>.
+48	2	1	Build a new storehouse to keep your <pic=food>.
+49	2	1	Build a new storehouse to keep your <pic=wood>.
+50	2	1	Build a new storehouse to keep your <pic=iron>.
+51	2	1	Build a new storehouse to keep your <pic=magic>.
+52	2	4	You need <pic=stamina> to go on a conquest.	You can get a little from the Town Hall as time goes by...	But I think we have a better way available to us.	The previous king built special facilities to gather Energy. Here, take a look at the blueprints.
+53	2	2	It might be better to change this quest's destination.	Clearing areas with more fog may hold the key to developing the kingdom further.
+54	2	2	We need a place to carry out research and discover new stuff!	When the lab's complete, appoint a resident to take charge of the research.
+55	2	2	Research is important for finding new ways to use materials and make the kingdom more advanced.	The lab's all ready, let's get it up and running!
+56	2	4	Looks like you got your hands on some cool treasure!	But that chest is staying shut... We've got no idea what could be inside.	But our townsfolk have a way to open it. They just need a proper place to work.	It'd be best if it was somewhere near a storehouse.
+57	2	1	The kingdom's finally starting to get back on its feet. Let's keep up this pace!
+58	2	3	A cave has appeared outside of our town.	If we don't do something about it, it'll keep releasing monsters into the world. Time for a conquest!	Tap the cave to begin.
+59	2	3	We've found one of the monsters who've been producing the fog!	Get your gear together, and set out to defeat it. This will be a big step toward restoring peace to the world!	Just tap the boss to begin. Oh, but first - take this.
+60	2	1	Use it if you find that the battle gets too tough.
+61	2	2	You've found an item that can strengthen your allies.	No time like the present - let's try it out!
+62	2	2	Select a resident from the list to open their Equipment Menu.	Give weapons and armor to residents who'll be taking part in battle.
+63	2	2	The allies you sent out on a quest got us more Rank Points. Splendid!	Select the Town Hall and use those points to increase your rank.
+64	2	1	A field will steadily produce <pic=grass> over time. Let's research how to make one for ourselves.
+65	2	1	Oh, and take this item. I found it just lying around the house.
+66	2	1	A plantation will steadily produce <pic=wood> over time. Let's research how to make one for ourselves.
+67	2	1	Oh, and take this item. I found it just lying around the house.
+68	2	2	That's your second Town Hall. Great going!	You've got control over so much more of the island now. I think there's room to build a second town!
+69	2	2	Building a stable will boost the movement speed for one resident out on a quest.	The best place to build them is somewhere close to the town entrance.
+70	2	3	A boat with visitors from other kingdoms has arrived in port.	There may be merchants or adventurers with them...but they might not know how to get to our town.	Let's place some signs to guide them here!
+71	2	2	Take note of the range of each sign and place a series of them from port to town.	Also, a neighboring kingdom has sent us a gift.
+72	2	2	Once you have signs pointing to our town in place...	Select a port to call a ship. If you have shops in your town, tourists can be a great source of income.
+73	2	2	This new room has enough space for two people to live together.	And there's a special kind of bed just perfect for a room like this!
+74	2	3	Different jobs have their own skills, but there's no need to stop there.	When you discover a new skill, select an ally and choose "Equip Skill" to teach it to them.	Some skills are better for battle, others will help the town develop. Experiment and find a combination that's best for you!
+75	2	4	One of our facilities got destroyed...	From what I hear, the full moon really riles up monsters. It makes them so bold that they'll attack towns.	Take this. It can wake up sleeping residents and call back residents who are outside of town.	Use it when you need extra numbers to hold off attacking monsters.
+76	2	2	We took our share of injuries in that last fight...	You'll need somewhere to help your allies recover. Let's place one right away!
+77	2	3	The town's coming along nicely.	But the monsters are only going to get tougher from here on out.	Try selecting some of your facilities and leveling them up. This will make it harder for enemies to destroy them.
+78	2	2	You'll need residents with a particular job to perform research.	I have a friend in the industry - how about offering them the position?
+79	2	2	I suggest making some introductions to find new allies.	We might be able to find some townsfolk or adventurers willing to move to our town!
+80	2	2	I was looking at an old photo of the kingdom... I think we used to have a well.	Let's research how to make one!
+81	2	2	I was looking in the kingdom archives... I think the town used to have a stove.	Let's research how to make one!
+82	2	2	I was looking at a selfie I took with the old king... I think we used to have a rest stop in town.	Let's research how to make one!
+83	2	2	I was looking at a painting the old king made... I think we used to have a bench or two in town.	Let's research how to make one!
+84	2	5	We've established a second town! Gosh, it happened so fast.	The Residents Association threw a party yesterday to celebrate. It was so much fun!	There's some unexplored land nearby. This could be a good opportunity to extend our kingdom even further.	The way I see it, we're going to need more new discoveries to keep moving forward.	It's not much, but I put aside a little something for a day like this.
+85	2	1	Let's make these towns the best on the whole island!
+86	2	2	Come to think of it, it would make sense to let the two towns share their resources.	To do that, each town is going to need a place to send out and receive movers.
+87	2	2	Here, I found something good the old king had stored away.	Let's push forward with this construction!
+88	2	1	Try putting this in different places around the room.
+89	2	3	Increasing the rank of your buildings will sometimes yield special materials.	Keep working on going up in rank!	One of my old chairs fell to pieces last time I tried to sit in it...but the materials from it could come in handy!
+90	2	2	I was talking to an old friend, and it made me think we could really use a footpath in our town.	Let's research how to make one!
+91	2	3	Keep dispelling that fog to make the land safer and expand your territory!	Sending your allies to quests in different places will help work toward that.	Select a new destination and deploy the troops!
+92	2	2	I think we should research item storehouses. I can't stress enough how important these will be!	Let's research how to make one!
+93	2	2	If the treasure storehouse gets full, all the treasure your allies gather will go to waste.	It might be a good idea to do some research on this subject.
+94	2	4	Cha-ching! You got yourself a Copper Coin.	You get these mixed in with treasure sometimes.	But the best way to get them is from tourists visiting from overseas.	You can keep coins in the item storehouse, for a while...but it would really be better to make a purpose-built coin box.
+95	2	3	All right! Now you're earning Silver Coins!	They're worth much more than Copper Coins.	It's not safe to leave all that cash lying around. Let's build a coin box to store it.
+96	2	3	Great googly-mooglies! Is that a Gold Coin? This is the first time I've ever seen one up close.	These are worth tons more than Silver Coins. More than some townsfolk will ever see in their lives.	It's not safe to leave all that cash lying around. Let's build a coin box to store it.
+97	2	3	The town could use more <pic=food> producing facilities...	It's great that we've got some ranchers in town, but they won't be much use without farms!	Let's create a farm!
+98	2	3	We don't have a lot of <pic=food> to work with...	You can get more by deploying residents to places with lots of fruit trees.	You can also invite more ranchers to come work for you. Take this item to help out with that.
+99	2	4	We don't have a lot of <pic=iron> to work with...	You can get more by deploying residents to places with lots of rocks.	It'd be even better if we had a mine nearby, but they aren't easy to find.	Let me give you this in the meantime.
+100	2	4	We don't have a lot of <pic=magic> to work with...	You can get more by deploying residents to places with lots of shining rocks.	It'd be even better if we had a mystic mine nearby, but they aren't easy to find.	Let me give you this in the meantime.
+101	2	2	It'd be nice if we had some animals for the farm.	Let's place some feed outside of town and see if we can lure any in!
+102	2	3	One of those monsters left behind an egg!	This is huge! You could actually raise your own monster!	But first, we'll need somewhere in town to keep it.
+103	2	3	Two-four-six-eight, grab an egg and incubate!	There are two kinds of monster-raising facilities - basically, indoor and outdoor.	Pick one you like and research how to make it!
+104	2	3	Shops can only sell as much as they can fit on their shelves.	Creating more shelves will help your stores to grow.	Place some shelves and get new products out there!
+105	2	3	Congratulations, you've acquired a <pic=iron> mine!	Once you've placed it, you'll need someone with the right skill to make proper use of it.	I can introduce you to just such an expert.
+106	2	3	Congratulations, you've acquired a <pic=magic> mine!	Once you've placed it, you'll need someone with the right skill to make proper use of it.	I can introduce you to just such an expert.
+107	2	4	Congrats, you made some new friends!	They could make for valuable reinforcements when you're out on conquests.	They can also hang around and help out around town, so long as you've got the right kind of bed.	Let's research how to make one!
+108	2	3	The Wasteland Guide will take effect once you place it outside the town.	It will direct townsfolk toward the wasteland, where they can start restoring it.	Try placing one now.
+109	2	3	The Expedition Hut will take effect once you place it outside the town.	It will direct townsfolk toward the wilderness, where they can gather different materials.	Try placing one now.
+110	2	3	That Tree Nursery could be invaluable to our cause.	It will produce seeds and seedlings that you can plant in your fields.	Let's establish one right away!
+111	2	3	That Tool Workshop could be invaluable to our cause.	It will produce tools and materials needed for construction.	Let's establish one right away!
+112	2	3	That Ore Workbench could be invaluable to our cause.	It will produce tools and materials needed for construction.	Let's establish one right away!
+113	2	3	That Kitchen Counter could be invaluable to our cause.	Now if you also had some restaurants, you could make all sorts of food!	Let's establish one right away!
+114	2	3	Let's make use of that Monster Statue somewhere in town.	Enemies will attack it before any of the other facilities.	Place it as far away as possible from important places like storehouses.
+115	2	3	Let's make use of that Monster-Repelling Orb somewhere in town.	Enemies will attack it before any of the other facilities.	Place it as far away as possible from important places like storehouses.
+116	2	3	Let's make use of that Monster-Repelling Sword somewhere in town.	Enemies will attack it before any of the other facilities.	Place it as far away as possible from important places like storehouses.
+117	2	3	Let's make use of that Monster-Repelling Slate somewhere in town.	Enemies will attack it before any of the other facilities.	Place it as far away as possible from important places like storehouses.
+118	2	2	The townsfolk will have an easier time if they have colleagues employed in the same profession.	Let me introduce you to another expert.
+119	2	1	If you want to focus on combat, get a lot of people in battle-oriented jobs!
+120	2	1	Great, you've built a Weapon Shop. Check out what it's got to offer!
+121	2	1	Great, you've built an Armor Shop. Check out what it's got to offer!
+122	2	1	Great, you've built an Item Shop. Check out what it's got to offer!
+123	2	1	Great, you've built a Furniture Shop. Check out what it's got to offer!
+124	2	1	Great, you've built a Skill Shop. Check out what it's got to offer!
+125	2	2	Great, you've built an Inn. Maybe now we'll get some tourists wanting to stay here!	Let's give it a try!
+126	2	1	Great, you've built a Restaurant. Check out what it's got to offer!
+127	2	1	Great, you've built an Accessory Shop. Check out what it's got to offer!
+128	2	1	Great, you've built a Recovery Room. Check out what it can do for you!
+129	2	1	Great, you've built an Analysis Lab. Check out what it can do for you!
+130	2	1	Great, you've built a Research Lab. Check out what it can do for you!
+131	2	1	Great, you've built a Hospital. Check out what it can do for you!
+132	2	1	Great, you've built a Church. Check out what it can do for you!
+133	2	1	Not used
+134	2	1	Not used
+135	2	1	Not used
+136	2	1	Not used
+137	2	1	Not used
+138	2	1	Not used
+139	2	1	Not used
+140	2	1	Not used
+141	2	1	Not used
+142	2	1	Not used
+143	2	1	Not used
+144	2	1	Not used
+145	2	1	Not used
+146	2	1	Not used
+147	2	1	Not used
+148	2	1	Not used
+149	2	1	Not used
+150	2	1	Not used
+151	2	1	Not used
+152	2	1	Not used
+153	2	1	Not used
+154	2	1	Not used
+155	2	1	Not used
+156	2	1	Not used
+157	2	1	Not used
+158	2	1	Not used
+159	2	1	It's a new day. This makes <0> days since you founded this new kingdom.
+160	2	1	The Battle Point totals from yesterday are in.<br>Let's see how you did!
+161	2	2	Whoops, you missed out on getting your Battle Points rewards.	Make sure to check the game within the week after registering for the rankings.
+162	2	1	Wonderful, you completed the challenge!
+163	2	2	The deadline for the yesterday's challenge has passed...	But you can still take on a new challenge today!
+164	2	2	To make a resident an Instructor, you'll need to raise one of their abilities to a certain level.	Aim for Level 5!
+165	19	1	Thanks for the share! You've received a reward.
+166	19	1	Thanks for the share! You've received a reward.
+167	19	1	Wow, thanks for the share!
+168	19	1	Thank you for your review. We hope you'll continue to develop the kingdom from here on.
+169	2	1	Looks like this item can't be used here.
+170	2	1	You can't equip multiple skills of this type.
+171	15	4	Teehee. Hello! I heard all about the great work you're doing here and wanted to see it for myself.	Plus, I just learned this spell that'll expand your territory. Want me to give it a try?	The last three towns I tried it on kinda got destroyed instead, but I'm pretty sure I ironed all the kinks out. Trust me.	Yaaaaaaaaah!
+172	15	4	Teehee. Hello! I heard all about your spectacular kingdom management and wanted to see it for myself.	Plus, I just learned this spell that'll expand your territory. Want me to give it a try?	Last time I tried it I sent this weird yellow robot flying into space, but I'm pretty sure I've ironed all the kinds out of it now. Trust me.	Yaaaaaaaaah!
+173	15	4	Teehee. Hello! People have been talking about the amazing kingdom you're building, and I knew I just had to see it for myself.	Plus, I just learned this spell that'll expand your territory. Want me to give it a try?	I've only practiced it on my friends so far, so you'll be my first real client. You'd better be honored, all right?	Yaaaaaaaaah!
+174	15	5	Teehee. Hello! I heard you've been putting your life on the line for your kingdom, and I knew I just had to see it for myself.	Plus, I just learned this spell that'll expand your territory. Want me to give it a try?	Last time I tried it, all my favorite stores suddenly had sales on. I bought a ton of clothes real cheap! I can't wait to see what happens this time.	Here we go...	Yaaaaaaaaah!
+175	15	4	Teehee. Hello! I heard all about the great relationship you have with your subjects, and I knew I just had to see it for myself.	Plus, I just learned this spell that'll expand your territory. Want me to give it a try?	Last time I tried it, I might have kinda revived an ancient demon from beyond the veil of space and time, but that might have just been my imagination.	Yaaaaaaaaah!
+176	15	4	Teehee. Hello! I heard all about how well your kingdom is growing, and I knew I just had to see it for myself.	Plus, I just learned this spell that'll expand your territory. Want me to give it a try?	Last time I tried it, a few natural disasters happened, but I think that was just a coincidence, don't you?	Nyahooooooooo!
+177	15	4	Teehee. Hello! I heard all about how beautiful your kingdom is, and I knew I just had to see it for myself.	Plus, I just learned this spell that'll expand your territory. Want me to give it a try?	Last time I tried it a whole continent sank to the bottom of the sea, but I'm really confident it will work fine this time around. Trust me.	Wookeewookeeeeeeeee!
+178	15	1	Phew, looks like it worked. Okay, I'll see you later!
+179	2	2	Ah, the high scores for each rank bracket are in.	I wonder how other rulers are doing...
+180	2	1	You don't have anyone who can equip that skill.
+181	2	1	Sorry, that equipment's for ladies only.
+182	2	1	If you want to demolish this facility, you'll need to remove everything around it first.
+183	2	1	Not used
+184	2	1	Not used
+185	2	1	Wow! You've made a brand-new discovery!
+186	2	2	Simply marvelous! Now you can build a new town.	Let's find a nice, large area for it and place the Town Hall.
+187	2	3	Try using an item on the lock button.	But be careful - if it's the wrong item you'll lose it!	You'll need to use an item to unlock this.
+188	2	3	Oh! You want to write us a review?	Thank you so much. Come back to the game after submitting the review!	See you later!
+189	2	3	Oh gosh, the town's completely empty now...	You need at least one resident in town to be able to open treasure chests.	Don't worry, I know a guy. He can introduce you to some potential new residents.
+190	2	2	Of course, that won't mean a lot unless they can also learn how to analyze treasure.	Let's recruit a new townsperson and see how they do.
+191	2	1	You can't remove a skill while the resident is still working.
+192	2	1	Not used
+193	2	1	Not used
+194	2	1	Not used
+195	2	1	Not used
+196	2	1	Not used
+197	2	1	Not used
+198	2	1	This is a place for your subjects to live. Be sure to place enough for everyone!
+199	2	4	The Town Hall is one of the most important places in town! It handles assigning jobs and it can be used as a storehouse.	That means you need to protect this building from monster attacks at all costs. Leveling up other facilities around town to raise their stats will help with this.	Oh, but I'm getting ahead of myself...	The point is, it's important. Take good care of it.
+200	2	1	Not used
+201	2	1	Your allies will use this as an exit or entrance to town when they leave on quests. Be sure to make it wide enough for everyone to pass through.
+202	2	1	Your land has been expanded. This will help increase your territory.
+203	2	1	Your land has been expanded. This will help increase your territory.
+204	2	2	Your land has been expanded. This will help increase your territory.	Commanding more allies will make it easier to defend the town from monsters.
+205	2	2	Your land has been expanded. This will help increase your territory.	Commanding more allies will make it easier to defend the town from monsters.
+206	2	3	This is where you'll keep all the items you've collected.	You can use items on your allies to help them protect the town.	So make sure you try and collect as many items as you can!
+207	2	3	This is where you'll keep all the Energy you've collected.	More Energy means you'll be able to go on more conquests.	I recommend building up a good store of Energy as a foundation for your later activities.
+208	2	2	This is where you'll keep all the treasure chests you've collected.	You'll need your residents to open them up and find out what's inside.
+209	2	1	A stream flowing through town makes the place so much more pleasant.
+210	2	2	You'll be able to harvest <pic=grass> here every once in a while.	Field crops will be needed for a lot of things, so be sure to collect a lot.
+211	2	2	You'll be able to harvest <pic=wood> here every once in a while.	Fruit will be needed for a lot of things, so be sure to collect a lot.
+212	2	3	You'll be able to get <pic=food> from here every once in a while.	You'll need animals from outside though.	Try getting a rancher to catch and tame some animals.
+213	2	3	You'll occasionally find <pic=iron> here.	You'll need someone with the right skill to carry it though.	Find a promising resident and equip them with the right skill.
+214	2	3	You'll occasionally find <pic=magic> here.	You'll need someone with the right skill to carry it though.	Find a promising resident and equip them with the right skill.
+215	2	2	This will steadily produce Energy as time goes by, even when you're not playing.	Placing more of them will help avoid running out of Energy right in the middle of a quest.
+216	2	1	Not used
+217	2	1	Not used
+218	2	1	Not used
+219	2	2	Using a well will restore a little HP and Vigor.	Place one in town, and residents will use it when they get injured.
+220	2	3	Some tourists have arrived on the island.	Let's place signs to guide them toward town.	And don't forget signs inside town to show them where the best stores are, too.
+221	2	3	This allows any residents who aren't doing anything to start restoring wasteland to normal.	Place it where there's a lot of wasteland for the best results.	It takes time for residents to return from the wastes, though. Be patient and plan things out.
+222	2	2	Residents deployed on a quest can rent horses from here, increasing their movement speed.	It's one horse per person, so try placing lots of stables near the exit of the town.
+223	2	2	This facility will allow you to move resources between different towns.	Select what you want to move, then tap this facility again.
+224	2	2	This is where your residents will open up treasure chests you've found.	Be aware that it will take some time for them to get here and do what they need to do.
+225	2	2	This place is perfect for healing allies who've gotten injured.	Every good town needs at least one.
+226	2	2	You can perform research here... Except, you don't have any researchers to work here yet.	Select the Outdoor Research Lab again and assign a researcher.
+227	2	1	Let's hope the residents make good use of this!
+228	2	2	Let's hope the residents make good use of this!	You can cook any new dishes invented at the Restaurant here.
+229	2	1	Let's hope the residents make good use of this!
+230	2	2	This is used to help defend the town during enemy attacks. Monsters will target this first.	Place them at a distance from your most important facilities to lure monsters away.
+231	2	1	These flower beds have really brightened up the town. It takes me right back to the old days...
+232	2	1	I just love the feeling of being surrounded by natural beauty.
+233	2	2	We could use a couple of trees here in town.	Let's make our town pleasant to live in and a treat to look at!
+234	2	1	Let's hope the residents make good use of this!
+235	2	1	Let's hope the residents make good use of this!
+236	2	2	This place will make healing injured allies a lot easier.	And it's nice and relaxing even if you're not sick. Maybe I'll take a dip too!
+237	2	2	This is used to help defend the town during enemy attacks. Monsters will target this first.	Place them at a distance from your most important facilities to lure monsters away.
+238	2	2	This is used to help defend the town during enemy attacks. Monsters will target this first.	Place them at a distance from your most important facilities to lure monsters away.
+239	2	2	This is used to help defend the town during enemy attacks. Monsters will target this first.	Place them at a distance from your most important facilities to lure monsters away.
+240	2	2	This is used to help defend the town during enemy attacks. Monsters will target this first.	Place them at a distance from your most important facilities to lure monsters away.
+241	2	1	Let's hope the residents make good use of this!
+242	2	3	I wonder what kind of animals they'll catch...	You'll get different species depending on the type of terrain.	Ranchers will catch any promising animals that wander by. Just be patient and let them do their job.
+243	2	1	Let's hope the residents make good use of this!
+244	2	3	This allows any residents who aren't doing anything to search for treasure.	Place it where there's a lot of natural surroundings for the best results.	It takes time for the residents to do this, so be sure to plan things out carefully.
+245	2	2	You can use the materials stored here to create new products.	Be sure to deliver materials from time to time to help the store's lineup grow.
+246	2	2	You can use the materials stored here to create new products.	Be sure to deliver materials from time to time to help the store's lineup grow.
+247	2	2	You can use the materials stored here to create new products.	Be sure to deliver materials from time to time to help the store's lineup grow.
+248	2	2	You can use the materials stored here to create new products.	Be sure to deliver materials from time to time to help the store's lineup grow.
+249	2	2	You can use the materials stored here to create new products.	Be sure to deliver materials from time to time to help the store's lineup grow.
+250	2	1	Using this at the end of the day will restore HP and Vigor.
+251	2	1	Using this at the end of the day will restore HP and Vigor.
+252	2	1	Using this at the end of the day will restore HP and Vigor.
+253	2	2	The head of the household gets a separate room to themselves.	Select another ally and give it a try.
+254	2	2	Tourists will pay for goods and services with Copper Coins.	Be sure to collect a lot of materials so the stores can make more products.
+255	2	3	Of course, you'll also need to make plenty of store shelves.	Stores will replenish their stock once they sell out of everything. Time when you call tourists into town carefully for the best results.	Increasing the workshop level of different shops can lead to some exciting new discoveries.
+256	2	3	Of course, you'll also need to make plenty of store shelves.	Stores will replenish their stock once they sell out of everything. Time when you call tourists into town carefully for the best results.	Increasing the workshop level of different shops can lead to some exciting new discoveries.
+257	2	3	Of course, you'll also need to make plenty of store shelves.	Stores will replenish their stock once they sell out of everything. Time when you call tourists into town carefully for the best results.	Increasing the workshop level of different shops can lead to some exciting new discoveries.
+258	2	1	This looks like it could be great for helping injured residents recover.
+259	2	2	Sometimes the monarch makes public appearances here. The tourists love all that pomp and ceremony.	This is a place for the monarch to take a break and relax.
+260	2	1	Now we can research indoors, too. I have a good feeling about the kingdom's future!
+261	2	1	This will be great for recovery. Send injured allies here, and they'll be good as new in no time!
+262	2	2	Accessories can be made here.	Leveling it up and increasing the owner's stats will expand the lineup of products available.
+263	2	2	Food can be made here.	Leveling it up and increasing the owner's stats will expand the lineup of products available.
+264	2	1	This will be great for recovery. Send injured allies here, and they'll be good as new in no time!
+265	2	1	This is where treasure is analyzed. Doing it here gets the job done a lot faster than anywhere else.
+266	2	2	Furniture can be made here.	Leveling it up and increasing the owner's stats will expand the lineup of products available.
+267	2	2	Weapons can be made here.	Leveling it up and increasing the owner's stats will expand the lineup of products available.
+268	2	2	Armor can be made here.	Leveling it up and increasing the owner's stats will expand the lineup of products available.
+269	2	2	Skills can be developed here.	Leveling it up and increasing the owner's stats will expand the lineup of products available.
+270	2	2	Items can be made here.	Leveling it up and increasing the owner's stats will expand the lineup of products available.
+271	2	1	This looks like it could be great for helping residents get closer to their full potential.
+272	2	1	This looks like it could be great for helping residents get closer to their full potential.
+273	2	1	This looks like it could be great for helping residents get closer to their full potential.
+274	2	1	This looks like it could be great for helping residents get closer to their full potential.
+275	2	1	This looks like it could be great for helping residents get closer to their full potential.
+276	2	1	This looks like it could be great for helping residents get closer to their full potential.
+277	2	1	This looks like it could be great for helping residents get closer to their full potential.
+278	2	1	This looks like it could be great for helping residents get closer to their full potential.
+279	2	1	Not used
+280	2	1	This looks like it could be great for helping residents get closer to their full potential.
+281	2	1	Not used
+282	2	1	Not used
+283	2	1	Not used
+284	2	1	This looks like it could be great for helping residents get closer to their full potential.
+285	2	1	This looks like it could be great for helping residents get closer to their full potential.
+286	2	1	This looks like it could be great for helping residents get closer to their full potential.
+287	2	1	This looks like it could be great for helping injured residents recover.
+288	2	1	This looks like it could be great for helping residents get closer to their full potential.
+289	2	1	This looks like it could be great for helping residents get closer to their full potential.
+290	2	1	This looks like it could be great for helping residents get closer to their full potential.
+291	2	1	This looks like it could be great for helping residents get closer to their full potential.
+292	2	1	This looks like it could be great for helping injured residents recover.
+293	2	1	This looks like it could be great for helping residents get closer to their full potential.
+294	2	1	I hope the residents come up with some tasty dishes!
+295	2	1	This looks like it could be great for helping residents get closer to their full potential.
+296	2	1	This looks like it could be great for helping residents get closer to their full potential.
+297	2	1	This looks like it could be great for helping residents get closer to their full potential.
+298	2	1	I hope the residents come up with some tasty dishes!
+299	2	1	This looks like it could be great for helping residents get closer to their full potential.
+300	2	1	This looks like it could be great for helping residents get closer to their full potential.
+301	2	1	This looks like it could be great for helping residents get closer to their full potential.
+302	2	1	This looks like it could be great for helping residents get closer to their full potential.
+303	2	1	This looks like it could be great for helping residents get closer to their full potential.
+304	2	2	You can make tools and materials needed to rank up here, but not all the time.	Put it somewhere where lots of residents can access it.
+305	2	1	This looks like it could be great for helping residents get closer to their full potential.
+306	2	2	This kind of bed allows your friends to stay in your town for a while.	Tap it again and select a friend to invite here.
+307	2	2	You'll need these to convince visiting adventurers to stay in town.	Be sure to place enough for everyone.
+308	2	2	Once a married couple's affection gets high enough, they might have a need of a bed like this.	Best to keep it in their room for as long as possible.
+309	2	2	You can keep monster eggs here.	Once they hatch, residents can take monster allies along on conquests.
+310	2	2	I heard this can be used to bring back residents whose lives have reached their end...	I guess we can try. There's no harm in placing one, right?
+311	2	1	Not used
+312	2	2	This will allow residents on quests to ride flying dragons! Or so I've heard.	In any case, it sounds thrilling! I'd love to try it out for myself.
+313	2	2	This is used to help defend the town during enemy attacks. Monsters will target this first.	Place them at a distance from your most important facilities to lure monsters away.
+314	2	2	You can keep monster eggs here.	Once they hatch, monster allies will help defend the town from enemy attacks.
+315	2	1	Not used
+316	2	2	Residents out on quests will stop here to recover.	Placing it at a reasonable distance from the town should help quests go more smoothly.
+317	11	3	Hi, are you the one who dispelled the fog? I owe you, big time!	As a show of my gratitude, I'll upgrade your equipment.	Come tell me when you've decided what you want me to work on.
+318	5	4	Greetings! This is a place where we keep track of your friendships with rulers from other kingdoms.	First you'll need one of your residents to act as your representative. Choose someone trustworthy!	It helps to make it somebody strong too. Remember, they'll be going out to assist other kingdoms in battle.	I hope you'll make a ton of friends! In fact, I'll eat a banana for every potential friend you might make. I'll get started right now!
+319	18	4	Ohohoho. I commend you for saving me.	When that fog descended, all the energy seemed to leave my body! I don't know what I would have done if I didn't have my emergency snacks with me.	I owe you my life. Please accept this humble gift as thanks.	I'll be able to give you more rewards if you can complete the objectives I set. Will you give it a try?
+320	8	4	Hello! Am I glad to see you. I was in search of something, and...well, I got lost.	As thanks, I'll offer you some challenges. Complete them, and I'll give you the most fabulous rewards.	Getting help from friends will make the challenges a lot easier.	Tap the challenge again and check its content.
+321	6	3	It was such a shock when that fog fell. I might have never awakened from my slumber were it not for you.	This place sells all kinds of products to help the kingdom develop.	You can also exchange the trophies you've collected. Give it a try!
+322	9	4	Whew... Thank you!	Back in the day, this was a place where we took care of cute lil' monsters.	We used to have a whole lot of them running around, but when the fog appeared they got spooked.	Since we've got plenty of space now, just let us know if one of your little darlings needs caring for.
+323	20	4	Greetings, I am the man they call the Trophy King!	I travel from kingdom to kingdom, giving praise to those who have earned it.	There's no doubt about it. This kingdom of yours has great potential.	Please accept this trophy in recognition of your great deeds so far.
+324	2	3	This board shows your current Battle Points. You earn more every time you battle.	You can also compete with other players to get the highest score! Once you've registered your points, you can check where you placed the next day.	Give it a try - if you score high enough you could earn some spectacular prizes!
+325	2	3	This is a statue of the previous king. It looks imposing, but believe me, he was even more impressive in person.	Who could have guessed things would turn out like this...	We must give our all to rebuild this kingdom and honor his memory.
+326	2	1	This is for collecting Copper Coins. You can place it anywhere - our residents are pretty skilled at long-range throwing.
+327	2	1	This is for collecting Silver Coins. You can place it anywhere - our residents are pretty skilled at long-range throwing.
+328	2	1	This is for collecting Gold Coins. You can place it anywhere - our residents are pretty skilled at long-range throwing.
+329	2	1	Good heavens, what a magnificent statue. Such grace and power!
+330	2	2	You can store items and treasure here.	But there's only so much room. You should really set up some proper storage facilities.
+331	2	1	Not used
+332	2	2	Sometimes you'll find seeds needed to grow crops here.	Put it somewhere where lots of residents can access it.
+333	2	2	You can make tools and materials needed to rank up here, but not all the time.	Put it somewhere where lots of residents can access it.
+334	2	2	Ah, this ornament has such a dignified air to it.	I feel like my EXP could increase just by looking at it!
+335	10	3	Salutations! You've been so much help, clearing away the fog.	I've been thinking of how I can repay you...	If you want to send a friend request to someone, come talk to me. I'll be able to help you out.
+336	7	3	Heh heh heh... You've come a long way, haven't you?	I started my own little business just a while ago.	You should check it out sometime. You might find something you like...
+337	4	3	Wow, you sure got rid of that fog quick!	I want to do my part to help the town grow, too... By selling you very useful items.	Drop by if you feel like spending some Copper Coins.
+338	19	3	Oh, hey there.	Got too many Copper Coins? Exchange them for Silver or Gold Coins at my store!	Feel free to come by. No one else will give you better exchange rates!
+339	13	4	I told them I didn't want to guard the arena. I just knew something scary would happen... You really saved my bacon!	Thanks to you I can put my mind at ease and get back to battling.	You can use this arena to test your skills against other players.	Stack up a lot of victories, and you can get great prizes! Give it a try some time!
+340	13	4	Thank goodness you were there to help me!	This room was once used by a wise Instructor to help residents reach their full potential.	That Instructor may not be around anymore, but I think I can use my experience to help others improve!	If you have some allies you want to make stronger, just send them my way.
+341	2	3	You can whip up all kinds of dishes here, but you'll also need shelves to put them on.	Stores will replenish their stock once they sell out of everything. Time when you call tourists into town carefully for the best results.	Increasing the workshop level will help the chefs come up with some new dishes.
+342	9	4	Hi there! That was so weird when the fog made me freeze up. Wasn't it funny?	Hee hee. Well, thank you for saving me.	I can help you out by fusing together different monsters to make them stronger.	Come talk to me if you ever have more monsters than you know what to do with.
+343	9	2	Good day to you! We have monsters we caught for sale, all for a very modest price.	Our lineup changes periodically, so be sure to check back now and then.
+344	21	3	Hey there! Looks like you finally found us.	You can take part in special battles here. But be warned - I don't hold them all the time.	Come by when you feel like really testing your mettle!
+345	2	2	This is used to help defend the town during enemy attacks. Monsters will target this first.	Place them at a distance from your most important facilities to lure monsters away.
+346	2	1	We can take care of your monster eggs here.
+347	16	5	Phew, you saved me!	With all that fog and all those monsters, I thought I was a goner!	I wish I could do something to thank you... Oh, I bet I could make you something nice!	This could take some time, though. Come see me again in three days, all right?	Until then!
+348	22	3	How do you do. I am a spirit who watches over transport from town to town.	If you have any residents you'd like to move from one town to another, let me know and I'll take care of everything!	Adieu for now.
+349	2	3	Good heavens! Could this be...?	I'd heard from the old king that there was a cave on this island deeper than all the others, one that continues on and on down into the depths.	It really does exist... Be careful in there!
+350	11	1	Hey there, welcome.
+351	5	1	Howdy. Looking to make new friends? You've come to the right place.
+352	18	1	Ho ho ho. Ready for today's challenge?
+353	8	1	Hello. Take a look at our lineup.
+354	6	1	Welcome. Let's build a better kingdom together.
+355	9	1	Hi there. Any of your monsters need taking care of today?
+356	20	1	Thanks for dropping in. I have some neat projects lined up.
+357	2	1	Shall we go register your high score?
+358	10	1	Send out a friend request to people you like!
+359	7	1	Heh heh heh. Welcome. I've got some people I'd like you to meet.
+360	4	1	Welcome. What'll it be?
+361	19	1	Welcome. What can I get for you today?
+362	13	1	Good to see you again.
+363	13	1	Here's your opponent for this challenge. What do you think, wanna give it a try?
+364	16	1	Hi there. Keep up the good work!
+365	2	1	You've got monsters you can fuse together.
+366	9	1	Monsters for sale, monsters for sale!
+367	21	1	Howdy! Ready to take on a special dungeon?
+368	8	2	I'm very sorry. I made a mistake with the end time of your previous conquest.	Because of that, it ended too soon. Please take this, with my apologies.
+369	11	3	Ah, hello there.	After analyzin' that new area, I found me a way to make my shop even bigger.	I haveta go get to work on it, but here, thought I'd give you this first.
+370	11	1	What do you say? Want to upgrade some weapons?
+371	2	2	You can acquire legendary weapons here!	If you've got equipment you're not using, how about exchanging it?
+372	2	2	Sell unwanted stuff at my shop for Copper Coins!	Too many items or skills? Sell them to me!
+373	2	3	Something about this place attracts monsters. They come here every night.	Deploying some allies here will be a great way to level up!	First, you should pick a town to concentrate on supplies.
+374	2	4	I came up with a splendid idea while out for a stroll!	It will let you put high-ranking merchants, carpenters, movers, even farmers to good use!	It's essentially a room to plan surveys based on interesting rumors.	Build it and have non-battle type residents move in!
+375	2	3	The Survey Room...nay, the Survey Corps HQ is complete!	By meeting here before setting out, the residents can plan out what to investigate.	Let's give it a try!
+376	2	1	Deploy allies on a survey from the Corps HQ!
+377	2	4	My oh my, you've acquired a rather...interesting facility.	According to the manual, if you set it outside your territory it will attract monsters, like light attracts moths!	But be careful - once you place one, demolishing it will cost Diamonds.	Let's try placing one in an area with a manageable level.
+378	2	2	Wowzers! These plans will allow you to fill in rivers and lakes anywhere in your territory.	Just be aware that there's a limit to how much land you can reclaim.
+379	2	3	Congrats, you've acquired a new, larger storehouse.	Just perfect for making the best use of your space!	Let's place one right away!
+380	2	4	Your rank has gone up! The kingdom is becoming a real powerhouse.	We're almost as prosperous as we were under the old king!	But if you want to raise your rank any further than this, you'll need a special kind of treasure.	Let's head to somewhere that deals in treasure and work on breaking that rank cap!
+381	2	2	Your residents can now leave tending the shop to a salesperson while they focus on other tasks!	They'll be able to make new products in workshops, for example!
+382	2	2	You've discovered a new type of housing!	You can get more by building houses for high-rank farmers.
+383	2	3	Oh, nice! You've acquired a cash register to use in a store.	This means someone else can take care of the sales and your craftsperson can concentrate on, well, crafting!	Once you place this, it'll overwrite the old register.
+384	2	2	Santa's here! Our kingdom's been good this year!	He even brought in a new type of housing. Let's get it built!
+385	2	2	Santa's House is all done, but it just doesn't look right without a few reindeer there too.	Let's research a way to fix that!
+386	2	2	We got a gift from Santa's kingdom… It's a wonderful new weapon!	Let's equip it and see how it handles!
+387	2	4	I get this weird, ominous feeling, like something big is about to go down.	I've heard rumors that tourists willing to spend Silver Coins are on their way. Can it be true?	But classy folks like that won't spend their money on just anything. We need to put some real entertainment together.	Let's go look for new room types!
+388	2	4	Special items you've found around town can be displayed here.	Of course, you'll also need a proper display room somewhere in your territory.	Let's go find a way to build new attractions, stuff like zoos and museums!	None of that will mean a thing if we don't have any exhibits though.
+389	2	3	Looks like you can fish here.	The type of fish you can catch might change depending on where you place this.	People from the aquarium go out to catch them, so I've heard.
+390	19	4	Hello... I'm sorry, it seems there was some kind of mix-up regarding jobs you haven't discovered yet.	I need to take those jobs back. Please accept these Diamonds as an apology.	Some of the people in town came to their senses and became merchants or guards... Sorry, but you'll have to make them leave.	I hope we can fix this problem and put it behind us.
+391	2	3	Ah, two of our residents have been getting really affectionate towards each other!	You know what they say, first comes love... Oh, but we still need a Church in town!	Select the Church when a couple's affection gets high.
+392	2	2	*sob* I'm sorry, I always cry at weddings.	This may be rushing things, but we need to make their house ready for children!
+393	2	1	Place a Baby Crib in preparation for the new arrival.
+394	2	2	Now that I think of it, when the previous monarch was but a babe in arms, we had a special care facility in town.	Let's build one here!
+395	2	1	Make a daycare to give the town's children a healthy upbringing, and their parents free time to do their own thing!
+396	2	2	My my, how time flies. A new generation of town residents has been born.	We've even received letters of congratulation from other kingdoms!
+397	19	3	Any way you look at it, new life is always something worth celebrating.	If only we could also attract really high-class tourists too. The kind that come here on airships.	But we'll need to build a special port to get visitors like that.
+398	2	1	Oh boy, look what we got!
+399	2	2	Special visitors, real VIPs, are on the way!	Let's quickly build an airport so their airship can land near our town!
+400	2	2	We have to make new products to satisfy our new customers too!	Let's set up a place for residents to collect new goods.
+401	2	1	We'll also be needing a Resource Center near our town to keep all the stuff our residents will be bringing in.
+402	2	2	A new job has been discovered!	Guerillas have special skills that allow them to explore and battle outside town any time.
+403	2	2	A new job has been discovered!	These warriors are adept at both magic and physical combat.
+404	2	2	A new job has been discovered!	Berserkers are fierce fighters, but their defense is lousy.
+405	2	2	A new job has been discovered!	These artists can create new products at studios.
+406	2	2	A new job has been discovered!	These folks can open up attractions that appeal to special visitors.
+407	2	2	A new job has been discovered!	These workers have a great affinity with animals. They may even discover some new species.
+408	2	2	Good grief, a real young royal is making their social debut!	If we impress them, the royal family will invest even more in the town.
+409	2	2	You've built a fine studio. It'll start producing objects of art, which will then be taken to the Resource Center.	If we had a museum, we could draw in even more visitors.
+410	2	3	The insectarium is complete. Placing a bug trap could 'net' us some really cool exhibits.	You might find different species depending on where you place it...	Place it anywhere you like to start off.
+411	2	3	The aquarium is complete. If we had a fishing pond, we could catch ourselves some really cool exhibits.	You might find different species depending on where you place it...	Place it anywhere you like to start off.
+412	2	3	The zoo is complete.	With the right feed, I'm sure we can attract more than just pigs and cows.	Experiment with monster feed!
+413	2	3	The museum is complete. You can display exhibits here.	If we had a studio, we could produce new creations and draw in even more visitors.	Create some pieces of art and display them in the museum.
+414	2	3	Looks like you can catch bugs here.	The type of bugs you find might change depending on where you place this.	People from the insectarium will go out to look for bugs.
+415	2	3	Children born in the town are educated here until they grow up.	For a child to be born, a married couple's affection has to be pretty darn high.	Once a child grows up, you can employ them in town like any other resident.
+416	2	3	Oh-ho, looks like we've found a beautiful spot just perfect for dates.	Strolling about here and taking in the scenery will surely help romance blossom in any couple!	Select people you want to send here to help them get toget
