@@ -13,6 +13,17 @@ import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
+function kairoDayAnchor(day: string): string {
+  return `kairo-room-${day.toLowerCase()}`;
+}
+
+function scrollToKairoDay(day: string): void {
+  const target = document.getElementById(kairoDayAnchor(day));
+  if (!target) return;
+  window.history.replaceState(null, "", `#${kairoDayAnchor(day)}`);
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 export default function KairoRoomPage() {
   const equipIcons = useEquipmentIcons();
   const [now, setNow] = useState(() => new Date());
@@ -58,8 +69,21 @@ export default function KairoRoomPage() {
         {KAIRO_ROOM_DRAFTS.map((entry) => {
           const isCurrentDay = entry.day === currentEventDay;
           const isLive = isCurrentDay && entry.active;
+          const canOpenDay = entry.active && !!entry.questName;
           return (
-          <Card key={entry.day} className={`shadow-sm ${eventStatusCardClass(isLive ? "live" : "inactive")}`}>
+          <Card
+            key={entry.day}
+            role={canOpenDay ? "button" : undefined}
+            tabIndex={canOpenDay ? 0 : undefined}
+            aria-label={canOpenDay ? `View ${entry.day} Kairo Room loot tables` : undefined}
+            onClick={canOpenDay ? () => scrollToKairoDay(entry.day) : undefined}
+            onKeyDown={canOpenDay ? (event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              scrollToKairoDay(entry.day);
+            } : undefined}
+            className={`shadow-sm ${eventStatusCardClass(isLive ? "live" : "inactive")} ${canOpenDay ? "cursor-pointer transition-transform hover:-translate-y-0.5 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" : ""}`}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -119,11 +143,13 @@ export default function KairoRoomPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {KAIRO_ROOM_LOOT_GROUPS.map((group) => (
-            <div key={group.title} className="space-y-3">
+          {KAIRO_ROOM_LOOT_GROUPS.map((group) => {
+            const day = weekdayByTitle.get(group.title);
+            return (
+            <div key={group.title} id={day ? kairoDayAnchor(day) : undefined} className="scroll-mt-24 space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-sm font-semibold">{group.title}</h2>
-                <Badge variant="outline">{weekdayByTitle.get(group.title) ?? "Event day"}</Badge>
+                <Badge variant="outline">{day ?? "Event day"}</Badge>
               </div>
               <div className="grid gap-3 lg:grid-cols-2">
                 {group.encounters.map((encounter) => (
@@ -184,7 +210,8 @@ export default function KairoRoomPage() {
                 ))}
               </div>
             </div>
-          ))}
+          );
+          })}
         </CardContent>
       </Card>
 
