@@ -50,3 +50,7 @@ Thumbs.db
 
 # Runtime event reminder push data
 artifacts/api-server/data/event-reminder-*.json
+
+# Baked into frontend/server character rule JSON; do not commit raw sprite metadata
+artifacts/api-server/data/sprites/**/*.inf
+artifacts/api-server/data/sprites/**/*.opt

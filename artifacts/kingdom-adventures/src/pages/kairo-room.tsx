@@ -7,9 +7,9 @@ import { KAIRO_ROOM_LOOT_GROUPS } from "@/lib/special-boss-loot";
 import { getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel } from "@/lib/event-status";
 import { KairoFarmingCalculator } from "@/components/kairo-farming-calculator";
+import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
-import { apiUrl } from "@/lib/api";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
@@ -155,7 +155,7 @@ export default function KairoRoomPage() {
                                   <td className="px-3 py-2 text-foreground">
                                       <div className="flex items-center gap-2">
                                         {line.item === "F Rank Scholar" ? (
-                                          <img src={apiUrl("/job-preview-by-name?jobName=Scholar&rank=F&variant=1&equipState=right&scale=2&poseFrame=0")} alt="F Rank Scholar" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                                          <CharacterPreviewCanvas jobName="Scholar" rank="F" variant={1} equipState="right" scale={2} poseFrame={0} label="F Rank Scholar" className="h-10 w-10 shrink-0" />
                                         ) : getEquipmentIcon(equipIcons, line.item) ? (
                                           <img src={getEquipmentIcon(equipIcons, line.item)} alt="" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                         ) : getItemIcon(line.item) ? (

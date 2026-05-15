@@ -277,6 +277,12 @@ function decodeOpt(optPath: string, _srcImage?: RgbaImage | null): Map<string, O
   return slots;
 }
 
+function hasOptRules(dir: string | null, filename: string | null): boolean {
+  if (!dir || !filename) return false;
+  const basename = path.parse(filename).name;
+  return !!loadSpriteRules()[dir]?.opts[basename];
+}
+
 // Legacy binary decoder kept here only for reference — no longer called at runtime.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function _decodeOptBinary(optPath: string, srcImage?: RgbaImage | null): Map<string, OptSlot> {
@@ -464,7 +470,7 @@ function resolveWeaponSprite(equipId: number | null): [string | null, string | n
   if (!filename) return [null, null];
   const png = path.join(kaAssetsDir, "weapon", filename);
   const opt = path.join(kaAssetsDir, "weapon", `${path.parse(filename).name}.opt`);
-  return [fs.existsSync(png) ? png : null, fs.existsSync(opt) ? opt : null];
+  return [fs.existsSync(png) ? png : null, hasOptRules("weapon", filename) ? opt : null];
 }
 
 function resolveLayerAsset(job: JobRow, variant: number, op: SebOp): [string | null, string | null, boolean] {
@@ -521,7 +527,7 @@ function assetFromDir(dir: string | null, filename: string | null, strip: boolea
   if (!dir || !filename) return [null, null, strip];
   const png = path.join(kaAssetsDir, dir, filename);
   const opt = path.join(kaAssetsDir, dir, `${path.parse(filename).name}.opt`);
-  return [fs.existsSync(png) ? png : null, fs.existsSync(opt) ? opt : null, strip];
+  return [fs.existsSync(png) ? png : null, hasOptRules(dir, filename) ? opt : null, strip];
 }
 
 function poseRefs(ops: SebOp[]): [number, number, number] {

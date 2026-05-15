@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { SearchableSelect } from "@/components/searchable-select";
 import { PageHeader } from "@/components/ka/page-header";
 import { ToneBadge } from "@/components/ka/badges";
+import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { toPng } from "html-to-image";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
@@ -1505,54 +1506,20 @@ function useIdlePreviewPose(): PreviewPoseFrame {
   return poseFrame;
 }
 
-function characterPreviewUrl({
-  jobName,
-  rank,
-  variant,
-  equipState,
-  weaponName,
-  shieldName,
-  scale,
-  poseFrame,
-}: {
-  jobName: string;
-  rank?: string | null;
-  variant: 1 | 2;
-  equipState: "right" | "up";
-  weaponName?: string | null;
-  shieldName?: string | null;
-  scale: number;
-  poseFrame: PreviewPoseFrame;
-}) {
-  const params = new URLSearchParams();
-  params.set("jobName", jobName);
-  if (rank) params.set("rank", rank);
-  params.set("variant", String(variant));
-  params.set("equipState", equipState);
-  if (weaponName) params.set("weaponName", weaponName);
-  if (shieldName) params.set("shieldName", shieldName);
-  params.set("shieldCell", "auto");
-  params.set("scale", String(scale));
-  params.set("poseFrame", String(poseFrame));
-  return apiUrl(`/job-preview-by-name?${params.toString()}`);
-}
-
-function CollapsedCharPreview({ baseSrc }: { baseSrc: (poseFrame: PreviewPoseFrame) => string }) {
+function CollapsedCharPreview({ jobName, rank, weaponName, shieldName }: { jobName: string; rank?: string | null; weaponName?: string | null; shieldName?: string | null }) {
   const poseFrame = useIdlePreviewPose();
-  const src = baseSrc(poseFrame);
-  const [hidden, setHidden] = useState(false);
-  useEffect(() => { setHidden(false); }, [baseSrc]);
-  if (hidden) return null;
   return (
-    <img
-      key={src}
-      src={src}
-      alt="character"
-      loading="lazy"
-      decoding="async"
-      style={{ imageRendering: "pixelated" }}
+    <CharacterPreviewCanvas
+      jobName={jobName}
+      rank={rank}
+      variant={1}
+      equipState="right"
+      weaponName={weaponName}
+      shieldName={shieldName}
+      scale={3}
+      poseFrame={poseFrame}
+      label="character"
       className="shrink-0 rounded"
-      onError={() => setHidden(true)}
     />
   );
 }
@@ -1562,46 +1529,29 @@ function CharacterPreview({
   rank,
   weaponName,
   shieldName,
-  slotAssignments,
 }: {
   jobName: string;
   rank?: string;
   weaponName: string | null;
   shieldName: string | null;
-  slotAssignments: Record<string, string>;
 }) {
   const [gender, setGender] = useState<1 | 2>(1);
   const [equipState, setEquipState] = useState<"right" | "up">("right");
-  const [unavailable, setUnavailable] = useState(false);
   const poseFrame = useIdlePreviewPose();
-
-  const src = characterPreviewUrl({
-    jobName,
-    rank,
-    variant: gender,
-    equipState,
-    weaponName,
-    shieldName,
-    scale: 4,
-    poseFrame,
-  });
-
-  // Re-check availability whenever the selected character/equipment changes.
-  useEffect(() => { setUnavailable(false); }, [jobName, rank, gender, equipState, weaponName, shieldName]);
-
-  if (unavailable) return null;
 
   return (
     <div className="flex flex-col items-center gap-2 py-2">
-      <img
-        key={src}
-        src={src}
-        alt={`${jobName} character`}
-        loading="lazy"
-        decoding="async"
-        style={{ imageRendering: "pixelated" }}
+      <CharacterPreviewCanvas
+        jobName={jobName}
+        rank={rank}
+        variant={gender}
+        equipState={equipState}
+        weaponName={weaponName}
+        shieldName={shieldName}
+        scale={4}
+        poseFrame={poseFrame}
+        label={`${jobName} character`}
         className="rounded"
-        onError={() => setUnavailable(true)}
       />
       <div className="flex items-center gap-1.5">
         <button
@@ -1845,7 +1795,6 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                   rank={loadout.rank || undefined}
                   weaponName={weaponEntry?.name ?? null}
                   shieldName={shieldEntry?.name ?? null}
-                  slotAssignments={slotMap}
                 />
               );
             })()}
@@ -2344,22 +2293,15 @@ export default function LoadoutPage() {
                       const slotMap = data?.slotAssignments ?? {};
                       const weaponEntry = loadout.equipment.find((e) => slotMap[e.name] === "Weapon");
                       const shieldEntry = loadout.equipment.find((e) => slotMap[e.name] === "Shield");
-                      const previewSrc = loadout.jobName
-                        ? (poseFrame: PreviewPoseFrame) => characterPreviewUrl({
-                            jobName: loadout.jobName,
-                            rank: loadout.rank,
-                            variant: 1,
-                            equipState: "right",
-                            weaponName: weaponEntry?.name,
-                            shieldName: shieldEntry?.name,
-                            scale: 3,
-                            poseFrame,
-                          })
-                        : null;
                       return (
                       <div className="pl-6 mt-2 flex gap-3 items-start">
-                        {previewSrc && (
-                          <CollapsedCharPreview baseSrc={previewSrc} />
+                        {loadout.jobName && (
+                          <CollapsedCharPreview
+                            jobName={loadout.jobName}
+                            rank={loadout.rank}
+                            weaponName={weaponEntry?.name}
+                            shieldName={shieldEntry?.name}
+                          />
                         )}
                         <div className="flex-1 min-w-0 space-y-2">
                         {/* All stats */}

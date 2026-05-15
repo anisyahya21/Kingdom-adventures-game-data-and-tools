@@ -5,9 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { WairoFarmingCalculator } from "@/components/wairo-farming-calculator";
+import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
-import { apiUrl } from "@/lib/api";
 
 export type WarioDungeonEntry = { day: number; hour: number };
 export type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
@@ -184,7 +184,7 @@ export default function WarioDungeonPage() {
                                   <td className="px-3 py-2 text-foreground">
                                     <div className="flex items-center gap-2">
                                       {line.item === "F Rank Scholar" ? (
-                                        <img src={apiUrl("/job-preview-by-name?jobName=Scholar&rank=F&variant=1&equipState=right&scale=2&poseFrame=0")} alt="F Rank Scholar" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                                        <CharacterPreviewCanvas jobName="Scholar" rank="F" variant={1} equipState="right" scale={2} poseFrame={0} label="F Rank Scholar" className="h-10 w-10 shrink-0" />
                                       ) : getEquipmentIcon(equipIcons, line.item) ? (
                                         <img src={getEquipmentIcon(equipIcons, line.item)} alt="" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                       ) : getItemIcon(line.item) ? (

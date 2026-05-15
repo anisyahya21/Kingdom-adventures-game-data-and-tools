@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ka/page-header";
 import { AffinityBadge, ToneBadge } from "@/components/ka/badges";
 import { EntityLink } from "@/components/ka/entity-link";
+import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { KA_AFFINITY_BADGE_CLASS } from "@/design-system/category-styles";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { getShopHref } from "@/lib/shop-utils";
@@ -2412,35 +2413,19 @@ type JobRenderRank = typeof JOB_RENDER_RANKS[number];
 function JobCharacterPreview({ jobName }: { jobName: string }) {
   const [rank, setRank] = useState<JobRenderRank>("D");
   const [gender, setGender] = useState<1 | 2>(1);
-  const [unavailable, setUnavailable] = useState(false);
   const poseFrame = useJobIdlePose();
-
-  const src = (() => {
-    const params = new URLSearchParams();
-    params.set("jobName", jobName);
-    params.set("rank", rank);
-    params.set("variant", String(gender));
-    params.set("equipState", "right");
-    params.set("scale", "6");
-    params.set("poseFrame", String(poseFrame));
-    return apiUrl(`/job-preview-by-name?${params.toString()}`);
-  })();
-
-  useEffect(() => { setUnavailable(false); }, [jobName, rank, gender]);
-
-  if (unavailable) return null;
 
   return (
     <div className="flex flex-col items-center gap-2 shrink-0">
-      <img
-        key={src}
-        src={src}
-        alt={`${jobName} ${rank} rank`}
-        loading="lazy"
-        decoding="async"
-        style={{ imageRendering: "pixelated" }}
+      <CharacterPreviewCanvas
+        jobName={jobName}
+        rank={rank}
+        variant={gender}
+        equipState="right"
+        scale={6}
+        poseFrame={poseFrame}
+        label={`${jobName} ${rank} rank`}
         className="rounded"
-        onError={() => setUnavailable(true)}
       />
       <div className="flex items-center gap-1 flex-wrap justify-center">
         {JOB_RENDER_RANKS.map((r) => (
