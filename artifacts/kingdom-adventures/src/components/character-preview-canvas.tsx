@@ -12,6 +12,7 @@ export function CharacterPreviewCanvas({ className, style, label = "character", 
   const ref = useRef<HTMLCanvasElement>(null);
   const [available, setAvailable] = useState(true);
   const renderKey = useMemo(() => JSON.stringify(params), [params]);
+  const canvasClassName = ["ka-pixel-art", className].filter(Boolean).join(" ");
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +36,7 @@ export function CharacterPreviewCanvas({ className, style, label = "character", 
       ref={ref}
       aria-label={label}
       role="img"
-      className={className}
+      className={canvasClassName}
       style={{ imageRendering: "pixelated", display: available ? undefined : "none", ...style }}
     />
   );

@@ -250,6 +250,14 @@
   touch-action: pan-y;
 }
 
+.ka-pixel-art,
+img[src^="/website_icons/"],
+img[src^="/character_sprites/"] {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
 .ka-guide-toc-jumping .ka-guide-document-page {
   overflow-anchor: none;
 }

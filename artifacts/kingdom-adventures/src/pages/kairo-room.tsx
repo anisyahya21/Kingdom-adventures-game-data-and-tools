@@ -155,7 +155,7 @@ export default function KairoRoomPage() {
                                   <td className="px-3 py-2 text-foreground">
                                       <div className="flex items-center gap-2">
                                         {line.item === "F Rank Scholar" ? (
-                                          <CharacterPreviewCanvas jobName="Scholar" rank="F" variant={1} equipState="right" scale={2} poseFrame={0} label="F Rank Scholar" className="h-10 w-10 shrink-0" />
+                                          <CharacterPreviewCanvas jobName="Scholar" rank="F" variant={1} equipState="right" scale={2} poseFrame={0} label="F Rank Scholar" className="h-10 w-auto shrink-0" />
                                         ) : getEquipmentIcon(equipIcons, line.item) ? (
                                           <img src={getEquipmentIcon(equipIcons, line.item)} alt="" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                         ) : getItemIcon(line.item) ? (

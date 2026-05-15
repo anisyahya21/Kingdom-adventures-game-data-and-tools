@@ -296,6 +296,46 @@ async function blitStrip(ctx: CanvasRenderingContext2D, rules: CharacterRules, a
   drawCrop(ctx, image, op.u * op.w, op.v * op.h, op.w, op.h, xOffset, yOffset, false);
 }
 
+function alphaBounds(source: HTMLCanvasElement): [number, number, number, number] | null {
+  const ctx = source.getContext("2d");
+  if (!ctx) return null;
+  const pixels = ctx.getImageData(0, 0, source.width, source.height).data;
+  let minX = source.width;
+  let minY = source.height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < source.height; y += 1) {
+    for (let x = 0; x < source.width; x += 1) {
+      if (pixels[(y * source.width + x) * 4 + 3] === 0) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  if (maxX < minX || maxY < minY) return null;
+  return [minX, minY, maxX, maxY];
+}
+
+function trimTransparentPadding(source: HTMLCanvasElement): HTMLCanvasElement | null {
+  const bounds = alphaBounds(source);
+  if (!bounds) return null;
+  const [minX, minY, maxX, maxY] = bounds;
+  const padding = 1;
+  const cropX = Math.max(0, minX - padding);
+  const cropY = Math.max(0, minY - padding);
+  const cropRight = Math.min(source.width, maxX + padding + 1);
+  const cropBottom = Math.min(source.height, maxY + padding + 1);
+  const trimmed = document.createElement("canvas");
+  trimmed.width = Math.max(1, cropRight - cropX);
+  trimmed.height = Math.max(1, cropBottom - cropY);
+  const ctx = trimmed.getContext("2d");
+  if (!ctx) return null;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(source, cropX, cropY, trimmed.width, trimmed.height, 0, 0, trimmed.width, trimmed.height);
+  return trimmed;
+}
+
 export async function renderCharacterPreview(canvas: HTMLCanvasElement, params: CharacterRenderParams): Promise<boolean> {
   const rules = await loadCharacterRules();
   const job = findJob(rules, params.jobName, params.rank);
@@ -351,13 +391,15 @@ export async function renderCharacterPreview(canvas: HTMLCanvasElement, params: 
     }
   }
 
+  const trimmed = trimTransparentPadding(base);
+  if (!trimmed) return false;
   const scale = clamp(params.scale, 1, 16);
-  canvas.width = base.width * scale;
-  canvas.height = base.height * scale;
+  canvas.width = trimmed.width * scale;
+  canvas.height = trimmed.height * scale;
   const ctx = canvas.getContext("2d");
   if (!ctx) return false;
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(trimmed, 0, 0, canvas.width, canvas.height);
   return true;
 }
