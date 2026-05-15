@@ -760,7 +760,14 @@ export function encounterExpectedDrops(encounter: EncounterLoot, targetItem: str
     let ev = 0;
     for (const line of table) {
       if (line.item === targetItem) {
-        ev += (line.chancePercent / 100) * ((line.minQty + line.maxQty) / 2);
+        // chance is stored as "1/N" fraction string
+        const [num, den] = line.chance.split("/").map(Number);
+        const chanceDecimal = den ? num / den : num;
+        // quantity is "min-max" or a single number
+        const qtyParts = line.quantity.split("-").map(Number);
+        const minQty = qtyParts[0] ?? 1;
+        const maxQty = qtyParts[1] ?? minQty;
+        ev += chanceDecimal * ((minQty + maxQty) / 2);
       }
     }
     return ev;
