@@ -2416,26 +2416,26 @@ function JobCharacterPreview({ jobName }: { jobName: string }) {
   const poseFrame = useJobIdlePose();
 
   return (
-    <div className="grid shrink-0 grid-cols-[minmax(116px,auto)_auto] items-end gap-4 self-center px-2 py-1">
-      <div className="flex flex-col items-end gap-2 pb-2">
-        <div className="flex flex-wrap justify-end gap-1.5">
+    <div className="grid shrink-0 grid-cols-[196px_auto] items-end gap-5 self-center px-2 py-1">
+      <div className="flex w-[196px] flex-col gap-2 pb-3">
+        <div className="grid grid-cols-5 gap-1.5">
           {JOB_RENDER_RANKS.map((r) => (
             <button
               key={r}
               onClick={() => setRank(r)}
-              className={`h-7 min-w-7 rounded px-2 text-xs font-semibold leading-none border transition-colors ${rank === r ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"}`}
+              className={`h-8 rounded px-2 text-sm font-semibold leading-none border transition-colors ${rank === r ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"}`}
             >{r}</button>
           ))}
         </div>
-        <div className="flex justify-end gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5">
           <button
             onClick={() => setGender(1)}
-            className={`flex h-7 min-w-10 items-center justify-center gap-1 rounded px-2 text-xs font-semibold leading-none border transition-colors ${gender === 1 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"}`}
-          ><img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-4 h-5" style={{ imageRendering: "pixelated" }} />M</button>
+            className={`flex h-9 items-center justify-center gap-2 rounded px-3 text-sm font-semibold leading-none border transition-colors ${gender === 1 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"}`}
+          ><img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-5 h-6" style={{ imageRendering: "pixelated" }} />M</button>
           <button
             onClick={() => setGender(2)}
-            className={`flex h-7 min-w-10 items-center justify-center gap-1 rounded px-2 text-xs font-semibold leading-none border transition-colors ${gender === 2 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"}`}
-          ><img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-4 h-5" style={{ imageRendering: "pixelated" }} />F</button>
+            className={`flex h-9 items-center justify-center gap-2 rounded px-3 text-sm font-semibold leading-none border transition-colors ${gender === 2 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"}`}
+          ><img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-5 h-6" style={{ imageRendering: "pixelated" }} />F</button>
         </div>
       </div>
       <CharacterPreviewCanvas
@@ -2691,7 +2691,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {STAT_ORDER.map((stat) => {
               const s = rankData?.stats[stat];
               const effLevel = statLevels[stat] ?? level;
@@ -2700,30 +2700,37 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
               const needExpKey = STAT_TO_NEEDEXP_KEY[stat];
               const needExpPct = needExpKey && needExpProfile ? needExpProfile.needExpByParameter[needExpKey] : undefined;
               return (
-                <div key={stat} className="rounded border border-border bg-background/50 p-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-4 h-4 object-contain" />}
+                <div key={stat} className="rounded border border-border bg-background/50 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="h-5 w-5 shrink-0 object-contain" />}
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold truncate">{stat}</div>
-                        <div className="text-[10px] text-muted-foreground">Lv {effLevel}</div>
+                        <div className="truncate text-base font-semibold leading-tight">{stat}</div>
+                        <div className="text-xs text-muted-foreground">Lv {effLevel}</div>
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground">{s ? Math.round(s.base * 100) / 100 : "-"}</span>
+                    <span className={`text-2xl font-bold leading-none tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
+                      {v === null || v === 0 ? "-" : Math.round(v * 100) / 100}
+                    </span>
                   </div>
-                  <div className="mt-2 space-y-2 text-[10px] text-muted-foreground">
-                    <div className="flex items-center justify-between gap-2">
-                      <span>+/Lv</span>
-                      <span className="font-semibold text-foreground">{s ? `+${Math.round(s.inc * 100) / 100}` : "-"}</span>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                    <div className="rounded bg-muted/20 px-2 py-1.5">
+                      <div>Start</div>
+                      <div className="mt-0.5 font-semibold tabular-nums text-foreground">{s ? Math.round(s.base * 100) / 100 : "-"}</div>
+                    </div>
+                    <div className="rounded bg-muted/20 px-2 py-1.5">
+                      <div>+/Lv</div>
+                      <div className="mt-0.5 font-semibold tabular-nums text-foreground">{s ? `+${Math.round(s.inc * 100) / 100}` : "-"}</div>
                     </div>
                     {needExpPct !== undefined && (
-                      <div className="flex items-center justify-between gap-2">
-                        <span>EXP need</span>
-                        <span className="font-semibold text-indigo-400">{needExpPct}%</span>
+                      <div className="rounded bg-muted/20 px-2 py-1.5">
+                        <div>EXP</div>
+                        <div className="mt-0.5 font-semibold tabular-nums text-indigo-400">{needExpPct}%</div>
                       </div>
                     )}
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Preview</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <span>Preview level</span>
                       {s ? (
                         <span className="flex items-center gap-2">
                           <Input
@@ -2733,16 +2740,12 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                             onChange={(e) => setPreviewLevelInput(stat, e.target.value)}
                             onKeyDown={(e) => commitOnEnter(e, () => commitPreviewLevel(stat, e.currentTarget.value))}
                             onBlur={(e) => commitPreviewLevel(stat, e.target.value)}
-                            className="h-6 w-16 text-[10px] text-center px-0.5"
+                            className="h-8 w-20 px-1 text-center text-sm"
                           />
-                          <span className={`font-semibold tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
-                            {v === null || v === 0 ? "-" : Math.round(v * 100) / 100}
-                          </span>
                         </span>
                       ) : (
                         <span className="font-semibold text-red-400">-</span>
                       )}
-                    </div>
                   </div>
                 </div>
               );
