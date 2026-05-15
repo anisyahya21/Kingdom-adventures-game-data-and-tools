@@ -473,6 +473,16 @@
       "iconV": 0
     },
     {
+      "id": 58,
+      "name": "Blessed Rain",
+      "category": 4,
+      "filename": "item_173.png",
+      "method": "localized_item2_opt",
+      "sheet": "English.lproj/icon_item2.png",
+      "iconU": 6,
+      "iconV": 4
+    },
+    {
       "id": 59,
       "name": "Bounty Bag",
       "category": 4,
@@ -1611,6 +1621,156 @@
       "sheet": "icon_item.png",
       "iconU": 8,
       "iconV": 9
+    },
+    {
+      "id": 190,
+      "name": "Town Building Textbook",
+      "category": 7,
+      "filename": "valuable/town_building_textbook.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 0,
+      "iconV": 0
+    },
+    {
+      "id": 191,
+      "name": "Military Training Manual",
+      "category": 7,
+      "filename": "valuable/military_training_manual.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 1,
+      "iconV": 0
+    },
+    {
+      "id": 192,
+      "name": "Legendary Expedition Map",
+      "category": 7,
+      "filename": "valuable/legendary_expedition_map.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 2,
+      "iconV": 0
+    },
+    {
+      "id": 193,
+      "name": "Construction Hints",
+      "category": 7,
+      "filename": "valuable/construction_hints.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 3,
+      "iconV": 0
+    },
+    {
+      "id": 194,
+      "name": "Water of Life",
+      "category": 7,
+      "filename": "valuable/water_of_life.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 4,
+      "iconV": 0
+    },
+    {
+      "id": 195,
+      "name": "Water of Wisdom",
+      "category": 7,
+      "filename": "valuable/water_of_wisdom.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 5,
+      "iconV": 0
+    },
+    {
+      "id": 196,
+      "name": "Water of Vitality",
+      "category": 7,
+      "filename": "valuable/water_of_vitality.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 6,
+      "iconV": 0
+    },
+    {
+      "id": 197,
+      "name": "Water of Might",
+      "category": 7,
+      "filename": "valuable/water_of_might.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 7,
+      "iconV": 0
+    },
+    {
+      "id": 198,
+      "name": "Water of Resilience",
+      "category": 7,
+      "filename": "valuable/water_of_resilience.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 8,
+      "iconV": 0
+    },
+    {
+      "id": 199,
+      "name": "Ancient Blueprints",
+      "category": 7,
+      "filename": "valuable/ancient_blueprints.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 9,
+      "iconV": 0
+    },
+    {
+      "id": 200,
+      "name": "Pioneer's Map",
+      "category": 7,
+      "filename": "valuable/pioneers_map.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 0,
+      "iconV": 1
+    },
+    {
+      "id": 201,
+      "name": "Master Craftsman's Tools",
+      "category": 7,
+      "filename": "valuable/master_craftsmans_tools.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 1,
+      "iconV": 1
+    },
+    {
+      "id": 202,
+      "name": "Know-How Journal",
+      "category": 7,
+      "filename": "valuable/know_how_journal.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 2,
+      "iconV": 1
+    },
+    {
+      "id": 203,
+      "name": "Diamond Guide",
+      "category": 7,
+      "filename": "valuable/diamond_guide.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 3,
+      "iconV": 1
+    },
+    {
+      "id": 204,
+      "name": "Book of Awakening",
+      "category": 7,
+      "filename": "valuable/book_of_awakening.png",
+      "method": "treasured_article_opt",
+      "sheet": "icon_treasured_article.png",
+      "iconU": 4,
+      "iconV": 1
     }
   ],
   "equipment": [
@@ -5702,5 +5862,511 @@
     "attributes": 7,
     "gender": 2,
     "furniture": 80
-  }
+  },
+  "facilities": [
+    {
+      "id": 238,
+      "type": "facility",
+      "name": "Reindeer Stable",
+      "filename": "facility_238_reindeer_stable.png"
+    },
+    {
+      "id": 214,
+      "type": "facility",
+      "name": "High Grade Storehouse (Eggs)",
+      "filename": "facility_214_high_grade_storehouse_eggs.png"
+    },
+    {
+      "id": 213,
+      "type": "facility",
+      "name": "High Grade Storehouse (Item)",
+      "filename": "facility_213_high_grade_storehouse_item.png"
+    },
+    {
+      "id": 212,
+      "type": "facility",
+      "name": "High Grade Storehouse (Treasure)",
+      "filename": "facility_212_high_grade_storehouse_treasure.png"
+    },
+    {
+      "id": 210,
+      "type": "facility",
+      "name": "High Grade Storehouse (Mystic Ore)",
+      "filename": "facility_210_high_grade_storehouse_mystic_ore.png"
+    },
+    {
+      "id": 211,
+      "type": "facility",
+      "name": "High Grade Storehouse (Energy)",
+      "filename": "facility_211_high_grade_storehouse_energy.png"
+    },
+    {
+      "id": 209,
+      "type": "facility",
+      "name": "High Grade Storehouse (Ore)",
+      "filename": "facility_209_high_grade_storehouse_ore.png"
+    },
+    {
+      "id": 208,
+      "type": "facility",
+      "name": "High Grade Storehouse (Food)",
+      "filename": "facility_208_high_grade_storehouse_food.png"
+    },
+    {
+      "id": 206,
+      "type": "facility",
+      "name": "High Grade Storehouse (Grass)",
+      "filename": "facility_206_high_grade_storehouse_grass.png"
+    },
+    {
+      "id": 207,
+      "type": "facility",
+      "name": "High Grade Storehouse (Wood)",
+      "filename": "facility_207_high_grade_storehouse_wood.png"
+    },
+    {
+      "id": 200,
+      "type": "facility",
+      "name": "Equipment Exchange",
+      "filename": "facility_200_equipment_exchange.png"
+    },
+    {
+      "id": 201,
+      "type": "facility",
+      "name": "Trading Post",
+      "filename": "facility_201_trading_post.png"
+    },
+    {
+      "id": 198,
+      "type": "facility",
+      "name": "Movers",
+      "filename": "facility_198_movers.png"
+    },
+    {
+      "id": 196,
+      "type": "facility",
+      "name": "Legendary Cave",
+      "filename": "facility_196_legendary_cave.png"
+    },
+    {
+      "id": 180,
+      "type": "facility",
+      "name": "Kairo Room",
+      "filename": "facility_180_kairo_room.png"
+    },
+    {
+      "id": 195,
+      "type": "facility",
+      "name": "Cabin",
+      "filename": "facility_195_cabin.png"
+    },
+    {
+      "id": 185,
+      "type": "facility",
+      "name": "Gold Coin Box",
+      "filename": "facility_185_gold_coin_box.png"
+    },
+    {
+      "id": 183,
+      "type": "facility",
+      "name": "Copper Coin Box",
+      "filename": "facility_183_copper_coin_box.png"
+    },
+    {
+      "id": 184,
+      "type": "facility",
+      "name": "Silver Coin Box",
+      "filename": "facility_184_silver_coin_box.png"
+    },
+    {
+      "id": 164,
+      "type": "facility",
+      "name": "Recovery Outpost",
+      "filename": "facility_164_recovery_outpost.png"
+    },
+    {
+      "id": 162,
+      "type": "facility",
+      "name": "Monster Stables",
+      "filename": "facility_162_monster_stables.png"
+    },
+    {
+      "id": 177,
+      "type": "facility",
+      "name": "Instructor's Room",
+      "filename": "facility_177_instructors_room.png"
+    },
+    {
+      "id": 174,
+      "type": "facility",
+      "name": "Job Center",
+      "filename": "facility_174_job_center.png"
+    },
+    {
+      "id": 175,
+      "type": "facility",
+      "name": "Material Shop",
+      "filename": "facility_175_material_shop.png"
+    },
+    {
+      "id": 173,
+      "type": "facility",
+      "name": "Friends Agency",
+      "filename": "facility_173_friends_agency.png"
+    },
+    {
+      "id": 171,
+      "type": "facility",
+      "name": "Trophy Room",
+      "filename": "facility_171_trophy_room.png"
+    },
+    {
+      "id": 172,
+      "type": "facility",
+      "name": "Ranking Board",
+      "filename": "facility_172_ranking_board.png"
+    },
+    {
+      "id": 170,
+      "type": "facility",
+      "name": "Monster Farm",
+      "filename": "facility_170_monster_farm.png"
+    },
+    {
+      "id": 169,
+      "type": "facility",
+      "name": "Treasure Room",
+      "filename": "facility_169_treasure_room.png"
+    },
+    {
+      "id": 160,
+      "type": "facility",
+      "name": "Dragon Stables",
+      "filename": "facility_160_dragon_stables.png"
+    },
+    {
+      "id": 168,
+      "type": "facility",
+      "name": "Weekly Conquest Bonus",
+      "filename": "facility_168_weekly_conquest_bonus.png"
+    },
+    {
+      "id": 181,
+      "type": "facility",
+      "name": "Underground Arena",
+      "filename": "facility_181_underground_arena.png"
+    },
+    {
+      "id": 166,
+      "type": "facility",
+      "name": "Friend Post Office",
+      "filename": "facility_166_friend_post_office.png"
+    },
+    {
+      "id": 167,
+      "type": "facility",
+      "name": "Briefing Room",
+      "filename": "facility_167_briefing_room.png"
+    },
+    {
+      "id": 165,
+      "type": "facility",
+      "name": "Master Smithy",
+      "filename": "facility_165_master_smithy.png"
+    },
+    {
+      "id": 91,
+      "type": "facility",
+      "name": "Bench",
+      "filename": "facility_091_bench.png"
+    },
+    {
+      "id": 75,
+      "type": "facility",
+      "name": "Rest Stop",
+      "filename": "facility_075_rest_stop.png"
+    },
+    {
+      "id": 74,
+      "type": "facility",
+      "name": "Outdoor Research Lab",
+      "filename": "facility_074_outdoor_research_lab.png"
+    },
+    {
+      "id": 189,
+      "type": "facility",
+      "name": "Day Care",
+      "filename": "facility_189_day_care.png"
+    },
+    {
+      "id": 191,
+      "type": "facility",
+      "name": "Chaos Stone",
+      "filename": "facility_191_chaos_stone.png"
+    },
+    {
+      "id": 46,
+      "type": "facility",
+      "name": "Mine: Mystic Ore",
+      "filename": "facility_046_mine_mystic_ore.png"
+    },
+    {
+      "id": 72,
+      "type": "facility",
+      "name": "Outdoor Treasure Lab",
+      "filename": "facility_072_outdoor_treasure_lab.png"
+    },
+    {
+      "id": 45,
+      "type": "facility",
+      "name": "Mine: Ore",
+      "filename": "facility_045_mine_ore.png"
+    },
+    {
+      "id": 78,
+      "type": "facility",
+      "name": "Thorny Trap",
+      "filename": "facility_078_thorny_trap.png"
+    },
+    {
+      "id": 90,
+      "type": "facility",
+      "name": "Monster Feed",
+      "filename": "facility_090_monster_feed.png"
+    },
+    {
+      "id": 47,
+      "type": "facility",
+      "name": "Mine: Energy",
+      "filename": "facility_047_mine_energy.png"
+    },
+    {
+      "id": 77,
+      "type": "facility",
+      "name": "Bonfire",
+      "filename": "facility_077_bonfire.png"
+    },
+    {
+      "id": 76,
+      "type": "facility",
+      "name": "Simple Stove",
+      "filename": "facility_076_simple_stove.png"
+    },
+    {
+      "id": 30,
+      "type": "facility",
+      "name": "Nighttime Meeting Place",
+      "filename": "facility_030_nighttime_meeting_place.png"
+    },
+    {
+      "id": 84,
+      "type": "facility",
+      "name": "Rejuvenation Spring",
+      "filename": "facility_084_rejuvenation_spring.png"
+    },
+    {
+      "id": 92,
+      "type": "facility",
+      "name": "Expedition Hut",
+      "filename": "facility_092_expedition_hut.png"
+    },
+    {
+      "id": 29,
+      "type": "facility",
+      "name": "Torch",
+      "filename": "facility_029_torch.png"
+    },
+    {
+      "id": 69,
+      "type": "facility",
+      "name": "Wasteland Guide",
+      "filename": "facility_069_wasteland_guide.png"
+    },
+    {
+      "id": 71,
+      "type": "facility",
+      "name": "Wagon Yard",
+      "filename": "facility_071_wagon_yard.png"
+    },
+    {
+      "id": 70,
+      "type": "facility",
+      "name": "Stables",
+      "filename": "facility_070_stables.png"
+    },
+    {
+      "id": 31,
+      "type": "facility",
+      "name": "Low Watchtower",
+      "filename": "facility_031_low_watchtower.png"
+    },
+    {
+      "id": 88,
+      "type": "facility",
+      "name": "Monster-Repelling Slate",
+      "filename": "facility_088_monster_repelling_slate.png"
+    },
+    {
+      "id": 87,
+      "type": "facility",
+      "name": "Monster-Repelling Sword",
+      "filename": "facility_087_monster_repelling_sword.png"
+    },
+    {
+      "id": 86,
+      "type": "facility",
+      "name": "Monster-Repelling Orb",
+      "filename": "facility_086_monster_repelling_orb.png"
+    },
+    {
+      "id": 89,
+      "type": "facility",
+      "name": "Windmill",
+      "filename": "facility_089_windmill.png"
+    },
+    {
+      "id": 85,
+      "type": "facility",
+      "name": "Monster Statue",
+      "filename": "facility_085_monster_statue.png"
+    },
+    {
+      "id": 81,
+      "type": "facility",
+      "name": "Seedlings",
+      "filename": "facility_081_seedlings.png"
+    },
+    {
+      "id": 68,
+      "type": "facility",
+      "name": "Info Board",
+      "filename": "facility_068_info_board.png"
+    },
+    {
+      "id": 83,
+      "type": "facility",
+      "name": "Goddess Statue",
+      "filename": "facility_083_goddess_statue.png"
+    },
+    {
+      "id": 82,
+      "type": "facility",
+      "name": "Fountain",
+      "filename": "facility_082_fountain.png"
+    },
+    {
+      "id": 80,
+      "type": "facility",
+      "name": "Bushes",
+      "filename": "facility_080_bushes.png"
+    },
+    {
+      "id": 32,
+      "type": "facility",
+      "name": "Turret",
+      "filename": "facility_032_turret.png"
+    },
+    {
+      "id": 67,
+      "type": "facility",
+      "name": "Well",
+      "filename": "facility_067_well.png"
+    },
+    {
+      "id": 239,
+      "type": "facility",
+      "name": "Airport",
+      "filename": "facility_239_airport.png"
+    },
+    {
+      "id": 240,
+      "type": "facility",
+      "name": "Resource Center",
+      "filename": "facility_240_resource_center.png"
+    },
+    {
+      "id": 241,
+      "type": "facility",
+      "name": "Fishing Pond",
+      "filename": "facility_241_fishing_pond.png"
+    },
+    {
+      "id": 226,
+      "type": "facility",
+      "name": "Bug Gathering Spot",
+      "filename": "facility_226_bug_gathering_spot.png"
+    },
+    {
+      "id": 202,
+      "type": "facility",
+      "name": "Date Spot",
+      "filename": "facility_202_date_spot.png"
+    },
+    {
+      "id": 178,
+      "type": "facility",
+      "name": "Monster Fusion Lab",
+      "filename": "facility_178_monster_fusion_lab.png"
+    },
+    {
+      "id": 223,
+      "type": "mapchip",
+      "name": "Wairo Dungeon",
+      "filename": "mapchip_223_wairo_dungeon.png"
+    },
+    {
+      "id": 72,
+      "type": "mapchip",
+      "name": "Cave",
+      "filename": "mapchip_072_cave.png"
+    },
+    {
+      "id": 71,
+      "type": "mapchip",
+      "name": "Cave",
+      "filename": "mapchip_071_cave.png"
+    },
+    {
+      "id": 65,
+      "type": "mapchip",
+      "name": "Not used",
+      "filename": "mapchip_065_not_used.png"
+    },
+    {
+      "id": 73,
+      "type": "mapchip",
+      "name": "Cave",
+      "filename": "mapchip_073_cave.png"
+    },
+    {
+      "id": 74,
+      "type": "mapchip",
+      "name": "Cave",
+      "filename": "mapchip_074_cave.png"
+    },
+    {
+      "id": 75,
+      "type": "mapchip",
+      "name": "Cave",
+      "filename": "mapchip_075_cave.png"
+    },
+    {
+      "id": 76,
+      "type": "mapchip",
+      "name": "Cave",
+      "filename": "mapchip_076_cave.png"
+    },
+    {
+      "id": 77,
+      "type": "mapchip",
+      "name": "Cave",
+      "filename": "mapchip_077_cave.png"
+    },
+    {
+      "id": 186,
+      "type": "facility",
+      "name": "Kairo King Statue",
+      "filename": "facility_186_kairo_king_statue.png"
+    }
+  ]
 }

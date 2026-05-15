@@ -1,4 +1,4 @@
-import iconManifest from "../../../../website_icons/manifest.json";
+﻿import iconManifest from "../../../../website_icons/manifest.json";
 
 // Build equipment name to icon path lookup from manifest
 const equipmentIconLookup = new Map<string, string>();
@@ -95,13 +95,37 @@ export function getEquipmentIcon(icons: EquipmentIconMap, name: string | undefin
   return publicEquipmentIconUrl(name);
 }
 
+// Map from <pic=X> tag to display word, used for pouch aliases
+const PIC_TAG_TO_WORD: Record<string, string> = {
+  grass: "Grass",
+  wood: "Wood",
+  food: "Food",
+  iron: "Iron",
+  magic: "Magic",
+};
+
+/** Converts a raw item name from game data into a clean display name.
+ *  "<pic=grass> Pouch" => "Grass Pouch", others unchanged. */
+function toItemDisplayName(name: string): string {
+  return name.replace(/^<pic=(\w+)>\s*/i, (_, key: string) => {
+    const word = PIC_TAG_TO_WORD[key.toLowerCase()] ?? (key.charAt(0).toUpperCase() + key.slice(1).toLowerCase());
+    return word + " ";
+  }).trim();
+}
+
 // Build item name to icon path lookup from manifest
 const itemIconLookup = new Map<string, string>();
 if (iconManifest && iconManifest.items) {
   for (const item of iconManifest.items) {
-    const iconPath = `/website_icons/items/${item.filename}?v=20260515r4`;
+    const iconPath = item.filename.includes("/") ? `/website_icons/${item.filename}?v=20260515r4` : `/website_icons/items/${item.filename}?v=20260515r4`;
     itemIconLookup.set(item.name, iconPath);
     itemIconLookup.set(item.name.toLowerCase(), iconPath);
+    // Register clean alias for pic-tag names (e.g. "<pic=grass> Pouch" -> "Grass Pouch")
+    const alias = toItemDisplayName(item.name);
+    if (alias !== item.name) {
+      itemIconLookup.set(alias, iconPath);
+      itemIconLookup.set(alias.toLowerCase(), iconPath);
+    }
   }
 }
 
@@ -110,9 +134,9 @@ const eggIconLookup = new Map<string, string>();
 if (iconManifest && iconManifest.eggs) {
   for (const egg of iconManifest.eggs) {
     const iconPath = `/website_icons/eggs/${egg.filename}?v=20260515r4`;
-    // Map full name "White Egg" → path
+    // Map full name "White Egg" â†’ path
     eggIconLookup.set(egg.name, iconPath);
-    // Map color-only "White" → path (strip " Egg" suffix)
+    // Map color-only "White" â†’ path (strip " Egg" suffix)
     const colorOnly = egg.name.replace(/ Egg$/, "");
     eggIconLookup.set(colorOnly, iconPath);
     eggIconLookup.set(colorOnly.toLowerCase(), iconPath);
@@ -122,7 +146,15 @@ if (iconManifest && iconManifest.eggs) {
 export function getItemIcon(name: string | undefined | null): string | undefined {
   if (!name) return undefined;
   const clean = name.trim();
-  return itemIconLookup.get(clean) ?? itemIconLookup.get(clean.toLowerCase());
+  // Direct lookup
+  const direct = itemIconLookup.get(clean) ?? itemIconLookup.get(clean.toLowerCase());
+  if (direct) return direct;
+  // Strip leading quantity prefix ("2x ", "3x ", "Nx ", etc.) and retry
+  const stripped = clean.replace(/^\d+x\s+/i, "");
+  if (stripped !== clean) {
+    return itemIconLookup.get(stripped) ?? itemIconLookup.get(stripped.toLowerCase());
+  }
+  return undefined;
 }
 
 export function getEggIconByColor(colorName: string | undefined | null): string | undefined {
@@ -145,4 +177,22 @@ export function getFurnitureIcon(name: string | undefined | null): string | unde
   if (!name) return undefined;
   const clean = name.trim();
   return furnitureIconLookup.get(clean) ?? furnitureIconLookup.get(clean.toLowerCase());
+}
+
+
+// Build facility id to icon path lookup from manifest
+const facilityIconLookup = new Map<number, string>();
+if (iconManifest && (iconManifest as Record<string, unknown>).facilities) {
+  for (const fac of (iconManifest as Record<string, unknown>).facilities as Array<{ id: number; type: string; name: string; filename: string }>) {
+    const iconPath = `/website_icons/facilities_confirmed/${fac.filename}?v=20260515r1`;
+    // Prefer facility-type over mapchip-type on ID collision
+    if (fac.type === 'facility' || !facilityIconLookup.has(fac.id)) {
+      facilityIconLookup.set(fac.id, iconPath);
+    }
+  }
+}
+
+export function getFacilityIcon(id: number | undefined | null): string | undefined {
+  if (id == null) return undefined;
+  return facilityIconLookup.get(id);
 }

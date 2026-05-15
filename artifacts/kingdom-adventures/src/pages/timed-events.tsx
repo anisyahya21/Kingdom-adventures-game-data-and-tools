@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import QRCode from "qrcode";
 import { Bell, BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award, AlertTriangle, Plus, Minus, ExternalLink, Smartphone } from "lucide-react";
@@ -10,6 +10,7 @@ import { useEventHourOffset } from "@/lib/event-time";
 import { KAIRO_ROOM_DRAFTS } from "@/lib/en-event-drafts";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventStatus } from "@/lib/event-status";
 import { isWarioDungeonLive } from "@/pages/wario-dungeon";
+import { getFacilityIcon } from "@/lib/equipment-icons";
 
 const EVENT_CARDS = [
   {
@@ -24,6 +25,7 @@ const EVENT_CARDS = [
     title: "Weekly Conquest",
     description: "Current conquest targets, rewards, and the locations you need to clear each week.",
     icon: Trophy,
+    facilityIconId: 168,
     status: "live" as EventStatus,
   },
   {
@@ -31,6 +33,7 @@ const EVENT_CARDS = [
     title: "Wairo Dungeon",
     description: "Dedicated event page for the monthly dungeon spawn windows.",
     icon: Clock3,
+    facilityIconId: 223,
     status: "inactive" as EventStatus,
   },
   {
@@ -38,6 +41,7 @@ const EVENT_CARDS = [
     title: "Daily Rank Rewards",
     description: "Daily ranking board reward tables for S and A rank, grouped by weekday.",
     icon: Award,
+    facilityIconId: 172,
     status: "live" as EventStatus,
   },
   {
@@ -45,6 +49,7 @@ const EVENT_CARDS = [
     title: "Kairo Room",
     description: "Active days, challenge names, and equipment box rewards from the EN sheet.",
     icon: Wand2,
+    facilityIconId: 180,
     status: "inactive" as EventStatus,
   },
   {
@@ -52,11 +57,12 @@ const EVENT_CARDS = [
     title: "Job Center",
     description: "Weekly profession rotation by day, using the EN sheet as a readable event schedule.",
     icon: BriefcaseBusiness,
+    facilityIconId: 174,
     status: "live" as EventStatus,
   },
 ];
 
-type EventCard = (typeof EVENT_CARDS)[number] & { disabled?: boolean };
+type EventCard = (typeof EVENT_CARDS)[number] & { disabled?: boolean; facilityIconId?: number };
 
 function EventReminderInstallPanel() {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -201,20 +207,27 @@ export default function TimedEventsPage() {
             : card.href === "/wario-dungeon" ? (warioDungeonLive ? "live" : "inactive")
             : card.href === "/daily-rank-rewards" ? "live"
             : card.status;
+          const facIcon = card.facilityIconId ? getFacilityIcon(card.facilityIconId) : undefined;
           const content = (
-            <Card className={`h-full shadow-sm transition-all ${eventStatusCardClass(status)} ${card.disabled ? "opacity-75" : "hover:shadow-md hover:border-primary/30 cursor-pointer"}`}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <card.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <Badge variant="outline" className={eventStatusClass(status)}>{eventStatusLabel(status)}</Badge>
+            <Card className={`h-full shadow-sm transition-all overflow-hidden ${eventStatusCardClass(status)} ${card.disabled ? "opacity-75" : "hover:shadow-md hover:border-primary/30 cursor-pointer"}`}>
+              <div className="flex h-full">
+                <div className="flex-none w-20 self-stretch flex items-center justify-center bg-muted/30 border-r border-border p-2">
+                  {facIcon
+                    ? <img src={facIcon} alt="" className="w-full h-full object-contain" style={{ imageRendering: "pixelated" }} />
+                    : <card.icon className="w-8 h-8 text-primary" />}
                 </div>
-                <CardTitle className="text-base mt-2">{card.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-xs leading-relaxed">{card.description}</CardDescription>
-              </CardContent>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-end">
+                      <Badge variant="outline" className={eventStatusClass(status)}>{eventStatusLabel(status)}</Badge>
+                    </div>
+                    <CardTitle className="text-base">{card.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs leading-relaxed">{card.description}</CardDescription>
+                  </CardContent>
+                </div>
+              </div>
             </Card>
           );
 
