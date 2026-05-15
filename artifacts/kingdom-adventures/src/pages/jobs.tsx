@@ -2691,7 +2691,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {STAT_ORDER.map((stat) => {
               const s = rankData?.stats[stat];
               const effLevel = statLevels[stat] ?? level;
@@ -2700,37 +2700,37 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
               const needExpKey = STAT_TO_NEEDEXP_KEY[stat];
               const needExpPct = needExpKey && needExpProfile ? needExpProfile.needExpByParameter[needExpKey] : undefined;
               return (
-                <div key={stat} className="rounded border border-border bg-background/50 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
+                <div key={stat} className="rounded border border-border bg-background/50 p-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="h-5 w-5 shrink-0 object-contain" />}
                       <div className="min-w-0">
-                        <div className="truncate text-base font-semibold leading-tight">{stat}</div>
-                        <div className="text-xs text-muted-foreground">Lv {effLevel}</div>
+                        <div className="truncate text-sm font-semibold leading-tight">{stat}</div>
+                        <div className="text-[11px] leading-tight text-muted-foreground">Lv {effLevel}</div>
                       </div>
                     </div>
-                    <span className={`text-2xl font-bold leading-none tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
+                    <span className={`text-xl font-bold leading-none tabular-nums ${!v ? "text-muted-foreground/30" : "text-foreground"}`}>
                       {v === null || v === 0 ? "-" : Math.round(v * 100) / 100}
                     </span>
                   </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                    <div className="rounded bg-muted/20 px-2 py-1.5">
+                  <div className="mt-2 grid grid-cols-3 gap-x-2 text-[11px] leading-tight text-muted-foreground">
+                    <div>
                       <div>Start</div>
-                      <div className="mt-0.5 font-semibold tabular-nums text-foreground">{s ? Math.round(s.base * 100) / 100 : "-"}</div>
+                      <div className="font-semibold tabular-nums text-foreground">{s ? Math.round(s.base * 100) / 100 : "-"}</div>
                     </div>
-                    <div className="rounded bg-muted/20 px-2 py-1.5">
+                    <div>
                       <div>+/Lv</div>
-                      <div className="mt-0.5 font-semibold tabular-nums text-foreground">{s ? `+${Math.round(s.inc * 100) / 100}` : "-"}</div>
+                      <div className="font-semibold tabular-nums text-foreground">{s ? `+${Math.round(s.inc * 100) / 100}` : "-"}</div>
                     </div>
                     {needExpPct !== undefined && (
-                      <div className="rounded bg-muted/20 px-2 py-1.5">
+                      <div>
                         <div>EXP</div>
-                        <div className="mt-0.5 font-semibold tabular-nums text-indigo-400">{needExpPct}%</div>
+                        <div className="font-semibold tabular-nums text-indigo-400">{needExpPct}%</div>
                       </div>
                     )}
                   </div>
-                  <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                    <span>Preview level</span>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                    <span>Preview Lv</span>
                       {s ? (
                         <span className="flex items-center gap-2">
                           <Input
@@ -2740,7 +2740,7 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
                             onChange={(e) => setPreviewLevelInput(stat, e.target.value)}
                             onKeyDown={(e) => commitOnEnter(e, () => commitPreviewLevel(stat, e.currentTarget.value))}
                             onBlur={(e) => commitPreviewLevel(stat, e.target.value)}
-                            className="h-8 w-20 px-1 text-center text-sm"
+                            className="h-6 w-14 px-1 text-center text-xs"
                           />
                         </span>
                       ) : (
