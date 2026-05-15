@@ -5,12 +5,12 @@ type MaterialCostField = "grass" | "wood" | "food" | "ore" | "mystic";
 
 export type MaterialCostRecord = Record<MaterialCostField, number>;
 
-const MATERIAL_COST_ICONS: { field: MaterialCostField; matId: number; style: "flat" | "outlined" | "crystal" }[] = [
-  { field: "grass",  matId: 0, style: "outlined" },
-  { field: "wood",   matId: 1, style: "flat" },
-  { field: "food",   matId: 2, style: "flat" },
-  { field: "ore",    matId: 3, style: "crystal" },
-  { field: "mystic", matId: 4, style: "flat" },
+const MATERIAL_COST_ICONS: { field: MaterialCostField; matId: number; style: "flat" | "outlined" | "crystal"; label: string }[] = [
+  { field: "grass",  matId: 0, style: "outlined", label: "Grass" },
+  { field: "wood",   matId: 1, style: "flat",     label: "Wood" },
+  { field: "food",   matId: 2, style: "flat",     label: "Food" },
+  { field: "ore",    matId: 3, style: "crystal",  label: "Ore" },
+  { field: "mystic", matId: 4, style: "flat",     label: "Mystic Ore" },
 ];
 
 type CostPillsProps = {
@@ -29,8 +29,8 @@ export function CostPills({ costs, emptyLabel = "Free to build", className }: Co
   return (
     <div className={cn("flex flex-wrap gap-2 items-center", className)}>
       {parts.map((item) => (
-        <span key={item.field} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <MaterialIcon id={item.matId} style={item.style} size={18} />
+        <span key={item.field} title={item.label} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <MaterialIcon id={item.matId} style={item.style} size={24} />
           {costs[item.field]}
         </span>
       ))}

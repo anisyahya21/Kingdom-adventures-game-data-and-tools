@@ -213,7 +213,7 @@ function JobQuickPreviewDialog({
           </div>
 
           <div className="mt-4">
-            <Link href={`/jobs/${encodeURIComponent(profile.name)}`} data-job-preview-bypass="true">
+            <Link href={`/jobs/${encodeURIComponent(profile.name)}`} data-job-preview-bypass="true" onClick={() => onOpenChange(false)}>
               <Button variant="outline" className="w-full">Open Full Job Page</Button>
             </Link>
           </div>

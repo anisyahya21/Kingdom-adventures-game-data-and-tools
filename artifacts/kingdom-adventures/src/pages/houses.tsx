@@ -14,6 +14,7 @@ import { FilterBar } from "@/components/ka/filter-bar";
 import { PageHeader } from "@/components/ka/page-header";
 import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { MaterialIcon } from "@/lib/material-icons";
+import { getItemIcon } from "@/lib/equipment-icons";
 import { formatBuildingJobOwners } from "@/game-data/job-buildings";
 import {
   BUILDING_GROUP_LABEL,
@@ -197,8 +198,14 @@ function calcTownHallMaterialCosts(nextRank: number): { name: string; qty: numbe
   ];
 }
 
-function formatFacilityItemName(name: string): string {
-  return name === "Copper Coin" ? "🟤 Copper Coin" : name;
+function FacilityItemCost({ name, qty }: { name: string; qty: number }) {
+  const icon = getItemIcon(name);
+  return (
+    <span title={name} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+      {icon && <img src={icon} alt={name} width={24} height={24} style={{ imageRendering: "pixelated", objectFit: "contain" }} />}
+      {qty}×
+    </span>
+  );
 }
 
 // What a facility gains from leveling up
@@ -359,8 +366,8 @@ function FacilityCosts({ g, w, f, o, m }: { g: number; w: number; f: number; o: 
   return (
     <div className="flex flex-wrap gap-2 items-center">
       {vals.map(c => (
-        <span key={c.matId} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <MaterialIcon id={c.matId} style={c.style} size={18} />
+        <span key={c.matId} title={["Grass","Wood","Food","Ore","Mystic Ore"][c.matId]} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <MaterialIcon id={c.matId} style={c.style} size={24} />
           {c.v}
         </span>
       ))}
@@ -756,9 +763,7 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
               return (
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                   {items.map(({ name, qty }) => (
-                    <span key={name} className="text-xs text-muted-foreground">
-                      {qty}× {formatFacilityItemName(name)}
-                    </span>
+                    <FacilityItemCost key={name} name={name} qty={qty} />
                   ))}
                 </div>
               );
@@ -848,16 +853,12 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
           <FacilityCosts g={uG} w={uW} f={uF} o={uO} m={uM} />
           <div className="flex flex-wrap gap-x-3 gap-y-0.5">
             {calcTownHallMaterialCosts(rank + 1).map(({ name, qty }) => (
-              <span key={name} className="text-xs text-muted-foreground">
-                {qty}× {formatFacilityItemName(name)}
-              </span>
+              <FacilityItemCost key={name} name={name} qty={qty} />
             ))}
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5">
             {applyResourceDiscountToItems(calcTownHallCoinCosts(rank + 1), resourceDiscount).map(({ name, qty }) => (
-              <span key={name} className="text-xs text-muted-foreground">
-                {qty}× {formatFacilityItemName(name)}
-              </span>
+              <FacilityItemCost key={name} name={name} qty={qty} />
             ))}
           </div>
           <p className="text-xs font-medium text-amber-600 dark:text-amber-400">⏱ {formatUpgTime(upgTime)}</p>

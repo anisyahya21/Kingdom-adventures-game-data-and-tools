@@ -1,3 +1,21 @@
+import iconManifest from "../../../../website_icons/manifest.json";
+
+// Build equipment name to icon path lookup from manifest
+const equipmentIconLookup = new Map<string, string>();
+if (iconManifest && iconManifest.equipment) {
+  for (const equip of iconManifest.equipment) {
+    const iconPath = `/website_icons/equipment/${equip.filename}?v=20260515r4`;
+    // Store with original name
+    equipmentIconLookup.set(equip.name, iconPath);
+    // Also store with slash format (e.g., "A/ Ancient Sword")
+    const slashName = toSlashEquipmentName(equip.name);
+    equipmentIconLookup.set(slashName, iconPath);
+    // Also store with dash format (e.g., "A- Ancient Sword")  
+    const dashName = toDashEquipmentName(equip.name);
+    equipmentIconLookup.set(dashName, iconPath);
+  }
+}
+
 export type EquipmentIconMap = Record<string, string> | undefined | null;
 
 export function toSlashEquipmentName(name: string): string {
@@ -47,11 +65,84 @@ function publicEquipmentIconUrl(name: string): string | undefined {
 
 export function getEquipmentIcon(icons: EquipmentIconMap, name: string | undefined | null): string | undefined {
   if (!name) return undefined;
+  
+  // First check the static equipment icon lookup from website_icons
+  const cleanName = name.trim();
+  if (equipmentIconLookup.has(cleanName)) {
+    return equipmentIconLookup.get(cleanName);
+  }
+  
+  // Try slash and dash variants
+  const slashName = toSlashEquipmentName(cleanName);
+  if (equipmentIconLookup.has(slashName)) {
+    return equipmentIconLookup.get(slashName);
+  }
+  
+  const dashName = toDashEquipmentName(cleanName);
+  if (equipmentIconLookup.has(dashName)) {
+    return equipmentIconLookup.get(dashName);
+  }
+  
+  // Fallback to dynamic icons from API if available
   if (icons) {
     for (const key of getEquipmentIconKeys(name)) {
       const icon = icons[key];
       if (icon) return icon;
     }
   }
+  
+  // Last fallback to public cropped images
   return publicEquipmentIconUrl(name);
+}
+
+// Build item name to icon path lookup from manifest
+const itemIconLookup = new Map<string, string>();
+if (iconManifest && iconManifest.items) {
+  for (const item of iconManifest.items) {
+    const iconPath = `/website_icons/items/${item.filename}?v=20260515r4`;
+    itemIconLookup.set(item.name, iconPath);
+    itemIconLookup.set(item.name.toLowerCase(), iconPath);
+  }
+}
+
+// Build egg color name to icon path lookup from manifest
+const eggIconLookup = new Map<string, string>();
+if (iconManifest && iconManifest.eggs) {
+  for (const egg of iconManifest.eggs) {
+    const iconPath = `/website_icons/eggs/${egg.filename}?v=20260515r4`;
+    // Map full name "White Egg" → path
+    eggIconLookup.set(egg.name, iconPath);
+    // Map color-only "White" → path (strip " Egg" suffix)
+    const colorOnly = egg.name.replace(/ Egg$/, "");
+    eggIconLookup.set(colorOnly, iconPath);
+    eggIconLookup.set(colorOnly.toLowerCase(), iconPath);
+  }
+}
+
+export function getItemIcon(name: string | undefined | null): string | undefined {
+  if (!name) return undefined;
+  const clean = name.trim();
+  return itemIconLookup.get(clean) ?? itemIconLookup.get(clean.toLowerCase());
+}
+
+export function getEggIconByColor(colorName: string | undefined | null): string | undefined {
+  if (!colorName) return undefined;
+  const clean = colorName.trim();
+  return eggIconLookup.get(clean) ?? eggIconLookup.get(clean.replace(/ Egg$/, "")) ?? eggIconLookup.get(clean.toLowerCase());
+}
+
+// Build furniture name to icon path lookup from manifest
+const furnitureIconLookup = new Map<string, string>();
+if (iconManifest && (iconManifest as Record<string, unknown>).furniture) {
+  for (const item of (iconManifest as Record<string, unknown>).furniture as Array<{ name: string; filename: string }>) {
+    const iconPath = `/website_icons/furniture/${item.filename}?v=20260515r5`;
+    furnitureIconLookup.set(item.name, iconPath);
+    furnitureIconLookup.set(item.name.toLowerCase(), iconPath);
+  }
+}
+
+export function getFurnitureIcon(name: string | undefined | null): string | undefined {
+  if (!name) return undefined;
+  const clean = name.trim();
+  return furnitureIconLookup.get(clean) ?? furnitureIconLookup.get(clean.toLowerCase());
 }

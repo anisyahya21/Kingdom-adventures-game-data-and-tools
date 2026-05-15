@@ -6,6 +6,7 @@ import { matchesLooseSearch } from "@/lib/search-normalize";
 export interface SSOption {
   value: string;
   label: string;
+  icon?: string;
 }
 
 interface Props {
@@ -38,7 +39,9 @@ export function SearchableSelect({
   const searchRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
-  const selectedLabel = options.find((o) => o.value === value)?.label ?? (value || null);
+  const selectedOption = options.find((o) => o.value === value);
+  const selectedLabel = selectedOption?.label ?? (value || null);
+  const selectedIcon = selectedOption?.icon;
   const filtered = query.trim()
     ? options.filter((o) => matchesLooseSearch(o.label, query))
     : options;
@@ -141,12 +144,15 @@ export function SearchableSelect({
                   key={opt.value}
                   type="button"
                   onMouseDown={() => select(opt.value)}
-                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-muted/70 transition-colors ${
+                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-muted/70 transition-colors flex items-center gap-2 ${
                     opt.value === value && !clearOnSelect
                       ? "bg-primary/10 text-primary font-medium"
                       : ""
                   }`}
                 >
+                  {opt.icon && (
+                    <img src={opt.icon} alt="" className="h-5 w-5 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                  )}
                   {opt.label}
                 </button>
               ))
@@ -201,11 +207,14 @@ export function SearchableSelect({
         className={`flex items-center justify-between w-full rounded-md border border-input bg-background px-2 gap-1.5 text-left focus:outline-none focus:ring-1 focus:ring-ring hover:border-ring/50 transition-colors ${triggerClassName}`}
       >
         <span
-          className={`truncate flex-1 ${
+          className={`min-w-0 flex-1 flex items-center gap-1.5 ${
             !selectedLabel ? "text-muted-foreground" : ""
           }`}
         >
-          {selectedLabel ?? placeholder}
+          {selectedIcon && (
+            <img src={selectedIcon} alt="" className="h-5 w-5 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+          )}
+          <span className="truncate">{selectedLabel ?? placeholder}</span>
         </span>
         {value && !clearOnSelect ? (
           <span

@@ -25,6 +25,7 @@ import { PageHeader } from "@/components/ka/page-header";
 import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { EntityLink } from "@/components/ka/entity-link";
 import { localSharedData } from "@/lib/local-shared-data";
+import { getEquipmentIcon, getItemIcon, getFurnitureIcon } from "@/lib/equipment-icons";
 import { parseCsv } from "@/lib/monster-truth";
 import {
   JOB_PARAMETER_ORDER,
@@ -904,7 +905,14 @@ function EquipmentTable({ rows, showWeaponType = false }: { rows: EquipmentRow[]
         <tbody>
           {sorted.map((row) => (
             <tr key={row.name} className="border-t border-border/70">
-              <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
+              <td className="px-3 py-2 font-medium text-foreground">
+                <div className="flex items-center gap-2">
+                  {getEquipmentIcon(null, row.name) && (
+                    <img src={getEquipmentIcon(null, row.name)!} alt="" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                  )}
+                  {row.name}
+                </div>
+              </td>
               <td className="px-3 py-2 text-center">{row.rank || "-"}</td>
               <td className="px-3 py-2 text-center">{row.slot}</td>
               {showWeaponType && <td className="px-3 py-2 text-center">{row.weaponType || "-"}</td>}
@@ -1005,7 +1013,14 @@ function ItemTable({ rows, showStudio = true }: { rows: ItemRow[]; showStudio?: 
         <tbody>
           {sorted.map((row) => (
             <tr key={row.name} className="border-t border-border/70">
-              <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
+              <td className="px-3 py-2 font-medium text-foreground">
+                <div className="flex items-center gap-1.5">
+                  {getItemIcon(row.name) && (
+                    <img src={getItemIcon(row.name)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                  )}
+                  {row.name}
+                </div>
+              </td>
               {showStudio && <td className="px-3 py-2 text-center">{row.studioLevel}</td>}
               <td className="px-3 py-2 text-center">{row.craftingIntelligence || "-"}</td>
               <td className="px-3 py-2 text-center">{row.craftTimeSeconds ? `${row.craftTimeSeconds}s` : "-"}</td>
@@ -1050,7 +1065,14 @@ function FurnitureTable({ rows }: { rows: FurnitureRow[] }) {
         <tbody>
           {sorted.map((row) => (
             <tr key={row.name} className="border-t border-border/70">
-              <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
+              <td className="px-3 py-2 font-medium text-foreground">
+                <div className="flex items-center gap-1.5">
+                  {getFurnitureIcon(row.name) && (
+                    <img src={getFurnitureIcon(row.name)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                  )}
+                  {row.name}
+                </div>
+              </td>
               <td className="px-3 py-2 text-center">{row.studioLevel}</td>
               <td className="px-3 py-2 text-center">{row.craftingIntelligence}</td>
             </tr>
@@ -2241,7 +2263,12 @@ export default function ShopsPage() {
                         return (
                         <tr key={row.item.name} className="border-t border-border/70 align-top">
                           <td className="px-3 py-2 font-medium text-foreground">
-                            <div>{row.item.name}</div>
+                            <div className="flex items-center gap-1.5">
+                              {getItemIcon(row.item.name) && (
+                                <img src={getItemIcon(row.item.name)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                              )}
+                              <div>{row.item.name}</div>
+                            </div>
                             {showItemReferenceDebug && (
                               <div className="mt-1.5 space-y-1 text-[11px] font-normal leading-4 text-muted-foreground">
                                 <div>shopFlag: {row.item.shopFlag} (0b{binaryFlag})</div>
@@ -2339,10 +2366,13 @@ export default function ShopsPage() {
                                   setFeedItemQuery(item.name);
                                   setFeedItemDropdownOpen(false);
                                 }}
-                                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
+                                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
                                   item.name === selectedFeedItemName ? "bg-primary/10 font-medium text-foreground" : ""
                                 }`}
                               >
+                                {getItemIcon(item.name) && (
+                                  <img src={getItemIcon(item.name)!} alt="" className="h-5 w-5 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                                )}
                                 <span className="truncate">{item.name}</span>
                               </button>
                             ))

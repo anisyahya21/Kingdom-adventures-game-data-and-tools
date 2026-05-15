@@ -6,7 +6,8 @@ import { WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { WairoFarmingCalculator } from "@/components/wairo-farming-calculator";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
-import { getEquipmentIcon } from "@/lib/equipment-icons";
+import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
+import { apiUrl } from "@/lib/api";
 
 export type WarioDungeonEntry = { day: number; hour: number };
 export type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
@@ -182,10 +183,14 @@ export default function WarioDungeonPage() {
                                 <tr key={`${index}-${line.item}`} className="border-t border-border/60">
                                   <td className="px-3 py-2 text-foreground">
                                     <div className="flex items-center gap-2">
-                                      {getEquipmentIcon(equipIcons, line.item) ? (
-                                        <img src={getEquipmentIcon(equipIcons, line.item)} alt="" className="h-5 w-5 rounded object-contain" />
+                                      {line.item === "F Rank Scholar" ? (
+                                        <img src={apiUrl("/job-preview-by-name?jobName=Scholar&rank=F&variant=1&equipState=right&scale=2&poseFrame=0")} alt="F Rank Scholar" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                                      ) : getEquipmentIcon(equipIcons, line.item) ? (
+                                        <img src={getEquipmentIcon(equipIcons, line.item)} alt="" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                                      ) : getItemIcon(line.item) ? (
+                                        <img src={getItemIcon(line.item)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                       ) : (
-                                        <span className="h-5 w-5" />
+                                        <span className="h-8 w-8 shrink-0" />
                                       )}
                                       <span>{line.item}</span>
                                     </div>

@@ -1,5 +1,281 @@
 [
   {
+    "id": "capture_1778496726398_weapon",
+    "name": "S- Fire Sword",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778496704297_weapon",
+    "name": "S- Fire Hammer",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778496687278_weapon",
+    "name": "A- Ice Scalpel",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778496666666_weapon",
+    "name": "A- Emerald Club",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778496647421_weapon",
+    "name": "C- Artistic Club",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778496193769_weapon",
+    "name": "B- Trident",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778496168224_weapon",
+    "name": "B- Tree Branch",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778496149056_weapon",
+    "name": "B- Sword of the Void",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778496122209_weapon",
+    "name": "B- Silver Hammer",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778496097687_weapon",
+    "name": "B- Red Spear",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778496066790_weapon",
+    "name": "B- Musket",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495955515_weapon",
+    "name": "B- Master's Katana",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495910252_weapon",
+    "name": "B- Lightning Scalpel",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495884713_weapon",
+    "name": "B- Iron Club",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495864595_weapon",
+    "name": "B- Hero Sword",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495810922_weapon",
+    "name": "B- Hero Club",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495791157_weapon",
+    "name": "B- Frosty Sword",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495637109_weapon",
+    "name": "B- Diamond Staff",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495520971_weapon",
+    "name": "B- Destruction Sword",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495422684_weapon",
+    "name": "B- Commander's Spear",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495335637_weapon",
+    "name": "B- Big Bad Hammer",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495303215_accessory",
+    "name": "B- Red Ribbon",
+    "slotKind": "accessory",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495303215_weapon",
+    "name": "B- Battle Axe",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495260570_accessory",
+    "name": "B- Leather Gloves",
+    "slotKind": "accessory",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495260570_weapon",
+    "name": "A- Teardop Sword",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495209016_accessory",
+    "name": "B- Golden Bracelet",
+    "slotKind": "accessory",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495209016_weapon",
+    "name": "A- Sword of Rage",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495143462_accessory",
+    "name": "B- Gold Bag",
+    "slotKind": "accessory",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495143462_weapon",
+    "name": "A- Steel Club",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495081492_accessory",
+    "name": "A- Red Pendant",
+    "slotKind": "accessory",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495081492_armor",
+    "name": "B- Fine Robe",
+    "slotKind": "armor",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495081492_weapon",
+    "name": "A- Legendary Staff",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778495081492_head",
+    "name": "B- Iron Headpiece",
+    "slotKind": "head",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492809101_accessory",
+    "name": "A- Silk Gloves",
+    "slotKind": "accessory",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492809101_head",
+    "name": "B- Wizard's Hat",
+    "slotKind": "head",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492730209_accessory",
+    "name": "A- Light Ring",
+    "slotKind": "accessory",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492730209_weapon",
+    "name": "A- Golden Knife",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492730209_head",
+    "name": "B- Shampoo Hat",
+    "slotKind": "head",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492677472_accessory",
+    "name": "A- Golden Earrings",
+    "slotKind": "accessory",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492677472_armor",
+    "name": "A- Heavy Armor",
+    "slotKind": "armor",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492677472_weapon",
+    "name": "A- Angelic Club",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492677472_head",
+    "name": "B- Mystic Hat",
+    "slotKind": "head",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492579733_accessory",
+    "name": "A- Golden Collar",
+    "slotKind": "accessory",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492579733_armor",
+    "name": "B- Silver Armor",
+    "slotKind": "armor",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492579733_weapon",
+    "name": "B- Paintbrush",
+    "slotKind": "weapon",
+    "note": "auto from requested screenshot"
+  },
+  {
+    "id": "capture_1778492579733_head",
+    "name": "B- Iron Mask",
+    "slotKind": "head",
+    "note": "auto from requested screenshot"
+  },
+  {
     "id": "capture_1778390246929_weapon",
     "name": "E- Gnarly Club",
     "slotKind": "weapon",

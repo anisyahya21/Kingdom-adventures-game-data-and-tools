@@ -1346,7 +1346,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMa
             />
           ) : (
             <span className="flex items-center gap-1.5 min-w-0">
-              <span className="text-base font-bold text-blue-500 leading-none shrink-0">♂</span>
+              <img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-4 h-5 shrink-0" style={{imageRendering: "pixelated"}} />
               <EntityLink type="job" name={match.maleJob} className="font-medium text-sm truncate hover:no-underline">
                 {match.maleJob}
               </EntityLink>
@@ -1374,7 +1374,7 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMa
             />
         ) : (
           <span className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base font-bold text-rose-500 leading-none shrink-0">♀</span>
+            <img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-4 h-5 shrink-0" style={{imageRendering: "pixelated"}} />
             <EntityLink type="job" name={match.femaleJob} className="font-medium text-sm text-rose-600 dark:text-rose-400 truncate hover:no-underline">
               {match.femaleJob}
             </EntityLink>
@@ -1691,7 +1691,7 @@ function SimTab({
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               <div className="space-y-3 rounded-lg border border-border bg-background/40 p-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-blue-500 leading-none">♂</span>
+                  <img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-4 h-5" style={{imageRendering: "pixelated"}} />
                   <span className="text-sm font-semibold">Father</span>
                 </div>
                 <div className="space-y-1.5">
@@ -1728,7 +1728,7 @@ function SimTab({
 
               <div className="space-y-3 rounded-lg border border-border bg-background/40 p-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-rose-500 leading-none">♀</span>
+                  <img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-4 h-5" style={{imageRendering: "pixelated"}} />
                   <span className="text-sm font-semibold">Mother</span>
                 </div>
                 <div className="space-y-1.5">
@@ -2769,8 +2769,8 @@ export default function MarriageMatcher() {
                         <Badge className={`text-[10px] px-1.5 border ${RANK_STYLE[d.rank].badge}`}>{d.rank}</Badge>
                         <span className="font-semibold text-foreground">{d.jobName}</span>
                         <span className="text-muted-foreground">→</span>
-                        {d.assignedMales > 0 && <Badge variant="secondary" className="text-xs gap-1"><span className="text-blue-500">♂</span>{d.assignedMales}</Badge>}
-                        {d.assignedFemales > 0 && <Badge variant="outline" className="text-xs border-primary/30 text-primary gap-1"><span className="text-rose-500">♀</span>{d.assignedFemales}</Badge>}
+                        {d.assignedMales > 0 && <Badge variant="secondary" className="text-xs gap-1"><img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-3 h-4" style={{imageRendering: "pixelated"}} />{d.assignedMales}</Badge>}
+                        {d.assignedFemales > 0 && <Badge variant="outline" className="text-xs border-primary/30 text-primary gap-1"><img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-3 h-4" style={{imageRendering: "pixelated"}} />{d.assignedFemales}</Badge>}
                       </div>
                     ))}
                   </div>
@@ -2914,11 +2914,11 @@ export default function MarriageMatcher() {
                   <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border space-y-2">
                     {result.unmatchedMale.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><span className="text-blue-500 font-bold">♂</span> Unmatched male slots:</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-3 h-4 inline-block" style={{imageRendering: "pixelated"}} /> Unmatched male slots:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {result.unmatchedMale.map((u, i) => (
                             <Badge key={i} variant="secondary" className="text-xs gap-1">
-                              <span className="text-blue-500 font-bold">♂</span>{u.job}
+                              <img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-3 h-4" style={{imageRendering: "pixelated"}} />{u.job}
                               <span className={`text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
                             </Badge>
                           ))}
@@ -2927,11 +2927,11 @@ export default function MarriageMatcher() {
                     )}
                     {result.unmatchedFemale.length > 0 && (
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><span className="text-rose-500 font-bold">♀</span> Unmatched female slots:</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5"><img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-3 h-4 inline-block" style={{imageRendering: "pixelated"}} /> Unmatched female slots:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {result.unmatchedFemale.map((u, i) => (
                             <Badge key={i} variant="outline" className="text-xs text-muted-foreground gap-1">
-                              <span className="text-rose-500 font-bold">♀</span>{u.job}
+                              <img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-3 h-4" style={{imageRendering: "pixelated"}} />{u.job}
                               <span className={`text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
                             </Badge>
                           ))}

@@ -2377,6 +2377,93 @@ function ShopInput({ onAdd }: { onAdd: (v: string) => void }) {
 
 function generatePairId() { return Math.random().toString(36).slice(2, 9); }
 
+// ─── Job Character Preview ────────────────────────────────────────────────────
+
+type JobPreviewPoseFrame = 0 | 2;
+let jobIdlePoseFrame: JobPreviewPoseFrame = 0;
+let jobIdlePoseTimer: number | null = null;
+const jobIdlePoseSubscribers = new Set<(f: JobPreviewPoseFrame) => void>();
+function subscribeJobIdlePose(listener: (f: JobPreviewPoseFrame) => void) {
+  jobIdlePoseSubscribers.add(listener);
+  listener(jobIdlePoseFrame);
+  if (jobIdlePoseTimer === null) {
+    jobIdlePoseTimer = window.setInterval(() => {
+      jobIdlePoseFrame = jobIdlePoseFrame === 0 ? 2 : 0;
+      jobIdlePoseSubscribers.forEach((s) => s(jobIdlePoseFrame));
+    }, 500);
+  }
+  return () => {
+    jobIdlePoseSubscribers.delete(listener);
+    if (jobIdlePoseSubscribers.size === 0 && jobIdlePoseTimer !== null) {
+      window.clearInterval(jobIdlePoseTimer);
+      jobIdlePoseTimer = null;
+    }
+  };
+}
+function useJobIdlePose(): JobPreviewPoseFrame {
+  const [frame, setFrame] = useState<JobPreviewPoseFrame>(jobIdlePoseFrame);
+  useEffect(() => subscribeJobIdlePose(setFrame), []);
+  return frame;
+}
+
+const JOB_RENDER_RANKS = ["D", "C", "B", "A", "S"] as const;
+type JobRenderRank = typeof JOB_RENDER_RANKS[number];
+
+function JobCharacterPreview({ jobName }: { jobName: string }) {
+  const [rank, setRank] = useState<JobRenderRank>("D");
+  const [gender, setGender] = useState<1 | 2>(1);
+  const [unavailable, setUnavailable] = useState(false);
+  const poseFrame = useJobIdlePose();
+
+  const src = (() => {
+    const params = new URLSearchParams();
+    params.set("jobName", jobName);
+    params.set("rank", rank);
+    params.set("variant", String(gender));
+    params.set("equipState", "right");
+    params.set("scale", "6");
+    params.set("poseFrame", String(poseFrame));
+    return apiUrl(`/job-preview-by-name?${params.toString()}`);
+  })();
+
+  useEffect(() => { setUnavailable(false); }, [jobName, rank, gender]);
+
+  if (unavailable) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-2 shrink-0">
+      <img
+        key={src}
+        src={src}
+        alt={`${jobName} ${rank} rank`}
+        loading="lazy"
+        decoding="async"
+        style={{ imageRendering: "pixelated" }}
+        className="rounded"
+        onError={() => setUnavailable(true)}
+      />
+      <div className="flex items-center gap-1 flex-wrap justify-center">
+        {JOB_RENDER_RANKS.map((r) => (
+          <button
+            key={r}
+            onClick={() => setRank(r)}
+            className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${rank === r ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+          >{r}</button>
+        ))}
+        <span className="w-px h-3 bg-border mx-0.5" />
+        <button
+          onClick={() => setGender(1)}
+          className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors flex items-center gap-1 ${gender === 1 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+        ><img src="/website_icons/gender/gender_0_male.png" alt="" className="w-4 h-5" style={{ imageRendering: "pixelated" }} />M</button>
+        <button
+          onClick={() => setGender(2)}
+          className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors flex items-center gap-1 ${gender === 2 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+        ><img src="/website_icons/gender/gender_1_female.png" alt="" className="w-4 h-5" style={{ imageRendering: "pixelated" }} />F</button>
+      </div>
+    </div>
+  );
+}
+
 function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSave, onSavePairs, userName }: {
   jobName: string;
   jobs: Record<string,Job>;
@@ -2541,46 +2628,51 @@ function JobDetailPage({ jobName, jobs, statIcons, weaponCategories, pairs, onSa
       {/* Header card */}
       <Card className="shadow-sm mb-4">
         <CardContent className="pt-4">
-          <div className="flex items-start gap-4">
-            {editing
-              ? <IconUploadSmall value={draft.icon} onChange={(icon) => setDraft((d) => ({ ...d, icon }))} />
-              : <div className="w-14 h-14 rounded-xl border border-border bg-muted/40 flex items-center justify-center overflow-hidden shrink-0">
-                  {job.icon ? <img src={job.icon} alt={jobName} className="w-full h-full object-contain" />
-                            : <Briefcase className="w-7 h-7 text-muted-foreground/30" />}
-                </div>
-            }
+          <div className="flex items-start gap-6">
             <div className="flex-1 min-w-0">
-              {editing
-                ? <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} className="text-xl font-bold h-9 mb-2 max-w-xs" placeholder="Job name..." />
-                : <h3 className="text-2xl font-bold text-foreground mb-1">{jobName}</h3>}
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="outline" className={job.generation === 1 ? "border-sky-300 text-sky-600 dark:text-sky-400" : "border-orange-300 text-orange-600 dark:text-orange-400"}>
-                  {job.generation === 1 ? "Non-Marriage" : "Marriage Exclusive"}
-                </Badge>
-                {editing && (
-                  <button onClick={() => setDraft((d) => ({ ...d, generation: d.generation === 1 ? 2 : 1 }))}
-                    className="text-xs text-primary hover:underline">
-                    Switch to {draft.generation === 1 ? "Marriage Exclusive" : "Non-Marriage"}
-                  </button>
-                )}
-                {editing ? (
-                  <div className="flex gap-1">
-                    {(["combat","non-combat"] as const).map((t) => (
-                      <button key={t} onClick={() => setDraft((d) => ({ ...d, type: t, category: t === "combat" ? "Fighter" : "Worker" }))}
-                        className={`px-2 py-0.5 text-xs rounded border font-medium transition-colors ${draft.type === t
-                          ? t === "combat" ? "bg-red-500 text-white border-red-500" : "bg-sky-500 text-white border-sky-500"
-                          : "border-border text-muted-foreground hover:border-primary/40"}`}>
-                        {battleTypeLabel(t)}
+              <div className="flex items-start gap-4 mb-3">
+                {editing
+                  ? <IconUploadSmall value={draft.icon} onChange={(icon) => setDraft((d) => ({ ...d, icon }))} />
+                  : <div className="w-14 h-14 rounded-xl border border-border bg-muted/40 flex items-center justify-center overflow-hidden shrink-0">
+                      {job.icon ? <img src={job.icon} alt={jobName} className="w-full h-full object-contain" />
+                                : <Briefcase className="w-7 h-7 text-muted-foreground/30" />}
+                    </div>
+                }
+                <div className="flex-1 min-w-0">
+                  {editing
+                    ? <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} className="text-xl font-bold h-9 mb-2 max-w-xs" placeholder="Job name..." />
+                    : <h3 className="text-2xl font-bold text-foreground mb-1">{jobName}</h3>}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className={job.generation === 1 ? "border-sky-300 text-sky-600 dark:text-sky-400" : "border-orange-300 text-orange-600 dark:text-orange-400"}>
+                      {job.generation === 1 ? "Non-Marriage" : "Marriage Exclusive"}
+                    </Badge>
+                    {editing && (
+                      <button onClick={() => setDraft((d) => ({ ...d, generation: d.generation === 1 ? 2 : 1 }))}
+                        className="text-xs text-primary hover:underline">
+                        Switch to {draft.generation === 1 ? "Marriage Exclusive" : "Non-Marriage"}
                       </button>
-                    ))}
+                    )}
+                    {editing ? (
+                      <div className="flex gap-1">
+                        {(["combat","non-combat"] as const).map((t) => (
+                          <button key={t} onClick={() => setDraft((d) => ({ ...d, type: t, category: t === "combat" ? "Fighter" : "Worker" }))}
+                            className={`px-2 py-0.5 text-xs rounded border font-medium transition-colors ${draft.type === t
+                              ? t === "combat" ? "bg-red-500 text-white border-red-500" : "bg-sky-500 text-white border-sky-500"
+                              : "border-border text-muted-foreground hover:border-primary/40"}`}>
+                            {battleTypeLabel(t)}
+                          </button>
+                        ))}
+                      </div>
+                    ) : job.type && (
+                      <Badge variant="outline" className={job.type === "combat" ? "border-red-300 text-red-600 dark:text-red-400" : "border-emerald-300 text-emerald-600 dark:text-emerald-400"}>
+                        {battleTypeLabel(job.type)}
+                      </Badge>
+                    )}
                   </div>
-                ) : job.type && (
-                  <Badge variant="outline" className={job.type === "combat" ? "border-red-300 text-red-600 dark:text-red-400" : "border-emerald-300 text-emerald-600 dark:text-emerald-400"}>
-                    {battleTypeLabel(job.type)}
-                  </Badge>
-                )}
+                </div>
               </div>
             </div>
+            <JobCharacterPreview jobName={jobName} />
           </div>
         </CardContent>
       </Card>

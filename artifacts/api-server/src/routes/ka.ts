@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached, refreshStaticSourceIfStale } from "../lib/google-cache";
+import { renderJobPreview, renderJobPreviewByName } from "../lib/character-preview";
 import multer from "multer";
 // Multer setup for image uploads
 const PUBLIC_IMAGES_DIR = path.resolve(process.cwd(), "artifacts/kingdom-adventures/public/guides/images");
@@ -426,6 +427,30 @@ router.get("/ka/shared", (_req, res) => {
 router.get("/ka/guides", (_req, res) => {
   const state = readState();
   res.json({ guides: state.communityGuides.map(publicGuide) });
+});
+
+router.get("/ka/job-preview", (req, res) => {
+  try {
+    const png = renderJobPreview(req.query as Record<string, string | string[] | undefined>);
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+    res.send(png);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(404).json({ error: message });
+  }
+});
+
+router.get("/ka/job-preview-by-name", (req, res) => {
+  try {
+    const png = renderJobPreviewByName(req.query as Record<string, string | string[] | undefined>);
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+    res.send(png);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(404).json({ error: message });
+  }
 });
 
 router.post("/ka/guides", (req, res) => {

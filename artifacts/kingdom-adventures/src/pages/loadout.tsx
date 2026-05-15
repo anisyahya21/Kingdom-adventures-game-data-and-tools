@@ -1469,6 +1469,163 @@ function ScreenshotCard({ loadout, stats }: { loadout: Loadout; stats: Record<st
   );
 }
 
+// ─── Character Preview ────────────────────────────────────────────────────────
+
+type PreviewPoseFrame = 0 | 2;
+
+let sharedIdlePoseFrame: PreviewPoseFrame = 0;
+let sharedIdlePoseTimer: number | null = null;
+const sharedIdlePoseSubscribers = new Set<(poseFrame: PreviewPoseFrame) => void>();
+
+function subscribeIdlePreviewPose(listener: (poseFrame: PreviewPoseFrame) => void) {
+  sharedIdlePoseSubscribers.add(listener);
+  listener(sharedIdlePoseFrame);
+
+  if (sharedIdlePoseTimer === null) {
+    sharedIdlePoseTimer = window.setInterval(() => {
+      sharedIdlePoseFrame = sharedIdlePoseFrame === 0 ? 2 : 0;
+      sharedIdlePoseSubscribers.forEach((subscriber) => subscriber(sharedIdlePoseFrame));
+    }, 500);
+  }
+
+  return () => {
+    sharedIdlePoseSubscribers.delete(listener);
+    if (sharedIdlePoseSubscribers.size === 0 && sharedIdlePoseTimer !== null) {
+      window.clearInterval(sharedIdlePoseTimer);
+      sharedIdlePoseTimer = null;
+    }
+  };
+}
+
+function useIdlePreviewPose(): PreviewPoseFrame {
+  const [poseFrame, setPoseFrame] = useState<PreviewPoseFrame>(sharedIdlePoseFrame);
+
+  useEffect(() => subscribeIdlePreviewPose(setPoseFrame), []);
+
+  return poseFrame;
+}
+
+function characterPreviewUrl({
+  jobName,
+  rank,
+  variant,
+  equipState,
+  weaponName,
+  shieldName,
+  scale,
+  poseFrame,
+}: {
+  jobName: string;
+  rank?: string | null;
+  variant: 1 | 2;
+  equipState: "right" | "up";
+  weaponName?: string | null;
+  shieldName?: string | null;
+  scale: number;
+  poseFrame: PreviewPoseFrame;
+}) {
+  const params = new URLSearchParams();
+  params.set("jobName", jobName);
+  if (rank) params.set("rank", rank);
+  params.set("variant", String(variant));
+  params.set("equipState", equipState);
+  if (weaponName) params.set("weaponName", weaponName);
+  if (shieldName) params.set("shieldName", shieldName);
+  params.set("shieldCell", "auto");
+  params.set("scale", String(scale));
+  params.set("poseFrame", String(poseFrame));
+  return apiUrl(`/job-preview-by-name?${params.toString()}`);
+}
+
+function CollapsedCharPreview({ baseSrc }: { baseSrc: (poseFrame: PreviewPoseFrame) => string }) {
+  const poseFrame = useIdlePreviewPose();
+  const src = baseSrc(poseFrame);
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => { setHidden(false); }, [baseSrc]);
+  if (hidden) return null;
+  return (
+    <img
+      key={src}
+      src={src}
+      alt="character"
+      loading="lazy"
+      decoding="async"
+      style={{ imageRendering: "pixelated" }}
+      className="shrink-0 rounded"
+      onError={() => setHidden(true)}
+    />
+  );
+}
+
+function CharacterPreview({
+  jobName,
+  rank,
+  weaponName,
+  shieldName,
+  slotAssignments,
+}: {
+  jobName: string;
+  rank?: string;
+  weaponName: string | null;
+  shieldName: string | null;
+  slotAssignments: Record<string, string>;
+}) {
+  const [gender, setGender] = useState<1 | 2>(1);
+  const [equipState, setEquipState] = useState<"right" | "up">("right");
+  const [unavailable, setUnavailable] = useState(false);
+  const poseFrame = useIdlePreviewPose();
+
+  const src = characterPreviewUrl({
+    jobName,
+    rank,
+    variant: gender,
+    equipState,
+    weaponName,
+    shieldName,
+    scale: 4,
+    poseFrame,
+  });
+
+  // Re-check availability whenever the selected character/equipment changes.
+  useEffect(() => { setUnavailable(false); }, [jobName, rank, gender, equipState, weaponName, shieldName]);
+
+  if (unavailable) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-2 py-2">
+      <img
+        key={src}
+        src={src}
+        alt={`${jobName} character`}
+        loading="lazy"
+        decoding="async"
+        style={{ imageRendering: "pixelated" }}
+        className="rounded"
+        onError={() => setUnavailable(true)}
+      />
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => setGender(1)}
+          className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors flex items-center gap-1 ${gender === 1 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+        ><img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-4 h-5" style={{imageRendering: "pixelated"}} /> Male</button>
+        <button
+          onClick={() => setGender(2)}
+          className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors flex items-center gap-1 ${gender === 2 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+        ><img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-4 h-5" style={{imageRendering: "pixelated"}} /> Female</button>
+        <span className="w-px h-3 bg-border mx-0.5" />
+        <button
+          onClick={() => setEquipState("right")}
+          className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${equipState === "right" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+        >→</button>
+        <button
+          onClick={() => setEquipState("up")}
+          className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${equipState === "up" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+        >↑</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Loadout Editor ───────────────────────────────────────────────────────────
 
 function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
@@ -1678,6 +1835,20 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                 ))}
               </select>
             )}
+            {loadout.jobName && (() => {
+              const slotMap = data.slotAssignments ?? {};
+              const weaponEntry = loadout.equipment.find((e) => slotMap[e.name] === "Weapon");
+              const shieldEntry = loadout.equipment.find((e) => slotMap[e.name] === "Shield");
+              return (
+                <CharacterPreview
+                  jobName={loadout.jobName}
+                  rank={loadout.rank || undefined}
+                  weaponName={weaponEntry?.name ?? null}
+                  shieldName={shieldEntry?.name ?? null}
+                  slotAssignments={slotMap}
+                />
+              );
+            })()}
           </div>
 
           {/* Per-stat breakdown table */}
@@ -2169,8 +2340,28 @@ export default function LoadoutPage() {
                     </div>
 
                     {/* Collapsed detail rows */}
-                    {!isOpen && (
-                      <div className="pl-6 mt-2 space-y-2">
+                    {!isOpen && (() => {
+                      const slotMap = data?.slotAssignments ?? {};
+                      const weaponEntry = loadout.equipment.find((e) => slotMap[e.name] === "Weapon");
+                      const shieldEntry = loadout.equipment.find((e) => slotMap[e.name] === "Shield");
+                      const previewSrc = loadout.jobName
+                        ? (poseFrame: PreviewPoseFrame) => characterPreviewUrl({
+                            jobName: loadout.jobName,
+                            rank: loadout.rank,
+                            variant: 1,
+                            equipState: "right",
+                            weaponName: weaponEntry?.name,
+                            shieldName: shieldEntry?.name,
+                            scale: 3,
+                            poseFrame,
+                          })
+                        : null;
+                      return (
+                      <div className="pl-6 mt-2 flex gap-3 items-start">
+                        {previewSrc && (
+                          <CollapsedCharPreview baseSrc={previewSrc} />
+                        )}
+                        <div className="flex-1 min-w-0 space-y-2">
                         {/* All stats */}
                         {hasStats && (
                           <div className="flex flex-wrap gap-x-5 gap-y-1.5">
@@ -2222,8 +2413,10 @@ export default function LoadoutPage() {
                         {!hasStats && loadout.equipment.length === 0 && loadout.skills.length === 0 && (
                           <span className="text-xs text-muted-foreground/50">Empty loadout — click to configure</span>
                         )}
+                        </div>
                       </div>
-                    )}
+                      );
+                    })()}
                   </CardHeader>
                 </button>
 

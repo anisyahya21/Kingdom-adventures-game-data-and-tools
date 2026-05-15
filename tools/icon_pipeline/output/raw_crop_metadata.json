@@ -1578,5 +1578,477 @@
     "slotLabel": "slot_2",
     "sourceScreenshot": "goal_1778392718658_IMG_0820.png",
     "requestedName": "S- Mystic Staff"
+  },
+  "raw_000321.png": {
+    "cropper": "equipment",
+    "slotIndex": "1",
+    "slotKind": "head",
+    "slotLabel": "slot_1",
+    "sourceScreenshot": "goal_1778492579538_IMG_0828.png",
+    "requestedName": "B- Iron Mask"
+  },
+  "raw_000322.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778492579538_IMG_0828.png",
+    "requestedName": "B- Paintbrush"
+  },
+  "raw_000323.png": {
+    "cropper": "equipment",
+    "slotIndex": "3",
+    "slotKind": "shield",
+    "slotLabel": "slot_3",
+    "sourceScreenshot": "goal_1778492579538_IMG_0828.png",
+    "requestedName": "F- Wooden Shield"
+  },
+  "raw_000324.png": {
+    "cropper": "equipment",
+    "slotIndex": "4",
+    "slotKind": "armor",
+    "slotLabel": "slot_4",
+    "sourceScreenshot": "goal_1778492579538_IMG_0828.png",
+    "requestedName": "B- Silver Armor"
+  },
+  "raw_000325.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778492579538_IMG_0828.png",
+    "requestedName": "A- Golden Collar"
+  },
+  "raw_000326.png": {
+    "cropper": "equipment",
+    "slotIndex": "1",
+    "slotKind": "head",
+    "slotLabel": "slot_1",
+    "sourceScreenshot": "goal_1778492677279_IMG_0829.png",
+    "requestedName": "B- Mystic Hat"
+  },
+  "raw_000327.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778492677279_IMG_0829.png",
+    "requestedName": "A- Angelic Club"
+  },
+  "raw_000329.png": {
+    "cropper": "equipment",
+    "slotIndex": "4",
+    "slotKind": "armor",
+    "slotLabel": "slot_4",
+    "sourceScreenshot": "goal_1778492677279_IMG_0829.png",
+    "requestedName": "A- Heavy Armor"
+  },
+  "raw_000330.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778492677279_IMG_0829.png",
+    "requestedName": "A- Golden Earrings"
+  },
+  "raw_000331.png": {
+    "cropper": "equipment",
+    "slotIndex": "1",
+    "slotKind": "head",
+    "slotLabel": "slot_1",
+    "sourceScreenshot": "goal_1778492730015_IMG_0830.png",
+    "requestedName": "B- Shampoo Hat"
+  },
+  "raw_000332.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778492730015_IMG_0830.png",
+    "requestedName": "A- Golden Knife"
+  },
+  "raw_000334.png": {
+    "cropper": "equipment",
+    "slotIndex": "4",
+    "slotKind": "armor",
+    "slotLabel": "slot_4",
+    "sourceScreenshot": "goal_1778492730015_IMG_0830.png",
+    "requestedName": "B- Purple Cape"
+  },
+  "raw_000335.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778492730015_IMG_0830.png",
+    "requestedName": "A- Light Ring"
+  },
+  "raw_000336.png": {
+    "cropper": "equipment",
+    "slotIndex": "1",
+    "slotKind": "head",
+    "slotLabel": "slot_1",
+    "sourceScreenshot": "goal_1778492808912_IMG_0831.png",
+    "requestedName": "B- Wizard's Hat"
+  },
+  "raw_000337.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778492808912_IMG_0831.png",
+    "requestedName": "A- Legendary Spear"
+  },
+  "raw_000339.png": {
+    "cropper": "equipment",
+    "slotIndex": "4",
+    "slotKind": "armor",
+    "slotLabel": "slot_4",
+    "sourceScreenshot": "goal_1778492808912_IMG_0831.png",
+    "requestedName": "E- Yellow Garment"
+  },
+  "raw_000340.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778492808912_IMG_0831.png",
+    "requestedName": "A- Silk Gloves"
+  },
+  "raw_000341.png": {
+    "cropper": "equipment",
+    "slotIndex": "1",
+    "slotKind": "head",
+    "slotLabel": "slot_1",
+    "sourceScreenshot": "goal_1778495081302_IMG_0832.png",
+    "requestedName": "B- Iron Headpiece"
+  },
+  "raw_000342.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495081302_IMG_0832.png",
+    "requestedName": "A- Legendary Staff"
+  },
+  "raw_000344.png": {
+    "cropper": "equipment",
+    "slotIndex": "4",
+    "slotKind": "armor",
+    "slotLabel": "slot_4",
+    "sourceScreenshot": "goal_1778495081302_IMG_0832.png",
+    "requestedName": "B- Fine Robe"
+  },
+  "raw_000345.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778495081302_IMG_0832.png",
+    "requestedName": "A- Red Pendant"
+  },
+  "raw_000346.png": {
+    "cropper": "equipment",
+    "slotIndex": "1",
+    "slotKind": "head",
+    "slotLabel": "slot_1",
+    "sourceScreenshot": "goal_1778495143242_IMG_0833.png",
+    "requestedName": "C- Mage's Hat"
+  },
+  "raw_000347.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495143242_IMG_0833.png",
+    "requestedName": "A- Steel Club"
+  },
+  "raw_000350.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778495143242_IMG_0833.png",
+    "requestedName": "B- Gold Bag"
+  },
+  "raw_000351.png": {
+    "cropper": "equipment",
+    "slotIndex": "1",
+    "slotKind": "head",
+    "slotLabel": "slot_1",
+    "sourceScreenshot": "goal_1778495208799_IMG_0834.png",
+    "requestedName": "E- Hat (B)"
+  },
+  "raw_000352.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495208799_IMG_0834.png",
+    "requestedName": "A- Sword of Rage"
+  },
+  "raw_000355.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778495208799_IMG_0834.png",
+    "requestedName": "B- Golden Bracelet"
+  },
+  "raw_000357.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495260322_IMG_0837.png",
+    "requestedName": "A- Teardop Sword"
+  },
+  "raw_000360.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778495260322_IMG_0837.png",
+    "requestedName": "B- Leather Gloves"
+  },
+  "raw_000362.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495302957_IMG_0838.png",
+    "requestedName": "B- Battle Axe"
+  },
+  "raw_000365.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778495302957_IMG_0838.png",
+    "requestedName": "B- Red Ribbon"
+  },
+  "raw_000367.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495335393_IMG_0839.png",
+    "requestedName": "B- Big Bad Hammer"
+  },
+  "raw_000370.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778495335393_IMG_0839.png",
+    "requestedName": "D- Loafers"
+  },
+  "raw_000372.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495422438_IMG_0840.png",
+    "requestedName": "B- Commander's Spear"
+  },
+  "raw_000375.png": {
+    "cropper": "equipment",
+    "slotIndex": "5",
+    "slotKind": "accessory",
+    "slotLabel": "slot_5",
+    "sourceScreenshot": "goal_1778495422438_IMG_0840.png",
+    "requestedName": "D- Scarf"
+  },
+  "raw_000377.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495520692_IMG_0842.png",
+    "requestedName": "B- Destruction Sword"
+  },
+  "raw_000379.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495636821_IMG_0843.png",
+    "requestedName": "B- Diamond Staff"
+  },
+  "raw_000381.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495790865_IMG_0844.png",
+    "requestedName": "B- Frosty Sword"
+  },
+  "raw_000383.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495810646_IMG_0845.png",
+    "requestedName": "B- Hero Club"
+  },
+  "raw_000385.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495864321_IMG_0846.png",
+    "requestedName": "B- Hero Sword"
+  },
+  "raw_000387.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495884438_IMG_0847.png",
+    "requestedName": "B- Iron Club"
+  },
+  "raw_000389.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495909979_IMG_0848.png",
+    "requestedName": "B- Lightning Scalpel"
+  },
+  "raw_000391.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778495955187_IMG_0849.png",
+    "requestedName": "B- Master's Katana"
+  },
+  "raw_000393.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496066506_IMG_0850.png",
+    "requestedName": "B- Musket"
+  },
+  "raw_000395.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496097415_IMG_0851.png",
+    "requestedName": "B- Red Spear"
+  },
+  "raw_000397.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496121939_IMG_0852.png",
+    "requestedName": "B- Silver Hammer"
+  },
+  "raw_000399.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496148774_IMG_0853.png",
+    "requestedName": "B- Sword of the Void"
+  },
+  "raw_000401.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496167942_IMG_0854.png",
+    "requestedName": "B- Tree Branch"
+  },
+  "raw_000403.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496193492_IMG_0855.png",
+    "requestedName": "B- Trident"
+  },
+  "raw_000405.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496238741_IMG_0856.png",
+    "requestedName": "C- Magic Staff"
+  },
+  "raw_000407.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496257742_IMG_0857.png",
+    "requestedName": "D- Grief Staff"
+  },
+  "raw_000409.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496293652_IMG_0858.png",
+    "requestedName": "D- Spiked Club"
+  },
+  "raw_000411.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496309284_IMG_0859.png",
+    "requestedName": "D- Sturdy Staff"
+  },
+  "raw_000413.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496333410_IMG_0860.png",
+    "requestedName": "E- Gnarly Club"
+  },
+  "raw_000415.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496647151_IMG_0861.png",
+    "requestedName": "C- Artistic Club"
+  },
+  "raw_000417.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496666394_IMG_0862.png",
+    "requestedName": "A- Emerald Club"
+  },
+  "raw_000419.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496687009_IMG_0863.png",
+    "requestedName": "A- Ice Scalpel"
+  },
+  "raw_000421.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496704028_IMG_0864.png",
+    "requestedName": "S- Fire Hammer"
+  },
+  "raw_000423.png": {
+    "cropper": "equipment",
+    "slotIndex": "2",
+    "slotKind": "weapon",
+    "slotLabel": "slot_2",
+    "sourceScreenshot": "goal_1778496726130_IMG_0865.png",
+    "requestedName": "S- Fire Sword"
   }
 }

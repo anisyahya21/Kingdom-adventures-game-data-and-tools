@@ -78,6 +78,10 @@ export default defineConfig({
         target: `http://localhost:${process.env.API_PORT || 3001}`,
         rewrite: (p) => p.replace(/^\/ka-api/, "/api"),
       },
+      "/website_icons": {
+        target: `http://localhost:${process.env.API_PORT || 3001}`,
+        changeOrigin: true,
+      },
     },
     fs: {
       strict: true,

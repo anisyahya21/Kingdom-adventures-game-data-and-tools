@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchableSelect } from "@/components/searchable-select";
+import { getItemIcon, getEggIconByColor } from "@/lib/equipment-icons";
 import {
   EggBand,
   EggFeedItem,
@@ -225,6 +226,7 @@ export default function EggsPage() {
     () => (data?.monsters ?? []).map((monster) => ({
       value: monster.monsterName,
       label: `${monster.monsterName} (${monster.eggColor})`,
+      icon: getEggIconByColor(monster.eggColor),
     })),
     [data]
   );
@@ -244,6 +246,7 @@ export default function EggsPage() {
     () => targetAllowedFoods.map((item) => ({
       value: item.name,
       label: `${item.name} (+${item.stats[selectedMonsterData?.requiredStat ?? "Attack"]})`,
+      icon: getItemIcon(item.name),
     })),
     [selectedMonsterData, targetAllowedFoods]
   );
@@ -536,7 +539,12 @@ export default function EggsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                           <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
                             <div className="text-xs text-muted-foreground">Egg color</div>
-                            <div className="font-semibold text-foreground">{selectedMonsterData.eggColor}</div>
+                            <div className="font-semibold text-foreground flex items-center gap-2">
+                              {getEggIconByColor(selectedMonsterData.eggColor) && (
+                                <img src={getEggIconByColor(selectedMonsterData.eggColor)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                              )}
+                              {selectedMonsterData.eggColor}
+                            </div>
                           </div>
                           <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
                             <div className="text-xs text-muted-foreground">Required stat</div>
@@ -608,7 +616,12 @@ export default function EggsPage() {
                               <div key={item.name} className="rounded-lg border border-border/60 bg-card px-3 py-3">
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
-                                    <div className="font-medium text-foreground">{item.name}</div>
+                                    <div className="flex items-center gap-1.5">
+                                      {getItemIcon(item.name) && (
+                                        <img src={getItemIcon(item.name)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                                      )}
+                                      <span className="font-medium text-foreground">{item.name}</span>
+                                    </div>
                                     <div className="text-xs text-muted-foreground">
                                       {selectedMonsterData.requiredStat} +{item.stats[selectedMonsterData.requiredStat]} each
                                     </div>
@@ -682,7 +695,7 @@ export default function EggsPage() {
                         <SearchableSelect
                           value={selectedEggColor}
                           onChange={setSelectedEggColor}
-                          options={data.eggColors.map((color) => ({ value: color, label: color }))}
+                          options={data.eggColors.map((color) => ({ value: color, label: color, icon: getEggIconByColor(color) }))}
                           placeholder="Choose egg color..."
                           triggerClassName="h-9"
                           searchThreshold={6}
@@ -885,7 +898,12 @@ export default function EggsPage() {
                         key={item.name}
                         className="grid grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_0.7fr_0.6fr_0.6fr_0.7fr] gap-3 px-3 py-2 text-sm border-b border-border/40 last:border-b-0"
                       >
-                        <div className="font-medium text-foreground truncate">{item.name}</div>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {getItemIcon(item.name) && (
+                            <img src={getItemIcon(item.name)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                          )}
+                          <span className="font-medium text-foreground truncate">{item.name}</span>
+                        </div>
                         <div>{item.stats.Attack || "-"}</div>
                         <div>{item.stats.Defense || "-"}</div>
                         <div>{item.stats.Balanced || "-"}</div>

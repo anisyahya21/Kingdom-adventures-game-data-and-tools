@@ -1,6 +1,7 @@
 ﻿// Material icon component — style variants for preview/selection
 // Materials: 0=Grass, 1=Wood, 2=Food, 3=Ore, 4=Mystic Ore
 import type { ReactElement } from "react";
+import { getItemIcon } from "@/lib/equipment-icons";
 
 export const MATERIAL_NAMES: Record<number, string> = {
   0: "Grass",
@@ -501,6 +502,15 @@ const ICONS: Record<MaterialIconStyle, ((props: { size: number }) => ReactElemen
 
 export function MaterialIcon({ id, style = "flat", size = 20 }: { id: number; style?: MaterialIconStyle; size?: number; }) {
   if (style === "badge") return <BadgeMaterial id={id} />;
+  // Use real game icon from manifest when available
+  const resourceName = MATERIAL_NAMES[id];
+  if (resourceName) {
+    const iconUrl = getItemIcon(resourceName);
+    if (iconUrl) {
+      return <img src={iconUrl} alt={resourceName} width={size} height={size} style={{ imageRendering: "pixelated", objectFit: "contain" }} />;
+    }
+  }
+  // Fallback to SVG
   const Icon = ICONS[style]?.[id];
   if (!Icon) return null;
   return <Icon size={size} />;

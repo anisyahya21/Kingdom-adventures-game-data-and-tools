@@ -45,6 +45,7 @@ _house_by_img: dict[int, list[dict]] = {}
 _job_by_img: dict[str, list[dict]] = {}        # "resBody:2:img140" -> [job rows]
 _treasure_by_img: dict[int, list[dict]] = {}
 _item_by_uv: dict[tuple[int,int], list[dict]] = {}  # (u,v) -> [item rows]
+_facility_by_id: dict[int, dict] = {}          # facility id -> facility row
 
 
 def _load_csv_data() -> None:
@@ -56,6 +57,7 @@ def _load_csv_data() -> None:
     from parsers.csv_parser import (
         load_mapchips, load_monsters, load_terrains,
         load_houses, load_jobs, load_treasures, load_items,
+        load_facilities,
     )
 
     try:
@@ -124,6 +126,14 @@ def _load_csv_data() -> None:
                 _item_by_uv.setdefault((u, v), []).append(r)
     except Exception as e:
         warnings.warn(f"asset_registry: Item load: {e}")
+
+    try:
+        for r in load_facilities(config.CSV_FACILITY):
+            f_id = r.get("id")
+            if f_id is not None:
+                _facility_by_id[f_id] = r
+    except Exception as e:
+        warnings.warn(f"asset_registry: Facility load: {e}")
 
 
 def _get_cell_size_for_dir(dir_path: Path) -> tuple[int, int]:
@@ -260,6 +270,43 @@ def _resolve_csv_links(category: str, sprite_stem: str, img_id: int, u: int, v: 
         if rows:
             links["houseIds"] = [r["id"] for r in rows]
             links["houseNames"] = [r["name"] for r in rows if r.get("name")]
+        
+        # Link MapChip (res=23) -> Facility via relatedDataType=1
+        mapchip_rows = [r for r in _mapchip_by_img.get(img_id, []) if r.get("res") == 23]
+        if mapchip_rows:
+            links["mapchipIds"] = [r["id"] for r in mapchip_rows]
+            facility_ids = []
+            facility_names = []
+            parent_chip_ids = []
+            child_chip_groups = []
+            
+            for mc in mapchip_rows:
+                if mc.get("relatedDataType") == 1:
+                    fac_id = mc.get("relatedDataId")
+                    if fac_id is not None:
+                        facility = _facility_by_id.get(fac_id)
+                        if facility:
+                            facility_ids.append(fac_id)
+                            fac_name = facility.get("name")
+                            if fac_name:
+                                facility_names.append(fac_name)
+                            
+                            # If this facility has a parentChipId, it's a compound facility
+                            parent_chip = facility.get("parentChipId")
+                            child_chips = facility.get("childChips", [])
+                            if parent_chip is not None:
+                                parent_chip_ids.append(parent_chip)
+                                if child_chips:
+                                    child_chip_groups.append(child_chips)
+            
+            if facility_ids:
+                links["facilityIds"] = facility_ids
+            if facility_names:
+                links["facilityNames"] = facility_names
+            if parent_chip_ids:
+                links["parentChipIds"] = parent_chip_ids
+            if child_chip_groups:
+                links["childChipGroups"] = child_chip_groups
 
     # Item icon: only match within the dedicated item icon sheets in 'com'
     elif category == "com" and sprite_stem in _ITEM_ICON_STEMS:
@@ -306,4 +353,105 @@ def save_registry(refs: list[AssetRef], path: Optional[Path] = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump([r.to_dict() for r in refs], fh, indent=2)
+    return path
+
+
+def build_icon_entity_map() -> dict[str, dict]:
+    """
+    Build entity-icon mapping for items, equipment, facilities using CSV iconU/iconV coordinates.
+    Returns dict keyed by entity type with lists of {id, name, iconU, iconV, sheetName} records.
+    """
+    _load_csv_data()
+    
+    from parsers.csv_parser import load_items, load_equip, load_mapchips
+    
+    result = {
+        "items": [],
+        "equipment": [],
+        "facilities": [],
+    }
+    
+    # Items - use icon_item.png
+    try:
+        items = load_items(config.CSV_ITEM)
+        for item in items:
+            if item.get("iconU") is not None and item.get("iconV") is not None:
+                if item["iconU"] >= 0 and item["iconV"] >= 0:
+                    result["items"].append({
+                        "id": item["id"],
+                        "name": item.get("name", ""),
+                        "category": item.get("category"),
+                        "iconU": item["iconU"],
+                        "iconV": item["iconV"],
+                        "sheetName": "icon_item.png",
+                        "entityKey": f"item:{item['id']}",
+                    })
+    except Exception as e:
+        warnings.warn(f"build_icon_entity_map: item load: {e}")
+    
+    # Equipment - route by type to different sheets
+    try:
+        equips = load_equip(config.CSV_EQUIP)
+        for equip in equips:
+            if equip.get("iconU") is not None and equip.get("iconV") is not None:
+                if equip["iconU"] >= 0 and equip["iconV"] >= 0:
+                    equip_type = equip.get("type")
+                    # Route sheet name by type
+                    if equip_type in range(1, 11):
+                        sheet_name = "icon_weapon.png"
+                    elif equip_type == 11:
+                        sheet_name = "icon_sheild.png"
+                    elif equip_type == 12:
+                        sheet_name = "icon_body.png"
+                    elif equip_type == 13:
+                        sheet_name = "icon_head.png"
+                    elif equip_type == 14:
+                        sheet_name = "icon_accessory.png"
+                    else:
+                        sheet_name = f"unknown_type_{equip_type}"
+                    
+                    result["equipment"].append({
+                        "id": equip["id"],
+                        "name": equip.get("name", ""),
+                        "category": equip.get("category"),
+                        "type": equip_type,
+                        "iconU": equip["iconU"],
+                        "iconV": equip["iconV"],
+                        "sheetName": sheet_name,
+                        "entityKey": f"equip:{equip['id']}",
+                    })
+    except Exception as e:
+        warnings.warn(f"build_icon_entity_map: equip load: {e}")
+    
+    # Facilities/MapChips - use icon_item.png (shared with items)
+    try:
+        mapchips = load_mapchips(config.CSV_MAPCHIP)
+        for chip in mapchips:
+            if chip.get("iconU") is not None and chip.get("iconV") is not None:
+                if chip["iconU"] >= 0 and chip["iconV"] >= 0:
+                    # Only include chips with facility relations or res=23 (building)
+                    if chip.get("relatedDataType") == 1 or chip.get("res") == 23:
+                        result["facilities"].append({
+                            "id": chip["id"],
+                            "name": chip.get("name", ""),
+                            "res": chip.get("res"),
+                            "relatedDataType": chip.get("relatedDataType"),
+                            "relatedDataId": chip.get("relatedDataId"),
+                            "iconU": chip["iconU"],
+                            "iconV": chip["iconV"],
+                            "sheetName": "icon_item.png",
+                            "entityKey": f"facility:{chip['id']}",
+                        })
+    except Exception as e:
+        warnings.warn(f"build_icon_entity_map: mapchip load: {e}")
+    
+    return result
+
+
+def save_icon_entity_map(icon_map: dict, path: Optional[Path] = None) -> Path:
+    """Save icon entity map to JSON."""
+    path = path or (config.MAPPINGS_DIR / "icon_entity_map.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(icon_map, fh, indent=2)
     return path

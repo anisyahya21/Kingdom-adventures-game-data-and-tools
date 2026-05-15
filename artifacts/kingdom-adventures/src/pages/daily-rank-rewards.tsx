@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DAILY_RANK_REWARDS, getDailyRankEquipmentMismatches } from "@/game-data/daily-rank-rewards";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel, getJapanWeekday, getLocalWeekday } from "@/lib/event-status";
+import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
 
 const COLUMNS = [
   { key: "weapon", label: "Weapon" },
@@ -14,6 +15,25 @@ const COLUMNS = [
   { key: "ticket", label: "Ticket" },
   { key: "skill", label: "Skill" },
 ] as const;
+
+const EQUIPMENT_COLUMNS = new Set(["weapon", "armor", "shield"]);
+const ITEM_COLUMNS = new Set(["overallItem1", "overallItem2", "ticket"]);
+
+function RewardCell({ value, columnKey }: { value: string; columnKey: typeof COLUMNS[number]["key"] }) {
+  if (!value) return <>-</>;
+  const icon = EQUIPMENT_COLUMNS.has(columnKey)
+    ? getEquipmentIcon(null, value)
+    : ITEM_COLUMNS.has(columnKey)
+      ? getItemIcon(value)
+      : undefined;
+  const iconSize = EQUIPMENT_COLUMNS.has(columnKey) ? "h-8 w-8" : "h-6 w-6";
+  return (
+    <span className="flex items-center gap-1">
+      {icon && <img src={icon} alt="" className={`${iconSize} shrink-0 object-contain`} style={{ imageRendering: "pixelated" }} />}
+      <span>{value}</span>
+    </span>
+  );
+}
 
 export default function DailyRankRewardsPage() {
   const [now, setNow] = useState(() => new Date());
@@ -99,7 +119,7 @@ export default function DailyRankRewardsPage() {
                       <div className="font-semibold text-foreground">Rank {reward.rankLabel}</div>
                       {COLUMNS.map((column) => (
                         <div key={column.key} className="text-muted-foreground">
-                          {reward[column.key] || "-"}
+                          <RewardCell value={reward[column.key]} columnKey={column.key} />
                         </div>
                       ))}
                     </div>
@@ -107,7 +127,9 @@ export default function DailyRankRewardsPage() {
                       {COLUMNS.map((column) => (
                         <div key={column.key} className="rounded-md border border-border/50 bg-muted/20 px-2 py-2">
                           <div className="text-[11px] text-muted-foreground">{column.label}</div>
-                          <div className="text-sm font-medium text-foreground">{reward[column.key] || "-"}</div>
+                          <div className="text-sm font-medium text-foreground">
+                            <RewardCell value={reward[column.key]} columnKey={column.key} />
+                          </div>
                         </div>
                       ))}
                     </div>

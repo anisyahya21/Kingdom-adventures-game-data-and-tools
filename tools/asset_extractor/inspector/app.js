@@ -15,6 +15,8 @@ import { LookupTesterPanel }    from "./panels/lookup_tester.js";
 import { CharAssemblerPanel }   from "./panels/char_assembler.js";
 import { TerrainGridPanel }     from "./panels/terrain_grid.js";
 import { UnknownReviewPanel }   from "./panels/unknown_review.js";
+import { FacilityInspectorPanel } from "./panels/facility_inspector.js";
+import { IconEntityInspectorPanel } from "./panels/icon_entity_inspector.js";
 
 // Panel registry — order determines tab order
 const PANELS = [
@@ -25,6 +27,8 @@ const PANELS = [
   MappingInspectorPanel,
   LookupTesterPanel,
   CharAssemblerPanel,
+  FacilityInspectorPanel,
+  IconEntityInspectorPanel,
   TerrainGridPanel,
   UnknownReviewPanel,
 ];
@@ -46,8 +50,13 @@ function previewImageUrl(relPath) {
   return `/api/preview-image?path=${encodeURIComponent(relPath)}`;
 }
 
+// Serves a pre-rendered sprite from generated/sprites/{category}/{assetId}.png
+function spriteUrl(category, assetId) {
+  return `/api/sprite?path=${encodeURIComponent(category + '/' + assetId + '.png')}`;
+}
+
 // Expose globally so panels can use without re-importing
-window.KA = { apiFetch, imageUrl, previewImageUrl };
+window.KA = { apiFetch, imageUrl, previewImageUrl, spriteUrl };
 
 // ---------------------------------------------------------------------------
 // Tab / panel management

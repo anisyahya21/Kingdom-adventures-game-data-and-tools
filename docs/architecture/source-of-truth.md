@@ -11,6 +11,7 @@ This site is a Kingdom Adventures reference database. Game facts should have one
 | Job range data | `artifacts/kingdom-adventures/src/lib/generated-job-range-data.ts` | Generated data. Do not hand-edit unless regenerating is unavailable. |
 | Job learned skills by rank | `artifacts/kingdom-adventures/src/lib/generated-job-skill-data.ts` | Generated from `KA GameData - Job.csv` skill ids and `KA GameData - Skill.csv` names. Do not hand-edit unless regenerating is unavailable. |
 | Equipment data | `artifacts/kingdom-adventures/src/lib/generated-equipment-data.ts` | Generated equipment catalog and exchange data. |
+| Character asset composition | `docs/architecture/character-asset-composition.md` | SEB/OPT parsing, layer composition, baseline anchoring, and mirrored shield placement rules for rebuilding character previews. |
 | Local shared data fallback | `artifacts/kingdom-adventures/src/lib/local-shared-data.ts` | App-wide fallback data used when API/shared data is unavailable. |
 | Monster truth/parsing helpers | `artifacts/kingdom-adventures/src/lib/monster-truth.ts` | CSV parsing and monster data helpers. |
 | Building plot data | `artifacts/kingdom-adventures/src/game-data/buildings.ts` | Shared House.csv-derived building records used by Houses and Shops. |

@@ -44,7 +44,13 @@ RES_SEEDS: dict[int, str] = {
     9:  "chip",
     21: "building",
     22: "monster",
-    14: "head",
+    # res=14 uses face/ — face/ has 330 entries; head/ has only 1 placeholder PNG
+    14: "face",
+    # 4-col csv_parser layout (confirmed from Job.csv): resBody=12, resHand=16, resFoot=15
+    12: "body",
+    16: "hand",
+    15: "foot",
+    # 5-col seeds kept for House.csv and any other CSVs that use them
     2:  "body",
     0:  "hand",
     4:  "hand",
@@ -79,6 +85,8 @@ CSV_TERRAIN         = CSV_DIR         / "KA GameData - Terrain.csv"
 CSV_HOUSE           = CSV_DIR         / "KA GameData - House.csv"
 CSV_FACILITY        = CSV_DIR         / "KA GameData - Facility_lookup.csv"
 CSV_JOB             = CSV_DIR         / "KA GameData - Job.csv"
+CSV_EQUIP           = CSV_DIR_RESEARCH / "KA GameData - Equip.csv"
 CSV_MAPCHIP         = CSV_DIR_RESEARCH / "KA GameData - MapChip.csv"
 CSV_TREASURE        = CSV_DIR_RESEARCH / "KA GameData - Treasure_lookup.csv"
+CSV_EGG             = CSV_DIR_RESEARCH / "KA GameData - Egg.csv"
 CSV_FACILITY_FULL   = CSV_DIR         / "KA GameData - Facility.csv"

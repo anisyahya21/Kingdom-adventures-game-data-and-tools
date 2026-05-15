@@ -52,6 +52,7 @@ CATEGORY_TO_SUBCATEGORY: dict[str, str] = {
     "hands":     "character",
     "hand":      "character",
     "feet":      "character",
+    "foot":      "character",
     "shoes":     "character",
     "hat":       "character",
     "eye":       "character",
@@ -84,6 +85,8 @@ RES_SEEDS: dict[int, str] = {
     4:  "hand",
     1:  "shoes",
     5:  "shoes",
+    # resFoot=15 → foot/ (confirmed: imgFoots even=male, odd=female match foot/img.inf)
+    15: "foot",
 }
 
 
