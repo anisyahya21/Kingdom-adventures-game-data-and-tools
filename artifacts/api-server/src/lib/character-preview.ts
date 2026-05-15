@@ -78,11 +78,22 @@ const kaAssetsDir = path.join(repoRoot, "artifacts", "api-server", "data", "spri
 const jobCsvPath = path.join(repoRoot, "data", "Sheet csv", "KA GameData - Job.csv");
 const equipCsvPath = path.join(repoRoot, "data", "sheet-research", "raw-copies", "KA GameData - Equip.csv");
 
+type SpriteRulesEntry = { cellW: number; cellH: number; slots: Record<string, Omit<OptSlot, "cellW" | "cellH">>; };
+type SpriteRules = Record<string, { inf: Record<string, Record<string, string>>; opts: Record<string, SpriteRulesEntry>; }>;
+
 const imgCache = new Map<string, RgbaImage | null>();
 const optCache = new Map<string, Map<string, OptSlot>>();
 const infCache = new Map<string, Map<number, string>>();
 let jobCache: JobRow[] | null = null;
 let equipCache: EquipRow[] | null = null;
+let spriteRulesCache: SpriteRules | null = null;
+
+function loadSpriteRules(): SpriteRules {
+  if (spriteRulesCache) return spriteRulesCache;
+  const jsonPath = path.join(repoRoot, "artifacts", "api-server", "data", "sprite-rules.json");
+  spriteRulesCache = JSON.parse(fs.readFileSync(jsonPath, "utf8")) as SpriteRules;
+  return spriteRulesCache;
+}
 
 function findRepoRoot(startDir: string): string {
   let current = path.resolve(startDir);
@@ -213,18 +224,16 @@ function parseImgInf(infPath: string): Map<number, string> {
   const cached = infCache.get(infPath);
   if (cached) return cached;
   const result = new Map<number, string>();
-  if (!fs.existsSync(infPath)) {
-    infCache.set(infPath, result);
-    return result;
-  }
-  const lines = fs.readFileSync(infPath, "utf8").split(/\r?\n/);
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    const parts = line.split("\t").filter((part) => part.trim());
-    if (parts.length < 2) continue;
-    const id = Number.parseInt(parts[0].trim(), 10);
-    if (!Number.isFinite(id)) continue;
-    result.set(id, parts[1].split(",")[0]?.trim() ?? "");
+  const rules = loadSpriteRules();
+  const dir = path.basename(path.dirname(infPath));
+  const infStem = path.parse(infPath).name;
+  const dirRules = rules[dir];
+  if (dirRules) {
+    const infMap = dirRules.inf[infStem] ?? {};
+    for (const [k, v] of Object.entries(infMap)) {
+      const idx = Number.parseInt(k, 10);
+      if (Number.isFinite(idx)) result.set(idx, v);
+    }
   }
   infCache.set(infPath, result);
   return result;
@@ -246,21 +255,35 @@ function optKey(v: number, u: number): string {
   return `${v},${u}`;
 }
 
-function decodeOpt(optPath: string, srcImage?: RgbaImage | null): Map<string, OptSlot> {
-  const cacheKey = `${optPath}|${srcImage?.width ?? 0}x${srcImage?.height ?? 0}`;
-  const cached = optCache.get(cacheKey);
+function decodeOpt(optPath: string, _srcImage?: RgbaImage | null): Map<string, OptSlot> {
+  const cached = optCache.get(optPath);
   if (cached) return cached;
 
   const slots = new Map<string, OptSlot>();
-  if (!fs.existsSync(optPath)) {
-    optCache.set(cacheKey, slots);
-    return slots;
+  const rules = loadSpriteRules();
+  const dir = path.basename(path.dirname(optPath));
+  const basename = path.parse(optPath).name;
+  const dirRules = rules[dir];
+  if (dirRules) {
+    const entry = dirRules.opts[basename];
+    if (entry) {
+      const { cellW, cellH } = entry;
+      for (const [k, v] of Object.entries(entry.slots)) {
+        slots.set(k, { ...v, cellW, cellH });
+      }
+    }
   }
+  optCache.set(optPath, slots);
+  return slots;
+}
+
+// Legacy binary decoder kept here only for reference — no longer called at runtime.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _decodeOptBinary(optPath: string, srcImage?: RgbaImage | null): Map<string, OptSlot> {
+  const slots = new Map<string, OptSlot>();
+  if (!fs.existsSync(optPath)) return slots;
   const data = fs.readFileSync(optPath);
-  if (data.length < 4) {
-    optCache.set(cacheKey, slots);
-    return slots;
-  }
+  if (data.length < 4) return slots;
 
   const cellW = data[0] ?? 24;
   const cellH = data[1] ?? 24;
@@ -379,7 +402,6 @@ function decodeOpt(optPath: string, srcImage?: RgbaImage | null): Map<string, Op
     }
   }
 
-  optCache.set(cacheKey, slots);
   return slots;
 }
 
