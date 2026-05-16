@@ -11,6 +11,10 @@ import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
 
+const FACILITY_ITEM_ICONS: Record<string, string> = {
+  "Kairo King Statue": "/website_icons/facilities_confirmed/facility_186_kairo_king_statue.png",
+};
+
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
 function kairoDayAnchor(day: string): string {
@@ -186,6 +190,8 @@ export default function KairoRoomPage() {
                                           <img src={getEquipmentIcon(equipIcons, line.item)} alt="" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                         ) : getItemIcon(line.item) ? (
                                           <img src={getItemIcon(line.item)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                                        ) : FACILITY_ITEM_ICONS[line.item] ? (
+                                          <img src={FACILITY_ITEM_ICONS[line.item]} alt="" className="h-8 w-8 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                         ) : (
                                           <span className="h-8 w-8 shrink-0" />
                                         )}
