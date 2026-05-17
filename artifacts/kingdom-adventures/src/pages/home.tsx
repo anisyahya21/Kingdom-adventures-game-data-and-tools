@@ -407,6 +407,32 @@ function HomeWorldMapCard({ compact = false }: { compact?: boolean }) {
   );
 }
 
+function HomeWorldMapV2Card({ compact = false }: { compact?: boolean }) {
+  return (
+    <Link href="/world-map-v2">
+      <Card className="cursor-pointer overflow-hidden hover:border-primary/40 hover:bg-muted/30 transition-colors h-full">
+        <div className={compact ? "h-20 overflow-hidden" : "h-28 overflow-hidden"}>
+          <img
+            src="/Images/world-map-v2-thumbnail.jpg"
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        </div>
+        <CardContent className={compact ? "p-3 space-y-2" : "p-4 space-y-3"}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className={compact ? "font-medium text-sm" : "font-medium"}>World map V2</div>
+            <Badge variant="outline" className="text-[10px]">WIP</Badge>
+          </div>
+          <div className={compact ? "text-xs text-muted-foreground leading-relaxed" : "text-sm text-muted-foreground leading-relaxed"}>
+            Isometric terrain, facilities, resources, nature, and top-view map chip layers.
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
 }
@@ -462,13 +488,17 @@ export default function Home() {
         <div className="mb-8 xl:pr-[24rem]">
           <div className="grid grid-cols-2 gap-3 xl:hidden">
             <HomeCountdownBanner />
-            <HomeWorldMapCard compact />
+            <div className="space-y-3">
+              <HomeWorldMapCard compact />
+              <HomeWorldMapV2Card compact />
+            </div>
           </div>
         </div>
 
         <div className="hidden xl:block fixed right-6 top-28 w-[320px] 2xl:right-10 z-20 space-y-4">
           <HomeCountdownBanner />
           <HomeWorldMapCard />
+          <HomeWorldMapV2Card />
         </div>
 
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tools</h2>

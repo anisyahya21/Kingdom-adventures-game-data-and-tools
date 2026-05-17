@@ -128,9 +128,17 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventures World Map",
     description: "Use the Kingdom Adventures world map to plan exploration, monsters, rewards, and resources.",
   },
+  "/world-map-v2": {
+    title: "Kingdom Adventures World Map V2",
+    description: "View the work-in-progress Kingdom Adventures isometric world map with terrain, facilities, resources, and map chip layers.",
+  },
   "/map-2-testing": {
     title: "Kingdom Adventures Map 2 Testing",
     description: "Review Kingdom Adventures map testing data for exploration and progression planning.",
+  },
+  "/terrain-composition-lab": {
+    title: "Kingdom Adventures Terrain Composition Lab",
+    description: "Test base terrain and nature or object composition in an isolated lab with offsets, anchors, source modes, and draw order controls.",
   },
   "/guides": {
     title: "Kingdom Adventures Guides",
