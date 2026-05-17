@@ -933,10 +933,10 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
     }
 
     if (showOnePieceFacilities) {
-      drawOnePieceFacilityOverlays(context, pipeline.facilityBuildingCache, camera, width, height);
+      drawOnePieceFacilityOverlays(context, pipeline.facilityBuildingCache, camera, width, height, !publicMode);
     }
     if (showPortAssemblies) {
-      drawPortAssemblies(context, pipeline.portAssetCache, camera, width, height, portGateLayout, showPortBridgePieces);
+      drawPortAssemblies(context, pipeline.portAssetCache, camera, width, height, portGateLayout, showPortBridgePieces, !publicMode);
     }
 
     if (hoveredCell) {
@@ -3054,6 +3054,7 @@ function drawOnePieceFacilityOverlays(
   camera: CameraState,
   canvasWidth: number,
   canvasHeight: number,
+  showLabels: boolean,
 ) {
   const zoom = camera.zoom;
   const footprintHalfW = TILE_WIDTH * zoom;
@@ -3133,6 +3134,7 @@ function drawPortAssemblies(
   canvasHeight: number,
   portGateLayout: PortGateLayout,
   showBridgePieces: boolean,
+  showLabels: boolean,
 ) {
   const zoom = camera.zoom;
   const halfTileH = (TILE_HEIGHT * zoom) / 2;
@@ -3258,7 +3260,7 @@ function drawPortAssemblies(
       context.drawImage(asset, drawX, drawY, drawW, drawH);
       context.shadowBlur = 0;
 
-      if (zoom >= 0.55) {
+      if (showLabels && zoom >= 0.55) {
         context.font = `bold ${Math.max(9, 10 * zoom)}px sans-serif`;
         context.textAlign = "center";
         context.textBaseline = "top";
@@ -3270,7 +3272,7 @@ function drawPortAssemblies(
       }
     }
 
-    if (zoom >= 0.7) {
+    if (showLabels && zoom >= 0.7) {
       context.font = `bold ${Math.max(10, 11 * zoom)}px sans-serif`;
       context.textAlign = "center";
       context.textBaseline = "top";
