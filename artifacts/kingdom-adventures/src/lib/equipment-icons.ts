@@ -137,7 +137,7 @@ if (iconManifest && (iconManifest as Record<string, unknown>).facilities) {
   for (const facility of (iconManifest as Record<string, unknown>).facilities as Array<{ id: number; filename: string }>) {
     if (typeof facility.id !== "number" || !Number.isFinite(facility.id)) continue;
     if (!facility.filename) continue;
-    const iconPath = `/website_icons/facilities/${facility.filename}?v=20260515r5`;
+    const iconPath = `/website_icons/facilities_confirmed/${facility.filename}?v=20260524r1`;
     facilityIconLookup.set(facility.id, iconPath);
   }
 }

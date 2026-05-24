@@ -36,6 +36,8 @@ const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 14;
 const ZOOM_STEP = 0.25;
 const WORLD_MAP_WATER_COLOR = "#6d96db";
+const CHAOS_STONE_SPRITE = "/website_icons/facilities_confirmed/facility_191_chaos_stone.png";
+const SIGNBOARD_SPRITE = "/website_icons/facilities_confirmed/facility_068_info_board.png";
 
 const TERRAIN_COLORS: Record<TerrainType, string> = {
   grass: "#2f7d32",
@@ -1677,62 +1679,61 @@ export default function ChaosSetupLabPage() {
     }
 
     if (pieces.get(k) === "board") {
-      // Match world-map info-board styling (post + sign face).
       return (
-        <span className="pointer-events-none absolute inset-0">
-          <span className="absolute left-[44%] top-[45%] h-[45%] w-[12%] bg-[#8b5a2b]" />
-          <span className="absolute left-[18%] top-[12%] h-[36%] w-[64%] border border-[#8b5a2b] bg-[#d4a95f]" />
+        <span className="pointer-events-none absolute inset-0 z-[4]">
+          <img
+            src={SIGNBOARD_SPRITE}
+            alt=""
+            className="h-full w-full object-contain [image-rendering:pixelated]"
+            draggable={false}
+          />
         </span>
       );
     }
 
     if (stoneIdByAnchorKey.has(k)) {
-      // Match world-map chaos stone silhouette over 2x2 footprint.
       return (
         <span
           className="pointer-events-none absolute left-0 top-0 z-[3]"
           style={{ width: "calc(var(--tile-size) * 2)", height: "calc(var(--tile-size) * 2)" }}
         >
-          <svg viewBox="0 0 48 48" className="h-full w-full" aria-hidden="true">
-            <polygon
-              points="24,46.8 43.2,44.4 39.6,21.6 31.2,4.8 18,10.8 7.2,26.4 3.6,46.8"
-              fill="#9ca3af"
-              stroke="#4b5563"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <img
+            src={CHAOS_STONE_SPRITE}
+            alt=""
+            className="h-full w-full object-contain [image-rendering:pixelated]"
+            draggable={false}
+          />
         </span>
       );
     }
 
     if (placementPreview.kind === "board" && placementPreview.cells.has(k)) {
-      const tintClass = placementPreview.valid ? "bg-[#d4a95f]/55 border-[#8b5a2b]/60" : "bg-red-500/40 border-red-900/60";
       return (
-        <span className="pointer-events-none absolute inset-0 opacity-80">
-          <span className="absolute left-[44%] top-[45%] h-[45%] w-[12%] bg-[#8b5a2b]/60" />
-          <span className={`absolute left-[18%] top-[12%] h-[36%] w-[64%] border ${tintClass}`} />
+        <span className="pointer-events-none absolute inset-0 z-[4] opacity-65">
+          <img
+            src={SIGNBOARD_SPRITE}
+            alt=""
+            className="h-full w-full object-contain [image-rendering:pixelated]"
+            style={placementPreview.valid ? undefined : { filter: "grayscale(1) brightness(0.55) sepia(0.8) hue-rotate(-35deg)" }}
+            draggable={false}
+          />
         </span>
       );
     }
 
     if (placementPreview.kind === "stone" && hoverTile && x === hoverTile.x && y === hoverTile.y) {
-      const fill = placementPreview.valid ? "#9ca3af" : "#f87171";
-      const stroke = placementPreview.valid ? "#4b5563" : "#991b1b";
       return (
         <span
           className="pointer-events-none absolute left-0 top-0 z-[3] opacity-55"
           style={{ width: "calc(var(--tile-size) * 2)", height: "calc(var(--tile-size) * 2)" }}
         >
-          <svg viewBox="0 0 48 48" className="h-full w-full" aria-hidden="true">
-            <polygon
-              points="24,46.8 43.2,44.4 39.6,21.6 31.2,4.8 18,10.8 7.2,26.4 3.6,46.8"
-              fill={fill}
-              stroke={stroke}
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <img
+            src={CHAOS_STONE_SPRITE}
+            alt=""
+            className="h-full w-full object-contain [image-rendering:pixelated]"
+            style={placementPreview.valid ? undefined : { filter: "grayscale(1) brightness(0.55) sepia(0.8) hue-rotate(-35deg)" }}
+            draggable={false}
+          />
         </span>
       );
     }
@@ -1767,7 +1768,7 @@ export default function ChaosSetupLabPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
-            Lightweight sandbox for chaos stones + sign boards on the real map mask and terrain colors. Stone/board use world-map chaos setup glyph style.
+            Lightweight sandbox for chaos stones + sign boards on the real map mask and terrain colors. Stone/board now use mapped facility sprites from the confirmed icon set.
           </p>
           <p className="font-medium text-amber-600 dark:text-amber-400">
             Experimental tool: generated setups may not always match live game behavior. Please verify generated setups with the community on Discord before relying on them.
