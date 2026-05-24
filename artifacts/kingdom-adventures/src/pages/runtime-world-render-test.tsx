@@ -830,6 +830,7 @@ export default function RuntimeWorldRenderTestPage({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const suppressNextCanvasClickRef = useRef(false);
   const activeTouchPointsRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const touchMovedRef = useRef(false);
   const pinchStateRef = useRef<{
     startDistance: number;
     startZoom: number;
@@ -1965,6 +1966,7 @@ export default function RuntimeWorldRenderTestPage({
 
   function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
     if (event.pointerType === "touch") {
+      touchMovedRef.current = false;
       const rect = event.currentTarget.getBoundingClientRect();
       const localX = event.clientX - rect.left;
       const localY = event.clientY - rect.top;
@@ -2026,6 +2028,10 @@ export default function RuntimeWorldRenderTestPage({
       if (activeTouchPointsRef.current.size < 2) {
         pinchStateRef.current = null;
       }
+      if (touchMovedRef.current) {
+        suppressNextCanvasClickRef.current = true;
+      }
+      touchMovedRef.current = false;
     }
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -2041,6 +2047,7 @@ export default function RuntimeWorldRenderTestPage({
   function onPointerLeave() {
     activeTouchPointsRef.current.clear();
     pinchStateRef.current = null;
+    touchMovedRef.current = false;
 
     if (portGateDrag) {
       setHoveredCell(null);
@@ -2057,6 +2064,7 @@ export default function RuntimeWorldRenderTestPage({
       const rect = event.currentTarget.getBoundingClientRect();
       const localX = event.clientX - rect.left;
       const localY = event.clientY - rect.top;
+      const previousTouch = activeTouchPointsRef.current.get(event.pointerId) ?? null;
       activeTouchPointsRef.current.set(event.pointerId, { x: localX, y: localY });
 
       if (activeTouchPointsRef.current.size >= 2 && pinchStateRef.current) {
@@ -2081,6 +2089,22 @@ export default function RuntimeWorldRenderTestPage({
         }
 
         setDragging(false);
+        return;
+      }
+
+      if (activeTouchPointsRef.current.size === 1 && previousTouch) {
+        const dx = localX - previousTouch.x;
+        const dy = localY - previousTouch.y;
+        if (dx !== 0 || dy !== 0) {
+          touchMovedRef.current = true;
+          setCamera((previous) => ({
+            ...previous,
+            offsetX: previous.offsetX + dx,
+            offsetY: previous.offsetY + dy,
+          }));
+        }
+        setHoveredCell(null);
+        onCellHover?.(null);
         return;
       }
     }
