@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Award, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,7 +64,7 @@ export default function DailyRankRewardsPage() {
           <h1 className="text-xl font-bold tracking-tight">Daily Rank Rewards</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Kingdom Adventures daily ranking board rewards by weekday, showing full rank payouts from F through S for weapons,
+          Kingdom Adventurers daily ranking board rewards by weekday, showing full rank payouts from F through S for weapons,
           armor, shields, tickets, skills, and overall item rewards.
         </p>
         <p className="text-xs text-muted-foreground/90 max-w-3xl">
@@ -144,3 +144,4 @@ export default function DailyRankRewardsPage() {
     </div>
   );
 }
+

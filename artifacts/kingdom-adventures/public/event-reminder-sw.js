@@ -1,4 +1,4 @@
-self.addEventListener("install", () => {
+﻿self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
@@ -14,7 +14,7 @@ self.addEventListener("push", (event) => {
     payload = {};
   }
 
-  const title = payload.title || "Kingdom Adventures reminder";
+  const title = payload.title || "Kingdom Adventurers reminder";
   const options = {
     body: payload.body || "A subscribed event is ready.",
     icon: "/pwa-icon.svg",
@@ -44,3 +44,4 @@ self.addEventListener("notificationclick", (event) => {
     }),
   );
 });
+

@@ -79,6 +79,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/world-map", label: "World Map", beta: true },
       { href: "/chaos-setup-lab", label: "Chaos Setup Lab", beta: true },
       { href: "/map-2-testing", label: "Map 2 Testing", beta: true },
+      { href: "/terrain-composition-lab", label: "Terrain Composition Lab", beta: true },
     ],
   },
   {

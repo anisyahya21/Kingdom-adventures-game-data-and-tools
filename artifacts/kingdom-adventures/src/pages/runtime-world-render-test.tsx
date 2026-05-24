@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Skull } from "lucide-react";
 import { parseMapBinarySectionA } from "@/runtime/world-builder/map-loader";
 import type { ParsedMapBinary, ParsedMapCell } from "@/runtime/world-builder/types";
 import {
@@ -222,6 +223,9 @@ export type RuntimeExternalOverlay = {
   cellY: number;
   widthTiles?: number;
   spriteUrl?: string;
+  spriteScale?: number;
+  anchorOffsetTilesY?: number;
+  anchorMode?: "south" | "center";
   markerText?: string;
   markerKind?: "monster" | "unit";
   invalid?: boolean;
@@ -232,6 +236,11 @@ type RuntimeWorldRenderTestPageProps = {
   publicMode?: boolean;
   initialZoom?: number;
   controlledZoom?: number;
+  showCellGrid?: boolean;
+  visibleOnePieceFacilityIds?: number[];
+  landOverrideCells?: Array<{ x: number; y: number }>;
+  reclaimedTintCells?: Array<{ x: number; y: number }>;
+  focusCell?: { x: number; y: number; token: number } | null;
   interactiveInPublicMode?: boolean;
   onCellClick?: (cell: { x: number; y: number }) => void;
   onCellHover?: (cell: { x: number; y: number } | null) => void;
@@ -817,6 +826,11 @@ export default function RuntimeWorldRenderTestPage({
   publicMode = false,
   initialZoom = 0.65,
   controlledZoom,
+  showCellGrid = false,
+  visibleOnePieceFacilityIds,
+  landOverrideCells = [],
+  reclaimedTintCells = [],
+  focusCell = null,
   interactiveInPublicMode = false,
   onCellClick,
   onCellHover,
@@ -872,6 +886,23 @@ export default function RuntimeWorldRenderTestPage({
   const [pipeline, setPipeline] = useState<RenderPipeline | null>(null);
   const [error, setError] = useState<string | null>(null);
   const allowMapInteraction = !publicMode || interactiveInPublicMode || !!onCellClick || !!onCellHover;
+  const visibleOnePieceFacilitySet = useMemo(
+    () => (visibleOnePieceFacilityIds && visibleOnePieceFacilityIds.length > 0 ? new Set(visibleOnePieceFacilityIds) : null),
+    [visibleOnePieceFacilityIds],
+  );
+  const visibleOnePieceFacilities = useMemo(
+    () => (visibleOnePieceFacilitySet
+      ? ONE_PIECE_FACILITY_OVERLAYS.filter((facility) => visibleOnePieceFacilitySet.has(facility.id))
+      : ONE_PIECE_FACILITY_OVERLAYS),
+    [visibleOnePieceFacilitySet],
+  );
+  const reclaimedTintKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const cell of reclaimedTintCells) {
+      keys.add(`${cell.x},${cell.y}`);
+    }
+    return keys;
+  }, [reclaimedTintCells]);
 
   useEffect(() => {
     if (typeof controlledZoom !== "number" || !Number.isFinite(controlledZoom)) {
@@ -887,6 +918,36 @@ export default function RuntimeWorldRenderTestPage({
           },
     );
   }, [controlledZoom]);
+
+  useEffect(() => {
+    if (!focusCell) {
+      return;
+    }
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    if (width <= 0 || height <= 0) {
+      return;
+    }
+
+    const zoomForFocus = typeof controlledZoom === "number" && Number.isFinite(controlledZoom)
+      ? Math.max(0.08, Math.min(3.5, controlledZoom))
+      : camera.zoom;
+    const halfW = (TILE_WIDTH * zoomForFocus) / 2;
+    const halfH = (TILE_HEIGHT * zoomForFocus) / 2;
+    const worldIsoX = (focusCell.x - focusCell.y) * halfW;
+    const worldIsoY = (focusCell.x + focusCell.y) * halfH;
+
+    setCamera((previous) => ({
+      ...previous,
+      zoom: zoomForFocus,
+      offsetX: width / 2 - worldIsoX,
+      offsetY: height / 2 - worldIsoY,
+    }));
+  }, [camera.zoom, controlledZoom, focusCell]);
 
   const natureCategoryVisibility = useMemo<NatureCategoryVisibility>(() => ({
     "terrain-nature": showTerrainNature,
@@ -1312,44 +1373,79 @@ export default function RuntimeWorldRenderTestPage({
     const withoutOldPortMapchips = filteredCommands.filter((command) => !OLD_PORT_MAPCHIP_IDS.has(command.mapChipId));
 
     const forcedPortDirtCommands = (() => {
-      if (!showPortAssemblies) {
-        return withoutOldPortMapchips;
+      const forcedDirtCells = new Set<string>();
+      for (const cell of landOverrideCells) {
+        forcedDirtCells.add(`${cell.x},${cell.y}`);
       }
 
-      const forcedDirtCells = new Set<string>();
-      for (const port of PORT_ASSEMBLIES) {
-        const base = getPortCompositeBaseCell(port);
+      if (showPortAssemblies) {
+        for (const port of PORT_ASSEMBLIES) {
+          const base = getPortCompositeBaseCell(port);
 
-        // Keep the full port foundation attached to land.
-        // Manual fix target: 6x4 plate (structure + rear area) rooted at base.
-        for (let yy = 0; yy < 4; yy++) {
-          for (let xx = 0; xx < 6; xx++) {
-            forcedDirtCells.add(`${base.x + xx},${base.y - 2 + yy}`);
+          // Keep the full port foundation attached to land.
+          // Manual fix target: 6x4 plate (structure + rear area) rooted at base.
+          for (let yy = 0; yy < 4; yy++) {
+            for (let xx = 0; xx < 6; xx++) {
+              forcedDirtCells.add(`${base.x + xx},${base.y - 2 + yy}`);
+            }
           }
-        }
 
-        // Explicit rear strip from user request: 2x4 directly behind the port body.
-        for (let yy = 0; yy < 4; yy++) {
-          for (let xx = 0; xx < 2; xx++) {
-            forcedDirtCells.add(`${base.x + xx},${base.y - 2 + yy}`);
-          }
-        }
-
-        for (const piece of PORT_GATE_PIECES) {
-          const offset = portGateLayout[piece.assetKey] ?? { dx: piece.dx, dy: piece.dy };
-          for (let yy = 0; yy < 2; yy++) {
+          // Explicit rear strip from user request: 2x4 directly behind the port body.
+          for (let yy = 0; yy < 4; yy++) {
             for (let xx = 0; xx < 2; xx++) {
-              forcedDirtCells.add(`${Math.round(base.x + offset.dx + xx)},${Math.round(base.y + offset.dy + yy)}`);
+              forcedDirtCells.add(`${base.x + xx},${base.y - 2 + yy}`);
+            }
+          }
+
+          for (const piece of PORT_GATE_PIECES) {
+            const offset = portGateLayout[piece.assetKey] ?? { dx: piece.dx, dy: piece.dy };
+            for (let yy = 0; yy < 2; yy++) {
+              for (let xx = 0; xx < 2; xx++) {
+                forcedDirtCells.add(`${Math.round(base.x + offset.dx + xx)},${Math.round(base.y + offset.dy + yy)}`);
+              }
             }
           }
         }
       }
 
+      if (forcedDirtCells.size === 0) {
+        return withoutOldPortMapchips;
+      }
+
       const dirtTemplates = withoutOldPortMapchips
         .filter((command) => command.selection.assetFolder !== "nature")
         .filter((command) => command.drawGroup !== "nature-object")
-        .filter((command) => PREFERRED_DIRT_MAPCHIP_IDS.has(command.mapChipId) || isDirtLikeCommand(command))
+        .filter((command) => !isWaterLikeCommand(command))
         .sort((left, right) => left.mapChipId - right.mapChipId);
+
+      const nonWaterByCell = new Map<string, TileDrawCommand>();
+      for (const template of dirtTemplates) {
+        const key = `${template.cellX},${template.cellY}`;
+        if (!nonWaterByCell.has(key)) {
+          nonWaterByCell.set(key, template);
+        }
+      }
+
+      const findTemplateForCell = (x: number, y: number): TileDrawCommand | null => {
+        const direct = nonWaterByCell.get(`${x},${y}`);
+        if (direct) {
+          return direct;
+        }
+        for (let radius = 1; radius <= 6; radius += 1) {
+          for (let dy = -radius; dy <= radius; dy += 1) {
+            for (let dx = -radius; dx <= radius; dx += 1) {
+              if (Math.abs(dx) + Math.abs(dy) > radius) {
+                continue;
+              }
+              const nearby = nonWaterByCell.get(`${x + dx},${y + dy}`);
+              if (nearby) {
+                return nearby;
+              }
+            }
+          }
+        }
+        return dirtTemplates[0] ?? null;
+      };
 
       return withoutOldPortMapchips.map((command) => {
         if (command.selection.assetFolder === "nature" || command.drawGroup === "nature-object") {
@@ -1359,7 +1455,7 @@ export default function RuntimeWorldRenderTestPage({
         if (!forcedDirtCells.has(key)) {
           return command;
         }
-        const template = dirtTemplates[0] ?? null;
+        const template = findTemplateForCell(command.cellX, command.cellY);
         if (!template) {
           return command;
         }
@@ -1409,12 +1505,15 @@ export default function RuntimeWorldRenderTestPage({
     const logicalTileWidth = TILE_WIDTH * logicalFootprintScale;
     const logicalTileHeight = TILE_HEIGHT * logicalFootprintScale;
     const shouldDrawTextures = overlayMode !== "diamond-only";
-    const shouldDrawDiamonds = false;
+    const shouldDrawDiamonds = showCellGrid;
 
-    if (shouldDrawDiamonds) {
+    const drawCellGridOverlay = () => {
+      if (!shouldDrawDiamonds) {
+        return;
+      }
       const seen = new Set<string>();
-      context.strokeStyle = "rgba(147, 197, 253, 0.26)";
-      context.lineWidth = 1;
+      context.strokeStyle = "rgba(0, 0, 0, 0.92)";
+      context.lineWidth = Math.max(0.9, zoom * 0.18);
       for (const command of forcedPortDirtCommands) {
         const key = `${command.cellX},${command.cellY}`;
         if (seen.has(key)) {
@@ -1428,7 +1527,7 @@ export default function RuntimeWorldRenderTestPage({
           context.fillRect(Math.round(isoCenter.x) - 1, Math.round(isoCenter.y) - 1, 3, 3);
         }
       }
-    }
+    };
 
     for (const command of drawCommands) {
       const cellKey = `${command.cellX},${command.cellY}`;
@@ -1579,11 +1678,33 @@ export default function RuntimeWorldRenderTestPage({
       }
     }
 
+    if (reclaimedTintKeys.size > 0) {
+      const halfW = (logicalTileWidth * zoom) / 2 + 0.9;
+      const halfH = (logicalTileHeight * zoom) / 2 + 0.9;
+      context.fillStyle = "rgba(34, 197, 94, 0.22)";
+      context.strokeStyle = "rgba(21, 128, 61, 0.48)";
+      context.lineWidth = Math.max(0.8, zoom * 0.18);
+      for (const key of reclaimedTintKeys) {
+        const [xText, yText] = key.split(",");
+        const x = Number(xText);
+        const y = Number(yText);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          continue;
+        }
+        const isoCenter = worldToIso(x, y, zoom, camera.offsetX, camera.offsetY);
+        drawIsoDiamond(context, isoCenter.x, isoCenter.y, halfW, halfH);
+        context.fill();
+        context.stroke();
+      }
+    }
+
+    drawCellGridOverlay();
+
     if (showOnePieceFacilities) {
-      drawOnePieceFacilityOverlays(context, pipeline.facilityBuildingCache, camera, width, height, !publicMode, !publicMode);
+      drawOnePieceFacilityOverlays(context, pipeline.facilityBuildingCache, camera, width, height, !publicMode, !publicMode, visibleOnePieceFacilities);
     }
     if (showNoOffsetFacilityDuplicates) {
-      drawOnePieceFacilityNoOffsetDuplicates(context, pipeline.facilityBuildingCache, camera, width, height, !publicMode);
+      drawOnePieceFacilityNoOffsetDuplicates(context, pipeline.facilityBuildingCache, camera, width, height, !publicMode, visibleOnePieceFacilities);
     }
     if (showCorrectedRankingBoardPlacementTest) {
       // Debug-only isolated facility placement overlay.
@@ -1678,10 +1799,10 @@ export default function RuntimeWorldRenderTestPage({
         }
       };
 
-      drawBorders("rgba(2, 6, 23, 0.95)", 2.6);
-      drawBorders("rgba(255, 255, 255, 0.78)", 1.05);
+      drawBorders("rgba(136, 19, 55, 0.96)", 2.9);
+      drawBorders("rgba(251, 113, 133, 0.95)", 1.2);
 
-      const fontSize = Math.max(9, Math.min(14, 9 + zoom * 1.6));
+      const fontSize = Math.max(12, Math.min(21, 12 + zoom * 2.4));
       context.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
       context.textAlign = "center";
       context.textBaseline = "middle";
@@ -1689,17 +1810,17 @@ export default function RuntimeWorldRenderTestPage({
         const iso = worldToIso(label.x, label.y, zoom, camera.offsetX, camera.offsetY);
         const text = String(label.level);
         const textWidth = context.measureText(text).width;
-        const boxW = Math.ceil(textWidth + 12);
-        const boxH = Math.ceil(fontSize + 6);
+        const boxW = Math.ceil(textWidth + 18);
+        const boxH = Math.ceil(fontSize + 10);
         const left = Math.round(iso.x - boxW / 2);
         const top = Math.round(iso.y - boxH / 2);
 
-        context.fillStyle = "rgba(2, 6, 23, 0.86)";
+        context.fillStyle = "rgba(76, 5, 25, 0.86)";
         context.fillRect(left, top, boxW, boxH);
-        context.strokeStyle = "rgba(255, 255, 255, 0.86)";
-        context.lineWidth = 1;
+        context.strokeStyle = "rgba(251, 113, 133, 0.98)";
+        context.lineWidth = 1.35;
         context.strokeRect(left + 0.5, top + 0.5, boxW - 1, boxH - 1);
-        context.fillStyle = "rgba(255, 255, 255, 0.98)";
+        context.fillStyle = "rgba(255, 241, 242, 0.99)";
         context.fillText(text, Math.round(iso.x), Math.round(iso.y));
       }
     }
@@ -1751,6 +1872,7 @@ export default function RuntimeWorldRenderTestPage({
     showPortAssemblies,
     showPortBridgePieces,
     portGateLayout,
+    showCellGrid,
     conquestCoveredCellKeys,
     dimUncoveredConquestAreas,
     spawnOverlayCells,
@@ -2583,10 +2705,13 @@ export default function RuntimeWorldRenderTestPage({
             {externalOverlays.map((overlay) => {
               const widthTiles = Math.max(1, overlay.widthTiles ?? 1);
               const baseIso = worldToIso(overlay.cellX, overlay.cellY, camera.zoom, camera.offsetX, camera.offsetY);
-              const southY = baseIso.y + TILE_HEIGHT * camera.zoom * (0.5 + (widthTiles - 1));
+              const anchorMode = overlay.anchorMode ?? "south";
+              const southY = baseIso.y + TILE_HEIGHT * camera.zoom * (0.5 + (widthTiles - 1) + (overlay.anchorOffsetTilesY ?? 0));
+              const centerY = baseIso.y + TILE_HEIGHT * camera.zoom * (overlay.anchorOffsetTilesY ?? 0);
               const centerX = baseIso.x;
-              const drawW = TILE_WIDTH * camera.zoom * (widthTiles + (overlay.spriteUrl ? 0.9 : 0.2));
-              const drawH = TILE_HEIGHT * camera.zoom * (widthTiles + (overlay.spriteUrl ? 2.4 : 1.1));
+              const spriteScale = Math.max(0.2, overlay.spriteScale ?? 1);
+              const drawW = TILE_WIDTH * camera.zoom * (widthTiles + (overlay.spriteUrl ? 0.9 : 0.2)) * spriteScale;
+              const drawH = TILE_HEIGHT * camera.zoom * (widthTiles + (overlay.spriteUrl ? 2.4 : 1.1)) * spriteScale;
               const markerClass = overlay.markerKind === "monster"
                 ? "border-red-900/45 bg-red-500/85"
                 : "border-emerald-900/45 bg-emerald-500/85";
@@ -2596,10 +2721,10 @@ export default function RuntimeWorldRenderTestPage({
                   className="absolute"
                   style={{
                     left: centerX,
-                    top: southY,
+                    top: anchorMode === "center" ? centerY : southY,
                     width: drawW,
                     height: drawH,
-                    transform: "translate(-50%, -100%)",
+                    transform: anchorMode === "center" ? "translate(-50%, -50%)" : "translate(-50%, -100%)",
                     opacity: Math.max(0.2, Math.min(1, overlay.opacity ?? 1)),
                   }}
                 >
@@ -2613,7 +2738,9 @@ export default function RuntimeWorldRenderTestPage({
                     />
                   ) : (
                     <span className={`absolute left-1/2 top-1/2 flex h-[65%] w-[65%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-sm font-bold text-white ${markerClass}`}>
-                      {overlay.markerText ?? ""}
+                      {overlay.markerKind === "monster"
+                        ? <Skull className="h-[72%] w-[72%]" strokeWidth={2.2} />
+                        : (overlay.markerText ?? "")}
                     </span>
                   )}
                 </div>
@@ -4097,6 +4224,7 @@ function drawOnePieceFacilityOverlays(
   canvasHeight: number,
   showLabels: boolean,
   showFootprint: boolean,
+  facilities: FacilityOverlay[],
 ) {
   const zoom = camera.zoom;
   const footprintHalfW = TILE_WIDTH * zoom;
@@ -4108,7 +4236,7 @@ function drawOnePieceFacilityOverlays(
   const halfH_tile = (TILE_HEIGHT * zoom) / 2;
 
   context.save();
-  for (const facility of ONE_PIECE_FACILITY_OVERLAYS) {
+  for (const facility of facilities) {
     // cellX/cellY stores the exclusive-end of the 2x2 footprint (NW = cellX-2, cellY-2).
     const iso = worldToIso(facility.cellX - 2, facility.cellY - 2, zoom, camera.offsetX, camera.offsetY);
     // The correct 2x2 diamond center is one tile-halfH below the NW tile center.
@@ -4213,6 +4341,7 @@ function drawOnePieceFacilityNoOffsetDuplicates(
   canvasWidth: number,
   canvasHeight: number,
   showLabels: boolean,
+  facilities: FacilityOverlay[],
 ) {
   const zoom = camera.zoom;
   const footprintHalfW = TILE_WIDTH * zoom;
@@ -4220,7 +4349,7 @@ function drawOnePieceFacilityNoOffsetDuplicates(
   const halfH_tile = (TILE_HEIGHT * zoom) / 2;
 
   context.save();
-  for (const facility of ONE_PIECE_FACILITY_OVERLAYS) {
+  for (const facility of facilities) {
     // Today's RE finding: do not apply a blanket (-2,-2) anchor correction.
     const iso = worldToIso(facility.cellX, facility.cellY, zoom, camera.offsetX, camera.offsetY);
     const diamondCenterY = iso.y + halfH_tile;

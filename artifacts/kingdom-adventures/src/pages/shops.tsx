@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+﻿import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { googleSheetUrl } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
@@ -1918,7 +1918,7 @@ export default function ShopsPage() {
               <CardHeader className="pb-3">
             <CardTitle className="text-base">Weapon Shop Database</CardTitle>
             <CardDescription className="text-xs">
-                  Browse Kingdom Adventures weapon shop data, weapon ranks, weapon types, crafting levels,
+                  Browse Kingdom Adventurers weapon shop data, weapon ranks, weapon types, crafting levels,
                 intelligence requirements, prices, and combat stats.
             </CardDescription>
               </CardHeader>
@@ -1947,7 +1947,7 @@ export default function ShopsPage() {
               <CardHeader className="pb-3">
             <CardTitle className="text-base">Armor Shop Database</CardTitle>
             <CardDescription className="text-xs">
-                  Browse Kingdom Adventures armor shop data for headgear, armor, and shields with ranks,
+                  Browse Kingdom Adventurers armor shop data for headgear, armor, and shields with ranks,
                   crafting levels, intelligence requirements, prices, defence, speed, luck, HP, and MP.
             </CardDescription>
               </CardHeader>
@@ -2730,3 +2730,4 @@ export default function ShopsPage() {
     </div>
   );
 }
+

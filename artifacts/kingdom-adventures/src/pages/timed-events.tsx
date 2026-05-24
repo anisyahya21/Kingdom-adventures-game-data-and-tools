@@ -157,7 +157,7 @@ export default function TimedEventsPage() {
           <h1 className="text-xl font-bold tracking-tight">Events</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Kingdom Adventures event hub for weekly conquest, gacha windows, Wairo Dungeon,
+          Kingdom Adventurers event hub for weekly conquest, gacha windows, Wairo Dungeon,
           daily rank rewards, Kairo Room, and Job Center schedules.
         </p>
       </div>
@@ -237,3 +237,4 @@ export default function TimedEventsPage() {
     </div>
   );
 }
+

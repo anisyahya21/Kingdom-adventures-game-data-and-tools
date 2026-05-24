@@ -1,7 +1,7 @@
-{
+﻿{
   "name": "KA Event Reminders",
   "short_name": "KA Events",
-  "description": "Standalone Kingdom Adventures event reminder app.",
+  "description": "Standalone Kingdom Adventurers event reminder app.",
   "start_url": "/event-reminders",
   "scope": "/event-reminders",
   "display": "standalone",
@@ -16,3 +16,4 @@
     }
   ]
 }
+

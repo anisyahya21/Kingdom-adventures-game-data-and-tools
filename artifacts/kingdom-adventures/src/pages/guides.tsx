@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { BookMarked, Check, Copy, ExternalLink, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -134,7 +134,7 @@ export default function GuidesPage() {
         )}
       >
         <p>
-          Community-written Kingdom Adventures guides collected in one place, including progression advice,
+          Community-written Kingdom Adventurers guides collected in one place, including progression advice,
           playthrough notes, event planning, town development, jobs, equipment, pets, monsters, and strategy help.
         </p>
       </PageHeader>
@@ -247,3 +247,4 @@ export default function GuidesPage() {
     </div>
   );
 }
+

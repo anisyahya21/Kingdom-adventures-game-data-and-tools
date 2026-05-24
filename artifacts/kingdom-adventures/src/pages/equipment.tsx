@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, Fragment, useEffect } from "react";
+﻿import { useState, useMemo, useCallback, useRef, Fragment, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 
@@ -36,7 +36,7 @@ function getVariantDisplayName(name: string, sourceId: number | null): string {
   return VARIANT_NAME_BY_ID[sourceId] ?? name;
 }
 
-// ─── NumInput: local-string-state to prevent typing glitch ────────────────────
+// â”€â”€â”€ NumInput: local-string-state to prevent typing glitch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function NumInput({
   value, onChange, min = 0, max = 99, className = "", inputClassName = "",
 }: {
@@ -78,7 +78,7 @@ function NumInput({
   );
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const STAT_FULL: Record<string, string> = {
   hp: "HP", mp: "MP",
@@ -120,9 +120,9 @@ const MOBILE_SORT_OPTIONS = [
 const STAT_ALIAS_FOR: Record<string, string> = { Movement: "Move" };
 const CHAR_SLOTS = ["Head", "Weapon", "Shield", "Armor", "Accessory"] as const;
 type CharSlot = typeof CHAR_SLOTS[number];
-const SLOT_OPTIONS: Array<CharSlot | "—"> = ["—", "Head", "Weapon", "Shield", "Armor", "Accessory"];
+const SLOT_OPTIONS: Array<CharSlot | "â€”"> = ["â€”", "Head", "Weapon", "Shield", "Armor", "Accessory"];
 
-// ─── Slot SVG icons ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Slot SVG icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function SlotIcon({ slot, className = "w-6 h-6" }: { slot: string; className?: string }) {
   const p = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, className };
@@ -199,7 +199,7 @@ function isIncCol(col: string): string | null {
   return null;
 }
 
-// ─── Google Sheets ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Google Sheets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const SHEET_ID = "1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk";
 const GID = "123527243";
@@ -442,7 +442,7 @@ function statAtLevel(base: number, inc: number, level: number): number {
   return Math.round(base + (level - 1) * inc);
 }
 
-// ─── Shared API state ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Shared API state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type StatOverrides = Record<string, { base?: number; inc?: number }>;
 
@@ -568,7 +568,7 @@ function allItemStatsFilled(item: EquipmentItem, overrides: Record<string, StatO
   return STAT_ORDER.every((stat) => !isStatUnset(item, stat, overrides));
 }
 
-// ─── Username ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Username â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function useUserName() {
   const [userName, setUserNameState] = useState(() => localStorage.getItem("ka_username") ?? "");
@@ -579,7 +579,7 @@ function useUserName() {
   return { userName, setUserName };
 }
 
-// ─── Name prompt dialog ───────────────────────────────────────────────────────
+// â”€â”€â”€ Name prompt dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function NamePromptDialog({ open, currentName, onSave, onCancel }: {
   open: boolean; currentName?: string;
@@ -605,7 +605,7 @@ function NamePromptDialog({ open, currentName, onSave, onCancel }: {
             : "Your name will be shown in the change history so everyone knows who updated what."}
         </p>
         <form onSubmit={submit} className="flex gap-2 mt-2">
-          <Input autoFocus placeholder="Your name…" value={draft} onChange={(e) => setDraft(e.target.value)} className="flex-1" />
+          <Input autoFocus placeholder="Your nameâ€¦" value={draft} onChange={(e) => setDraft(e.target.value)} className="flex-1" />
           <Button type="submit" disabled={!draft.trim()}>{isRename ? "Rename" : "Continue"}</Button>
         </form>
       </DialogContent>
@@ -613,7 +613,7 @@ function NamePromptDialog({ open, currentName, onSave, onCancel }: {
   );
 }
 
-// ─── Icon upload ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Icon upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = rej; r.readAsDataURL(file); });
@@ -692,7 +692,7 @@ function IconUpload({ iconKey, icons, onSave, size = 28 }: {
   );
 }
 
-// ─── Relative time ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Relative time â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function relTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -711,7 +711,7 @@ const CHANGE_COLORS: Record<string, string> = {
   "weapon-category": "bg-orange-500",
 };
 
-// ─── Character builder ────────────────────────────────────────────────────────
+// â”€â”€â”€ Character builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SlotEntry { itemName: string; level: number; }
 type LoadoutSlot = Record<CharSlot, SlotEntry>;
@@ -797,7 +797,7 @@ function normalizeSavedLoadout(value: unknown): LoadoutState {
 
 const DEFAULT_LOADOUT: LoadoutState = [createLoadout("Loadout 1")];
 
-// ─── Info dialog ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Info dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function InfoDialog() {
   return (
@@ -818,7 +818,7 @@ function InfoDialog() {
   );
 }
 
-// ─── Item stat history dialog ─────────────────────────────────────────────────
+// â”€â”€â”€ Item stat history dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ItemStatHistoryDialog({ itemName, history, onClose }: {
   itemName: string | null; history: HistoryEntry[]; onClose: () => void;
@@ -833,7 +833,7 @@ function ItemStatHistoryDialog({ itemName, history, onClose }: {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-muted-foreground" />
-            Stat edit history — {itemName}
+            Stat edit history â€” {itemName}
           </DialogTitle>
         </DialogHeader>
         {entries.length === 0 ? (
@@ -861,7 +861,7 @@ function ItemStatHistoryDialog({ itemName, history, onClose }: {
   );
 }
 
-// ─── Weapon categories manager dialog ─────────────────────────────────────────
+// â”€â”€â”€ Weapon categories manager dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function WeaponCategoriesDialog({ open, categories, onClose, onSave }: {
   open: boolean; categories: string[]; onClose: () => void;
@@ -889,7 +889,7 @@ function WeaponCategoriesDialog({ open, categories, onClose, onSave }: {
         </DialogHeader>
         <p className="text-xs text-muted-foreground">These categories appear in the weapon type dropdown when editing a weapon. Changes are shared with everyone.</p>
         <div className="space-y-1.5 max-h-48 overflow-y-auto mt-1">
-          {draft.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No categories yet — add one below.</p>}
+          {draft.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No categories yet â€” add one below.</p>}
           {draft.map((cat) => (
             <div key={cat} className="flex items-center justify-between text-sm rounded px-2 py-1 bg-muted/40">
               <span>{cat}</span>
@@ -898,7 +898,7 @@ function WeaponCategoriesDialog({ open, categories, onClose, onSave }: {
           ))}
         </div>
         <form onSubmit={addCat} className="flex gap-2 mt-1">
-          <Input autoFocus placeholder="New category…" value={newCat} onChange={(e) => setNewCat(e.target.value)} className="flex-1 h-8 text-sm" />
+          <Input autoFocus placeholder="New categoryâ€¦" value={newCat} onChange={(e) => setNewCat(e.target.value)} className="flex-1 h-8 text-sm" />
           <Button type="submit" size="sm" className="h-8" disabled={!newCat.trim() || draft.includes(newCat.trim())}>
             <Plus className="w-3.5 h-3.5" />Add
           </Button>
@@ -912,7 +912,7 @@ function WeaponCategoriesDialog({ open, categories, onClose, onSave }: {
   );
 }
 
-// ─── Dark mode ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Dark mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function initDark() {
   const saved = localStorage.getItem("theme");
@@ -922,7 +922,7 @@ function initDark() {
   return isDark;
 }
 
-// ─── Export ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function exportData(shared: SharedState) {
   const payload = { slotAssignments: shared.slotAssignments, overrides: shared.overrides };
@@ -933,7 +933,7 @@ function exportData(shared: SharedState) {
   URL.revokeObjectURL(url);
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function EquipmentPage() {
   const locationSearch = useSearch();
@@ -1052,7 +1052,7 @@ export default function EquipmentPage() {
   const clearSelection = () => { setSelectedUids(new Set()); setCompareMode(false); };
   const toggleFav = (uid: string) => setFavs((prev) => { const next = new Set(prev); next.has(uid) ? next.delete(uid) : next.add(uid); return next; });
 
-  // Character builder — personal
+  // Character builder â€” personal
   const [loadout, setLoadout] = useState<LoadoutState>(() => {
     try {
       const raw = JSON.parse(localStorage.getItem("ka_loadout") ?? "null");
@@ -1165,20 +1165,20 @@ export default function EquipmentPage() {
   const setWeaponType = useCallback((name: string, category: string) => {
     withName(async () => {
       const next = { ...weaponTypes, [name]: category };
-      await saveWeaponTypes(next, { userName, changeType: "weapon-type", itemName: name, description: `Set weapon type of "${name}" to: ${category || "— unset"}` });
+      await saveWeaponTypes(next, { userName, changeType: "weapon-type", itemName: name, description: `Set weapon type of "${name}" to: ${category || "â€” unset"}` });
     });
   }, [weaponTypes, saveWeaponTypes, withName, userName]);
 
   const saveCategories = useCallback((cats: string[]) => {
     withName(async () => {
-      await saveWeaponCategories(cats, { userName, changeType: "weapon-category", itemName: "—", description: `Updated weapon category list (${cats.length} categories)` });
+      await saveWeaponCategories(cats, { userName, changeType: "weapon-category", itemName: "â€”", description: `Updated weapon category list (${cats.length} categories)` });
     });
   }, [saveWeaponCategories, withName, userName]);
 
   const setOverride = useCallback((itemName: string, stat: string, field: "base" | "inc", value: number) => {
     withName(async () => {
       const next = { ...overrides, [itemName]: { ...(overrides[itemName] ?? {}), [stat]: { ...(overrides[itemName]?.[stat] ?? {}), [field]: value } } };
-      await saveOverrides(next, { userName, changeType: "stat", itemName, description: `Updated ${itemName} — ${stat} ${field === "base" ? "base" : "+/Lv"}: ${value}` });
+      await saveOverrides(next, { userName, changeType: "stat", itemName, description: `Updated ${itemName} â€” ${stat} ${field === "base" ? "base" : "+/Lv"}: ${value}` });
     });
   }, [overrides, saveOverrides, withName, userName]);
 
@@ -1345,7 +1345,7 @@ export default function EquipmentPage() {
     }
   }, [sortCol, hideExcludedStatColumns, excludeStatFilters, visibleStats]);
 
-  // Most recent "stat" (base/inc) history entry per item — for the Last Edit column
+  // Most recent "stat" (base/inc) history entry per item â€” for the Last Edit column
   const lastStatEdit = useMemo<Record<string, HistoryEntry>>(() => {
     const map: Record<string, HistoryEntry> = {};
     for (const e of history) {
@@ -1364,7 +1364,7 @@ export default function EquipmentPage() {
         const entry = newSlots[slot];
         if (!entry.itemName) continue;
         const assigned = slotAssignments[entry.itemName];
-        if (assigned && assigned !== "—" && assigned !== slot) {
+        if (assigned && assigned !== "â€”" && assigned !== slot) {
           changed = true;
           newSlots[slot] = { itemName: "", level: 1 };
         }
@@ -1398,7 +1398,7 @@ export default function EquipmentPage() {
 
         <PageHeader title="Equipment Stats" actions={<InfoDialog />} className="mb-6">
           <p>
-            Search and compare Kingdom Adventures equipment at any level, including weapons, shields,
+            Search and compare Kingdom Adventurers equipment at any level, including weapons, shields,
             armor, headgear, accessories, ranks, stats, shop data, crafting requirements, and loadout values.
           </p>
         </PageHeader>
@@ -1420,7 +1420,7 @@ export default function EquipmentPage() {
 
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3 mb-2">
-          <Input placeholder="Search equipment…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-sm w-44" />
+          <Input placeholder="Search equipmentâ€¦" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-sm w-44" />
           <SearchableSelect
             value={craftFilter}
             onChange={(v) => setCraftFilter(v as CraftFilter)}
@@ -1455,7 +1455,7 @@ export default function EquipmentPage() {
           <button
             onClick={() => setSortByInc((v) => !v)}
             className={`h-8 px-3 text-xs rounded-md border transition-colors font-medium ${sortByInc ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground hover:border-foreground/40"}`}
-            title={sortByInc ? "Currently sorting stats by Growth +Lv — click to sort by value at level" : "Currently sorting stats by value at level — click to sort by Growth +Lv"}
+            title={sortByInc ? "Currently sorting stats by Growth +Lv â€” click to sort by value at level" : "Currently sorting stats by value at level â€” click to sort by Growth +Lv"}
           >
             Sort stats: {sortByInc ? "Growth +Lv" : "Value"}
           </button>
@@ -1679,7 +1679,7 @@ export default function EquipmentPage() {
           <span className="text-[11px] text-muted-foreground">Quick way to compare everything at one level without changing rows one by one.</span>
         </div>
 
-        {isLoading && <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground"><Loader2 className="w-6 h-6 animate-spin text-primary" /><span className="text-sm">Fetching data…</span></div>}
+        {isLoading && <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground"><Loader2 className="w-6 h-6 animate-spin text-primary" /><span className="text-sm">Fetching dataâ€¦</span></div>}
         {isError && (
           <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 mb-4">
             <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
@@ -1854,7 +1854,7 @@ export default function EquipmentPage() {
         key={stat}
         className="px-1.5 py-1.5 text-center text-xs tabular-nums text-red-400 dark:text-red-500"
       >
-        —
+        â€”
       </td>
     );
   }
@@ -1932,10 +1932,10 @@ export default function EquipmentPage() {
                 </table>
               </div>
               <div className="px-4 py-2 border-t border-border bg-muted/30 text-xs text-muted-foreground flex items-center justify-between">
-                <span>{rowsToShow === "all" ? `${filtered.length}` : `${visibleItems.length} of ${filtered.length}`} visible · {items.length} total · click item name to view base and growth</span>
+                <span>{rowsToShow === "all" ? `${filtered.length}` : `${visibleItems.length} of ${filtered.length}`} visible Â· {items.length} total Â· click item name to view base and growth</span>
                 {selectedUids.size > 0 && !compareMode && (
                   <button onClick={() => setCompareMode(true)} className="text-primary font-medium hover:underline">
-                    Compare {selectedUids.size} selected →
+                    Compare {selectedUids.size} selected â†’
                   </button>
                 )}
               </div>
@@ -2023,7 +2023,7 @@ export default function EquipmentPage() {
 
                             <div className="mt-2 flex flex-wrap gap-2">
                               <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
-                                {itemSlot !== " " ? itemSlot : item.sheetSlot || "—"}
+                                {itemSlot !== " " ? itemSlot : item.sheetSlot || "â€”"}
                               </span>
                               {itemSlot === "Weapon" && weaponTypes[item.name] && (
                                 <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
@@ -2128,7 +2128,7 @@ export default function EquipmentPage() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div>
                     <CardTitle className="text-base">Equipment Builder</CardTitle>
-                    <p className="text-xs text-muted-foreground">Your personal equipment loadouts — saved only for you. Each loadout contains Head, Weapon, Shield, Armor, and Accessory.</p>
+                    <p className="text-xs text-muted-foreground">Your personal equipment loadouts â€” saved only for you. Each loadout contains Head, Weapon, Shield, Armor, and Accessory.</p>
                   </div>
                   <Button size="sm" variant="outline" className="h-8" onClick={() => addLoadout()}>
                     <Plus className="w-3.5 h-3.5" />Add loadout
@@ -2196,17 +2196,17 @@ export default function EquipmentPage() {
                               const item = items.find((i) => i.name === entry.itemName);
                               const eligibleItems = items.filter((i) => {
                                 const a = getItemSlot(i.name);
-                                return a === slotType || a === "—";
+                                return a === slotType || a === "â€”";
                               });
                               const isOver = dragOverSlot === `${loadoutItem.id}:${slotType}`;
                               const dragging = draggingItemRef.current;
-                              const compatible = !dragging || dragging.slot === "—" || dragging.slot === slotType;
+                              const compatible = !dragging || dragging.slot === "â€”" || dragging.slot === slotType;
                               return (
                                 <Card key={slotType}
                                   onDragOver={(e) => {
                                     e.preventDefault();
-                                    const dragSlot = draggingItemRef.current?.slot ?? "—";
-                                    e.dataTransfer.dropEffect = (dragSlot === "—" || dragSlot === slotType) ? "copy" : "none";
+                                    const dragSlot = draggingItemRef.current?.slot ?? "â€”";
+                                    e.dataTransfer.dropEffect = (dragSlot === "â€”" || dragSlot === slotType) ? "copy" : "none";
                                     setDragOverSlot(`${loadoutItem.id}:${slotType}`);
                                   }}
                                   onDragLeave={(e) => {
@@ -2218,7 +2218,7 @@ export default function EquipmentPage() {
                                     const itemName = e.dataTransfer.getData("text/plain");
                                     const dragSlot = e.dataTransfer.getData("application/ka-slot");
                                     if (!itemName) return;
-                                    if (dragSlot && dragSlot !== "—" && dragSlot !== slotType) return;
+                                    if (dragSlot && dragSlot !== "â€”" && dragSlot !== slotType) return;
                                     setLoadoutEntry(loadoutItem.id, slotType, { itemName });
                                   }}
                                   className={`shadow-none transition-all ${isOver && compatible ? "border-primary ring-2 ring-primary/30 bg-primary/5" : isOver && !compatible ? "border-destructive/40 bg-destructive/5" : "border-border"}`}>
@@ -2244,7 +2244,7 @@ export default function EquipmentPage() {
                                       value={entry.itemName}
                                       onChange={(v) => setLoadoutEntry(loadoutItem.id, slotType, { itemName: v })}
                                       options={eligibleItems.map((i) => ({ value: i.name, label: i.name }))}
-                                      placeholder="— none —"
+                                      placeholder="â€” none â€”"
                                       triggerClassName="h-7 text-xs w-full"
                                     />
                                     {entry.itemName && (
@@ -2284,7 +2284,7 @@ export default function EquipmentPage() {
                               {STAT_ORDER.map((stat) => (
                                 <div key={stat} className="flex items-center gap-1.5 text-sm">
                                   {statIcons[stat] ? <img src={statIcons[stat]} alt={stat} className="w-4 h-4 object-contain" /> : <span className="text-xs text-muted-foreground">{stat}</span>}
-                                  <span className={`font-semibold tabular-nums ${loadoutTotal?.totals[stat] === 0 ? "text-muted-foreground/40" : "text-foreground"}`}>{loadoutTotal?.totals[stat] || "—"}</span>
+                                  <span className={`font-semibold tabular-nums ${loadoutTotal?.totals[stat] === 0 ? "text-muted-foreground/40" : "text-foreground"}`}>{loadoutTotal?.totals[stat] || "â€”"}</span>
                                 </div>
                               ))}
                             </div>
@@ -2302,7 +2302,7 @@ export default function EquipmentPage() {
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <div className="text-sm font-medium text-foreground">{loadoutItem.label}</div>
-                            <div className="text-xs text-muted-foreground">{CHAR_SLOTS.map((slot) => loadout.find((lo) => lo.id === loadoutItem.id)?.slots[slot].itemName || "—").join(" · ")}</div>
+                            <div className="text-xs text-muted-foreground">{CHAR_SLOTS.map((slot) => loadout.find((lo) => lo.id === loadoutItem.id)?.slots[slot].itemName || "â€”").join(" Â· ")}</div>
                           </div>
                           <span className="text-[11px] text-muted-foreground">{Object.values(loadoutItem.totals).some((val) => val > 0) ? "Configured" : "Empty"}</span>
                         </div>
@@ -2330,7 +2330,7 @@ export default function EquipmentPage() {
                     <CardTitle className="text-base flex items-center gap-2"><History className="w-4 h-4" />Change History</CardTitle>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowHistory(false)}><X className="w-3.5 h-3.5" /></Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">Every edit made to shared data — slots, stats, and icons.</p>
+                  <p className="text-xs text-muted-foreground">Every edit made to shared data â€” slots, stats, and icons.</p>
                 </CardHeader>
                 <CardContent className="pt-0">
                   {history.length === 0 ? (
@@ -2344,7 +2344,7 @@ export default function EquipmentPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <span className="font-medium text-foreground">{entry.userName}</span>
-                            <span className="text-muted-foreground"> — {entry.description}</span>
+                            <span className="text-muted-foreground"> â€” {entry.description}</span>
                           </div>
                           <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{relTime(entry.timestamp)}</span>
                         </div>
@@ -2358,12 +2358,13 @@ export default function EquipmentPage() {
         )}
 
         <div className="mt-8 pt-4 border-t border-border text-xs text-muted-foreground flex items-center justify-between">
-          <span>Data from Google Sheets · Kingdom Adventures</span>
+          <span>Data from Google Sheets Â· Kingdom Adventurers</span>
         </div>
       </div>
     </div>
   );
 }
+
 
 
 

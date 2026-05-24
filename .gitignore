@@ -54,3 +54,26 @@ artifacts/api-server/data/event-reminder-*.json
 # Baked into frontend/server character rule JSON; do not commit raw sprite metadata
 artifacts/api-server/data/sprites/**/*.inf
 artifacts/api-server/data/sprites/**/*.opt
+artifacts/kingdom-adventures/tmp/
+
+# Local reverse-engineering/export dumps
+Reverse engineering/exports/
+Reverse engineering/*.gpr
+Reverse engineering/*.rep/
+
+# Local tool outputs/build artifacts
+tools/asset_extractor/apk_runtime_extract/
+tools/asset_extractor/apk_extracted/
+tools/asset_extractor/il2cpp_dump/
+tools/asset_extractor/decompiler_tools/
+tools/KAImagePipelineLauncher/bin/
+tools/KAImagePipelineLauncher/obj/
+tools/KAIconPipelineLauncher/bin/
+tools/KAIconPipelineLauncher/obj/
+tools/icon_pipeline/input/
+tools/icon_pipeline/output/
+
+# Local runtime scratch/logs
+artifacts/kingdom-adventures/.tmp/
+*.log
+*.err.log

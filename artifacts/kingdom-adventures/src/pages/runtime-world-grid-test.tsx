@@ -23,6 +23,29 @@ type TerrainRow = {
   natureId: number;
   natureGroupId: number;
 };
+type MapChipRow = {
+  id: number;
+  type: number;
+  category: number;
+  name: string;
+  res: number;
+  img: number;
+  seb: number;
+  frame: number;
+  relatedDataType: number;
+  relatedDataId: number;
+  field17: number;
+  field18: number;
+  field19: number;
+  layer: number;
+  field21: number;
+  sizeWidth: number;
+  sizeHeight: number;
+  field24: number;
+  field25: number;
+  field26: number;
+  field27: number;
+};
 type NatureCell = {
   x: number;
   y: number;
@@ -37,15 +60,32 @@ type NatureCell = {
   reason: string;
 };
 
+type AssetDiagnostic = {
+  url: string;
+  status: number;
+  contentType: string | null;
+  snippet: string;
+};
+
 type RuntimeWorldGridTestPageProps = {
   publicMode?: boolean;
 };
 
 const FIELD_KEYS: FieldKey[] = ["f0", "f1", "f2", "f3", "f4", "f5"];
 const BASE_TILE_SIZE = 6;
-const MAP_SECTION_A_PATH = "/world-assets/map/map_160_160.bin";
-const TERRAIN_PATH = "/world-assets/xls/English.lproj/Terrain.txt";
-const NATURE_IMG_INF_PATH = "/world-assets/nature/img.inf";
+const BASE_URL = typeof window !== "undefined"
+  ? new URL(import.meta.env.BASE_URL ?? "/", window.location.origin).href
+  : "/";
+
+function resolveAssetUrl(relativePath: string) {
+  return new URL(relativePath.replace(/^\//, ""), BASE_URL).href;
+}
+
+const MAP_SECTION_A_PATH = resolveAssetUrl("world-assets/map/map_160_160.bin");
+const TERRAIN_PATH = resolveAssetUrl("world-assets/xls/English.lproj/Terrain.txt");
+const MAP_CHIP_PATH = resolveAssetUrl("world-assets/xls/English.lproj/MapChip.txt");
+const CHIP_IMG_INF_PATH = resolveAssetUrl("world-assets/chip/img.inf");
+const NATURE_IMG_INF_PATH = resolveAssetUrl("world-assets/nature/img.inf");
 const NATURE_CATEGORY_LAYER_ORDER: Record<NatureVisualCategory, number> = {
   "terrain-nature": 1,
   "resource-treasure": 2,
@@ -60,6 +100,23 @@ const NATURE_CATEGORY_CHANCE_BY_TERRAIN_TYPE: Record<number, Partial<Record<Natu
   5: { "terrain-nature": 0.24, "resource-treasure": 0.12, "human-npc": 0.01, "special-unknown": 0.03 },
   6: { "terrain-nature": 0.2, "resource-treasure": 0.04, "human-npc": 0.01, "special-unknown": 0.02 },
   7: { "terrain-nature": 0.24, "resource-treasure": 0.04, "human-npc": 0.01, "special-unknown": 0.02 },
+};
+
+const F1_TERRAIN_TYPE_NAMES: Record<number, string> = {
+  1: "Ground",
+  2: "Grass",
+  3: "Sand",
+  4: "Rock",
+  5: "Volcano",
+  6: "Snow",
+  7: "Swamp",
+  8: "Snow soil",
+  9: "Desert soil",
+  10: "Volcano soil",
+  11: "Rocky soil",
+  12: "Swamp soil",
+  13: "Grassland soil",
+  14: "End",
 };
 
 export default function RuntimeWorldGridTestPage({ publicMode = false }: RuntimeWorldGridTestPageProps = {}) {
@@ -77,7 +134,10 @@ export default function RuntimeWorldGridTestPage({ publicMode = false }: Runtime
   const [pinnedCell, setPinnedCell] = useState<HoverCell | null>(null);
   const [isolatedValue, setIsolatedValue] = useState<number | null>(null);
   const [terrainRows, setTerrainRows] = useState<TerrainRow[]>([]);
+  const [mapChipById, setMapChipById] = useState<Map<number, MapChipRow>>(new Map());
+  const [chipImageById, setChipImageById] = useState<Map<number, string>>(new Map());
   const [natureImageById, setNatureImageById] = useState<Map<number, string>>(new Map());
+  const [assetDiagnostics, setAssetDiagnostics] = useState<Record<string, AssetDiagnostic>>({});
   const [showNaturePlacement, setShowNaturePlacement] = useState(true);
   const [showTerrainNature, setShowTerrainNature] = useState(true);
   const [showResourceNature, setShowResourceNature] = useState(true);
@@ -90,9 +150,11 @@ export default function RuntimeWorldGridTestPage({ publicMode = false }: Runtime
 
     async function loadMap() {
       try {
-        const [mapResponse, terrainResponse, natureImgResponse] = await Promise.all([
+        const [mapResponse, terrainResponse, mapChipResponse, chipImgResponse, natureImgResponse] = await Promise.all([
           fetch(MAP_SECTION_A_PATH),
           fetch(TERRAIN_PATH),
+          fetch(MAP_CHIP_PATH),
+          fetch(CHIP_IMG_INF_PATH),
           fetch(NATURE_IMG_INF_PATH),
         ]);
         if (!mapResponse.ok) {
@@ -101,10 +163,22 @@ export default function RuntimeWorldGridTestPage({ publicMode = false }: Runtime
         if (!terrainResponse.ok) {
           throw new Error(`HTTP ${terrainResponse.status} while loading ${TERRAIN_PATH}`);
         }
+        if (!mapChipResponse.ok) {
+          throw new Error(`HTTP ${mapChipResponse.status} while loading ${MAP_CHIP_PATH}`);
+        }
+        if (!chipImgResponse.ok) {
+          throw new Error(`HTTP ${chipImgResponse.status} while loading ${CHIP_IMG_INF_PATH}`);
+        }
         if (!natureImgResponse.ok) {
           throw new Error(`HTTP ${natureImgResponse.status} while loading ${NATURE_IMG_INF_PATH}`);
         }
-        const [arrayBuffer, terrainText, natureImgText] = await Promise.all([mapResponse.arrayBuffer(), terrainResponse.text(), natureImgResponse.text()]);
+        const [arrayBuffer, terrainText, mapChipText, chipImgText, natureImgText] = await Promise.all([
+          mapResponse.arrayBuffer(),
+          terrainResponse.text(),
+          mapChipResponse.text(),
+          chipImgResponse.text(),
+          natureImgResponse.text(),
+        ]);
         const parsed = parseMapBinarySectionA(arrayBuffer);
 
         if (disposed) {
@@ -113,7 +187,41 @@ export default function RuntimeWorldGridTestPage({ publicMode = false }: Runtime
 
         setMapData(parsed);
         setTerrainRows(parseTerrainRows(terrainText));
+        setMapChipById(new Map(parseMapChipRows(mapChipText).map((row) => [row.id, row])));
+        setChipImageById(parseInfTable(chipImgText));
         setNatureImageById(parseInfTable(natureImgText));
+        setAssetDiagnostics({
+          [MAP_SECTION_A_PATH]: {
+            url: MAP_SECTION_A_PATH,
+            status: mapResponse.status,
+            contentType: mapResponse.headers.get("content-type"),
+            snippet: "",
+          },
+          [TERRAIN_PATH]: {
+            url: TERRAIN_PATH,
+            status: terrainResponse.status,
+            contentType: terrainResponse.headers.get("content-type"),
+            snippet: terrainText.slice(0, 100),
+          },
+          [MAP_CHIP_PATH]: {
+            url: MAP_CHIP_PATH,
+            status: mapChipResponse.status,
+            contentType: mapChipResponse.headers.get("content-type"),
+            snippet: mapChipText.slice(0, 100),
+          },
+          [CHIP_IMG_INF_PATH]: {
+            url: CHIP_IMG_INF_PATH,
+            status: chipImgResponse.status,
+            contentType: chipImgResponse.headers.get("content-type"),
+            snippet: chipImgText.slice(0, 100),
+          },
+          [NATURE_IMG_INF_PATH]: {
+            url: NATURE_IMG_INF_PATH,
+            status: natureImgResponse.status,
+            contentType: natureImgResponse.headers.get("content-type"),
+            snippet: natureImgText.slice(0, 100),
+          },
+        });
         setError(null);
       } catch (loadError) {
         if (disposed) {
@@ -155,6 +263,53 @@ export default function RuntimeWorldGridTestPage({ publicMode = false }: Runtime
   }, [visibleNatureCells]);
   const hoveredNatureCells = hoverCell ? natureCellsByKey.get(`${hoverCell.x},${hoverCell.y}`) ?? [] : [];
   const pinnedNatureCells = pinnedCell ? natureCellsByKey.get(`${pinnedCell.x},${pinnedCell.y}`) ?? [] : [];
+  const pinnedTerrainRow = useMemo(() => {
+    if (!pinnedCellData) return null;
+    return terrainRows.find((row) => row.type === pinnedCellData.fields.f1) ?? null;
+  }, [pinnedCellData, terrainRows]);
+  const pinnedTerrainImgFilename = useMemo(() => {
+    if (!pinnedTerrainRow) return null;
+    return chipImageById.get(pinnedTerrainRow.img) ?? null;
+  }, [chipImageById, pinnedTerrainRow]);
+  const pinnedMapChipRow = useMemo(() => {
+    if (!pinnedCellData) return null;
+    return mapChipById.get(pinnedCellData.fields.f5) ?? null;
+  }, [mapChipById, pinnedCellData]);
+  const pinnedImageFilename = useMemo(() => {
+    if (!pinnedCellData) return null;
+    return resolveImageFilename(pinnedCellData.fields.f2);
+  }, [chipImageById, mapChipById, terrainRows, pinnedCellData]);
+
+  function getF1TerrainTypeName(f1Value: number): string {
+    return F1_TERRAIN_TYPE_NAMES[f1Value] ?? `Unknown (${f1Value})`;
+  }
+
+  function resolveImageFilename(imageId: number): string | null {
+    const directFilename = chipImageById.get(imageId);
+    if (directFilename) {
+      return directFilename;
+    }
+
+    const mapChipRow = mapChipById.get(imageId);
+    if (mapChipRow) {
+      const mapChipFilename = chipImageById.get(mapChipRow.img);
+      if (mapChipFilename) {
+        return mapChipFilename;
+      }
+      return mapChipRow.name || null;
+    }
+
+    const terrainRow = terrainRows.find((row) => row.img === imageId || row.id === imageId);
+    if (terrainRow) {
+      const terrainFilename = chipImageById.get(terrainRow.img);
+      if (terrainFilename) {
+        return terrainFilename;
+      }
+      return terrainRow.name || null;
+    }
+
+    return null;
+  }
 
   const topValues = useMemo(() => {
     if (!mapData) {
@@ -340,6 +495,8 @@ export default function RuntimeWorldGridTestPage({ publicMode = false }: Runtime
           </div>
           <p className="text-sm text-muted-foreground">
             Raw map field inspector for f0-f5 with top-view navigation and value comparison. Use Ctrl+wheel to zoom; regular wheel scrolls the page.
+            <br />
+            Click a tile to pin it and see its debug values: terrain f1, image id f2, and map chip id f5.
           </p>
         </>
       )}
@@ -476,14 +633,25 @@ export default function RuntimeWorldGridTestPage({ publicMode = false }: Runtime
         <div className="rounded border border-border bg-card p-3">
           <div className="font-medium">Map Stats</div>
           {mapData ? (
-            <div className="mt-2 grid gap-1">
-              <div>map: {mapData.width} x {mapData.height}</div>
-              <div>cells: {mapData.cells.length}</div>
-              <div>nature cells: {natureCells.length}</div>
-              <div>camera: ({Math.round(camera.offsetX)}, {Math.round(camera.offsetY)})</div>
-              <div>zoom: {camera.zoom.toFixed(2)}x</div>
-              <div>isolation: {isolatedValue === null ? "none" : formatValue(isolatedValue, displayMode)}</div>
-            </div>
+            <>
+              <div className="mt-2 grid gap-1">
+                <div>map: {mapData.width} x {mapData.height}</div>
+                <div>cells: {mapData.cells.length}</div>
+                <div>nature cells: {natureCells.length}</div>
+                <div>camera: ({Math.round(camera.offsetX)}, {Math.round(camera.offsetY)})</div>
+                <div>zoom: {camera.zoom.toFixed(2)}x</div>
+                <div>isolation: {isolatedValue === null ? "none" : formatValue(isolatedValue, displayMode)}</div>
+              </div>
+              <div className="mt-3 space-y-1 text-[0.75rem] text-muted-foreground">
+                <div className="font-medium">Asset diagnostics</div>
+                {Object.values(assetDiagnostics).map((diagnostic) => (
+                  <div key={diagnostic.url}>
+                    <div>{diagnostic.url}: {diagnostic.status}{diagnostic.contentType ? ` (${diagnostic.contentType})` : ""}</div>
+                    {diagnostic.snippet ? <div className="whitespace-pre-wrap">preview: {diagnostic.snippet}</div> : null}
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <div className="mt-2 text-muted-foreground">Loading map...</div>
           )}
@@ -520,6 +688,25 @@ export default function RuntimeWorldGridTestPage({ publicMode = false }: Runtime
                   {fieldKey}: {formatValue(pinnedCellData.fields[fieldKey], displayMode)}
                 </div>
               ))}
+              <div>
+                Terrain f1: Type {formatValue(pinnedCellData.fields.f1, displayMode)}, {getF1TerrainTypeName(pinnedCellData.fields.f1)}
+              </div>
+              <div>
+                Img id f2: {formatValue(pinnedCellData.fields.f2, displayMode)}
+                {pinnedImageFilename ? `, ${pinnedImageFilename}` : ", unknown png"}
+              </div>
+              <div className="text-[0.7rem] text-muted-foreground">
+                img table: {chipImageById.size} entries, mapChip table: {mapChipById.size} entries
+              </div>
+              <div className="text-[0.7rem] text-muted-foreground">
+                raw f2 direct: {chipImageById.get(pinnedCellData.fields.f2) ?? "none"}, mapChip row: {mapChipById.has(pinnedCellData.fields.f2) ? "yes" : "no"}
+              </div>
+              <div className="text-[0.7rem] text-muted-foreground">
+                mapChip row img id: {mapChipById.get(pinnedCellData.fields.f2)?.img ?? "none"}, mapChip img filename: {mapChipById.has(pinnedCellData.fields.f2) ? chipImageById.get(mapChipById.get(pinnedCellData.fields.f2)!.img) ?? "none" : "n/a"}
+              </div>
+              <div>
+                F5: map chip id {formatValue(pinnedCellData.fields.f5, displayMode)}
+              </div>
               <div>nature: {pinnedNatureCells.length > 0 ? pinnedNatureCells.map(formatNatureCellSummary).join(" | ") : "none"}</div>
             </div>
           ) : (
@@ -562,6 +749,43 @@ function getCellAt(parsedMap: ParsedMapBinary | null, point: HoverCell | null) {
 
   const index = point.y * parsedMap.width + point.x;
   return parsedMap.cells[index] ?? null;
+}
+
+function parseMapChipRows(text: string): MapChipRow[] {
+  const rows: MapChipRow[] = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.replace(/^\ufeff/, "").trim();
+    if (!line) continue;
+
+    const parts = line.split("\t");
+    const id = asInt(parts[0], -1);
+    if (id < 0) continue;
+
+    rows.push({
+      id,
+      type: asInt(parts[1], 0),
+      category: asInt(parts[2], 0),
+      name: parts[8] ?? "",
+      res: asInt(parts[9], 0),
+      img: asInt(parts[10], -1),
+      seb: asInt(parts[11], -1),
+      frame: asInt(parts[12], 0),
+      relatedDataType: asInt(parts[15], 0),
+      relatedDataId: asInt(parts[16], -1),
+      field17: asInt(parts[17], 0),
+      field18: asInt(parts[18], 0),
+      field19: asInt(parts[19], 0),
+      layer: asInt(parts[20], 0),
+      field21: asInt(parts[21], 0),
+      sizeWidth: asInt(parts[22], 1),
+      sizeHeight: asInt(parts[23], 1),
+      field24: asInt(parts[24], 0),
+      field25: asInt(parts[25], 0),
+      field26: asInt(parts[26], 0),
+      field27: asInt(parts[27], 0),
+    });
+  }
+  return rows;
 }
 
 function parseTerrainRows(text: string): TerrainRow[] {

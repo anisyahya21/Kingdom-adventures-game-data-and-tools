@@ -1,0 +1,40 @@
+{
+  "files.watcherExclude": {
+    "**/.git/**": true,
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/tmp/**": true,
+    "**/generated/**": true,
+    "**/generated-outputs/**": true,
+    "**/asset-dumps/**": true,
+    "**/artifacts/**/tmp/**": true,
+    "**/artifacts/**/generated/**": true,
+    "**/artifacts/**/generated-outputs/**": true,
+    "**/artifacts/**/asset-dumps/**": true,
+    "**/artifacts/**/KA_assets/**": true,
+    "**/attached_assets/**": true
+  },
+  "search.exclude": {
+    "**/.git/**": true,
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/tmp/**": true,
+    "**/generated/**": true,
+    "**/generated-outputs/**": true,
+    "**/asset-dumps/**": true,
+    "**/artifacts/**/tmp/**": true,
+    "**/artifacts/**/generated/**": true,
+    "**/artifacts/**/generated-outputs/**": true,
+    "**/artifacts/**/asset-dumps/**": true,
+    "**/artifacts/**/KA_assets/**": true,
+    "**/attached_assets/**": true
+  },
+  "typescript.tsserver.maxTsServerMemory": 1536,
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "typescript.tsserver.useSeparateSyntaxServer": false,
+  "typescript.tsserver.watchOptions": {
+    "watchFile": "useFsEventsOnParentDirectory",
+    "watchDirectory": "useFsEvents",
+    "fallbackPolling": "dynamicPriority"
+  }
+}

@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+﻿import { Link } from "wouter";
 import { Database, MapPin } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,14 +7,14 @@ const CARDS = [
   {
     href: "/monster-spawns",
     title: "Monster Spawns",
-    description: "Search Kingdom Adventures monster spawn locations, levels, areas, drops, and map-based encounter data.",
+    description: "Search Kingdom Adventurers monster spawn locations, levels, areas, drops, and map-based encounter data.",
     icon: MapPin,
     badge: "Live",
   },
   {
     href: "/monster-pet-stats",
     title: "Monster & Pet Stats",
-    description: "Detailed Kingdom Adventures monster and pet stats database with base levels, growth, and level-based stat tables.",
+    description: "Detailed Kingdom Adventurers monster and pet stats database with base levels, growth, and level-based stat tables.",
     icon: Database,
     badge: "Stats",
   },
@@ -27,7 +27,7 @@ export default function MonstersPetsPage() {
         <h1 className="text-xl font-bold tracking-tight">Monsters & Pets</h1>
         <div className="max-w-3xl space-y-2 text-sm leading-relaxed text-muted-foreground">
           <p>
-            Browse the Kingdom Adventures monster database and pet database in detail, including spawn locations,
+            Browse the Kingdom Adventurers monster database and pet database in detail, including spawn locations,
             monster levels, pet base stats, growth, and level-based stat comparisons.
           </p>
           <p>
@@ -63,3 +63,4 @@ export default function MonstersPetsPage() {
     </div>
   );
 }
+

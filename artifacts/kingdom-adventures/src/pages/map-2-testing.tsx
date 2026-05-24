@@ -2507,7 +2507,7 @@ export default function Map2TestingPage() {
               <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
                 Map data pulled from{" "}
                 <a href="https://docs.google.com/spreadsheets/d/1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A/edit?gid=1473922384#gid=1473922384" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">Map full</a>
-                {" "}by minhnim (Kingdom Adventures EN Sheet) Â· terrain from{" "}
+                {" "}by minhnim (Kingdom Adventurers EN Sheet) Â· terrain from{" "}
                 <a href="https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/edit?gid=1631803140#gid=1631803140" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">KA GameData</a>
               </p>
 
@@ -2735,3 +2735,4 @@ export default function Map2TestingPage() {
     </>
   );
 }
+

@@ -2574,12 +2574,12 @@ export default function MarriageMatcher() {
           )}
         >
           <p>
-            Find optimal Kingdom Adventures job pairings, simulate marriage outcomes, preview child stats, and browse full compatibility data.
+            Find optimal Kingdom Adventurers job pairings, simulate marriage outcomes, preview child stats, and browse full compatibility data.
           </p>
         </PageHeader>
 
         <div className="mb-4 rounded-lg border border-red-300 bg-red-50/70 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
-          <strong className="text-foreground dark:text-red-200">Warning:</strong> marriage is forever in Kingdom Adventures. You cannot unmarry or divorce, so double-check pairs before committing in-game. Do not marry your Monarch until you completely understand the marriage mechanics, and it is strongly worth asking the community before committing to a Monarch marriage.
+          <strong className="text-foreground dark:text-red-200">Warning:</strong> marriage is forever in Kingdom Adventurers. You cannot unmarry or divorce, so double-check pairs before committing in-game. Do not marry your Monarch until you completely understand the marriage mechanics, and it is strongly worth asking the community before committing to a Monarch marriage.
         </div>
 
         {showNote && (
@@ -2991,3 +2991,4 @@ export default function MarriageMatcher() {
     </div>
   );
 }
+

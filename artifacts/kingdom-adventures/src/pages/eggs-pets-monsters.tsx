@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+﻿import { Link } from "wouter";
 import { Egg, Skull } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ const CARDS = [
   {
     href: "/eggs",
     title: "Eggs & Pets",
-    description: "Kingdom Adventures egg planner with I Want This Pet, I Have This Egg, pet outcomes, and feed item reference.",
+    description: "Kingdom Adventurers egg planner with I Want This Pet, I Have This Egg, pet outcomes, and feed item reference.",
     icon: Egg,
     badge: "Planner",
   },
@@ -27,7 +27,7 @@ export default function EggsPetsMonstersPage() {
         <h1 className="text-xl font-bold tracking-tight">Eggs, Pets & Monsters</h1>
         <div className="max-w-3xl space-y-2 text-sm leading-relaxed text-muted-foreground">
           <p>
-            Plan Kingdom Adventures eggs, pets, and monsters with tools that go beyond simple spawn lists.
+            Plan Kingdom Adventurers eggs, pets, and monsters with tools that go beyond simple spawn lists.
             This section connects egg outcomes, feed items, monster locations, pet stats, growth data, and level-based details.
           </p>
           <p>
@@ -63,3 +63,4 @@ export default function EggsPetsMonstersPage() {
     </div>
   );
 }
+

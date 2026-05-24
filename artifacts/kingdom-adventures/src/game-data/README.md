@@ -1,6 +1,6 @@
-# Game Data Layer
+﻿# Game Data Layer
 
-This directory owns canonical Kingdom Adventures game facts and derived game relationships.
+This directory owns canonical Kingdom Adventurers game facts and derived game relationships.
 
 Pages should import game facts from here instead of defining page-local copies. If a fact affects more than one page, it belongs here or in another explicitly named game-data module.
 
@@ -22,3 +22,4 @@ Rules:
 - Do not duplicate relationship maps in page files.
 - Prefer typed records and lookup helpers over parsing display strings in pages.
 - If data is generated from raw sheets, document the source and any known interpretation decisions.
+

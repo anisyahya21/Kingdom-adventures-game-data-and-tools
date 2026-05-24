@@ -1,0 +1,736 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+export_website_icons.py — Export mapped game icons with metadata for website integration.
+
+Creates a structured folder with:
+  - Icon PNGs organized by type (items/, equipment/, eggs/, etc.)
+  - JSON manifests linking icons to game entities
+  - Metadata for each icon (ID, name, category, source sheet, etc.)
+
+Usage:
+  python export_website_icons.py [--output DIR] [--scale N]
+"""
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from PIL import Image
+
+# Add parent to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+import config
+from parsers.csv_parser import load_items, load_equip, load_eggs
+from parsers.inf_parser import parse_img_inf
+
+
+def export_item_icons(output_dir: Path, scale: int = 1) -> list[dict]:
+    """Export item icons to items/ subfolder with metadata."""
+    print("\n[Items]")
+    items_dir = output_dir / "items"
+    items_dir.mkdir(parents=True, exist_ok=True)
+    
+    items = load_items(config.CSV_ITEM)
+    KA = config.KA_ASSETS_DIR
+    
+    exported = []
+    errors = []
+    
+    for item in items:
+        item_id = item["id"]
+        icon_u = item.get("iconU")
+        icon_v = item.get("iconV")
+        
+        # Skip items without valid icons
+        if icon_u is None or icon_v is None or icon_u < 0 or icon_v < 0:
+            continue
+        
+        # Skip hidden items (15-25)
+        if 15 <= item_id <= 25:
+            continue
+        
+        try:
+            # Route to correct sheet (v13/v14 routing)
+            if 0 <= item_id <= 6:
+                # Material resources - direct top-row crop from material_icon.png
+                sheet_path = KA / "com" / "material_icon.png"
+                method = "material_top_row"
+                source_img = Image.open(sheet_path).convert("RGBA")
+                
+                src_x = item_id * 14
+                src_y = 0
+                w, h = 14, 14
+                
+                # Center on 16x16 canvas
+                icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+                cropped = source_img.crop((src_x, src_y, src_x + w, src_y + h))
+                icon.paste(cropped, (1, 1))
+                sheet_name = "material_icon.png"
+                
+            elif 15 <= item_id <= 70:
+                # Localized items - from English.lproj/icon_item2.png
+                # NOTE: icon_item2 uses 32×32 cells, not 16×16!
+                sheet_path = KA / "com_2" / "English.lproj" / "icon_item2.png"
+                opt_path = KA / "com_2" / "icon_item2.opt"
+                method = "localized_item2_opt"
+                
+                if not sheet_path.exists() or not opt_path.exists():
+                    errors.append(f"Item {item_id}: sheet or opt missing")
+                    continue
+                
+                # Use .opt parser
+                from parsers.opt_parser import parse_opt
+                opt_data = parse_opt(opt_path)
+                source_img = Image.open(sheet_path).convert("RGBA")
+                
+                # Find sprite in opt
+                sprite = next((s for s in opt_data["sprites"] if s["u"] == icon_u and s["v"] == icon_v), None)
+                if not sprite or sprite["status"] != "filled":
+                    errors.append(f"Item {item_id}: sprite not found in opt")
+                    continue
+                
+                # Extract using opt coordinates onto 32×32 canvas (icon_item2 cell size)
+                icon = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+                cropped = source_img.crop((
+                    sprite["src_x"],
+                    sprite["src_y"],
+                    sprite["src_x"] + sprite["w"],
+                    sprite["src_y"] + sprite["h"]
+                ))
+                icon.paste(cropped, (sprite["dest_x"], sprite["dest_y"]))
+                sheet_name = "English.lproj/icon_item2.png"
+                
+            else:  # 71+
+                # Goods/materials - from icon_item.png
+                sheet_path = KA / "com" / "icon_item.png"
+                opt_path = KA / "com" / "icon_item.opt"
+                method = "icon_item_opt"
+                
+                if not sheet_path.exists() or not opt_path.exists():
+                    errors.append(f"Item {item_id}: sheet or opt missing")
+                    continue
+                
+                from parsers.opt_parser import parse_opt
+                opt_data = parse_opt(opt_path)
+                source_img = Image.open(sheet_path).convert("RGBA")
+                
+                sprite = next((s for s in opt_data["sprites"] if s["u"] == icon_u and s["v"] == icon_v), None)
+                if not sprite or sprite["status"] != "filled":
+                    errors.append(f"Item {item_id}: sprite not found in opt")
+                    continue
+                
+                icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+                cropped = source_img.crop((
+                    sprite["src_x"],
+                    sprite["src_y"],
+                    sprite["src_x"] + sprite["w"],
+                    sprite["src_y"] + sprite["h"]
+                ))
+                icon.paste(cropped, (sprite["dest_x"], sprite["dest_y"]))
+                sheet_name = "icon_item.png"
+            
+            # Scale if requested
+            if scale > 1:
+                icon = icon.resize((icon.width * scale, icon.height * scale), Image.Resampling.NEAREST)
+            
+            # Save icon
+            filename = f"item_{item_id:03d}.png"
+            icon.save(items_dir / filename, "PNG")
+            
+            exported.append({
+                "id": item_id,
+                "name": item["name"],
+                "category": item.get("category"),
+                "filename": filename,
+                "method": method,
+                "sheet": sheet_name,
+                "iconU": icon_u,
+                "iconV": icon_v,
+            })
+            
+        except Exception as e:
+            errors.append(f"Item {item_id} ({item['name']}): {e}")
+    
+    print(f"  Exported: {len(exported)} items")
+    if errors:
+        print(f"  Errors: {len(errors)}")
+        for err in errors[:5]:
+            print(f"    {err}")
+    
+    return exported
+
+
+def export_equipment_icons(output_dir: Path, scale: int = 1) -> list[dict]:
+    """Export equipment icons to equipment/ subfolder with metadata."""
+    print("\n[Equipment]")
+    equip_dir = output_dir / "equipment"
+    equip_dir.mkdir(parents=True, exist_ok=True)
+    
+    equips = load_equip(config.CSV_EQUIP)
+    KA = config.KA_ASSETS_DIR
+    
+    exported = []
+    errors = []
+    
+    for equip in equips:
+        equip_id = equip["id"]
+        icon_u = equip.get("iconU")
+        icon_v = equip.get("iconV")
+        equip_type = equip.get("type")
+        
+        if icon_u is None or icon_v is None or icon_u < 0 or icon_v < 0:
+            continue
+        
+        try:
+            # Route to correct sheet by type
+            if equip_type in range(1, 11):
+                sheet_name = "icon_weapon"
+            elif equip_type == 11:
+                sheet_name = "icon_sheild"
+            elif equip_type == 12:
+                sheet_name = "icon_body"
+            elif equip_type == 13:
+                sheet_name = "icon_head"
+            elif equip_type == 14:
+                sheet_name = "icon_accessory"
+            else:
+                errors.append(f"Equip {equip_id}: unknown type {equip_type}")
+                continue
+            
+            sheet_path = KA / "com" / f"{sheet_name}.png"
+            opt_path = KA / "com" / f"{sheet_name}.opt"
+            
+            # Some sheets don't have .opt files (icon_body, icon_accessory)
+            has_opt = opt_path.exists()
+            
+            if not sheet_path.exists():
+                errors.append(f"Equip {equip_id}: sheet missing")
+                continue
+            
+            source_img = Image.open(sheet_path).convert("RGBA")
+            
+            if has_opt:
+                from parsers.opt_parser import parse_opt
+                opt_data = parse_opt(opt_path)
+                sprite = next((s for s in opt_data["sprites"] if s["u"] == icon_u and s["v"] == icon_v), None)
+                
+                if not sprite or sprite["status"] != "filled":
+                    errors.append(f"Equip {equip_id}: sprite not found in opt")
+                    continue
+                
+                # Extract sprite into 16×16 cell
+                temp_icon = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+                cropped = source_img.crop((
+                    sprite["src_x"],
+                    sprite["src_y"],
+                    sprite["src_x"] + sprite["w"],
+                    sprite["src_y"] + sprite["h"]
+                ))
+                temp_icon.paste(cropped, (sprite["dest_x"], sprite["dest_y"]))
+                
+                # Tight-crop: find content bbox and add 1px padding, discard blank canvas
+                bbox = temp_icon.getbbox()
+                if bbox:
+                    pad = 1
+                    left = max(0, bbox[0] - pad)
+                    top = max(0, bbox[1] - pad)
+                    right = min(temp_icon.width, bbox[2] + pad)
+                    bottom = min(temp_icon.height, bbox[3] + pad)
+                    icon = temp_icon.crop((left, top, right, bottom))
+                else:
+                    icon = temp_icon
+                method = f"{sheet_name}_opt"
+            else:
+                # Grid fallback for sheets without .opt
+                cell_w, cell_h = 16, 16
+                cols = source_img.width // cell_w
+                
+                src_x = icon_u * cell_w
+                src_y = icon_v * cell_h
+                
+                temp_icon = source_img.crop((src_x, src_y, src_x + cell_w, src_y + cell_h))
+                
+                # Tight-crop: find content bbox and add 1px padding
+                bbox = temp_icon.getbbox()
+                if bbox:
+                    pad = 1
+                    left = max(0, bbox[0] - pad)
+                    top = max(0, bbox[1] - pad)
+                    right = min(temp_icon.width, bbox[2] + pad)
+                    bottom = min(temp_icon.height, bbox[3] + pad)
+                    icon = temp_icon.crop((left, top, right, bottom))
+                else:
+                    icon = temp_icon
+                method = f"{sheet_name}_grid"
+            
+            # Scale if requested
+            if scale > 1:
+                icon = icon.resize((icon.width * scale, icon.height * scale), Image.Resampling.NEAREST)
+            
+            # Save icon
+            filename = f"equip_{equip_id:03d}.png"
+            icon.save(equip_dir / filename, "PNG")
+            
+            exported.append({
+                "id": equip_id,
+                "name": equip["name"],
+                "type": equip_type,
+                "attribute": equip.get("attribute"),
+                "filename": filename,
+                "method": method,
+                "sheet": f"{sheet_name}.png",
+                "iconU": icon_u,
+                "iconV": icon_v,
+            })
+            
+        except Exception as e:
+            errors.append(f"Equip {equip_id} ({equip['name']}): {e}")
+    
+    print(f"  Exported: {len(exported)} equipment")
+    if errors:
+        print(f"  Errors: {len(errors)}")
+        for err in errors[:5]:
+            print(f"    {err}")
+    
+    return exported
+
+
+def export_egg_icons(output_dir: Path, scale: int = 1) -> list[dict]:
+    """Export egg icons to eggs/ subfolder with metadata (UNHATCHED versions only)."""
+    print("\n[Eggs]")
+    eggs_dir = output_dir / "eggs"
+    eggs_dir.mkdir(parents=True, exist_ok=True)
+    
+    eggs = load_eggs(config.CSV_EGG)
+    KA = config.KA_ASSETS_DIR
+    
+    # Load material/img.inf for filename mapping
+    img_inf_path = KA / "material" / "img.inf"
+    if not img_inf_path.exists():
+        print("  Error: material/img.inf not found")
+        return []
+    
+    img_inf = parse_img_inf(img_inf_path)
+    
+    exported = []
+    errors = []
+    
+    for egg in eggs:
+        egg_id = egg["id"]
+        image_id = egg.get("image_id")
+        
+        if image_id is None or image_id not in img_inf:
+            errors.append(f"Egg {egg_id}: image_id {image_id} not in img.inf")
+            continue
+        
+        try:
+            egg_filename = img_inf[image_id]
+            egg_png_path = KA / "material" / egg_filename
+            egg_opt_path = KA / "material" / egg_filename.replace('.png', '.opt')
+            
+            if not egg_png_path.exists():
+                errors.append(f"Egg {egg_id}: {egg_filename} not found")
+                continue
+            
+            # Extract UNHATCHED version using .opt coordinates
+            # Egg PNGs are 28×55 with two states stacked vertically:
+            #   Top (0-33): Unhatched egg
+            #   Bottom (33-55): Hatched egg with baby monster
+            # The .opt file contains sprite at [0,0] that crops just the unhatched portion
+            
+            if egg_opt_path.exists():
+                from parsers.opt_parser import parse_opt
+                opt_data = parse_opt(egg_opt_path)
+                png = Image.open(egg_png_path).convert("RGBA")
+                
+                # Get unhatched sprite (u=0, v=0)
+                sprite = next((s for s in opt_data['sprites'] if s['u'] == 0 and s['v'] == 0 and s['status'] == 'filled'), None)
+                
+                if sprite:
+                    # Crop unhatched portion (28×33)
+                    icon = png.crop((sprite['src_x'], sprite['src_y'], 
+                                   sprite['src_x'] + sprite['w'], 
+                                   sprite['src_y'] + sprite['h']))
+                    dimensions = f"{sprite['w']}x{sprite['h']}"
+                else:
+                    # Fallback: crop top portion manually
+                    icon = Image.open(egg_png_path).convert("RGBA").crop((0, 0, 28, 33))
+                    dimensions = "28x33"
+            else:
+                # Fallback without .opt: crop top 28×33 manually
+                icon = Image.open(egg_png_path).convert("RGBA").crop((0, 0, 28, 33))
+                dimensions = "28x33"
+            
+            # Scale if requested
+            if scale > 1:
+                icon = icon.resize((icon.width * scale, icon.height * scale), Image.Resampling.NEAREST)
+            
+            # Save icon
+            filename = f"egg_{egg_id}.png"
+            icon.save(eggs_dir / filename, "PNG")
+            
+            exported.append({
+                "id": egg_id,
+                "name": egg["name"],
+                "image_id": image_id,
+                "filename": filename,
+                "source": egg_filename,
+                "dimensions": dimensions,
+                "state": "unhatched",
+            })
+            
+        except Exception as e:
+            errors.append(f"Egg {egg_id} ({egg['name']}): {e}")
+    
+    print(f"  Exported: {len(exported)} eggs (unhatched versions)")
+    if errors:
+        print(f"  Errors: {len(errors)}")
+        for err in errors:
+            print(f"    {err}")
+    
+    return exported
+
+
+def export_attribute_icons(output_dir: Path, scale: int = 1) -> list[dict]:
+    """Export field attribute icons to attributes/ subfolder.
+    
+    field_attribute_icon.png is 112×28 with TWO rows:
+    - Top 14px: transparent background icons (EXPORT THIS)
+    - Bottom 14px: colored background icons (SKIP)
+    """
+    print("\n[Field Attributes]")
+    attr_dir = output_dir / "attributes"
+    attr_dir.mkdir(parents=True, exist_ok=True)
+    
+    KA = config.KA_ASSETS_DIR
+    attr_png = KA / "com" / "field_attribute_icon.png"
+    
+    if not attr_png.exists():
+        print("  Error: field_attribute_icon.png not found")
+        return []
+    
+    source_img = Image.open(attr_png).convert("RGBA")
+    
+    attr_names = ["Ground", "Grass", "Sand", "Rock", "Volcano", "Snow", "Swamp"]
+    exported = []
+    
+    # Crop only top transparent portion
+    ATTRIBUTE_ICON_W = 16
+    ATTRIBUTE_ICON_H = 14  # Top half only
+    
+    for i, name in enumerate(attr_names, 1):
+        src_x = (i - 1) * ATTRIBUTE_ICON_W
+        src_y = 0
+        
+        # Crop ONLY top 14px (transparent version)
+        icon = source_img.crop((src_x, src_y, src_x + ATTRIBUTE_ICON_W, src_y + ATTRIBUTE_ICON_H))
+        
+        # Scale if requested
+        if scale > 1:
+            icon = icon.resize((icon.width * scale, icon.height * scale), Image.Resampling.NEAREST)
+        
+        filename = f"attribute_{i}_{name.lower()}.png"
+        icon.save(attr_dir / filename, "PNG")
+        
+        exported.append({
+            "id": i,
+            "name": name,
+            "filename": filename,
+            "dimensions": "16x14",
+            "rect": f"({src_x},{src_y},{ATTRIBUTE_ICON_W},{ATTRIBUTE_ICON_H})",
+        })
+    
+    print(f"  Exported: {len(exported)} attributes (transparent only)")
+    return exported
+
+
+def export_gender_icons(output_dir: Path, scale: int = 1) -> list[dict]:
+    """Export gender icons to gender/ subfolder.
+    
+    gender.png is 32×20 with 2 icons side by side: male (left) and female (right).
+    Each icon is 16×20.
+    """
+    print("\n[Gender Icons]")
+    gender_dir = output_dir / "gender"
+    gender_dir.mkdir(parents=True, exist_ok=True)
+    
+    KA = config.KA_ASSETS_DIR
+    gender_png = KA / "com" / "gender.png"
+    
+    if not gender_png.exists():
+        print("  Error: gender.png not found")
+        return []
+    
+    source_img = Image.open(gender_png).convert("RGBA")
+    
+    genders = [
+        {"id": 0, "name": "Male", "x": 0},
+        {"id": 1, "name": "Female", "x": 16}
+    ]
+    exported = []
+    
+    GENDER_ICON_W = 16
+    GENDER_ICON_H = 20
+    
+    for gender in genders:
+        src_x = gender["x"]
+        src_y = 0
+        
+        # Crop 16×20 region
+        icon = source_img.crop((src_x, src_y, src_x + GENDER_ICON_W, src_y + GENDER_ICON_H))
+        
+        # Scale if requested
+        if scale > 1:
+            icon = icon.resize((icon.width * scale, icon.height * scale), Image.Resampling.NEAREST)
+        
+        filename = f"gender_{gender['id']}_{gender['name'].lower()}.png"
+        icon.save(gender_dir / filename, "PNG")
+        
+        exported.append({
+            "id": gender["id"],
+            "name": gender["name"],
+            "filename": filename,
+            "dimensions": "16x20",
+            "rect": f"({src_x},{src_y},{GENDER_ICON_W},{GENDER_ICON_H})",
+        })
+    
+    print(f"  Exported: {len(exported)} gender icons")
+    return exported
+
+
+def export_furniture_icons(output_dir: Path, scale: int = 1) -> list[dict]:
+    """Export furniture icons from icon_furniture.png using MapChip.csv iconU/iconV grid coords."""
+    print("\n[Furniture]")
+    furniture_dir = output_dir / "furniture"
+    furniture_dir.mkdir(parents=True, exist_ok=True)
+
+    KA = config.KA_ASSETS_DIR
+    sheet_path = KA / "com" / "icon_furniture.png"
+    if not sheet_path.exists():
+        print("  Error: icon_furniture.png not found")
+        return []
+
+    source_img = Image.open(sheet_path).convert("RGBA")
+    CELL = 16  # icon_furniture.png uses 16x16 cells
+
+    # Load furniture items from MapChip.csv (res=10 == icon_furniture sheet)
+    mapchip_path = config.CSV_DIR_RESEARCH / "KA GameData - MapChip.csv"
+    if not mapchip_path.exists():
+        mapchip_path = config.CSV_DIR / "KA GameData - MapChip.csv"
+    if not mapchip_path.exists():
+        print("  Error: MapChip.csv not found")
+        return []
+
+    import csv as csv_mod
+    furniture_rows = []
+    with open(mapchip_path, encoding="utf-8") as f:
+        reader = csv_mod.DictReader(f)
+        for row in reader:
+            try:
+                res = int(row.get("res", -1))
+                icon_u = int(row.get("iconU", -1))
+                icon_v = int(row.get("iconV", -1))
+            except (ValueError, TypeError):
+                continue
+            if res == 10 and icon_u >= 0 and icon_v >= 0:
+                furniture_rows.append({
+                    "id": int(row["id"]),
+                    "name": row["name"],
+                    "iconU": icon_u,
+                    "iconV": icon_v,
+                })
+
+    exported = []
+    errors = []
+    seen_names: set[str] = set()
+
+    for item in furniture_rows:
+        name = item["name"]
+        if name in seen_names:
+            continue
+        seen_names.add(name)
+
+        icon_u = item["iconU"]
+        icon_v = item["iconV"]
+
+        try:
+            src_x = icon_u * CELL
+            src_y = icon_v * CELL
+            raw = source_img.crop((src_x, src_y, src_x + CELL, src_y + CELL))
+
+            # Tight-crop with 1px padding
+            bbox = raw.getbbox()
+            if bbox:
+                pad = 1
+                left = max(0, bbox[0] - pad)
+                top = max(0, bbox[1] - pad)
+                right = min(raw.width, bbox[2] + pad)
+                bottom = min(raw.height, bbox[3] + pad)
+                icon = raw.crop((left, top, right, bottom))
+            else:
+                icon = raw
+
+            if scale > 1:
+                icon = icon.resize((icon.width * scale, icon.height * scale), Image.Resampling.NEAREST)
+
+            # Sanitize filename
+            safe_name = name.replace(" ", "_").replace("/", "_").replace("'", "")
+            filename = f"furniture_{safe_name}.png"
+            icon.save(furniture_dir / filename, "PNG")
+
+            exported.append({
+                "id": item["id"],
+                "name": name,
+                "filename": filename,
+                "iconU": icon_u,
+                "iconV": icon_v,
+            })
+
+        except Exception as e:
+            errors.append(f"Furniture {name}: {e}")
+
+    print(f"  Exported: {len(exported)} furniture icons")
+    if errors:
+        print(f"  Errors: {len(errors)}")
+        for err in errors[:5]:
+            print(f"    {err}")
+
+    return exported
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Export game icons for website")
+    parser.add_argument("--output", "-o", type=Path, default=Path("website_icons"), 
+                        help="Output directory for icons (default: website_icons/)")
+    parser.add_argument("--scale", "-s", type=int, default=1, 
+                        help="Scale factor for icons (default: 1)")
+    args = parser.parse_args()
+    
+    output_dir = args.output
+    scale = args.scale
+    
+    print("=" * 80)
+    print("Exporting Kingdom Adventures Icons for Website")
+    print("=" * 80)
+    print(f"Output: {output_dir.absolute()}")
+    print(f"Scale: {scale}x")
+    
+    # Export each category
+    items_data = export_item_icons(output_dir, scale)
+    equip_data = export_equipment_icons(output_dir, scale)
+    eggs_data = export_egg_icons(output_dir, scale)
+    attr_data = export_attribute_icons(output_dir, scale)
+    gender_data = export_gender_icons(output_dir, scale)
+    furniture_data = export_furniture_icons(output_dir, scale)
+    
+    # Generate master manifest
+    manifest = {
+        "version": "1.0",
+        "scale": scale,
+        "items": items_data,
+        "equipment": equip_data,
+        "eggs": eggs_data,
+        "attributes": attr_data,
+        "gender": gender_data,
+        "furniture": furniture_data,
+        "summary": {
+            "items": len(items_data),
+            "equipment": len(equip_data),
+            "eggs": len(eggs_data),
+            "attributes": len(attr_data),
+            "gender": len(gender_data),
+            "furniture": len(furniture_data),
+        }
+    }
+    
+    manifest_path = output_dir / "manifest.json"
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2, ensure_ascii=False)
+    
+    print(f"\n[Manifest] {manifest_path}")
+    print(f"  Total icons exported: {manifest['summary']['items'] + manifest['summary']['equipment'] + manifest['summary']['eggs'] + manifest['summary']['attributes'] + manifest['summary']['gender']}")
+    
+    # Generate usage guide
+    readme_path = output_dir / "README.md"
+    with open(readme_path, "w", encoding="utf-8") as f:
+        f.write(f"""# Kingdom Adventures Website Icons
+
+Exported on: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Scale: {scale}x
+
+## Structure
+
+```
+{output_dir}/
+  items/           {len(items_data)} item icons
+  equipment/       {len(equip_data)} equipment icons
+  eggs/            {len(eggs_data)} egg icons
+  attributes/      {len(attr_data)} field attribute icons
+  manifest.json    Complete metadata for all icons
+```
+
+## Usage
+
+Each icon PNG is linked to its game entity through `manifest.json`.
+
+### Items
+- File: `items/item_XXX.png` (XXX = item ID with leading zeros)
+- IDs 0-6: Material resources (Diamonds, Grass, Wood, Food, Ore, Mystic Ore, Energy)
+- IDs 26-70: Localized items (Recovery Potions, Holy Herb, Sturdy Board, etc.)
+- IDs 71+: Goods and materials
+
+### Equipment
+- File: `equipment/equip_XXX.png`
+- Linked to equipment ID, type, and attribute
+- Attributes: Ground(1), Grass(2), Sand(3), Rock(4), Volcano(5), Snow(6), Swamp(7)
+
+### Eggs
+- File: `eggs/egg_X.png` (X = 0-7)
+- White, Blue, Green, Red, Purple, Black, Yellow, Rainbow
+
+### Attributes
+- File: `attributes/attribute_X_name.png` (X = 1-7)
+- Ground, Grass, Sand, Rock, Volcano, Snow, Swamp
+
+## Integration Example
+
+```javascript
+// Load manifest
+const manifest = await fetch('/icons/manifest.json').then(r => r.json());
+
+// Find item icon
+const woodItem = manifest.items.find(i => i.name === "Wood");
+console.log(woodItem.filename); // "item_002.png"
+
+// Display icon
+<img src="/icons/items/{{{{ woodItem.filename }}}}" alt="Wood" />
+
+// Find equipment with Grass attribute
+const grassWeapons = manifest.equipment.filter(e => e.attribute === 2);
+```
+
+## Replace Emoji Icons
+
+Current website uses emoji for:
+- 🪵 Wood → `items/item_002.png`
+- 🪨 Ore → `items/item_004.png`
+- 💎 Mystic Ore → `items/item_005.png`
+- 🪙 Copper Coin → TBD (need to find coin icons in assets)
+- ⚡ Energy → `items/item_006.png`
+
+See manifest.json for complete ID→name→filename mapping.
+""")
+    
+    print(f"\n[README] {readme_path}")
+    print("\n" + "=" * 80)
+    print("Export complete! Check the output directory for:")
+    print(f"  - Icon PNGs organized by type")
+    print(f"  - manifest.json with complete metadata")
+    print(f"  - README.md with usage examples")
+    print("=" * 80)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,319 @@
+---- 18465 ----
+ 18465: 	public class BattlerComponent : IComponent, ISerializable
+ 18468: 		public int maxHp
+ 18486: 		public int hp
+ 18504: 		public int maxMp
+ 18522: 		public int mp
+ 18540: 		public int attack
+ 18558: 		public int defense
+ 18576: 		public int agility
+ 18594: 		public int dexterity
+ 18612: 		public int luck
+ 18630: 		public int attackGauge
+---- 19844 ----
+ 19844: 	public static class BattleHelper
+ 19848: 		public static int CalcAttackIntervalFrame(int agility)
+ 19855: 		public static int CalcDamage(int attackerAttack, int receiverDefense)
+ 19862: 		public static int CalcHitRate(int attackerDexterity, int receiverAgility, int receiverLuck)
+ 19869: 		public static int CalcHit(int dexterity)
+ 19876: 		public static int CalcEvasion(int agility, int luck)
+ 19883: 		public static int CalcCriticalRate(int luck)
+ 19890: 		public static AttackResult<model.conquest.GameObject> Attack(model.conquest.GameObject attacker, model.conquest.GameObject receiver, AttackType type)
+ 19897: 		public static int CalcCriticalRate(model.conquest.GameObject attacker)
+ 19904: 		public static int CalcCriticalRate(Entity attacker)
+ 19911: 		public static int CalcHitRate(model.conquest.GameObject attacker, model.conquest.GameObject receiver)
+ 19918: 		public static int CalcHitRate(Entity attacker, Entity receiver)
+ 19925: 		private static int AttackTypeToParamId(AttackType type)
+ 19932: 		public static bool LotCritical(model.conquest.GameObject attacker)
+ 19939: 		public static bool LotCritical(Entity attacker)
+ 19946: 		public static bool LotHit(model.conquest.GameObject attacker, model.conquest.GameObject receiver)
+ 19953: 		public static bool LotHit(Entity attacker, Entity receiver)
+ 19960: 		public static int CalcDamage(bool critical, model.conquest.GameObject attacker, model.conquest.GameObject receiver, AttackType type)
+ 19967: 		public static int CalcDamage(bool critical, Entity attacker, Entity receiver, AttackType type)
+ 19974: 		private static int CalcMonsterIntelligence(Entity monster)
+ 19981: 		public static AttackResult<Entity> Attack(Entity attacker, Entity receiver, [Optional] SkillData skill)
+ 19988: 		public static bool IsGoodMatchAttribute(model.conquest.GameObject attacker)
+ 19995: 		public static bool IsGoodMatchAttribute(Entity attacker)
+ 20002: 		public static CureResult<Entity> Cure(Entity healer, Entity receiver, SkillData skill)
+ 20009: 		public static void Buff(Entity user, Entity opponent, SkillData skill)
+ 20015: 		private static Entity CreateAttackStrEffect(Entity e, int frame)
+ 20022: 		private static int CalcBuffAccuracy(Entity user, Entity opponent, SkillData skill)
+---- 66605 ----
+ 66605: 	public class BattleScoreSystem : BaseSystem, IInitSystem, ISystem
+ 66608: 		public struct BattleScoreLog
+ 66612: 			public int entryDayNumber;
+ 66616: 			public long point;
+ 66620: 			public int rank;
+ 66624: 		private const int MAX_SCORE_LOG_NUM = 30;
+ 66628: 		private static BattleScoreSystem instance_;
+ 66632: 		private int frame_;
+ 66637: 		public bool IsBattleScoreChecked;
+ 66642: 		private long todayNumber_;
+ 66647: 		private List<BattleScoreLog> battleScoreLogs_;
+ 66651: 		public BattleScoreSystem(World world)
+ 66657: 		public void Init(World world)
+ 66663: 		public void UpdateBattleScore(AttackResult<model.conquest.GameObject> result, bool allysAttack)
+ 66669: 		public void UpdateBattleScore(AttackResult<Entity> result, bool allysAttack)
+ 66675: 		private void UpdateBattleScore(int damage, int receiverHp, bool allysAttack)
+ 66681: 		private int CalcBattlePoint(int damage, int receiverHp)
+ 66688: 		private void AddBattleScore(int point)
+ 66694: 		private void SubBattleScore(int point)
+ 66700: 		public long GetBattleScore()
+ 66707: 		public void ResetBattleScore()
+ 66713: 		public bool IsSentBattleScoreToday()
+ 66720: 		public List<BattleScoreLog> GetBattleScoreLog()
+ 66727: 		public void AddBattleScoreLog(int day, long point)
+ 66733: 		public void UpdateBattleScoreRanking(int dayNumber, int rank)
+ 66739: 		public static bool IsEnabledTime()
+ 66746: 		public void CheckRanking(bool force = false)
+ 66752: 		public override void SerializeExtra(OutputStream stream)
+ 66758: 		public override void DeserializeExtra(InputStream stream)
+ 66764: 		public override void Serialize(OutputStream stream)
+ 66770: 		public override void Deserialize(InputStream stream)
+ 66776: 	public class BattleSystem : BaseSystem, IInitSystem, ISystem, IUpdateSystem, IDrawSystem, IDrawable, IDynamicDrawSystem, IPausable
+ 66779: 		private struct Command
+ 66782: 			public enum Type
+---- 66776 ----
+ 66776: 	public class BattleSystem : BaseSystem, IInitSystem, ISystem, IUpdateSystem, IDrawSystem, IDrawable, IDynamicDrawSystem, IPausable
+ 66779: 		private struct Command
+ 66782: 			public enum Type
+ 66791: 			public Type type
+ 66803: 				private set
+ 66809: 			public string name
+ 66821: 				private set
+ 66827: 			public int dataId
+ 66839: 				private set
+ 66846: 			public Command(Type type, string name, int dataId = -1)
+ 66852: 		private enum BattleResult
+ 66865: 		public enum PrizeType
+ 66874: 		public struct Prize
+ 66877: 			public readonly PrizeType type
+ 66889: 			public readonly int dataId
+ 66901: 			public readonly int paramId
+ 66913: 			public readonly int value
+ 66926: 			public Prize(PrizeType type, int dataId, int paramId, int value)
+ 66933: 		private sealed class <GetAllMembers>d__78 : IEnumerable<Entity>, IEnumerable, IEnumerator<Entity>, IEnumerator, IDisposable
+ 66937: 			private int <>1__state;
+ 66941: 			private Entity <>2__current;
+ 66945: 			private int <>l__initialThreadId;
+ 66949: 			private Team[] teams;
+ 66953: 			public Team[] <>3__teams;
+---- 72328 ----
+ 72328: 	public class EnemyBaseSystem : BaseSystem, IInitSystem, ISystem, IUpdateSystem, IDrawSystem, IDrawable, IDynamicDrawSystem, IPausable
+ 72331: 		private const int MAX_ATTACK_ENEMIES = 128;
+ 72334: 		private const int DUNGEON_GENERATION_INTERVAL = 100;
+ 72338: 		private int frame_;
+ 72342: 		private bool attacked_;
+ 72346: 		private List<Entity> enemyBases_;
+ 72350: 		private List<Entity> attackEnemies_;
+ 72355: 		private int frame2_;
+ 72360: 		private Subset subset_;
+ 72365: 		private bool showsAttackEnemyNumBox_;
+ 72368: 		public int dungeonsCount
+ 72379: 		public bool IsAttacking
+ 72390: 		private IEnumerable<Entity> dungeons
+ 72401: 		private IEnumerable<Entity> enemyGenerators
+ 72413: 		public EnemyBaseSystem(World world)
+ 72419: 		public void Init(World world)
+ 72425: 		public bool NeedsUpdate(int frameCount)
+ 72432: 		public void Update(int frameCount)
+ 72438: 		public bool NeedsDraw()
+ 72445: 		public void Draw(kairo.unity.ui.Graphics g)
+ 72451: 		private void DrawAttackEnemiesNumBox(kairo.unity.ui.Graphics g, int num, int x, int y)
+ 72457: 		public bool NeedsDrawDynamic()
+ 72464: 		public void DrawDynamic(kairo.unity.ui.Graphics g)
+ 72470: 		public static void DrawLevelBox(kairo.unity.ui.Graphics g, int level, int x, int y)
+ 72476: 		private void GenerateMonster()
+ 72482: 		private void GenerateMonsterFromEnemyGenerators()
+ 72488: 		private void CreateMonster(Entity source)
+ 72494: 		private void CleanEnemyBases()
+ 72500: 		private void CleanAttackEnemies()
+ 72506: 		private void AttackTown()
+---- 72738 ----
+ 72738: 	public class ExpeditionBattleSystem : BaseSystem, IInitSystem, ISystem, IUpdateSystem, IDrawSystem, IDrawable, IDynamicDrawSystem
+ 72741: 		public class Job
+ 72745: 			public readonly JobData Data;
+ 72749: 			public int Num;
+ 72753: 			public int Gauge;
+ 72757: 			public Job(JobData data)
+ 72763: 		public const int JOB_LIST_HEIGHT = 49;
+ 72767: 		private int loopCounter_;
+ 72771: 		private Job[] jobs_;
+ 72775: 		private Entity[] bosses_;
+ 72779: 		private Subset subset_;
+ 72782: 		public Job[] Jobs
+ 72794: 		public ExpeditionBattleSystem(World world)
+ 72800: 		public void Init(World world)
+ 72806: 		public bool NeedsUpdate(int frameCount)
+ 72813: 		public void Update(int frameCount)
+ 72819: 		public bool NeedsDraw()
+ 72826: 		public void Draw(kairo.unity.ui.Graphics g)
+ 72832: 		public void DrawJobListElement(kairo.unity.ui.Graphics g, int index, int x, int y)
+ 72838: 		public bool NeedsDrawDynamic()
+ 72845: 		public void DrawDynamic(kairo.unity.ui.Graphics g)
+ 72851: 		public void OnPushJobButton(int index)
+ 72857: 		private void OnCollide(CollideEventArgs args)
+ 72863: 		private void OnTakeDamage(TakeDamageEventArgs args)
+ 72869: 		private void OnProjectileImpact(Entity e)
+ 72875: 		private Entity CreateHuman(int row, int jobId, int gender, bool isAlly)
+ 72881: 	public class ExpSystem : BaseSystem, IInitSystem, ISystem, IUpdateSystem, IPausable
+ 72884: 		private class ExpAddRequest
+ 72888: 			public readonly long EntityId;
+ 72892: 			public readonly int AddExp;
+ 72896: 			public ExpAddRequest(long entityId, int addExp)
+ 72902: 		public const int EXP_GAUGE_SHOW_FRAMES = 60;
+ 72907: 		private Dictionary<int, List<ExpAddRequest>> expAddRequestTable_;
+ 72911: 		public ExpSystem(World world)
+ 72917: 		public void Init(World world)
+---- 78882 ----
+ 78882: 	public class MonsterSystem : BaseSystem, IInitSystem, ISystem
+ 78885: 		private struct MonsterInFarm
+ 78889: 			public long entityId;
+ 78893: 			public MonsterComponent monsterCmp;
+ 78897: 			public ParameterComponent parameterCmp;
+ 78901: 			public SkillComponent skillCmp;
+ 78907: 		private Subset allyMonsterSet_;
+ 78912: 		private List<MonsterInFarm> monstersInFarm_;
+ 78915: 		public int farmMaxCapacity
+ 78926: 		public Entity[] allyMonsters
+ 78937: 		public int allyMonstersNum
+ 78948: 		public int freeCapacity
+ 78959: 		public int monstersNumInFarm
+ 78970: 		public bool isMonsterFarmFull
+ 78981: 		public bool hasMonsterFarmVacancy
+ 78992: 		private bool isMonsterFarmAvailable
+ 79003: 		public bool CanExpandMonsterFarmMaxCapacity
+ 79015: 		public MonsterSystem(World world)
+ 79021: 		public void Init(World world)
+ 79027: 		public List<Entity> GetMonstersInFarm()
+ 79034: 		public bool AddMonsterToFarmAndDestroy(Entity monster)
+ 79041: 		public void RemoveMonsterFromFarm(Entity monster)
+ 79047: 		public void RecoverMonsterFromFarm(Entity farmMonster)
+ 79053: 		public void UpdateMonsterFromFarm(Entity farmMonster)
+ 79059: 		public Entity RestoreMonsterEntity(Entity farmMonster, [Optional] Entity room)
+---- 79804 ----
+ 79804: 	public class PvPBattleSystem : BaseSystem, IInitSystem, ISystem, IUpdateSystem, IDynamicDrawSystem, IDrawable, IPausable
+ 79807: 		public struct PvPUserData
+ 79811: 			public int friendId;
+ 79815: 			public string name;
+ 79819: 			public int battleRank;
+ 79823: 			public byte[] data;
+ 79827: 			public int win;
+ 79831: 			public int lose;
+ 79835: 			public int rewardId;
+ 79839: 			public bool isValidReward;
+ 79843: 			public bool isRevengeAtk;
+ 79847: 			public long townId;
+ 79851: 			public TeamMember dispTeam_;
+ 79855: 			public bool IsAlive()
+ 79862: 			public void Clear()
+ 79868: 		public enum MatchLog
+ 79879: 		public enum PvPCache
+ 79896: 		private const int PVP_GENERATION_INTERVAL_FRAME = 12000;
+ 79900: 		private static PvPBattleSystem instance_;
+ 79905: 		private int loopCounter_;
+ 79909: 		private int frame_;
+ 79914: 		private List<BattleLog>[] matchLog_;
+ 79917: 		public const int MATCHLOGLIMITS = 30;
+ 79922: 		private Dictionary<long, List<long>> registerMember_;
+ 79927: 		private PvPUserData[] PvPCacheData_;
+ 79932: 		private Entity randomArenaEntity_;
+ 79937: 		private bool isFirstGeneration_;
+ 79940: 		public byte[] usersPvPData
+ 79952: 			private set
+ 79958: 		public bool isSentUsersPvPData
+ 79977: 		public PvPBattleSystem(World world)
+ 79983: 		public void Init(World world)
+---- 81234 ----
+ 81234: 	public class SkillSystem : BaseSystem, IInitSystem, ISystem, IUpdateSystem, IDynamicDrawSystem, IDrawable
+ 81238: 		private sealed class <GetLineAttackLocations>d__24 : IEnumerable<kairo.unity.math.Location>, IEnumerable, IEnumerator<kairo.unity.math.Location>, IEnumerator, IDisposable
+ 81242: 			private int <>1__state;
+ 81246: 			private kairo.unity.math.Location <>2__current;
+ 81250: 			private int <>l__initialThreadId;
+ 81254: 			private Entity user;
+ 81258: 			public Entity <>3__user;
+ 81262: 			private SkillData skill;
+ 81266: 			public SkillData <>3__skill;
+ 81270: 			private int <i>5__2;
+ 81273: 			private kairo.unity.math.Location System.Collections.Generic.IEnumerator<kairo.unity.math.Location>.Current
+ 81285: 			private object System.Collections.IEnumerator.Current
+ 81299: 			public <GetLineAttackLocations>d__24(int <>1__state)
+ 81306: 			private void System.IDisposable.Dispose()
+ 81312: 			private bool MoveNext()
+ 81320: 			private void System.Collections.IEnumerator.Reset()
+ 81327: 			private IEnumerator<kairo.unity.math.Location> System.Collections.Generic.IEnumerable<kairo.unity.math.Location>.GetEnumerator()
+ 81335: 			private IEnumerator System.Collections.IEnumerable.GetEnumerator()
+ 81344: 		private Subset subset_;
+ 81349: 		private int loopCounter_;
+ 81353: 		public SkillSystem(World world)
+ 81359: 		public void Init(World world)
+ 81365: 		public bool NeedsUpdate(int frameCount)
+ 81372: 		public void Update(int frameCount)
+ 81378: 		public bool NeedsDrawDynamic()
+ 81385: 		public void DrawDynamic(kairo.unity.ui.Graphics g)
+ 81391: 		private static Entity GetEntityInSkillRange(Entity user, SkillData skill, Func<Entity, bool> predicate)
+ 81398: 		private static Entity GetAllyInSkillRange(Entity user, SkillData skill, Func<Entity, bool> predicate)
+ 81405: 		private static Entity GetEnemyInSkillRange(Entity user, SkillData skill, Func<Entity, bool> predicate)
+ 81412: 		private static IEnumerable<SkillTarget> EnumerateAvailableResurrectionSkill(Entity user, IEnumerable<SkillInfo> enoughMpSkills)
+---- 101044 ----
+101044: 	public class SkillData : BaseData, IName, IStock, IPrice, ICraft, ICopperCoinExchange
+101048: 		private static int uniqueId_;
+101051: 		public const int CATEGORY_ATTACK = 0;
+101054: 		public const int CATEGORY_CURE = 1;
+101057: 		public const int CATEGORY_ACTIVITY = 2;
+101060: 		public const int TYPE_NONE = 0;
+101063: 		public const int TYPE_MAGIC = 1;
+101066: 		public const int TYPE_RECOVERY = 2;
+101069: 		public const int TYPE_STEAL = 3;
+101072: 		public const int TYPE_COOK = 4;
+101075: 		public const int TYPE_FARM = 5;
+101078: 		public const int TYPE_BUILD = 6;
+101081: 		public const int TYPE_LIFT = 7;
+101084: 		public const int TYPE_SMITH = 8;
+101087: 		public const int TYPE_LAND_SPEED_UP = 9;
+101090: 		public const int TYPE_WATER_SPEED_UP = 10;
+101093: 		public const int TYPE_LONG_RANGE_ATTACK = 11;
+101096: 		public const int TYPE_RESEARCH = 12;
+101099: 		public const int TYPE_DAIRY_FARM = 13;
+101102: 		public const int TYPE_TREASURE_ANALYSIS = 14;
+101105: 		public const int TYPE_RESURRECTION = 15;
+101108: 		public const int TYPE_CRAFT = 16;
+101111: 		public const int TYPE_POISON_ATTACK = 17;
+101114: 		public const int TYPE_REFLECTION = 18;
+101117: 		public const int TYPE_CONTINUITY_ATTACK = 19;
+101120: 		public const int TYPE_COUNTER = 20;
+101123: 		public const int TYPE_HALF_DAMAGE = 21;
+101126: 		public const int TYPE_EVATION_UP = 22;
+101129: 		public const int TYPE_CRITICAL_UP = 23;
+101132: 		public const int TYPE_PERFECT_DEFENCE = 24;
+101135: 		public const int TYPE_ALL_ATTACK = 25;
+101138: 		public const int TYPE_LINE_ATTACK = 26;
+101141: 		public const int TYPE_RANGE_ATTACK = 27;
+101144: 		public const int TYPE_BUILD_SKIP = 28;
+101147: 		public const int TYPE_CRAFT_SKIP = 29;
+101150: 		public const int TYPE_TELEPORT = 30;
+101153: 		public const int TYPE_GATHER_SKIP = 31;
+101156: 		public const int TYPE_TREASURE_ANALYSIS_SKIP = 32;
+101159: 		public const int TYPE_DASH = 33;
+101162: 		public const int TYPE_MINING = 34;
+101165: 		public const int TYPE_DISPATCH_RANGE_EXPAND = 35;
+101168: 		public const int TYPE_CLOUD_DISPEL_RANGE_EXPAND = 36;
+101171: 		public const int TYPE_EXP_UP = 37;
+101174: 		public const int TYPE_DISPATCH_COST_DOWN = 38;
+101177: 		public const int TYPE_HP_AUTO_RECOVERY = 39;
+101180: 		public const int TYPE_MP_AUTO_RECOVERY = 40;
+101183: 		public const int TYPE_ENERGY_AUTO_RECOVERY = 41;
+101186: 		public const int TYPE_FACILITY_HP_RECOVERY_UP = 42;
+101189: 		public const int TYPE_FACILITY_ENERGY_RECOVERY_UP = 43;
+101192: 		public const int TYPE_FACILITY_MP_RECOVERY_UP = 44;
+101195: 		public const int TYPE_GUTS = 45;
+101198: 		public const int TYPE_STEALTH = 46;
+101201: 		public const int TYPE_SIXTH_SENSE = 47;
+101204: 		public const int TYPE_EQUIP_MASTER = 48;
+101207: 		public const int TYPE_NON_BATTLE_WHEN_GATHER = 49;
+101210: 		public const int TYPE_NON_GATHER = 50;
+101213: 		public const int TYPE_INDOOR_ACTIVITY_PRIORITY = 51;
+101216: 		public const int TYPE_DISPATCH_ONE_LAP = 52;
+101219: 		public const int TYPE_USE_OUTDOOR_FACILITY_PRIORITY = 53;
+101222: 		public const int TYPE_WASTELAND_RESTORE_PRIORITY = 54;
+

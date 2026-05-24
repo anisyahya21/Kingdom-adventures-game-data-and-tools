@@ -14,7 +14,7 @@ import { FilterBar } from "@/components/ka/filter-bar";
 import { PageHeader } from "@/components/ka/page-header";
 import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { MaterialIcon } from "@/lib/material-icons";
-import { getItemIcon, getFacilityIcon } from "@/lib/equipment-icons";
+import { getItemIcon } from "@/lib/equipment-icons";
 import { formatBuildingJobOwners } from "@/game-data/job-buildings";
 import {
   BUILDING_GROUP_LABEL,
@@ -669,127 +669,109 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
                                   || f.maxUpgGrass > 0 || f.maxUpgWood > 0 || f.maxUpgFood > 0 || f.maxUpgOre > 0 || f.maxUpgMystic > 0);
   const tabLabel = FACILITY_TABS.find(t => t.key === f.tab)?.label ?? f.tab;
 
-  const facilityIcon = getFacilityIcon(f.id);
-
   return (
-    <Card className="overflow-hidden">
-      <div className="flex min-h-[96px]">
-        {facilityIcon && (
-          <div className="flex-none w-24 self-stretch flex items-center justify-center bg-muted/30 border-r border-border p-1.5">
-            <img
-              src={facilityIcon}
-              alt={f.name}
-              className="w-full h-full object-contain"
-              style={{ imageRendering: "pixelated" }}
-            />
+    <DataCard
+      title={f.name}
+      action={facilityRoute && (
+        <Link href={facilityRoute}>
+          <Badge variant="outline" className="cursor-pointer text-[10px] bg-primary/10 text-primary border-primary/30 hover:bg-primary/15">
+            Open page
+          </Badge>
+        </Link>
+      )}
+      meta={(f.canUpgrade || f.validRange > 0 || f.mapUnlock !== undefined) && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {f.size && (
+              <Badge variant="outline" className="text-[10px] tabular-nums font-mono">
+                {f.size}{f.rotatable ? " 🔄" : ""}
+              </Badge>
+            )}
+            {f.mapUnlock !== undefined && (
+              <Badge variant="outline" className={`text-[10px] tabular-nums ${KA_CATEGORY_BADGE_CLASS.facility}`}>
+                Map Lv.{f.mapUnlock}
+              </Badge>
+            )}
+            {f.canUpgrade && (
+              <Badge variant="outline" className={`text-[10px] ${KA_CATEGORY_BADGE_CLASS.success}`}>
+                Upgradeable
+              </Badge>
+            )}
+            {(() => {
+              const gain = facilityGain(f.id, f.canUpgrade);
+              if (!gain) return null;
+              const { label, cls } = GAIN_BADGE[gain];
+              return <Badge variant="outline" className={`text-[10px] ${cls}`}>{label}</Badge>;
+            })()}
+            {f.validRange > 0 && (
+              <Badge variant="outline" className="text-[10px] tabular-nums">
+                📍 {f.validRange} tiles
+              </Badge>
+            )}
           </div>
         )}
-        <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-0">
-            <span className="text-sm font-semibold leading-tight">{f.name}</span>
-            {facilityRoute && (
-              <Link href={facilityRoute}>
-                <Badge variant="outline" className="cursor-pointer text-[10px] bg-primary/10 text-primary border-primary/30 hover:bg-primary/15 shrink-0">
-                  Open page
-                </Badge>
-              </Link>
-            )}
+      contentClassName="space-y-2"
+    >
+        {f.minHp > 0 && (
+          <p className="text-xs text-muted-foreground">HP {f.minHp}–{f.maxHp}</p>
+        )}
+        {f.minUseCount != null && f.maxUseCount != null && (
+          <p className="text-xs text-muted-foreground">
+            🌾 Harvests per planting: <span className="font-medium text-foreground">
+              {f.minUseCount + Math.floor((f.maxUseCount - f.minUseCount) * level / MAX_LEVEL)}
+            </span>
+          </p>
+        )}
+        {energyMineTimeToFill != null && (
+          <p className="text-xs text-muted-foreground">
+            ⚡ Time to fill: <span className="font-medium text-foreground">{formatHoursMinutes(energyMineTimeToFill)}</span>
+          </p>
+        )}
+        {storageCapacity != null && (
+          <p className="text-xs text-muted-foreground">
+            📦 Capacity: <span className="font-medium text-foreground">{storageCapacity}</span>
+          </p>
+        )}
+        {f.id === 191 && (
+          <div className="rounded-md border border-red-300 bg-red-50/70 px-3 py-2 text-xs text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
+            <strong className="text-foreground dark:text-red-200">Warning:</strong> when removing a Chaos Stone, pay the 50 diamonds or it will be lost permanently. Losing one permanently is bad enough that many players would rather restart than accept it.
           </div>
-          {(f.size || f.mapUnlock !== undefined || f.canUpgrade || f.validRange > 0) && (
-            <div className="flex flex-wrap gap-1 px-4 pt-1.5">
-              {f.size && (
-                <Badge variant="outline" className="text-[10px] tabular-nums font-mono">
-                  {f.size}{f.rotatable ? " 🔄" : ""}
-                </Badge>
-              )}
-              {f.mapUnlock !== undefined && (
-                <Badge variant="outline" className={`text-[10px] tabular-nums ${KA_CATEGORY_BADGE_CLASS.facility}`}>
-                  Map Lv.{f.mapUnlock}
-                </Badge>
-              )}
-              {f.canUpgrade && (
-                <Badge variant="outline" className={`text-[10px] ${KA_CATEGORY_BADGE_CLASS.success}`}>
-                  Upgradeable
-                </Badge>
-              )}
-              {(() => {
-                const gain = facilityGain(f.id, f.canUpgrade);
-                if (!gain) return null;
-                const { label, cls } = GAIN_BADGE[gain];
-                return <Badge variant="outline" className={`text-[10px] ${cls}`}>{label}</Badge>;
-              })()}
-              {f.validRange > 0 && (
-                <Badge variant="outline" className="text-[10px] tabular-nums">
-                  📍 {f.validRange} tiles
-                </Badge>
-              )}
+        )}
+        {hasUpg && (
+          <div className="space-y-1 border-t border-border pt-2 mt-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium">
+                Upgrade cost (Lv. {level + 1}→{level + 2})
+              </p>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => setLevel(l => Math.max(0, l - 1))}
+                  disabled={level === 0}
+                  className="w-5 h-5 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >-</button>
+                <span className="text-xs tabular-nums w-7 text-center font-medium">{level + 1}</span>
+                <button
+                  onClick={() => setLevel(l => Math.min(MAX_LEVEL, l + 1))}
+                  disabled={level === MAX_LEVEL}
+                  className="w-5 h-5 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >+</button>
+              </div>
             </div>
-          )}
-          <CardContent className="px-4 pb-4 pt-2 space-y-2">
-            {f.minHp > 0 && (
-              <p className="text-xs text-muted-foreground">HP {f.minHp}&ndash;{f.maxHp}</p>
-            )}
-            {f.minUseCount != null && f.maxUseCount != null && (
-              <p className="text-xs text-muted-foreground">
-                🌾 Harvests per planting: <span className="font-medium text-foreground">
-                  {f.minUseCount + Math.floor((f.maxUseCount - f.minUseCount) * level / MAX_LEVEL)}
-                </span>
-              </p>
-            )}
-            {energyMineTimeToFill != null && (
-              <p className="text-xs text-muted-foreground">
-                ⚡ Time to fill: <span className="font-medium text-foreground">{formatHoursMinutes(energyMineTimeToFill)}</span>
-              </p>
-            )}
-            {storageCapacity != null && (
-              <p className="text-xs text-muted-foreground">
-                📦 Capacity: <span className="font-medium text-foreground">{storageCapacity}</span>
-              </p>
-            )}
-            {f.id === 191 && (
-              <div className="rounded-md border border-red-300 bg-red-50/70 px-3 py-2 text-xs text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
-                <strong className="text-foreground dark:text-red-200">Warning:</strong> when removing a Chaos Stone, pay the 50 diamonds or it will be lost permanently. Losing one permanently is bad enough that many players would rather restart than accept it.
-              </div>
-            )}
-            {hasUpg && (
-              <div className="space-y-1 border-t border-border pt-2 mt-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium">
-                    Upgrade cost (Lv. {level + 1}&rarr;{level + 2})
-                  </p>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => setLevel(l => Math.max(0, l - 1))}
-                      disabled={level === 0}
-                      className="w-5 h-5 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >-</button>
-                    <span className="text-xs tabular-nums w-7 text-center font-medium">{level + 1}</span>
-                    <button
-                      onClick={() => setLevel(l => Math.min(MAX_LEVEL, l + 1))}
-                      disabled={level === MAX_LEVEL}
-                      className="w-5 h-5 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    >+</button>
-                  </div>
+            <FacilityCosts g={uG} w={uW} f={uF} o={uO} m={uM} />
+            {(() => {
+              const items = calcItemCosts(f.id, level + 1);
+              if (items.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                  {items.map(({ name, qty }) => (
+                    <FacilityItemCost key={name} name={name} qty={qty} />
+                  ))}
                 </div>
-                <FacilityCosts g={uG} w={uW} f={uF} o={uO} m={uM} />
-                {(() => {
-                  const items = calcItemCosts(f.id, level + 1);
-                  if (items.length === 0) return null;
-                  return (
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                      {items.map(({ name, qty }) => (
-                        <FacilityItemCost key={name} name={name} qty={qty} />
-                      ))}
-                    </div>
-                  );
-                })()}
-                <p className="text-xs font-medium text-amber-600 dark:text-amber-400">⏱ {formatUpgTime(upgTime)}</p>
-              </div>
-            )}
-          </CardContent>
-        </div>
-      </div>
-    </Card>
+              );
+            })()}
+            <p className="text-xs font-medium text-amber-600 dark:text-amber-400">⏱ {formatUpgTime(upgTime)}</p>
+          </div>
+        )}
+    </DataCard>
   );
 }
 
@@ -827,11 +809,7 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
 
   return (
     <DataCard
-      title={
-        getFacilityIcon(f.id)
-          ? <span className="flex items-center gap-1.5"><img src={getFacilityIcon(f.id)!} alt="" className="h-6 w-6 object-contain shrink-0" style={{ imageRendering: "pixelated" }} />{f.name}</span>
-          : f.name
-      }
+      title={f.name}
       action={
         <Badge variant="outline" className={`text-[10px] shrink-0 ${KA_FACILITY_TAB_BADGE_CLASS[f.tab]}`}>
           {FACILITY_TABS.find(t => t.key === f.tab)?.label}
@@ -940,7 +918,7 @@ export default function HousesPage() {
 
       <PageHeader icon={<Home className="w-5 h-5" />} title="Houses & Facilities">
         <p>
-          Plan Kingdom Adventures houses and facilities with plot sizes, building costs, extra beds,
+          Plan Kingdom Adventurers houses and facilities with plot sizes, building costs, extra beds,
           shelves, monster room slots, upgrade costs, upgrade time, HP, range, storage, production, and map unlock data.
         </p>
         <p>
@@ -992,7 +970,6 @@ export default function HousesPage() {
               { label: "Master Craftsman's Tools", value: craftsman, set: setCraftsman, suffix: "-5% resource cost each" },
             ] as { label: string; value: number; set: (n: number) => void; suffix: string }[]).map(({ label, value, set, suffix }) => (
               <div key={label} className="flex items-center gap-2">
-                {getItemIcon(label) && <img src={getItemIcon(label)!} alt="" className="h-8 w-8 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />}
                 <span className="text-xs text-muted-foreground hidden sm:inline">{label}</span>
                 <span className="text-xs text-muted-foreground sm:hidden">{label.split("'")[0].trim()}</span>
                 <div className="flex items-center gap-1">
@@ -1099,4 +1076,5 @@ export default function HousesPage() {
 }
 
 export { FacilityCard };
+
 

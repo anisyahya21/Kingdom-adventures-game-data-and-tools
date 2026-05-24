@@ -1,4 +1,4 @@
-# Kingdom Adventures Website Icons
+# Kingdom Adventurers Website Icons
 
 Exported on: 2026-05-15 07:58:04
 Scale: 1x

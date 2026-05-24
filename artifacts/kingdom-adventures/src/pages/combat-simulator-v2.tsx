@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -260,14 +260,14 @@ export default function CombatSimulatorPage() {
                           <div key={`${round.attacker}-${index}`} className="rounded-lg border border-border bg-transparent p-3">
                             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                               <div>Strike {index + 1}</div>
-                              <div>{round.attacker} → {round.defender}</div>
+                              <div>{round.attacker} â†’ {round.defender}</div>
                             </div>
                             <div className="mt-2 text-sm">
                               <div className="flex flex-wrap items-center gap-2">
                                 <strong>{round.result.attackType}</strong>
-                                <span>•</span>
+                                <span>â€¢</span>
                                 <span>{round.result.hit ? "Hit" : "Miss"}</span>
-                                {round.result.crit ? <span className="font-semibold text-orange-500">💥 Crit</span> : null}
+                                {round.result.crit ? <span className="font-semibold text-orange-500">ðŸ’¥ Crit</span> : null}
                               </div>
                               <div>Damage: {formatNumber(round.result.damage)}</div>
                               <div>Defender HP after: {formatNumber(round.defenderHpAfter)}</div>
@@ -290,13 +290,13 @@ export default function CombatSimulatorPage() {
               <CardTitle className="text-sm">How this works</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>Each strike uses the documented Kingdom Adventures formulas:</p>
+              <p>Each strike uses the documented Kingdom Adventurers formulas:</p>
               <ul className="list-disc space-y-2 pl-5">
                 <li>Crit chance from Luck and skill value.</li>
                 <li>Hit chance from Dexterity, Speed, and Luck.</li>
-                <li>Damage = ATK or INT × random(80-120) / 100.</li>
-                <li>Defense subtracts ≈ DEF × random(70-90) / 100.</li>
-                <li>Critical reduces DEF further by 8×.</li>
+                <li>Damage = ATK or INT Ã— random(80-120) / 100.</li>
+                <li>Defense subtracts â‰ˆ DEF Ã— random(70-90) / 100.</li>
+                <li>Critical reduces DEF further by 8Ã—.</li>
                 <li>Weapon advantage multiplies damage by 1.5.</li>
               </ul>
               <p>This simulator runs both sides as attacker and defender in a simple duel loop.</p>
@@ -307,3 +307,4 @@ export default function CombatSimulatorPage() {
     </div>
   );
 }
+

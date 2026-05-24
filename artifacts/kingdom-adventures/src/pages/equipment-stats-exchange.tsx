@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+﻿import { Link } from "wouter";
 import { ArrowUpDown, Coins, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +33,7 @@ export default function EquipmentStatsExchangePage() {
       <div className="space-y-1">
         <h1 className="text-xl font-bold tracking-tight">Equipment Stats & Exchange</h1>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Choose between the Kingdom Adventures equipment stats database, exchange calculator, and leveling optimizer.
+          Choose between the Kingdom Adventurers equipment stats database, exchange calculator, and leveling optimizer.
           Use these tools to compare weapons, shields, armor, accessories, ranks, craft requirements, and exchange routes.
         </p>
       </div>
@@ -64,3 +64,4 @@ export default function EquipmentStatsExchangePage() {
     </div>
   );
 }
+
