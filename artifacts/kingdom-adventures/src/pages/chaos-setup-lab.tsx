@@ -6,6 +6,8 @@ import { ChevronDown, Shield, Skull } from "lucide-react";
 import RuntimeWorldRenderTestPage, { type RuntimeExternalOverlay } from "./runtime-world-render-test";
 import { NATIVE_MAP, mapTerrainCodeToType, parseTerrainMapCsv, type TerrainType } from "@/lib/monster-truth";
 import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
+import chaosStoneSpriteUrl from "../../../../website_icons/facilities_confirmed/facility_191_chaos_stone.png";
+import signboardSpriteUrl from "../../../../website_icons/facilities_confirmed/facility_068_info_board.png";
 
 type Tool = "none" | "stone" | "board" | "monster" | "unit" | "reclaim" | "erase";
 type Piece = "stone" | "board";
@@ -37,8 +39,8 @@ const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 14;
 const ZOOM_STEP = 0.25;
 const WORLD_MAP_WATER_COLOR = "#6d96db";
-const CHAOS_STONE_SPRITE = "/website_icons/facilities_confirmed/facility_191_chaos_stone.png";
-const SIGNBOARD_SPRITE = "/website_icons/facilities_confirmed/facility_068_info_board.png";
+const CHAOS_STONE_SPRITE = chaosStoneSpriteUrl;
+const SIGNBOARD_SPRITE = signboardSpriteUrl;
 
 const TERRAIN_COLORS: Record<TerrainType, string> = {
   grass: "#2f7d32",
