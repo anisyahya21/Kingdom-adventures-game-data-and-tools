@@ -45,6 +45,7 @@ const SurveyPlanner = lazy(() => import("@/pages/survey-planner"));
 const TestPage = lazy(() => import("./pages/Test"));
 const RuntimeWorldGridTestPage = lazy(() => import("@/pages/runtime-world-grid-test"));
 const RuntimeWorldRenderTestPage = lazy(() => import("@/pages/runtime-world-render-test"));
+const RuntimeWorldRenderLabPage = lazy(() => import("@/pages/runtime-world-render-lab"));
 const WorldMapV2Page = lazy(() => import("@/pages/world-map-v2"));
 const TerrainCompositionLabPage = lazy(() => import("@/pages/terrain-composition-lab"));
 
@@ -177,6 +178,7 @@ function Router() {
         <Route path="/map-2-testing">{() => <Map2TestingPage />}</Route>
         <Route path="/runtime-world-grid-test">{() => <RuntimeWorldGridTestPage />}</Route>
         <Route path="/runtime-world-render-test">{() => <RuntimeWorldRenderTestPage />}</Route>
+        <Route path="/runtime-world-render-lab">{() => <RuntimeWorldRenderLabPage />}</Route>
         <Route path="/terrain-composition-lab">{() => <TerrainCompositionLabPage />}</Route>
         <Route path="/houses">{() => <HousesPage />}</Route>
         <Route path="/survey">{() => <SurveyPlanner />}</Route>

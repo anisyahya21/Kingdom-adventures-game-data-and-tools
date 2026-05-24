@@ -486,7 +486,7 @@ export default function Home() {
         </div>
 
         <div className="mb-8 xl:pr-[24rem]">
-          <div className="grid grid-cols-2 gap-3 xl:hidden">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
             <HomeCountdownBanner />
             <div className="space-y-3">
               <HomeWorldMapCard compact />

@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import RuntimeWorldRenderTestPage from "@/pages/runtime-world-render-test";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { buildLocalAutomaticWeeklyConquestTimeline, fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { apiUrl } from "@/lib/api";
@@ -509,6 +510,27 @@ export default function WeeklyConquestPage() {
     ));
   }, []);
 
+  const weeklyMonsterStyles = useMemo(() => getWeeklyMonsterStyles(weeklyMonsterEntries), [weeklyMonsterEntries]);
+
+  const weeklyCoverageAreas = useMemo(() => {
+    const coverage: Array<{ area: string; level: number }> = [];
+    for (const entry of weeklyMonsterEntries) {
+      if (disabledMapMonsters.includes(entry.name)) {
+        continue;
+      }
+      for (const spawn of entry.spawns) {
+        if (!spawn.area || spawn.area.toLowerCase() === "dispatch") {
+          continue;
+        }
+        coverage.push({
+          area: spawn.area,
+          level: spawn.level,
+        });
+      }
+    }
+    return coverage;
+  }, [disabledMapMonsters, weeklyMonsterEntries]);
+
   const conquestCountdown = useMemo(() => {
     if (!browsedConquest || !isOngoingEvent) return "";
     const diff = browsedConquest.endsAt - timeNow;
@@ -857,13 +879,66 @@ export default function WeeklyConquestPage() {
                   })}
                 </div>
 
-                <WeeklySpawnMiniMap
-                  entries={weeklyMonsterEntries}
-                  disabledMonsters={disabledMapMonsters}
-                  coveredAreaKeys={coveredConquestAreas}
-                  onToggleMonster={toggleMapMonster}
-                  onToggleArea={toggleConquestArea}
-                />
+                <Card className="overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Weekly Conquest World Map (V2)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    <div className="mb-2 rounded-lg border border-border bg-muted/10 p-2">
+                      <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Weekly Spawn Map</p>
+                      <div className="flex flex-wrap items-start gap-2">
+                        {weeklyMonsterEntries.map((entry, index) => {
+                          const selected = !disabledMapMonsters.includes(entry.name);
+                          const monsterStyle = weeklyMonsterStyles.get(entry.name) ?? {
+                            color: FALLBACK_MONSTER_COLORS[index % FALLBACK_MONSTER_COLORS.length],
+                            patternIndex: index,
+                          };
+                          const textColor = getReadableTextColor(monsterStyle.color);
+                          return (
+                            <button
+                              key={entry.name}
+                              type="button"
+                              onClick={() => toggleMapMonster(entry.name)}
+                              aria-pressed={selected}
+                              className={cn(
+                                "flex w-[86px] flex-col items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-semibold leading-tight transition-colors",
+                                selected
+                                  ? "border-primary/70 ring-1 ring-primary/40"
+                                  : "border-border bg-muted/20 text-muted-foreground/80",
+                              )}
+                              style={selected ? { backgroundColor: monsterStyle.color, backgroundImage: getSelectorPatternBackground(monsterStyle), color: textColor } : undefined}
+                            >
+                              <span className="h-11 w-11 overflow-hidden rounded border border-black/15 bg-background/40">
+                                {entry.monster?.icon ? (
+                                  <img src={entry.monster.icon} alt="" className="h-full w-full object-cover object-center" loading="lazy" />
+                                ) : (
+                                  <span className="flex h-full w-full items-center justify-center">
+                                    <Trophy className="w-3.5 h-3.5 opacity-50" />
+                                  </span>
+                                )}
+                              </span>
+                              <span className="line-clamp-2 min-h-[1.5rem] break-words">{entry.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <RuntimeWorldRenderTestPage
+                      publicMode
+                      initialZoom={0.28}
+                      hideNatureToggleButtons
+                      dimUncoveredConquestAreas
+                      conquestCoverageAreas={weeklyCoverageAreas}
+                      initialNatureVisibility={{
+                        terrain: false,
+                        resources: false,
+                        humans: false,
+                        special: false,
+                      }}
+                    />
+                  </CardContent>
+                </Card>
               </div>
             </CardContent>
           </Card>

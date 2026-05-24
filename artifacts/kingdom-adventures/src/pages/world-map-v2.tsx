@@ -8,7 +8,7 @@ export default function WorldMapV2Page() {
   const [activeTab, setActiveTab] = useState<MapTab>("isometric");
 
   return (
-    <div className="mx-auto max-w-[1500px] px-4 py-4">
+    <div className="mx-auto max-w-[2400px] px-4 py-4">
       <div className="text-xs leading-relaxed text-muted-foreground">
         work in progress...
         <br />

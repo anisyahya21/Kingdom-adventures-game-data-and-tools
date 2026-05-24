@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseMapBinarySectionA } from "@/runtime/world-builder/map-loader";
 import type { ParsedMapBinary, ParsedMapCell } from "@/runtime/world-builder/types";
+import {
+  NATIVE_MAP,
+  mapTerrainCodeToType,
+  parseTerrainMapCsv,
+  type TerrainType,
+} from "@/lib/monster-truth";
+import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
 
 type CameraState = {
   offsetX: number;
@@ -211,6 +218,25 @@ type PortGateDragState = {
 
 type RuntimeWorldRenderTestPageProps = {
   publicMode?: boolean;
+  initialZoom?: number;
+  hideNatureToggleButtons?: boolean;
+  dimUncoveredConquestAreas?: boolean;
+  conquestCoverageAreas?: Array<{
+    area: string;
+    level: number;
+  }>;
+  spawnOverlayAreas?: Array<{
+    area: string;
+    level: number;
+    color?: string;
+    patternIndex?: number;
+  }>;
+  initialNatureVisibility?: {
+    terrain?: boolean;
+    resources?: boolean;
+    humans?: boolean;
+    special?: boolean;
+  };
 };
 
 type DiagnosticListItem = {
@@ -288,24 +314,52 @@ type ClickedCellPreview = {
 
 const TILE_WIDTH = 48;
 const TILE_HEIGHT = 24;
-const MAP_PATH = "/world-assets/map/map_160_160.bin";
-const MAP_CHIP_PATH = "/world-assets/xls/English.lproj/MapChip.txt";
-const TERRAIN_PATH = "/world-assets/xls/English.lproj/Terrain.txt";
-const CHIP_IMG_INF_PATH = "/world-assets/chip/img.inf";
-const CHIP_SEB_INF_PATH = "/world-assets/chip/seb.inf";
-const BUILDING_IMG_INF_PATH = "/world-assets/building/img.inf";
-const NATURE_IMG_INF_PATH = "/world-assets/nature/img.inf";
-const NATURE_SEB_INF_PATH = "/world-assets/nature/seb.inf";
-const IMAGE_ATLAS_PATH = "/world-assets/image_atlas/ImageAtlas0.txt";
+const FULL_TERRAIN_MAP = parseTerrainMapCsv(fullTerrainCsv);
+const TERRAIN_TYPE_TO_AREA: Record<TerrainType, string> = {
+  grass: "Grass",
+  sand: "Sand",
+  volcano: "Volcano",
+  swamp: "Swamp",
+  rock: "Rock",
+  snow: "Snow",
+  ground: "Ground",
+};
+const BASE_URL = typeof window !== "undefined"
+  ? new URL(import.meta.env.BASE_URL ?? "/", window.location.origin).href
+  : "/";
+
+if (typeof window !== "undefined") {
+  console.log("[runtime-world-render-test] window.location.href", window.location.href);
+  console.log("[runtime-world-render-test] import.meta.env.BASE_URL", import.meta.env.BASE_URL);
+  console.log("[runtime-world-render-test] resolved BASE_URL", BASE_URL);
+}
+
+function resolveAssetUrl(relativePath: string) {
+  const resolved = new URL(relativePath.replace(/^\//, ""), BASE_URL).href;
+  if (typeof window !== "undefined") {
+    console.log("[runtime-world-render-test] resolveAssetUrl", relativePath, "->", resolved);
+  }
+  return resolved;
+}
+
+const MAP_PATH = resolveAssetUrl("world-assets/map/map_160_160.bin");
+const MAP_CHIP_PATH = resolveAssetUrl("world-assets/xls/English.lproj/MapChip.txt");
+const TERRAIN_PATH = resolveAssetUrl("world-assets/xls/English.lproj/Terrain.txt");
+const CHIP_IMG_INF_PATH = resolveAssetUrl("world-assets/chip/img.inf");
+const CHIP_SEB_INF_PATH = resolveAssetUrl("world-assets/chip/seb.inf");
+const BUILDING_IMG_INF_PATH = resolveAssetUrl("world-assets/building/img.inf");
+const NATURE_IMG_INF_PATH = resolveAssetUrl("world-assets/nature/img.inf");
+const NATURE_SEB_INF_PATH = resolveAssetUrl("world-assets/nature/seb.inf");
+const IMAGE_ATLAS_PATH = resolveAssetUrl("world-assets/image_atlas/ImageAtlas0.txt");
 const PORT_ASSET_PATHS: Record<string, string> = {
-  gate_00: "/world-assets/building/gate_00.png",
-  gate_01: "/world-assets/building/gate_01.png",
-  gate_02: "/world-assets/building/gate_02.png",
-  gate_03: "/world-assets/building/gate_03.png",
-  wasteland: "/world-assets/chip/wasteland.png",
-  hashi00: "/world-assets/chip/hashi00.png",
-  bridge_side: "/world-assets/chip/bridge_side.png",
-  bridge_wall_00: "/world-assets/wall/bridge_wall_00.png",
+  gate_00: resolveAssetUrl("world-assets/building/gate_00.png"),
+  gate_01: resolveAssetUrl("world-assets/building/gate_01.png"),
+  gate_02: resolveAssetUrl("world-assets/building/gate_02.png"),
+  gate_03: resolveAssetUrl("world-assets/building/gate_03.png"),
+  wasteland: resolveAssetUrl("world-assets/chip/wasteland.png"),
+  hashi00: resolveAssetUrl("world-assets/chip/hashi00.png"),
+  bridge_side: resolveAssetUrl("world-assets/chip/bridge_side.png"),
+  bridge_wall_00: resolveAssetUrl("world-assets/wall/bridge_wall_00.png"),
 };
 
 const PORT_GATE_OPT_PLACEMENT: Record<PortGatePiece["assetKey"], PortGateOptPlacement> = {
@@ -358,6 +412,253 @@ type FacilityOverlay = {
   cellX: number;
   cellY: number;
 };
+type DebugFacilityPlacementOverlay = {
+  facilityId: number;
+  mapChipId: number;
+  mapChipImgId: number;
+  name: string;
+  tileX: number;
+  tileY: number;
+  sizeWidth?: number;
+  sizeHeight?: number;
+};
+const OVERLAY_STYLES = {
+  manualCorrected: {
+    footprintStroke: "rgba(34, 211, 238, 0.95)",
+    footprintFill: "rgba(34, 211, 238, 0.16)",
+    anchorStroke: "rgba(34, 211, 238, 0.95)",
+    labelBackground: "rgba(34, 211, 238, 0.85)",
+  },
+  aiCorrected: {
+    footprintStroke: "rgba(234, 179, 8, 0.95)",
+    footprintFill: "rgba(234, 179, 8, 0.16)",
+    anchorStroke: "rgba(234, 179, 8, 0.95)",
+    labelBackground: "rgba(234, 179, 8, 0.85)",
+  },
+  rawData: {
+    footprintStroke: "rgba(236, 72, 153, 0.95)",
+    footprintFill: "rgba(236, 72, 153, 0.16)",
+    anchorStroke: "rgba(236, 72, 153, 0.95)",
+    labelBackground: "rgba(236, 72, 153, 0.85)",
+  },
+  legendaryRaw: {
+    footprintStroke: "rgba(34, 197, 94, 0.95)",
+    footprintFill: "rgba(34, 197, 94, 0.16)",
+    anchorStroke: "rgba(34, 197, 94, 0.95)",
+    labelBackground: "rgba(34, 197, 94, 0.85)",
+  },
+} as const;
+
+type OverlayStyle = (typeof OVERLAY_STYLES)[keyof typeof OVERLAY_STYLES];
+
+function drawOverlayLabelBackground(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  lines: string[],
+  backgroundColor: string,
+  zoom: number,
+  xAlign: "center" | "right" = "center",
+) {
+  context.save();
+  context.font = `bold ${Math.max(10, 12 * zoom)}px sans-serif`;
+  context.textAlign = xAlign === "center" ? "center" : "left";
+  context.textBaseline = "top";
+  const padding = Math.max(4, 4 * zoom);
+  const lineHeight = Math.max(14, 14 * zoom);
+  const maxWidth = lines.reduce((width, line) => Math.max(width, context.measureText(line).width), 0);
+  const boxWidth = maxWidth + padding * 2;
+  const boxHeight = lines.length * lineHeight + padding * 2;
+  const boxX = xAlign === "center" ? x - boxWidth / 2 : x - boxWidth;
+  const boxY = y - boxHeight;
+
+  context.fillStyle = backgroundColor;
+  context.fillRect(boxX, boxY, boxWidth, boxHeight);
+  context.strokeStyle = "rgba(15, 23, 42, 0.9)";
+  context.lineWidth = Math.max(1, 1 * zoom);
+  context.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+  const textX = xAlign === "center" ? x : boxX + padding;
+  context.fillStyle = "#ffffff";
+  lines.forEach((line, index) => {
+    context.fillText(line, textX, boxY + padding + index * lineHeight);
+  });
+  context.restore();
+}
+
+function drawOverlayLegend(context: CanvasRenderingContext2D, zoom: number, canvasWidth: number) {
+  const margin = 10;
+  const lineHeight = Math.max(16, 14 * zoom);
+  const iconSize = Math.max(12, 12 * zoom);
+  const entries = [
+    { type: "fill" as const, text: "filled cells = occupancy" },
+    { type: "rect" as const, text: "rectangle = sprite bounds" },
+    { type: "dot" as const, text: "dot = sprite draw origin" },
+    { type: "diamond" as const, text: "diamond = raw logical coordinate" },
+  ];
+
+  context.save();
+  context.font = `bold ${Math.max(12, 14 * zoom)}px sans-serif`;
+  context.textBaseline = "top";
+  let maxTextWidth = 0;
+  entries.forEach((entry) => {
+    maxTextWidth = Math.max(maxTextWidth, context.measureText(entry.text).width);
+  });
+  const width = iconSize + 6 + maxTextWidth + margin * 2;
+  const height = lineHeight * (entries.length + 1) + margin * 2;
+  const x = canvasWidth - width - margin;
+  const y = margin;
+
+  context.fillStyle = "rgba(15, 23, 42, 0.85)";
+  context.fillRect(x, y, width, height);
+  context.strokeStyle = "rgba(255, 255, 255, 0.2)";
+  context.lineWidth = 1;
+  context.strokeRect(x, y, width, height);
+
+  context.fillStyle = "#ffffff";
+  context.fillText("Legend:", x + margin, y + margin);
+
+  entries.forEach((entry, index) => {
+    const entryY = y + margin + lineHeight * (index + 1);
+    const iconX = x + margin + iconSize / 2;
+    const iconCenterY = entryY + lineHeight / 2;
+
+    context.strokeStyle = "#ffffff";
+    context.fillStyle = "#ffffff";
+    context.lineWidth = Math.max(1, 1.5 * zoom);
+
+    switch (entry.type) {
+      case "fill":
+        context.fillRect(x + margin, entryY + (lineHeight - iconSize) / 2, iconSize, iconSize);
+        break;
+      case "rect":
+        context.strokeRect(x + margin, entryY + (lineHeight - iconSize) / 2, iconSize, iconSize);
+        break;
+      case "dot":
+        context.beginPath();
+        context.arc(iconX, iconCenterY, Math.max(3, 4 * zoom), 0, Math.PI * 2);
+        context.fill();
+        break;
+      case "diamond":
+        context.beginPath();
+        context.moveTo(iconX, iconCenterY - iconSize / 2);
+        context.lineTo(iconX + iconSize / 2, iconCenterY);
+        context.lineTo(iconX, iconCenterY + iconSize / 2);
+        context.lineTo(iconX - iconSize / 2, iconCenterY);
+        context.closePath();
+        context.stroke();
+        break;
+    }
+
+    context.fillStyle = "#ffffff";
+    context.fillText(entry.text, x + margin + iconSize + 6, entryY);
+  });
+  context.restore();
+}
+
+function getNativeIndex(index: number, cellCount: number, nativeCount: number) {
+  return Math.min(nativeCount - 1, Math.floor((index * nativeCount) / cellCount));
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const normalized = hex.replace("#", "");
+  if (normalized.length !== 6) {
+    return `rgba(245,158,11,${alpha})`;
+  }
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function drawSpawnStripeOverlay(
+  context: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  halfW: number,
+  halfH: number,
+  color: string,
+  patternIndex: number,
+  zoom: number,
+) {
+  const stripeColor = hexToRgba(color, 0.78);
+  const fillColor = hexToRgba(color, 0.18);
+  const diagonalA = patternIndex % 2 === 0;
+  const spacing = Math.max(3, Math.round(6 * zoom));
+
+  context.save();
+  context.beginPath();
+  context.moveTo(centerX, centerY - halfH);
+  context.lineTo(centerX + halfW, centerY);
+  context.lineTo(centerX, centerY + halfH);
+  context.lineTo(centerX - halfW, centerY);
+  context.closePath();
+  context.clip();
+
+  context.fillStyle = fillColor;
+  context.fillRect(centerX - halfW, centerY - halfH, halfW * 2, halfH * 2);
+
+  context.strokeStyle = stripeColor;
+  context.lineWidth = Math.max(1, 1.4 * zoom);
+  const min = -halfW - halfH;
+  const max = halfW + halfH;
+  for (let offset = min; offset <= max; offset += spacing) {
+    context.beginPath();
+    if (diagonalA) {
+      context.moveTo(centerX - halfW + offset, centerY + halfH);
+      context.lineTo(centerX + halfW + offset, centerY - halfH);
+    } else {
+      context.moveTo(centerX - halfW + offset, centerY - halfH);
+      context.lineTo(centerX + halfW + offset, centerY + halfH);
+    }
+    context.stroke();
+  }
+
+  context.restore();
+}
+
+// Debug-only isolated facility placement test: exactly one simple building at one fixed valid tile.
+const DEBUG_FACILITY_PLACEMENT_OVERLAYS: DebugFacilityPlacementOverlay[] = [
+  {
+    facilityId: 172,
+    mapChipId: 232,
+    mapChipImgId: 69,
+    name: "CORRECTED Ranking Board: 102,134",
+    tileX: 102,
+    tileY: 134,
+  },
+];
+const DEBUG_RAW_RANKING_BOARD_OVERLAYS: DebugFacilityPlacementOverlay[] = [
+  {
+    // Source: raw MapChip / Facility_lookup / NATIVE_MAP zone placement evidence.
+    // Raw facility coordinate = (104, 136) for Ranking Board.
+    // This overlay uses the raw tile directly with NO -2 / -2 correction.
+    facilityId: 172,
+    mapChipId: 232,
+    mapChipImgId: 69,
+    name: "RAW DATA Ranking Board: 104,136",
+    sizeWidth: 2,
+    sizeHeight: 2,
+    tileX: 104,
+    tileY: 136,
+  },
+];
+const DEBUG_RAW_LEGENDARY_CAVE_OVERLAYS: DebugFacilityPlacementOverlay[] = [
+  {
+    // Source: raw MapChip / Facility_lookup / NATIVE_MAP zone placement evidence.
+    // Raw facility coordinate = (88, 24) for Legendary Cave.
+    // This overlay uses the raw tile directly with NO -2 / -2 correction.
+    facilityId: 196,
+    mapChipId: 258,
+    mapChipImgId: 92,
+    name: "RAW DATA Legendary Cave: 88,24",
+    sizeWidth: 2,
+    sizeHeight: 2,
+    tileX: 88,
+    tileY: 24,
+  },
+];
+
 const NATURE_CATEGORY_CHANCE_BY_TERRAIN_TYPE: Record<number, Partial<Record<NatureVisualCategory, number>>> = {
   1: { "terrain-nature": 0.14, "resource-treasure": 0.02, "human-npc": 0.02, "special-unknown": 0.02 },
   2: { "terrain-nature": 0.3, "resource-treasure": 0.04, "human-npc": 0.02, "special-unknown": 0.04 },
@@ -399,36 +700,38 @@ const PORT_ASSEMBLIES: PortAssembly[] = [
   { id: "port-level-44", facilityId: 10, name: "Port", unlockLevel: 44, zoneX: 9, zoneY: 2, cellX: 152, cellY: 40 },
 ];
 
+function getPortCompositeBaseCell(port: PortAssembly): { x: number; y: number } {
+  return {
+    x: port.cellX - 2,
+    y: port.cellY - 2,
+  };
+}
+
 const PORT_GATE_PIECES: PortGatePiece[] = [
-  // Each Port component is a 2x2 building inside the Port's 4x4 footprint.
-  { chipId: 68, facilityId: 8, buildingImageId: 3, assetKey: "gate_01", dx: 0, dy: 0 },
-  { chipId: 67, facilityId: 7, buildingImageId: 2, assetKey: "gate_00", dx: 2, dy: 0 },
-  { chipId: 69, facilityId: 9, buildingImageId: 20, assetKey: "gate_02", dx: 0, dy: 2 },
-  { chipId: 70, facilityId: 10, buildingImageId: 21, assetKey: "gate_03", dx: 2, dy: 2 },
+  // MANUAL TEMPORARY FIX (live import): fixed gate anchors validated in render lab.
+  { chipId: 67, facilityId: 7, buildingImageId: 2, assetKey: "gate_00", dx: 2, dy: -2 },
+  { chipId: 68, facilityId: 8, buildingImageId: 3, assetKey: "gate_01", dx: 2, dy: 0 },
+  { chipId: 69, facilityId: 9, buildingImageId: 20, assetKey: "gate_02", dx: 4, dy: 0 },
+  { chipId: 70, facilityId: 10, buildingImageId: 21, assetKey: "gate_03", dx: 4, dy: -2 },
 ];
 
 const DEFAULT_PORT_GATE_LAYOUT: PortGateLayout = {
-  gate_01: { dx: 0, dy: 0 },
-  gate_00: { dx: 2, dy: 0 },
-  gate_02: { dx: 0, dy: 2 },
-  gate_03: { dx: 2, dy: 2 },
+  gate_00: { dx: 2, dy: -2 },
+  gate_01: { dx: 2, dy: 0 },
+  gate_02: { dx: 4, dy: 0 },
+  gate_03: { dx: 4, dy: -2 },
 };
 
 const PORT_BRIDGE_PIECES: PortBridgePiece[] = [
-  // Visual bridge/dock pass: hashi00 is the deck. bridge_wall_00 is a 4-piece strip;
-  // use only the two rail crops that match this lower-right dock alignment.
-  { assetKey: "hashi00", dx: 0, dy: 4, kind: "chip" },
-  { assetKey: "hashi00", dx: 1, dy: 4, kind: "chip" },
-  { assetKey: "hashi00", dx: 3, dy: 6, kind: "chip" },
-  { assetKey: "hashi00", dx: 4, dy: 6, kind: "chip" },
-  { assetKey: "hashi00", dx: 5, dy: 6, kind: "chip" },
-  { assetKey: "hashi00", dx: 3, dy: 7, kind: "chip" },
-  { assetKey: "hashi00", dx: 4, dy: 7, kind: "chip" },
-  { assetKey: "hashi00", dx: 5, dy: 7, kind: "chip" },
-  { assetKey: "bridge_side", dx: 0, dy: 5, kind: "chip" },
-  { assetKey: "bridge_side", dx: 3, dy: 8, kind: "chip" },
-  { assetKey: "bridge_wall_00", dx: 0.15, dy: 4.75, kind: "wall", srcY: 0, srcH: 20 },
-  { assetKey: "bridge_wall_00", dx: 2.9, dy: 7.85, kind: "wall", srcY: 40, srcH: 20 },
+  // MANUAL TEMPORARY FIX (live import): connected 4x2 hashi deck.
+  { assetKey: "hashi00", dx: 6, dy: -1, kind: "chip" },
+  { assetKey: "hashi00", dx: 7, dy: -1, kind: "chip" },
+  { assetKey: "hashi00", dx: 8, dy: -1, kind: "chip" },
+  { assetKey: "hashi00", dx: 9, dy: -1, kind: "chip" },
+  { assetKey: "hashi00", dx: 6, dy: 0, kind: "chip" },
+  { assetKey: "hashi00", dx: 7, dy: 0, kind: "chip" },
+  { assetKey: "hashi00", dx: 8, dy: 0, kind: "chip" },
+  { assetKey: "hashi00", dx: 9, dy: 0, kind: "chip" },
 ];
 const F1_TERRAIN_FAMILY_BY_TYPE: Record<number, string> = {
   1: "tuchi",
@@ -445,6 +748,21 @@ const F1_TERRAIN_FAMILY_BY_TYPE: Record<number, string> = {
   12: "swamp",
   13: "jimen",
 };
+
+const OLD_PORT_MAPCHIP_IDS = new Set<number>([67, 68, 69, 70]);
+const PREFERRED_DIRT_MAPCHIP_IDS = new Set<number>([5, 6, 7, 24]);
+
+function isDirtLikeCommand(command: TileDrawCommand): boolean {
+  const haystack = `${command.terrainName ?? ""} ${command.mapChipName} ${command.resolvedImgFilename} ${command.selection.sourceFilename}`.toLowerCase();
+  const hasDirtToken = /\bdirt\b|\btuchi\b|\bjimen\b|mud|soil/.test(haystack);
+  const hasNonDirtToken = /\bgrass\b|\bkusa\b|\bwater\b|\bmizu\b|sea|river|ocean|snow|rock|stone/.test(haystack);
+  return hasDirtToken && !hasNonDirtToken;
+}
+
+function isWaterLikeCommand(command: TileDrawCommand): boolean {
+  const haystack = `${command.terrainName ?? ""} ${command.mapChipName} ${command.resolvedImgFilename} ${command.selection.sourceFilename}`;
+  return isWaterToken(haystack);
+}
 
 function readStoredPortGateLayout(): PortGateLayout {
   if (typeof window === "undefined") {
@@ -477,10 +795,25 @@ function normalizePortGateOffset(
   return { dx, dy };
 }
 
-export default function RuntimeWorldRenderTestPage({ publicMode = false }: RuntimeWorldRenderTestPageProps = {}) {
+export default function RuntimeWorldRenderTestPage({
+  publicMode = false,
+  initialZoom = 0.65,
+  hideNatureToggleButtons = false,
+  dimUncoveredConquestAreas = false,
+  conquestCoverageAreas = [],
+    spawnOverlayAreas = [],
+  initialNatureVisibility,
+}: RuntimeWorldRenderTestPageProps = {}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const suppressNextCanvasClickRef = useRef(false);
+  const activeTouchPointsRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchStateRef = useRef<{
+    startDistance: number;
+    startZoom: number;
+    anchorWorldX: number;
+    anchorWorldY: number;
+  } | null>(null);
   const [camera, setCamera] = useState<CameraState>({ offsetX: 0, offsetY: 0, zoom: 1 });
   const [dragging, setDragging] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
@@ -491,14 +824,18 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
   const [terrainAlignmentMode, setTerrainAlignmentMode] = useState<TerrainAlignmentMode>("diamond-fit");
   const [overlayMode, setOverlayMode] = useState<OverlayMode>("texture-only");
   const [showNatureDebugOverlay, setShowNatureDebugOverlay] = useState(false);
-  const [showTerrainNature, setShowTerrainNature] = useState(true);
-  const [showResourceNature, setShowResourceNature] = useState(true);
-  const [showHumanNature, setShowHumanNature] = useState(true);
-  const [showSpecialNature, setShowSpecialNature] = useState(false);
+  const [showTerrainNature, setShowTerrainNature] = useState(initialNatureVisibility?.terrain ?? true);
+  const [showResourceNature, setShowResourceNature] = useState(initialNatureVisibility?.resources ?? true);
+  const [showHumanNature, setShowHumanNature] = useState(initialNatureVisibility?.humans ?? true);
+  const [showSpecialNature, setShowSpecialNature] = useState(initialNatureVisibility?.special ?? false);
   const [showOnePieceFacilities, setShowOnePieceFacilities] = useState(true);
+  const [showNoOffsetFacilityDuplicates, setShowNoOffsetFacilityDuplicates] = useState(false);
+  const [showCorrectedRankingBoardPlacementTest, setShowCorrectedRankingBoardPlacementTest] = useState(false);
+  const [showRawRankingBoardPlacementTest, setShowRawRankingBoardPlacementTest] = useState(false);
+  const [showLegendaryCaveRawPlacementTest, setShowLegendaryCaveRawPlacementTest] = useState(false);
   const [showPortAssemblies, setShowPortAssemblies] = useState(true);
-  const [showPortBridgePieces, setShowPortBridgePieces] = useState(false);
-  const [portGateLayout, setPortGateLayout] = useState<PortGateLayout>(() => readStoredPortGateLayout());
+  const [showPortBridgePieces, setShowPortBridgePieces] = useState(true);
+  const [portGateLayout, setPortGateLayout] = useState<PortGateLayout>(() => (publicMode ? DEFAULT_PORT_GATE_LAYOUT : readStoredPortGateLayout()));
   const [portGateDrag, setPortGateDrag] = useState<PortGateDragState | null>(null);
   const [forceVisibleNatureMode, setForceVisibleNatureMode] = useState(false);
   const [forceVisibleLargeNatureMode, setForceVisibleLargeNatureMode] = useState(false);
@@ -518,8 +855,11 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
   }), [showHumanNature, showResourceNature, showSpecialNature, showTerrainNature]);
 
   useEffect(() => {
+    if (publicMode) {
+      return;
+    }
     window.localStorage.setItem("ka-runtime-port-gate-layout", JSON.stringify(portGateLayout));
-  }, [portGateLayout]);
+  }, [portGateLayout, publicMode]);
 
   function updatePortGateOffset(assetKey: PortGatePiece["assetKey"], axis: "dx" | "dy", value: number) {
     if (!Number.isFinite(value)) {
@@ -556,6 +896,117 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
         .map((command) => `${command.cellX},${command.cellY}`),
     );
   }, [natureCategoryVisibility, pipeline]);
+
+  const spawnOverlayByAreaLevel = useMemo(() => {
+    const map = new Map<string, Array<{ color: string; patternIndex: number }>>();
+    for (const overlay of spawnOverlayAreas) {
+      const area = overlay.area?.trim().toLowerCase();
+      if (!area || !Number.isFinite(overlay.level)) {
+        continue;
+      }
+      const key = `${area}|${overlay.level}`;
+      const entries = map.get(key) ?? [];
+      entries.push({
+        color: overlay.color ?? "#f59e0b",
+        patternIndex: overlay.patternIndex ?? 0,
+      });
+      map.set(key, entries);
+    }
+    return map;
+  }, [spawnOverlayAreas]);
+
+  const spawnOverlayCells = useMemo(() => {
+    if (!pipeline || spawnOverlayByAreaLevel.size === 0) {
+      return [] as Array<{ x: number; y: number; overlays: Array<{ color: string; patternIndex: number }> }>;
+    }
+    const mapWidth = pipeline.parsedMap.width;
+    const mapHeight = pipeline.parsedMap.height;
+    const terrainRows = FULL_TERRAIN_MAP.length;
+    const terrainCols = FULL_TERRAIN_MAP[0]?.length ?? 0;
+    const nativeRows = NATIVE_MAP.length;
+    const nativeCols = NATIVE_MAP[0]?.length ?? 0;
+    if (mapWidth <= 0 || mapHeight <= 0 || terrainRows <= 0 || terrainCols <= 0 || nativeRows <= 0 || nativeCols <= 0) {
+      return [];
+    }
+
+    const cells: Array<{ x: number; y: number; overlays: Array<{ color: string; patternIndex: number }> }> = [];
+
+    for (let y = 0; y < mapHeight; y += 1) {
+      const terrainY = getNativeIndex(y, mapHeight, terrainRows);
+      const nativeY = getNativeIndex(y, mapHeight, nativeRows);
+      for (let x = 0; x < mapWidth; x += 1) {
+        const terrainX = getNativeIndex(x, mapWidth, terrainCols);
+        const nativeX = getNativeIndex(x, mapWidth, nativeCols);
+        const terrainType = mapTerrainCodeToType(FULL_TERRAIN_MAP[terrainY]?.[terrainX]);
+        if (!terrainType) {
+          continue;
+        }
+        const level = NATIVE_MAP[nativeY]?.[nativeX]?.level;
+        if (!Number.isFinite(level)) {
+          continue;
+        }
+        const area = TERRAIN_TYPE_TO_AREA[terrainType].toLowerCase();
+        const overlays = spawnOverlayByAreaLevel.get(`${area}|${level}`);
+        if (!overlays || overlays.length === 0) {
+          continue;
+        }
+        cells.push({ x, y, overlays });
+      }
+    }
+
+    return cells;
+  }, [pipeline, spawnOverlayByAreaLevel]);
+
+  const conquestCoverageSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const area of conquestCoverageAreas) {
+      const areaName = area.area?.trim().toLowerCase();
+      if (!areaName || !Number.isFinite(area.level)) {
+        continue;
+      }
+      set.add(`${areaName}|${area.level}`);
+    }
+    return set;
+  }, [conquestCoverageAreas]);
+
+  const conquestCoveredCellKeys = useMemo(() => {
+    if (!pipeline || conquestCoverageSet.size === 0) {
+      return new Set<string>();
+    }
+    const mapWidth = pipeline.parsedMap.width;
+    const mapHeight = pipeline.parsedMap.height;
+    const terrainRows = FULL_TERRAIN_MAP.length;
+    const terrainCols = FULL_TERRAIN_MAP[0]?.length ?? 0;
+    const nativeRows = NATIVE_MAP.length;
+    const nativeCols = NATIVE_MAP[0]?.length ?? 0;
+    if (mapWidth <= 0 || mapHeight <= 0 || terrainRows <= 0 || terrainCols <= 0 || nativeRows <= 0 || nativeCols <= 0) {
+      return new Set<string>();
+    }
+
+    const keys = new Set<string>();
+
+    for (let y = 0; y < mapHeight; y += 1) {
+      const terrainY = getNativeIndex(y, mapHeight, terrainRows);
+      const nativeY = getNativeIndex(y, mapHeight, nativeRows);
+      for (let x = 0; x < mapWidth; x += 1) {
+        const terrainX = getNativeIndex(x, mapWidth, terrainCols);
+        const nativeX = getNativeIndex(x, mapWidth, nativeCols);
+        const terrainType = mapTerrainCodeToType(FULL_TERRAIN_MAP[terrainY]?.[terrainX]);
+        if (!terrainType) {
+          continue;
+        }
+        const level = NATIVE_MAP[nativeY]?.[nativeX]?.level;
+        if (!Number.isFinite(level)) {
+          continue;
+        }
+        const area = TERRAIN_TYPE_TO_AREA[terrainType].toLowerCase();
+        if (conquestCoverageSet.has(`${area}|${level}`)) {
+          keys.add(`${x},${y}`);
+        }
+      }
+    }
+    return keys;
+  }, [conquestCoverageSet, pipeline]);
 
   const natureDebugSummary = useMemo(() => {
     if (!pipeline) {
@@ -705,10 +1156,10 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
     }
 
     if (camera.zoom === 1 && camera.offsetX === 0 && camera.offsetY === 0) {
-      const reset = computeInitialCamera(pipeline.parsedMap.width, pipeline.parsedMap.height, width, height);
+      const reset = computeInitialCamera(pipeline.parsedMap.width, pipeline.parsedMap.height, width, height, initialZoom);
       setCamera(reset);
     }
-  }, [camera.offsetX, camera.offsetY, camera.zoom, pipeline]);
+  }, [camera.offsetX, camera.offsetY, camera.zoom, initialZoom, pipeline]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -738,7 +1189,9 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
     context.fillRect(0, 0, width, height);
 
     if (!pipeline) {
-      drawGridBackground(context, width, height);
+      if (!publicMode) {
+        drawGridBackground(context, width, height);
+      }
       return;
     }
 
@@ -748,7 +1201,71 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
       ? activeCommands.filter((command) => command.drawGroup === "base-terrain" || command.drawGroup === "nature-object")
       : activeCommands;
 
-    const sortedCommands = [...filteredCommands].sort((left, right) => {
+    const withoutOldPortMapchips = filteredCommands.filter((command) => !OLD_PORT_MAPCHIP_IDS.has(command.mapChipId));
+
+    const forcedPortDirtCommands = (() => {
+      if (!showPortAssemblies) {
+        return withoutOldPortMapchips;
+      }
+
+      const forcedDirtCells = new Set<string>();
+      for (const port of PORT_ASSEMBLIES) {
+        const base = getPortCompositeBaseCell(port);
+
+        // Keep the full port foundation attached to land.
+        // Manual fix target: 6x4 plate (structure + rear area) rooted at base.
+        for (let yy = 0; yy < 4; yy++) {
+          for (let xx = 0; xx < 6; xx++) {
+            forcedDirtCells.add(`${base.x + xx},${base.y - 2 + yy}`);
+          }
+        }
+
+        // Explicit rear strip from user request: 2x4 directly behind the port body.
+        for (let yy = 0; yy < 4; yy++) {
+          for (let xx = 0; xx < 2; xx++) {
+            forcedDirtCells.add(`${base.x + xx},${base.y - 2 + yy}`);
+          }
+        }
+
+        for (const piece of PORT_GATE_PIECES) {
+          const offset = portGateLayout[piece.assetKey] ?? { dx: piece.dx, dy: piece.dy };
+          for (let yy = 0; yy < 2; yy++) {
+            for (let xx = 0; xx < 2; xx++) {
+              forcedDirtCells.add(`${Math.round(base.x + offset.dx + xx)},${Math.round(base.y + offset.dy + yy)}`);
+            }
+          }
+        }
+      }
+
+      const dirtTemplates = withoutOldPortMapchips
+        .filter((command) => command.selection.assetFolder !== "nature")
+        .filter((command) => command.drawGroup !== "nature-object")
+        .filter((command) => PREFERRED_DIRT_MAPCHIP_IDS.has(command.mapChipId) || isDirtLikeCommand(command))
+        .sort((left, right) => left.mapChipId - right.mapChipId);
+
+      return withoutOldPortMapchips.map((command) => {
+        if (command.selection.assetFolder === "nature" || command.drawGroup === "nature-object") {
+          return command;
+        }
+        const key = `${command.cellX},${command.cellY}`;
+        if (!forcedDirtCells.has(key)) {
+          return command;
+        }
+        const template = dirtTemplates[0] ?? null;
+        if (!template) {
+          return command;
+        }
+        return {
+          ...template,
+          cellX: command.cellX,
+          cellY: command.cellY,
+          layer: command.layer,
+          drawGroup: command.drawGroup,
+        };
+      });
+    })();
+
+    const sortedCommands = [...forcedPortDirtCommands].sort((left, right) => {
       const depthA = left.cellX + left.cellY;
       const depthB = right.cellX + right.cellY;
       if (depthA !== depthB) {
@@ -777,17 +1294,20 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
         ]
       : sortedCommands;
 
+    const renderedCellKeys = new Set<string>();
+    const waterCellKeys = new Set<string>();
+
     const zoom = camera.zoom;
     const logicalTileWidth = TILE_WIDTH * logicalFootprintScale;
     const logicalTileHeight = TILE_HEIGHT * logicalFootprintScale;
     const shouldDrawTextures = overlayMode !== "diamond-only";
-    const shouldDrawDiamonds = overlayMode !== "texture-only";
+    const shouldDrawDiamonds = false;
 
     if (shouldDrawDiamonds) {
       const seen = new Set<string>();
       context.strokeStyle = "rgba(147, 197, 253, 0.26)";
       context.lineWidth = 1;
-      for (const command of filteredCommands) {
+      for (const command of forcedPortDirtCommands) {
         const key = `${command.cellX},${command.cellY}`;
         if (seen.has(key)) {
           continue;
@@ -803,6 +1323,12 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
     }
 
     for (const command of drawCommands) {
+      const cellKey = `${command.cellX},${command.cellY}`;
+      renderedCellKeys.add(cellKey);
+      if (isWaterLikeCommand(command)) {
+        waterCellKeys.add(cellKey);
+      }
+
       const iso = worldToIso(command.cellX, command.cellY, zoom, camera.offsetX, camera.offsetY);
       const sprite = command.selection;
       const imageAsset = pipeline.imageCache.get(sprite.sourceFilename);
@@ -895,17 +1421,30 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
             context.globalAlpha = 1;
           }
 
-          context.drawImage(
-            image,
-            sourceRectX,
-            sourceRectY,
-            clippedSrcW,
-            clippedSrcH,
-            drawX,
-            drawY,
-            drawW,
-            drawH,
-          );
+          if (isWaterLikeCommand(command)) {
+            context.fillStyle = "#1f6ea7";
+            const halfW = (logicalTileWidth * zoom) / 2 + 0.9;
+            const halfH = (logicalTileHeight * zoom) / 2 + 0.9;
+            context.beginPath();
+            context.moveTo(iso.x, iso.y - halfH);
+            context.lineTo(iso.x + halfW, iso.y);
+            context.lineTo(iso.x, iso.y + halfH);
+            context.lineTo(iso.x - halfW, iso.y);
+            context.closePath();
+            context.fill();
+          } else {
+            context.drawImage(
+              image,
+              sourceRectX,
+              sourceRectY,
+              clippedSrcW,
+              clippedSrcH,
+              drawX,
+              drawY,
+              drawW,
+              drawH,
+            );
+          }
 
           if (showTextureBounds || forceVisibleNature || (showNatureCandidateBounds && command.drawGroup === "nature-object")) {
             context.strokeStyle = forceVisibleNature || command.drawGroup === "nature-object" ? "rgba(255, 31, 92, 0.95)" : "rgba(248, 113, 113, 0.72)";
@@ -933,20 +1472,72 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
     }
 
     if (showOnePieceFacilities) {
-      drawOnePieceFacilityOverlays(context, pipeline.facilityBuildingCache, camera, width, height, !publicMode);
+      drawOnePieceFacilityOverlays(context, pipeline.facilityBuildingCache, camera, width, height, !publicMode, !publicMode);
+    }
+    if (showNoOffsetFacilityDuplicates) {
+      drawOnePieceFacilityNoOffsetDuplicates(context, pipeline.facilityBuildingCache, camera, width, height, !publicMode);
+    }
+    if (showCorrectedRankingBoardPlacementTest) {
+      // Debug-only isolated facility placement overlay.
+      drawFacilityPlacementTestOverlays(context, pipeline.facilityBuildingCache, camera, width, height);
+    }
+    if (showRawRankingBoardPlacementTest) {
+      drawRawRankingBoardPlacementTestOverlays(context, pipeline.facilityBuildingCache, camera, width, height, OVERLAY_STYLES.rawData);
+    }
+    if (showLegendaryCaveRawPlacementTest) {
+      drawRawLegendaryCavePlacementTestOverlays(context, pipeline.facilityBuildingCache, camera, width, height, OVERLAY_STYLES.legendaryRaw);
+    }
+    if (!publicMode) {
+      drawOverlayLegend(context, camera.zoom, width);
     }
     if (showPortAssemblies) {
-      drawPortAssemblies(context, pipeline.portAssetCache, camera, width, height, portGateLayout, showPortBridgePieces, !publicMode);
+      drawPortAssemblies(context, pipeline.portAssetCache, camera, width, height, portGateLayout, showPortBridgePieces, true);
     }
 
-    if (hoveredCell) {
+    if (dimUncoveredConquestAreas) {
+      // Render uncovered cells as near-solid grayscale so they read as truly inactive.
+      const halfW = (logicalTileWidth * zoom) / 2 + 1.05;
+      const halfH = (logicalTileHeight * zoom) / 2 + 1.05;
+      context.fillStyle = "rgb(38, 38, 38)";
+      for (const key of renderedCellKeys) {
+        if (waterCellKeys.has(key) || conquestCoveredCellKeys.has(key)) {
+          continue;
+        }
+        const [xText, yText] = key.split(",");
+        const x = Number(xText);
+        const y = Number(yText);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          continue;
+        }
+        const isoCenter = worldToIso(x, y, zoom, camera.offsetX, camera.offsetY);
+        context.beginPath();
+        context.moveTo(isoCenter.x, isoCenter.y - halfH);
+        context.lineTo(isoCenter.x + halfW, isoCenter.y);
+        context.lineTo(isoCenter.x, isoCenter.y + halfH);
+        context.lineTo(isoCenter.x - halfW, isoCenter.y);
+        context.closePath();
+        context.fill();
+      }
+    }
+
+    if (spawnOverlayCells.length > 0) {
+      const halfW = (logicalTileWidth * zoom) / 2;
+      const halfH = (logicalTileHeight * zoom) / 2;
+      for (const cell of spawnOverlayCells) {
+        const isoCenter = worldToIso(cell.x, cell.y, zoom, camera.offsetX, camera.offsetY);
+        const style = cell.overlays[(cell.x + cell.y) % cell.overlays.length] ?? cell.overlays[0];
+        drawSpawnStripeOverlay(context, isoCenter.x, isoCenter.y, halfW, halfH, style.color, style.patternIndex, zoom);
+      }
+    }
+
+    if (!publicMode && hoveredCell) {
       const isoCenter = worldToIso(hoveredCell.x, hoveredCell.y, zoom, camera.offsetX, camera.offsetY);
       context.strokeStyle = "rgba(255, 255, 255, 0.8)";
       context.lineWidth = 1;
       drawIsoDiamond(context, isoCenter.x, isoCenter.y, (logicalTileWidth * zoom) / 2, (logicalTileHeight * zoom) / 2);
     }
 
-    if (selectedCell) {
+    if (!publicMode && selectedCell) {
       const isoCenter = worldToIso(selectedCell.x, selectedCell.y, zoom, camera.offsetX, camera.offsetY);
       context.strokeStyle = "rgba(250, 204, 21, 0.95)";
       context.lineWidth = 2;
@@ -982,9 +1573,13 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
     renderMode,
     selectedCell,
     showOnePieceFacilities,
+    showNoOffsetFacilityDuplicates,
     showPortAssemblies,
     showPortBridgePieces,
     portGateLayout,
+    conquestCoveredCellKeys,
+    dimUncoveredConquestAreas,
+    spawnOverlayCells,
     showNatureDebugOverlay,
     showNatureCandidateBounds,
     showTextureBounds,
@@ -1323,7 +1918,7 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
   ]);
 
   function hitTestPortGatePiece(clientX: number, clientY: number): PortGatePiece["assetKey"] | null {
-    if (!showPortAssemblies || !canvasRef.current) {
+    if (publicMode || !showPortAssemblies || !canvasRef.current) {
       return null;
     }
 
@@ -1331,6 +1926,42 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
   }
 
   function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (event.pointerType === "touch") {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      activeTouchPointsRef.current.set(event.pointerId, { x: localX, y: localY });
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      if (activeTouchPointsRef.current.size >= 2) {
+        const points = [...activeTouchPointsRef.current.values()];
+        const first = points[0];
+        const second = points[1];
+        const centerX = (first.x + second.x) / 2;
+        const centerY = (first.y + second.y) / 2;
+        const startDistance = Math.hypot(second.x - first.x, second.y - first.y);
+
+        const anchorWorld = pointerToWorldFloatFromClient(
+          centerX + rect.left,
+          centerY + rect.top,
+          event.currentTarget,
+          camera,
+        );
+
+        if (anchorWorld && startDistance > 0) {
+          pinchStateRef.current = {
+            startDistance,
+            startZoom: camera.zoom,
+            anchorWorldX: anchorWorld.x,
+            anchorWorldY: anchorWorld.y,
+          };
+        }
+      }
+
+      setDragging(false);
+      return;
+    }
+
     const selectedPortPiece = hitTestPortGatePiece(event.clientX, event.clientY);
     if (selectedPortPiece) {
       const pointerWorld = pointerToWorldFloatFromClient(event.clientX, event.clientY, event.currentTarget, camera);
@@ -1352,6 +1983,13 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
   }
 
   function onPointerUp(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (event.pointerType === "touch") {
+      activeTouchPointsRef.current.delete(event.pointerId);
+      if (activeTouchPointsRef.current.size < 2) {
+        pinchStateRef.current = null;
+      }
+    }
+
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -1363,6 +2001,9 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
   }
 
   function onPointerLeave() {
+    activeTouchPointsRef.current.clear();
+    pinchStateRef.current = null;
+
     if (portGateDrag) {
       setHoveredCell(null);
       return;
@@ -1372,6 +2013,38 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (event.pointerType === "touch" && activeTouchPointsRef.current.has(event.pointerId)) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      activeTouchPointsRef.current.set(event.pointerId, { x: localX, y: localY });
+
+      if (activeTouchPointsRef.current.size >= 2 && pinchStateRef.current) {
+        const points = [...activeTouchPointsRef.current.values()];
+        const first = points[0];
+        const second = points[1];
+        const centerX = (first.x + second.x) / 2;
+        const centerY = (first.y + second.y) / 2;
+        const currentDistance = Math.hypot(second.x - first.x, second.y - first.y);
+
+        if (currentDistance > 0) {
+          const pinch = pinchStateRef.current;
+          const nextZoom = Math.max(0.08, Math.min(3.5, pinch.startZoom * (currentDistance / pinch.startDistance)));
+          const anchorIso = worldToIso(pinch.anchorWorldX, pinch.anchorWorldY, nextZoom, 0, 0);
+
+          setCamera((previous) => ({
+            ...previous,
+            zoom: nextZoom,
+            offsetX: centerX - anchorIso.x,
+            offsetY: centerY - anchorIso.y,
+          }));
+        }
+
+        setDragging(false);
+        return;
+      }
+    }
+
     if (portGateDrag) {
       const pointerWorld = pointerToWorldFloatFromClient(event.clientX, event.clientY, event.currentTarget, camera);
       if (!pointerWorld) {
@@ -1405,10 +2078,19 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
       return;
     }
 
+    if (publicMode) {
+      setHoveredCell(null);
+      return;
+    }
+
     setHoveredCell(pointerToWorld(event, canvasRef.current, camera));
   }
 
   function onCanvasClick(event: React.MouseEvent<HTMLCanvasElement>) {
+    if (publicMode) {
+      return;
+    }
+
     if (suppressNextCanvasClickRef.current) {
       suppressNextCanvasClickRef.current = false;
       return;
@@ -1421,7 +2103,7 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
   }
 
   function onWheel(event: React.WheelEvent<HTMLCanvasElement>) {
-    if (!event.ctrlKey && !event.metaKey) {
+    if (!event.shiftKey) {
       return;
     }
 
@@ -1440,17 +2122,11 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
     }
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
-    setCamera(computeResetCamera(pipeline.parsedMap.width, pipeline.parsedMap.height, width, height, 0.65));
-  }
-
-  function togglePublicFacilities() {
-    const next = !(showOnePieceFacilities && showPortAssemblies);
-    setShowOnePieceFacilities(next);
-    setShowPortAssemblies(next);
+    setCamera(computeResetCamera(pipeline.parsedMap.width, pipeline.parsedMap.height, width, height, initialZoom));
   }
 
   return (
-    <div className={publicMode ? "mx-auto max-w-[1500px]" : "mx-auto max-w-[1500px] p-4"}>
+    <div className={publicMode ? "mx-auto max-w-[2400px]" : "mx-auto max-w-[1500px] p-4"}>
       {!publicMode && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1466,7 +2142,7 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
           </div>
           <p className="text-sm text-muted-foreground">
             Chain: MapChip.img -&gt; img.inf -&gt; PNG and MapChip.seb -&gt; seb.inf -&gt; SEB frame metadata when available.
-            Use Ctrl+wheel to zoom the map; regular wheel scrolls the page.
+            Use Shift+wheel to zoom the map; regular wheel scrolls the page.
           </p>
         </>
       )}
@@ -1552,41 +2228,77 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
             </button>
           </>
         )}
-        <button
-          type="button"
-          onClick={() => setShowTerrainNature((previous) => !previous)}
-          className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
-        >
-          terrain nature: {showTerrainNature ? "on" : "off"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowResourceNature((previous) => !previous)}
-          className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
-        >
-          resources: {showResourceNature ? "on" : "off"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowHumanNature((previous) => !previous)}
-          className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
-        >
-          humans: {showHumanNature ? "on" : "off"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowSpecialNature((previous) => !previous)}
-          className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
-        >
-          special: {showSpecialNature ? "on" : "off"}
-        </button>
-        <button
-          type="button"
-          onClick={publicMode ? togglePublicFacilities : () => setShowOnePieceFacilities((previous) => !previous)}
-          className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
-        >
-          facilities: {showOnePieceFacilities ? "on" : "off"}
-        </button>
+        {!hideNatureToggleButtons && (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowTerrainNature((previous) => !previous)}
+              className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
+            >
+              terrain nature: {showTerrainNature ? "on" : "off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowResourceNature((previous) => !previous)}
+              className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
+            >
+              resources: {showResourceNature ? "on" : "off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowHumanNature((previous) => !previous)}
+              className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
+            >
+              humans: {showHumanNature ? "on" : "off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSpecialNature((previous) => !previous)}
+              className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
+            >
+              special: {showSpecialNature ? "on" : "off"}
+            </button>
+          </>
+        )}
+        {!publicMode && (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowCorrectedRankingBoardPlacementTest((previous) => !previous)}
+              className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
+            >
+              Show CORRECTED Ranking Board: {showCorrectedRankingBoardPlacementTest ? "on" : "off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowOnePieceFacilities((previous) => !previous)}
+              className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
+            >
+              old facilities (-2,-2): {showOnePieceFacilities ? "on" : "off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowNoOffsetFacilityDuplicates((previous) => !previous)}
+              className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
+            >
+              new facilities (no -2,-2): {showNoOffsetFacilityDuplicates ? "on" : "off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowRawRankingBoardPlacementTest((previous) => !previous)}
+              className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
+            >
+              Show RAW DATA Ranking Board: {showRawRankingBoardPlacementTest ? "on" : "off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowLegendaryCaveRawPlacementTest((previous) => !previous)}
+              className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
+            >
+              Show Legendary Cave Raw Placement Test: {showLegendaryCaveRawPlacementTest ? "on" : "off"}
+            </button>
+          </>
+        )}
         {!publicMode && (
           <>
             <button
@@ -1639,6 +2351,12 @@ export default function RuntimeWorldRenderTestPage({ publicMode = false }: Runti
           </>
         )}
       </div>
+
+      {publicMode && (
+        <div className="mt-2 text-sm font-medium text-amber-500">
+          Controls: Shift + mouse wheel to zoom. Pinch to zoom on mobile.
+        </div>
+      )}
 
       {error && <div className="mt-3 rounded border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-100">{error}</div>}
 
@@ -2037,7 +2755,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
   await Promise.all(
     [...neededFilenames].map(async (filename) => {
       const stem = filename.replace(/\.[^.]+$/, "");
-      const optPath = `/world-assets/chip/${stem}.opt`;
+      const optPath = resolveAssetUrl(`world-assets/chip/${stem}.opt`);
       const maybe = await fetchArrayBufferOptional(optPath);
       if (!maybe) {
         return;
@@ -2050,7 +2768,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
   const sebFiles = new Map<string, SebFile>();
   await Promise.all(
     [...neededSebFiles].map(async (name) => {
-      const path = `/world-assets/chip/${name}`;
+      const path = resolveAssetUrl(`world-assets/chip/${name}`);
       const maybe = await fetchArrayBufferOptional(path);
       if (!maybe) {
         return;
@@ -2063,7 +2781,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
   await Promise.all(
     [...neededNatureFilenames].map(async (filename) => {
       const stem = filename.replace(/\.[^.]+$/, "");
-      const optPath = `/world-assets/nature/${stem}.opt`;
+      const optPath = resolveAssetUrl(`world-assets/nature/${stem}.opt`);
       const maybe = await fetchArrayBufferOptional(optPath);
       if (!maybe) {
         return;
@@ -2076,7 +2794,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
   const natureSebFiles = new Map<string, SebFile>();
   await Promise.all(
     [...neededNatureSebFiles].map(async (name) => {
-      const path = `/world-assets/nature/${name}`;
+      const path = resolveAssetUrl(`world-assets/nature/${name}`);
       const maybe = await fetchArrayBufferOptional(path);
       if (!maybe) {
         return;
@@ -2100,7 +2818,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
   let nextImageInstanceId = 1;
   await Promise.all(
     [...neededFilenames].map(async (filename) => {
-      const requestPath = `/world-assets/chip/${filename}`;
+      const requestPath = resolveAssetUrl(`world-assets/chip/${filename}`);
       const image = await loadImage(requestPath);
       imageCache.set(filename, {
         key: filename,
@@ -2114,7 +2832,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
   );
   await Promise.all(
     [...neededNatureFilenames].map(async (filename) => {
-      const requestPath = `/world-assets/nature/${filename}`;
+      const requestPath = resolveAssetUrl(`world-assets/nature/${filename}`);
       const image = await loadImage(requestPath);
       imageCache.set(filename, {
         key: filename,
@@ -2231,7 +2949,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
       imageObjectInstanceId: imageAsset?.instanceId ?? null,
       imageObjectResolvedSrc: imageAsset?.resolvedSrc ?? "",
       imageObjectRequestPath: imageAsset?.requestPath ?? "",
-      loadedPngPath: imageAsset?.requestPath ?? (selection.sourceFilename ? `/world-assets/chip/${selection.sourceFilename}` : ""),
+      loadedPngPath: imageAsset?.requestPath ?? (selection.sourceFilename ? resolveAssetUrl(`world-assets/chip/${selection.sourceFilename}`) : ""),
       drawGroup: "base-terrain",
       terrainName: terrainTypeName,
       selection,
@@ -2281,7 +2999,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
           imageObjectInstanceId: natureImageAsset?.instanceId ?? null,
           imageObjectResolvedSrc: natureImageAsset?.resolvedSrc ?? "",
           imageObjectRequestPath: natureImageAsset?.requestPath ?? "",
-          loadedPngPath: natureImageAsset?.requestPath ?? (natureSelection.sourceFilename ? `/world-assets/nature/${natureSelection.sourceFilename}` : ""),
+          loadedPngPath: natureImageAsset?.requestPath ?? (natureSelection.sourceFilename ? resolveAssetUrl(`world-assets/nature/${natureSelection.sourceFilename}`) : ""),
           drawGroup: "nature-object",
           natureCategory: selectedNature.category,
           terrainName: natureTerrainName,
@@ -2353,7 +3071,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
       imageObjectInstanceId: imageAsset?.instanceId ?? null,
       imageObjectResolvedSrc: imageAsset?.resolvedSrc ?? "",
       imageObjectRequestPath: imageAsset?.requestPath ?? "",
-      loadedPngPath: imageAsset?.requestPath ?? (selection.sourceFilename ? `/world-assets/chip/${selection.sourceFilename}` : ""),
+      loadedPngPath: imageAsset?.requestPath ?? (selection.sourceFilename ? resolveAssetUrl(`world-assets/chip/${selection.sourceFilename}`) : ""),
       drawGroup: classifyDrawGroup(chip.name, resolvedImgFilename),
       terrainName,
       selection,
@@ -2394,7 +3112,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
       imageObjectInstanceId: imageAsset?.instanceId ?? null,
       imageObjectResolvedSrc: imageAsset?.resolvedSrc ?? "",
       imageObjectRequestPath: imageAsset?.requestPath ?? "",
-      loadedPngPath: imageAsset?.requestPath ?? (selection.sourceFilename ? `/world-assets/chip/${selection.sourceFilename}` : ""),
+      loadedPngPath: imageAsset?.requestPath ?? (selection.sourceFilename ? resolveAssetUrl(`world-assets/chip/${selection.sourceFilename}`) : ""),
       drawGroup: classifyDrawGroup(terrain.name, resolvedImgFilename),
       terrainName: terrain.name,
       selection,
@@ -2410,7 +3128,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
       }
 
       try {
-        const requestPath = `/world-assets/building/${filename}`;
+        const requestPath = resolveAssetUrl(`world-assets/building/${filename}`);
         const image = await loadImage(requestPath);
         facilityBuildingCache.set(facility.id, {
           key: `facility-${facility.id}`,
@@ -2422,6 +3140,79 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
         nextImageInstanceId += 1;
       } catch {
         // Keep facility placement visible through fallback markers if a building sprite is missing.
+      }
+    }),
+  );
+
+  await Promise.all(
+    DEBUG_FACILITY_PLACEMENT_OVERLAYS.map(async (overlay) => {
+      // Debug-only asset load for fixed facility placement test.
+      const filename = buildingImageById.get(overlay.mapChipImgId);
+      if (!filename) {
+        return;
+      }
+
+      try {
+        const requestPath = resolveAssetUrl(`world-assets/building/${filename}`);
+        const image = await loadImage(requestPath);
+        facilityBuildingCache.set(overlay.facilityId, {
+          key: `debug-facility-placement-${overlay.facilityId}`,
+          requestPath,
+          resolvedSrc: image.currentSrc || image.src || requestPath,
+          instanceId: nextImageInstanceId,
+          image,
+        });
+        nextImageInstanceId += 1;
+      } catch {
+        // Keep facility placement test visible through fallback drawing if image is missing.
+      }
+    }),
+  );
+
+  await Promise.all(
+    DEBUG_RAW_RANKING_BOARD_OVERLAYS.map(async (overlay) => {
+      const filename = buildingImageById.get(overlay.mapChipImgId);
+      if (!filename) {
+        return;
+      }
+
+      try {
+        const requestPath = resolveAssetUrl(`world-assets/building/${filename}`);
+        const image = await loadImage(requestPath);
+        facilityBuildingCache.set(overlay.facilityId, {
+          key: `debug-raw-ranking-board-${overlay.facilityId}`,
+          requestPath,
+          resolvedSrc: image.currentSrc || image.src || requestPath,
+          instanceId: nextImageInstanceId,
+          image,
+        });
+        nextImageInstanceId += 1;
+      } catch {
+        // Keep raw data placement test visible through fallback drawing if image is missing.
+      }
+    }),
+  );
+
+  await Promise.all(
+    DEBUG_RAW_LEGENDARY_CAVE_OVERLAYS.map(async (overlay) => {
+      const filename = buildingImageById.get(overlay.mapChipImgId);
+      if (!filename) {
+        return;
+      }
+
+      try {
+        const requestPath = resolveAssetUrl(`world-assets/building/${filename}`);
+        const image = await loadImage(requestPath);
+        facilityBuildingCache.set(overlay.facilityId, {
+          key: `debug-raw-legendary-cave-${overlay.facilityId}`,
+          requestPath,
+          resolvedSrc: image.currentSrc || image.src || requestPath,
+          instanceId: nextImageInstanceId,
+          image,
+        });
+        nextImageInstanceId += 1;
+      } catch {
+        // Keep raw data placement test visible through fallback drawing if image is missing.
       }
     }),
   );
@@ -2995,8 +3786,9 @@ function hitTestPortGatePieceAtClient(
 
   for (let portIndex = PORT_ASSEMBLIES.length - 1; portIndex >= 0; portIndex -= 1) {
     const port = PORT_ASSEMBLIES[portIndex];
-    const baseX = port.cellX - 4;
-    const baseY = port.cellY - 4;
+    const base = getPortCompositeBaseCell(port);
+    const baseX = base.x;
+    const baseY = base.y;
 
     for (let pieceIndex = PORT_GATE_PIECES.length - 1; pieceIndex >= 0; pieceIndex -= 1) {
       const piece = PORT_GATE_PIECES[pieceIndex];
@@ -3055,6 +3847,7 @@ function drawOnePieceFacilityOverlays(
   canvasWidth: number,
   canvasHeight: number,
   showLabels: boolean,
+  showFootprint: boolean,
 ) {
   const zoom = camera.zoom;
   const footprintHalfW = TILE_WIDTH * zoom;
@@ -3075,17 +3868,40 @@ function drawOnePieceFacilityOverlays(
       continue;
     }
 
-    context.fillStyle = "rgba(250, 204, 21, 0.16)";
-    context.strokeStyle = "rgba(250, 204, 21, 0.9)";
-    context.lineWidth = Math.max(1, 1.5 * zoom);
-    context.beginPath();
-    context.moveTo(iso.x,                  diamondCenterY - footprintHalfH); // N vertex
-    context.lineTo(iso.x + footprintHalfW, diamondCenterY);                  // E vertex
-    context.lineTo(iso.x,                  diamondCenterY + footprintHalfH); // S vertex
-    context.lineTo(iso.x - footprintHalfW, diamondCenterY);                  // W vertex
-    context.closePath();
-    context.fill();
-    context.stroke();
+    const facilityStyle = facility.id === 172 ? OVERLAY_STYLES.aiCorrected : null;
+    if (showFootprint) {
+      if (facilityStyle) {
+        context.fillStyle = facilityStyle.footprintFill;
+        context.strokeStyle = facilityStyle.footprintStroke;
+      } else {
+        context.fillStyle = "rgba(250, 204, 21, 0.16)";
+        context.strokeStyle = "rgba(250, 204, 21, 0.9)";
+      }
+      context.lineWidth = Math.max(1, 1.5 * zoom);
+      context.beginPath();
+      context.moveTo(iso.x,                  diamondCenterY - footprintHalfH); // N vertex
+      context.lineTo(iso.x + footprintHalfW, diamondCenterY);                  // E vertex
+      context.lineTo(iso.x,                  diamondCenterY + footprintHalfH); // S vertex
+      context.lineTo(iso.x - footprintHalfW, diamondCenterY);                  // W vertex
+      context.closePath();
+      context.fill();
+      context.stroke();
+    }
+
+    if (facilityStyle) {
+      context.strokeStyle = facilityStyle.anchorStroke;
+      context.lineWidth = Math.max(2, 2 * zoom);
+      const anchorRadius = Math.max(4, 5 * zoom);
+      context.beginPath();
+      context.arc(iso.x, iso.y, anchorRadius, 0, Math.PI * 2);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(iso.x - anchorRadius, iso.y);
+      context.lineTo(iso.x + anchorRadius, iso.y);
+      context.moveTo(iso.x, iso.y - anchorRadius);
+      context.lineTo(iso.x, iso.y + anchorRadius);
+      context.stroke();
+    }
 
     const building = facilityBuildingCache.get(facility.id)?.image;
 
@@ -3112,7 +3928,22 @@ function drawOnePieceFacilityOverlays(
       context.fillText(String(facility.id), iso.x, diamondCenterY - footprintHalfH);
     }
 
-    if (zoom >= 0.7) {
+    if (facilityStyle && showLabels) {
+      const labelLines = [
+        `${facility.name}`,
+        `facility ${facility.id} mapChip ${facility.buildingImageId}`,
+        `tile (${facility.cellX - 2}, ${facility.cellY - 2})`,
+      ];
+      drawOverlayLabelBackground(
+        context,
+        canvasWidth - 10,
+        90,
+        labelLines,
+        facilityStyle.labelBackground,
+        zoom,
+        "right",
+      );
+    } else if (zoom >= 0.7) {
       context.font = `bold ${Math.max(10, 11 * zoom)}px sans-serif`;
       context.textAlign = "center";
       context.textBaseline = "top";
@@ -3124,6 +3955,290 @@ function drawOnePieceFacilityOverlays(
     }
   }
   context.restore();
+}
+
+function drawOnePieceFacilityNoOffsetDuplicates(
+  context: CanvasRenderingContext2D,
+  facilityBuildingCache: Map<number, LoadedImageAsset>,
+  camera: CameraState,
+  canvasWidth: number,
+  canvasHeight: number,
+  showLabels: boolean,
+) {
+  const zoom = camera.zoom;
+  const footprintHalfW = TILE_WIDTH * zoom;
+  const footprintHalfH = TILE_HEIGHT * zoom;
+  const halfH_tile = (TILE_HEIGHT * zoom) / 2;
+
+  context.save();
+  for (const facility of ONE_PIECE_FACILITY_OVERLAYS) {
+    // Today's RE finding: do not apply a blanket (-2,-2) anchor correction.
+    const iso = worldToIso(facility.cellX, facility.cellY, zoom, camera.offsetX, camera.offsetY);
+    const diamondCenterY = iso.y + halfH_tile;
+    if (iso.x < -96 || iso.x > canvasWidth + 96 || diamondCenterY < -128 || diamondCenterY > canvasHeight + 96) {
+      continue;
+    }
+
+    context.fillStyle = "rgba(59, 130, 246, 0.14)";
+    context.strokeStyle = "rgba(59, 130, 246, 0.92)";
+    context.lineWidth = Math.max(1, 1.5 * zoom);
+    context.beginPath();
+    context.moveTo(iso.x,                  diamondCenterY - footprintHalfH);
+    context.lineTo(iso.x + footprintHalfW, diamondCenterY);
+    context.lineTo(iso.x,                  diamondCenterY + footprintHalfH);
+    context.lineTo(iso.x - footprintHalfW, diamondCenterY);
+    context.closePath();
+    context.fill();
+    context.stroke();
+
+    const building = facilityBuildingCache.get(facility.id)?.image;
+    if (building) {
+      const drawW = building.width * zoom;
+      const drawH = building.height * zoom;
+      const drawX = iso.x - drawW / 2;
+      const drawY = diamondCenterY + footprintHalfH - drawH;
+      const previousAlpha = context.globalAlpha;
+      context.globalAlpha = 0.82;
+      context.drawImage(building, drawX, drawY, drawW, drawH);
+      context.globalAlpha = previousAlpha;
+    }
+
+    if (showLabels && zoom >= 0.7) {
+      context.font = `bold ${Math.max(10, 11 * zoom)}px sans-serif`;
+      context.textAlign = "center";
+      context.textBaseline = "top";
+      context.lineWidth = 3;
+      context.strokeStyle = "rgba(15,23,42,0.95)";
+      context.fillStyle = "#93c5fd";
+      context.strokeText(`${facility.name} (dup no -2,-2)`, iso.x, diamondCenterY + footprintHalfH + 2);
+      context.fillText(`${facility.name} (dup no -2,-2)`, iso.x, diamondCenterY + footprintHalfH + 2);
+    }
+  }
+  context.restore();
+}
+
+function drawFacilityPlacementTestOverlays(
+  context: CanvasRenderingContext2D,
+  facilityBuildingCache: Map<number, LoadedImageAsset>,
+  camera: CameraState,
+  canvasWidth: number,
+  canvasHeight: number,
+) {
+  const zoom = camera.zoom;
+  const halfW = (TILE_WIDTH * zoom) / 2;
+  const halfH = (TILE_HEIGHT * zoom) / 2;
+  const tileHalfH = (TILE_HEIGHT * zoom) / 2;
+
+  context.save();
+  for (const overlay of DEBUG_FACILITY_PLACEMENT_OVERLAYS) {
+    const iso = worldToIso(overlay.tileX, overlay.tileY, zoom, camera.offsetX, camera.offsetY);
+    const diamondCenterY = iso.y + tileHalfH;
+    const footprintHalfW = TILE_WIDTH * zoom;
+    const footprintHalfH = TILE_HEIGHT * zoom;
+    const isVisible = iso.x >= -128 && iso.x <= canvasWidth + 128 && diamondCenterY >= -128 && diamondCenterY <= canvasHeight + 128;
+    if (!isVisible) {
+      continue;
+    }
+
+    const style = OVERLAY_STYLES.manualCorrected;
+    context.strokeStyle = style.footprintStroke;
+    context.fillStyle = style.footprintFill;
+    context.lineWidth = Math.max(1, 1.5 * zoom);
+    drawIsoDiamond(context, iso.x, diamondCenterY, footprintHalfW, footprintHalfH);
+    context.fill();
+    context.stroke();
+
+    const building = facilityBuildingCache.get(overlay.facilityId)?.image;
+    if (building) {
+      const drawW = building.width * zoom;
+      const drawH = building.height * zoom;
+      const drawX = iso.x - drawW / 2;
+      const drawY = diamondCenterY + footprintHalfH - drawH;
+      context.shadowColor = "rgba(0,0,0,0.35)";
+      context.shadowBlur = 4;
+      context.drawImage(building, drawX, drawY, drawW, drawH);
+      context.shadowBlur = 0;
+    } else {
+      context.fillStyle = "rgba(59, 130, 246, 0.75)";
+      context.beginPath();
+      context.arc(iso.x, iso.y, Math.max(6, 8 * zoom), 0, Math.PI * 2);
+      context.fill();
+    }
+
+    // Anchor marker at the placement tile origin.
+    context.strokeStyle = style.anchorStroke;
+    context.lineWidth = Math.max(2, 2 * zoom);
+    const anchorRadius = Math.max(4, 5 * zoom);
+    context.beginPath();
+    context.arc(iso.x, iso.y, anchorRadius, 0, Math.PI * 2);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(iso.x - anchorRadius, iso.y);
+    context.lineTo(iso.x + anchorRadius, iso.y);
+    context.moveTo(iso.x, iso.y - anchorRadius);
+    context.lineTo(iso.x, iso.y + anchorRadius);
+    context.stroke();
+
+    drawOverlayLabelBackground(
+      context,
+      canvasWidth - 10,
+      90,
+      [
+        overlay.name,
+        `facility ${overlay.facilityId} mapChip ${overlay.mapChipId}`,
+        `tile (${overlay.tileX}, ${overlay.tileY})`,
+      ],
+      style.labelBackground,
+      zoom,
+      "right",
+    );
+  }
+  context.restore();
+}
+
+function drawRawFacilityOccupancySpriteOverlay(
+  context: CanvasRenderingContext2D,
+  facilityBuildingCache: Map<number, LoadedImageAsset>,
+  camera: CameraState,
+  canvasWidth: number,
+  canvasHeight: number,
+  overlay: DebugFacilityPlacementOverlay,
+  style: OverlayStyle,
+  labelYOffset: number,
+) {
+  const zoom = camera.zoom;
+  const tileHalfH = (TILE_HEIGHT * zoom) / 2;
+  const footprintSizeW = overlay.sizeWidth ?? 2;
+  const footprintSizeH = overlay.sizeHeight ?? 2;
+  const iso = worldToIso(overlay.tileX, overlay.tileY, zoom, camera.offsetX, camera.offsetY);
+  const footprintCenterY = iso.y + tileHalfH * (footprintSizeH - 1);
+  const footprintHalfW = (TILE_WIDTH * footprintSizeW * zoom) / 2;
+  const footprintHalfH = (TILE_HEIGHT * footprintSizeH * zoom) / 2;
+  const visible = iso.x >= -160 && iso.x <= canvasWidth + 160 && footprintCenterY >= -160 && footprintCenterY <= canvasHeight + 160;
+  if (!visible) {
+    return;
+  }
+
+  // Occupancy layer: show the footprint cells that are reserved by the facility.
+  context.save();
+  context.strokeStyle = style.footprintStroke;
+  context.fillStyle = style.footprintFill;
+  context.lineWidth = Math.max(1, 1.5 * zoom);
+  drawIsoDiamond(context, iso.x, footprintCenterY, footprintHalfW, footprintHalfH);
+  context.fill();
+  context.stroke();
+  context.restore();
+
+  // Raw logical coordinate marker.
+  const rawMarkerHalfW = Math.max(6, (TILE_WIDTH * zoom) / 4);
+  const rawMarkerHalfH = Math.max(4, (TILE_HEIGHT * zoom) / 4);
+  context.save();
+  context.strokeStyle = style.anchorStroke;
+  context.lineWidth = Math.max(2, 2 * zoom);
+  drawIsoDiamond(context, iso.x, iso.y, rawMarkerHalfW, rawMarkerHalfH);
+  context.stroke();
+  context.restore();
+
+  // Sprite draw origin and bounds layer: do not draw the sprite texture itself.
+  const spriteOriginX = iso.x;
+  const spriteOriginY = footprintCenterY + footprintHalfH;
+  const building = facilityBuildingCache.get(overlay.facilityId)?.image;
+  const drawW = building ? building.width * zoom : TILE_WIDTH * footprintSizeW * zoom;
+  const drawH = building ? building.height * zoom : TILE_HEIGHT * footprintSizeH * zoom;
+  const drawX = spriteOriginX - drawW / 2;
+  const drawY = spriteOriginY - drawH;
+
+  context.save();
+  context.strokeStyle = style.anchorStroke;
+  context.lineWidth = Math.max(2, 2 * zoom);
+  context.strokeRect(drawX + 0.5, drawY + 0.5, drawW - 1, drawH - 1);
+  context.beginPath();
+  context.arc(spriteOriginX, spriteOriginY, Math.max(4, 5 * zoom), 0, Math.PI * 2);
+  context.fillStyle = style.anchorStroke;
+  context.fill();
+  context.restore();
+
+  const occupiedCells: string[] = [];
+  for (let dx = 0; dx < footprintSizeW; dx += 1) {
+    for (let dy = 0; dy < footprintSizeH; dy += 1) {
+      occupiedCells.push(`(${overlay.tileX + dx}, ${overlay.tileY + dy})`);
+    }
+  }
+
+  drawOverlayLabelBackground(
+    context,
+    canvasWidth - 10,
+    labelYOffset,
+    [
+      `${overlay.name}`,
+      "OCCUPIED TILES",
+      `raw tile: (${overlay.tileX}, ${overlay.tileY})`,
+      `occupied: ${occupiedCells.join(", ")}`,
+      `footprint: ${footprintSizeW}x${footprintSizeH}`,
+    ],
+    style.labelBackground,
+    zoom,
+    "right",
+  );
+
+  drawOverlayLabelBackground(
+    context,
+    canvasWidth - 10,
+    labelYOffset + 120,
+    [
+      "SPRITE DRAW ORIGIN",
+      `origin px: (${Math.round(spriteOriginX)}, ${Math.round(spriteOriginY)})`,
+      `draw rect: (${Math.round(drawX)}, ${Math.round(drawY)})`,
+      `image size: ${Math.round(drawW)}x${Math.round(drawH)}`,
+    ],
+    style.labelBackground,
+    zoom,
+    "right",
+  );
+}
+
+function drawRawRankingBoardPlacementTestOverlays(
+  context: CanvasRenderingContext2D,
+  facilityBuildingCache: Map<number, LoadedImageAsset>,
+  camera: CameraState,
+  canvasWidth: number,
+  canvasHeight: number,
+  style: OverlayStyle,
+) {
+  for (const overlay of DEBUG_RAW_RANKING_BOARD_OVERLAYS) {
+    drawRawFacilityOccupancySpriteOverlay(
+      context,
+      facilityBuildingCache,
+      camera,
+      canvasWidth,
+      canvasHeight,
+      overlay,
+      style,
+      90,
+    );
+  }
+}
+
+function drawRawLegendaryCavePlacementTestOverlays(
+  context: CanvasRenderingContext2D,
+  facilityBuildingCache: Map<number, LoadedImageAsset>,
+  camera: CameraState,
+  canvasWidth: number,
+  canvasHeight: number,
+  style: OverlayStyle,
+) {
+  for (const overlay of DEBUG_RAW_LEGENDARY_CAVE_OVERLAYS) {
+    drawRawFacilityOccupancySpriteOverlay(
+      context,
+      facilityBuildingCache,
+      camera,
+      canvasWidth,
+      canvasHeight,
+      overlay,
+      style,
+      260,
+    );
+  }
 }
 
 function drawPortAssemblies(
@@ -3145,51 +4260,16 @@ function drawPortAssemblies(
 
   context.save();
   for (const port of PORT_ASSEMBLIES) {
-    // Port is a 4x4 composed facility. Stored cellX/cellY is the exclusive end,
-    // so the 4x4 NW anchor is cellX-4, cellY-4.
-    const baseX = port.cellX - 4;
-    const baseY = port.cellY - 4;
+    const base = getPortCompositeBaseCell(port);
+    const baseX = base.x;
+    const baseY = base.y;
     const baseIso = worldToIso(baseX, baseY, zoom, camera.offsetX, camera.offsetY);
     if (baseIso.x < -320 || baseIso.x > canvasWidth + 320 || baseIso.y < -260 || baseIso.y > canvasHeight + 180) {
       continue;
     }
 
-    const wasteland = portAssetCache.get("wasteland")?.image;
-    if (wasteland) {
-      context.globalAlpha = 0.94;
-      for (let yy = 0; yy < 4; yy++) {
-        for (let xx = 0; xx < 4; xx++) {
-          const tileIso = worldToIso(baseX + xx, baseY + yy, zoom, camera.offsetX, camera.offsetY);
-          const drawW = wasteland.width * zoom;
-          const drawH = wasteland.height * zoom;
-          context.drawImage(wasteland, tileIso.x - drawW / 2, tileIso.y + halfTileH - drawH, drawW, drawH);
-        }
-      }
-      context.globalAlpha = 1;
-    }
-
-    context.fillStyle = "rgba(56, 189, 248, 0.12)";
-    context.strokeStyle = "rgba(56, 189, 248, 0.95)";
-    context.lineWidth = Math.max(1.5, 2 * zoom);
-    context.beginPath();
     const totalCenterIso = worldToIso(baseX, baseY, zoom, camera.offsetX, camera.offsetY);
     const totalCenterY = totalCenterIso.y + halfTileH * 3;
-    context.moveTo(totalCenterIso.x, totalCenterY - portHalfH);
-    context.lineTo(totalCenterIso.x + portHalfW, totalCenterY);
-    context.lineTo(totalCenterIso.x, totalCenterY + portHalfH);
-    context.lineTo(totalCenterIso.x - portHalfW, totalCenterY);
-    context.closePath();
-    context.fill();
-    context.stroke();
-
-    context.strokeStyle = "rgba(125, 211, 252, 0.55)";
-    context.lineWidth = Math.max(1, 0.85 * zoom);
-    for (let yy = 0; yy < 4; yy++) {
-      for (let xx = 0; xx < 4; xx++) {
-        const tileIso = worldToIso(baseX + xx, baseY + yy, zoom, camera.offsetX, camera.offsetY);
-        drawIsoDiamond(context, tileIso.x, tileIso.y, (TILE_WIDTH * zoom) / 2, (TILE_HEIGHT * zoom) / 2);
-      }
-    }
 
     if (showBridgePieces) {
       for (const piece of PORT_BRIDGE_PIECES) {
@@ -3234,18 +4314,6 @@ function drawPortAssemblies(
         continue;
       }
 
-      context.fillStyle = "rgba(250, 204, 21, 0.12)";
-      context.strokeStyle = "rgba(250, 204, 21, 0.88)";
-      context.lineWidth = Math.max(1, 1.2 * zoom);
-      context.beginPath();
-      context.moveTo(iso.x, diamondCenterY - pieceHalfH);
-      context.lineTo(iso.x + pieceHalfW, diamondCenterY);
-      context.lineTo(iso.x, diamondCenterY + pieceHalfH);
-      context.lineTo(iso.x - pieceHalfW, diamondCenterY);
-      context.closePath();
-      context.fill();
-      context.stroke();
-
       const opt = PORT_GATE_OPT_PLACEMENT[piece.assetKey];
       const cellDrawW = opt.cellW * zoom;
       const cellDrawH = opt.cellH * zoom;
@@ -3260,16 +4328,6 @@ function drawPortAssemblies(
       context.drawImage(asset, drawX, drawY, drawW, drawH);
       context.shadowBlur = 0;
 
-      if (showLabels && zoom >= 0.55) {
-        context.font = `bold ${Math.max(9, 10 * zoom)}px sans-serif`;
-        context.textAlign = "center";
-        context.textBaseline = "top";
-        context.lineWidth = 3;
-        context.strokeStyle = "rgba(15,23,42,0.95)";
-        context.fillStyle = "#fde68a";
-        context.strokeText(piece.assetKey, iso.x, diamondCenterY + pieceHalfH + 2);
-        context.fillText(piece.assetKey, iso.x, diamondCenterY + pieceHalfH + 2);
-      }
     }
 
     if (showLabels && zoom >= 0.7) {
@@ -3278,9 +4336,10 @@ function drawPortAssemblies(
       context.textBaseline = "top";
       context.lineWidth = 3;
       context.strokeStyle = "rgba(15,23,42,0.95)";
-      context.fillStyle = "#bae6fd";
-      context.strokeText(`${port.name} ${port.unlockLevel} 4x4`, totalCenterIso.x, totalCenterY + portHalfH + 2);
-      context.fillText(`${port.name} ${port.unlockLevel} 4x4`, totalCenterIso.x, totalCenterY + portHalfH + 2);
+      context.fillStyle = "#fde68a";
+      const labelY = totalCenterY + Math.max(2, pieceHalfH * 0.2);
+      context.strokeText(`Port lv${port.unlockLevel}`, totalCenterIso.x, labelY);
+      context.fillText(`Port lv${port.unlockLevel}`, totalCenterIso.x, labelY);
     }
   }
   context.restore();
@@ -3295,19 +4354,19 @@ function computeResetCamera(mapWidth: number, mapHeight: number, canvasWidth: nu
   };
 }
 
-function computeInitialCamera(mapWidth: number, mapHeight: number, canvasWidth: number, canvasHeight: number): CameraState {
+function computeInitialCamera(mapWidth: number, mapHeight: number, canvasWidth: number, canvasHeight: number, defaultZoom: number): CameraState {
   if (typeof window !== "undefined") {
     const focus = new URLSearchParams(window.location.search).get("focus");
     const port = focus === "port44" ? PORT_ASSEMBLIES[1] : focus === "port7" || focus === "ports" ? PORT_ASSEMBLIES[0] : null;
     if (port) {
-      const zoom = 0.8;
+      const zoom = Math.max(defaultZoom, 0.8);
       const targetX = port.cellX + 1;
       const targetY = port.cellY - 1;
       return computeCameraForWorldCell(targetX, targetY, canvasWidth, canvasHeight, zoom);
     }
   }
 
-  return computeResetCamera(mapWidth, mapHeight, canvasWidth, canvasHeight, 0.65);
+  return computeResetCamera(mapWidth, mapHeight, canvasWidth, canvasHeight, defaultZoom);
 }
 
 function computeCameraForWorldCell(cellX: number, cellY: number, canvasWidth: number, canvasHeight: number, zoom: number): CameraState {
@@ -3346,6 +4405,7 @@ function getParsedCellAt(parsed: ParsedMapBinary, x: number, y: number): ParsedM
 
 async function fetchText(path: string): Promise<string> {
   const response = await fetch(path);
+  console.log("[runtime-world-render-test] fetchText", path, response.status, response.headers.get("Content-Type"));
   if (!response.ok) {
     throw new Error(`Failed to load ${path}: HTTP ${response.status}`);
   }
@@ -3354,6 +4414,7 @@ async function fetchText(path: string): Promise<string> {
 
 async function fetchArrayBuffer(path: string): Promise<ArrayBuffer> {
   const response = await fetch(path);
+  console.log("[runtime-world-render-test] fetchArrayBuffer", path, response.status, response.headers.get("Content-Type"));
   if (!response.ok) {
     throw new Error(`Failed to load ${path}: HTTP ${response.status}`);
   }
@@ -3362,6 +4423,7 @@ async function fetchArrayBuffer(path: string): Promise<ArrayBuffer> {
 
 async function fetchArrayBufferOptional(path: string): Promise<ArrayBuffer | null> {
   const response = await fetch(path);
+  console.log("[runtime-world-render-test] fetchArrayBufferOptional", path, response.status, response.headers.get("Content-Type"));
   if (!response.ok) {
     return null;
   }
