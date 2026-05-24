@@ -236,6 +236,7 @@ type RuntimeWorldRenderTestPageProps = {
   onCellClick?: (cell: { x: number; y: number }) => void;
   onCellHover?: (cell: { x: number; y: number } | null) => void;
   externalOverlays?: RuntimeExternalOverlay[];
+  showLevelOverlay?: boolean;
   hideNatureToggleButtons?: boolean;
   dimUncoveredConquestAreas?: boolean;
   conquestCoverageAreas?: Array<{
@@ -820,6 +821,7 @@ export default function RuntimeWorldRenderTestPage({
   onCellClick,
   onCellHover,
   externalOverlays = [],
+  showLevelOverlay = false,
   hideNatureToggleButtons = false,
   dimUncoveredConquestAreas = false,
   conquestCoverageAreas = [],
@@ -1046,6 +1048,73 @@ export default function RuntimeWorldRenderTestPage({
     }
     return keys;
   }, [conquestCoverageSet, pipeline]);
+
+  const levelOverlayData = useMemo(() => {
+    const empty = {
+      edges: [] as Array<{ x: number; y: number; top: boolean; right: boolean; bottom: boolean; left: boolean }>,
+      labels: [] as Array<{ x: number; y: number; level: number }>,
+    };
+    if (!pipeline || !showLevelOverlay) {
+      return empty;
+    }
+
+    const mapWidth = pipeline.parsedMap.width;
+    const mapHeight = pipeline.parsedMap.height;
+    const nativeRows = NATIVE_MAP.length;
+    const nativeCols = NATIVE_MAP[0]?.length ?? 0;
+    if (mapWidth <= 0 || mapHeight <= 0 || nativeRows <= 0 || nativeCols <= 0) {
+      return empty;
+    }
+
+    const nativeXByX = Array.from({ length: mapWidth }, (_, x) => getNativeIndex(x, mapWidth, nativeCols));
+    const nativeYByY = Array.from({ length: mapHeight }, (_, y) => getNativeIndex(y, mapHeight, nativeRows));
+
+    const edges: Array<{ x: number; y: number; top: boolean; right: boolean; bottom: boolean; left: boolean }> = [];
+    for (let y = 0; y < mapHeight; y += 1) {
+      const ny = nativeYByY[y];
+      for (let x = 0; x < mapWidth; x += 1) {
+        const nx = nativeXByX[x];
+        const level = NATIVE_MAP[ny]?.[nx]?.level;
+        if (!Number.isFinite(level)) {
+          continue;
+        }
+
+        const top = y === 0 || nativeYByY[y - 1] !== ny;
+        const bottom = y === mapHeight - 1 || nativeYByY[y + 1] !== ny;
+        const left = x === 0 || nativeXByX[x - 1] !== nx;
+        const right = x === mapWidth - 1 || nativeXByX[x + 1] !== nx;
+        if (top || right || bottom || left) {
+          edges.push({ x, y, top, right, bottom, left });
+        }
+      }
+    }
+
+    const labels: Array<{ x: number; y: number; level: number }> = [];
+    for (let ny = 0; ny < nativeRows; ny += 1) {
+      for (let nx = 0; nx < nativeCols; nx += 1) {
+        const level = NATIVE_MAP[ny]?.[nx]?.level;
+        if (!Number.isFinite(level)) {
+          continue;
+        }
+
+        const minX = Math.floor((nx * mapWidth) / nativeCols);
+        const maxX = Math.floor(((nx + 1) * mapWidth) / nativeCols) - 1;
+        const minY = Math.floor((ny * mapHeight) / nativeRows);
+        const maxY = Math.floor(((ny + 1) * mapHeight) / nativeRows) - 1;
+        if (maxX < minX || maxY < minY) {
+          continue;
+        }
+
+        labels.push({
+          x: Math.floor((minX + maxX) / 2),
+          y: Math.floor((minY + maxY) / 2),
+          level,
+        });
+      }
+    }
+
+    return { edges, labels };
+  }, [pipeline, showLevelOverlay]);
 
   const natureDebugSummary = useMemo(() => {
     if (!pipeline) {
@@ -1569,6 +1638,72 @@ export default function RuntimeWorldRenderTestPage({
       }
     }
 
+    if (showLevelOverlay && levelOverlayData.edges.length > 0) {
+      const halfW = (logicalTileWidth * zoom) / 2;
+      const halfH = (logicalTileHeight * zoom) / 2;
+
+      const drawBorders = (strokeStyle: string, lineWidth: number) => {
+        context.strokeStyle = strokeStyle;
+        context.lineWidth = lineWidth;
+        for (const edge of levelOverlayData.edges) {
+          const iso = worldToIso(edge.x, edge.y, zoom, camera.offsetX, camera.offsetY);
+          if (edge.top) {
+            context.beginPath();
+            context.moveTo(iso.x - halfW, iso.y);
+            context.lineTo(iso.x, iso.y - halfH);
+            context.lineTo(iso.x + halfW, iso.y);
+            context.stroke();
+          }
+          if (edge.right) {
+            context.beginPath();
+            context.moveTo(iso.x, iso.y - halfH);
+            context.lineTo(iso.x + halfW, iso.y);
+            context.lineTo(iso.x, iso.y + halfH);
+            context.stroke();
+          }
+          if (edge.bottom) {
+            context.beginPath();
+            context.moveTo(iso.x - halfW, iso.y);
+            context.lineTo(iso.x, iso.y + halfH);
+            context.lineTo(iso.x + halfW, iso.y);
+            context.stroke();
+          }
+          if (edge.left) {
+            context.beginPath();
+            context.moveTo(iso.x, iso.y - halfH);
+            context.lineTo(iso.x - halfW, iso.y);
+            context.lineTo(iso.x, iso.y + halfH);
+            context.stroke();
+          }
+        }
+      };
+
+      drawBorders("rgba(2, 6, 23, 0.95)", 2.6);
+      drawBorders("rgba(255, 255, 255, 0.78)", 1.05);
+
+      const fontSize = Math.max(9, Math.min(14, 9 + zoom * 1.6));
+      context.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      for (const label of levelOverlayData.labels) {
+        const iso = worldToIso(label.x, label.y, zoom, camera.offsetX, camera.offsetY);
+        const text = String(label.level);
+        const textWidth = context.measureText(text).width;
+        const boxW = Math.ceil(textWidth + 12);
+        const boxH = Math.ceil(fontSize + 6);
+        const left = Math.round(iso.x - boxW / 2);
+        const top = Math.round(iso.y - boxH / 2);
+
+        context.fillStyle = "rgba(2, 6, 23, 0.86)";
+        context.fillRect(left, top, boxW, boxH);
+        context.strokeStyle = "rgba(255, 255, 255, 0.86)";
+        context.lineWidth = 1;
+        context.strokeRect(left + 0.5, top + 0.5, boxW - 1, boxH - 1);
+        context.fillStyle = "rgba(255, 255, 255, 0.98)";
+        context.fillText(text, Math.round(iso.x), Math.round(iso.y));
+      }
+    }
+
     if (!publicMode && hoveredCell) {
       const isoCenter = worldToIso(hoveredCell.x, hoveredCell.y, zoom, camera.offsetX, camera.offsetY);
       context.strokeStyle = "rgba(255, 255, 255, 0.8)";
@@ -1619,6 +1754,8 @@ export default function RuntimeWorldRenderTestPage({
     conquestCoveredCellKeys,
     dimUncoveredConquestAreas,
     spawnOverlayCells,
+    showLevelOverlay,
+    levelOverlayData,
     showNatureDebugOverlay,
     showNatureCandidateBounds,
     showTextureBounds,

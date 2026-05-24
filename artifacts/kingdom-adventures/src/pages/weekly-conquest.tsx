@@ -433,6 +433,7 @@ export default function WeeklyConquestPage() {
   const [deploymentQuery, setDeploymentQuery] = useState("");
   const [deploymentOpen, setDeploymentOpen] = useState(false);
   const [disabledMapMonsters, setDisabledMapMonsters] = useState<string[]>([]);
+  const [showLevelsOverlay, setShowLevelsOverlay] = useState(false);
   const [communitySightings] = useState<Record<string, CommunitySighting[]>>(() => readCommunitySightings());
   const [coveredConquestAreas, setCoveredConquestAreas] = useState<string[]>(() => {
     try {
@@ -921,12 +922,27 @@ export default function WeeklyConquestPage() {
                             </button>
                           );
                         })}
+                        <button
+                          type="button"
+                          onClick={() => setShowLevelsOverlay((previous) => !previous)}
+                          aria-pressed={showLevelsOverlay}
+                          className={cn(
+                            "flex w-[86px] flex-col items-center justify-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-semibold leading-tight transition-colors min-h-[78px]",
+                            showLevelsOverlay
+                              ? "border-primary/70 bg-primary/25 text-primary ring-1 ring-primary/40"
+                              : "border-border bg-muted/20 text-muted-foreground/80",
+                          )}
+                        >
+                          <span className="inline-flex rounded-sm border border-current px-1 py-0.5 text-[10px]">123</span>
+                          <span className="line-clamp-2 min-h-[1.5rem] break-words">Show levels</span>
+                        </button>
                       </div>
                     </div>
 
                     <RuntimeWorldRenderTestPage
                       publicMode
                       initialZoom={0.28}
+                      showLevelOverlay={showLevelsOverlay}
                       hideNatureToggleButtons
                       dimUncoveredConquestAreas
                       conquestCoverageAreas={weeklyCoverageAreas}
