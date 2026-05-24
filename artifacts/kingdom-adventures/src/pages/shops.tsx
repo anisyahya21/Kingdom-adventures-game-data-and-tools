@@ -103,9 +103,16 @@ type ItemFacilityRow = {
   facilities: string[];
 };
 type ItemReferenceSortKey = "name" | "exp";
+type AllyJobRank = "F" | "E" | "D" | "C" | "B" | "A" | "S";
+type RankedJobNeedExpProfile = JobNeedExpProfile & {
+  baseName: string;
+  rank: AllyJobRank;
+};
 
 // JOB_PARAMETER_ORDER and JobParameterKey are now imported from @/game-data/job-needexp
 const ALLY_STAT_MAX = 999;
+const ALLY_JOB_RANKS: AllyJobRank[] = ["F", "E", "D", "C", "B", "A", "S"];
+const DEFAULT_ALLY_JOB_RANK: AllyJobRank = "D";
 const CANONICAL_JOB_NAME_SET = new Set(
   Object.keys(((localSharedData as { jobs?: Record<string, unknown> }).jobs ?? {})).map((name) => name.trim().toLowerCase())
 );
@@ -316,6 +323,66 @@ function parseExpByLevel(rawCsv: string): Map<number, number> {
 
 function parseJobNeedExpProfiles(rawCsv: string): JobNeedExpProfile[] {
   return parseJobNeedExpProfilesShared(rawCsv, CANONICAL_JOB_NAME_SET);
+}
+
+function parseRankedJobNeedExpProfiles(rawCsv: string): RankedJobNeedExpProfile[] {
+  const rows = parseCsv(rawCsv);
+  if (rows.length === 0) return [];
+
+  const headerRowIndex = rows.findIndex((row) => {
+    const normalized = row.map((cell) => cell.trim());
+    return normalized.includes("id") && normalized.includes("name") && normalized.includes("maxLevel");
+  });
+  if (headerRowIndex < 0) return [];
+
+  const header = rows[headerRowIndex].map((cell) => cell.trim());
+  const nameIndex = header.findIndex((cell) => /^name$/i.test(cell));
+  const statStartIndex = header.findIndex((cell) => /^maxLevel$/i.test(cell));
+  if (nameIndex < 0 || statStartIndex < 0) return [];
+
+  const gradePrefix = /^(S|A|B|C|D|E|F)\s+(Grade|Rank)\s+(.+)$/i;
+  const profiles = new Map<string, RankedJobNeedExpProfile>();
+
+  for (const row of rows.slice(headerRowIndex + 1)) {
+    const rawName = String(row[nameIndex] ?? "").trim();
+    const match = rawName.match(gradePrefix);
+    if (!match) continue;
+
+    const rank = match[1].toUpperCase() as AllyJobRank;
+    const baseName = match[3].trim();
+    if (!baseName || !ALLY_JOB_RANKS.includes(rank)) continue;
+    if (CANONICAL_JOB_NAME_SET.size > 0 && !CANONICAL_JOB_NAME_SET.has(baseName.toLowerCase())) continue;
+
+    const profileKey = `${baseName}::${rank}`;
+    if (profiles.has(profileKey)) continue;
+
+    const needExpByParameter = {} as Record<JobParameterKey, number>;
+    const maxLevelByParameter = {} as Record<JobParameterKey, number>;
+
+    JOB_PARAMETER_ORDER.forEach((parameter, index) => {
+      const maxLevelIndex = statStartIndex + (index * 5);
+      const needExpIndex = statStartIndex + (index * 5) + 1;
+      const maxLevelValue = Number(row[maxLevelIndex] ?? "");
+      const needExpValue = Number(row[needExpIndex] ?? "");
+      maxLevelByParameter[parameter] = Number.isFinite(maxLevelValue) && maxLevelValue > 0 ? maxLevelValue : 1;
+      needExpByParameter[parameter] = Number.isFinite(needExpValue) && needExpValue > 0 ? needExpValue : 100;
+    });
+
+    profiles.set(profileKey, {
+      name: baseName,
+      baseName,
+      rank,
+      needExpByParameter,
+      maxLevelByParameter,
+    });
+  }
+
+  const rankOrder: Record<AllyJobRank, number> = { F: 0, E: 1, D: 2, C: 3, B: 4, A: 5, S: 6 };
+  return Array.from(profiles.values()).sort((left, right) => {
+    const byName = left.baseName.localeCompare(right.baseName);
+    if (byName !== 0) return byName;
+    return rankOrder[left.rank] - rankOrder[right.rank];
+  });
 }
 
 function isLvLimitBonus(item: ItemRow): boolean {
@@ -1097,6 +1164,7 @@ export default function ShopsPage() {
   const [plannerAwakeningInput, setPlannerAwakeningInput] = useState("0");
   const [selectedFeedItemName, setSelectedFeedItemName] = useState("");
   const [selectedNeedExpJobName, setSelectedNeedExpJobName] = useState("");
+  const [selectedNeedExpRank, setSelectedNeedExpRank] = useState<AllyJobRank>(DEFAULT_ALLY_JOB_RANK);
   const [feedItemQuery, setFeedItemQuery] = useState("");
   const [jobQuery, setJobQuery] = useState("");
   const [feedItemDropdownOpen, setFeedItemDropdownOpen] = useState(false);
@@ -1108,6 +1176,7 @@ export default function ShopsPage() {
   const [showHiddenNoExpItems, setShowHiddenNoExpItems] = useState(false);
   const [feedXpFilterEnabled, setFeedXpFilterEnabled] = useState(false);
   const [feedXpStatFilter, setFeedXpStatFilter] = useState<Set<JobParameterKey>>(new Set());
+  const [feedXpStatExcludeFilter, setFeedXpStatExcludeFilter] = useState<Set<JobParameterKey>>(new Set());
   const [itemReferenceSortKey, setItemReferenceSortKey] = useState<ItemReferenceSortKey>("name");
   const [itemReferenceSortDir, setItemReferenceSortDir] = useState<"asc" | "desc">("asc");
   const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
@@ -1152,11 +1221,18 @@ export default function ShopsPage() {
       const parsed = JSON.parse(raw) as {
         selectedFeedItemName?: string;
         selectedNeedExpJobName?: string;
+        selectedNeedExpRank?: string;
         plannerAwakeningInput?: string;
         plannerCurrentStatInputs?: Partial<Record<JobParameterKey, string>>;
       };
       if (typeof parsed.selectedFeedItemName === "string") setSelectedFeedItemName(parsed.selectedFeedItemName);
       if (typeof parsed.selectedNeedExpJobName === "string") setSelectedNeedExpJobName(parsed.selectedNeedExpJobName);
+      if (typeof parsed.selectedNeedExpRank === "string") {
+        const normalizedRank = parsed.selectedNeedExpRank.toUpperCase() as AllyJobRank;
+        if (ALLY_JOB_RANKS.includes(normalizedRank)) {
+          setSelectedNeedExpRank(normalizedRank);
+        }
+      }
       if (typeof parsed.plannerAwakeningInput === "string") setPlannerAwakeningInput(parsed.plannerAwakeningInput);
       if (parsed.plannerCurrentStatInputs && typeof parsed.plannerCurrentStatInputs === "object") {
         setPlannerCurrentStatInputs(parsed.plannerCurrentStatInputs);
@@ -1257,6 +1333,7 @@ export default function ShopsPage() {
   const facilityByCraftGroup = useMemo(() => parseFacilityCraftGroupMap(facilityLookupCsv), []);
   const expByLevel = useMemo(() => parseExpByLevel(expCsv), []);
   const jobNeedExpProfiles = useMemo(() => parseJobNeedExpProfiles(jobCsv), []);
+  const rankedJobNeedExpProfiles = useMemo(() => parseRankedJobNeedExpProfiles(jobCsv), []);
   const maxExpLevel = useMemo(() => {
     const levels = Array.from(expByLevel.keys());
     return levels.length > 0 ? Math.max(...levels) : 1;
@@ -1375,7 +1452,20 @@ export default function ShopsPage() {
     });
   };
   const toggleFeedXpStatFilter = (stat: JobParameterKey) => {
+    setFeedXpFilterEnabled(true);
     setFeedXpStatFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(stat)) {
+        next.delete(stat);
+      } else {
+        next.add(stat);
+      }
+      return next;
+    });
+  };
+  const toggleFeedXpStatExcludeFilter = (stat: JobParameterKey) => {
+    setFeedXpFilterEnabled(true);
+    setFeedXpStatExcludeFilter((prev) => {
       const next = new Set(prev);
       if (next.has(stat)) {
         next.delete(stat);
@@ -1396,15 +1486,18 @@ export default function ShopsPage() {
     });
   };
   const filteredItemFacilityRows = useMemo(() => {
-    const activeStats = feedXpFilterEnabled ? Array.from(feedXpStatFilter) : [];
+    const activeStats = Array.from(feedXpStatFilter);
+    const excludedStats = Array.from(feedXpStatExcludeFilter);
+    const feedXpFilteringActive = feedXpFilterEnabled || activeStats.length > 0;
     const rows = itemFacilityRows.filter((row) => {
       if (!matchesQuery(row.item.name, itemSearch)) return false;
       if (!showHiddenNoExpItems && !hasFeedExp(row.item)) return false;
-      if (feedXpFilterEnabled && !hasFeedExp(row.item)) return false;
+      if (feedXpFilteringActive && !hasFeedExp(row.item)) return false;
+      const itemStats = BONUS_TYPE_PARAMETER_KEYS[row.item.bonusType] ?? [];
       if (activeStats.length > 0) {
-        const itemStats = BONUS_TYPE_PARAMETER_KEYS[row.item.bonusType] ?? [];
         if (!activeStats.some((stat) => itemStats.includes(stat))) return false;
       }
+      if (excludedStats.length > 0 && excludedStats.some((stat) => itemStats.includes(stat))) return false;
       if (itemSourceFilter.size > 0 && !row.sources.some((source) => itemSourceFilter.has(source))) return false;
       if (facilitySourceFilter.size === 0) return true;
       if (facilitySourceFilter.has(NO_FACILITY_SOURCE_FILTER) && row.facilities.length === 0) return true;
@@ -1418,7 +1511,7 @@ export default function ShopsPage() {
       }
       return a.item.name.localeCompare(b.item.name) * direction;
     });
-  }, [facilitySourceFilter, feedXpFilterEnabled, feedXpStatFilter, itemFacilityRows, itemReferenceSortDir, itemReferenceSortKey, itemSearch, itemSourceFilter, showHiddenNoExpItems]);
+  }, [facilitySourceFilter, feedXpFilterEnabled, feedXpStatExcludeFilter, feedXpStatFilter, itemFacilityRows, itemReferenceSortDir, itemReferenceSortKey, itemSearch, itemSourceFilter, showHiddenNoExpItems]);
   const hiddenNoExpItemCount = useMemo(
     () => itemFacilityRows.filter((row) => !hasFeedExp(row.item)).length,
     [itemFacilityRows]
@@ -1466,6 +1559,9 @@ export default function ShopsPage() {
     () => jobNeedExpProfiles.find((job) => job.name === selectedNeedExpJobName) ?? null,
     [jobNeedExpProfiles, selectedNeedExpJobName]
   );
+  const selectedNeedExpRankedJob = useMemo(() => {
+    return rankedJobNeedExpProfiles.find((job) => job.baseName === selectedNeedExpJobName && job.rank === selectedNeedExpRank) ?? null;
+  }, [rankedJobNeedExpProfiles, selectedNeedExpJobName, selectedNeedExpRank]);
   useEffect(() => {
     if (!jobDropdownOpen) setJobQuery(selectedNeedExpJobName);
   }, [jobDropdownOpen, selectedNeedExpJobName]);
@@ -1488,14 +1584,14 @@ export default function ShopsPage() {
   }, [selectedFeedItem]);
   const selectedFeedStatExpRows = useMemo(() => {
     return selectedFeedStatKeys.map((key) => {
-      const baseMaxLevel = selectedNeedExpJob?.maxLevelByParameter[key] ?? 1;
+      const baseMaxLevel = selectedNeedExpRankedJob?.maxLevelByParameter[key] ?? selectedNeedExpJob?.maxLevelByParameter[key] ?? 1;
       const targetStatLevel = Math.min(ALLY_STAT_MAX, maxExpLevel + 1, baseMaxLevel + (AWAKENING_LEVEL_BONUS * plannerAwakening));
       const rawInput = plannerCurrentStatInputs[key] ?? "1";
       const parsed = Number.parseInt(rawInput, 10);
       const currentStatLevel = Number.isFinite(parsed)
         ? Math.min(Math.max(parsed, 1), targetStatLevel)
         : 1;
-      const needExpPercent = selectedNeedExpJob?.needExpByParameter[key] ?? 100;
+      const needExpPercent = selectedNeedExpRankedJob?.needExpByParameter[key] ?? selectedNeedExpJob?.needExpByParameter[key] ?? 100;
       const expNeeded = getTotalExpNeeded(expByLevel, currentStatLevel, targetStatLevel, needExpPercent);
       return {
         key,
@@ -1505,7 +1601,7 @@ export default function ShopsPage() {
         expNeeded,
       };
     });
-  }, [expByLevel, maxExpLevel, plannerAwakening, plannerCurrentStatInputs, selectedFeedStatKeys, selectedNeedExpJob]);
+  }, [expByLevel, maxExpLevel, plannerAwakening, plannerCurrentStatInputs, selectedFeedStatKeys, selectedNeedExpJob, selectedNeedExpRankedJob]);
   const plannerTotalExpNeeded = useMemo(() => {
     if (selectedFeedStatExpRows.length === 0) return 0;
     return Math.max(...selectedFeedStatExpRows.map((row) => row.expNeeded));
@@ -1553,11 +1649,12 @@ export default function ShopsPage() {
     const payload = {
       selectedFeedItemName,
       selectedNeedExpJobName,
+      selectedNeedExpRank,
       plannerAwakeningInput,
       plannerCurrentStatInputs,
     };
     window.localStorage.setItem(ALLY_PLANNER_STORAGE_KEY, JSON.stringify(payload));
-  }, [plannerAwakeningInput, plannerCurrentStatInputs, plannerStateHydrated, selectedFeedItemName, selectedNeedExpJobName]);
+  }, [plannerAwakeningInput, plannerCurrentStatInputs, plannerStateHydrated, selectedFeedItemName, selectedNeedExpJobName, selectedNeedExpRank]);
   const selectedFeedStatProjection = useMemo(() => {
     if (!selectedFeedItem || selectedFeedStatKeys.length === 0) return [];
 
@@ -2227,6 +2324,29 @@ export default function ShopsPage() {
                       );
                     })}
                   </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Exclude:</span>
+                    {FEED_FILTER_STAT_KEYS.map((stat) => {
+                      const active = feedXpStatExcludeFilter.has(stat);
+                      return (
+                        <button
+                          key={`exclude-${stat}`}
+                          type="button"
+                          onClick={() => toggleFeedXpStatExcludeFilter(stat)}
+                          className={`h-8 rounded-md border px-2 text-xs transition-colors inline-flex items-center gap-1.5 ${active ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
+                        >
+                          {statIcons[JOB_PARAMETER_ICON_KEYS[stat] ?? ""] ? (
+                            <img
+                              src={statIcons[JOB_PARAMETER_ICON_KEYS[stat] ?? ""]}
+                              alt={JOB_PARAMETER_DISPLAY_LABELS[stat]}
+                              className="h-3.5 w-3.5 object-contain"
+                            />
+                          ) : null}
+                          {JOB_PARAMETER_DISPLAY_LABELS[stat]}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-lg border border-border">
@@ -2302,11 +2422,11 @@ export default function ShopsPage() {
 
                 <div ref={plannerSectionRef} className="space-y-2 pt-1">
                   <h3 className="text-sm font-semibold">Ally Feed Planner</h3>
-                  <p className="text-xs text-muted-foreground">Pick a job and awakening first. Max stat levels are auto-derived per stat from that profile.</p>
+                  <p className="text-xs text-muted-foreground">Pick a job, rank, and awakening first. Max stat levels are auto-derived per stat from that profile.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="w-full md:w-[300px]">
                     <label className="text-xs text-muted-foreground">Feed item</label>
                     <div className="relative mt-1" ref={feedItemDropdownRef}>
                       <Input
@@ -2381,7 +2501,7 @@ export default function ShopsPage() {
                       )}
                     </div>
                   </div>
-                  <div>
+                  <div className="w-full md:w-[300px]">
                     <label className="text-xs text-muted-foreground">Job</label>
                     <div className="relative mt-1" ref={jobDropdownRef}>
                       <Input
@@ -2453,7 +2573,19 @@ export default function ShopsPage() {
                       )}
                     </div>
                   </div>
-                  <div>
+                  <div className="w-[110px]">
+                    <label className="text-xs text-muted-foreground">Rank</label>
+                    <select
+                      value={selectedNeedExpRank}
+                      onChange={(e) => setSelectedNeedExpRank(e.target.value as AllyJobRank)}
+                      className="h-9 mt-1 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      {ALLY_JOB_RANKS.map((rank) => (
+                        <option key={rank} value={rank}>{rank}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-[120px]">
                     <label className="text-xs text-muted-foreground">Awakening</label>
                     <Input
                       type="number"
@@ -2552,9 +2684,12 @@ export default function ShopsPage() {
                     <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
                       Job:{" "}
                       {selectedNeedExpJob?.name ? (
-                        <EntityLink type="job" name={selectedNeedExpJob.name} className="font-semibold text-primary hover:no-underline">
-                          {selectedNeedExpJob.name}
-                        </EntityLink>
+                        <>
+                          <EntityLink type="job" name={selectedNeedExpJob.name} className="font-semibold text-primary hover:no-underline">
+                            {selectedNeedExpJob.name}
+                          </EntityLink>
+                          <span className="ml-1">(Rank {selectedNeedExpRank})</span>
+                        </>
                       ) : (
                         <span className="font-semibold text-primary">-</span>
                       )}
