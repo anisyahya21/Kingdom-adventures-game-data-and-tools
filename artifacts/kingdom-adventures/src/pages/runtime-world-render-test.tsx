@@ -216,9 +216,26 @@ type PortGateDragState = {
   moved: boolean;
 };
 
+export type RuntimeExternalOverlay = {
+  id: string;
+  cellX: number;
+  cellY: number;
+  widthTiles?: number;
+  spriteUrl?: string;
+  markerText?: string;
+  markerKind?: "monster" | "unit";
+  invalid?: boolean;
+  opacity?: number;
+};
+
 type RuntimeWorldRenderTestPageProps = {
   publicMode?: boolean;
   initialZoom?: number;
+  controlledZoom?: number;
+  interactiveInPublicMode?: boolean;
+  onCellClick?: (cell: { x: number; y: number }) => void;
+  onCellHover?: (cell: { x: number; y: number } | null) => void;
+  externalOverlays?: RuntimeExternalOverlay[];
   hideNatureToggleButtons?: boolean;
   dimUncoveredConquestAreas?: boolean;
   conquestCoverageAreas?: Array<{
@@ -798,6 +815,11 @@ function normalizePortGateOffset(
 export default function RuntimeWorldRenderTestPage({
   publicMode = false,
   initialZoom = 0.65,
+  controlledZoom,
+  interactiveInPublicMode = false,
+  onCellClick,
+  onCellHover,
+  externalOverlays = [],
   hideNatureToggleButtons = false,
   dimUncoveredConquestAreas = false,
   conquestCoverageAreas = [],
@@ -846,6 +868,22 @@ export default function RuntimeWorldRenderTestPage({
   const [defaultTerrainMode, setDefaultTerrainMode] = useState(false);
   const [pipeline, setPipeline] = useState<RenderPipeline | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const allowMapInteraction = !publicMode || interactiveInPublicMode || !!onCellClick || !!onCellHover;
+
+  useEffect(() => {
+    if (typeof controlledZoom !== "number" || !Number.isFinite(controlledZoom)) {
+      return;
+    }
+    const nextZoom = Math.max(0.08, Math.min(3.5, controlledZoom));
+    setCamera((previous) =>
+      Math.abs(previous.zoom - nextZoom) < 0.0001
+        ? previous
+        : {
+            ...previous,
+            zoom: nextZoom,
+          },
+    );
+  }, [controlledZoom]);
 
   const natureCategoryVisibility = useMemo<NatureCategoryVisibility>(() => ({
     "terrain-nature": showTerrainNature,
@@ -2006,10 +2044,12 @@ export default function RuntimeWorldRenderTestPage({
 
     if (portGateDrag) {
       setHoveredCell(null);
+      onCellHover?.(null);
       return;
     }
     setDragging(false);
     setHoveredCell(null);
+    onCellHover?.(null);
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -2078,16 +2118,19 @@ export default function RuntimeWorldRenderTestPage({
       return;
     }
 
-    if (publicMode) {
+    if (!allowMapInteraction) {
       setHoveredCell(null);
+      onCellHover?.(null);
       return;
     }
 
-    setHoveredCell(pointerToWorld(event, canvasRef.current, camera));
+    const nextHover = pointerToWorld(event, canvasRef.current, camera);
+    setHoveredCell(nextHover);
+    onCellHover?.(nextHover);
   }
 
   function onCanvasClick(event: React.MouseEvent<HTMLCanvasElement>) {
-    if (publicMode) {
+    if (!allowMapInteraction) {
       return;
     }
 
@@ -2099,7 +2142,9 @@ export default function RuntimeWorldRenderTestPage({
     if (!pipeline || !canvasRef.current) {
       return;
     }
-    setSelectedCell(pointerToWorldFromClient(event.clientX, event.clientY, canvasRef.current, camera));
+    const clicked = pointerToWorldFromClient(event.clientX, event.clientY, canvasRef.current, camera);
+    setSelectedCell(clicked);
+    onCellClick?.(clicked);
   }
 
   function onWheel(event: React.WheelEvent<HTMLCanvasElement>) {
@@ -2360,7 +2405,7 @@ export default function RuntimeWorldRenderTestPage({
 
       {error && <div className="mt-3 rounded border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-100">{error}</div>}
 
-      <div ref={containerRef} className="mt-3 h-[74vh] overflow-hidden rounded border border-border bg-black">
+      <div ref={containerRef} className="relative mt-3 h-[74vh] overflow-hidden rounded border border-border bg-black">
         <canvas
           ref={canvasRef}
           className={`h-full w-full touch-none ${dragging || portGateDrag ? "cursor-grabbing" : "cursor-grab"}`}
@@ -2372,6 +2417,49 @@ export default function RuntimeWorldRenderTestPage({
           onClick={onCanvasClick}
           aria-label="Engine driven map renderer canvas"
         />
+        {externalOverlays.length > 0 && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            {externalOverlays.map((overlay) => {
+              const widthTiles = Math.max(1, overlay.widthTiles ?? 1);
+              const baseIso = worldToIso(overlay.cellX, overlay.cellY, camera.zoom, camera.offsetX, camera.offsetY);
+              const southY = baseIso.y + TILE_HEIGHT * camera.zoom * (0.5 + (widthTiles - 1));
+              const centerX = baseIso.x;
+              const drawW = TILE_WIDTH * camera.zoom * (widthTiles + (overlay.spriteUrl ? 0.9 : 0.2));
+              const drawH = TILE_HEIGHT * camera.zoom * (widthTiles + (overlay.spriteUrl ? 2.4 : 1.1));
+              const markerClass = overlay.markerKind === "monster"
+                ? "border-red-900/45 bg-red-500/85"
+                : "border-emerald-900/45 bg-emerald-500/85";
+              return (
+                <div
+                  key={overlay.id}
+                  className="absolute"
+                  style={{
+                    left: centerX,
+                    top: southY,
+                    width: drawW,
+                    height: drawH,
+                    transform: "translate(-50%, -100%)",
+                    opacity: Math.max(0.2, Math.min(1, overlay.opacity ?? 1)),
+                  }}
+                >
+                  {overlay.spriteUrl ? (
+                    <img
+                      src={overlay.spriteUrl}
+                      alt=""
+                      className="h-full w-full object-contain [image-rendering:pixelated]"
+                      style={overlay.invalid ? { filter: "grayscale(1) brightness(0.55) sepia(0.8) hue-rotate(-35deg)" } : undefined}
+                      draggable={false}
+                    />
+                  ) : (
+                    <span className={`absolute left-1/2 top-1/2 flex h-[65%] w-[65%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border text-sm font-bold text-white ${markerClass}`}>
+                      {overlay.markerText ?? ""}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {!publicMode && pipeline && (

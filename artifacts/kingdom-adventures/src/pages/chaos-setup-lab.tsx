@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { ChevronDown, Shield, Skull } from "lucide-react";
+import RuntimeWorldRenderTestPage, { type RuntimeExternalOverlay } from "./runtime-world-render-test";
 import { NATIVE_MAP, mapTerrainCodeToType, parseTerrainMapCsv, type TerrainType } from "@/lib/monster-truth";
 import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
 
@@ -446,6 +447,105 @@ export default function ChaosSetupLabPage() {
     return { kind: "stone" as const, valid, cells };
   }, [hoverTile, tool, seaTiles, occupiedByStones, pieces]);
 
+  const runtimeMapZoom = useMemo(() => {
+    return Math.max(0.14, Math.min(3.2, mapZoom * 0.2));
+  }, [mapZoom]);
+
+  const runtimeOverlays = useMemo<RuntimeExternalOverlay[]>(() => {
+    const out: RuntimeExternalOverlay[] = [];
+
+    stoneAnchors.forEach((anchor, idx) => {
+      out.push({
+        id: `stone-${idx + 1}`,
+        cellX: anchor.x,
+        cellY: anchor.y,
+        widthTiles: 2,
+        spriteUrl: CHAOS_STONE_SPRITE,
+      });
+    });
+
+    boardIdByKey.forEach((_id, key) => {
+      const p = parseKey(key);
+      out.push({
+        id: `board-${key}`,
+        cellX: p.x,
+        cellY: p.y,
+        widthTiles: 1,
+        spriteUrl: SIGNBOARD_SPRITE,
+      });
+    });
+
+    if (openMonsterTile) {
+      out.push({
+        id: "open-monster",
+        cellX: openMonsterTile.x,
+        cellY: openMonsterTile.y,
+        markerText: "M",
+        markerKind: "monster",
+      });
+    }
+
+    if (openUnitTile) {
+      out.push({
+        id: "open-unit",
+        cellX: openUnitTile.x,
+        cellY: openUnitTile.y,
+        markerText: "U",
+        markerKind: "unit",
+      });
+    }
+
+    if (hoverTile && placementPreview.kind === "stone") {
+      out.push({
+        id: "preview-stone",
+        cellX: hoverTile.x,
+        cellY: hoverTile.y,
+        widthTiles: 2,
+        spriteUrl: CHAOS_STONE_SPRITE,
+        invalid: !placementPreview.valid,
+        opacity: 0.62,
+      });
+    }
+
+    if (hoverTile && placementPreview.kind === "board") {
+      out.push({
+        id: "preview-board",
+        cellX: hoverTile.x,
+        cellY: hoverTile.y,
+        widthTiles: 1,
+        spriteUrl: SIGNBOARD_SPRITE,
+        invalid: !placementPreview.valid,
+        opacity: 0.62,
+      });
+    }
+
+    if (hoverTile && placementPreview.kind === "monster") {
+      out.push({
+        id: "preview-monster",
+        cellX: hoverTile.x,
+        cellY: hoverTile.y,
+        markerText: "M",
+        markerKind: "monster",
+        invalid: !placementPreview.valid,
+        opacity: 0.62,
+      });
+    }
+
+    if (hoverTile && placementPreview.kind === "unit") {
+      out.push({
+        id: "preview-unit",
+        cellX: hoverTile.x,
+        cellY: hoverTile.y,
+        markerText: "U",
+        markerKind: "unit",
+        invalid: !placementPreview.valid,
+        opacity: 0.62,
+      });
+    }
+
+    return out;
+  }, [boardIdByKey, hoverTile, openMonsterTile, openUnitTile, placementPreview.kind, placementPreview.valid, stoneAnchors]);
+
   const combinedEnvelope = useMemo(() => {
     const all = new Set<string>();
     stoneAnchors.forEach((anchor) => {
@@ -537,6 +637,13 @@ export default function ChaosSetupLabPage() {
 
     const viewport = mapViewportRef.current;
     const grid = mapGridRef.current;
+
+    if (!viewport || !grid || viewport.clientWidth <= 1 || viewport.clientHeight <= 1) {
+      const boostedZoom = +Math.min(ZOOM_MAX, Math.max(6, mapZoom + 1.5)).toFixed(2);
+      setMapZoom(boostedZoom);
+      setCopyStatus(`Focused on setup at ${Math.round(boostedZoom * 100)}% zoom.`);
+      return;
+    }
 
     const xs = focusPoints.map((p) => p.x);
     const ys = focusPoints.map((p) => p.y);
@@ -2017,7 +2124,27 @@ export default function ChaosSetupLabPage() {
         </CardContent>
       </Card>
 
-      <Card className="relative">
+      <Card>
+        <CardContent className="p-2">
+          <RuntimeWorldRenderTestPage
+            publicMode
+            controlledZoom={runtimeMapZoom}
+            interactiveInPublicMode
+            hideNatureToggleButtons
+            initialNatureVisibility={{
+              terrain: false,
+              resources: false,
+              humans: false,
+              special: false,
+            }}
+            externalOverlays={runtimeOverlays}
+            onCellHover={(cell) => setHoverTile(cell)}
+            onCellClick={(cell) => onCellClick(cell.x, cell.y)}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="relative hidden">
         <CardContent ref={mapViewportRef} className="max-h-[72vh] overflow-auto p-2">
           <div
             ref={mapGridRef}
