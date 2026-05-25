@@ -1,12 +1,12 @@
-# Kingdom Adventurers Website Icons
+# Kingdom Adventures Website Icons
 
-Exported on: 2026-05-15 07:58:04
+Exported on: 2026-05-25 19:45:50
 Scale: 1x
 
 ## Structure
 
 ```
-..\..\website_icons/
+website_icons/
   items/           161 item icons
   equipment/       307 equipment icons
   eggs/            8 egg icons

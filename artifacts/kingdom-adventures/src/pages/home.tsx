@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link } from "wouter";
-import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, BookOpen, Package, Egg, Store, Home as HomeIcon, CalendarDays, BookMarked, BriefcaseBusiness } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, BookOpen, Package, Store, Home as HomeIcon, CalendarDays, BookMarked, BriefcaseBusiness } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,7 +118,14 @@ const BUILT_IN_TOOLS = [
     slug: "/survey",
     title: "Survey",
     description: "Survey database and calculator for planning success and rewards.",
-    icon: <Store className="w-6 h-6 text-cyan-500" />,
+    icon: (
+      <img
+        src="/website_icons/requested/survey_button_00.png"
+        alt="Survey"
+        className="h-10 w-10 object-contain"
+        style={{ imageRendering: "pixelated" }}
+      />
+    ),
     badge: "Survey",
     badgeCategory: "survey" satisfies KaCategory,
   },
@@ -142,7 +149,17 @@ const BUILT_IN_TOOLS = [
     slug: "/eggs-pets-monsters",
     title: "Eggs, Pets & Monsters",
     description: "Egg planner plus detailed monster and pet databases for stats, growth, spawn locations, and team planning.",
-    icon: <Egg className="w-6 h-6 text-yellow-500" />,
+    icon: (
+      <div className="flex items-center gap-1.5">
+        <Skull className="w-5 h-5 text-red-500" />
+        <img
+          src="/website_icons/requested/grow_monster_egg_button2.png"
+          alt="Grow monster egg"
+          className="h-9 w-9 object-contain"
+          style={{ imageRendering: "pixelated" }}
+        />
+      </div>
+    ),
     badge: "Planner",
     badgeCategory: "monster" satisfies KaCategory,
   },

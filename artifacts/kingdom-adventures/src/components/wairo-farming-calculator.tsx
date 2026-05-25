@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { BatteryCharging, Calculator, Check, Hammer, Info, Loader2, Pickaxe, Swords, Trash2 } from "lucide-react";
+import { BatteryCharging, Calculator, Check, Hammer, Info, Loader2, Swords } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +38,8 @@ type ResultRow = {
 type PlannerInputs = WairoRouteWorkerInput;
 
 const WAIRO_ROUTE_SETUP_STORAGE_KEY = "ka_wairo_route_setup";
+const STAMINA_COLLECT_BUTTON_ICON = "/website_icons/requested/stamina_collect_button.png";
+const DESTRUCT_BUTTON_ICON = "/website_icons/requested/destruct.png";
 
 type StoredRouteSetup = {
   routeMines?: number;
@@ -987,7 +989,12 @@ export function WairoFarmingCalculator() {
                             {step.collectActions.length > 0 && (
                               <div className="flex gap-2 rounded-md border border-blue-500/20 bg-blue-500/5 px-2 py-2">
                                 <ActionIcon className="text-blue-600 dark:text-blue-400">
-                                  <Pickaxe className="h-4 w-4" />
+                                  <img
+                                    src={STAMINA_COLLECT_BUTTON_ICON}
+                                    alt=""
+                                    className="h-5 w-5 object-contain"
+                                    style={{ imageRendering: "pixelated" }}
+                                  />
                                 </ActionIcon>
                                 <div>
                                   <div className="text-xs font-medium text-foreground">Collect energy</div>
@@ -1000,7 +1007,12 @@ export function WairoFarmingCalculator() {
                             {deleteText !== "none" && (
                               <div className="flex gap-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-2 py-2">
                                 <ActionIcon className="text-amber-600 dark:text-amber-400">
-                                  <Trash2 className="h-4 w-4" />
+                                  <img
+                                    src={DESTRUCT_BUTTON_ICON}
+                                    alt=""
+                                    className="h-5 w-5 object-contain"
+                                    style={{ imageRendering: "pixelated" }}
+                                  />
                                 </ActionIcon>
                                 <div>
                                   <div className="text-xs font-medium text-foreground">Delete storage</div>

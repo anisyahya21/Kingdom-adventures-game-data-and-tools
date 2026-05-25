@@ -14,7 +14,7 @@ import { FilterBar } from "@/components/ka/filter-bar";
 import { PageHeader } from "@/components/ka/page-header";
 import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { MaterialIcon } from "@/lib/material-icons";
-import { getItemIcon } from "@/lib/equipment-icons";
+import { getFacilityIcon, getFacilityIconByName, getFurnitureIcon, getItemIcon } from "@/lib/equipment-icons";
 import { formatBuildingJobOwners } from "@/game-data/job-buildings";
 import {
   BUILDING_GROUP_LABEL,
@@ -74,6 +74,51 @@ function slotKey(b: Building) {
   return b.group + "|" + JSON.stringify([b.beds, b.store, b.monster]);
 }
 
+function resolveCardIcon(name: string, facilityId?: number): string | undefined {
+  if (typeof facilityId === "number") {
+    const fromFacility = getFacilityIcon(facilityId);
+    if (fromFacility) return fromFacility;
+  }
+  return getFacilityIconByName(name) ?? getFurnitureIcon(name) ?? getItemIcon(name);
+}
+
+function cardIconClass(icon: string | undefined): string {
+  if (typeof icon === "string" && icon.includes("/website_icons/furniture/")) {
+    return "h-11 w-11";
+  }
+  if (typeof icon === "string" && icon.includes("/website_icons/facilities_confirmed/")) {
+    return "h-9 w-9";
+  }
+  return "h-5 w-5";
+}
+
+function facilityHeroFrameClass(icon: string | undefined): string {
+  if (typeof icon === "string" && icon.includes("/website_icons/furniture/")) {
+    return "h-[5.5rem] w-[5.5rem]";
+  }
+  if (typeof icon === "string" && icon.includes("/website_icons/facilities_confirmed/")) {
+    return "h-[5.25rem] w-[5.25rem]";
+  }
+  return "h-[4.5rem] w-[4.5rem]";
+}
+
+function facilityHeroIconClass(icon: string | undefined): string {
+  if (typeof icon === "string" && icon.includes("/website_icons/furniture/")) {
+    return "h-[5rem] w-[5rem]";
+  }
+  if (typeof icon === "string" && icon.includes("/website_icons/facilities_confirmed/")) {
+    return "h-[4.75rem] w-[4.75rem]";
+  }
+  return "h-[3.75rem] w-[3.75rem]";
+}
+
+function facilityHeroScale(icon: string | undefined): number {
+  if (typeof icon === "string" && icon.includes("/website_icons/facilities_confirmed/")) {
+    return 1.22;
+  }
+  return 1;
+}
+
 function BuildingName({ building }: { building: Building }) {
   const jobName = formatBuildingJobOwners(building.name);
 
@@ -90,9 +135,16 @@ function BuildingName({ building }: { building: Building }) {
 function BuildingGroupCard({ buildings }: { buildings: Building[] }) {
   const rep = buildings[0];
   const merged = buildings.length > 1;
+  const icon = resolveCardIcon(rep.name);
+  const titleNode = (
+    <span className="inline-flex items-center gap-2">
+      {icon ? <img src={icon} alt="" className={`${cardIconClass(icon)} shrink-0 object-contain`} style={{ imageRendering: "pixelated" }} /> : null}
+      {merged ? BUILDING_GROUP_LABEL[rep.group] : <BuildingName building={rep} />}
+    </span>
+  );
   return (
     <DataCard
-      title={merged ? BUILDING_GROUP_LABEL[rep.group] : <BuildingName building={rep} />}
+      title={titleNode}
       action={<CategoryBadge category={rep.group}>{BUILDING_GROUP_LABEL[rep.group]}</CategoryBadge>}
       contentClassName="space-y-3"
     >
@@ -647,6 +699,7 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
   const MAX_LEVEL = 99; // max upgrade level is 100; slider 0..99 = lv1..lv100
   const displayLevel = level + 1;
   const facilityRoute = FACILITY_PAGE_ROUTES[f.id];
+  const icon = resolveCardIcon(f.name, f.id);
 
   function interp(lv1: number, maxV: number) {
     if (lv1 === 0 && maxV === 0) return 0;
@@ -671,7 +724,21 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
 
   return (
     <DataCard
-      title={f.name}
+      title={
+        <div className="flex items-start gap-3">
+          {icon ? (
+            <div className={`${facilityHeroFrameClass(icon)} shrink-0 overflow-hidden rounded-md border border-border/70 bg-muted/30 p-0.5`}>
+              <img src={icon} alt="" className={`${facilityHeroIconClass(icon)} mx-auto my-auto origin-center object-contain`} style={{ imageRendering: "pixelated", transform: `scale(${facilityHeroScale(icon)})` }} />
+            </div>
+          ) : null}
+          <div className="min-w-0 pt-0.5">
+            <span className="block text-[15px] leading-tight text-foreground">{f.name}</span>
+            {f.size ? (
+              <span className="mt-1 block text-[11px] text-muted-foreground">Size {f.size}</span>
+            ) : null}
+          </div>
+        </div>
+      }
       action={facilityRoute && (
         <Link href={facilityRoute}>
           <Badge variant="outline" className="cursor-pointer text-[10px] bg-primary/10 text-primary border-primary/30 hover:bg-primary/15">
@@ -794,6 +861,7 @@ const TH_UPGRADE_TIMES = [
 function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facility; timeDiscount?: number; resourceDiscount?: number }) {
   const [rank, setRank] = useState(0);
   const maxRank = 99; // can't upgrade past 100
+  const icon = resolveCardIcon(f.name, f.id);
 
   function interp(minV: number, maxV: number) {
     if (minV === 0 && maxV === 0) return 0;
@@ -809,7 +877,21 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
 
   return (
     <DataCard
-      title={f.name}
+      title={
+        <div className="flex items-start gap-3">
+          {icon ? (
+            <div className={`${facilityHeroFrameClass(icon)} shrink-0 overflow-hidden rounded-md border border-border/70 bg-muted/30 p-0.5`}>
+              <img src={icon} alt="" className={`${facilityHeroIconClass(icon)} mx-auto my-auto origin-center object-contain`} style={{ imageRendering: "pixelated", transform: `scale(${facilityHeroScale(icon)})` }} />
+            </div>
+          ) : null}
+          <div className="min-w-0 pt-0.5">
+            <span className="block text-[15px] leading-tight text-foreground">{f.name}</span>
+            {f.size ? (
+              <span className="mt-1 block text-[11px] text-muted-foreground">Size {f.size}</span>
+            ) : null}
+          </div>
+        </div>
+      }
       action={
         <Badge variant="outline" className={`text-[10px] shrink-0 ${KA_FACILITY_TAB_BADGE_CLASS[f.tab]}`}>
           {FACILITY_TABS.find(t => t.key === f.tab)?.label}
@@ -966,10 +1048,16 @@ export default function HousesPage() {
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border border-border bg-muted/20 px-4 py-2.5">
             <span className="text-[10px] uppercase tracking-wide font-semibold text-orange-500 dark:text-orange-400 shrink-0">Modifiers</span>
             {([
-              { label: "Know-How Journal", value: knowHow, set: setKnowHow, suffix: "-5% upgrade time each" },
-              { label: "Master Craftsman's Tools", value: craftsman, set: setCraftsman, suffix: "-5% resource cost each" },
-            ] as { label: string; value: number; set: (n: number) => void; suffix: string }[]).map(({ label, value, set, suffix }) => (
+              { label: "Know-How Journal", iconSrc: "/website_icons/valuable/know_how_journal.png", value: knowHow, set: setKnowHow, suffix: "-5% upgrade time each" },
+              { label: "Master Craftsman's Tools", iconSrc: "/website_icons/valuable/master_craftsmans_tools.png", value: craftsman, set: setCraftsman, suffix: "-5% resource cost each" },
+            ] as { label: string; iconSrc: string; value: number; set: (n: number) => void; suffix: string }[]).map(({ label, iconSrc, value, set, suffix }) => (
               <div key={label} className="flex items-center gap-2">
+                <img
+                  src={iconSrc}
+                  alt=""
+                  className="h-6 w-6 shrink-0 object-contain"
+                  style={{ imageRendering: "pixelated" }}
+                />
                 <span className="text-xs text-muted-foreground hidden sm:inline">{label}</span>
                 <span className="text-xs text-muted-foreground sm:hidden">{label.split("'")[0].trim()}</span>
                 <div className="flex items-center gap-1">

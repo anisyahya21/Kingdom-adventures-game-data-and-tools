@@ -4,9 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "pnpm run icons:verify",
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
+    "prebuild": "pnpm run icons:verify",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
+    "icons:verify": "node scripts/verify-website-icons.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "architecture:check": "node scripts/architecture-checks.mjs",
     "analyze:map-section-a": "node scripts/analyze-map-section-a.mjs",

@@ -16,6 +16,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+import shutil
 from PIL import Image
 
 # Add parent to path for imports
@@ -24,6 +25,82 @@ sys.path.insert(0, str(Path(__file__).parent))
 import config
 from parsers.csv_parser import load_items, load_equip, load_eggs
 from parsers.inf_parser import parse_img_inf
+
+
+REQUESTED_ICONS_DIR = Path(r"C:\Users\anisb\OneDrive\Desktop\icons i want")
+LEGACY_IMAGE_ATLAS_DIR = Path(
+    r"C:\Users\anisb\OneDrive\Desktop\replit kingdom adventures - Copy\KA-Legacy-Archive\kingdom-adventures-tmp\KA_assets\image_atlas"
+)
+
+# Explicit locale pins for language-sensitive requested icons.
+REQUESTED_SOURCE_OVERRIDES: dict[str, str] = {
+    "restart_exploration_button.png": "game/English.lproj/restart_exploration_button.png",
+    "return_button.png": "game/English.lproj/return_button.png",
+    "survey_button_00.png": "game/English.lproj/survey_button_00.png",
+}
+
+# Variant-2 artifacts are still unreliable for these entries; keep primary form only.
+FURNITURE_PRIMARY_ONLY_VARIANTS = {
+    "chair",
+    "stove",
+    "restaurant shelves",
+}
+
+
+def apply_alpha_bleed(image: Image.Image, radius: int = 1) -> Image.Image:
+    """Fill transparent-edge RGB from neighboring opaque pixels to reduce scaling halos."""
+    if image.mode != "RGBA":
+        image = image.convert("RGBA")
+
+    src = image.copy()
+    src_px = src.load()
+    w, h = src.size
+    out = src.copy()
+    out_px = out.load()
+
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = src_px[x, y]
+            if a != 0:
+                continue
+
+            sum_r = 0
+            sum_g = 0
+            sum_b = 0
+            count = 0
+            for dy in range(-radius, radius + 1):
+                for dx in range(-radius, radius + 1):
+                    if dx == 0 and dy == 0:
+                        continue
+                    nx = x + dx
+                    ny = y + dy
+                    if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                        continue
+                    nr, ng, nb, na = src_px[nx, ny]
+                    if na > 0:
+                        sum_r += nr
+                        sum_g += ng
+                        sum_b += nb
+                        count += 1
+
+            if count:
+                out_px[x, y] = (sum_r // count, sum_g // count, sum_b // count, 0)
+
+    return out
+
+
+def enhance_exported_pngs(output_dir: Path) -> int:
+    """Apply quality post-processing to all exported PNGs."""
+    updated = 0
+    for png_path in output_dir.rglob("*.png"):
+        try:
+            img = Image.open(png_path).convert("RGBA")
+            enhanced = apply_alpha_bleed(img, radius=1)
+            enhanced.save(png_path, "PNG")
+            updated += 1
+        except Exception:
+            continue
+    return updated
 
 
 def export_item_icons(output_dir: Path, scale: int = 1) -> list[dict]:
@@ -397,8 +474,8 @@ def export_attribute_icons(output_dir: Path, scale: int = 1) -> list[dict]:
     """Export field attribute icons to attributes/ subfolder.
     
     field_attribute_icon.png is 112×28 with TWO rows:
-    - Top 14px: transparent background icons (EXPORT THIS)
-    - Bottom 14px: colored background icons (SKIP)
+    - Top 14px: transparent-base variants (preferred)
+    - Bottom 14px: colored tiles used only to repair clipped-looking missing pixels
     """
     print("\n[Field Attributes]")
     attr_dir = output_dir / "attributes"
@@ -416,16 +493,71 @@ def export_attribute_icons(output_dir: Path, scale: int = 1) -> list[dict]:
     attr_names = ["Ground", "Grass", "Sand", "Rock", "Volcano", "Snow", "Swamp"]
     exported = []
     
-    # Crop only top transparent portion
+    # Use top row as requested, with bottom-row foreground repair for missing body pixels.
     ATTRIBUTE_ICON_W = 16
-    ATTRIBUTE_ICON_H = 14  # Top half only
+    ATTRIBUTE_ICON_H = 14
     
     for i, name in enumerate(attr_names, 1):
         src_x = (i - 1) * ATTRIBUTE_ICON_W
         src_y = 0
         
-        # Crop ONLY top 14px (transparent version)
-        icon = source_img.crop((src_x, src_y, src_x + ATTRIBUTE_ICON_W, src_y + ATTRIBUTE_ICON_H))
+        top_row = source_img.crop((src_x, 0, src_x + ATTRIBUTE_ICON_W, src_y + ATTRIBUTE_ICON_H))
+        bottom_row = source_img.crop((src_x, 14, src_x + ATTRIBUTE_ICON_W, 14 + ATTRIBUTE_ICON_H))
+
+        # Extract likely foreground from bottom row by removing border-connected background.
+        fg = bottom_row.copy()
+        fg_px = fg.load()
+        w, h = fg.size
+        visited = [[False] * w for _ in range(h)]
+
+        def _is_bg_like(c1: tuple[int, int, int, int], c2: tuple[int, int, int, int]) -> bool:
+            return (
+                abs(c1[0] - c2[0]) <= 10
+                and abs(c1[1] - c2[1]) <= 10
+                and abs(c1[2] - c2[2]) <= 10
+            )
+
+        edge_seeds: list[tuple[int, int]] = []
+        for x in range(w):
+            edge_seeds.append((x, 0))
+            edge_seeds.append((x, h - 1))
+        for y in range(h):
+            edge_seeds.append((0, y))
+            edge_seeds.append((w - 1, y))
+
+        for sx, sy in edge_seeds:
+            if visited[sy][sx]:
+                continue
+            seed_color = fg_px[sx, sy]
+            stack = [(sx, sy)]
+            visited[sy][sx] = True
+            while stack:
+                cx, cy = stack.pop()
+                cur = fg_px[cx, cy]
+                fg_px[cx, cy] = (0, 0, 0, 0)
+                for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                    if nx < 0 or ny < 0 or nx >= w or ny >= h or visited[ny][nx]:
+                        continue
+                    nxt = fg_px[nx, ny]
+                    if _is_bg_like(nxt, seed_color) or _is_bg_like(nxt, cur):
+                        visited[ny][nx] = True
+                        stack.append((nx, ny))
+
+        # Compose: top row stays authoritative; fill only where top is transparent.
+        icon = top_row.copy()
+        icon_px = icon.load()
+        for y in range(h):
+            for x in range(w):
+                if icon_px[x, y][3] == 0 and fg_px[x, y][3] > 0:
+                    icon_px[x, y] = fg_px[x, y]
+
+        canvas_w, canvas_h = 18, 16
+        canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+        # Keep a deterministic 1px margin around the native 16x14 icon cell.
+        paste_x = 1
+        paste_y = 1
+        canvas.paste(icon, (paste_x, paste_y))
+        icon = canvas
         
         # Scale if requested
         if scale > 1:
@@ -438,11 +570,11 @@ def export_attribute_icons(output_dir: Path, scale: int = 1) -> list[dict]:
             "id": i,
             "name": name,
             "filename": filename,
-            "dimensions": "16x14",
+            "dimensions": f"{icon.width}x{icon.height}",
             "rect": f"({src_x},{src_y},{ATTRIBUTE_ICON_W},{ATTRIBUTE_ICON_H})",
         })
     
-    print(f"  Exported: {len(exported)} attributes (transparent only)")
+    print(f"  Exported: {len(exported)} attributes")
     return exported
 
 
@@ -501,91 +633,329 @@ def export_gender_icons(output_dir: Path, scale: int = 1) -> list[dict]:
 
 
 def export_furniture_icons(output_dir: Path, scale: int = 1) -> list[dict]:
-    """Export furniture icons from icon_furniture.png using MapChip.csv iconU/iconV grid coords."""
+    """Export furniture icons using enriched MapChip name/resFolder/pngName mapping."""
     print("\n[Furniture]")
     furniture_dir = output_dir / "furniture"
     furniture_dir.mkdir(parents=True, exist_ok=True)
 
+    # Remove stale variant files so dropped forms do not linger across exports.
+    for old_png in furniture_dir.glob("*.png"):
+        try:
+            old_png.unlink()
+        except OSError:
+            pass
+
     KA = config.KA_ASSETS_DIR
-    sheet_path = KA / "com" / "icon_furniture.png"
-    if not sheet_path.exists():
-        print("  Error: icon_furniture.png not found")
+    furniture_assets_dir = KA / "furniture"
+    if not furniture_assets_dir.exists():
+        print("  Error: KA_assets/furniture not found")
         return []
 
-    source_img = Image.open(sheet_path).convert("RGBA")
-    CELL = 16  # icon_furniture.png uses 16x16 cells
-
-    # Load furniture items from MapChip.csv (res=10 == icon_furniture sheet)
-    mapchip_path = config.CSV_DIR_RESEARCH / "KA GameData - MapChip.csv"
-    if not mapchip_path.exists():
-        mapchip_path = config.CSV_DIR / "KA GameData - MapChip.csv"
-    if not mapchip_path.exists():
-        print("  Error: MapChip.csv not found")
+    # Prefer the enriched workbook (external RE path first), fallback to workspace copy.
+    enriched_candidates = [
+        Path(r"C:\APK-RE\kingdom-adventurers\KA GameData - enriched asset names.xlsx"),
+        config.CSV_DIR / "KA GameData - enriched asset names.xlsx",
+        config.WORKSPACE_ROOT / "KA GameData - enriched asset names.xlsx",
+    ]
+    enriched_path = next((p for p in enriched_candidates if p.exists()), None)
+    if not enriched_path:
+        print("  Error: enriched workbook not found (KA GameData - enriched asset names.xlsx)")
         return []
 
-    import csv as csv_mod
-    furniture_rows = []
-    with open(mapchip_path, encoding="utf-8") as f:
-        reader = csv_mod.DictReader(f)
-        for row in reader:
-            try:
-                res = int(row.get("res", -1))
-                icon_u = int(row.get("iconU", -1))
-                icon_v = int(row.get("iconV", -1))
-            except (ValueError, TypeError):
-                continue
-            if res == 10 and icon_u >= 0 and icon_v >= 0:
-                furniture_rows.append({
-                    "id": int(row["id"]),
-                    "name": row["name"],
-                    "iconU": icon_u,
-                    "iconV": icon_v,
-                })
+    img_inf_path = furniture_assets_dir / "img.inf"
+    if not img_inf_path.exists():
+        print("  Error: furniture/img.inf not found")
+        return []
+    img_inf = parse_img_inf(img_inf_path)
+
+    atlas_size_by_png: dict[str, tuple[int, int]] = {}
+    try:
+        from parsers.atlas_parser import parse_atlas_txt
+
+        if LEGACY_IMAGE_ATLAS_DIR.exists():
+            for atlas_txt in sorted(LEGACY_IMAGE_ATLAS_DIR.glob("ImageAtlas*.txt")):
+                for sprite in parse_atlas_txt(atlas_txt):
+                    atlas_size_by_png.setdefault(sprite.filename.lower(), (int(sprite.w), int(sprite.h)))
+    except Exception:
+        # Atlas is a refinement source only; exporter must continue without it.
+        atlas_size_by_png = {}
+
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        print("  Error: openpyxl is required to read enriched workbook")
+        return []
+
+    def _clean_png_name(raw: object) -> str | None:
+        if not isinstance(raw, str):
+            return None
+        candidate = raw.split(",", 1)[0].strip()
+        if not candidate:
+            return None
+        return candidate
+
+    wb = load_workbook(enriched_path, read_only=True, data_only=True)
+    if "MapChip" not in wb.sheetnames:
+        print("  Error: MapChip sheet missing in enriched workbook")
+        return []
+
+    ws = wb["MapChip"]
+    headers = list(next(ws.iter_rows(min_row=1, max_row=1, values_only=True)))
+    idx = {str(h).strip().lower(): i for i, h in enumerate(headers) if h is not None}
+    required = ["id", "name", "res", "resfolder", "img", "pngname"]
+    if any(key not in idx for key in required):
+        print("  Error: enriched MapChip headers missing one of: id, name, resFolder, img, pngName")
+        return []
+
+    furniture_rows: list[dict] = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row:
+            continue
+        row_id = row[idx["id"]]
+        name = row[idx["name"]]
+        res_value = row[idx["res"]]
+        res_folder = row[idx["resfolder"]]
+        img_id = row[idx["img"]]
+        png_name = _clean_png_name(row[idx["pngname"]])
+
+        if (
+            row_id is None
+            or not isinstance(name, str)
+            or str(res_folder).lower() != "furniture"
+            or res_value != 10
+        ):
+            continue
+
+        if png_name is None and isinstance(img_id, int):
+            png_name = img_inf.get(img_id)
+
+        if not png_name:
+            continue
+
+        furniture_rows.append({
+            "id": int(row_id),
+            "name": name,
+            "resFolder": "furniture",
+            "img": int(img_id) if isinstance(img_id, int) else img_id,
+            "pngName": png_name,
+        })
 
     exported = []
     errors = []
     seen_names: set[str] = set()
 
     for item in furniture_rows:
-        name = item["name"]
-        if name in seen_names:
+        item_id = int(item["id"])
+        item_name = item["name"]
+        if item_name in seen_names:
             continue
-        seen_names.add(name)
+        seen_names.add(item_name)
 
-        icon_u = item["iconU"]
-        icon_v = item["iconV"]
+        name = item_name
+        png_name = item["pngName"]
+        png_path = furniture_assets_dir / png_name
 
         try:
-            src_x = icon_u * CELL
-            src_y = icon_v * CELL
-            raw = source_img.crop((src_x, src_y, src_x + CELL, src_y + CELL))
+            if not png_path.exists():
+                errors.append(f"Furniture {name}: missing {png_name}")
+                continue
 
-            # Tight-crop with 1px padding
-            bbox = raw.getbbox()
-            if bbox:
+            raw = Image.open(png_path).convert("RGBA")
+
+            def _tight_crop(image: Image.Image) -> Image.Image:
+                bbox = image.getbbox()
+                if not bbox:
+                    return image
                 pad = 1
                 left = max(0, bbox[0] - pad)
                 top = max(0, bbox[1] - pad)
-                right = min(raw.width, bbox[2] + pad)
-                bottom = min(raw.height, bbox[3] + pad)
-                icon = raw.crop((left, top, right, bottom))
-            else:
-                icon = raw
+                right = min(image.width, bbox[2] + pad)
+                bottom = min(image.height, bbox[3] + pad)
+                return image.crop((left, top, right, bottom))
 
-            if scale > 1:
-                icon = icon.resize((icon.width * scale, icon.height * scale), Image.Resampling.NEAREST)
+            def _fit_to_target(image: Image.Image, target_w: int, target_h: int) -> Image.Image:
+                """Bottom-center fit image to target bounds (crop or pad)."""
+                if target_w <= 0 or target_h <= 0:
+                    return image
 
-            # Sanitize filename
+                cur = image
+                # Crop if larger than target.
+                if cur.width > target_w or cur.height > target_h:
+                    left = max(0, (cur.width - target_w) // 2)
+                    top = max(0, cur.height - target_h)
+                    cur = cur.crop((left, top, min(cur.width, left + target_w), min(cur.height, top + target_h)))
+
+                # Pad if smaller than target.
+                if cur.width < target_w or cur.height < target_h:
+                    canvas = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
+                    x = max(0, (target_w - cur.width) // 2)
+                    y = max(0, target_h - cur.height)
+                    canvas.paste(cur, (x, y))
+                    cur = canvas
+
+                return cur
+
+            def _keep_primary_component(image: Image.Image) -> Image.Image:
+                """Keep only the dominant connected component to avoid clipped multi-frame bleed."""
+                alpha = image.split()[3]
+                w, h = alpha.size
+                pix = alpha.load()
+                seen = [[False] * w for _ in range(h)]
+                components: list[dict] = []
+
+                for y in range(h):
+                    for x in range(w):
+                        if seen[y][x] or pix[x, y] == 0:
+                            continue
+
+                        stack = [(x, y)]
+                        seen[y][x] = True
+                        area = 0
+                        min_x = x
+                        max_x = x
+                        min_y = y
+                        max_y = y
+                        points: list[tuple[int, int]] = []
+
+                        while stack:
+                            cx, cy = stack.pop()
+                            area += 1
+                            points.append((cx, cy))
+                            min_x = min(min_x, cx)
+                            max_x = max(max_x, cx)
+                            min_y = min(min_y, cy)
+                            max_y = max(max_y, cy)
+
+                            for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                                if 0 <= nx < w and 0 <= ny < h and (not seen[ny][nx]) and pix[nx, ny] > 0:
+                                    seen[ny][nx] = True
+                                    stack.append((nx, ny))
+
+                        components.append(
+                            {
+                                "area": area,
+                                "min_y": min_y,
+                                "max_y": max_y,
+                                "points": points,
+                            }
+                        )
+
+                if len(components) < 2:
+                    return image
+
+                components.sort(key=lambda c: c["area"], reverse=True)
+                primary = components[0]
+                keep_points = set(primary["points"])
+
+                cleaned = image.copy()
+                out_pix = cleaned.load()
+                for y in range(h):
+                    for x in range(w):
+                        if out_pix[x, y][3] == 0:
+                            continue
+                        if (x, y) not in keep_points:
+                            out_pix[x, y] = (0, 0, 0, 0)
+
+                return cleaned
+
             safe_name = name.replace(" ", "_").replace("/", "_").replace("'", "")
-            filename = f"furniture_{safe_name}.png"
-            icon.save(furniture_dir / filename, "PNG")
+            normalized_name = " ".join(name.lower().split())
+            source_stem = Path(png_name).stem.replace(" ", "_").replace("/", "_")
+
+            # Build per-form variants from .opt when available (main form + numbered forms).
+            variants: list[dict] = []
+            opt_path = png_path.with_suffix(".opt")
+            if opt_path.exists():
+                try:
+                    from parsers.opt_parser import parse_opt
+
+                    opt_data = parse_opt(opt_path)
+                    cell_w = int(opt_data.get("cell_width", 0) or 0)
+                    cell_h = int(opt_data.get("cell_height", 0) or 0)
+                    sprites = [
+                        s
+                        for s in opt_data.get("sprites", [])
+                        if int(s.get("w", 0) or 0) > 0 and int(s.get("h", 0) or 0) > 0
+                    ]
+
+                    # Use row-major sequence order (frame 0,1,2,...) so main form is stable.
+                    cols = int(opt_data.get("cols", 0) or 0)
+
+                    def _seq_index(sprite: dict) -> int:
+                        return int(sprite.get("v", 0) or 0) * cols + int(sprite.get("u", 0) or 0)
+
+                    sprites = sorted(sprites, key=_seq_index)
+
+                    atlas_target = atlas_size_by_png.get(png_name.lower())
+
+                    for idx, sprite in enumerate(sprites, start=1):
+                        if idx >= 2 and normalized_name in FURNITURE_PRIMARY_ONLY_VARIANTS:
+                            continue
+
+                        w = int(sprite["w"])
+                        h = int(sprite["h"])
+                        src_x = int(sprite.get("src_x", sprite.get("x", 0)))
+                        src_y = int(sprite.get("src_y", sprite.get("y", 0)))
+                        dest_x = int(sprite.get("dest_x", 0))
+                        dest_y = int(sprite.get("dest_y", 0))
+                        canvas_w = max(cell_w, dest_x + w, w)
+                        canvas_h = max(cell_h, dest_y + h, h)
+
+                        frame = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+                        cut = raw.crop((src_x, src_y, src_x + w, src_y + h))
+                        frame.paste(cut, (dest_x, dest_y))
+                        frame = _tight_crop(frame)
+
+                        # Alternate forms can contain tiny detached pixels from neighboring atlas content.
+                        if idx >= 2:
+                            frame = _keep_primary_component(frame)
+                            frame = _tight_crop(frame)
+
+                        # Atlas envelope stabilizes the primary icon; keep alternates tightly cropped.
+                        if idx == 1 and atlas_target:
+                            frame = _fit_to_target(frame, atlas_target[0], atlas_target[1])
+
+                        if scale > 1:
+                            frame = frame.resize((frame.width * scale, frame.height * scale), Image.Resampling.NEAREST)
+
+                        if idx == 1:
+                            variant_filename = f"furniture_{item_id:03d}_{safe_name}__{source_stem}.png"
+                        else:
+                            variant_filename = f"furniture_{item_id:03d}_{safe_name}__{source_stem}_{idx}.png"
+
+                        frame.save(furniture_dir / variant_filename, "PNG")
+                        variants.append(
+                            {
+                                "index": idx,
+                                "filename": variant_filename,
+                                "u": int(sprite.get("u", -1)),
+                                "v": int(sprite.get("v", -1)),
+                                "w": w,
+                                "h": h,
+                            }
+                        )
+                except Exception as opt_error:
+                    errors.append(f"Furniture {name}: opt parse failed ({opt_error})")
+
+            if variants:
+                filename = variants[0]["filename"]
+            else:
+                icon = _tight_crop(raw)
+                if scale > 1:
+                    icon = icon.resize((icon.width * scale, icon.height * scale), Image.Resampling.NEAREST)
+                filename = f"furniture_{item_id:03d}_{safe_name}__{source_stem}.png"
+                icon.save(furniture_dir / filename, "PNG")
+                variants = [{"index": 1, "filename": filename}]
 
             exported.append({
-                "id": item["id"],
+                "id": item_id,
                 "name": name,
                 "filename": filename,
-                "iconU": icon_u,
-                "iconV": icon_v,
+                "resFolder": item["resFolder"],
+                "img": item["img"],
+                "pngName": png_name,
+                "variantCount": len(variants),
+                "variants": variants,
             })
 
         except Exception as e:
@@ -595,6 +965,80 @@ def export_furniture_icons(output_dir: Path, scale: int = 1) -> list[dict]:
     if errors:
         print(f"  Errors: {len(errors)}")
         for err in errors[:5]:
+            print(f"    {err}")
+
+    return exported
+
+
+def export_requested_icons(output_dir: Path) -> list[dict]:
+    """Export user-requested icons by png name, sourced from original KA_assets files."""
+    print("\n[Requested Icons]")
+
+    if not REQUESTED_ICONS_DIR.exists():
+        print(f"  Requested folder missing: {REQUESTED_ICONS_DIR}")
+        return []
+
+    requested_dir = output_dir / "requested"
+    requested_dir.mkdir(parents=True, exist_ok=True)
+
+    KA = config.KA_ASSETS_DIR
+    if not KA.exists():
+        print("  Error: KA_assets folder not found")
+        return []
+
+    # Index all PNG candidates by filename to resolve copies back to original assets.
+    index: dict[str, list[Path]] = {}
+    for candidate in KA.rglob("*.png"):
+        index.setdefault(candidate.name.lower(), []).append(candidate)
+
+    def _pick_preferred(paths: list[Path], wanted_name: str) -> Path:
+        forced_rel = REQUESTED_SOURCE_OVERRIDES.get(wanted_name.lower())
+        if forced_rel:
+            forced = KA / forced_rel
+            if forced in paths:
+                return forced
+
+        # Prefer non-localized root assets over language-specific variants.
+        ranked = sorted(
+            paths,
+            key=lambda p: (
+                "english.lproj" in str(p).lower()
+                or "ko" in p.parts
+                or "zh" in p.parts
+                or "zh-cn" in p.parts,
+                len(p.parts),
+            ),
+        )
+        return ranked[0]
+
+    exported: list[dict] = []
+    errors: list[str] = []
+
+    for wanted in sorted(REQUESTED_ICONS_DIR.glob("*.png"), key=lambda p: p.name.lower()):
+        key = wanted.name.lower()
+        matches = index.get(key, [])
+        if not matches:
+            errors.append(f"{wanted.name}: no matching original in KA_assets")
+            continue
+
+        source_path = _pick_preferred(matches, wanted.name)
+        dest_path = requested_dir / wanted.name
+        shutil.copy2(source_path, dest_path)
+
+        exported.append(
+            {
+                "id": wanted.stem,
+                "name": wanted.stem.replace("_", " "),
+                "filename": wanted.name,
+                "path": f"requested/{wanted.name}",
+                "source": str(source_path.relative_to(KA)).replace("\\", "/"),
+            }
+        )
+
+    print(f"  Exported: {len(exported)} requested icons")
+    if errors:
+        print(f"  Errors: {len(errors)}")
+        for err in errors[:10]:
             print(f"    {err}")
 
     return exported
@@ -624,6 +1068,11 @@ def main():
     attr_data = export_attribute_icons(output_dir, scale)
     gender_data = export_gender_icons(output_dir, scale)
     furniture_data = export_furniture_icons(output_dir, scale)
+    requested_data = export_requested_icons(output_dir)
+
+    print("\n[Quality Pass]")
+    enhanced_count = enhance_exported_pngs(output_dir)
+    print(f"  Alpha-bleed applied: {enhanced_count} PNG files")
     
     # Generate master manifest
     manifest = {
@@ -635,6 +1084,7 @@ def main():
         "attributes": attr_data,
         "gender": gender_data,
         "furniture": furniture_data,
+        "requested": requested_data,
         "summary": {
             "items": len(items_data),
             "equipment": len(equip_data),
@@ -642,6 +1092,7 @@ def main():
             "attributes": len(attr_data),
             "gender": len(gender_data),
             "furniture": len(furniture_data),
+            "requested": len(requested_data),
         }
     }
     

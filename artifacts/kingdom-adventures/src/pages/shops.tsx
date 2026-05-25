@@ -25,7 +25,7 @@ import { PageHeader } from "@/components/ka/page-header";
 import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { EntityLink } from "@/components/ka/entity-link";
 import { localSharedData } from "@/lib/local-shared-data";
-import { getEquipmentIcon, getItemIcon, getFurnitureIcon } from "@/lib/equipment-icons";
+import { getEquipmentIcon, getItemIcon, getFurnitureIcon, getFacilityIcon } from "@/lib/equipment-icons";
 import { parseCsv } from "@/lib/monster-truth";
 import {
   JOB_PARAMETER_ORDER,
@@ -233,6 +233,37 @@ const SHOP_ICONS: Record<ShopSlug, ReactNode> = {
   "skill-shop": <WandSparkles className="w-5 h-5 text-cyan-500" />,
   orchard: <Leaf className="w-5 h-5 text-lime-600" />,
 };
+
+function isFurnitureIconPath(icon: string | undefined): boolean {
+  return typeof icon === "string" && icon.includes("/website_icons/furniture/");
+}
+
+function normalizeIconName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const FURNITURE_LARGE_ICON_OUTLIERS = new Set([
+  "double bed",
+  "tree nursery",
+  "candle",
+  "desk",
+  "dining table",
+]);
+
+function furnitureRowIconClass(name: string): string {
+  return FURNITURE_LARGE_ICON_OUTLIERS.has(normalizeIconName(name)) ? "h-14 w-14" : "h-10 w-10";
+}
+
+function resolveShopCardIcon(shop: ShopRecord): string | undefined {
+  if (shop.workbench?.id != null) {
+    const workbenchIcon = getFacilityIcon(shop.workbench.id);
+    if (workbenchIcon) return workbenchIcon;
+  }
+  return getFurnitureIcon(shop.title) ?? getItemIcon(shop.title);
+}
 
 const ITEMS_REFERENCE_SHOPS = SHOP_RECORDS.filter((shop) => shop.slug === "items-reference");
 const PRIMARY_SHOPS = SHOP_RECORDS.filter((shop) => shop.category === "shop" && shop.slug !== "items-reference");
@@ -824,10 +855,25 @@ function BuildingSlotRow({ label, values, highlight }: { label: string; values: 
 function ShopBuildingPanel({ shop }: { shop: ShopRecord }) {
   const b = shop.building;
   if (!b) return null;
+  const panelIcon = shop.workbench?.id != null
+    ? (getFacilityIcon(shop.workbench.id) ?? getFurnitureIcon(shop.title) ?? getItemIcon(shop.title))
+    : (getFurnitureIcon(shop.title) ?? getItemIcon(shop.title));
 
   return (
     <DataCard
-      title={shop.title}
+      title={
+        <span className="inline-flex items-center gap-2">
+          {panelIcon ? (
+            <img
+              src={panelIcon}
+              alt=""
+              className={`${isFurnitureIconPath(panelIcon) ? "h-8 w-8" : "h-6 w-6"} shrink-0 object-contain`}
+              style={{ imageRendering: "pixelated" }}
+            />
+          ) : null}
+          <span>{shop.title}</span>
+        </span>
+      }
       action={<CategoryBadge category="shop">Shop</CategoryBadge>}
       contentClassName="space-y-3"
     >
@@ -1135,7 +1181,7 @@ function FurnitureTable({ rows }: { rows: FurnitureRow[] }) {
               <td className="px-3 py-2 font-medium text-foreground">
                 <div className="flex items-center gap-1.5">
                   {getFurnitureIcon(row.name) && (
-                    <img src={getFurnitureIcon(row.name)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                    <img src={getFurnitureIcon(row.name)!} alt="" className={`${furnitureRowIconClass(row.name)} shrink-0 object-contain`} style={{ imageRendering: "pixelated" }} />
                   )}
                   {row.name}
                 </div>
@@ -1406,6 +1452,13 @@ export default function ShopsPage() {
     for (const row of itemFacilityRows) map.set(row.item.name, row);
     return map;
   }, [itemFacilityRows]);
+  const facilityIdByName = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const facility of FACILITIES) {
+      map.set(facility.name.toLowerCase(), facility.id);
+    }
+    return map;
+  }, []);
   const itemSourceFilterOptions = useMemo(() => {
     const set = new Set<string>();
     for (const row of itemFacilityRows) {
@@ -1878,6 +1931,9 @@ export default function ShopsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {PRIMARY_SHOPS.map((shop) => (
+              (() => {
+                const cardIcon = resolveShopCardIcon(shop);
+                return (
               <Card
                 key={shop.slug}
                 onClick={() => navigate(`/shops/${shop.slug}`)}
@@ -1885,7 +1941,16 @@ export default function ShopsPage() {
               >
                 <CardHeader className="pb-2">
                   <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors w-fit">
-                    {SHOP_ICONS[shop.slug]}
+                    {cardIcon ? (
+                      <img
+                        src={cardIcon}
+                        alt=""
+                        className={`${isFurnitureIconPath(cardIcon) ? "h-8 w-8" : "h-6 w-6"} object-contain`}
+                        style={{ imageRendering: "pixelated" }}
+                      />
+                    ) : (
+                      SHOP_ICONS[shop.slug]
+                    )}
                   </div>
                   <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
                 </CardHeader>
@@ -1897,6 +1962,8 @@ export default function ShopsPage() {
                   </div>
                 </CardContent>
               </Card>
+                );
+              })()
             ))}
           </div>
           {SECONDARY_FACILITIES.length > 0 && (
@@ -1904,6 +1971,9 @@ export default function ShopsPage() {
               <h2 className="text-sm font-semibold text-muted-foreground mb-3">Other Facilities</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {SECONDARY_FACILITIES.map((shop) => (
+                  (() => {
+                    const cardIcon = resolveShopCardIcon(shop);
+                    return (
                   <Card
                     key={shop.slug}
                     onClick={() => navigate(`/shops/${shop.slug}`)}
@@ -1911,7 +1981,16 @@ export default function ShopsPage() {
                   >
                     <CardHeader className="pb-2">
                       <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors w-fit">
-                        {SHOP_ICONS[shop.slug]}
+                        {cardIcon ? (
+                          <img
+                            src={cardIcon}
+                            alt=""
+                            className={`${isFurnitureIconPath(cardIcon) ? "h-8 w-8" : "h-6 w-6"} object-contain`}
+                            style={{ imageRendering: "pixelated" }}
+                          />
+                        ) : (
+                          SHOP_ICONS[shop.slug]
+                        )}
                       </div>
                       <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
                     </CardHeader>
@@ -1923,6 +2002,8 @@ export default function ShopsPage() {
                       </div>
                     </CardContent>
                   </Card>
+                    );
+                  })()
                 ))}
               </div>
             </div>
@@ -1933,6 +2014,9 @@ export default function ShopsPage() {
               <h2 className="text-sm font-semibold text-muted-foreground mb-3">Items Reference</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {ITEMS_REFERENCE_SHOPS.map((shop) => (
+                  (() => {
+                    const cardIcon = resolveShopCardIcon(shop);
+                    return (
                   <Card
                     key={shop.slug}
                     onClick={() => navigate(`/shops/${shop.slug}`)}
@@ -1940,7 +2024,16 @@ export default function ShopsPage() {
                   >
                     <CardHeader className="pb-2">
                       <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors w-fit">
-                        {SHOP_ICONS[shop.slug]}
+                        {cardIcon ? (
+                          <img
+                            src={cardIcon}
+                            alt=""
+                            className={`${isFurnitureIconPath(cardIcon) ? "h-8 w-8" : "h-6 w-6"} object-contain`}
+                            style={{ imageRendering: "pixelated" }}
+                          />
+                        ) : (
+                          SHOP_ICONS[shop.slug]
+                        )}
                       </div>
                       <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
                     </CardHeader>
@@ -1952,6 +2045,8 @@ export default function ShopsPage() {
                       </div>
                     </CardContent>
                   </Card>
+                    );
+                  })()
                 ))}
               </div>
             </div>
@@ -2402,7 +2497,27 @@ export default function ShopsPage() {
                           </td>
                           <td className="px-3 py-2 text-muted-foreground">{row.sources.length > 0 ? row.sources.join(" / ") : "-"}</td>
                           <td className="px-3 py-2 text-muted-foreground">
-                            {row.facilities.length > 0 ? row.facilities.join(" / ") : "-"}
+                            {row.facilities.length > 0 ? (
+                              <div className="flex flex-wrap items-center gap-2">
+                                {row.facilities.map((facilityName) => {
+                                  const facilityId = facilityIdByName.get(facilityName.toLowerCase());
+                                  const facilityIcon = facilityId != null ? getFacilityIcon(facilityId) : undefined;
+                                  return (
+                                    <span key={`${row.item.name}-${facilityName}`} className="inline-flex items-center gap-1.5 rounded border border-border/70 bg-muted/25 px-1.5 py-0.5">
+                                      {facilityIcon ? (
+                                        <img
+                                          src={facilityIcon}
+                                          alt=""
+                                          className="h-4 w-4 shrink-0 object-contain"
+                                          style={{ imageRendering: "pixelated" }}
+                                        />
+                                      ) : null}
+                                      <span>{facilityName}</span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : "-"}
                             {showItemReferenceDebug && (
                               <div className="mt-1 text-[11px] leading-4 text-muted-foreground/90">
                                 fallbackUsed: {String(row.facilities.length > 0 && row.item.craftGroup < 0 && row.sources.includes("Item Shop"))}
