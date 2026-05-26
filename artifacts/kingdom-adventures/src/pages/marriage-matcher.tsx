@@ -1640,6 +1640,14 @@ function SimTab({
   const resultOne = useMemo(() => calcForState(simOne), [calcForState, simOne]);
   const resultTwo = useMemo(() => calcForState(simTwo), [calcForState, simTwo]);
 
+  const [previewPoseFrame, setPreviewPoseFrame] = useState<0 | 2>(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setPreviewPoseFrame((prev) => (prev === 0 ? 2 : 0));
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const displayStatsFor = useCallback((state: SimState, result: SimResult | { error: string } | null) => {
     if (!result || "error" in result) return [];
     if (state.statSource === "child") {
@@ -1685,38 +1693,39 @@ function SimTab({
     onClick,
     jobName,
     rank,
+    poseFrame,
     buttonLabel,
   }: {
     selected: boolean;
     onClick: () => void;
     jobName: string;
     rank: SimRank;
+    poseFrame: 0 | 2;
     buttonLabel: string;
   }) {
     return (
       <button
         onClick={onClick}
-        className={`min-w-[108px] rounded-md border px-2 py-1.5 text-center transition-colors ${selected ? "bg-primary/10 border-primary text-foreground" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"}`}
+        className={`w-[148px] rounded-md border px-2.5 py-2 text-center transition-colors ${selected ? "bg-primary/10 border-primary text-foreground" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"}`}
         aria-label={buttonLabel}
       >
-        <div className="mx-auto flex h-14 w-full items-center justify-center overflow-hidden rounded border border-border/60 bg-background/70">
+        <div className="mx-auto flex h-20 w-[116px] items-center justify-center overflow-hidden rounded border border-border/60 bg-background/70">
           {jobName ? (
             <CharacterPreviewCanvas
               jobName={jobName}
               rank={rank}
               variant={1}
               equipState="right"
-              scale={2}
-              poseFrame={0}
+              scale={3}
+              poseFrame={poseFrame}
               label={buttonLabel}
-              className="h-12 w-auto"
+              className="h-16 w-auto max-w-[112px] shrink-0"
             />
           ) : (
             <span className="text-[10px] uppercase tracking-wide">No job</span>
           )}
         </div>
-        <div className="mt-1 truncate text-[11px] font-medium leading-tight">{jobName || "Not selected"}</div>
-        <div className="text-[10px] text-muted-foreground">Rank {rank}</div>
+        <div className="mt-1.5 truncate text-xs font-semibold leading-tight">{jobName || "Not selected"}</div>
       </button>
     );
   }
@@ -1874,21 +1883,17 @@ function SimTab({
                       <p className="text-[10px] text-muted-foreground">+{SAME_RANK_BONUS[state.fatherRank]} same-rank bonus</p>
                     )}
                   </div>
-                  <div className="col-span-2 space-y-1 sm:col-span-4 xl:col-span-1 xl:justify-self-end">
-                    <p className="text-xs text-muted-foreground">Male child job icon</p>
-                    <div className="flex min-w-[120px] flex-col items-center rounded-md border border-border bg-background/50 p-2">
-                      <CharacterPreviewCanvas
-                        jobName={result.childJob}
-                        rank={result.childRank}
-                        variant={1}
-                        equipState="right"
-                        scale={2}
-                        poseFrame={0}
-                        label={`Male ${result.childRank} ${result.childJob}`}
-                        className="h-14 w-auto"
-                      />
-                      <p className="mt-1 text-center text-[11px] font-medium leading-tight">Male {result.childRank} {result.childJob}</p>
-                    </div>
+                  <div className="col-span-2 flex items-center justify-center sm:col-span-4 xl:col-span-1 xl:justify-self-end">
+                    <CharacterPreviewCanvas
+                      jobName={result.childJob}
+                      rank={result.childRank}
+                      variant={2}
+                      equipState="right"
+                      scale={2}
+                      poseFrame={previewPoseFrame}
+                      label={`Child ${result.childRank} ${result.childJob}`}
+                      className="h-16 w-auto max-w-[112px] shrink-0"
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -1896,35 +1901,37 @@ function SimTab({
 
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <div className="flex flex-col items-start gap-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <BarChart2 className="w-4 h-4 text-muted-foreground" />
-                    Child <CroppedBabyIcon className="h-4 w-4" /> Stats Source - {state.statSource === "father" ? "Father" : state.statSource === "mother" ? "Mother" : "Child"} ({sourceJobName || "not selected"})
-                  </CardTitle>
-                  <div className="flex flex-wrap items-start gap-2">
-                    <span className="pt-1 text-xs font-medium text-muted-foreground">Or choose child <CroppedBabyIcon className="h-3.5 w-3.5" /> to take:</span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <JobSourceIconButton
-                        selected={state.statSource === "father"}
-                        onClick={() => setState((prev) => ({ ...prev, statSource: prev.statSource === "father" ? "child" : "father" }))}
-                        jobName={state.fatherJob}
-                        rank={state.fatherRank}
-                        buttonLabel={`Use father source ${state.fatherRank} ${state.fatherJob || "not-selected"}`}
-                      />
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">OR</span>
-                      <JobSourceIconButton
-                        selected={state.statSource === "mother"}
-                        onClick={() => setState((prev) => ({ ...prev, statSource: prev.statSource === "mother" ? "child" : "mother" }))}
-                        jobName={state.motherJob}
-                        rank={state.motherRank}
-                        buttonLabel={`Use mother source ${state.motherRank} ${state.motherJob || "not-selected"}`}
-                      />
-                    </div>
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="space-y-1.5">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <BarChart2 className="w-4 h-4 text-muted-foreground" />
+                      Child <CroppedBabyIcon className="h-4 w-4" /> Stats Source - {state.statSource === "father" ? "Father" : state.statSource === "mother" ? "Mother" : "Child"} ({sourceJobName || "not selected"})
+                    </CardTitle>
+                    <p className="text-xs font-medium text-muted-foreground">Choose child <CroppedBabyIcon className="h-3.5 w-3.5" /> source:</p>
+                    <CardDescription className="text-xs">
+                      Uses child <CroppedBabyIcon className="h-3.5 w-3.5" /> rank {result.childRank} and awakening {result.childAwakening}. Max Level = base max level + 30 x awakening.
+                    </CardDescription>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2 self-start xl:justify-end">
+                    <JobSourceIconButton
+                      selected={state.statSource === "father"}
+                      onClick={() => setState((prev) => ({ ...prev, statSource: prev.statSource === "father" ? "child" : "father" }))}
+                      jobName={state.fatherJob}
+                      rank={state.fatherRank}
+                      poseFrame={previewPoseFrame}
+                      buttonLabel={`Use father source ${state.fatherRank} ${state.fatherJob || "not-selected"}`}
+                    />
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">OR</span>
+                    <JobSourceIconButton
+                      selected={state.statSource === "mother"}
+                      onClick={() => setState((prev) => ({ ...prev, statSource: prev.statSource === "mother" ? "child" : "mother" }))}
+                      jobName={state.motherJob}
+                      rank={state.motherRank}
+                      poseFrame={previewPoseFrame}
+                      buttonLabel={`Use mother source ${state.motherRank} ${state.motherJob || "not-selected"}`}
+                    />
                   </div>
                 </div>
-                <CardDescription className="text-xs">
-                  Uses child <CroppedBabyIcon className="h-3.5 w-3.5" /> rank {result.childRank} and awakening {result.childAwakening}. Max Level = base max level + 30 x awakening.
-                </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
