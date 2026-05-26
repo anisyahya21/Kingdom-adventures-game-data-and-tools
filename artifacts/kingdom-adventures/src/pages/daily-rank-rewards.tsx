@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DAILY_RANK_REWARDS, getDailyRankEquipmentMismatches } from "@/game-data/daily-rank-rewards";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel, getJapanWeekday, getLocalWeekday } from "@/lib/event-status";
 import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
+import { getSkillIcon } from "@/lib/skill-icons";
+import { getRankIcon } from "@/lib/rank-icons";
 
 const COLUMNS = [
   { key: "weapon", label: "Weapon" },
@@ -21,11 +23,12 @@ const ITEM_COLUMNS = new Set(["overallItem1", "overallItem2", "ticket"]);
 
 function RewardCell({ value, columnKey }: { value: string; columnKey: typeof COLUMNS[number]["key"] }) {
   if (!value) return <>-</>;
+  const skillIcon = columnKey === "skill" ? getSkillIcon(value) : undefined;
   const icon = EQUIPMENT_COLUMNS.has(columnKey)
     ? getEquipmentIcon(null, value)
     : ITEM_COLUMNS.has(columnKey)
       ? getItemIcon(value)
-      : undefined;
+      : skillIcon;
   const iconSize = EQUIPMENT_COLUMNS.has(columnKey) ? "h-8 w-8" : "h-6 w-6";
   return (
     <span className="flex items-center gap-1">
@@ -96,7 +99,9 @@ export default function DailyRankRewardsPage() {
                   </Badge>
                   {entry.rewards.map((reward) => (
                     <Badge key={reward.rankValue} variant="outline">
-                      Rank {reward.rankLabel}
+                      {getRankIcon(reward.rankLabel) ? (
+                        <img src={getRankIcon(reward.rankLabel)} alt="" className="h-4 w-auto object-contain" style={{ imageRendering: "pixelated" }} />
+                      ) : reward.rankLabel}
                     </Badge>
                   ))}
                 </div>
@@ -113,10 +118,18 @@ export default function DailyRankRewardsPage() {
                 {entry.rewards.map((reward) => (
                   <div key={reward.rankValue} className="rounded-lg border border-border/60 bg-card/60 px-3 py-3">
                     <div className="mb-3 lg:hidden">
-                      <Badge variant="secondary">Rank {reward.rankLabel}</Badge>
+                      <Badge variant="secondary">
+                        {getRankIcon(reward.rankLabel) ? (
+                          <img src={getRankIcon(reward.rankLabel)} alt="" className="h-4 w-auto object-contain" style={{ imageRendering: "pixelated" }} />
+                        ) : reward.rankLabel}
+                      </Badge>
                     </div>
                     <div className="hidden lg:grid lg:grid-cols-[100px_repeat(7,minmax(0,1fr))] gap-3 text-sm">
-                      <div className="font-semibold text-foreground">Rank {reward.rankLabel}</div>
+                      <div className="font-semibold text-foreground">
+                        {getRankIcon(reward.rankLabel) ? (
+                          <img src={getRankIcon(reward.rankLabel)} alt="" className="h-5 w-auto object-contain" style={{ imageRendering: "pixelated" }} />
+                        ) : reward.rankLabel}
+                      </div>
                       {COLUMNS.map((column) => (
                         <div key={column.key} className="text-muted-foreground">
                           <RewardCell value={reward[column.key]} columnKey={column.key} />

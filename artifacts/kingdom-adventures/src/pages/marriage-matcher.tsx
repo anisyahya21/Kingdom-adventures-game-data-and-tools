@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { EntityLink } from "@/components/ka/entity-link";
 import { PageHeader } from "@/components/ka/page-header";
+import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { battleTypeLabel, typeFromJobCategory } from "@/game-data/job-normalization";
@@ -1666,6 +1667,60 @@ function SimTab({
     );
   }
 
+  function CroppedBabyIcon({ className = "h-4 w-4" }: { className?: string }) {
+    return (
+      <span className={`${className} inline-block overflow-hidden align-[-2px]`} aria-hidden="true">
+        <img
+          src="/website_icons/requested/baby.png"
+          alt=""
+          className="h-full w-auto max-w-none object-left"
+          style={{ imageRendering: "pixelated" }}
+        />
+      </span>
+    );
+  }
+
+  function JobSourceIconButton({
+    selected,
+    onClick,
+    jobName,
+    rank,
+    buttonLabel,
+  }: {
+    selected: boolean;
+    onClick: () => void;
+    jobName: string;
+    rank: SimRank;
+    buttonLabel: string;
+  }) {
+    return (
+      <button
+        onClick={onClick}
+        className={`min-w-[108px] rounded-md border px-2 py-1.5 text-center transition-colors ${selected ? "bg-primary/10 border-primary text-foreground" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"}`}
+        aria-label={buttonLabel}
+      >
+        <div className="mx-auto flex h-14 w-full items-center justify-center overflow-hidden rounded border border-border/60 bg-background/70">
+          {jobName ? (
+            <CharacterPreviewCanvas
+              jobName={jobName}
+              rank={rank}
+              variant={1}
+              equipState="right"
+              scale={2}
+              poseFrame={0}
+              label={buttonLabel}
+              className="h-12 w-auto"
+            />
+          ) : (
+            <span className="text-[10px] uppercase tracking-wide">No job</span>
+          )}
+        </div>
+        <div className="mt-1 truncate text-[11px] font-medium leading-tight">{jobName || "Not selected"}</div>
+        <div className="text-[10px] text-muted-foreground">Rank {rank}</div>
+      </button>
+    );
+  }
+
   function renderSimBlock(
     title: string,
     state: SimState,
@@ -1784,11 +1839,15 @@ function SimTab({
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <Baby className="w-4 h-4 text-violet-500" />
-                  <CardTitle className="text-base">{title} — Child Summary</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-1.5">
+                    <span>{title} - Child</span>
+                    <CroppedBabyIcon className="h-4 w-4" />
+                    <span>Summary</span>
+                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-5">
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Compatibility</p>
                     <div className="flex items-center gap-1.5">
@@ -1799,21 +1858,37 @@ function SimTab({
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Child Job</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">Child <CroppedBabyIcon className="h-3.5 w-3.5" /> Job</p>
                     <EntityLink type="job" name={result.childJob} className="text-sm font-semibold hover:no-underline">
                       {result.childJob}
                     </EntityLink>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Child Rank</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">Child <CroppedBabyIcon className="h-3.5 w-3.5" /> Rank</p>
                     <Badge className={`text-sm font-bold px-2.5 py-0.5 border ${SIM_RANK_STYLE[result.childRank]}`}>{result.childRank}</Badge>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Child Awakening</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">Child <CroppedBabyIcon className="h-3.5 w-3.5" /> Awakening</p>
                     <p className="text-sm font-semibold">{result.childAwakening}</p>
                     {state.fatherRank === state.motherRank && (
                       <p className="text-[10px] text-muted-foreground">+{SAME_RANK_BONUS[state.fatherRank]} same-rank bonus</p>
                     )}
+                  </div>
+                  <div className="col-span-2 space-y-1 sm:col-span-4 xl:col-span-1 xl:justify-self-end">
+                    <p className="text-xs text-muted-foreground">Male child job icon</p>
+                    <div className="flex min-w-[120px] flex-col items-center rounded-md border border-border bg-background/50 p-2">
+                      <CharacterPreviewCanvas
+                        jobName={result.childJob}
+                        rank={result.childRank}
+                        variant={1}
+                        equipState="right"
+                        scale={2}
+                        poseFrame={0}
+                        label={`Male ${result.childRank} ${result.childJob}`}
+                        className="h-14 w-auto"
+                      />
+                      <p className="mt-1 text-center text-[11px] font-medium leading-tight">Male {result.childRank} {result.childJob}</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -1824,26 +1899,31 @@ function SimTab({
                 <div className="flex flex-col items-start gap-2">
                   <CardTitle className="text-base flex items-center gap-2">
                     <BarChart2 className="w-4 h-4 text-muted-foreground" />
-                    Child Stats Source — {state.statSource === "father" ? "Father" : state.statSource === "mother" ? "Mother" : "Child"} ({sourceJobName || "not selected"})
+                    Child <CroppedBabyIcon className="h-4 w-4" /> Stats Source - {state.statSource === "father" ? "Father" : state.statSource === "mother" ? "Mother" : "Child"} ({sourceJobName || "not selected"})
                   </CardTitle>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium text-muted-foreground">Or choose child to take:</span>
-                    <button
-                      onClick={() => setState((prev) => ({ ...prev, statSource: prev.statSource === "father" ? "child" : "father" }))}
-                      className={`h-7 px-2.5 text-xs rounded border font-medium transition-colors ${state.statSource === "father" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-                    >
-                      Father ({state.fatherJob || "—"})
-                    </button>
-                    <button
-                      onClick={() => setState((prev) => ({ ...prev, statSource: prev.statSource === "mother" ? "child" : "mother" }))}
-                      className={`h-7 px-2.5 text-xs rounded border font-medium transition-colors ${state.statSource === "mother" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-                    >
-                      Mother ({state.motherJob || "—"})
-                    </button>
+                  <div className="flex flex-wrap items-start gap-2">
+                    <span className="pt-1 text-xs font-medium text-muted-foreground">Or choose child <CroppedBabyIcon className="h-3.5 w-3.5" /> to take:</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <JobSourceIconButton
+                        selected={state.statSource === "father"}
+                        onClick={() => setState((prev) => ({ ...prev, statSource: prev.statSource === "father" ? "child" : "father" }))}
+                        jobName={state.fatherJob}
+                        rank={state.fatherRank}
+                        buttonLabel={`Use father source ${state.fatherRank} ${state.fatherJob || "not-selected"}`}
+                      />
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">OR</span>
+                      <JobSourceIconButton
+                        selected={state.statSource === "mother"}
+                        onClick={() => setState((prev) => ({ ...prev, statSource: prev.statSource === "mother" ? "child" : "mother" }))}
+                        jobName={state.motherJob}
+                        rank={state.motherRank}
+                        buttonLabel={`Use mother source ${state.motherRank} ${state.motherJob || "not-selected"}`}
+                      />
+                    </div>
                   </div>
                 </div>
                 <CardDescription className="text-xs">
-                  Uses child rank {result.childRank} and awakening {result.childAwakening}. Max Level = base max level + 30 × awakening.
+                  Uses child <CroppedBabyIcon className="h-3.5 w-3.5" /> rank {result.childRank} and awakening {result.childAwakening}. Max Level = base max level + 30 x awakening.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
@@ -2574,12 +2654,12 @@ export default function MarriageMatcher() {
           )}
         >
           <p>
-            Find optimal Kingdom Adventurers job pairings, simulate marriage outcomes, preview child stats, and browse full compatibility data.
+            Find optimal Kingdom Adventures job pairings, simulate marriage outcomes, preview child stats, and browse full compatibility data.
           </p>
         </PageHeader>
 
         <div className="mb-4 rounded-lg border border-red-300 bg-red-50/70 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
-          <strong className="text-foreground dark:text-red-200">Warning:</strong> marriage is forever in Kingdom Adventurers. You cannot unmarry or divorce, so double-check pairs before committing in-game. Do not marry your Monarch until you completely understand the marriage mechanics, and it is strongly worth asking the community before committing to a Monarch marriage.
+          <strong className="text-foreground dark:text-red-200">Warning:</strong> marriage is forever in Kingdom Adventures. You cannot unmarry or divorce, so double-check pairs before committing in-game. Do not marry your Monarch until you completely understand the marriage mechanics, and it is strongly worth asking the community before committing to a Monarch marriage.
         </div>
 
         {showNote && (
@@ -2991,4 +3071,3 @@ export default function MarriageMatcher() {
     </div>
   );
 }
-

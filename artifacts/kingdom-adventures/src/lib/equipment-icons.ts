@@ -22,11 +22,20 @@ type ConfirmedFacilityManifest = {
   icons?: ConfirmedFacilityIconEntry[];
 };
 
-const ICON_CACHE_VERSION = "20260525r3";
+const ICON_CACHE_VERSION = "20260526r1";
 
 function normalizeIconName(value: string): string {
   return value
     .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function normalizeItemLookupName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/<pic=([^>]+)>/g, "$1 ")
+    .replace(/^(?:\d+\s*x\s*|x\s*\d+\s*)/i, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
@@ -186,6 +195,7 @@ if (iconManifest && iconManifest.items) {
       : `/website_icons/items/${rawFilename}?v=${ICON_CACHE_VERSION}`;
     itemIconLookup.set(item.name, iconPath);
     itemIconLookup.set(item.name.toLowerCase(), iconPath);
+    itemIconLookup.set(normalizeItemLookupName(item.name), iconPath);
   }
 }
 
@@ -206,7 +216,16 @@ if (iconManifest && iconManifest.eggs) {
 export function getItemIcon(name: string | undefined | null): string | undefined {
   if (!name) return undefined;
   const clean = name.trim();
-  return itemIconLookup.get(clean) ?? itemIconLookup.get(clean.toLowerCase());
+  if (!clean) return undefined;
+  const normalized = normalizeItemLookupName(clean);
+  if (normalized === "blessed rain") {
+    return `/website_icons/items/item_058.png?v=${ICON_CACHE_VERSION}`;
+  }
+  return (
+    itemIconLookup.get(clean)
+    ?? itemIconLookup.get(clean.toLowerCase())
+    ?? itemIconLookup.get(normalized)
+  );
 }
 
 export function getEggIconByColor(colorName: string | undefined | null): string | undefined {

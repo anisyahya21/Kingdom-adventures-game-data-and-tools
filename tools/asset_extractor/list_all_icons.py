@@ -113,9 +113,15 @@ def generate_html_preview(manifest_path: Path, linked_facilities_manifest_path: 
     facilities = manifest.get("facilities", [])
     facility_count, mapchip_count = _facilities_summary(facilities)
     linked_facilities = linked_manifest.get("icons", [])
+    skill_manifest_path = manifest_path.parent / "skills" / "manifest.json"
+    skill_icons: list[dict] = []
+    if skill_manifest_path.exists():
+        with open(skill_manifest_path, "r", encoding="utf-8") as file_obj:
+            skill_icons = json.load(file_obj).get("icons", [])
     icons_root = manifest_path.parent
     valuable_icons = _load_extra_folder_icons(icons_root / "valuable", "valuable")
     menu_icons = _load_extra_folder_icons(icons_root / "menu", "menu")
+    rank_icons = _load_extra_folder_icons(icons_root / "ranks", "ranks")
 
     summary = manifest.get("summary", {})
     summary_total = (
@@ -128,6 +134,8 @@ def generate_html_preview(manifest_path: Path, linked_facilities_manifest_path: 
         + int(summary.get("requested", 0))
         + len(valuable_icons)
         + len(menu_icons)
+        + len(rank_icons)
+        + len(skill_icons)
         + facility_count
         + mapchip_count
         + len(linked_facilities)
@@ -286,7 +294,9 @@ def generate_html_preview(manifest_path: Path, linked_facilities_manifest_path: 
         "        </p>",
         "        <p>",
         f"            <strong>Valuable:</strong> {len(valuable_icons)} |",
-        f"            <strong>Menu:</strong> {len(menu_icons)}",
+        f"            <strong>Menu:</strong> {len(menu_icons)} |",
+        f"            <strong>Ranks:</strong> {len(rank_icons)} |",
+        f"            <strong>Skills:</strong> {len(skill_icons)}",
         "        </p>",
         "        <p>",
         f"            <strong>Facilities:</strong> {facility_count} |",
@@ -371,6 +381,28 @@ def generate_html_preview(manifest_path: Path, linked_facilities_manifest_path: 
             manifest.get("requested", []),
             "requested",
             lambda entry: f"source={entry.get('source', '?')}",
+        )
+    )
+
+    html_parts.append(
+        _section(
+            "Rank Icons",
+            rank_icons,
+            "ranks",
+            lambda entry: "rank_2x sheet",
+        )
+    )
+
+    html_parts.append(
+        _section(
+            "Skill Icons",
+            skill_icons,
+            "skills",
+            lambda entry: (
+                f"index={entry.get('iconIndex', '?')} "
+                f"| src=({entry.get('srcX', '?')},{entry.get('srcY', '?')}) "
+                f"| size={entry.get('w', '?')}x{entry.get('h', '?')}"
+            ),
         )
     )
 

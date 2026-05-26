@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/ka/page-header";
 import { ToneBadge } from "@/components/ka/badges";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
+import { getSkillIcon } from "@/lib/skill-icons";
 
 
 type Skill = {
@@ -254,10 +255,21 @@ export default function SkillsPage() {
                     {filtered.map((skill) => {
                       const isEditing = editingName === skill.name;
                       const d = isEditing ? editDraft! : skill;
+                      const skillIcon = getSkillIcon(skill.name);
                       return (
                         <tr key={skill.name} className={`hover:bg-muted/30 transition-colors ${isEditing ? "bg-sky-50 dark:bg-sky-950/20" : ""}`}>
                           <td className="px-4 py-2 font-medium">
-                            {skill.name}
+                            <div className="flex items-center gap-2">
+                              {skillIcon ? (
+                                <img
+                                  src={skillIcon}
+                                  alt=""
+                                  className="h-10 w-10 shrink-0 object-contain"
+                                  style={{ imageRendering: "pixelated" }}
+                                />
+                              ) : null}
+                              <span>{skill.name}</span>
+                            </div>
                           </td>
                           <td className="px-3 py-2 text-center">
                             {numCell(skill.studioLevel, () => undefined, false)}

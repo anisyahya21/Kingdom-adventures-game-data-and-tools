@@ -26,6 +26,7 @@ import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { EntityLink } from "@/components/ka/entity-link";
 import { localSharedData } from "@/lib/local-shared-data";
 import { getEquipmentIcon, getItemIcon, getFurnitureIcon, getFacilityIcon } from "@/lib/equipment-icons";
+import { getSkillIcon } from "@/lib/skill-icons";
 import { parseCsv } from "@/lib/monster-truth";
 import {
   JOB_PARAMETER_ORDER,
@@ -1075,16 +1076,31 @@ function SkillsTable({ rows }: { rows: SkillRow[] }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((row) => (
+          {sorted.map((row) => {
+            const skillIcon = getSkillIcon(row.name);
+            return (
             <tr key={row.name} className="border-t border-border/70">
-              <td className="px-3 py-2 font-medium text-foreground">{row.name}</td>
+              <td className="px-3 py-2 font-medium text-foreground">
+                <div className="flex items-center gap-2">
+                  {skillIcon ? (
+                    <img
+                      src={skillIcon}
+                      alt=""
+                      className="h-10 w-10 shrink-0 object-contain"
+                      style={{ imageRendering: "pixelated" }}
+                    />
+                  ) : null}
+                  <span>{row.name}</span>
+                </div>
+              </td>
               <td className="px-3 py-2 text-center">{row.studioLevel}</td>
               <td className="px-3 py-2 text-center">{row.craftingIntelligence || "-"}</td>
               <td className="px-3 py-2 text-center">{row.buyPrice || "-"}</td>
               <td className="px-3 py-2 text-center">{row.sellPrice || "-"}</td>
               <td className="px-3 py-2 text-muted-foreground">{row.description || row.weaponResistance || "-"}</td>
             </tr>
-          ))}
+          );
+          })}
         </tbody>
       </table>
     </div>

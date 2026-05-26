@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { BatteryCharging, Calculator, Check, Hammer, Info, Loader2, Swords } from "lucide-react";
+import { Calculator, Check, Info, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +40,8 @@ type PlannerInputs = WairoRouteWorkerInput;
 const WAIRO_ROUTE_SETUP_STORAGE_KEY = "ka_wairo_route_setup";
 const STAMINA_COLLECT_BUTTON_ICON = "/website_icons/requested/stamina_collect_button.png";
 const DESTRUCT_BUTTON_ICON = "/website_icons/requested/destruct.png";
+const MENU_BUILD_ICON = "/website_icons/menu/menu_build.png";
+const CONQUEST_MEMBER_ICON = "/website_icons/requested/conquest_member_icon.png";
 
 type StoredRouteSetup = {
   routeMines?: number;
@@ -147,6 +149,7 @@ export function WairoFarmingCalculator() {
     [query],
   );
   const selectedIcon = getEquipmentIcon(equipIcons, selectedItem);
+  const recoverEnergyIcon = getEquipmentIcon(equipIcons, "Recover Energy") ?? "/website_icons/items/item_026.png";
 
   function selectItem(item: string) {
     setSelectedItem(item);
@@ -329,7 +332,7 @@ export function WairoFarmingCalculator() {
     className?: string;
   }) {
     return (
-      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border bg-background ${className}`}>
+      <span className={`inline-flex min-h-[34px] shrink-0 items-stretch justify-center self-stretch overflow-hidden leading-none ${className}`}>
         {children}
       </span>
     );
@@ -992,7 +995,7 @@ export function WairoFarmingCalculator() {
                                   <img
                                     src={STAMINA_COLLECT_BUTTON_ICON}
                                     alt=""
-                                    className="h-5 w-5 object-contain"
+                                    className="h-full w-auto min-w-[40px] object-cover object-center"
                                     style={{ imageRendering: "pixelated" }}
                                   />
                                 </ActionIcon>
@@ -1010,7 +1013,7 @@ export function WairoFarmingCalculator() {
                                   <img
                                     src={DESTRUCT_BUTTON_ICON}
                                     alt=""
-                                    className="h-5 w-5 object-contain"
+                                    className="h-full w-auto min-w-[40px] object-cover object-center"
                                     style={{ imageRendering: "pixelated" }}
                                   />
                                 </ActionIcon>
@@ -1022,7 +1025,12 @@ export function WairoFarmingCalculator() {
                             )}
                             <div className="flex gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-2 py-2">
                               <ActionIcon className="text-red-600 dark:text-red-400">
-                                <Swords className="h-4 w-4" />
+                                <img
+                                  src={CONQUEST_MEMBER_ICON}
+                                  alt=""
+                                  className="h-full w-auto min-w-[40px] object-cover object-center"
+                                  style={{ imageRendering: "pixelated" }}
+                                />
                               </ActionIcon>
                               <div>
                                 <div className="text-xs font-medium text-foreground">Battle</div>
@@ -1039,7 +1047,7 @@ export function WairoFarmingCalculator() {
                         <div className="space-y-2">
                           <div className="flex gap-2 rounded-md border border-green-500/20 bg-green-500/5 px-2 py-2">
                             <ActionIcon className="text-green-600 dark:text-green-400">
-                              <Hammer className="h-4 w-4" />
+                              <img src={MENU_BUILD_ICON} alt="" className="h-full w-auto min-w-[44px] object-cover object-center" style={{ imageRendering: "pixelated" }} />
                             </ActionIcon>
                             <div>
                               <div className="text-xs font-medium text-foreground">Rebuild storage</div>
@@ -1050,7 +1058,7 @@ export function WairoFarmingCalculator() {
                           </div>
                           <div className="flex gap-2 rounded-md border border-primary/20 bg-primary/5 px-2 py-2">
                             <ActionIcon className="text-primary">
-                              <BatteryCharging className="h-4 w-4" />
+                              <img src={recoverEnergyIcon} alt="" className="h-full w-auto min-w-[40px] object-cover object-center" style={{ imageRendering: "pixelated" }} />
                             </ActionIcon>
                             <div>
                               <div className="text-xs font-medium text-foreground">Use refill item</div>

@@ -26,7 +26,7 @@ import { simulateBatch, simulateDuel, type Combatant, type BattleResult, type Ba
 import { getJobProfile } from "@/game-data/job-profile";
 import { KA_RANK_BADGE_CLASS } from "@/design-system/category-styles";
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type WeaponValue = "can" | "weak" | "cannot";
 type Skill = { name: string; studioLevel?: number; craftingIntelligence?: number; buyPrice?: number; sellPrice?: number; description?: string; weaponResistance?: string };
@@ -93,7 +93,7 @@ type SharedData = {
 };
 type BoxSetupShare = { id: string; setup: BoxSetup; createdAt: number; updatedAt: number };
 
-// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 // Canonical short stat keys used throughout
 const STAT_KEYS = ["hp","mp","vig","atk","def","spd","lck","int","dex","gth","mov","hrt"] as const;
@@ -121,7 +121,7 @@ function StatLabel({ stat, icons, full = false, iconClassName = "h-3.5 w-3.5" }:
     </span>
   );
 }
-// Universal stat alias map â€” normalises any spelling/abbreviation to the canonical short key.
+// Universal stat alias map — normalises any spelling/abbreviation to the canonical short key.
 // All variants are lowercased before lookup.
 const STAT_CANONICAL: Record<string, string> = {
   // HP
@@ -243,7 +243,7 @@ function commitOnEnter(e: React.KeyboardEvent<HTMLInputElement>, commit: () => v
   }
 }
 
-// â”€â”€â”€ Weapon proficiency helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Weapon proficiency helpers ───────────────────────────────────────────────
 
 function getWeaponProficiency(
   job: Job | undefined,
@@ -298,7 +298,7 @@ function getEquipRuleState(loadout: Loadout, data: SharedData, equipName: string
   return { slot, weaponType, prof, resistanceSkill, hasResistanceSkillEquipped, appliesPenalty, blocked };
 }
 
-// â”€â”€â”€ Hooks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Hooks ────────────────────────────────────────────────────────────────────
 
 function useSharedData() {
   return useQuery({
@@ -312,7 +312,7 @@ function useSharedData() {
 
 function useLoadouts(sharedData: SharedData | undefined) {
   const [loadouts, setLoadouts] = useLocalFeature<Loadout[]>("ka_loadouts", []);
-  // Ref that always mirrors loadouts â€” used inside effects to avoid stale closures
+  // Ref that always mirrors loadouts — used inside effects to avoid stale closures
   const loadoutsRef = useRef(loadouts);
   useEffect(() => { loadoutsRef.current = loadouts; }, [loadouts]);
   // Sync guards (same pattern as the pairs sync in marriage-matcher)
@@ -322,18 +322,18 @@ function useLoadouts(sharedData: SharedData | undefined) {
 
   // Hydration: on first API data load, pull loadouts from server.
   // Rule: if loadoutsUpdatedAt is non-null the server has been explicitly saved to
-  // and is authoritative â€” even if loadouts is empty (means user deleted everything).
+  // and is authoritative — even if loadouts is empty (means user deleted everything).
   // Only push local state when the server has NEVER been initialized (loadoutsUpdatedAt === null).
   useEffect(() => {
     if (loadoutsHydratedRef.current) return;
     if (!sharedData) return; // still loading
     loadoutsHydratedRef.current = true;
     if (sharedData.loadoutsUpdatedAt != null) {
-      // Server has been written before â€” always take its state, even if empty
+      // Server has been written before — always take its state, even if empty
       skipNextLoadoutsEchoRef.current = true;
       setLoadouts(sharedData.loadouts ?? []);
     } else if (loadoutsRef.current.length > 0) {
-      // Server has never been synced â€” push local state as the initial seed
+      // Server has never been synced — push local state as the initial seed
       fetch(apiUrl("/loadouts"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -442,7 +442,7 @@ function useCommunityBoxSetups(sharedData: SharedData | undefined) {
   return { setups: normalizeBoxSetups(setups), save };
 }
 
-// â”€â”€â”€ Stat Calculators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Stat Calculators ─────────────────────────────────────────────────────────
 
 function getStatLevel(loadout: Loadout, k: string): number {
   return loadout.statLevels?.[k] ?? loadout.level ?? 1;
@@ -665,7 +665,7 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
       </select>
       {c && (
         <div className="text-xs text-muted-foreground border border-border rounded-md p-2 bg-muted/20">
-          HP {formatNum(c.maxHp)} Â· ATK {formatNum(c.atk)} Â· DEF {formatNum(c.def)} Â· SPD {formatNum(c.spd)} Â· DEX {formatNum(c.dex)} Â· LCK {formatNum(c.lck)} Â· INT {formatNum(c.int)}
+          HP {formatNum(c.maxHp)} · ATK {formatNum(c.atk)} · DEF {formatNum(c.def)} · SPD {formatNum(c.spd)} · DEX {formatNum(c.dex)} · LCK {formatNum(c.lck)} · INT {formatNum(c.int)}
         </div>
       )}
     </div>
@@ -746,7 +746,7 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
                         <div>
                           <div className="flex flex-wrap items-center gap-2 text-foreground">
                             <span>{row.text}</span>
-                            {row.crit ? <span className="font-semibold text-orange-500">ðŸ’¥ Crit</span> : null}
+                            {row.crit ? <span className="font-semibold text-orange-500">💥 Crit</span> : null}
                           </div>
                           <div className="text-muted-foreground">{row.meta}</div>
                         </div>
@@ -763,7 +763,7 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
   );
 }
 
-// â”€â”€â”€ Screenshot Card (portal-rendered) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Screenshot Card (portal-rendered) ───────────────────────────────────────
 
 function createBoxUnitRule(): BoxUnitRule {
   return {
@@ -1431,10 +1431,10 @@ function ScreenshotCard({ loadout, stats }: { loadout: Loadout; stats: Record<st
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 2 }}>{loadout.name || "Loadout"}</div>
           <div style={{ fontSize: 12, color: "#94a3b8" }}>
-            {loadout.jobName || "No job"} {loadout.rank ? `Â· Rank ${loadout.rank}` : ""} {(loadout.level ?? 1) > 1 ? `Â· Lv ${loadout.level}` : ""}
+            {loadout.jobName || "No job"} {loadout.rank ? `· Rank ${loadout.rank}` : ""} {(loadout.level ?? 1) > 1 ? `· Lv ${loadout.level}` : ""}
           </div>
         </div>
-        <div style={{ fontSize: 10, color: "#64748b" }}>Kingdom Adventurers</div>
+        <div style={{ fontSize: 10, color: "#64748b" }}>Kingdom Adventures</div>
       </div>
 
       {hasStats && (
@@ -1475,7 +1475,7 @@ function ScreenshotCard({ loadout, stats }: { loadout: Loadout; stats: Record<st
   );
 }
 
-// â”€â”€â”€ Character Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Character Preview ────────────────────────────────────────────────────────
 
 type PreviewPoseFrame = 0 | 2;
 
@@ -1571,17 +1571,17 @@ function CharacterPreview({
         <button
           onClick={() => setEquipState("right")}
           className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${equipState === "right" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-        >â†’</button>
+        >Right</button>
         <button
           onClick={() => setEquipState("up")}
           className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${equipState === "up" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-        >â†‘</button>
+        >Up</button>
       </div>
     </div>
   );
 }
 
-// â”€â”€â”€ Loadout Editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Loadout Editor ───────────────────────────────────────────────────────────
 
 function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   loadout: Loadout;
@@ -1773,7 +1773,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
               value={loadout.jobName}
               onChange={(v) => onChange({ ...loadout, jobName: v })}
               options={Object.keys(jobs).sort().map((n) => ({ value: n, label: n }))}
-              placeholder="Select jobâ€¦"
+              placeholder="Select job..."
               triggerClassName="h-8 text-sm"
             />
             {loadout.jobName && (
@@ -1849,9 +1849,9 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 className="h-6 text-[11px] text-center px-0 w-14" />
                             </div>
                           </td>
-                          <td className="py-0.5 text-right tabular-nums text-foreground/80">{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">â€”</span>}</td>
-                          <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">â€”</span>}</td>
-                          <td className="py-0.5 text-right tabular-nums font-bold">{total > 0 ? total.toLocaleString() : <span className="text-muted-foreground/30">â€”</span>}</td>
+                          <td className="py-0.5 text-right tabular-nums text-foreground/80">{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">-</span>}</td>
+                          <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">-</span>}</td>
+                          <td className="py-0.5 text-right tabular-nums font-bold">{total > 0 ? total.toLocaleString() : <span className="text-muted-foreground/30">-</span>}</td>
                         </tr>
                       );
                     })}
@@ -1864,7 +1864,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 
         {/* Right: Equipment + Skills */}
         <div className="space-y-3">
-          {/* Equipment â€” 5-slot card grid */}
+          {/* Equipment — 5-slot card grid */}
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Equipment</p>
             {(() => {
@@ -1928,8 +1928,8 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                     <div className="text-center space-y-0.5">
                                       <ToneBadge category={isWeak ? "shop" : "warning"} className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold">
                                         {isWeak
-                                          ? (rule.appliesPenalty ? "âš  Weak: 50%" : "âœ“ Weak removed")
-                                          : "âœ— Can't wield"}
+                                          ? (rule.appliesPenalty ? "Weak: 50%" : "Weak removed")
+                                          : "Cannot wield"}
                                       </ToneBadge>
                                       {rule.blocked ? (
                                         <p className="text-[8px] text-muted-foreground leading-tight">
@@ -1960,7 +1960,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 clearOnSelect
                                 onChange={(v) => { if (v) setSlotEquip(slot as EquipSlot, v); }}
                                 options={slotItems.map((n) => ({ value: n, label: n }))}
-                                placeholder="â€” empty â€”"
+                                placeholder="- empty -"
                                 triggerClassName="h-7 text-[10px]"
                               />
                             )}
@@ -2018,7 +2018,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                 clearOnSelect
                 onChange={(v) => { if (v) addSkill(v); }}
                 options={allSkills.filter((s) => !loadout.skills.includes(s)).map((s) => ({ value: s, label: s }))}
-                placeholder="+ Add skillâ€¦"
+                placeholder="+ Add skill..."
                 triggerClassName="h-7 text-xs"
               />
             )}
@@ -2030,7 +2030,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   );
 }
 
-// â”€â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 function PublishNameDialog({
   onSave,
@@ -2229,7 +2229,7 @@ export default function LoadoutPage() {
             <textarea
               value={pageNote}
               onChange={(e) => setPageNote(e.target.value)}
-              placeholder="Personal notes for this pageâ€¦ (only visible to you, saved on this device)"
+              placeholder="Personal notes for this page... (only visible to you, saved on this device)"
               className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
             />
           </div>
@@ -2326,8 +2326,8 @@ export default function LoadoutPage() {
                               <CollapsedCharPreview
                                 jobName={loadout.jobName}
                                 rank={loadout.rank}
-                                weaponName={weaponEntry?.name}
-                                shieldName={shieldEntry?.name}
+                                weaponName={weaponEntry?.name ?? null}
+                                shieldName={shieldEntry?.name ?? null}
                               />
                             </div>
                           )}
@@ -2457,10 +2457,9 @@ export default function LoadoutPage() {
         )}
 
         <p className="text-xs text-muted-foreground mt-4 text-center">
-          Loadouts are saved to your browser â€” private to you
+          Loadouts are saved to your browser - private to you
         </p>
       </div>
     </div>
   );
 }
-

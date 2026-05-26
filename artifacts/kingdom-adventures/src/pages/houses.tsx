@@ -806,8 +806,9 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
         {hasUpg && (
           <div className="space-y-1 border-t border-border pt-2 mt-1">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium">
-                Upgrade cost (Lv. {level + 1}→{level + 2})
+              <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium">
+                <img src={RANK_UP_BUTTON_ICON} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                Upgrade cost (Lv. {level + 1}{" -> "}{level + 2})
               </p>
               <div className="flex items-center gap-1 shrink-0">
                 <button
@@ -857,6 +858,8 @@ const TH_UPGRADE_TIMES = [
 496800,518400,540000,561600,583200,604800,626400,648000,669600,691200,
 712800,734400,756000,777600,799200,820800,842400,864000,885600,907200,
 ];
+
+const RANK_UP_BUTTON_ICON = "/website_icons/requested/rankup_button.png";
 
 function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facility; timeDiscount?: number; resourceDiscount?: number }) {
   const [rank, setRank] = useState(0);
@@ -915,8 +918,9 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
         )}
         <div className="space-y-1 border-t border-border pt-2">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium">
-              Upgrade cost (Rank {rank}\u2192{rank + 1})
+            <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium">
+              <img src={RANK_UP_BUTTON_ICON} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+              Upgrade cost (Rank {rank}{" -> "}{rank + 1})
             </p>
             <div className="flex items-center gap-1 shrink-0">
               <button

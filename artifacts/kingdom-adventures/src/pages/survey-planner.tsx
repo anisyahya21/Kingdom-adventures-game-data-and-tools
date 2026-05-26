@@ -11,7 +11,7 @@ import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { getJobProfiles, getJobsThatOpenBuilding, type SharedJobProfileData } from "@/game-data/job-profile";
-import { getEquipmentIcon, getFacilityIconByName } from "@/lib/equipment-icons";
+import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon } from "@/lib/equipment-icons";
 import surveyCsv from "../../../../data/Sheet csv/KA GameData - Survey.csv?raw";
 import jobCsv from "../../../../data/Sheet csv/KA GameData - Job.csv?raw";
 import jobGroupCsv from "../../../../data/Sheet csv/KA GameData - JobGroup.csv?raw";
@@ -300,6 +300,119 @@ function getFacilityIconFromSurveyGroup(groupName: string) {
   if (!rawName || rawName.toLowerCase() === "other") return null;
   const withoutVariant = rawName.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
   return getFacilityIconByName(rawName) ?? getFacilityIconByName(withoutVariant) ?? null;
+}
+
+function getSurveyNameSectionFacilityIcon(displayName: string) {
+  const key = displayName.toLowerCase();
+  if (key.includes("dragon taming")) {
+    return getFacilityIconByName("Dragon Stables") ?? getFacilityIconByName("Dragon staples") ?? null;
+  }
+  if (key.includes("cash register")) {
+    return getFurnitureIcon("Cash Register") ?? getFurnitureIcon("Register") ?? getFacilityIconByName("Cash Register") ?? null;
+  }
+  return null;
+}
+
+function isMasterInstructorSurveyName(displayName: string) {
+  return displayName.toLowerCase().includes("master instructor");
+}
+
+const SURVEY_ICON_IMAGE_CLASS = "h-12 w-auto max-w-none shrink-0 object-contain";
+const alphaTrimmedIconCache = new Map<string, string>();
+
+function buildAlphaTrimmedIcon(src: string): Promise<string> {
+  const cached = alphaTrimmedIconCache.get(src);
+  if (cached) return Promise.resolve(cached);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx || canvas.width === 0 || canvas.height === 0) {
+        alphaTrimmedIconCache.set(src, src);
+        resolve(src);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0);
+      let pixels: Uint8ClampedArray;
+      try {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        pixels = imageData.data;
+      } catch {
+        alphaTrimmedIconCache.set(src, src);
+        resolve(src);
+        return;
+      }
+
+      let minX = canvas.width;
+      let minY = canvas.height;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < canvas.height; y += 1) {
+        for (let x = 0; x < canvas.width; x += 1) {
+          const alpha = pixels[(y * canvas.width + x) * 4 + 3];
+          if (alpha === 0) continue;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+
+      if (maxX < minX || maxY < minY) {
+        alphaTrimmedIconCache.set(src, src);
+        resolve(src);
+        return;
+      }
+
+      const trimWidth = maxX - minX + 1;
+      const trimHeight = maxY - minY + 1;
+      const trimmedCanvas = document.createElement("canvas");
+      trimmedCanvas.width = trimWidth;
+      trimmedCanvas.height = trimHeight;
+      const trimmedCtx = trimmedCanvas.getContext("2d");
+      if (!trimmedCtx) {
+        alphaTrimmedIconCache.set(src, src);
+        resolve(src);
+        return;
+      }
+
+      trimmedCtx.drawImage(canvas, minX, minY, trimWidth, trimHeight, 0, 0, trimWidth, trimHeight);
+      const trimmedSrc = trimmedCanvas.toDataURL("image/png");
+      alphaTrimmedIconCache.set(src, trimmedSrc);
+      resolve(trimmedSrc);
+    };
+
+    img.onerror = () => {
+      alphaTrimmedIconCache.set(src, src);
+      resolve(src);
+    };
+
+    img.src = src;
+  });
+}
+
+function AlphaTrimmedIcon({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [resolvedSrc, setResolvedSrc] = useState<string>(alphaTrimmedIconCache.get(src) ?? src);
+
+  useEffect(() => {
+    let active = true;
+    buildAlphaTrimmedIcon(src).then((nextSrc) => {
+      if (active) {
+        setResolvedSrc(nextSrc);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [src]);
+
+  return <img src={resolvedSrc} alt={alt} className={className} style={{ imageRendering: "pixelated" }} />;
 }
 
 const GROUPED_SURVEYS: SurveyGroup[] = Object.values(
@@ -822,7 +935,9 @@ export default function SurveyPlanner() {
                 {(isMobileSurveyList && !surveyListExpanded ? GROUPED_SURVEYS.slice(0, 3) : GROUPED_SURVEYS).map((group) => {
                   const groupKey = `${group.name}-${group.surveys[0]?.id ?? "none"}`;
                   const expanded = !!expandedGroups[groupKey];
-                  const facilityIcon = getFacilityIconFromSurveyGroup(group.name);
+                  const specialNameFacilityIcon = getSurveyNameSectionFacilityIcon(group.name);
+                  const isMasterInstructor = isMasterInstructorSurveyName(group.name);
+                  const facilityIcon = specialNameFacilityIcon ?? getFacilityIconFromSurveyGroup(group.name);
                   return (
                     <div key={groupKey} className="space-y-1 rounded-lg border border-border/20 p-1">
                       <div className="grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 items-center rounded bg-muted/50 px-2 py-2 text-sm font-semibold cursor-pointer"
@@ -831,13 +946,20 @@ export default function SurveyPlanner() {
                           {group.surveys.length > 1 ? (
                             expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />
                           ) : null}
-                          {facilityIcon ? (
-                            <img
-                              src={facilityIcon}
-                              alt=""
-                              className="h-8 w-8 shrink-0 object-contain"
-                              style={{ imageRendering: "pixelated" }}
+                          {isMasterInstructor ? (
+                            <CharacterPreviewCanvas
+                              jobName="Scholar"
+                              rank="F"
+                              variant={1}
+                              equipState="right"
+                              scale={2.1}
+                              poseFrame={0}
+                              label="Master Instructor F Scholar male"
+                              className="-my-2 h-12 w-auto shrink-0"
                             />
+                          ) : null}
+                          {!isMasterInstructor && facilityIcon ? (
+                            <AlphaTrimmedIcon src={facilityIcon} alt="" className={SURVEY_ICON_IMAGE_CLASS} />
                           ) : null}
                           {group.name}
                         </div>
@@ -851,7 +973,31 @@ export default function SurveyPlanner() {
                       {expanded && group.surveys.map((s) => (
                         <div key={s.id} className={`grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 items-center p-2 rounded ${s.id === selectedSurveyId ? "bg-muted/40" : ""}`}>
                           <div>
-                            <Button variant="link" onClick={() => setSelectedSurveyId(s.id)}>{formatSurveyName(s)}</Button>
+                            {(() => {
+                              const surveyDisplayName = formatSurveyName(s);
+                              const surveyNameFacilityIcon = getSurveyNameSectionFacilityIcon(surveyDisplayName);
+                              const isMasterInstructorName = isMasterInstructorSurveyName(surveyDisplayName);
+                              return (
+                                <div className="flex items-center gap-1.5">
+                                  {isMasterInstructorName ? (
+                                    <CharacterPreviewCanvas
+                                      jobName="Scholar"
+                                      rank="F"
+                                      variant={1}
+                                      equipState="right"
+                                      scale={2.0}
+                                      poseFrame={0}
+                                      label="Master Instructor F Scholar male"
+                                      className="-my-2 h-11 w-auto shrink-0"
+                                    />
+                                  ) : null}
+                                  {!isMasterInstructorName && surveyNameFacilityIcon ? (
+                                    <AlphaTrimmedIcon src={surveyNameFacilityIcon} alt="" className={SURVEY_ICON_IMAGE_CLASS} />
+                                  ) : null}
+                                  <Button variant="link" onClick={() => setSelectedSurveyId(s.id)}>{surveyDisplayName}</Button>
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div className="text-center">{getSurveyMaxLabel(s.maxEarnableRewardCount)}</div>
                           <div className="text-center">{getSurveyTerrainLabel(s)}</div>
@@ -871,10 +1017,10 @@ export default function SurveyPlanner() {
                                     rank="B"
                                     variant={1}
                                     equipState="right"
-                                    scale={1.6}
+                                    scale={2.1}
                                     poseFrame={0}
                                     label={`${bonusJobName} B male`}
-                                    className="-my-1.5 h-8 w-auto shrink-0"
+                                    className="-my-2 h-12 w-auto shrink-0"
                                   />
                                   <span>{bonusJobName}</span>
                                 </div>
