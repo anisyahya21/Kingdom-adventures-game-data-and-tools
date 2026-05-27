@@ -562,6 +562,10 @@ function consumeMatchFromSlots(slots: RankSlot[], match: MatchResult): RankSlot[
 }
 
 function getPossibleChildren(match: MatchResult, pairs: Pair[]): string[] {
+  return getPossibleMarriageChildren({ pairs }, match.maleJob, match.femaleJob, { includeParentInheritance: false });
+}
+
+function getPossibleChildrenWithInheritance(match: MatchResult, pairs: Pair[]): string[] {
   return getPossibleMarriageChildren({ pairs }, match.maleJob, match.femaleJob);
 }
 
@@ -1458,7 +1462,7 @@ interface MatchRowProps {
 function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMarried, onLock, onUnlock, onToggleHoused, onChangeMale, onChangeFemale }: MatchRowProps) {
   const isLocked = match.locked;
 
-  const possibleChildren = useMemo(() => getPossibleChildren(match, pairs), [match, pairs]);
+  const possibleChildren = useMemo(() => getPossibleChildrenWithInheritance(match, pairs), [match, pairs]);
   const desiredHere = useMemo(
     () => desiredChildren.filter((c) => possibleChildren.some((p) => normJob(p) === normJob(c))),
     [desiredChildren, possibleChildren]
@@ -2358,10 +2362,6 @@ export default function MarriageMatcher() {
 
   // ââ State: affinity filter (for matching and pair list) ââ
   const [affinityFilter, setAffinityFilter] = useState<Set<string>>(new Set(["A", "B", "C", "D", "E"]));
-  const filteredPairs = useMemo(
-    () => pairs.filter((p) => !p.affinity || affinityFilter.has(p.affinity)),
-    [pairs, affinityFilter]
-  );
   const targetPoolJobs = useMemo(() => {
     const filtered = allJobNames.filter((name) => {
       const typeOk = targetChildTypeFilter === "all" || jobTypeMap[name] === targetChildTypeFilter;
@@ -2373,6 +2373,16 @@ export default function MarriageMatcher() {
       .filter((job) => !targetExcludeJobs.some((excluded) => normJob(excluded) === normJob(job)))
       .sort();
   }, [allJobNames, jobGenMap, jobTypeMap, targetChildTypeFilter, targetExclusiveFilter, targetIncludeJobs, targetExcludeJobs]);
+
+  const filteredPairs = useMemo(() => {
+    const pool = new Set(targetPoolJobs.map((job) => normJob(job)));
+    return pairs.filter((p) => {
+      if (p.affinity && !affinityFilter.has(p.affinity)) return false;
+      if (pool.size === 0) return false;
+      const possibleChildren = getPossibleMarriageChildren({ pairs }, p.jobA, p.jobB);
+      return possibleChildren.some((child) => pool.has(normJob(child)));
+    });
+  }, [pairs, affinityFilter, targetPoolJobs]);
 
   // ââ State: result filters ââ
   const [resultTypeFilter, setResultTypeFilter] = useState<"all" | "combat" | "non-combat">("all");
@@ -2817,7 +2827,7 @@ export default function MarriageMatcher() {
     if (!result || desiredChildren.length === 0) return [];
     return desiredChildren.map((child) => {
       const coveringMatches = result.matches.filter((m) =>
-        getPossibleChildren(m, pairs).some((p) => normJob(p) === normJob(child))
+        getPossibleChildrenWithInheritance(m, pairs).some((p) => normJob(p) === normJob(child))
       );
       return { child, matches: coveringMatches };
     }).filter(({ matches }) => matches.length > 0);
@@ -2831,12 +2841,17 @@ export default function MarriageMatcher() {
     return result.matches.filter((m) => {
       if (resultExcludeJobs.includes(m.maleJob) || resultExcludeJobs.includes(m.femaleJob)) return false;
       if (resultIncludeJobs.length > 0 && !resultIncludeJobs.includes(m.maleJob) && !resultIncludeJobs.includes(m.femaleJob)) return false;
+      if (targetChildTypeFilter !== "all") {
+        const childTypes = getPossibleChildrenWithInheritance(m, pairs)
+          .map((child) => jobTypeMap[child]);
+        if (!childTypes.some((type) => type === targetChildTypeFilter)) return false;
+      }
       if (resultTypeFilter === "all") return true;
       const maleType = jobTypeMap[m.maleJob];
       const femaleType = jobTypeMap[m.femaleJob];
-      return maleType === resultTypeFilter || femaleType === resultTypeFilter;
+      return maleType === resultTypeFilter && femaleType === resultTypeFilter;
     });
-  }, [result, resultTypeFilter, resultIncludeJobs, resultExcludeJobs, jobTypeMap]);
+  }, [result, resultTypeFilter, resultIncludeJobs, resultExcludeJobs, jobTypeMap, targetChildTypeFilter, pairs]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -3134,7 +3149,7 @@ export default function MarriageMatcher() {
                     <CardTitle className="text-base">Matched Pairs</CardTitle>
                     <CardDescription className="text-xs mt-0.5">
                       Lock a pair to keep it fixed across recalculations.
-                      {desiredChildren.length > 0 && <> Â· <span className="text-violet-600 dark:text-violet-400">Purple rows</span> cover your desired children.</>}
+                      {desiredChildren.length > 0 && <>· <span className="text-violet-600 dark:text-violet-400">Purple rows</span> cover your desired children.</>}
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
