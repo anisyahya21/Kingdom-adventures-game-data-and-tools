@@ -173,28 +173,54 @@ function runBipartiteMatching(
   effectiveFemales: Record<string, number>,
   compatibleKeys: Set<string>
 ): Array<{ maleJob: string; femaleJob: string }> {
-  const graph: Record<string, string[]> = {};
-  for (const m in effectiveMales) {
-    for (const f in effectiveFemales) {
-      if (!compatibleKeys.has(pairKey(m, f))) continue;
-      if (!graph[m]) graph[m] = [];
-      if (!graph[m].includes(f)) graph[m].push(f);
-    }
+  const maleSlots: string[] = [];
+  const femaleSlots: string[] = [];
+
+  for (const [job, count] of Object.entries(effectiveMales)) {
+    for (let i = 0; i < count; i++) maleSlots.push(job);
   }
-  const matchF: Record<string, string> = {};
-  function tryMatch(m: string, visited: Set<string>): boolean {
-    if (!graph[m]) return false;
-    for (const f of graph[m]) {
-      if (visited.has(f)) continue;
-      visited.add(f);
-      if (!matchF[f] || tryMatch(matchF[f], visited)) { matchF[f] = m; return true; }
+  for (const [job, count] of Object.entries(effectiveFemales)) {
+    for (let i = 0; i < count; i++) femaleSlots.push(job);
+  }
+
+  const graph: number[][] = maleSlots.map((maleJob) => {
+    const edges: number[] = [];
+    for (let femaleIndex = 0; femaleIndex < femaleSlots.length; femaleIndex++) {
+      if (compatibleKeys.has(pairKey(maleJob, femaleSlots[femaleIndex]))) {
+        edges.push(femaleIndex);
+      }
+    }
+    return edges;
+  });
+
+  const matchFemaleToMale = new Array<number>(femaleSlots.length).fill(-1);
+
+  function tryMatch(maleIndex: number, visited: boolean[]): boolean {
+    for (const femaleIndex of graph[maleIndex]) {
+      if (visited[femaleIndex]) continue;
+      visited[femaleIndex] = true;
+
+      const currentlyMatchedMale = matchFemaleToMale[femaleIndex];
+      if (currentlyMatchedMale === -1 || tryMatch(currentlyMatchedMale, visited)) {
+        matchFemaleToMale[femaleIndex] = maleIndex;
+        return true;
+      }
     }
     return false;
   }
-  for (const m in effectiveMales) {
-    for (let i = 0; i < effectiveMales[m]; i++) tryMatch(m, new Set<string>());
+
+  for (let maleIndex = 0; maleIndex < maleSlots.length; maleIndex++) {
+    tryMatch(maleIndex, new Array<boolean>(femaleSlots.length).fill(false));
   }
-  return Object.entries(matchF).map(([f, m]) => ({ maleJob: m, femaleJob: f }));
+
+  const matches: Array<{ maleJob: string; femaleJob: string }> = [];
+  for (let femaleIndex = 0; femaleIndex < matchFemaleToMale.length; femaleIndex++) {
+    const maleIndex = matchFemaleToMale[femaleIndex];
+    if (maleIndex !== -1) {
+      matches.push({ maleJob: maleSlots[maleIndex], femaleJob: femaleSlots[femaleIndex] });
+    }
+  }
+  return matches;
 }
 
 const MAX_UNASSIGNED_SEARCH_STATES = 150000;
