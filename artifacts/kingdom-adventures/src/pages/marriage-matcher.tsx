@@ -5,7 +5,7 @@ import { Link, useSearch } from "wouter";
 import {
   Plus, Trash2, Zap, RefreshCw, HelpCircle, ArrowLeftRight,
   X, Lock, LockOpen, Loader2, AlertTriangle, ExternalLink,
-  Info, Star, Baby, Filter, Heart, BarChart2, BookOpen,
+  Info, Star, Baby, Filter, Heart, Home, BarChart2, BookOpen,
   Download, Upload, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -133,6 +133,13 @@ interface LockedPair {
   rank: Rank;
 }
 
+interface HousedPair {
+  maleJob: string;
+  femaleJob: string;
+  rank: Rank;
+  housed: boolean;
+}
+
 interface MatchResult {
   id: string;
   maleJob: string;
@@ -141,6 +148,7 @@ interface MatchResult {
   maleWasUnassigned: boolean;
   femaleWasUnassigned: boolean;
   locked: boolean;
+  housed: boolean;
 }
 
 interface UnassignedDecision {
@@ -154,6 +162,7 @@ interface OptimalResult {
   matches: MatchResult[];
   unmatchedMale: Array<{ job: string; rank: Rank }>;
   unmatchedFemale: Array<{ job: string; rank: Rank }>;
+  unmatchedUnassigned: Array<{ job: string; rank: Rank }>;
   unassignedDecisions: UnassignedDecision[];
 }
 
@@ -188,15 +197,78 @@ function runBipartiteMatching(
   return Object.entries(matchF).map(([f, m]) => ({ maleJob: m, femaleJob: f }));
 }
 
+const MAX_UNASSIGNED_SEARCH_STATES = 150000;
+function computeBestUnassignedAllocation(
+  withUnassigned: RankSlot[],
+  baseMales: Record<string, number>,
+  baseFemales: Record<string, number>,
+  compatibleKeys: Set<string>
+) {
+  const totalSlots = withUnassigned.length;
+  const totalStates = withUnassigned.reduce((sum, item) => sum * (item.unassigned + 1), 1);
+
+  if (totalSlots === 0 || totalStates <= 20000) {
+    return null;
+  }
+
+  const allocation: Record<string, { male: number; female: number }> = {};
+  for (const s of withUnassigned) allocation[s.jobName] = { male: s.unassigned, female: 0 };
+
+  let bestMatches = runBipartiteMatching(
+    withUnassigned.reduce((acc, s) => {
+      const amount = baseMales[s.jobName] + allocation[s.jobName].male;
+      if (amount > 0) acc[s.jobName] = amount;
+      return acc;
+    }, { ...baseMales }),
+    withUnassigned.reduce((acc, s) => {
+      const amount = baseFemales[s.jobName] + allocation[s.jobName].female;
+      if (amount > 0) acc[s.jobName] = amount;
+      return acc;
+    }, { ...baseFemales }),
+    compatibleKeys
+  );
+
+  let improved = true;
+  while (improved) {
+    improved = false;
+    for (const s of withUnassigned) {
+      const current = allocation[s.jobName];
+      if (current.male > 0) {
+        const candidate = { ...allocation, [s.jobName]: { male: current.male - 1, female: current.female + 1 } };
+        const effM = { ...baseMales };
+        const effF = { ...baseFemales };
+        for (const job of Object.keys(candidate)) {
+          const alloc = candidate[job];
+          if (alloc.male > 0) effM[job] = (effM[job] ?? 0) + alloc.male;
+          if (alloc.female > 0) effF[job] = (effF[job] ?? 0) + alloc.female;
+        }
+        const candidateMatches = runBipartiteMatching(effM, effF, compatibleKeys);
+        if (candidateMatches.length > bestMatches.length) {
+          allocation[s.jobName] = candidate[s.jobName];
+          bestMatches = candidateMatches;
+          improved = true;
+        }
+      }
+    }
+  }
+
+  return {
+    matches: bestMatches,
+    maleExtra: Object.fromEntries(Object.entries(allocation).map(([job, alloc]) => [job, alloc.male])),
+    femaleExtra: Object.fromEntries(Object.entries(allocation).map(([job, alloc]) => [job, alloc.female])),
+  };
+}
+
 function matchRank(
   slots: RankSlot[],
   rank: Rank,
   compatibleKeys: Set<string>,
   lockedForRank: LockedPair[]
 ): {
-  matches: Array<{ maleJob: string; femaleJob: string }>;
+  matches: Array<{ maleJob: string; femaleJob: string; maleWasUnassigned: boolean; femaleWasUnassigned: boolean }>;
   unmatchedMale: Array<{ job: string; rank: Rank }>;
   unmatchedFemale: Array<{ job: string; rank: Rank }>;
+  unmatchedUnassigned: Array<{ job: string; rank: Rank }>;
   decisions: UnassignedDecision[];
 } {
   const rankSlots = slots.filter((s) => s.rank === rank);
@@ -239,67 +311,125 @@ function matchRank(
   let bestMaleExtra: Record<string, number> = {};
   let bestFemaleExtra: Record<string, number> = {};
 
-  function recurse(idx: number, maleExtra: Record<string, number>, femaleExtra: Record<string, number>) {
-    if (idx === withUnassigned.length) {
-      const effM = { ...baseMales };
-      const effF = { ...baseFemales };
-      for (const n in maleExtra) if (maleExtra[n] > 0) effM[n] = (effM[n] ?? 0) + maleExtra[n];
-      for (const n in femaleExtra) if (femaleExtra[n] > 0) effF[n] = (effF[n] ?? 0) + femaleExtra[n];
-      const matches = runBipartiteMatching(effM, effF, compatibleKeys);
-      if (matches.length > bestCount) {
-        bestCount = matches.length; bestMatches = matches;
-        bestMaleExtra = { ...maleExtra }; bestFemaleExtra = { ...femaleExtra };
+  const totalSearchStates = withUnassigned.reduce((count, s) => count * (s.unassigned + 1), 1);
+  const fallback = totalSearchStates > MAX_UNASSIGNED_SEARCH_STATES
+    ? computeBestUnassignedAllocation(withUnassigned, baseMales, baseFemales, compatibleKeys)
+    : null;
+
+  if (fallback) {
+    bestMatches = fallback.matches;
+    bestMaleExtra = fallback.maleExtra;
+    bestFemaleExtra = fallback.femaleExtra;
+  } else {
+    function recurse(idx: number, maleExtra: Record<string, number>, femaleExtra: Record<string, number>) {
+      if (idx === withUnassigned.length) {
+        const effM = { ...baseMales };
+        const effF = { ...baseFemales };
+        for (const n in maleExtra) if (maleExtra[n] > 0) effM[n] = (effM[n] ?? 0) + maleExtra[n];
+        for (const n in femaleExtra) if (femaleExtra[n] > 0) effF[n] = (effF[n] ?? 0) + femaleExtra[n];
+        const matches = runBipartiteMatching(effM, effF, compatibleKeys);
+        if (matches.length > bestCount) {
+          bestCount = matches.length; bestMatches = matches;
+          bestMaleExtra = { ...maleExtra }; bestFemaleExtra = { ...femaleExtra };
+        }
+        return;
       }
-      return;
+      const s = withUnassigned[idx];
+      for (let m = 0; m <= s.unassigned; m++) {
+        recurse(idx + 1,
+          { ...maleExtra, [s.jobName]: (maleExtra[s.jobName] ?? 0) + m },
+          { ...femaleExtra, [s.jobName]: (femaleExtra[s.jobName] ?? 0) + (s.unassigned - m) });
+      }
     }
-    const s = withUnassigned[idx];
-    for (let m = 0; m <= s.unassigned; m++) {
-      recurse(idx + 1,
-        { ...maleExtra, [s.jobName]: (maleExtra[s.jobName] ?? 0) + m },
-        { ...femaleExtra, [s.jobName]: (femaleExtra[s.jobName] ?? 0) + (s.unassigned - m) });
-    }
+    recurse(0, {}, {});
   }
-  recurse(0, {}, {});
 
   const effM = { ...baseMales };
   const effF = { ...baseFemales };
   for (const n in bestMaleExtra) if (bestMaleExtra[n] > 0) effM[n] = (effM[n] ?? 0) + bestMaleExtra[n];
   for (const n in bestFemaleExtra) if (bestFemaleExtra[n] > 0) effF[n] = (effF[n] ?? 0) + bestFemaleExtra[n];
 
+  const matchesWithFlags = bestMatches.map((m) => ({
+    ...m,
+    maleWasUnassigned: false,
+    femaleWasUnassigned: false,
+  }));
+  const availableBaseMales = { ...baseMales };
+  const availableBaseFemales = { ...baseFemales };
+  const matchedUnassignedMales: Record<string, number> = {};
+  const matchedUnassignedFemales: Record<string, number> = {};
+  for (const match of matchesWithFlags) {
+    if ((availableBaseMales[match.maleJob] ?? 0) > 0) {
+      availableBaseMales[match.maleJob] -= 1;
+      match.maleWasUnassigned = false;
+    } else {
+      match.maleWasUnassigned = true;
+      matchedUnassignedMales[match.maleJob] = (matchedUnassignedMales[match.maleJob] ?? 0) + 1;
+    }
+    if ((availableBaseFemales[match.femaleJob] ?? 0) > 0) {
+      availableBaseFemales[match.femaleJob] -= 1;
+      match.femaleWasUnassigned = false;
+    } else {
+      match.femaleWasUnassigned = true;
+      matchedUnassignedFemales[match.femaleJob] = (matchedUnassignedFemales[match.femaleJob] ?? 0) + 1;
+    }
+  }
+
   const unmatchedMale: Array<{ job: string; rank: Rank }> = [];
+  const unmatchedFemale: Array<{ job: string; rank: Rank }> = [];
+  const unmatchedUnassigned: Array<{ job: string; rank: Rank }> = [];
+
   for (const n in effM) {
     const matched = bestMatches.filter((m) => m.maleJob === n).length;
-    for (let i = 0; i < effM[n] - matched; i++) unmatchedMale.push({ job: n, rank });
+    const baseCount = baseMales[n] ?? 0;
+    const unmatchedCount = effM[n] - matched;
+    const unmatchedBase = Math.max(0, baseCount - Math.min(baseCount, matched));
+    const unmatchedFromUnassigned = Math.max(0, unmatchedCount - unmatchedBase);
+    for (let i = 0; i < unmatchedBase; i++) unmatchedMale.push({ job: n, rank });
+    for (let i = 0; i < unmatchedFromUnassigned; i++) unmatchedUnassigned.push({ job: n, rank });
   }
-  const unmatchedFemale: Array<{ job: string; rank: Rank }> = [];
   for (const n in effF) {
     const matched = bestMatches.filter((m) => m.femaleJob === n).length;
-    for (let i = 0; i < effF[n] - matched; i++) unmatchedFemale.push({ job: n, rank });
+    const baseCount = baseFemales[n] ?? 0;
+    const unmatchedCount = effF[n] - matched;
+    const unmatchedBase = Math.max(0, baseCount - Math.min(baseCount, matched));
+    const unmatchedFromUnassigned = Math.max(0, unmatchedCount - unmatchedBase);
+    for (let i = 0; i < unmatchedBase; i++) unmatchedFemale.push({ job: n, rank });
+    for (let i = 0; i < unmatchedFromUnassigned; i++) unmatchedUnassigned.push({ job: n, rank });
   }
 
   return {
-    matches: bestMatches,
+    matches: matchesWithFlags,
     unmatchedMale,
     unmatchedFemale,
+    unmatchedUnassigned,
     decisions: withUnassigned.map((s) => ({
       jobName: s.jobName, rank,
-      assignedMales: bestMaleExtra[s.jobName] ?? 0,
-      assignedFemales: bestFemaleExtra[s.jobName] ?? 0,
+      assignedMales: matchedUnassignedMales[s.jobName] ?? 0,
+      assignedFemales: matchedUnassignedFemales[s.jobName] ?? 0,
     })),
   };
 }
 
-function findOptimalMatching(slots: RankSlot[], pairs: Pair[], lockedPairs: LockedPair[]): OptimalResult {
+function housedPairKey(rank: Rank, maleJob: string, femaleJob: string) {
+  return `${rank}:${pairKey(maleJob, femaleJob)}`;
+}
+
+function findOptimalMatching(slots: RankSlot[], pairs: Pair[], lockedPairs: LockedPair[], housedPairs: HousedPair[]): OptimalResult {
   const compatibleKeys = new Set(pairs.map((p) => pairKey(p.jobA, p.jobB)));
+  const housedKeys = new Set(housedPairs.filter((entry) => entry.housed)
+    .map((entry) => housedPairKey(entry.rank, entry.maleJob, entry.femaleJob)));
   const allMatches: MatchResult[] = [];
   const allUnmatchedMale: Array<{ job: string; rank: Rank }> = [];
   const allUnmatchedFemale: Array<{ job: string; rank: Rank }> = [];
+  const allUnmatchedUnassigned: Array<{ job: string; rank: Rank }> = [];
   const allDecisions: UnassignedDecision[] = [];
 
   for (const lp of lockedPairs) {
     allMatches.push({
       id: lp.id, maleJob: lp.maleJob, femaleJob: lp.femaleJob, rank: lp.rank,
       maleWasUnassigned: false, femaleWasUnassigned: false, locked: true,
+      housed: housedKeys.has(housedPairKey(lp.rank, lp.maleJob, lp.femaleJob)),
     });
   }
 
@@ -308,22 +438,27 @@ function findOptimalMatching(slots: RankSlot[], pairs: Pair[], lockedPairs: Lock
     const res = matchRank(slots, rank, compatibleKeys, lockedForRank);
     allDecisions.push(...res.decisions);
 
-    const unassignedMaleJobs = new Set(res.decisions.filter((d) => d.assignedMales > 0).map((d) => d.jobName));
-    const unassignedFemaleJobs = new Set(res.decisions.filter((d) => d.assignedFemales > 0).map((d) => d.jobName));
-
     for (const m of res.matches) {
       allMatches.push({
         id: generateId(), maleJob: m.maleJob, femaleJob: m.femaleJob, rank,
-        maleWasUnassigned: unassignedMaleJobs.has(m.maleJob),
-        femaleWasUnassigned: unassignedFemaleJobs.has(m.femaleJob),
+        maleWasUnassigned: m.maleWasUnassigned,
+        femaleWasUnassigned: m.femaleWasUnassigned,
         locked: false,
+        housed: housedKeys.has(housedPairKey(rank, m.maleJob, m.femaleJob)),
       });
     }
     allUnmatchedMale.push(...res.unmatchedMale);
     allUnmatchedFemale.push(...res.unmatchedFemale);
+    allUnmatchedUnassigned.push(...res.unmatchedUnassigned);
   }
 
-  return { matches: allMatches, unmatchedMale: allUnmatchedMale, unmatchedFemale: allUnmatchedFemale, unassignedDecisions: allDecisions };
+  return {
+    matches: allMatches,
+    unmatchedMale: allUnmatchedMale,
+    unmatchedFemale: allUnmatchedFemale,
+    unmatchedUnassigned: allUnmatchedUnassigned,
+    unassignedDecisions: allDecisions,
+  };
 }
 
 // âââ Helpers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -336,6 +471,7 @@ type PlannerBackup = {
   exportedAt: string;
   rankSlots: RankSlot[];
   lockedPairs: LockedPair[];
+  housedPairs: HousedPair[];
   desiredChildren: string[];
 };
 
@@ -372,6 +508,8 @@ function isPlannerBackup(value: unknown): value is PlannerBackup {
     && backup.rankSlots.every(isRankSlot)
     && Array.isArray(backup.lockedPairs)
     && backup.lockedPairs.every(isLockedPair)
+    && Array.isArray(backup.housedPairs)
+    && backup.housedPairs.every((entry) => typeof entry === "object" && typeof (entry as any).maleJob === "string" && typeof (entry as any).femaleJob === "string" && isRank((entry as any).rank) && typeof (entry as any).housed === "boolean")
     && Array.isArray(backup.desiredChildren)
     && backup.desiredChildren.every((child) => typeof child === "string");
 }
@@ -1312,11 +1450,12 @@ interface MatchRowProps {
   onMarkMarried: (match: MatchResult) => void;
   onLock: (id: string) => void;
   onUnlock: (id: string) => void;
+  onToggleHoused: (id: string) => void;
   onChangeMale: (id: string, job: string) => void;
   onChangeFemale: (id: string, job: string) => void;
 }
 
-function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMarried, onLock, onUnlock, onChangeMale, onChangeFemale }: MatchRowProps) {
+function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMarried, onLock, onUnlock, onToggleHoused, onChangeMale, onChangeFemale }: MatchRowProps) {
   const isLocked = match.locked;
 
   const possibleChildren = useMemo(() => getPossibleChildren(match, pairs), [match, pairs]);
@@ -1389,17 +1528,30 @@ function MatchRow({ match, index, rankJobNames, pairs, desiredChildren, onMarkMa
             )}
           </span>
         )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button onClick={() => isLocked ? onUnlock(match.id) : onLock(match.id)}
-              className={`shrink-0 p-1 rounded transition-colors ${isLocked ? "text-amber-500 hover:text-amber-700 dark:hover:text-amber-300" : "text-muted-foreground hover:text-foreground"}`}>
-              {isLocked ? <Lock className="w-3.5 h-3.5" /> : <LockOpen className="w-3.5 h-3.5" />}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">
-            {isLocked ? "Unlock — let algorithm reassign" : "Lock this pair for future calculations"}
-          </TooltipContent>
-        </Tooltip>
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={() => onToggleHoused(match.id)}
+                className={`shrink-0 p-1 rounded transition-colors ${match.housed ? "text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-300" : "text-muted-foreground hover:text-foreground"}`}>
+                <Home className="w-3.5 h-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {match.housed ? "Already housed together" : "Mark as housed together"}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={() => isLocked ? onUnlock(match.id) : onLock(match.id)}
+                className={`shrink-0 p-1 rounded transition-colors ${isLocked ? "text-amber-500 hover:text-amber-700 dark:hover:text-amber-300" : "text-muted-foreground hover:text-foreground"}`}>
+                {isLocked ? <Lock className="w-3.5 h-3.5" /> : <LockOpen className="w-3.5 h-3.5" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {isLocked ? "Unlock — let algorithm reassign" : "Lock this pair for future calculations"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       {/* Children and Mark as Married row (side by side) */}
@@ -2158,6 +2310,14 @@ export default function MarriageMatcher() {
     return [];
   });
 
+  const [housedPairs, setHousedPairs] = useState<HousedPair[]>(() => {
+    try {
+      const s = localStorage.getItem("ka_mf_housedPairs");
+      if (s) return JSON.parse(s) as HousedPair[];
+    } catch { /* ignore */ }
+    return [];
+  });
+
   // ââ State: desired / priority children ââ
   const [desiredChildren, setDesiredChildren] = useState<string[]>(() => {
     try {
@@ -2303,6 +2463,10 @@ export default function MarriageMatcher() {
   useEffect(() => {
     localStorage.setItem("ka_mf_lockedPairs", JSON.stringify(lockedPairs));
   }, [lockedPairs]);
+
+  useEffect(() => {
+    localStorage.setItem("ka_mf_housedPairs", JSON.stringify(housedPairs));
+  }, [housedPairs]);
 
   useEffect(() => {
     localStorage.setItem("ka_mf_desiredChildren", JSON.stringify(desiredChildren));
@@ -2487,6 +2651,7 @@ export default function MarriageMatcher() {
       exportedAt: new Date().toISOString(),
       rankSlots,
       lockedPairs,
+      housedPairs,
       desiredChildren,
     };
     const serialized = JSON.stringify(payload, null, 2);
@@ -2516,6 +2681,7 @@ export default function MarriageMatcher() {
       }
       setRankSlots(parsed.rankSlots);
       setLockedPairs(parsed.lockedPairs);
+      setHousedPairs(parsed.housedPairs);
       setDesiredChildren(parsed.desiredChildren);
       setResult(null);
       setIsStale(false);
@@ -2548,6 +2714,32 @@ export default function MarriageMatcher() {
       });
   }, [importBackupText]);
 
+  const toggleHousedMatch = useCallback((matchId: string) => {
+    setResult((prev) => {
+      if (!prev) return prev;
+      const match = prev.matches.find((m) => m.id === matchId);
+      if (!match) return prev;
+
+      const key = housedPairKey(match.rank, match.maleJob, match.femaleJob);
+      setHousedPairs((prevHoused) => {
+        const existingIndex = prevHoused.findIndex((entry) => housedPairKey(entry.rank, entry.maleJob, entry.femaleJob) === key);
+        if (existingIndex === -1) {
+          return [...prevHoused, { rank: match.rank, maleJob: match.maleJob, femaleJob: match.femaleJob, housed: true }];
+        }
+        return prevHoused.flatMap((entry, index) => {
+          if (index !== existingIndex) return entry;
+          return entry.housed ? [] : [{ ...entry, housed: true }];
+        });
+      });
+
+      return {
+        ...prev,
+        matches: prev.matches.map((m) => m.id === matchId ? { ...m, housed: !m.housed } : m),
+      };
+    });
+    setIsStale(true);
+  }, []);
+
   const markMatchAsMarried = useCallback((match: MatchResult) => {
     let applied = false;
     setRankSlots((prev) => {
@@ -2560,11 +2752,15 @@ export default function MarriageMatcher() {
       return;
     }
 
-    setLockedPairs((prev) => prev.filter((pair) => pair.id !== match.id));
-    setResult((prev) => prev ? {
-      ...prev,
-      matches: prev.matches.filter((entry) => entry.id !== match.id),
-    } : prev);
+    setLockedPairs((prev) => {
+      const next = prev.filter((pair) => pair.id !== match.id);
+      setResult((prevResult) => prevResult ? {
+        ...prevResult,
+        matches: prevResult.matches.filter((entry) => entry.id !== match.id),
+      } : prevResult);
+      return next;
+    });
+
     setIsStale(true);
     setBackupStatus(`Marked ${match.maleJob} + ${match.femaleJob} as married and removed them from the inputs above.`);
   }, [setRankSlots]);
@@ -2574,7 +2770,7 @@ export default function MarriageMatcher() {
     setIsCalculating(true);
     setIsStale(false);
     setTimeout(() => {
-      setResult(findOptimalMatching(rankSlots, filteredPairs, lockedPairs));
+      setResult(findOptimalMatching(rankSlots, filteredPairs, lockedPairs, housedPairs));
       setIsCalculating(false);
     }, 80);
   }, [rankSlots, filteredPairs, lockedPairs]);
@@ -2584,6 +2780,7 @@ export default function MarriageMatcher() {
     setRankSlots([]);
     setPairs(nextPairs);
     setLockedPairs([]);
+    setHousedPairs([]);
     setDesiredChildren([]);
     setTargetChildTypeFilter("all");
     setTargetExclusiveFilter("all");
@@ -2986,6 +3183,7 @@ export default function MarriageMatcher() {
                                 pairs={pairs}
                                 desiredChildren={desiredChildren}
                                 onMarkMarried={markMatchAsMarried}
+                                onToggleHoused={toggleHousedMatch}
                                 onLock={lockMatch} onUnlock={unlockMatch}
                                 onChangeMale={changeLockedMale} onChangeFemale={changeLockedFemale}
                               />
@@ -2997,7 +3195,7 @@ export default function MarriageMatcher() {
                   </div>
                 )}
 
-                {(result.unmatchedMale.length > 0 || result.unmatchedFemale.length > 0) && (
+                {(result.unmatchedMale.length > 0 || result.unmatchedFemale.length > 0 || result.unmatchedUnassigned.length > 0) && (
                   <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border space-y-2">
                     {result.unmatchedMale.length > 0 && (
                       <div>
@@ -3019,6 +3217,19 @@ export default function MarriageMatcher() {
                           {result.unmatchedFemale.map((u, i) => (
                             <Badge key={i} variant="outline" className="text-xs text-muted-foreground gap-1">
                               <img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-3 h-4" style={{imageRendering: "pixelated"}} />{u.job}
+                              <span className={`text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {result.unmatchedUnassigned.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5">⚥ Unmatched unassigned slots:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {result.unmatchedUnassigned.map((u, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs gap-1">
+                              {u.job}
                               <span className={`text-[10px] ${RANK_STYLE[u.rank].badge} rounded px-1`}>{u.rank}</span>
                             </Badge>
                           ))}
