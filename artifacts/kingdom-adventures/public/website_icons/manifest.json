@@ -473,16 +473,6 @@
       "iconV": 0
     },
     {
-      "id": 58,
-      "name": "Blessed Rain",
-      "category": 4,
-      "filename": "item_173.png",
-      "method": "localized_item2_opt",
-      "sheet": "English.lproj/icon_item2.png",
-      "iconU": 6,
-      "iconV": 4
-    },
-    {
       "id": 59,
       "name": "Bounty Bag",
       "category": 4,
@@ -1621,156 +1611,6 @@
       "sheet": "icon_item.png",
       "iconU": 8,
       "iconV": 9
-    },
-    {
-      "id": 190,
-      "name": "Town Building Textbook",
-      "category": 7,
-      "filename": "valuable/town_building_textbook.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 0,
-      "iconV": 0
-    },
-    {
-      "id": 191,
-      "name": "Military Training Manual",
-      "category": 7,
-      "filename": "valuable/military_training_manual.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 1,
-      "iconV": 0
-    },
-    {
-      "id": 192,
-      "name": "Legendary Expedition Map",
-      "category": 7,
-      "filename": "valuable/legendary_expedition_map.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 2,
-      "iconV": 0
-    },
-    {
-      "id": 193,
-      "name": "Construction Hints",
-      "category": 7,
-      "filename": "valuable/construction_hints.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 3,
-      "iconV": 0
-    },
-    {
-      "id": 194,
-      "name": "Water of Life",
-      "category": 7,
-      "filename": "valuable/water_of_life.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 4,
-      "iconV": 0
-    },
-    {
-      "id": 195,
-      "name": "Water of Wisdom",
-      "category": 7,
-      "filename": "valuable/water_of_wisdom.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 5,
-      "iconV": 0
-    },
-    {
-      "id": 196,
-      "name": "Water of Vitality",
-      "category": 7,
-      "filename": "valuable/water_of_vitality.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 6,
-      "iconV": 0
-    },
-    {
-      "id": 197,
-      "name": "Water of Might",
-      "category": 7,
-      "filename": "valuable/water_of_might.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 7,
-      "iconV": 0
-    },
-    {
-      "id": 198,
-      "name": "Water of Resilience",
-      "category": 7,
-      "filename": "valuable/water_of_resilience.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 8,
-      "iconV": 0
-    },
-    {
-      "id": 199,
-      "name": "Ancient Blueprints",
-      "category": 7,
-      "filename": "valuable/ancient_blueprints.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 9,
-      "iconV": 0
-    },
-    {
-      "id": 200,
-      "name": "Pioneer's Map",
-      "category": 7,
-      "filename": "valuable/pioneers_map.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 0,
-      "iconV": 1
-    },
-    {
-      "id": 201,
-      "name": "Master Craftsman's Tools",
-      "category": 7,
-      "filename": "valuable/master_craftsmans_tools.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 1,
-      "iconV": 1
-    },
-    {
-      "id": 202,
-      "name": "Know-How Journal",
-      "category": 7,
-      "filename": "valuable/know_how_journal.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 2,
-      "iconV": 1
-    },
-    {
-      "id": 203,
-      "name": "Diamond Guide",
-      "category": 7,
-      "filename": "valuable/diamond_guide.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 3,
-      "iconV": 1
-    },
-    {
-      "id": 204,
-      "name": "Book of Awakening",
-      "category": 7,
-      "filename": "valuable/book_of_awakening.png",
-      "method": "treasured_article_opt",
-      "sheet": "icon_treasured_article.png",
-      "iconU": 4,
-      "iconV": 1
     }
   ],
   "equipment": [
@@ -5231,49 +5071,49 @@
       "id": 1,
       "name": "Ground",
       "filename": "attribute_1_ground.png",
-      "dimensions": "16x14",
+      "dimensions": "18x16",
       "rect": "(0,0,16,14)"
     },
     {
       "id": 2,
       "name": "Grass",
       "filename": "attribute_2_grass.png",
-      "dimensions": "16x14",
+      "dimensions": "18x16",
       "rect": "(16,0,16,14)"
     },
     {
       "id": 3,
       "name": "Sand",
       "filename": "attribute_3_sand.png",
-      "dimensions": "16x14",
+      "dimensions": "18x16",
       "rect": "(32,0,16,14)"
     },
     {
       "id": 4,
       "name": "Rock",
       "filename": "attribute_4_rock.png",
-      "dimensions": "16x14",
+      "dimensions": "18x16",
       "rect": "(48,0,16,14)"
     },
     {
       "id": 5,
       "name": "Volcano",
       "filename": "attribute_5_volcano.png",
-      "dimensions": "16x14",
+      "dimensions": "18x16",
       "rect": "(64,0,16,14)"
     },
     {
       "id": 6,
       "name": "Snow",
       "filename": "attribute_6_snow.png",
-      "dimensions": "16x14",
+      "dimensions": "18x16",
       "rect": "(80,0,16,14)"
     },
     {
       "id": 7,
       "name": "Swamp",
       "filename": "attribute_7_swamp.png",
-      "dimensions": "16x14",
+      "dimensions": "18x16",
       "rect": "(96,0,16,14)"
     }
   ],
@@ -5297,562 +5137,2362 @@
     {
       "id": 106,
       "name": "Temporary Shelter",
-      "filename": "furniture_Temporary_Shelter.png",
-      "iconU": 5,
-      "iconV": 1
+      "filename": "furniture_106_Temporary_Shelter__bed_04.png",
+      "resFolder": "furniture",
+      "img": 64,
+      "pngName": "bed_04.png",
+      "variantCount": 3,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_106_Temporary_Shelter__bed_04.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 48
+        },
+        {
+          "index": 2,
+          "filename": "furniture_106_Temporary_Shelter__bed_04_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 38,
+          "h": 21
+        },
+        {
+          "index": 3,
+          "filename": "furniture_106_Temporary_Shelter__bed_04_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 40,
+          "h": 27
+        }
+      ]
     },
     {
       "id": 131,
       "name": "Hard Bed",
-      "filename": "furniture_Hard_Bed.png",
-      "iconU": 1,
-      "iconV": 3
+      "filename": "furniture_131_Hard_Bed__bed_00.png",
+      "resFolder": "furniture",
+      "img": 40,
+      "pngName": "bed_00.png",
+      "variantCount": 3,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_131_Hard_Bed__bed_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 38
+        },
+        {
+          "index": 2,
+          "filename": "furniture_131_Hard_Bed__bed_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 40,
+          "h": 23
+        },
+        {
+          "index": 3,
+          "filename": "furniture_131_Hard_Bed__bed_00_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 41,
+          "h": 31
+        }
+      ]
     },
     {
       "id": 132,
       "name": "Bed",
-      "filename": "furniture_Bed.png",
-      "iconU": 1,
-      "iconV": 3
+      "filename": "furniture_132_Bed__bed_01.png",
+      "resFolder": "furniture",
+      "img": 0,
+      "pngName": "bed_01.png",
+      "variantCount": 3,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_132_Bed__bed_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 46,
+          "h": 38
+        },
+        {
+          "index": 2,
+          "filename": "furniture_132_Bed__bed_01_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 37,
+          "h": 21
+        },
+        {
+          "index": 3,
+          "filename": "furniture_132_Bed__bed_01_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 39,
+          "h": 29
+        }
+      ]
     },
     {
       "id": 133,
       "name": "Royal Bed",
-      "filename": "furniture_Royal_Bed.png",
-      "iconU": 1,
-      "iconV": 3
+      "filename": "furniture_133_Royal_Bed__bed_02.png",
+      "resFolder": "furniture",
+      "img": 56,
+      "pngName": "bed_02.png",
+      "variantCount": 3,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_133_Royal_Bed__bed_02.png",
+          "u": 0,
+          "v": 0,
+          "w": 47,
+          "h": 40
+        },
+        {
+          "index": 2,
+          "filename": "furniture_133_Royal_Bed__bed_02_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 37,
+          "h": 21
+        },
+        {
+          "index": 3,
+          "filename": "furniture_133_Royal_Bed__bed_02_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 39,
+          "h": 29
+        }
+      ]
     },
     {
       "id": 134,
       "name": "Double Bed",
-      "filename": "furniture_Double_Bed.png",
-      "iconU": 1,
-      "iconV": 3
+      "filename": "furniture_134_Double_Bed__bed_03.png",
+      "resFolder": "furniture",
+      "img": 63,
+      "pngName": "bed_03.png",
+      "variantCount": 3,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_134_Double_Bed__bed_03.png",
+          "u": 0,
+          "v": 0,
+          "w": 46,
+          "h": 42
+        },
+        {
+          "index": 2,
+          "filename": "furniture_134_Double_Bed__bed_03_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 37,
+          "h": 21
+        },
+        {
+          "index": 3,
+          "filename": "furniture_134_Double_Bed__bed_03_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 39,
+          "h": 29
+        }
+      ]
     },
     {
       "id": 135,
       "name": "Red Carpet",
-      "filename": "furniture_Red_Carpet.png",
-      "iconU": 2,
-      "iconV": 3
+      "filename": "furniture_135_Red_Carpet__carpet02.png",
+      "resFolder": "furniture",
+      "img": 34,
+      "pngName": "carpet02.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_135_Red_Carpet__carpet02.png"
+        }
+      ]
     },
     {
       "id": 136,
       "name": "Fluffy Carpet",
-      "filename": "furniture_Fluffy_Carpet.png",
-      "iconU": 2,
-      "iconV": 3
+      "filename": "furniture_136_Fluffy_Carpet__carpet00.png",
+      "resFolder": "furniture",
+      "img": 24,
+      "pngName": "carpet00.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_136_Fluffy_Carpet__carpet00.png"
+        }
+      ]
     },
     {
       "id": 137,
       "name": "Black Mat",
-      "filename": "furniture_Black_Mat.png",
-      "iconU": 2,
-      "iconV": 3
+      "filename": "furniture_137_Black_Mat__carpet01.png",
+      "resFolder": "furniture",
+      "img": 25,
+      "pngName": "carpet01.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_137_Black_Mat__carpet01.png"
+        }
+      ]
     },
     {
       "id": 138,
       "name": "Indoor Storage (Grass)",
-      "filename": "furniture_Indoor_Storage_(Grass).png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_138_Indoor_Storage_(Grass)__obj_08.png",
+      "resFolder": "furniture",
+      "img": 61,
+      "pngName": "obj_08.png",
+      "variantCount": 6,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_138_Indoor_Storage_(Grass)__obj_08.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 2,
+          "filename": "furniture_138_Indoor_Storage_(Grass)__obj_08_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 3,
+          "filename": "furniture_138_Indoor_Storage_(Grass)__obj_08_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 4,
+          "filename": "furniture_138_Indoor_Storage_(Grass)__obj_08_4.png",
+          "u": 3,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 5,
+          "filename": "furniture_138_Indoor_Storage_(Grass)__obj_08_5.png",
+          "u": 4,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 6,
+          "filename": "furniture_138_Indoor_Storage_(Grass)__obj_08_6.png",
+          "u": 5,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        }
+      ]
     },
     {
       "id": 139,
       "name": "Indoor Storage (Wood)",
-      "filename": "furniture_Indoor_Storage_(Wood).png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_139_Indoor_Storage_(Wood)__obj_08.png",
+      "resFolder": "furniture",
+      "img": 61,
+      "pngName": "obj_08.png",
+      "variantCount": 6,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_139_Indoor_Storage_(Wood)__obj_08.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 2,
+          "filename": "furniture_139_Indoor_Storage_(Wood)__obj_08_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 3,
+          "filename": "furniture_139_Indoor_Storage_(Wood)__obj_08_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 4,
+          "filename": "furniture_139_Indoor_Storage_(Wood)__obj_08_4.png",
+          "u": 3,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 5,
+          "filename": "furniture_139_Indoor_Storage_(Wood)__obj_08_5.png",
+          "u": 4,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 6,
+          "filename": "furniture_139_Indoor_Storage_(Wood)__obj_08_6.png",
+          "u": 5,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        }
+      ]
     },
     {
       "id": 140,
       "name": "Indoor Storage (Food)",
-      "filename": "furniture_Indoor_Storage_(Food).png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_140_Indoor_Storage_(Food)__obj_08.png",
+      "resFolder": "furniture",
+      "img": 61,
+      "pngName": "obj_08.png",
+      "variantCount": 6,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_140_Indoor_Storage_(Food)__obj_08.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 2,
+          "filename": "furniture_140_Indoor_Storage_(Food)__obj_08_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 3,
+          "filename": "furniture_140_Indoor_Storage_(Food)__obj_08_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 4,
+          "filename": "furniture_140_Indoor_Storage_(Food)__obj_08_4.png",
+          "u": 3,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 5,
+          "filename": "furniture_140_Indoor_Storage_(Food)__obj_08_5.png",
+          "u": 4,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 6,
+          "filename": "furniture_140_Indoor_Storage_(Food)__obj_08_6.png",
+          "u": 5,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        }
+      ]
     },
     {
       "id": 141,
       "name": "Indoor Storage (Ore)",
-      "filename": "furniture_Indoor_Storage_(Ore).png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_141_Indoor_Storage_(Ore)__obj_08.png",
+      "resFolder": "furniture",
+      "img": 61,
+      "pngName": "obj_08.png",
+      "variantCount": 6,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_141_Indoor_Storage_(Ore)__obj_08.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 2,
+          "filename": "furniture_141_Indoor_Storage_(Ore)__obj_08_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 3,
+          "filename": "furniture_141_Indoor_Storage_(Ore)__obj_08_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 4,
+          "filename": "furniture_141_Indoor_Storage_(Ore)__obj_08_4.png",
+          "u": 3,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 5,
+          "filename": "furniture_141_Indoor_Storage_(Ore)__obj_08_5.png",
+          "u": 4,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 6,
+          "filename": "furniture_141_Indoor_Storage_(Ore)__obj_08_6.png",
+          "u": 5,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        }
+      ]
     },
     {
       "id": 142,
       "name": "Indoor Storage (Mystic Ore)",
-      "filename": "furniture_Indoor_Storage_(Mystic_Ore).png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_142_Indoor_Storage_(Mystic_Ore)__obj_08.png",
+      "resFolder": "furniture",
+      "img": 61,
+      "pngName": "obj_08.png",
+      "variantCount": 6,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_142_Indoor_Storage_(Mystic_Ore)__obj_08.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 2,
+          "filename": "furniture_142_Indoor_Storage_(Mystic_Ore)__obj_08_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 3,
+          "filename": "furniture_142_Indoor_Storage_(Mystic_Ore)__obj_08_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 4,
+          "filename": "furniture_142_Indoor_Storage_(Mystic_Ore)__obj_08_4.png",
+          "u": 3,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 5,
+          "filename": "furniture_142_Indoor_Storage_(Mystic_Ore)__obj_08_5.png",
+          "u": 4,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        },
+        {
+          "index": 6,
+          "filename": "furniture_142_Indoor_Storage_(Mystic_Ore)__obj_08_6.png",
+          "u": 5,
+          "v": 0,
+          "w": 48,
+          "h": 35
+        }
+      ]
     },
     {
       "id": 143,
       "name": "Register",
-      "filename": "furniture_Register.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_143_Register__obj_06.png",
+      "resFolder": "furniture",
+      "img": 54,
+      "pngName": "obj_06.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_143_Register__obj_06.png",
+          "u": 0,
+          "v": 0,
+          "w": 38,
+          "h": 24
+        },
+        {
+          "index": 2,
+          "filename": "furniture_143_Register__obj_06_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 42,
+          "h": 31
+        }
+      ]
     },
     {
       "id": 144,
       "name": "Store Shelves",
-      "filename": "furniture_Store_Shelves.png",
-      "iconU": 3,
-      "iconV": 3
+      "filename": "furniture_144_Store_Shelves__store_shelf_01.png",
+      "resFolder": "furniture",
+      "img": 26,
+      "pngName": "store_shelf_01.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_144_Store_Shelves__store_shelf_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 28,
+          "h": 24
+        },
+        {
+          "index": 2,
+          "filename": "furniture_144_Store_Shelves__store_shelf_01_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 30,
+          "h": 31
+        }
+      ]
     },
     {
       "id": 145,
       "name": "Skill Shelves",
-      "filename": "furniture_Skill_Shelves.png",
-      "iconU": 3,
-      "iconV": 3
+      "filename": "furniture_145_Skill_Shelves__store_shelf_00.png",
+      "resFolder": "furniture",
+      "img": 39,
+      "pngName": "store_shelf_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_145_Skill_Shelves__store_shelf_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 32,
+          "h": 27
+        },
+        {
+          "index": 2,
+          "filename": "furniture_145_Skill_Shelves__store_shelf_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 33,
+          "h": 34
+        }
+      ]
     },
     {
       "id": 146,
       "name": "Furniture Shelves",
-      "filename": "furniture_Furniture_Shelves.png",
-      "iconU": 3,
-      "iconV": 3
+      "filename": "furniture_146_Furniture_Shelves__obj_07.png",
+      "resFolder": "furniture",
+      "img": 55,
+      "pngName": "obj_07.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_146_Furniture_Shelves__obj_07.png",
+          "u": 0,
+          "v": 0,
+          "w": 40,
+          "h": 26
+        },
+        {
+          "index": 2,
+          "filename": "furniture_146_Furniture_Shelves__obj_07_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 42,
+          "h": 28
+        }
+      ]
     },
     {
       "id": 147,
       "name": "Treasure Analysis Lab",
-      "filename": "furniture_Treasure_Analysis_Lab.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_147_Treasure_Analysis_Lab__job_obj_09.png",
+      "resFolder": "furniture",
+      "img": 62,
+      "pngName": "job_obj_09.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_147_Treasure_Analysis_Lab__job_obj_09.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 68
+        }
+      ]
     },
     {
       "id": 148,
       "name": "Research Lab",
-      "filename": "furniture_Research_Lab.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_148_Research_Lab__job_obj_12.png",
+      "resFolder": "furniture",
+      "img": 66,
+      "pngName": "job_obj_12.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_148_Research_Lab__job_obj_12.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 68
+        }
+      ]
     },
     {
       "id": 149,
       "name": "Hospital",
-      "filename": "furniture_Hospital.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_149_Hospital__job_obj_13.png",
+      "resFolder": "furniture",
+      "img": 67,
+      "pngName": "job_obj_13.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_149_Hospital__job_obj_13.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 68
+        }
+      ]
     },
     {
       "id": 150,
       "name": "Accessory Workshop",
-      "filename": "furniture_Accessory_Workshop.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_150_Accessory_Workshop__job_obj_06.png",
+      "resFolder": "furniture",
+      "img": 58,
+      "pngName": "job_obj_06.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_150_Accessory_Workshop__job_obj_06.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 64
+        }
+      ]
     },
     {
       "id": 151,
       "name": "Cooking Station",
-      "filename": "furniture_Cooking_Station.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_151_Cooking_Station__job_obj_07.png",
+      "resFolder": "furniture",
+      "img": 59,
+      "pngName": "job_obj_07.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_151_Cooking_Station__job_obj_07.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 63
+        }
+      ]
     },
     {
       "id": 152,
       "name": "Recovery Station",
-      "filename": "furniture_Recovery_Station.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_152_Recovery_Station__job_obj_08.png",
+      "resFolder": "furniture",
+      "img": 60,
+      "pngName": "job_obj_08.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_152_Recovery_Station__job_obj_08.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 67
+        }
+      ]
     },
     {
       "id": 153,
       "name": "Furniture Workbench",
-      "filename": "furniture_Furniture_Workbench.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_153_Furniture_Workbench__job_obj_01.png",
+      "resFolder": "furniture",
+      "img": 44,
+      "pngName": "job_obj_01.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_153_Furniture_Workbench__job_obj_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 59
+        }
+      ]
     },
     {
       "id": 154,
       "name": "Weapon Workbench",
-      "filename": "furniture_Weapon_Workbench.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_154_Weapon_Workbench__job_obj_02.png",
+      "resFolder": "furniture",
+      "img": 45,
+      "pngName": "job_obj_02.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_154_Weapon_Workbench__job_obj_02.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 70
+        }
+      ]
     },
     {
       "id": 155,
       "name": "Armor Workbench",
-      "filename": "furniture_Armor_Workbench.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_155_Armor_Workbench__job_obj_03.png",
+      "resFolder": "furniture",
+      "img": 46,
+      "pngName": "job_obj_03.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_155_Armor_Workbench__job_obj_03.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 70
+        }
+      ]
     },
     {
       "id": 156,
       "name": "Skill Workbench",
-      "filename": "furniture_Skill_Workbench.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_156_Skill_Workbench__job_obj_04.png",
+      "resFolder": "furniture",
+      "img": 47,
+      "pngName": "job_obj_04.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_156_Skill_Workbench__job_obj_04.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 58
+        }
+      ]
     },
     {
       "id": 157,
       "name": "Item Workbench",
-      "filename": "furniture_Item_Workbench.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_157_Item_Workbench__job_obj_00.png",
+      "resFolder": "furniture",
+      "img": 38,
+      "pngName": "job_obj_00.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_157_Item_Workbench__job_obj_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 94,
+          "h": 64
+        }
+      ]
     },
     {
       "id": 158,
       "name": "Royal Room",
-      "filename": "furniture_Royal_Room.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_158_Royal_Room__job_obj_05.png",
+      "resFolder": "furniture",
+      "img": 57,
+      "pngName": "job_obj_05.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_158_Royal_Room__job_obj_05.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 71
+        }
+      ]
     },
     {
       "id": 159,
       "name": "Training Room",
-      "filename": "furniture_Training_Room.png",
-      "iconU": 4,
-      "iconV": 3
+      "filename": "furniture_159_Training_Room__obj_41.png",
+      "resFolder": "furniture",
+      "img": 41,
+      "pngName": "obj_41.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_159_Training_Room__obj_41.png",
+          "u": 0,
+          "v": 0,
+          "w": 39,
+          "h": 28
+        },
+        {
+          "index": 2,
+          "filename": "furniture_159_Training_Room__obj_41_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 38,
+          "h": 34
+        }
+      ]
     },
     {
       "id": 160,
       "name": "Shooting Range",
-      "filename": "furniture_Shooting_Range.png",
-      "iconU": 4,
-      "iconV": 3
+      "filename": "furniture_160_Shooting_Range__obj_42.png",
+      "resFolder": "furniture",
+      "img": 42,
+      "pngName": "obj_42.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_160_Shooting_Range__obj_42.png",
+          "u": 0,
+          "v": 0,
+          "w": 39,
+          "h": 26
+        },
+        {
+          "index": 2,
+          "filename": "furniture_160_Shooting_Range__obj_42_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 38,
+          "h": 34
+        }
+      ]
     },
     {
       "id": 161,
       "name": "Magic Training Ground",
-      "filename": "furniture_Magic_Training_Ground.png",
-      "iconU": 4,
-      "iconV": 3
+      "filename": "furniture_161_Magic_Training_Ground__obj_43.png",
+      "resFolder": "furniture",
+      "img": 43,
+      "pngName": "obj_43.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_161_Magic_Training_Ground__obj_43.png",
+          "u": 0,
+          "v": 0,
+          "w": 18,
+          "h": 22
+        },
+        {
+          "index": 2,
+          "filename": "furniture_161_Magic_Training_Ground__obj_43_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 25,
+          "h": 32
+        }
+      ]
     },
     {
       "id": 162,
       "name": "Ore Workbench",
-      "filename": "furniture_Ore_Workbench.png",
-      "iconU": 5,
-      "iconV": 3
+      "filename": "furniture_162_Ore_Workbench__room_obj_00.png",
+      "resFolder": "furniture",
+      "img": 37,
+      "pngName": "room_obj_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_162_Ore_Workbench__room_obj_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 41,
+          "h": 27
+        },
+        {
+          "index": 2,
+          "filename": "furniture_162_Ore_Workbench__room_obj_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 42,
+          "h": 38
+        }
+      ]
     },
     {
       "id": 163,
       "name": "Desk",
-      "filename": "furniture_Desk.png",
-      "iconU": 6,
-      "iconV": 3
+      "filename": "furniture_163_Desk__desk_00.png",
+      "resFolder": "furniture",
+      "img": 19,
+      "pngName": "desk_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_163_Desk__desk_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 40,
+          "h": 27
+        },
+        {
+          "index": 2,
+          "filename": "furniture_163_Desk__desk_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 39,
+          "h": 31
+        }
+      ]
     },
     {
       "id": 164,
       "name": "Dining Table",
-      "filename": "furniture_Dining_Table.png",
-      "iconU": 6,
-      "iconV": 3
+      "filename": "furniture_164_Dining_Table__obj_05.png",
+      "resFolder": "furniture",
+      "img": 53,
+      "pngName": "obj_05.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_164_Dining_Table__obj_05.png",
+          "u": 0,
+          "v": 0,
+          "w": 43,
+          "h": 29
+        },
+        {
+          "index": 2,
+          "filename": "furniture_164_Dining_Table__obj_05_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 46,
+          "h": 31
+        }
+      ]
     },
     {
       "id": 165,
       "name": "Couch",
-      "filename": "furniture_Couch.png",
-      "iconU": 7,
-      "iconV": 3
+      "filename": "furniture_165_Couch__2chair_00.png",
+      "resFolder": "furniture",
+      "img": 30,
+      "pngName": "2chair_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_165_Couch__2chair_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 28,
+          "h": 27
+        },
+        {
+          "index": 2,
+          "filename": "furniture_165_Couch__2chair_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 46,
+          "h": 25
+        }
+      ]
     },
     {
       "id": 166,
       "name": "Chair",
-      "filename": "furniture_Chair.png",
-      "iconU": 8,
-      "iconV": 3
+      "filename": "furniture_166_Chair__1chair_00.png",
+      "resFolder": "furniture",
+      "img": 33,
+      "pngName": "1chair_00.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_166_Chair__1chair_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 16,
+          "h": 20
+        }
+      ]
     },
     {
       "id": 167,
       "name": "Rainwater Barrel",
-      "filename": "furniture_Rainwater_Barrel.png",
-      "iconU": 9,
-      "iconV": 3
+      "filename": "furniture_167_Rainwater_Barrel__obj_01.png",
+      "resFolder": "furniture",
+      "img": 27,
+      "pngName": "obj_01.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_167_Rainwater_Barrel__obj_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 19,
+          "h": 22
+        },
+        {
+          "index": 2,
+          "filename": "furniture_167_Rainwater_Barrel__obj_01_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 25,
+          "h": 32
+        }
+      ]
     },
     {
       "id": 168,
       "name": "Tool Workshop",
-      "filename": "furniture_Tool_Workshop.png",
-      "iconU": 6,
-      "iconV": 3
+      "filename": "furniture_168_Tool_Workshop__w_obj_01.png",
+      "resFolder": "furniture",
+      "img": 29,
+      "pngName": "w_obj_01.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_168_Tool_Workshop__w_obj_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 40,
+          "h": 47
+        },
+        {
+          "index": 2,
+          "filename": "furniture_168_Tool_Workshop__w_obj_01_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 46,
+          "h": 55
+        }
+      ]
     },
     {
       "id": 169,
       "name": "Candle",
-      "filename": "furniture_Candle.png",
-      "iconU": 10,
-      "iconV": 3
+      "filename": "furniture_169_Candle__obj_02.png",
+      "resFolder": "furniture",
+      "img": 31,
+      "pngName": "obj_02.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_169_Candle__obj_02.png",
+          "u": 0,
+          "v": 0,
+          "w": 25,
+          "h": 38
+        },
+        {
+          "index": 2,
+          "filename": "furniture_169_Candle__obj_02_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 28,
+          "h": 51
+        }
+      ]
     },
     {
       "id": 170,
       "name": "Tree Nursery",
-      "filename": "furniture_Tree_Nursery.png",
-      "iconU": 5,
-      "iconV": 3
+      "filename": "furniture_170_Tree_Nursery__top_obj_00.png",
+      "resFolder": "furniture",
+      "img": 35,
+      "pngName": "top_obj_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_170_Tree_Nursery__top_obj_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 41,
+          "h": 29
+        },
+        {
+          "index": 2,
+          "filename": "furniture_170_Tree_Nursery__top_obj_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 40,
+          "h": 33
+        }
+      ]
     },
     {
       "id": 171,
       "name": "Decorative Armor",
-      "filename": "furniture_Decorative_Armor.png",
-      "iconU": 11,
-      "iconV": 3
+      "filename": "furniture_171_Decorative_Armor__obj_03.png",
+      "resFolder": "furniture",
+      "img": 36,
+      "pngName": "obj_03.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_171_Decorative_Armor__obj_03.png",
+          "u": 0,
+          "v": 0,
+          "w": 25,
+          "h": 32
+        },
+        {
+          "index": 2,
+          "filename": "furniture_171_Decorative_Armor__obj_03_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 31,
+          "h": 42
+        }
+      ]
     },
     {
       "id": 172,
       "name": "Dresser",
-      "filename": "furniture_Dresser.png",
-      "iconU": 0,
-      "iconV": 4
+      "filename": "furniture_172_Dresser__shelf_03.png",
+      "resFolder": "furniture",
+      "img": 23,
+      "pngName": "shelf_03.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_172_Dresser__shelf_03.png",
+          "u": 0,
+          "v": 0,
+          "w": 26,
+          "h": 40
+        },
+        {
+          "index": 2,
+          "filename": "furniture_172_Dresser__shelf_03_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 30,
+          "h": 48
+        }
+      ]
     },
     {
       "id": 173,
       "name": "Cooking Counter",
-      "filename": "furniture_Cooking_Counter.png",
-      "iconU": 1,
-      "iconV": 4
+      "filename": "furniture_173_Cooking_Counter__kitchen_00.png",
+      "resFolder": "furniture",
+      "img": 17,
+      "pngName": "kitchen_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_173_Cooking_Counter__kitchen_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 28,
+          "h": 24
+        },
+        {
+          "index": 2,
+          "filename": "furniture_173_Cooking_Counter__kitchen_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 30,
+          "h": 31
+        }
+      ]
     },
     {
       "id": 174,
       "name": "Shelf",
-      "filename": "furniture_Shelf.png",
-      "iconU": 0,
-      "iconV": 4
+      "filename": "furniture_174_Shelf__shelf_02.png",
+      "resFolder": "furniture",
+      "img": 18,
+      "pngName": "shelf_02.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_174_Shelf__shelf_02.png",
+          "u": 0,
+          "v": 0,
+          "w": 30,
+          "h": 26
+        },
+        {
+          "index": 2,
+          "filename": "furniture_174_Shelf__shelf_02_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 34,
+          "h": 33
+        }
+      ]
     },
     {
       "id": 175,
       "name": "Bookshelf",
-      "filename": "furniture_Bookshelf.png",
-      "iconU": 0,
-      "iconV": 4
+      "filename": "furniture_175_Bookshelf__shelf_00.png",
+      "resFolder": "furniture",
+      "img": 21,
+      "pngName": "shelf_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_175_Bookshelf__shelf_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 26,
+          "h": 40
+        },
+        {
+          "index": 2,
+          "filename": "furniture_175_Bookshelf__shelf_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 28,
+          "h": 48
+        }
+      ]
     },
     {
       "id": 176,
       "name": "Chest of Drawers",
-      "filename": "furniture_Chest_of_Drawers.png",
-      "iconU": 0,
-      "iconV": 4
+      "filename": "furniture_176_Chest_of_Drawers__shelf_04.png",
+      "resFolder": "furniture",
+      "img": 6,
+      "pngName": "shelf_04.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_176_Chest_of_Drawers__shelf_04.png",
+          "u": 0,
+          "v": 0,
+          "w": 30,
+          "h": 39
+        },
+        {
+          "index": 2,
+          "filename": "furniture_176_Chest_of_Drawers__shelf_04_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 32,
+          "h": 46
+        }
+      ]
     },
     {
       "id": 177,
       "name": "Kitchen Shelves",
-      "filename": "furniture_Kitchen_Shelves.png",
-      "iconU": 0,
-      "iconV": 4
+      "filename": "furniture_177_Kitchen_Shelves__shelf_01.png",
+      "resFolder": "furniture",
+      "img": 1,
+      "pngName": "shelf_01.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_177_Kitchen_Shelves__shelf_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 33,
+          "h": 44
+        },
+        {
+          "index": 2,
+          "filename": "furniture_177_Kitchen_Shelves__shelf_01_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 35,
+          "h": 51
+        }
+      ]
     },
     {
       "id": 178,
       "name": "Flower Vase",
-      "filename": "furniture_Flower_Vase.png",
-      "iconU": 2,
-      "iconV": 4
+      "filename": "furniture_178_Flower_Vase__top_obj_01.png",
+      "resFolder": "furniture",
+      "img": 12,
+      "pngName": "top_obj_01.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_178_Flower_Vase__top_obj_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 24,
+          "h": 34
+        },
+        {
+          "index": 2,
+          "filename": "furniture_178_Flower_Vase__top_obj_01_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 28,
+          "h": 43
+        }
+      ]
     },
     {
       "id": 179,
       "name": "Animal Figurine",
-      "filename": "furniture_Animal_Figurine.png",
-      "iconU": 3,
-      "iconV": 4
+      "filename": "furniture_179_Animal_Figurine__w_obj_00.png",
+      "resFolder": "furniture",
+      "img": 13,
+      "pngName": "w_obj_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_179_Animal_Figurine__w_obj_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 24,
+          "h": 39
+        },
+        {
+          "index": 2,
+          "filename": "furniture_179_Animal_Figurine__w_obj_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 26,
+          "h": 55
+        }
+      ]
     },
     {
       "id": 180,
       "name": "Vanity Mirror",
-      "filename": "furniture_Vanity_Mirror.png",
-      "iconU": 4,
-      "iconV": 4
+      "filename": "furniture_180_Vanity_Mirror__obj_00.png",
+      "resFolder": "furniture",
+      "img": 14,
+      "pngName": "obj_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_180_Vanity_Mirror__obj_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 32,
+          "h": 31
+        },
+        {
+          "index": 2,
+          "filename": "furniture_180_Vanity_Mirror__obj_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 33,
+          "h": 42
+        }
+      ]
     },
     {
       "id": 181,
       "name": "Stove",
-      "filename": "furniture_Stove.png",
-      "iconU": 5,
-      "iconV": 4
+      "filename": "furniture_181_Stove__kitchen_01.png",
+      "resFolder": "furniture",
+      "img": 8,
+      "pngName": "kitchen_01.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_181_Stove__kitchen_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 28,
+          "h": 24
+        }
+      ]
     },
     {
       "id": 182,
       "name": "Fireplace",
-      "filename": "furniture_Fireplace.png",
-      "iconU": 6,
-      "iconV": 4
+      "filename": "furniture_182_Fireplace__sp_obj_00.png",
+      "resFolder": "furniture",
+      "img": 28,
+      "pngName": "sp_obj_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_182_Fireplace__sp_obj_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 32,
+          "h": 76
+        },
+        {
+          "index": 2,
+          "filename": "furniture_182_Fireplace__sp_obj_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 32,
+          "h": 85
+        }
+      ]
     },
     {
       "id": 183,
       "name": "Window",
-      "filename": "furniture_Window.png",
-      "iconU": 7,
-      "iconV": 4
+      "filename": "furniture_183_Window__w_window_00.png",
+      "resFolder": "furniture",
+      "img": 20,
+      "pngName": "w_window_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_183_Window__w_window_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 28,
+          "h": 40
+        },
+        {
+          "index": 2,
+          "filename": "furniture_183_Window__w_window_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 28,
+          "h": 51
+        }
+      ]
     },
     {
       "id": 184,
       "name": "Bathtub",
-      "filename": "furniture_Bathtub.png",
-      "iconU": 8,
-      "iconV": 4
+      "filename": "furniture_184_Bathtub__bath_00.png",
+      "resFolder": "furniture",
+      "img": 5,
+      "pngName": "bath_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_184_Bathtub__bath_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 27
+        },
+        {
+          "index": 2,
+          "filename": "furniture_184_Bathtub__bath_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 48,
+          "h": 31
+        }
+      ]
     },
     {
       "id": 185,
       "name": "Rejuvenating Bath",
-      "filename": "furniture_Rejuvenating_Bath.png",
-      "iconU": 9,
-      "iconV": 4
+      "filename": "furniture_185_Rejuvenating_Bath__obj_09.png",
+      "resFolder": "furniture",
+      "img": 65,
+      "pngName": "obj_09.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_185_Rejuvenating_Bath__obj_09.png",
+          "u": 0,
+          "v": 0,
+          "w": 96,
+          "h": 53
+        }
+      ]
     },
     {
       "id": 186,
       "name": "Glittering Stone",
-      "filename": "furniture_Glittering_Stone.png",
-      "iconU": 10,
-      "iconV": 4
+      "filename": "furniture_186_Glittering_Stone__obj_04.png",
+      "resFolder": "furniture",
+      "img": 52,
+      "pngName": "obj_04.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_186_Glittering_Stone__obj_04.png",
+          "u": 0,
+          "v": 0,
+          "w": 19,
+          "h": 29
+        },
+        {
+          "index": 2,
+          "filename": "furniture_186_Glittering_Stone__obj_04_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 24,
+          "h": 40
+        }
+      ]
     },
     {
       "id": 187,
       "name": "Decorative Plant",
-      "filename": "furniture_Decorative_Plant.png",
-      "iconU": 11,
-      "iconV": 4
+      "filename": "furniture_187_Decorative_Plant__plant_00.png",
+      "resFolder": "furniture",
+      "img": 32,
+      "pngName": "plant_00.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_187_Decorative_Plant__plant_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 18,
+          "h": 46
+        },
+        {
+          "index": 2,
+          "filename": "furniture_187_Decorative_Plant__plant_00_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 23,
+          "h": 57
+        }
+      ]
     },
     {
       "id": 188,
       "name": "Tomato",
-      "filename": "furniture_Tomato.png",
-      "iconU": 0,
-      "iconV": 5
+      "filename": "furniture_188_Tomato__plant_01.png",
+      "resFolder": "furniture",
+      "img": 49,
+      "pngName": "plant_01.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_188_Tomato__plant_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 27,
+          "h": 36
+        },
+        {
+          "index": 2,
+          "filename": "furniture_188_Tomato__plant_01_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 28,
+          "h": 47
+        }
+      ]
     },
     {
       "id": 189,
       "name": "Flowers",
-      "filename": "furniture_Flowers.png",
-      "iconU": 2,
-      "iconV": 4
+      "filename": "furniture_189_Flowers__plant_02.png",
+      "resFolder": "furniture",
+      "img": 50,
+      "pngName": "plant_02.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_189_Flowers__plant_02.png",
+          "u": 0,
+          "v": 0,
+          "w": 21,
+          "h": 23
+        },
+        {
+          "index": 2,
+          "filename": "furniture_189_Flowers__plant_02_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 26,
+          "h": 34
+        }
+      ]
     },
     {
       "id": 190,
       "name": "Pansy",
-      "filename": "furniture_Pansy.png",
-      "iconU": 2,
-      "iconV": 4
+      "filename": "furniture_190_Pansy__plant_03.png",
+      "resFolder": "furniture",
+      "img": 51,
+      "pngName": "plant_03.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_190_Pansy__plant_03.png",
+          "u": 0,
+          "v": 0,
+          "w": 25,
+          "h": 25
+        },
+        {
+          "index": 2,
+          "filename": "furniture_190_Pansy__plant_03_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 28,
+          "h": 37
+        }
+      ]
     },
     {
       "id": 191,
       "name": "Study Desk",
-      "filename": "furniture_Study_Desk.png",
-      "iconU": 6,
-      "iconV": 3
+      "filename": "furniture_191_Study_Desk__obj_68.png",
+      "resFolder": "furniture",
+      "img": 68,
+      "pngName": "obj_68.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_191_Study_Desk__obj_68.png",
+          "u": 0,
+          "v": 0,
+          "w": 40,
+          "h": 38
+        },
+        {
+          "index": 2,
+          "filename": "furniture_191_Study_Desk__obj_68_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 39,
+          "h": 47
+        }
+      ]
     },
     {
       "id": 205,
       "name": "Not used",
-      "filename": "furniture_Not_used.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_205_Not_used__z_material_00.png",
+      "resFolder": "furniture",
+      "img": 2,
+      "pngName": "z_material_00.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_205_Not_used__z_material_00.png"
+        }
+      ]
     },
     {
       "id": 242,
       "name": "Church",
-      "filename": "furniture_Church.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_242_Church__job_obj_10.png",
+      "resFolder": "furniture",
+      "img": 71,
+      "pngName": "job_obj_10.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_242_Church__job_obj_10.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 67
+        }
+      ]
     },
     {
       "id": 243,
       "name": "Friend Bed",
-      "filename": "furniture_Friend_Bed.png",
-      "iconU": 1,
-      "iconV": 3
+      "filename": "furniture_243_Friend_Bed__bed_06.png",
+      "resFolder": "furniture",
+      "img": 70,
+      "pngName": "bed_06.png",
+      "variantCount": 3,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_243_Friend_Bed__bed_06.png",
+          "u": 0,
+          "v": 0,
+          "w": 46,
+          "h": 42
+        },
+        {
+          "index": 2,
+          "filename": "furniture_243_Friend_Bed__bed_06_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 37,
+          "h": 21
+        },
+        {
+          "index": 3,
+          "filename": "furniture_243_Friend_Bed__bed_06_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 39,
+          "h": 29
+        }
+      ]
     },
     {
       "id": 244,
       "name": "Guest Bed",
-      "filename": "furniture_Guest_Bed.png",
-      "iconU": 1,
-      "iconV": 3
+      "filename": "furniture_244_Guest_Bed__bed_05.png",
+      "resFolder": "furniture",
+      "img": 69,
+      "pngName": "bed_05.png",
+      "variantCount": 3,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_244_Guest_Bed__bed_05.png",
+          "u": 0,
+          "v": 0,
+          "w": 46,
+          "h": 42
+        },
+        {
+          "index": 2,
+          "filename": "furniture_244_Guest_Bed__bed_05_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 37,
+          "h": 21
+        },
+        {
+          "index": 3,
+          "filename": "furniture_244_Guest_Bed__bed_05_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 39,
+          "h": 29
+        }
+      ]
     },
     {
       "id": 245,
       "name": "Crib",
-      "filename": "furniture_Crib.png",
-      "iconU": 4,
-      "iconV": 5
+      "filename": "furniture_245_Crib__obj_8.png",
+      "resFolder": "furniture",
+      "img": 72,
+      "pngName": "obj_8.png",
+      "variantCount": 4,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_245_Crib__obj_8.png",
+          "u": 0,
+          "v": 0,
+          "w": 37,
+          "h": 31
+        },
+        {
+          "index": 2,
+          "filename": "furniture_245_Crib__obj_8_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 37,
+          "h": 31
+        },
+        {
+          "index": 3,
+          "filename": "furniture_245_Crib__obj_8_3.png",
+          "u": 2,
+          "v": 0,
+          "w": 44,
+          "h": 31
+        },
+        {
+          "index": 4,
+          "filename": "furniture_245_Crib__obj_8_4.png",
+          "u": 3,
+          "v": 0,
+          "w": 48,
+          "h": 32
+        }
+      ]
     },
     {
       "id": 246,
       "name": "Monster Room",
-      "filename": "furniture_Monster_Room.png",
-      "iconU": 3,
-      "iconV": 5
+      "filename": "furniture_246_Monster_Room__obj_9.png",
+      "resFolder": "furniture",
+      "img": 73,
+      "pngName": "obj_9.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_246_Monster_Room__obj_9.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 39
+        },
+        {
+          "index": 2,
+          "filename": "furniture_246_Monster_Room__obj_9_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 48,
+          "h": 39
+        }
+      ]
     },
     {
       "id": 247,
       "name": "Ancestor Statue",
-      "filename": "furniture_Ancestor_Statue.png",
-      "iconU": 1,
-      "iconV": 2
+      "filename": "furniture_247_Ancestor_Statue__obj_10.png",
+      "resFolder": "furniture",
+      "img": 74,
+      "pngName": "obj_10.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_247_Ancestor_Statue__obj_10.png",
+          "u": 0,
+          "v": 0,
+          "w": 44,
+          "h": 38
+        },
+        {
+          "index": 2,
+          "filename": "furniture_247_Ancestor_Statue__obj_10_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 46,
+          "h": 44
+        }
+      ]
     },
     {
       "id": 255,
       "name": "Restaurant Shelves",
-      "filename": "furniture_Restaurant_Shelves.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_255_Restaurant_Shelves__store_shelf_02.png",
+      "resFolder": "furniture",
+      "img": 75,
+      "pngName": "store_shelf_02.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_255_Restaurant_Shelves__store_shelf_02.png",
+          "u": 0,
+          "v": 0,
+          "w": 37,
+          "h": 27
+        }
+      ]
     },
     {
       "id": 285,
       "name": "Fruit Tree",
-      "filename": "furniture_Fruit_Tree.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_285_Fruit_Tree__add_job_obj_00.png",
+      "resFolder": "furniture",
+      "img": 76,
+      "pngName": "add_job_obj_00.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_285_Fruit_Tree__add_job_obj_00.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 85
+        }
+      ]
     },
     {
       "id": 286,
       "name": "Art Workbench",
-      "filename": "furniture_Art_Workbench.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_286_Art_Workbench__add_job_obj_01.png",
+      "resFolder": "furniture",
+      "img": 77,
+      "pngName": "add_job_obj_01.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_286_Art_Workbench__add_job_obj_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 68
+        }
+      ]
     },
     {
       "id": 287,
       "name": "Survey Room",
-      "filename": "furniture_Survey_Room.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_287_Survey_Room__add_job_obj_02.png",
+      "resFolder": "furniture",
+      "img": 84,
+      "pngName": "add_job_obj_02.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_287_Survey_Room__add_job_obj_02.png",
+          "u": 0,
+          "v": 0,
+          "w": 94,
+          "h": 64
+        }
+      ]
     },
     {
       "id": 292,
       "name": "Animal Cage",
-      "filename": "furniture_Animal_Cage.png",
-      "iconU": 0,
-      "iconV": 4
+      "filename": "furniture_292_Animal_Cage__add_obj_01.png",
+      "resFolder": "furniture",
+      "img": 79,
+      "pngName": "add_obj_01.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_292_Animal_Cage__add_obj_01.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 39
+        },
+        {
+          "index": 2,
+          "filename": "furniture_292_Animal_Cage__add_obj_01_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 48,
+          "h": 39
+        }
+      ]
     },
     {
       "id": 293,
       "name": "Art House",
-      "filename": "furniture_Art_House.png",
-      "iconU": 0,
-      "iconV": 4
+      "filename": "furniture_293_Art_House__add_obj_02.png",
+      "resFolder": "furniture",
+      "img": 80,
+      "pngName": "add_obj_02.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_293_Art_House__add_obj_02.png",
+          "u": 0,
+          "v": 0,
+          "w": 36,
+          "h": 26
+        },
+        {
+          "index": 2,
+          "filename": "furniture_293_Art_House__add_obj_02_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 42,
+          "h": 28
+        }
+      ]
     },
     {
       "id": 294,
       "name": "Water Tank",
-      "filename": "furniture_Water_Tank.png",
-      "iconU": 0,
-      "iconV": 4
+      "filename": "furniture_294_Water_Tank__add_obj_03.png",
+      "resFolder": "furniture",
+      "img": 81,
+      "pngName": "add_obj_03.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_294_Water_Tank__add_obj_03.png",
+          "u": 0,
+          "v": 0,
+          "w": 44,
+          "h": 61
+        },
+        {
+          "index": 2,
+          "filename": "furniture_294_Water_Tank__add_obj_03_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 46,
+          "h": 62
+        }
+      ]
     },
     {
       "id": 295,
       "name": "Bug Case",
-      "filename": "furniture_Bug_Case.png",
-      "iconU": 0,
-      "iconV": 4
+      "filename": "furniture_295_Bug_Case__add_obj_04.png",
+      "resFolder": "furniture",
+      "img": 82,
+      "pngName": "add_obj_04.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_295_Bug_Case__add_obj_04.png",
+          "u": 0,
+          "v": 0,
+          "w": 48,
+          "h": 43
+        },
+        {
+          "index": 2,
+          "filename": "furniture_295_Bug_Case__add_obj_04_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 48,
+          "h": 44
+        }
+      ]
     },
     {
       "id": 296,
       "name": "Cash Register",
-      "filename": "furniture_Cash_Register.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_296_Cash_Register__obj_06_auto.png",
+      "resFolder": "furniture",
+      "img": 83,
+      "pngName": "obj_06_auto.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_296_Cash_Register__obj_06_auto.png",
+          "u": 0,
+          "v": 0,
+          "w": 38,
+          "h": 28
+        },
+        {
+          "index": 2,
+          "filename": "furniture_296_Cash_Register__obj_06_auto_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 42,
+          "h": 39
+        }
+      ]
     },
     {
       "id": 298,
       "name": "Santa Room",
-      "filename": "furniture_Santa_Room.png",
-      "iconU": 0,
-      "iconV": 0
+      "filename": "furniture_298_Santa_Room__add_job_obj_03.png",
+      "resFolder": "furniture",
+      "img": 85,
+      "pngName": "add_job_obj_03.png",
+      "variantCount": 1,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_298_Santa_Room__add_job_obj_03.png",
+          "u": 0,
+          "v": 0,
+          "w": 90,
+          "h": 68
+        }
+      ]
     },
     {
       "id": 299,
       "name": "Decorative Sled",
-      "filename": "furniture_Decorative_Sled.png",
-      "iconU": 0,
-      "iconV": 5
+      "filename": "furniture_299_Decorative_Sled__add_obj_05.png",
+      "resFolder": "furniture",
+      "img": 86,
+      "pngName": "add_obj_05.png",
+      "variantCount": 2,
+      "variants": [
+        {
+          "index": 1,
+          "filename": "furniture_299_Decorative_Sled__add_obj_05.png",
+          "u": 0,
+          "v": 0,
+          "w": 37,
+          "h": 30
+        },
+        {
+          "index": 2,
+          "filename": "furniture_299_Decorative_Sled__add_obj_05_2.png",
+          "u": 1,
+          "v": 0,
+          "w": 42,
+          "h": 29
+        }
+      ]
+    }
+  ],
+  "requested": [
+    {
+      "id": "assign_button",
+      "name": "assign button",
+      "filename": "assign_button.png",
+      "path": "requested/assign_button.png",
+      "source": "game/assign_button.png"
+    },
+    {
+      "id": "assign_lodger_button",
+      "name": "assign lodger button",
+      "filename": "assign_lodger_button.png",
+      "path": "requested/assign_lodger_button.png",
+      "source": "game/assign_lodger_button.png"
+    },
+    {
+      "id": "assign_tana_button",
+      "name": "assign tana button",
+      "filename": "assign_tana_button.png",
+      "path": "requested/assign_tana_button.png",
+      "source": "game/assign_tana_button.png"
+    },
+    {
+      "id": "baby",
+      "name": "baby",
+      "filename": "baby.png",
+      "path": "requested/baby.png",
+      "source": "com/baby.png"
+    },
+    {
+      "id": "belong_button",
+      "name": "belong button",
+      "filename": "belong_button.png",
+      "path": "requested/belong_button.png",
+      "source": "game/belong_button.png"
+    },
+    {
+      "id": "blacksmith_bg",
+      "name": "blacksmith bg",
+      "filename": "blacksmith_bg.png",
+      "path": "requested/blacksmith_bg.png",
+      "source": "com/blacksmith_bg.png"
+    },
+    {
+      "id": "boss",
+      "name": "boss",
+      "filename": "boss.png",
+      "path": "requested/boss.png",
+      "source": "game/boss.png"
+    },
+    {
+      "id": "build_skip_button",
+      "name": "build skip button",
+      "filename": "build_skip_button.png",
+      "path": "requested/build_skip_button.png",
+      "source": "game/build_skip_button.png"
+    },
+    {
+      "id": "call_ship_button",
+      "name": "call ship button",
+      "filename": "call_ship_button.png",
+      "path": "requested/call_ship_button.png",
+      "source": "game/call_ship_button.png"
+    },
+    {
+      "id": "campaign_complete",
+      "name": "campaign complete",
+      "filename": "campaign_complete.png",
+      "path": "requested/campaign_complete.png",
+      "source": "game/campaign_complete.png"
+    },
+    {
+      "id": "child_mark",
+      "name": "child mark",
+      "filename": "child_mark.png",
+      "path": "requested/child_mark.png",
+      "source": "com/child_mark.png"
+    },
+    {
+      "id": "destruct",
+      "name": "destruct",
+      "filename": "destruct.png",
+      "path": "requested/destruct.png",
+      "source": "com/destruct.png"
+    },
+    {
+      "id": "destruct_2",
+      "name": "destruct 2",
+      "filename": "destruct_2.png",
+      "path": "requested/destruct_2.png",
+      "source": "com/destruct_2.png"
+    },
+    {
+      "id": "dia",
+      "name": "dia",
+      "filename": "dia.png",
+      "path": "requested/dia.png",
+      "source": "com/dia.png"
+    },
+    {
+      "id": "explore_mark",
+      "name": "explore mark",
+      "filename": "explore_mark.png",
+      "path": "requested/explore_mark.png",
+      "source": "com/explore_mark.png"
+    },
+    {
+      "id": "grow_monster_egg_button",
+      "name": "grow monster egg button",
+      "filename": "grow_monster_egg_button.png",
+      "path": "requested/grow_monster_egg_button.png",
+      "source": "game/grow_monster_egg_button.png"
+    },
+    {
+      "id": "grow_monster_egg_button2",
+      "name": "grow monster egg button2",
+      "filename": "grow_monster_egg_button2.png",
+      "path": "requested/grow_monster_egg_button2.png",
+      "source": "game/grow_monster_egg_button2.png"
+    },
+    {
+      "id": "random_arena",
+      "name": "random arena",
+      "filename": "random_arena.png",
+      "path": "requested/random_arena.png",
+      "source": "game/random_arena.png"
+    },
+    {
+      "id": "rankup_button",
+      "name": "rankup button",
+      "filename": "rankup_button.png",
+      "path": "requested/rankup_button.png",
+      "source": "game/rankup_button.png"
+    },
+    {
+      "id": "restart_exploration_button",
+      "name": "restart exploration button",
+      "filename": "restart_exploration_button.png",
+      "path": "requested/restart_exploration_button.png",
+      "source": "game/English.lproj/restart_exploration_button.png"
+    },
+    {
+      "id": "return_button",
+      "name": "return button",
+      "filename": "return_button.png",
+      "path": "requested/return_button.png",
+      "source": "game/English.lproj/return_button.png"
+    },
+    {
+      "id": "speed_up_icon",
+      "name": "speed up icon",
+      "filename": "speed_up_icon.png",
+      "path": "requested/speed_up_icon.png",
+      "source": "game/speed_up_icon.png"
+    },
+    {
+      "id": "stamina_collect_button",
+      "name": "stamina collect button",
+      "filename": "stamina_collect_button.png",
+      "path": "requested/stamina_collect_button.png",
+      "source": "game/stamina_collect_button.png"
+    },
+    {
+      "id": "survey_button_00",
+      "name": "survey button 00",
+      "filename": "survey_button_00.png",
+      "path": "requested/survey_button_00.png",
+      "source": "game/English.lproj/survey_button_00.png"
+    },
+    {
+      "id": "survey_button_01",
+      "name": "survey button 01",
+      "filename": "survey_button_01.png",
+      "path": "requested/survey_button_01.png",
+      "source": "game/survey_button_01.png"
+    },
+    {
+      "id": "tent",
+      "name": "tent",
+      "filename": "tent.png",
+      "path": "requested/tent.png",
+      "source": "game/tent.png"
     }
   ],
   "summary": {
@@ -5861,512 +7501,7 @@
     "eggs": 8,
     "attributes": 7,
     "gender": 2,
-    "furniture": 80
-  },
-  "facilities": [
-    {
-      "id": 238,
-      "type": "facility",
-      "name": "Reindeer Stable",
-      "filename": "facility_238_reindeer_stable.png"
-    },
-    {
-      "id": 214,
-      "type": "facility",
-      "name": "High Grade Storehouse (Eggs)",
-      "filename": "facility_214_high_grade_storehouse_eggs.png"
-    },
-    {
-      "id": 213,
-      "type": "facility",
-      "name": "High Grade Storehouse (Item)",
-      "filename": "facility_213_high_grade_storehouse_item.png"
-    },
-    {
-      "id": 212,
-      "type": "facility",
-      "name": "High Grade Storehouse (Treasure)",
-      "filename": "facility_212_high_grade_storehouse_treasure.png"
-    },
-    {
-      "id": 210,
-      "type": "facility",
-      "name": "High Grade Storehouse (Mystic Ore)",
-      "filename": "facility_210_high_grade_storehouse_mystic_ore.png"
-    },
-    {
-      "id": 211,
-      "type": "facility",
-      "name": "High Grade Storehouse (Energy)",
-      "filename": "facility_211_high_grade_storehouse_energy.png"
-    },
-    {
-      "id": 209,
-      "type": "facility",
-      "name": "High Grade Storehouse (Ore)",
-      "filename": "facility_209_high_grade_storehouse_ore.png"
-    },
-    {
-      "id": 208,
-      "type": "facility",
-      "name": "High Grade Storehouse (Food)",
-      "filename": "facility_208_high_grade_storehouse_food.png"
-    },
-    {
-      "id": 206,
-      "type": "facility",
-      "name": "High Grade Storehouse (Grass)",
-      "filename": "facility_206_high_grade_storehouse_grass.png"
-    },
-    {
-      "id": 207,
-      "type": "facility",
-      "name": "High Grade Storehouse (Wood)",
-      "filename": "facility_207_high_grade_storehouse_wood.png"
-    },
-    {
-      "id": 200,
-      "type": "facility",
-      "name": "Equipment Exchange",
-      "filename": "facility_200_equipment_exchange.png"
-    },
-    {
-      "id": 201,
-      "type": "facility",
-      "name": "Trading Post",
-      "filename": "facility_201_trading_post.png"
-    },
-    {
-      "id": 198,
-      "type": "facility",
-      "name": "Movers",
-      "filename": "facility_198_movers.png"
-    },
-    {
-      "id": 196,
-      "type": "facility",
-      "name": "Legendary Cave",
-      "filename": "facility_196_legendary_cave.png"
-    },
-    {
-      "id": 180,
-      "type": "facility",
-      "name": "Kairo Room",
-      "filename": "facility_180_kairo_room.png"
-    },
-    {
-      "id": 195,
-      "type": "facility",
-      "name": "Cabin",
-      "filename": "facility_195_cabin.png"
-    },
-    {
-      "id": 185,
-      "type": "facility",
-      "name": "Gold Coin Box",
-      "filename": "facility_185_gold_coin_box.png"
-    },
-    {
-      "id": 183,
-      "type": "facility",
-      "name": "Copper Coin Box",
-      "filename": "facility_183_copper_coin_box.png"
-    },
-    {
-      "id": 184,
-      "type": "facility",
-      "name": "Silver Coin Box",
-      "filename": "facility_184_silver_coin_box.png"
-    },
-    {
-      "id": 164,
-      "type": "facility",
-      "name": "Recovery Outpost",
-      "filename": "facility_164_recovery_outpost.png"
-    },
-    {
-      "id": 162,
-      "type": "facility",
-      "name": "Monster Stables",
-      "filename": "facility_162_monster_stables.png"
-    },
-    {
-      "id": 177,
-      "type": "facility",
-      "name": "Instructor's Room",
-      "filename": "facility_177_instructors_room.png"
-    },
-    {
-      "id": 174,
-      "type": "facility",
-      "name": "Job Center",
-      "filename": "facility_174_job_center.png"
-    },
-    {
-      "id": 175,
-      "type": "facility",
-      "name": "Material Shop",
-      "filename": "facility_175_material_shop.png"
-    },
-    {
-      "id": 173,
-      "type": "facility",
-      "name": "Friends Agency",
-      "filename": "facility_173_friends_agency.png"
-    },
-    {
-      "id": 171,
-      "type": "facility",
-      "name": "Trophy Room",
-      "filename": "facility_171_trophy_room.png"
-    },
-    {
-      "id": 172,
-      "type": "facility",
-      "name": "Ranking Board",
-      "filename": "facility_172_ranking_board.png"
-    },
-    {
-      "id": 170,
-      "type": "facility",
-      "name": "Monster Farm",
-      "filename": "facility_170_monster_farm.png"
-    },
-    {
-      "id": 169,
-      "type": "facility",
-      "name": "Treasure Room",
-      "filename": "facility_169_treasure_room.png"
-    },
-    {
-      "id": 160,
-      "type": "facility",
-      "name": "Dragon Stables",
-      "filename": "facility_160_dragon_stables.png"
-    },
-    {
-      "id": 168,
-      "type": "facility",
-      "name": "Weekly Conquest Bonus",
-      "filename": "facility_168_weekly_conquest_bonus.png"
-    },
-    {
-      "id": 181,
-      "type": "facility",
-      "name": "Underground Arena",
-      "filename": "facility_181_underground_arena.png"
-    },
-    {
-      "id": 166,
-      "type": "facility",
-      "name": "Friend Post Office",
-      "filename": "facility_166_friend_post_office.png"
-    },
-    {
-      "id": 167,
-      "type": "facility",
-      "name": "Briefing Room",
-      "filename": "facility_167_briefing_room.png"
-    },
-    {
-      "id": 165,
-      "type": "facility",
-      "name": "Master Smithy",
-      "filename": "facility_165_master_smithy.png"
-    },
-    {
-      "id": 91,
-      "type": "facility",
-      "name": "Bench",
-      "filename": "facility_091_bench.png"
-    },
-    {
-      "id": 75,
-      "type": "facility",
-      "name": "Rest Stop",
-      "filename": "facility_075_rest_stop.png"
-    },
-    {
-      "id": 74,
-      "type": "facility",
-      "name": "Outdoor Research Lab",
-      "filename": "facility_074_outdoor_research_lab.png"
-    },
-    {
-      "id": 189,
-      "type": "facility",
-      "name": "Day Care",
-      "filename": "facility_189_day_care.png"
-    },
-    {
-      "id": 191,
-      "type": "facility",
-      "name": "Chaos Stone",
-      "filename": "facility_191_chaos_stone.png"
-    },
-    {
-      "id": 46,
-      "type": "facility",
-      "name": "Mine: Mystic Ore",
-      "filename": "facility_046_mine_mystic_ore.png"
-    },
-    {
-      "id": 72,
-      "type": "facility",
-      "name": "Outdoor Treasure Lab",
-      "filename": "facility_072_outdoor_treasure_lab.png"
-    },
-    {
-      "id": 45,
-      "type": "facility",
-      "name": "Mine: Ore",
-      "filename": "facility_045_mine_ore.png"
-    },
-    {
-      "id": 78,
-      "type": "facility",
-      "name": "Thorny Trap",
-      "filename": "facility_078_thorny_trap.png"
-    },
-    {
-      "id": 90,
-      "type": "facility",
-      "name": "Monster Feed",
-      "filename": "facility_090_monster_feed.png"
-    },
-    {
-      "id": 47,
-      "type": "facility",
-      "name": "Mine: Energy",
-      "filename": "facility_047_mine_energy.png"
-    },
-    {
-      "id": 77,
-      "type": "facility",
-      "name": "Bonfire",
-      "filename": "facility_077_bonfire.png"
-    },
-    {
-      "id": 76,
-      "type": "facility",
-      "name": "Simple Stove",
-      "filename": "facility_076_simple_stove.png"
-    },
-    {
-      "id": 30,
-      "type": "facility",
-      "name": "Nighttime Meeting Place",
-      "filename": "facility_030_nighttime_meeting_place.png"
-    },
-    {
-      "id": 84,
-      "type": "facility",
-      "name": "Rejuvenation Spring",
-      "filename": "facility_084_rejuvenation_spring.png"
-    },
-    {
-      "id": 92,
-      "type": "facility",
-      "name": "Expedition Hut",
-      "filename": "facility_092_expedition_hut.png"
-    },
-    {
-      "id": 29,
-      "type": "facility",
-      "name": "Torch",
-      "filename": "facility_029_torch.png"
-    },
-    {
-      "id": 69,
-      "type": "facility",
-      "name": "Wasteland Guide",
-      "filename": "facility_069_wasteland_guide.png"
-    },
-    {
-      "id": 71,
-      "type": "facility",
-      "name": "Wagon Yard",
-      "filename": "facility_071_wagon_yard.png"
-    },
-    {
-      "id": 70,
-      "type": "facility",
-      "name": "Stables",
-      "filename": "facility_070_stables.png"
-    },
-    {
-      "id": 31,
-      "type": "facility",
-      "name": "Low Watchtower",
-      "filename": "facility_031_low_watchtower.png"
-    },
-    {
-      "id": 88,
-      "type": "facility",
-      "name": "Monster-Repelling Slate",
-      "filename": "facility_088_monster_repelling_slate.png"
-    },
-    {
-      "id": 87,
-      "type": "facility",
-      "name": "Monster-Repelling Sword",
-      "filename": "facility_087_monster_repelling_sword.png"
-    },
-    {
-      "id": 86,
-      "type": "facility",
-      "name": "Monster-Repelling Orb",
-      "filename": "facility_086_monster_repelling_orb.png"
-    },
-    {
-      "id": 89,
-      "type": "facility",
-      "name": "Windmill",
-      "filename": "facility_089_windmill.png"
-    },
-    {
-      "id": 85,
-      "type": "facility",
-      "name": "Monster Statue",
-      "filename": "facility_085_monster_statue.png"
-    },
-    {
-      "id": 81,
-      "type": "facility",
-      "name": "Seedlings",
-      "filename": "facility_081_seedlings.png"
-    },
-    {
-      "id": 68,
-      "type": "facility",
-      "name": "Info Board",
-      "filename": "facility_068_info_board.png"
-    },
-    {
-      "id": 83,
-      "type": "facility",
-      "name": "Goddess Statue",
-      "filename": "facility_083_goddess_statue.png"
-    },
-    {
-      "id": 82,
-      "type": "facility",
-      "name": "Fountain",
-      "filename": "facility_082_fountain.png"
-    },
-    {
-      "id": 80,
-      "type": "facility",
-      "name": "Bushes",
-      "filename": "facility_080_bushes.png"
-    },
-    {
-      "id": 32,
-      "type": "facility",
-      "name": "Turret",
-      "filename": "facility_032_turret.png"
-    },
-    {
-      "id": 67,
-      "type": "facility",
-      "name": "Well",
-      "filename": "facility_067_well.png"
-    },
-    {
-      "id": 239,
-      "type": "facility",
-      "name": "Airport",
-      "filename": "facility_239_airport.png"
-    },
-    {
-      "id": 240,
-      "type": "facility",
-      "name": "Resource Center",
-      "filename": "facility_240_resource_center.png"
-    },
-    {
-      "id": 241,
-      "type": "facility",
-      "name": "Fishing Pond",
-      "filename": "facility_241_fishing_pond.png"
-    },
-    {
-      "id": 226,
-      "type": "facility",
-      "name": "Bug Gathering Spot",
-      "filename": "facility_226_bug_gathering_spot.png"
-    },
-    {
-      "id": 202,
-      "type": "facility",
-      "name": "Date Spot",
-      "filename": "facility_202_date_spot.png"
-    },
-    {
-      "id": 178,
-      "type": "facility",
-      "name": "Monster Fusion Lab",
-      "filename": "facility_178_monster_fusion_lab.png"
-    },
-    {
-      "id": 223,
-      "type": "mapchip",
-      "name": "Wairo Dungeon",
-      "filename": "mapchip_223_wairo_dungeon.png"
-    },
-    {
-      "id": 72,
-      "type": "mapchip",
-      "name": "Cave",
-      "filename": "mapchip_072_cave.png"
-    },
-    {
-      "id": 71,
-      "type": "mapchip",
-      "name": "Cave",
-      "filename": "mapchip_071_cave.png"
-    },
-    {
-      "id": 65,
-      "type": "mapchip",
-      "name": "Not used",
-      "filename": "mapchip_065_not_used.png"
-    },
-    {
-      "id": 73,
-      "type": "mapchip",
-      "name": "Cave",
-      "filename": "mapchip_073_cave.png"
-    },
-    {
-      "id": 74,
-      "type": "mapchip",
-      "name": "Cave",
-      "filename": "mapchip_074_cave.png"
-    },
-    {
-      "id": 75,
-      "type": "mapchip",
-      "name": "Cave",
-      "filename": "mapchip_075_cave.png"
-    },
-    {
-      "id": 76,
-      "type": "mapchip",
-      "name": "Cave",
-      "filename": "mapchip_076_cave.png"
-    },
-    {
-      "id": 77,
-      "type": "mapchip",
-      "name": "Cave",
-      "filename": "mapchip_077_cave.png"
-    },
-    {
-      "id": 186,
-      "type": "facility",
-      "name": "Kairo King Statue",
-      "filename": "facility_186_kairo_king_statue.png"
-    }
-  ]
+    "furniture": 80,
+    "requested": 26
+  }
 }

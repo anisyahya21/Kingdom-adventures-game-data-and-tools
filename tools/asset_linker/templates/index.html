@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KA Asset Linker</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>KA Asset Linker</h1>
+        <p>Browse assets, see auto-linked facilities, and review piece groups.</p>
+      </div>
+      <div class="header-tools">
+        <div class="network-links" id="networkLinks" aria-live="polite"></div>
+        <div class="save-state" id="saveState">Ready</div>
+      </div>
+    </header>
+
+    <script>window.__NETWORK__ = {{ network | tojson }};</script>
+    <main class="layout">
+      <section class="panel summary-panel">
+        <div class="section-title">
+          <h2>Summary</h2>
+          <span id="summaryStats"></span>
+        </div>
+        <div class="summary-grid" id="summaryGrid"></div>
+      </section>
+
+      <section class="panel asset-panel">
+        <div class="section-title">
+          <h2>Asset Groups</h2>
+          <span id="assetCount"></span>
+        </div>
+        <div id="assetGroupList" class="group-list"></div>
+      </section>
+
+      <section class="panel matches-panel">
+        <div class="section-title">
+          <h2>Auto-linked Buildings</h2>
+          <span id="matchedCount"></span>
+        </div>
+        <div id="buildingMatches" class="match-list"></div>
+      </section>
+
+      <section class="panel unmatched-buildings-panel">
+        <div class="section-title">
+          <h2>Unmatched Buildings</h2>
+          <span id="unmatchedBuildingCount"></span>
+        </div>
+        <div id="unmatchedBuildings" class="info-list"></div>
+      </section>
+
+      <section class="panel mapped-preview-panel">
+        <div class="section-title">
+          <h2>Mapped Asset Preview</h2>
+          <span id="mappedPreviewCount"></span>
+        </div>
+        <div id="mappedPreview" class="asset-grid"></div>
+      </section>
+
+      <section class="panel manual-mapping-panel">
+        <div class="section-title">
+          <h2>Manual Mapping</h2>
+          <div>
+            <span id="manualMappingCount"></span>
+            <button id="clearAllManualMappingsButton" type="button">Clear All Manual Mappings</button>
+          </div>
+        </div>
+        <div id="manualMappingList" class="asset-grid"></div>
+      </section>
+
+      <section class="panel unmatched-panel">
+        <div class="section-title">
+          <h2>Unmatched Assets</h2>
+          <span id="unmatchedCount"></span>
+        </div>
+        <div id="unmatchedAssets" class="asset-grid"></div>
+      </section>
+
+      <section class="panel pieces-panel">
+        <div class="section-title">
+          <h2>Piece Categories</h2>
+          <span id="pieceCount"></span>
+        </div>
+        <div id="pieceGroups" class="piece-grid"></div>
+      </section>
+    </main>
+
+    <script src="/static/app.js?v=2"></script>
+  </body>
+</html>

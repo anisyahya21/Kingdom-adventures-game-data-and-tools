@@ -43,6 +43,10 @@ const CommunityGuidePage = lazy(() => import("@/pages/community-guide"));
 const UpdatesPage = lazy(() => import("@/pages/updates"));
 const SurveyPlanner = lazy(() => import("@/pages/survey-planner"));
 const TestPage = lazy(() => import("./pages/Test"));
+const RuntimeWorldGridTestPage = lazy(() => import("@/pages/runtime-world-grid-test"));
+const RuntimeWorldRenderTestPage = lazy(() => import("@/pages/runtime-world-render-test"));
+const WorldMapV2Page = lazy(() => import("@/pages/world-map-v2"));
+const TerrainCompositionLabPage = lazy(() => import("@/pages/terrain-composition-lab"));
 
 function RouteLoading() {
   return (
@@ -168,8 +172,12 @@ function Router() {
         <Route path="/shops/:slug">{() => <ShopsPage />}</Route>
         <Route path="/sync-devices">{() => <SyncDevicesPage />}</Route>
         <Route path="/world-map">{() => <WorldMapPage />}</Route>
+        <Route path="/world-map-v2">{() => <WorldMapV2Page />}</Route>
         <Route path="/chaos-setup-lab">{() => <ChaosSetupLabPage />}</Route>
         <Route path="/map-2-testing">{() => <Map2TestingPage />}</Route>
+        <Route path="/runtime-world-grid-test">{() => <RuntimeWorldGridTestPage />}</Route>
+        <Route path="/runtime-world-render-test">{() => <RuntimeWorldRenderTestPage />}</Route>
+        <Route path="/terrain-composition-lab">{() => <TerrainCompositionLabPage />}</Route>
         <Route path="/houses">{() => <HousesPage />}</Route>
         <Route path="/survey">{() => <SurveyPlanner />}</Route>
         <Route path="/survey-planner">{() => <SurveyPlanner />}</Route>

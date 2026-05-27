@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { BriefcaseBusiness, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,7 @@ export default function JobCenterPage() {
           <h1 className="text-xl font-bold tracking-tight">Job Center</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Kingdom Adventures Job Center profession rotation by weekday, with the current event day highlighted
+          Kingdom Adventurers Job Center profession rotation by weekday, with the current event day highlighted
           for faster planning.
         </p>
       </div>
@@ -66,3 +66,4 @@ export default function JobCenterPage() {
     </div>
   );
 }
+

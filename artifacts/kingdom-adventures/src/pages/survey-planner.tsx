@@ -7,9 +7,11 @@ import { PLAYTHROUGH_GUIDE_LOCAL_URL } from "@/lib/playthrough-guide";
 import { parseCsv } from "@/lib/monster-truth";
 import { SearchableSelect } from "@/components/searchable-select";
 import { PageHeader } from "@/components/ka/page-header";
+import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { getJobProfiles, getJobsThatOpenBuilding, type SharedJobProfileData } from "@/game-data/job-profile";
+import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon } from "@/lib/equipment-icons";
 import surveyCsv from "../../../../data/Sheet csv/KA GameData - Survey.csv?raw";
 import jobCsv from "../../../../data/Sheet csv/KA GameData - Job.csv?raw";
 import jobGroupCsv from "../../../../data/Sheet csv/KA GameData - JobGroup.csv?raw";
@@ -57,6 +59,7 @@ type SharedData = {
   jobs?: Record<string, SharedJob>;
   overrides?: Record<string, SharedEquipStats>;
   slotAssignments?: Record<string, string>;
+  equipIcons?: Record<string, string>;
 };
 
 type Equip = { id: string; name: string; slot: "Weapon" | "Accessory"; baseHeart: number; incPerLevel: number };
@@ -289,6 +292,127 @@ function getSurveyGroupSortKey(group: SurveyGroup & { order: number }) {
     return [4, 0];
   }
   return [3, group.order];
+}
+
+function getFacilityIconFromSurveyGroup(groupName: string) {
+  if (!groupName.startsWith("Survey:")) return null;
+  const rawName = groupName.replace(/^Survey:\s*/i, "").replace(/\s+Blueprints?$/i, "").trim();
+  if (!rawName || rawName.toLowerCase() === "other") return null;
+  const withoutVariant = rawName.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+  return getFacilityIconByName(rawName) ?? getFacilityIconByName(withoutVariant) ?? null;
+}
+
+function getSurveyNameSectionFacilityIcon(displayName: string) {
+  const key = displayName.toLowerCase();
+  if (key.includes("dragon taming")) {
+    return getFacilityIconByName("Dragon Stables") ?? getFacilityIconByName("Dragon staples") ?? null;
+  }
+  if (key.includes("cash register")) {
+    return getFurnitureIcon("Cash Register") ?? getFurnitureIcon("Register") ?? getFacilityIconByName("Cash Register") ?? null;
+  }
+  return null;
+}
+
+function isMasterInstructorSurveyName(displayName: string) {
+  return displayName.toLowerCase().includes("master instructor");
+}
+
+const SURVEY_ICON_IMAGE_CLASS = "h-12 w-auto max-w-none shrink-0 object-contain";
+const alphaTrimmedIconCache = new Map<string, string>();
+
+function buildAlphaTrimmedIcon(src: string): Promise<string> {
+  const cached = alphaTrimmedIconCache.get(src);
+  if (cached) return Promise.resolve(cached);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx || canvas.width === 0 || canvas.height === 0) {
+        alphaTrimmedIconCache.set(src, src);
+        resolve(src);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0);
+      let pixels: Uint8ClampedArray;
+      try {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        pixels = imageData.data;
+      } catch {
+        alphaTrimmedIconCache.set(src, src);
+        resolve(src);
+        return;
+      }
+
+      let minX = canvas.width;
+      let minY = canvas.height;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < canvas.height; y += 1) {
+        for (let x = 0; x < canvas.width; x += 1) {
+          const alpha = pixels[(y * canvas.width + x) * 4 + 3];
+          if (alpha === 0) continue;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+
+      if (maxX < minX || maxY < minY) {
+        alphaTrimmedIconCache.set(src, src);
+        resolve(src);
+        return;
+      }
+
+      const trimWidth = maxX - minX + 1;
+      const trimHeight = maxY - minY + 1;
+      const trimmedCanvas = document.createElement("canvas");
+      trimmedCanvas.width = trimWidth;
+      trimmedCanvas.height = trimHeight;
+      const trimmedCtx = trimmedCanvas.getContext("2d");
+      if (!trimmedCtx) {
+        alphaTrimmedIconCache.set(src, src);
+        resolve(src);
+        return;
+      }
+
+      trimmedCtx.drawImage(canvas, minX, minY, trimWidth, trimHeight, 0, 0, trimWidth, trimHeight);
+      const trimmedSrc = trimmedCanvas.toDataURL("image/png");
+      alphaTrimmedIconCache.set(src, trimmedSrc);
+      resolve(trimmedSrc);
+    };
+
+    img.onerror = () => {
+      alphaTrimmedIconCache.set(src, src);
+      resolve(src);
+    };
+
+    img.src = src;
+  });
+}
+
+function AlphaTrimmedIcon({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [resolvedSrc, setResolvedSrc] = useState<string>(alphaTrimmedIconCache.get(src) ?? src);
+
+  useEffect(() => {
+    let active = true;
+    buildAlphaTrimmedIcon(src).then((nextSrc) => {
+      if (active) {
+        setResolvedSrc(nextSrc);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [src]);
+
+  return <img src={resolvedSrc} alt={alt} className={className} style={{ imageRendering: "pixelated" }} />;
 }
 
 const GROUPED_SURVEYS: SurveyGroup[] = Object.values(
@@ -592,6 +716,7 @@ export default function SurveyPlanner() {
 
   const selectedJobFamily = surveyCapableJobFamilies.find((family) => family.group === selectedJobGroupId) ?? surveyCapableJobFamilies[0] ?? JOB_FAMILIES[0];
   const job = selectedJobFamily?.variants.find((variant) => variant.rankLabel === selectedJobRank) ?? selectedJobFamily?.variants[0] ?? { id: 0, name: "Unknown", group: 0, rankLabel: "", rankNumber: 0, heart: 0, baseName: "Unknown" };
+  const equipIcons = sharedData?.equipIcons ?? {};
 
   const equipmentList = useMemo(() => {
     const overrides = sharedData?.overrides ?? {};
@@ -758,9 +883,21 @@ export default function SurveyPlanner() {
               const lowestSurveyRank = family.variants.find((variant) => variant.rankNumber >= 4);
               return (
                 <div key={family.group} className="rounded-md border border-border/50 bg-muted/10 p-3">
-                  <div className="font-medium">{family.name}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Rank {lowestSurveyRank?.rankLabel ?? "B"}+
+                  <div className="font-medium flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <CharacterPreviewCanvas
+                        jobName={family.name}
+                        rank="B"
+                        variant={1}
+                        equipState="right"
+                        scale={1.7}
+                        poseFrame={0}
+                        label={`${family.name} B male`}
+                        className="-my-2 h-10 w-auto shrink-0"
+                      />
+                      <span>{family.name}</span>
+                    </div>
+                    <span className="text-xs font-normal text-muted-foreground">Rank {lowestSurveyRank?.rankLabel ?? "B"}+</span>
                   </div>
                 </div>
               );
@@ -782,7 +919,7 @@ export default function SurveyPlanner() {
                 className="inline-flex items-center gap-1 text-sm text-primary xl:hidden"
                 onClick={() => setSurveyListExpanded((prev) => !prev)}
               >
-                {surveyListExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {surveyListExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                 {surveyListExpanded ? "Collapse" : "Show more"}
               </button>
             </CardHeader>
@@ -798,13 +935,31 @@ export default function SurveyPlanner() {
                 {(isMobileSurveyList && !surveyListExpanded ? GROUPED_SURVEYS.slice(0, 3) : GROUPED_SURVEYS).map((group) => {
                   const groupKey = `${group.name}-${group.surveys[0]?.id ?? "none"}`;
                   const expanded = !!expandedGroups[groupKey];
+                  const specialNameFacilityIcon = getSurveyNameSectionFacilityIcon(group.name);
+                  const isMasterInstructor = isMasterInstructorSurveyName(group.name);
+                  const facilityIcon = specialNameFacilityIcon ?? getFacilityIconFromSurveyGroup(group.name);
                   return (
                     <div key={groupKey} className="space-y-1 rounded-lg border border-border/20 p-1">
                       <div className="grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 items-center rounded bg-muted/50 px-2 py-2 text-sm font-semibold cursor-pointer"
                         onClick={() => setExpandedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }))}>
                         <div className="font-medium flex items-center gap-1">
                           {group.surveys.length > 1 ? (
-                            expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                            expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />
+                          ) : null}
+                          {isMasterInstructor ? (
+                            <CharacterPreviewCanvas
+                              jobName="Scholar"
+                              rank="F"
+                              variant={1}
+                              equipState="right"
+                              scale={2.1}
+                              poseFrame={0}
+                              label="Master Instructor F Scholar male"
+                              className="-my-2 h-12 w-auto shrink-0"
+                            />
+                          ) : null}
+                          {!isMasterInstructor && facilityIcon ? (
+                            <AlphaTrimmedIcon src={facilityIcon} alt="" className={SURVEY_ICON_IMAGE_CLASS} />
                           ) : null}
                           {group.name}
                         </div>
@@ -818,20 +973,60 @@ export default function SurveyPlanner() {
                       {expanded && group.surveys.map((s) => (
                         <div key={s.id} className={`grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 items-center p-2 rounded ${s.id === selectedSurveyId ? "bg-muted/40" : ""}`}>
                           <div>
-                            <Button variant="link" onClick={() => setSelectedSurveyId(s.id)}>{formatSurveyName(s)}</Button>
+                            {(() => {
+                              const surveyDisplayName = formatSurveyName(s);
+                              const surveyNameFacilityIcon = getSurveyNameSectionFacilityIcon(surveyDisplayName);
+                              const isMasterInstructorName = isMasterInstructorSurveyName(surveyDisplayName);
+                              return (
+                                <div className="flex items-center gap-1.5">
+                                  {isMasterInstructorName ? (
+                                    <CharacterPreviewCanvas
+                                      jobName="Scholar"
+                                      rank="F"
+                                      variant={1}
+                                      equipState="right"
+                                      scale={2.0}
+                                      poseFrame={0}
+                                      label="Master Instructor F Scholar male"
+                                      className="-my-2 h-11 w-auto shrink-0"
+                                    />
+                                  ) : null}
+                                  {!isMasterInstructorName && surveyNameFacilityIcon ? (
+                                    <AlphaTrimmedIcon src={surveyNameFacilityIcon} alt="" className={SURVEY_ICON_IMAGE_CLASS} />
+                                  ) : null}
+                                  <Button variant="link" onClick={() => setSelectedSurveyId(s.id)}>{surveyDisplayName}</Button>
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div className="text-center">{getSurveyMaxLabel(s.maxEarnableRewardCount)}</div>
                           <div className="text-center">{getSurveyTerrainLabel(s)}</div>
                           <div className="text-center">{s.minAreaLevel}</div>
                           <div>
-                            {s.jobGroupId ? (
+                            {(() => {
+                              if (!s.jobGroupId) {
+                                return <div className="text-muted-foreground">— none —</div>;
+                              }
+
+                              const bonusJobName = JOB_GROUPS[s.jobGroupId] ?? `Group ${s.jobGroupId}`;
+                              return (
                               <div className="text-sm">
-                                <div className="font-medium">{JOB_GROUPS[s.jobGroupId] ?? `Group ${s.jobGroupId}`}</div>
-                                <div className="text-muted-foreground text-xs">{JOB_BONUS_HINT[s.jobGroupId]}</div>
+                                <div className="font-medium flex items-center gap-1.5">
+                                  <CharacterPreviewCanvas
+                                    jobName={bonusJobName}
+                                    rank="B"
+                                    variant={1}
+                                    equipState="right"
+                                    scale={2.1}
+                                    poseFrame={0}
+                                    label={`${bonusJobName} B male`}
+                                    className="-my-2 h-12 w-auto shrink-0"
+                                  />
+                                  <span>{bonusJobName}</span>
+                                </div>
                               </div>
-                            ) : (
-                              <div className="text-muted-foreground">— none —</div>
-                            )}
+                              );
+                            })()}
                           </div>
                         </div>
                       ))}
@@ -846,7 +1041,7 @@ export default function SurveyPlanner() {
                     className="inline-flex items-center gap-1 text-sm text-primary"
                     onClick={() => setSurveyListExpanded((prev) => !prev)}
                   >
-                    {surveyListExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {surveyListExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                     {surveyListExpanded ? "Show fewer" : `Show ${SURVEYS.length - 3} more`}
                   </button>
                 </div>
@@ -918,6 +1113,7 @@ export default function SurveyPlanner() {
                   {EQUIP_SLOTS.map(({ key, label, icon: Icon, slotType }) => {
                     const equipId = key === "weapon" ? slotEquipment.weapon : accessoryId;
                     const equip = equipmentList.find((e) => e.id === equipId && e.slot === slotType) ?? null;
+                    const equipIcon = equip ? getEquipmentIcon(equipIcons, equip.name) : undefined;
                     const options = equipmentList.filter((e) => e.slot === slotType);
                     return (
                       <div key={key} className={`flex flex-col rounded-lg border-2 ${equip ? "border-primary/30 bg-primary/5" : "border-dashed border-border/60 bg-muted/20"}`}>
@@ -937,7 +1133,16 @@ export default function SurveyPlanner() {
                           )}
                         </div>
                         <div className="flex items-center justify-center py-4 px-2">
-                          <Icon className="w-7 h-7 text-muted-foreground" />
+                          {equipIcon ? (
+                            <img
+                              src={equipIcon}
+                              alt=""
+                              className="h-14 w-14 object-contain"
+                              style={{ imageRendering: "pixelated" }}
+                            />
+                          ) : (
+                            <Icon className="w-8 h-8 text-muted-foreground" />
+                          )}
                         </div>
                         <div className="px-2 pb-3 space-y-2">
                           {equip ? (

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Database, Search, Scale, TrendingDown, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -222,7 +222,7 @@ export default function MonsterPetStatsPage() {
         </div>
         <div className="max-w-4xl space-y-2 text-sm leading-relaxed text-muted-foreground">
           <p>
-            Detailed Kingdom Adventures monster and pet stat database built from the mined <code>Monster.csv</code>.
+            Detailed Kingdom Adventurers monster and pet stat database built from the mined <code>Monster.csv</code>.
             Search by monster name or id, sort by core stats, and compare up to four monsters side by side.
           </p>
           <p>
@@ -334,7 +334,7 @@ export default function MonsterPetStatsPage() {
                       onClick={() => removeCompareMonster(monster.id)}
                       className="text-muted-foreground hover:text-foreground"
                     >
-                      ×
+                      Ã—
                     </button>
                   </Badge>
                 ))}
@@ -496,3 +496,4 @@ export default function MonsterPetStatsPage() {
     </div>
   );
 }
+

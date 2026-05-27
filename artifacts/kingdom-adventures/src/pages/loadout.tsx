@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+﻿import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -1571,11 +1571,11 @@ function CharacterPreview({
         <button
           onClick={() => setEquipState("right")}
           className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${equipState === "right" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-        >→</button>
+        >Right</button>
         <button
           onClick={() => setEquipState("up")}
           className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${equipState === "up" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-        >↑</button>
+        >Up</button>
       </div>
     </div>
   );
@@ -1773,7 +1773,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
               value={loadout.jobName}
               onChange={(v) => onChange({ ...loadout, jobName: v })}
               options={Object.keys(jobs).sort().map((n) => ({ value: n, label: n }))}
-              placeholder="Select job…"
+              placeholder="Select job..."
               triggerClassName="h-8 text-sm"
             />
             {loadout.jobName && (
@@ -1849,9 +1849,9 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 className="h-6 text-[11px] text-center px-0 w-14" />
                             </div>
                           </td>
-                          <td className="py-0.5 text-right tabular-nums text-foreground/80">{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
-                          <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">—</span>}</td>
-                          <td className="py-0.5 text-right tabular-nums font-bold">{total > 0 ? total.toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
+                          <td className="py-0.5 text-right tabular-nums text-foreground/80">{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">-</span>}</td>
+                          <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">-</span>}</td>
+                          <td className="py-0.5 text-right tabular-nums font-bold">{total > 0 ? total.toLocaleString() : <span className="text-muted-foreground/30">-</span>}</td>
                         </tr>
                       );
                     })}
@@ -1928,8 +1928,8 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                     <div className="text-center space-y-0.5">
                                       <ToneBadge category={isWeak ? "shop" : "warning"} className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold">
                                         {isWeak
-                                          ? (rule.appliesPenalty ? "⚠ Weak: 50%" : "✓ Weak removed")
-                                          : "✗ Can't wield"}
+                                          ? (rule.appliesPenalty ? "Weak: 50%" : "Weak removed")
+                                          : "Cannot wield"}
                                       </ToneBadge>
                                       {rule.blocked ? (
                                         <p className="text-[8px] text-muted-foreground leading-tight">
@@ -1960,7 +1960,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 clearOnSelect
                                 onChange={(v) => { if (v) setSlotEquip(slot as EquipSlot, v); }}
                                 options={slotItems.map((n) => ({ value: n, label: n }))}
-                                placeholder="— empty —"
+                                placeholder="- empty -"
                                 triggerClassName="h-7 text-[10px]"
                               />
                             )}
@@ -2018,7 +2018,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                 clearOnSelect
                 onChange={(v) => { if (v) addSkill(v); }}
                 options={allSkills.filter((s) => !loadout.skills.includes(s)).map((s) => ({ value: s, label: s }))}
-                placeholder="+ Add skill…"
+                placeholder="+ Add skill..."
                 triggerClassName="h-7 text-xs"
               />
             )}
@@ -2229,7 +2229,7 @@ export default function LoadoutPage() {
             <textarea
               value={pageNote}
               onChange={(e) => setPageNote(e.target.value)}
-              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
+              placeholder="Personal notes for this page... (only visible to you, saved on this device)"
               className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
             />
           </div>
@@ -2326,8 +2326,8 @@ export default function LoadoutPage() {
                               <CollapsedCharPreview
                                 jobName={loadout.jobName}
                                 rank={loadout.rank}
-                                weaponName={weaponEntry?.name}
-                                shieldName={shieldEntry?.name}
+                                weaponName={weaponEntry?.name ?? null}
+                                shieldName={shieldEntry?.name ?? null}
                               />
                             </div>
                           )}
@@ -2457,7 +2457,7 @@ export default function LoadoutPage() {
         )}
 
         <p className="text-xs text-muted-foreground mt-4 text-center">
-          Loadouts are saved to your browser — private to you
+          Loadouts are saved to your browser - private to you
         </p>
       </div>
     </div>

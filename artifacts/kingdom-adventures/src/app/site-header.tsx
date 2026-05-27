@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -153,7 +153,7 @@ export function SiteHeader() {
           className="text-xl sm:text-2xl font-semibold truncate hover:opacity-80 transition-opacity"
           title="Go to home page"
         >
-          Kingdom Adventures
+          Kingdom Adventurers
         </Link>
 
         <div className="flex items-center gap-0.5">
@@ -214,3 +214,4 @@ export function SiteHeader() {
     </div>
   );
 }
+

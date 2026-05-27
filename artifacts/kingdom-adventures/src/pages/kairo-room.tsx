@@ -10,6 +10,7 @@ import { KairoFarmingCalculator } from "@/components/kairo-farming-calculator";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
+import { getSkillIcon } from "@/lib/skill-icons";
 
 const FACILITY_ITEM_ICONS: Record<string, string> = {
   "Kairo King Statue": "/website_icons/facilities_confirmed/facility_186_kairo_king_statue.png",
@@ -188,6 +189,8 @@ export default function KairoRoomPage() {
                                           <CharacterPreviewCanvas jobName="Scholar" rank="F" variant={1} equipState="right" scale={2} poseFrame={0} label="F Rank Scholar" className="h-10 w-auto shrink-0" />
                                         ) : getEquipmentIcon(equipIcons, line.item) ? (
                                           <img src={getEquipmentIcon(equipIcons, line.item)} alt="" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                                        ) : getSkillIcon(line.item) ? (
+                                          <img src={getSkillIcon(line.item)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                         ) : getItemIcon(line.item) ? (
                                           <img src={getItemIcon(line.item)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                         ) : FACILITY_ITEM_ICONS[line.item] ? (

@@ -101,11 +101,33 @@ function toMonsterOutcome(
   };
 }
 
+// Known name corrections from the Google Sheet source to canonical item names.
+// Keys are lowercased for case-insensitive matching.
+const FEED_ITEM_NAME_CORRECTIONS: Record<string, string> = {
+  "hearty mushroom": "Healthy Mushroom",
+  "carbonated juice": "Fizzy Juice",
+  "kingdom flag": "National Flag",
+  "rice omelette": "Rice Omelet",
+  // Sage's Tome — handle apostrophe/spacing variants from Google Sheets
+  "sage\u2019s tome": "Sage's Tome",
+  "sage's tome": "Sage's Tome",
+  "sage \u2019s tome": "Sage's Tome",
+  "sage 's tome": "Sage's Tome",
+  // Grape Juice — bad Japanese romanization from sheet
+  "budjusjus": "Grape Juice",
+  "budjujus": "Grape Juice",
+};
+
+// Rows from the sheet that are clearly garbage data and should be dropped.
+const FEED_ITEM_GARBAGE_NAMES = new Set(["6", "thailand"]);
+
 function toFeedItem(
   cells: Array<{ v?: string | number | null; f?: string | null } | null>
 ): EggFeedItem | null {
-  const name = asText(cellValue(cells, 10));
-  if (!name) return null;
+  const rawName = asText(cellValue(cells, 10));
+  if (!rawName) return null;
+  if (FEED_ITEM_GARBAGE_NAMES.has(rawName.toLowerCase())) return null;
+  const name = FEED_ITEM_NAME_CORRECTIONS[rawName.toLowerCase()] ?? rawName;
   const remarks = asText(cellValue(cells, 17));
 
   return {

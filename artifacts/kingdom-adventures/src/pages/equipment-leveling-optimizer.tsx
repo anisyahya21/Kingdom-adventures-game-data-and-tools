@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+﻿import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Calculator, CheckCircle2, Route, Sigma, TableProperties } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -1709,7 +1709,7 @@ export default function EquipmentLevelingOptimizerPage() {
           <h1 className="text-xl font-bold tracking-tight">Equipment Leveling Optimizer</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Find efficient Kingdom Adventures equipment leveling routes with low EXP waste, low copper cost,
+          Find efficient Kingdom Adventurers equipment leveling routes with low EXP waste, low copper cost,
           sacrifice item planning, cap-stage math, and Grand Prize exchange inputs.
         </p>
       </div>
@@ -1900,7 +1900,7 @@ export default function EquipmentLevelingOptimizerPage() {
                         </div>
                       </div>
                       <div className="text-[11px] text-muted-foreground">
-                        {formatNumber(displayedStepCount(slot.result))} steps · {formatNumber(totalSacrifices(slot.result))} total sacrifices
+                        {formatNumber(displayedStepCount(slot.result))} steps Â· {formatNumber(totalSacrifices(slot.result))} total sacrifices
                       </div>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
@@ -2055,3 +2055,4 @@ export default function EquipmentLevelingOptimizerPage() {
     </div>
   );
 }
+

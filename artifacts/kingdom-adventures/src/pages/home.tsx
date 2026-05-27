@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link } from "wouter";
-import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, BookOpen, Package, Egg, Store, Home as HomeIcon, CalendarDays, BookMarked, BriefcaseBusiness } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, BookOpen, Package, Store, Home as HomeIcon, CalendarDays, BookMarked, BriefcaseBusiness } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,24 +24,24 @@ const CREDIT_SOURCES = [
     href: "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/edit",
   },
   {
-    label: "Kingdom Adventures EN Sheet",
+    label: "Kingdom Adventurers EN Sheet",
     description: "Reference and translation sheet used to understand systems like pets, eggs, and other player-facing game mechanics.",
     href: "https://docs.google.com/spreadsheets/d/1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A/edit",
   },
   {
     label: "Playthrough Guide",
     by: "Jaza",
-    description: "Community-written Kingdom Adventures progression guide that we adapted into the website-styled guide page.",
+    description: "Community-written Kingdom Adventurers progression guide that we adapted into the website-styled guide page.",
     href: "https://docs.google.com/document/d/1HDY-6lgFfjIX9KfzmuBrR4xsSMWGXKViccsGQJ_o5yE/edit",
   },
   {
     label: "Kairosoft Fandom",
-    description: "General Kingdom Adventures reference used to cross-check mechanics and player-facing data.",
+    description: "General Kingdom Adventurers reference used to cross-check mechanics and player-facing data.",
     href: "https://kairosoft.fandom.com/wiki/Category:Kingdom_Adventurers",
   },
   {
     label: "Kairosoft Wiki.gg",
-    description: "General Kingdom Adventures reference used alongside the data sheets for validation and understanding.",
+    description: "General Kingdom Adventurers reference used alongside the data sheets for validation and understanding.",
     href: "https://kairosoft.wiki.gg/wiki/Kingdom_Adventurers",
   },
 ] as const;
@@ -55,7 +55,7 @@ function CreditsDialog({ open, onClose }: { open: boolean; onClose: () => void }
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <p className="text-muted-foreground">
-            These sheets and reference sites helped us pull, understand, and cross-check Kingdom Adventures data for the website.
+            These sheets and reference sites helped us pull, understand, and cross-check Kingdom Adventurers data for the website.
           </p>
           <div className="space-y-3">
             {CREDIT_SOURCES.map((source) => (
@@ -118,7 +118,14 @@ const BUILT_IN_TOOLS = [
     slug: "/survey",
     title: "Survey",
     description: "Survey database and calculator for planning success and rewards.",
-    icon: <Store className="w-6 h-6 text-cyan-500" />,
+    icon: (
+      <img
+        src="/website_icons/requested/survey_button_00.png"
+        alt="Survey"
+        className="h-10 w-10 object-contain"
+        style={{ imageRendering: "pixelated" }}
+      />
+    ),
     badge: "Survey",
     badgeCategory: "survey" satisfies KaCategory,
   },
@@ -142,7 +149,17 @@ const BUILT_IN_TOOLS = [
     slug: "/eggs-pets-monsters",
     title: "Eggs, Pets & Monsters",
     description: "Egg planner plus detailed monster and pet databases for stats, growth, spawn locations, and team planning.",
-    icon: <Egg className="w-6 h-6 text-yellow-500" />,
+    icon: (
+      <div className="flex items-center gap-1.5">
+        <Skull className="w-5 h-5 text-red-500" />
+        <img
+          src="/website_icons/requested/grow_monster_egg_button2.png"
+          alt="Grow monster egg"
+          className="h-9 w-9 object-contain"
+          style={{ imageRendering: "pixelated" }}
+        />
+      </div>
+    ),
     badge: "Planner",
     badgeCategory: "monster" satisfies KaCategory,
   },
@@ -391,7 +408,7 @@ function HomeCountdownBanner() {
 function HomeWorldMapCard({ compact = false }: { compact?: boolean }) {
   return (
     <Link href="/world-map">
-      <Card className="cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors h-full">
+      <Card className="cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors">
         <CardContent className={compact ? "p-3 space-y-2" : "p-4 space-y-3"}>
           <div className="flex items-center gap-2 flex-wrap">
             <div className={compact ? "font-medium text-sm" : "font-medium"}>World map (Beta)</div>
@@ -400,6 +417,35 @@ function HomeWorldMapCard({ compact = false }: { compact?: boolean }) {
           </div>
           <div className={compact ? "text-xs text-muted-foreground leading-relaxed" : "text-sm text-muted-foreground leading-relaxed"}>
             Tile map planner with hover info on PC, tap info on mobile, and tool/highlight/deployment modes.
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+function HomeWorldMapV2Card({ compact = false }: { compact?: boolean }) {
+  return (
+    <Link href="/world-map-v2">
+      <Card className={compact
+        ? "cursor-pointer overflow-hidden hover:border-primary/40 hover:bg-muted/30 transition-colors"
+        : "cursor-pointer overflow-hidden hover:border-primary/40 hover:bg-muted/30 transition-colors h-[230px]"
+      }>
+        <div className={compact ? "relative h-28 overflow-hidden border-b border-border/50" : "relative h-[164px] overflow-hidden border-b border-border/50"}>
+          <img
+            src="/Images/world-map-v2-thumbnail.jpg"
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        </div>
+        <CardContent className={compact ? "p-3 space-y-2" : "p-3.5 space-y-1.5"}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className={compact ? "font-medium text-sm" : "font-medium"}>World map V2</div>
+            <Badge variant="outline" className="text-[10px]">WIP</Badge>
+          </div>
+          <div className={compact ? "text-xs text-muted-foreground leading-relaxed" : "text-[12px] text-muted-foreground leading-snug truncate"}>
+            Isometric world map with terrain, facilities, resources, and nature.
           </div>
         </CardContent>
       </Card>
@@ -442,10 +488,10 @@ export default function Home() {
       <div className="max-w-5xl mx-auto px-4 py-12 xl:pr-[24rem]">
         <div className="flex items-start justify-between mb-10 gap-4">
           <div className="min-w-0">
-            <h1 className="text-4xl font-bold text-foreground tracking-tight">Kingdom Adventures</h1>
+            <h1 className="text-4xl font-bold text-foreground tracking-tight">Kingdom Adventurers</h1>
             <div className="mt-2 max-w-3xl space-y-2 text-sm leading-relaxed text-muted-foreground">
               <p>
-                Kingdom Adventures Community Tools is a searchable reference site for jobs, equipment, shops,
+                Kingdom Adventurers Community Tools is a searchable reference site for jobs, equipment, shops,
                 monsters, pets, events, maps, guides, and planning calculators.
               </p>
               <p>
@@ -459,16 +505,24 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mb-8 xl:pr-[24rem]">
-          <div className="grid grid-cols-2 gap-3 xl:hidden">
+        <div className="mb-10 xl:pr-[24rem]">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
             <HomeCountdownBanner />
-            <HomeWorldMapCard compact />
+            <div className="space-y-5">
+              <HomeWorldMapCard compact />
+              <HomeWorldMapV2Card compact />
+            </div>
           </div>
         </div>
 
-        <div className="hidden xl:block fixed right-6 top-28 w-[320px] 2xl:right-10 z-20 space-y-4">
+        <div className="hidden xl:block fixed right-6 top-28 w-[320px] 2xl:right-10 z-20">
           <HomeCountdownBanner />
-          <HomeWorldMapCard />
+          <div className="mt-5">
+            <HomeWorldMapCard />
+          </div>
+          <div className="mt-4">
+            <HomeWorldMapV2Card />
+          </div>
         </div>
 
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tools</h2>
@@ -551,7 +605,7 @@ export default function Home() {
         )}
 
         <div className="mt-12 pt-6 border-t border-border text-xs text-muted-foreground flex items-center justify-between gap-4 flex-wrap">
-          <span>Kingdom Adventures - open source tools</span>
+          <span>Kingdom Adventurers - open source tools</span>
           <div className="flex items-center gap-4">
             <button onClick={() => setCreditsOpen(true)} className="flex items-center gap-1 hover:text-foreground transition-colors">
               <BookOpen className="w-3 h-3" /> Credits
@@ -574,3 +628,4 @@ export default function Home() {
     </div>
   );
 }
+

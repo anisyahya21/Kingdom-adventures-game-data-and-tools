@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import QRCode from "qrcode";
-import { Bell, BriefcaseBusiness, CalendarDays, Clock3, Gem, Trophy, Wand2, Award, AlertTriangle, Plus, Minus, ExternalLink, Smartphone } from "lucide-react";
+import { Bell, BriefcaseBusiness, CalendarDays, Clock3, Trophy, Wand2, Award, AlertTriangle, Plus, Minus, ExternalLink, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,12 +12,14 @@ import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventSta
 import { isWarioDungeonLive } from "@/pages/wario-dungeon";
 import { getFacilityIcon } from "@/lib/equipment-icons";
 
+const GACHA_BUTTON_X4_ICON = "/website_icons/requested/gacha_button_x4.png";
+
 const EVENT_CARDS = [
   {
     href: "/gacha-events",
     title: "Gacha Events",
     description: "Featured S-rank jobs, S facilities, Kairo windows, and weapon banner timing.",
-    icon: Gem,
+    customIcon: GACHA_BUTTON_X4_ICON,
     status: "live" as EventStatus,
   },
   {
@@ -157,7 +159,7 @@ export default function TimedEventsPage() {
           <h1 className="text-xl font-bold tracking-tight">Events</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Kingdom Adventures event hub for weekly conquest, gacha windows, Wairo Dungeon,
+          Kingdom Adventurers event hub for weekly conquest, gacha windows, Wairo Dungeon,
           daily rank rewards, Kairo Room, and Job Center schedules.
         </p>
       </div>
@@ -212,7 +214,9 @@ export default function TimedEventsPage() {
             <Card className={`h-full shadow-sm transition-all overflow-hidden ${eventStatusCardClass(status)} ${card.disabled ? "opacity-75" : "hover:shadow-md hover:border-primary/30 cursor-pointer"}`}>
               <div className="flex h-full">
                 <div className="flex-none w-20 self-stretch flex items-center justify-center bg-muted/30 border-r border-border p-2">
-                  {facIcon
+                  {card.customIcon
+                    ? <img src={card.customIcon} alt="" className="w-full h-full object-contain" style={{ imageRendering: "pixelated" }} />
+                    : facIcon
                     ? <img src={facIcon} alt="" className="w-full h-full object-contain" style={{ imageRendering: "pixelated" }} />
                     : <card.icon className="w-8 h-8 text-primary" />}
                 </div>
@@ -237,3 +241,4 @@ export default function TimedEventsPage() {
     </div>
   );
 }
+

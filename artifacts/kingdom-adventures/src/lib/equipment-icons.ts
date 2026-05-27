@@ -1,10 +1,97 @@
 ﻿import iconManifest from "../../../../website_icons/manifest.json";
+import facilityIconManifest from "../../../../website_icons/facilities_confirmed/manifest.json";
+
+type ManifestVariant = { index?: number; filename?: string };
+type ManifestFurnitureEntry = {
+  name: string;
+  filename: string;
+  variants?: ManifestVariant[];
+};
+type ManifestFacilityEntry = {
+  id: number;
+  name?: string;
+  filename: string;
+  variants?: ManifestVariant[];
+};
+type ConfirmedFacilityIconEntry = {
+  id: number;
+  name?: string;
+  filename: string;
+};
+type ConfirmedFacilityManifest = {
+  icons?: ConfirmedFacilityIconEntry[];
+};
+
+const ICON_CACHE_VERSION = "20260526r1";
+
+function normalizeIconName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function normalizeItemLookupName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/<pic=([^>]+)>/g, "$1 ")
+    .replace(/^(?:\d+\s*x\s*|x\s*\d+\s*)/i, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const FURNITURE_VARIANT2_PREFERRED = new Set([
+  "cash register",
+  "cash rigister",
+  "ancestor statue",
+  "study desk",
+  "fireplace",
+  "stove",
+  "vanity mirror",
+  "animal figurine",
+  "candle",
+  "flower",
+  "flowers",
+  "flower vase",
+  "kitchen shelves",
+  "chest of drawers",
+  "shelf",
+  "dresser",
+  "decorative armor",
+  "decortaive armor",
+  "tool workshop",
+  "chair",
+  "ore workbench",
+  "ore wirkbench",
+  "shooting range",
+  "training room",
+]);
+
+function pickVariantFilename(
+  variants: ManifestVariant[] | undefined,
+  preferredVariantIndex: number,
+  fallbackFilename: string,
+): string {
+  if (!Array.isArray(variants) || variants.length === 0) {
+    return fallbackFilename;
+  }
+
+  const exact = variants.find(
+    (variant) => variant.index === preferredVariantIndex && typeof variant.filename === "string" && variant.filename.length > 0,
+  );
+  if (exact?.filename) {
+    return exact.filename;
+  }
+
+  const first = variants.find((variant) => typeof variant.filename === "string" && variant.filename.length > 0);
+  return first?.filename ?? fallbackFilename;
+}
 
 // Build equipment name to icon path lookup from manifest
 const equipmentIconLookup = new Map<string, string>();
 if (iconManifest && iconManifest.equipment) {
   for (const equip of iconManifest.equipment) {
-    const iconPath = `/website_icons/equipment/${equip.filename}?v=20260515r4`;
+    const iconPath = `/website_icons/equipment/${equip.filename}?v=${ICON_CACHE_VERSION}`;
     // Store with original name
     equipmentIconLookup.set(equip.name, iconPath);
     // Also store with slash format (e.g., "A/ Ancient Sword")
@@ -95,37 +182,20 @@ export function getEquipmentIcon(icons: EquipmentIconMap, name: string | undefin
   return publicEquipmentIconUrl(name);
 }
 
-// Map from <pic=X> tag to display word, used for pouch aliases
-const PIC_TAG_TO_WORD: Record<string, string> = {
-  grass: "Grass",
-  wood: "Wood",
-  food: "Food",
-  iron: "Iron",
-  magic: "Magic",
-};
-
-/** Converts a raw item name from game data into a clean display name.
- *  "<pic=grass> Pouch" => "Grass Pouch", others unchanged. */
-function toItemDisplayName(name: string): string {
-  return name.replace(/^<pic=(\w+)>\s*/i, (_, key: string) => {
-    const word = PIC_TAG_TO_WORD[key.toLowerCase()] ?? (key.charAt(0).toUpperCase() + key.slice(1).toLowerCase());
-    return word + " ";
-  }).trim();
-}
-
 // Build item name to icon path lookup from manifest
 const itemIconLookup = new Map<string, string>();
 if (iconManifest && iconManifest.items) {
   for (const item of iconManifest.items) {
-    const iconPath = item.filename.includes("/") ? `/website_icons/${item.filename}?v=20260515r4` : `/website_icons/items/${item.filename}?v=20260515r4`;
+    const rawFilename = String(item.filename ?? "").trim();
+    if (!rawFilename) continue;
+    // Some manifest entries are stored under logical folders (for example, valuable/*)
+    // while exported website files live under /website_icons/<folder>/...
+    const iconPath = rawFilename.includes("/")
+      ? `/website_icons/${rawFilename}?v=${ICON_CACHE_VERSION}`
+      : `/website_icons/items/${rawFilename}?v=${ICON_CACHE_VERSION}`;
     itemIconLookup.set(item.name, iconPath);
     itemIconLookup.set(item.name.toLowerCase(), iconPath);
-    // Register clean alias for pic-tag names (e.g. "<pic=grass> Pouch" -> "Grass Pouch")
-    const alias = toItemDisplayName(item.name);
-    if (alias !== item.name) {
-      itemIconLookup.set(alias, iconPath);
-      itemIconLookup.set(alias.toLowerCase(), iconPath);
-    }
+    itemIconLookup.set(normalizeItemLookupName(item.name), iconPath);
   }
 }
 
@@ -133,10 +203,10 @@ if (iconManifest && iconManifest.items) {
 const eggIconLookup = new Map<string, string>();
 if (iconManifest && iconManifest.eggs) {
   for (const egg of iconManifest.eggs) {
-    const iconPath = `/website_icons/eggs/${egg.filename}?v=20260515r4`;
-    // Map full name "White Egg" â†’ path
+    const iconPath = `/website_icons/eggs/${egg.filename}?v=${ICON_CACHE_VERSION}`;
+    // Map full name "White Egg" → path
     eggIconLookup.set(egg.name, iconPath);
-    // Map color-only "White" â†’ path (strip " Egg" suffix)
+    // Map color-only "White" → path (strip " Egg" suffix)
     const colorOnly = egg.name.replace(/ Egg$/, "");
     eggIconLookup.set(colorOnly, iconPath);
     eggIconLookup.set(colorOnly.toLowerCase(), iconPath);
@@ -146,15 +216,16 @@ if (iconManifest && iconManifest.eggs) {
 export function getItemIcon(name: string | undefined | null): string | undefined {
   if (!name) return undefined;
   const clean = name.trim();
-  // Direct lookup
-  const direct = itemIconLookup.get(clean) ?? itemIconLookup.get(clean.toLowerCase());
-  if (direct) return direct;
-  // Strip leading quantity prefix ("2x ", "3x ", "Nx ", etc.) and retry
-  const stripped = clean.replace(/^\d+x\s+/i, "");
-  if (stripped !== clean) {
-    return itemIconLookup.get(stripped) ?? itemIconLookup.get(stripped.toLowerCase());
+  if (!clean) return undefined;
+  const normalized = normalizeItemLookupName(clean);
+  if (normalized === "blessed rain") {
+    return `/website_icons/items/item_058.png?v=${ICON_CACHE_VERSION}`;
   }
-  return undefined;
+  return (
+    itemIconLookup.get(clean)
+    ?? itemIconLookup.get(clean.toLowerCase())
+    ?? itemIconLookup.get(normalized)
+  );
 }
 
 export function getEggIconByColor(colorName: string | undefined | null): string | undefined {
@@ -163,36 +234,71 @@ export function getEggIconByColor(colorName: string | undefined | null): string 
   return eggIconLookup.get(clean) ?? eggIconLookup.get(clean.replace(/ Egg$/, "")) ?? eggIconLookup.get(clean.toLowerCase());
 }
 
+// Build facility ID to icon path lookup from manifest
+const facilityIconLookup = new Map<number, string>();
+const facilityNameIconLookup = new Map<string, string>();
+
+if (facilityIconManifest && Array.isArray((facilityIconManifest as ConfirmedFacilityManifest).icons)) {
+  for (const icon of (facilityIconManifest as ConfirmedFacilityManifest).icons as ConfirmedFacilityIconEntry[]) {
+    if (typeof icon.id !== "number" || !Number.isFinite(icon.id)) continue;
+    if (typeof icon.filename !== "string" || icon.filename.length === 0) continue;
+    const iconPath = `/website_icons/facilities_confirmed/${icon.filename}?v=${ICON_CACHE_VERSION}`;
+    facilityIconLookup.set(icon.id, iconPath);
+    if (typeof icon.name === "string" && icon.name.trim().length > 0) {
+      facilityNameIconLookup.set(normalizeIconName(icon.name), iconPath);
+    }
+  }
+}
+
+if (iconManifest && (iconManifest as Record<string, unknown>).facilities) {
+  for (const facility of (iconManifest as Record<string, unknown>).facilities as ManifestFacilityEntry[]) {
+    if (typeof facility.id !== "number" || !Number.isFinite(facility.id)) continue;
+    if (!facility.filename) continue;
+    const chosenFilename = pickVariantFilename(facility.variants, 1, facility.filename);
+    const iconPath = `/website_icons/facilities_confirmed/${chosenFilename}?v=${ICON_CACHE_VERSION}`;
+    if (!facilityIconLookup.has(facility.id)) {
+      facilityIconLookup.set(facility.id, iconPath);
+    }
+    if (typeof facility.name === "string" && facility.name.trim().length > 0) {
+      const normalizedName = normalizeIconName(facility.name);
+      if (!facilityNameIconLookup.has(normalizedName)) {
+        facilityNameIconLookup.set(normalizedName, iconPath);
+      }
+    }
+  }
+}
+
+export function getFacilityIcon(id: number | undefined | null): string | undefined {
+  if (typeof id !== "number" || !Number.isFinite(id)) return undefined;
+  return facilityIconLookup.get(id);
+}
+
+export function getFacilityIconByName(name: string | undefined | null): string | undefined {
+  if (!name) return undefined;
+  const normalizedName = normalizeIconName(name);
+  return facilityNameIconLookup.get(normalizedName);
+}
+
 // Build furniture name to icon path lookup from manifest
 const furnitureIconLookup = new Map<string, string>();
 if (iconManifest && (iconManifest as Record<string, unknown>).furniture) {
-  for (const item of (iconManifest as Record<string, unknown>).furniture as Array<{ name: string; filename: string }>) {
-    const iconPath = `/website_icons/furniture/${item.filename}?v=20260515r5`;
+  for (const item of (iconManifest as Record<string, unknown>).furniture as ManifestFurnitureEntry[]) {
+    const normalizedName = normalizeIconName(item.name);
+    const preferredVariant = FURNITURE_VARIANT2_PREFERRED.has(normalizedName) ? 2 : 1;
+    const chosenFilename = pickVariantFilename(item.variants, preferredVariant, item.filename);
+    const iconPath = `/website_icons/furniture/${chosenFilename}?v=${ICON_CACHE_VERSION}`;
     furnitureIconLookup.set(item.name, iconPath);
     furnitureIconLookup.set(item.name.toLowerCase(), iconPath);
+    furnitureIconLookup.set(normalizedName, iconPath);
   }
 }
 
 export function getFurnitureIcon(name: string | undefined | null): string | undefined {
   if (!name) return undefined;
   const clean = name.trim();
-  return furnitureIconLookup.get(clean) ?? furnitureIconLookup.get(clean.toLowerCase());
-}
-
-
-// Build facility id to icon path lookup from manifest
-const facilityIconLookup = new Map<number, string>();
-if (iconManifest && (iconManifest as Record<string, unknown>).facilities) {
-  for (const fac of (iconManifest as Record<string, unknown>).facilities as Array<{ id: number; type: string; name: string; filename: string }>) {
-    const iconPath = `/website_icons/facilities_confirmed/${fac.filename}?v=20260515r1`;
-    // Prefer facility-type over mapchip-type on ID collision
-    if (fac.type === 'facility' || !facilityIconLookup.has(fac.id)) {
-      facilityIconLookup.set(fac.id, iconPath);
-    }
-  }
-}
-
-export function getFacilityIcon(id: number | undefined | null): string | undefined {
-  if (id == null) return undefined;
-  return facilityIconLookup.get(id);
+  return (
+    furnitureIconLookup.get(clean) ??
+    furnitureIconLookup.get(clean.toLowerCase()) ??
+    furnitureIconLookup.get(normalizeIconName(clean))
+  );
 }

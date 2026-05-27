@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, BellOff, Check, ChevronDown, Clock3, Info, Loader2, Minus, Plus, RefreshCw, Search, Share, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -463,7 +463,7 @@ export default function EventReminderAppPage() {
         <div className="sticky top-0 z-10 -mx-4 bg-black/90 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-300">Kingdom Adventures</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-300">Kingdom Adventurers</div>
               <h1 className="text-2xl font-bold tracking-tight">Event Reminders</h1>
             </div>
             <button type="button" onClick={refresh} className="grid h-11 w-11 place-items-center rounded-full bg-slate-900" aria-label="Refresh">
@@ -573,3 +573,4 @@ export default function EventReminderAppPage() {
     </main>
   );
 }
+

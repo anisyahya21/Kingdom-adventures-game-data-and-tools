@@ -1,0 +1,99 @@
+{
+  "sheet": "rank_2x.png",
+  "cols": 7,
+  "cellWidth": 32,
+  "cellHeight": 32,
+  "icons": [
+    {
+      "id": 1,
+      "name": "Rank F",
+      "rankLabel": "F",
+      "filename": "rank_f.png",
+      "srcX": 0,
+      "srcY": 0,
+      "srcW": 32,
+      "srcH": 32,
+      "cropW": 19,
+      "cropH": 24,
+      "sheet": "rank_2x.png"
+    },
+    {
+      "id": 2,
+      "name": "Rank E",
+      "rankLabel": "E",
+      "filename": "rank_e.png",
+      "srcX": 32,
+      "srcY": 0,
+      "srcW": 32,
+      "srcH": 32,
+      "cropW": 20,
+      "cropH": 24,
+      "sheet": "rank_2x.png"
+    },
+    {
+      "id": 3,
+      "name": "Rank D",
+      "rankLabel": "D",
+      "filename": "rank_d.png",
+      "srcX": 64,
+      "srcY": 0,
+      "srcW": 32,
+      "srcH": 32,
+      "cropW": 20,
+      "cropH": 24,
+      "sheet": "rank_2x.png"
+    },
+    {
+      "id": 4,
+      "name": "Rank C",
+      "rankLabel": "C",
+      "filename": "rank_c.png",
+      "srcX": 96,
+      "srcY": 0,
+      "srcW": 32,
+      "srcH": 32,
+      "cropW": 20,
+      "cropH": 24,
+      "sheet": "rank_2x.png"
+    },
+    {
+      "id": 5,
+      "name": "Rank B",
+      "rankLabel": "B",
+      "filename": "rank_b.png",
+      "srcX": 128,
+      "srcY": 0,
+      "srcW": 32,
+      "srcH": 32,
+      "cropW": 20,
+      "cropH": 24,
+      "sheet": "rank_2x.png"
+    },
+    {
+      "id": 6,
+      "name": "Rank A",
+      "rankLabel": "A",
+      "filename": "rank_a.png",
+      "srcX": 160,
+      "srcY": 0,
+      "srcW": 32,
+      "srcH": 32,
+      "cropW": 20,
+      "cropH": 24,
+      "sheet": "rank_2x.png"
+    },
+    {
+      "id": 7,
+      "name": "Rank S",
+      "rankLabel": "S",
+      "filename": "rank_s.png",
+      "srcX": 192,
+      "srcY": 0,
+      "srcW": 32,
+      "srcH": 32,
+      "cropW": 20,
+      "cropH": 24,
+      "sheet": "rank_2x.png"
+    }
+  ]
+}

@@ -5,10 +5,12 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
+import RuntimeWorldRenderTestPage from "@/pages/runtime-world-render-test";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { buildLocalAutomaticWeeklyConquestTimeline, fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { apiUrl } from "@/lib/api";
-import { getEquipmentIcon } from "@/lib/equipment-icons";
+import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
 import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
 import { cn } from "@/lib/utils";
 import {
@@ -425,6 +427,7 @@ export default function WeeklyConquestPage() {
   const { data, isLoading } = useSharedData();
   const monsters = data?.monsters ?? {};
   const equipIcons = data?.equipIcons ?? {};
+  const diamondsIcon = getItemIcon("Diamonds");
   const fallbackWeeklyConquest: WeeklyConquest = data?.weeklyConquest ?? null;
   const [showConquestCalendar, setShowConquestCalendar] = useState(false);
   const [timeNow, setTimeNow] = useState(() => Date.now());
@@ -432,6 +435,7 @@ export default function WeeklyConquestPage() {
   const [deploymentQuery, setDeploymentQuery] = useState("");
   const [deploymentOpen, setDeploymentOpen] = useState(false);
   const [disabledMapMonsters, setDisabledMapMonsters] = useState<string[]>([]);
+  const [showLevelsOverlay, setShowLevelsOverlay] = useState(false);
   const [communitySightings] = useState<Record<string, CommunitySighting[]>>(() => readCommunitySightings());
   const [coveredConquestAreas, setCoveredConquestAreas] = useState<string[]>(() => {
     try {
@@ -460,6 +464,10 @@ export default function WeeklyConquestPage() {
   const weeklyConquest: WeeklyConquest = browsedConquest
     ? { monsters: browsedConquest.monsters, reward: browsedConquest.reward }
     : fallbackWeeklyConquest;
+  const hasJobReward = Boolean(weeklyConquest?.reward?.jobName && weeklyConquest?.reward?.jobRank);
+  const equipmentRewardIcon = weeklyConquest?.reward?.equipment
+    ? getEquipmentIcon(equipIcons, weeklyConquest.reward.equipment)
+    : undefined;
 
   const conquestMeta = browsedConquest
     ? {
@@ -508,6 +516,27 @@ export default function WeeklyConquestPage() {
         : [...current, monsterName]
     ));
   }, []);
+
+  const weeklyMonsterStyles = useMemo(() => getWeeklyMonsterStyles(weeklyMonsterEntries), [weeklyMonsterEntries]);
+
+  const weeklyCoverageAreas = useMemo(() => {
+    const coverage: Array<{ area: string; level: number }> = [];
+    for (const entry of weeklyMonsterEntries) {
+      if (disabledMapMonsters.includes(entry.name)) {
+        continue;
+      }
+      for (const spawn of entry.spawns) {
+        if (!spawn.area || spawn.area.toLowerCase() === "dispatch") {
+          continue;
+        }
+        coverage.push({
+          area: spawn.area,
+          level: spawn.level,
+        });
+      }
+    }
+    return coverage;
+  }, [disabledMapMonsters, weeklyMonsterEntries]);
 
   const conquestCountdown = useMemo(() => {
     if (!browsedConquest || !isOngoingEvent) return "";
@@ -666,37 +695,46 @@ export default function WeeklyConquestPage() {
                     <p className="text-xs font-semibold text-muted-foreground">Event Reward</p>
                     {isOngoingEvent ? <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">Ongoing event</span> : null}
                   </div>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {weeklyConquest?.reward?.jobName ? (
-                      <span className="inline-flex items-center gap-1.5 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-full px-3 py-1 text-[10px] font-medium">
-                        <Trophy className="w-3 h-3" />{weeklyConquest.reward.jobRank} - {weeklyConquest.reward.jobName}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-[10px] text-muted-foreground/50">
-                        <Trophy className="w-3 h-3" />Job reward - not set
-                      </span>
-                    )}
-                    {weeklyConquest?.reward && weeklyConquest.reward.diamonds > 0 ? (
-                      <span className="inline-flex items-center gap-1.5 bg-sky-100 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 rounded-full px-3 py-1 text-[10px] font-medium">
-                        <Diamond className="w-3 h-3" />{weeklyConquest.reward.diamonds.toLocaleString()} Diamonds
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-[10px] text-muted-foreground/50">
-                        <Diamond className="w-3 h-3" />Diamonds - not set
-                      </span>
-                    )}
-                    {weeklyConquest?.reward?.equipment ? (
-                      <span className="inline-flex items-center gap-1.5 bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 rounded-full px-3 py-1 text-[10px] font-medium">
-                        {getEquipmentIcon(equipIcons, weeklyConquest.reward.equipment) && (
-                          <img src={getEquipmentIcon(equipIcons, weeklyConquest.reward.equipment)} alt="" className="h-4 w-4 rounded object-contain" />
+                  <div className="mt-2.5 grid grid-cols-3 gap-2">
+                    <div className="rounded-md border border-border/60 bg-background/45 px-2 py-2 text-center">
+                      <p className="text-[10px] font-semibold text-muted-foreground">{hasJobReward ? `${weeklyConquest!.reward.jobRank} - ${weeklyConquest!.reward.jobName}` : "Job reward - not set"}</p>
+                      <div className="mt-1.5 flex h-12 items-center justify-center">
+                        {hasJobReward ? (
+                          <CharacterPreviewCanvas
+                            jobName={weeklyConquest!.reward.jobName}
+                            rank={weeklyConquest!.reward.jobRank}
+                            variant={1}
+                            equipState="right"
+                            scale={2}
+                            poseFrame={0}
+                            label="Weekly conquest male job reward"
+                            className="h-11 w-auto"
+                          />
+                        ) : (
+                          <Trophy className="h-7 w-7 text-muted-foreground/50" />
                         )}
-                        {weeklyConquest.reward.equipment}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 border border-dashed border-border rounded-full px-3 py-1 text-[10px] text-muted-foreground/50">
-                        Equipment - not set
-                      </span>
-                    )}
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-border/60 bg-background/45 px-2 py-2 text-center">
+                      <p className="text-[10px] font-semibold text-muted-foreground">{weeklyConquest?.reward && weeklyConquest.reward.diamonds > 0 ? `${weeklyConquest.reward.diamonds.toLocaleString()} Diamonds` : "Diamonds - not set"}</p>
+                      <div className="mt-1.5 flex h-12 items-center justify-center">
+                        {diamondsIcon ? (
+                          <img src={diamondsIcon} alt="" className="h-10 w-10 object-contain" style={{ imageRendering: "pixelated" }} />
+                        ) : (
+                          <Diamond className="h-7 w-7 text-muted-foreground/50" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-border/60 bg-background/45 px-2 py-2 text-center">
+                      <p className="text-[10px] font-semibold text-muted-foreground">{weeklyConquest?.reward?.equipment ? weeklyConquest.reward.equipment : "Equipment - not set"}</p>
+                      <div className="mt-1.5 flex h-12 items-center justify-center">
+                        {equipmentRewardIcon ? (
+                          <img src={equipmentRewardIcon} alt="" className="h-11 w-11 object-contain" style={{ imageRendering: "pixelated" }} />
+                        ) : (
+                          <Trophy className="h-7 w-7 text-muted-foreground/50" />
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -857,13 +895,81 @@ export default function WeeklyConquestPage() {
                   })}
                 </div>
 
-                <WeeklySpawnMiniMap
-                  entries={weeklyMonsterEntries}
-                  disabledMonsters={disabledMapMonsters}
-                  coveredAreaKeys={coveredConquestAreas}
-                  onToggleMonster={toggleMapMonster}
-                  onToggleArea={toggleConquestArea}
-                />
+                <Card className="overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Weekly Conquest World Map (V2)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    <div className="mb-2 rounded-lg border border-border bg-muted/10 p-2">
+                      <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Weekly Spawn Map</p>
+                      <div className="flex flex-wrap items-start gap-2">
+                        {weeklyMonsterEntries.map((entry, index) => {
+                          const selected = !disabledMapMonsters.includes(entry.name);
+                          const monsterStyle = weeklyMonsterStyles.get(entry.name) ?? {
+                            color: FALLBACK_MONSTER_COLORS[index % FALLBACK_MONSTER_COLORS.length],
+                            patternIndex: index,
+                          };
+                          const textColor = getReadableTextColor(monsterStyle.color);
+                          return (
+                            <button
+                              key={entry.name}
+                              type="button"
+                              onClick={() => toggleMapMonster(entry.name)}
+                              aria-pressed={selected}
+                              className={cn(
+                                "flex w-[86px] flex-col items-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-semibold leading-tight transition-colors",
+                                selected
+                                  ? "border-primary/70 ring-1 ring-primary/40"
+                                  : "border-border bg-muted/20 text-muted-foreground/80",
+                              )}
+                              style={selected ? { backgroundColor: monsterStyle.color, backgroundImage: getSelectorPatternBackground(monsterStyle), color: textColor } : undefined}
+                            >
+                              <span className="h-11 w-11 overflow-hidden rounded border border-black/15 bg-background/40">
+                                {entry.monster?.icon ? (
+                                  <img src={entry.monster.icon} alt="" className="h-full w-full object-cover object-center" loading="lazy" />
+                                ) : (
+                                  <span className="flex h-full w-full items-center justify-center">
+                                    <Trophy className="w-3.5 h-3.5 opacity-50" />
+                                  </span>
+                                )}
+                              </span>
+                              <span className="line-clamp-2 min-h-[1.5rem] break-words">{entry.name}</span>
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => setShowLevelsOverlay((previous) => !previous)}
+                          aria-pressed={showLevelsOverlay}
+                          className={cn(
+                            "flex w-[86px] flex-col items-center justify-center gap-1 rounded-md border px-1.5 py-1 text-[10px] font-semibold leading-tight transition-colors min-h-[78px]",
+                            showLevelsOverlay
+                              ? "border-primary/70 bg-primary/25 text-primary ring-1 ring-primary/40"
+                              : "border-border bg-muted/20 text-muted-foreground/80",
+                          )}
+                        >
+                          <span className="inline-flex rounded-sm border border-current px-1 py-0.5 text-[10px]">123</span>
+                          <span className="line-clamp-2 min-h-[1.5rem] break-words">Show levels</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <RuntimeWorldRenderTestPage
+                      publicMode
+                      initialZoom={0.28}
+                      showLevelOverlay={showLevelsOverlay}
+                      hideNatureToggleButtons
+                      dimUncoveredConquestAreas
+                      conquestCoverageAreas={weeklyCoverageAreas}
+                      initialNatureVisibility={{
+                        terrain: false,
+                        resources: false,
+                        humans: false,
+                        special: false,
+                      }}
+                    />
+                  </CardContent>
+                </Card>
               </div>
             </CardContent>
           </Card>

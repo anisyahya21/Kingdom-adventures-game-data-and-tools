@@ -90,6 +90,7 @@ type DeploymentSize = 2 | 3 | 4 | 5 | 6;
 type PaintMode = "mark" | "erase";
 type ReclaimMode = "reclaim" | "restore";
 type LayerKey = "levels" | "poi" | "deployments" | "reclaimed" | "grid" | "roads" | "water" | "facilities" | "chaos_setup";
+type MapViewMode = "visual" | "logic";
 type ChaosSetupPiece = "info_board" | "chaos_stone";
 type TownHallPlacement = { x: number; y: number; level: number };
 
@@ -261,7 +262,7 @@ const OUTLINE_BORDER = "#2563eb";
 const PREVIEW_ORANGE = "rgba(251,146,60,0.95)";
 const DEFAULT_TILE_SIZE = 5;
 const BASE_TILE_SIZE = DEFAULT_TILE_SIZE;
-const MIN_TILE_SIZE = 2;
+const MIN_TILE_SIZE = 0.5;
 const MOBILE_MIN_TILE_SIZE = 0.25;
 const MIN_TILE_SIZE_FULLSCREEN_FILL = false; // allow deeper zoom-out in fullscreen mode
 const MAX_TILE_SIZE = 24;
@@ -293,6 +294,28 @@ const LAYER_LABELS: Record<LayerKey, string> = {
   grid: "Grid",
   roads: "Roads",
   water: "Water",
+};
+const VISUAL_MAP_LAYERS: Record<LayerKey, boolean> = {
+  levels: false,
+  poi: false,
+  deployments: false,
+  reclaimed: false,
+  grid: false,
+  roads: true,
+  water: true,
+  facilities: true,
+  chaos_setup: true,
+};
+const LOGIC_MAP_LAYERS: Record<LayerKey, boolean> = {
+  levels: true,
+  poi: true,
+  deployments: true,
+  reclaimed: true,
+  grid: true,
+  roads: true,
+  water: true,
+  facilities: true,
+  chaos_setup: true,
 };
 
 // Map facilities: unlocked by clearing a zone with the matching level
@@ -840,6 +863,7 @@ export default function WorldMapPage() {
   const [deployedTiles, setDeployedTiles] = useState<Map<string, number>>(() => new Map());
   const [roadTiles, setRoadTiles] = useState<Set<string>>(() => new Set());
   const [isPainting, setIsPainting] = useState(false);
+  const [mapViewMode, setMapViewMode] = useState<MapViewMode>("visual");
 
   function incrementDeploymentCount(next: Map<string, number>, key: string) {
     next.set(key, (next.get(key) ?? 0) + 1);
@@ -875,17 +899,7 @@ export default function WorldMapPage() {
   const [townhallPlacement, setTownhallPlacement] = useState<TownHallPlacement | null>(null);
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [chaosSetupPiece, setChaosSetupPiece] = useState<ChaosSetupPiece>("info_board");
-  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({
-    levels: false,
-    poi: true,
-    deployments: true,
-    reclaimed: true,
-    grid: false,
-    roads: true,
-    water: true,
-    facilities: false,
-    chaos_setup: true,
-  });
+  const [layers, setLayers] = useState<Record<LayerKey, boolean>>(() => ({ ...VISUAL_MAP_LAYERS }));
   const [historyPast, setHistoryPast] = useState<HistoryState[]>([]);
   const [historyFuture, setHistoryFuture] = useState<HistoryState[]>([]);
   const [isPanning, setIsPanning] = useState(false);
@@ -2693,6 +2707,14 @@ export default function WorldMapPage() {
     if (tool === "draw_area" && brushSize < 2) setBrushSize(2);
   }
 
+  function applyMapViewMode(mode: MapViewMode) {
+    setMapViewMode(mode);
+    setLayers(mode === "visual" ? { ...VISUAL_MAP_LAYERS } : { ...LOGIC_MAP_LAYERS });
+    setShowSurveys(mode === "logic");
+    scheduleRender();
+    flashNotice(mode === "visual" ? "Visual map mode" : "Logic overlay mode");
+  }
+
   async function exportToClipboard() {
     try {
       const text = encodeState(outlinedTiles, reclaimedTiles, deployedTiles, roadTiles, penTiles, chaosSetupTiles);
@@ -4058,6 +4080,21 @@ export default function WorldMapPage() {
                 <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">Map layers</div>
                 <button className="h-7 rounded-md px-2 text-xs hover:bg-white/10" onClick={() => setFloatingLayersOpen(false)} title="Close layers">Close</button>
               </div>
+              <div className="mb-2 grid grid-cols-2 gap-1 rounded-md border border-white/10 p-1">
+                {(["visual", "logic"] as MapViewMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    className="h-8 rounded-md px-2 text-xs font-semibold transition-colors hover:bg-white/10"
+                    style={{
+                      background: mapViewMode === mode ? "rgba(59,130,246,0.9)" : "transparent",
+                      color: mapViewMode === mode ? "#fff" : "rgba(255,255,255,0.72)",
+                    }}
+                    onClick={() => applyMapViewMode(mode)}
+                  >
+                    {mode === "visual" ? "Visual" : "Logic"}
+                  </button>
+                ))}
+              </div>
               <div className="grid grid-cols-2 gap-1">
                 {layerOrder.map((layer) => (
                   <button
@@ -4496,7 +4533,6 @@ export default function WorldMapPage() {
     <Dialog open={screenshotDialogOpen} onOpenChange={(open) => { if (screenshotStatus !== "working") { if (!open) clearScreenshotPreview(); setScreenshotDialogOpen(open); } }}>
       <DialogContent
         className="w-[min(96vw,720px)] max-w-[min(96vw,720px)] max-h-[90vh] overflow-y-auto p-4 sm:p-6"
-        container={isFullscreen ? fullscreenContainerRef.current : undefined}
       >
         <DialogHeader>
           <DialogTitle>Map screenshot</DialogTitle>
@@ -4711,7 +4747,7 @@ export default function WorldMapPage() {
               <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
                 Map data pulled from{" "}
                 <a href="https://docs.google.com/spreadsheets/d/1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A/edit?gid=1473922384#gid=1473922384" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">Map full</a>
-                {" "}by minhnim (Kingdom Adventures EN Sheet) Â· terrain from{" "}
+                {" "}by minhnim (Kingdom Adventurers EN Sheet) Â· terrain from{" "}
                 <a href="https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/edit?gid=1631803140#gid=1631803140" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">KA GameData</a>
               </p>
 
@@ -5110,5 +5146,6 @@ export default function WorldMapPage() {
     </>
   );
 }
+
 
 

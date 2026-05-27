@@ -4,11 +4,26 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "pnpm run icons:verify",
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
+    "prebuild": "pnpm run icons:verify",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
+    "icons:verify": "node scripts/verify-website-icons.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "architecture:check": "node scripts/architecture-checks.mjs"
+    "architecture:check": "node scripts/architecture-checks.mjs",
+    "analyze:map-section-a": "node scripts/analyze-map-section-a.mjs",
+    "analyze:map-section-a:f3": "node scripts/analyze-map-section-a-f3.mjs",
+    "analyze:map-section-a:mapchip-correlation": "node scripts/analyze-map-section-a-mapchip-correlation.mjs",
+    "analyze:map-section-a:f2-mapchip-semantic-groups": "node scripts/analyze-mapchip-f2-semantic-groups.mjs",
+    "export:f2-semantic-layer-fixture": "node scripts/export-f2-semantic-layer-fixture.mjs",
+    "trace:facility-placement:townhall": "node scripts/trace-facility-placement-townhall.mjs",
+    "trace:facility-placement:townhall:real-map": "node scripts/trace-facility-placement-townhall-real-map.mjs",
+    "analyze:mapchip:visual-resolver": "node scripts/analyze-mapchip-visual-resolver.mjs",
+    "render:mapchip:projected-sample-region": "node scripts/render-mapchip-projected-sample-region.mjs",
+    "render:mapchip:projected-mixed-regions": "node scripts/render-mapchip-projected-mixed-regions.mjs",
+    "mutate:map-section-a:f3": "node scripts/mutate-map-section-a-f3.mjs",
+    "trace:section-a:native-readers": "node scripts/trace-section-a-native-readers.mjs"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

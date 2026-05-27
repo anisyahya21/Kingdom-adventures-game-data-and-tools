@@ -8,6 +8,7 @@ import { WairoFarmingCalculator } from "@/components/wairo-farming-calculator";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
+import { getSkillIcon } from "@/lib/skill-icons";
 
 export type WarioDungeonEntry = { day: number; hour: number };
 export type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
@@ -93,6 +94,7 @@ function formatCountdown(ms: number): string {
 
 export default function WarioDungeonPage() {
   const equipIcons = useEquipmentIcons();
+  const blessedRainIcon = getItemIcon("Blessed Rain") ?? "/website_icons/items/item_058.png";
   const [now, setNow] = useState(() => new Date());
   const [eventOffset] = useEventHourOffset();
 
@@ -185,8 +187,12 @@ export default function WarioDungeonPage() {
                                     <div className="flex items-center gap-2">
                                       {line.item === "F Rank Scholar" ? (
                                         <CharacterPreviewCanvas jobName="Scholar" rank="F" variant={1} equipState="right" scale={2} poseFrame={0} label="F Rank Scholar" className="h-10 w-auto shrink-0" />
+                                      ) : line.item === "Blessed Rain" ? (
+                                        <img src={blessedRainIcon} alt="" className="h-8 w-8 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                       ) : getEquipmentIcon(equipIcons, line.item) ? (
                                         <img src={getEquipmentIcon(equipIcons, line.item)} alt="" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                                      ) : getSkillIcon(line.item) ? (
+                                        <img src={getSkillIcon(line.item)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                       ) : getItemIcon(line.item) ? (
                                         <img src={getItemIcon(line.item)!} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                                       ) : (

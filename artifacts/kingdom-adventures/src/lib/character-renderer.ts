@@ -388,8 +388,17 @@ async function createRenderEnvelope(params: CharacterRenderParams): Promise<Rend
   const variant = clamp(params.variant, 0, 2);
   let weaponId = job.weapon;
   let shieldId = job.shield;
-  if (params.weaponName != null) weaponId = equipByName(rules, params.weaponName)?.id ?? -1;
-  if (params.shieldName != null) shieldId = equipByName(rules, params.shieldName)?.id ?? -1;
+  // `undefined` keeps job defaults; `null` explicitly means no gear.
+  if (params.weaponName === null) {
+    weaponId = -1;
+  } else if (params.weaponName != null) {
+    weaponId = equipByName(rules, params.weaponName)?.id ?? -1;
+  }
+  if (params.shieldName === null) {
+    shieldId = -1;
+  } else if (params.shieldName != null) {
+    shieldId = equipByName(rules, params.shieldName)?.id ?? -1;
+  }
 
   const hasEquipment = (weaponId != null && weaponId >= 0) || (shieldId != null && shieldId >= 0);
   const poseName = params.equipState === "up" ? "equip_wait_up.seb" : hasEquipment ? "equip_wait_right.seb" : "wait_right.seb";

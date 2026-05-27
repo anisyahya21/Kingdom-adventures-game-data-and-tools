@@ -252,6 +252,7 @@
 
 .ka-pixel-art,
 img[src^="/website_icons/"],
+img[src*="/website_icons/"],
 img[src^="/character_sprites/"] {
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
