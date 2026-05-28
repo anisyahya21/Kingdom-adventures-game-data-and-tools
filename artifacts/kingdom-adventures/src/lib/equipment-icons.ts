@@ -165,14 +165,6 @@ function publicEquipmentIconUrl(name: string): string | undefined {
 
 export function getEquipmentIcon(icons: EquipmentIconMap, name: string | undefined | null): string | undefined {
   if (!name) return undefined;
-
-  // User-uploaded icons should always override built-in defaults.
-  if (icons) {
-    for (const key of getEquipmentIconKeys(name)) {
-      const icon = icons[key];
-      if (icon) return icon;
-    }
-  }
   
   // First check the static equipment icon lookup from website_icons
   const cleanName = name.trim();
@@ -189,6 +181,14 @@ export function getEquipmentIcon(icons: EquipmentIconMap, name: string | undefin
   const dashName = toDashEquipmentName(cleanName);
   if (equipmentIconLookup.has(dashName)) {
     return equipmentIconLookup.get(dashName);
+  }
+
+  // Fallback to dynamic icon overrides if no canonical icon exists.
+  if (icons) {
+    for (const key of getEquipmentIconKeys(name)) {
+      const icon = icons[key];
+      if (icon) return icon;
+    }
   }
   
   // Last fallback to public cropped images
