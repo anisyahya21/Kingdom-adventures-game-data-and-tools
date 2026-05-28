@@ -23,6 +23,12 @@ type ConfirmedFacilityManifest = {
 };
 
 const ICON_CACHE_VERSION = "20260526r1";
+const FIXED_EQUIPMENT_ICON_BY_NAME: Record<string, string> = {
+  "B/ Legendary Shield (B)": "equip_192.png",
+  "B/ Legendary Shield (R)": "equip_198.png",
+  "E/ Hat (B)": "equip_235.png",
+  "E/ Hat (R)": "equip_237.png",
+};
 
 function normalizeIconName(value: string): string {
   return value
@@ -103,6 +109,13 @@ if (iconManifest && iconManifest.equipment) {
   }
 }
 
+for (const [name, filename] of Object.entries(FIXED_EQUIPMENT_ICON_BY_NAME)) {
+  const iconPath = `/website_icons/equipment/${filename}?v=${ICON_CACHE_VERSION}`;
+  equipmentIconLookup.set(name, iconPath);
+  equipmentIconLookup.set(toSlashEquipmentName(name), iconPath);
+  equipmentIconLookup.set(toDashEquipmentName(name), iconPath);
+}
+
 export type EquipmentIconMap = Record<string, string> | undefined | null;
 
 export function toSlashEquipmentName(name: string): string {
@@ -152,6 +165,14 @@ function publicEquipmentIconUrl(name: string): string | undefined {
 
 export function getEquipmentIcon(icons: EquipmentIconMap, name: string | undefined | null): string | undefined {
   if (!name) return undefined;
+
+  // User-uploaded icons should always override built-in defaults.
+  if (icons) {
+    for (const key of getEquipmentIconKeys(name)) {
+      const icon = icons[key];
+      if (icon) return icon;
+    }
+  }
   
   // First check the static equipment icon lookup from website_icons
   const cleanName = name.trim();
@@ -168,14 +189,6 @@ export function getEquipmentIcon(icons: EquipmentIconMap, name: string | undefin
   const dashName = toDashEquipmentName(cleanName);
   if (equipmentIconLookup.has(dashName)) {
     return equipmentIconLookup.get(dashName);
-  }
-  
-  // Fallback to dynamic icons from API if available
-  if (icons) {
-    for (const key of getEquipmentIconKeys(name)) {
-      const icon = icons[key];
-      if (icon) return icon;
-    }
   }
   
   // Last fallback to public cropped images

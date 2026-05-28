@@ -25,7 +25,7 @@ import { PageHeader } from "@/components/ka/page-header";
 import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { EntityLink } from "@/components/ka/entity-link";
 import { localSharedData } from "@/lib/local-shared-data";
-import { getEquipmentIcon, getItemIcon, getFurnitureIcon, getFacilityIcon } from "@/lib/equipment-icons";
+import { getEquipmentIcon, getItemIcon, getFurnitureIcon, getFacilityIcon, getFacilityIconByName } from "@/lib/equipment-icons";
 import { getSkillIcon } from "@/lib/skill-icons";
 import { parseCsv } from "@/lib/monster-truth";
 import {
@@ -174,6 +174,9 @@ const KNOWN_ITEM_SHOP_FLAGS: Array<{ mask: number; label: string }> = [
 const ALLY_PLANNER_STORAGE_KEY = "ka.shops.ally-feed-planner.v1";
 const FALLBACK_ITEM_CRAFT_FACILITIES = ["Item Workbench"];
 const FALLBACK_COOKED_CRAFT_FACILITIES = ["Cooking Station"];
+const FACILITY_SOURCE_ICON_ALIAS: Record<string, string> = {
+  "Simple Stove": "Stove",
+};
 const VALID_SLOTS: EquipmentSlot[] = ["Head", "Weapon", "Shield", "Armor", "Accessory", "-"];
 const EQUIPMENT_VARIANT_NAME_BY_ID: Record<number, string> = {
   192: "B/ Legendary Shield (B)",
@@ -264,6 +267,16 @@ function resolveShopCardIcon(shop: ShopRecord): string | undefined {
     if (workbenchIcon) return workbenchIcon;
   }
   return getFurnitureIcon(shop.title) ?? getItemIcon(shop.title);
+}
+
+function resolveItemReferenceFacilityIcon(facilityName: string, facilityId: number | undefined): string | undefined {
+  const aliasedName = FACILITY_SOURCE_ICON_ALIAS[facilityName] ?? facilityName;
+  // Item reference tags are mostly furniture-facing names, so prefer furniture icon first.
+  return (
+    getFurnitureIcon(aliasedName)
+    ?? getFacilityIconByName(facilityName)
+    ?? (facilityId != null ? getFacilityIcon(facilityId) : undefined)
+  );
 }
 
 const ITEMS_REFERENCE_SHOPS = SHOP_RECORDS.filter((shop) => shop.slug === "items-reference");
@@ -2517,7 +2530,7 @@ export default function ShopsPage() {
                               <div className="flex flex-wrap items-center gap-2">
                                 {row.facilities.map((facilityName) => {
                                   const facilityId = facilityIdByName.get(facilityName.toLowerCase());
-                                  const facilityIcon = facilityId != null ? getFacilityIcon(facilityId) : undefined;
+                                  const facilityIcon = resolveItemReferenceFacilityIcon(facilityName, facilityId);
                                   return (
                                     <span key={`${row.item.name}-${facilityName}`} className="inline-flex items-center gap-1.5 rounded border border-border/70 bg-muted/25 px-1.5 py-0.5">
                                       {facilityIcon ? (

@@ -1773,6 +1773,39 @@ const SIM_RANK_STYLE: Record<SimRank, string> = {
   ...KA_RANK_BADGE_CLASS,
 };
 
+function SimAwkInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [local, setLocal] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setLocal(String(value));
+  }, [value, focused]);
+
+  const commit = useCallback(() => {
+    const n = parseInt(local, 10);
+    onChange(isNaN(n) ? 0 : Math.max(0, n));
+  }, [local, onChange]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="numeric"
+      value={local}
+      placeholder="0"
+      onFocus={(e) => { setFocused(true); e.currentTarget.select(); }}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => { setFocused(false); commit(); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          commit();
+          e.currentTarget.blur();
+        }
+      }}
+      className="h-8 text-center text-sm"
+    />
+  );
+}
+
 function SimTab({
   pairs, jobs, firstGenJobNames,
 }: {
@@ -1841,21 +1874,6 @@ function SimTab({
 
   const displayStatsOne = useMemo(() => displayStatsFor(simOne, resultOne), [displayStatsFor, resultOne, simOne]);
   const displayStatsTwo = useMemo(() => displayStatsFor(simTwo, resultTwo), [displayStatsFor, resultTwo, simTwo]);
-
-  function AwkInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-    const [local, setLocal] = useState(String(value));
-    const [focused, setFocused] = useState(false);
-    useEffect(() => { if (!focused) setLocal(String(value)); }, [value, focused]);
-    return (
-      <Input type="text" inputMode="numeric" value={local} placeholder="0"
-        onFocus={(e) => { setFocused(true); e.currentTarget.select(); }}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => { setFocused(false); const n = parseInt(local); onChange(isNaN(n) ? 0 : Math.max(0, n)); }}
-        onKeyDown={(e) => { if (e.key === "Enter") { const n = parseInt(local); onChange(isNaN(n) ? 0 : Math.max(0, n)); e.currentTarget.blur(); } }}
-        className="h-8 text-center text-sm"
-      />
-    );
-  }
 
   function CroppedBabyIcon({ className = "h-4 w-4" }: { className?: string }) {
     return (
@@ -1967,7 +1985,7 @@ function SimTab({
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-muted-foreground">Awakening</label>
-                    <AwkInput value={state.fatherAwk} onChange={(v) => setState((prev) => ({ ...prev, fatherAwk: v }))} />
+                    <SimAwkInput value={state.fatherAwk} onChange={(v) => setState((prev) => ({ ...prev, fatherAwk: v }))} />
                   </div>
                 </div>
               </div>
@@ -2004,7 +2022,7 @@ function SimTab({
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-muted-foreground">Awakening</label>
-                    <AwkInput value={state.motherAwk} onChange={(v) => setState((prev) => ({ ...prev, motherAwk: v }))} />
+                    <SimAwkInput value={state.motherAwk} onChange={(v) => setState((prev) => ({ ...prev, motherAwk: v }))} />
                   </div>
                 </div>
               </div>

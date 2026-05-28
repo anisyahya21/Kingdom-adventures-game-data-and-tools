@@ -13,7 +13,7 @@ type StatEntry = {
   levels?: Record<string, number>;
 };
 
-const PREVIEW_DIALOG_CLASS = "w-[calc(100vw-1rem)] max-w-[1150px] max-h-[calc(100dvh-1rem)] rounded-xl border border-border bg-card p-0 text-card-foreground sm:w-[calc(100vw-2rem)]";
+const PREVIEW_DIALOG_CLASS = "top-2 translate-y-0 w-[calc(100vw-1rem)] max-w-[1150px] max-h-[calc(100dvh-1rem)] rounded-xl border border-border bg-card p-0 text-card-foreground sm:top-[50%] sm:translate-y-[-50%] sm:w-[calc(100vw-2rem)]";
 const STAT_ORDER = ["HP", "MP", "Vigor", "Attack", "Defence", "Speed", "Luck", "Intelligence", "Dexterity", "Gather", "Move", "Heart"] as const;
 const SKILL_ACCESS_LABELS: Array<{ key: "attack" | "attackMagic" | "recovery"; label: string }> = [
   { key: "attack", label: "Attack" },
@@ -90,7 +90,7 @@ function JobQuickPreviewDialog({
           titleRef.current?.focus({ preventScroll: true });
         }}
       >
-        <div className="max-h-[calc(100dvh-1rem)] overflow-y-auto p-4 pr-14 sm:max-h-[calc(100dvh-2rem)] sm:p-6 sm:pr-16">
+        <div className="max-h-[calc(100dvh-1rem)] overflow-y-auto p-4 pr-14 pt-[max(1rem,env(safe-area-inset-top))] sm:max-h-[calc(100dvh-2rem)] sm:p-6 sm:pr-16">
           <DialogHeader>
             <DialogTitle ref={titleRef} tabIndex={-1} className="flex items-center gap-2 text-xl">
               {profile.job.icon ? <img src={profile.job.icon} alt={profile.name} className="h-7 w-7 rounded object-contain" /> : null}

@@ -1239,7 +1239,7 @@ function AdvancedCompareDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-[1180px] max-h-[calc(100dvh-1rem)] overflow-hidden p-0 sm:w-[calc(100vw-2rem)] sm:max-h-[calc(100dvh-2rem)]">
+      <DialogContent className="top-2 translate-y-0 w-[calc(100vw-1rem)] max-w-[1180px] max-h-[calc(100dvh-1rem)] overflow-hidden p-0 sm:top-[50%] sm:translate-y-[-50%] sm:w-[calc(100vw-2rem)] sm:max-h-[calc(100dvh-2rem)]">
         <DialogHeader className="px-4 py-3 pr-14 border-b border-border sm:px-5 sm:pt-5 sm:pb-3 sm:pr-16">
           <DialogTitle>Advanced Compare</DialogTitle>
         </DialogHeader>
