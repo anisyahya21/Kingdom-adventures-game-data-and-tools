@@ -217,7 +217,7 @@ function LoadoutMiniSummary({
       {equipment.length > 0 && (
         <span className="mt-1.5 flex flex-wrap gap-1">
           {equipment.map((item) => {
-            const icon = getEquipmentIcon(data.equipIcons, item.name);
+            const icon = getPreferredEquipmentIcon(data.equipIcons, item.name);
             return (
               <span key={`${item.name}-${item.level}`} className="flex h-9 w-9 items-center justify-center rounded border border-border/60 bg-muted/30">
                 {icon ? <img src={icon} alt={item.name} title={`${item.name} Lv${item.level}`} className="h-8 w-8 object-contain" /> : <span className="text-muted-foreground">?</span>}
@@ -241,6 +241,118 @@ function commitOnEnter(e: React.KeyboardEvent<HTMLInputElement>, commit: () => v
     commit();
     e.currentTarget.blur();
   }
+}
+
+function getPreferredEquipmentIcon(icons: Record<string, string> | undefined, name: string | undefined | null) {
+  return getEquipmentIcon(null, name) ?? getEquipmentIcon(icons, name);
+}
+
+const COLLAPSED_ICON_TRIM_CACHE = new Map<string, string>();
+
+function CollapsedEquipmentIcon({ src, alt }: { src: string; alt: string }) {
+  const [trimmedSrc, setTrimmedSrc] = useState<string>(src);
+
+  useEffect(() => {
+    if (!src) {
+      setTrimmedSrc(src);
+      return;
+    }
+
+    const cached = COLLAPSED_ICON_TRIM_CACHE.get(src);
+    if (cached) {
+      setTrimmedSrc(cached);
+      return;
+    }
+
+    let cancelled = false;
+    const image = new Image();
+    image.decoding = "async";
+
+    image.onload = () => {
+      if (cancelled) return;
+      const w = image.naturalWidth;
+      const h = image.naturalHeight;
+      if (!w || !h) {
+        setTrimmedSrc(src);
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) {
+        setTrimmedSrc(src);
+        return;
+      }
+
+      ctx.drawImage(image, 0, 0);
+      const data = ctx.getImageData(0, 0, w, h).data;
+
+      let minX = w;
+      let minY = h;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < h; y += 1) {
+        for (let x = 0; x < w; x += 1) {
+          const alpha = data[(y * w + x) * 4 + 3];
+          if (alpha === 0) continue;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+
+      if (maxX < minX || maxY < minY) {
+        COLLAPSED_ICON_TRIM_CACHE.set(src, src);
+        setTrimmedSrc(src);
+        return;
+      }
+
+      const trimPadding = 1;
+      const sx = Math.max(0, minX - trimPadding);
+      const sy = Math.max(0, minY - trimPadding);
+      const ex = Math.min(w - 1, maxX + trimPadding);
+      const ey = Math.min(h - 1, maxY + trimPadding);
+      const tw = ex - sx + 1;
+      const th = ey - sy + 1;
+
+      const out = document.createElement("canvas");
+      out.width = tw;
+      out.height = th;
+      const outCtx = out.getContext("2d");
+      if (!outCtx) {
+        setTrimmedSrc(src);
+        return;
+      }
+
+      outCtx.drawImage(image, sx, sy, tw, th, 0, 0, tw, th);
+      const url = out.toDataURL("image/png");
+      COLLAPSED_ICON_TRIM_CACHE.set(src, url);
+      if (!cancelled) setTrimmedSrc(url);
+    };
+
+    image.onerror = () => {
+      if (!cancelled) setTrimmedSrc(src);
+    };
+
+    image.src = src;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return (
+    <img
+      src={trimmedSrc}
+      alt={alt}
+      className="h-[80px] w-[80px] shrink-0 object-contain"
+      style={{ imageRendering: "pixelated" }}
+    />
+  );
 }
 
 // ─── Weapon proficiency helpers ───────────────────────────────────────────────
@@ -1632,12 +1744,27 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
     const slotMap = data.slotAssignments ?? {};
     // Remove any existing item in this slot
     const withoutSlot = loadout.equipment.filter((e) => slotMap[e.name] !== slot);
-    if (!name) { upd("equipment", withoutSlot); return; }
-    upd("equipment", [...withoutSlot, { name, level: 1 }]);
+    if (!name) {
+      upd("equipment", withoutSlot);
+      setSlotPickerOpen((prev) => ({ ...prev, [slot]: false }));
+      return;
+    }
+    const existingLevel = loadout.equipment.find((item) => item.name === name)?.level;
+    const rememberedLevel = rememberedEquipLevels[name];
+    const nextLevel = Math.max(1, Math.min(99, existingLevel ?? rememberedLevel ?? 1));
+    upd("equipment", [...withoutSlot, { name, level: nextLevel }]);
+    setEquipLevelInputs((prev) => ({ ...prev, [name]: String(nextLevel) }));
+    setSlotPickerOpen((prev) => ({ ...prev, [slot]: false }));
   };
   const removeEquip = (i: number) => upd("equipment", loadout.equipment.filter((_, j) => j !== i));
   const setEquipLevel = (i: number, level: number) => {
-    upd("equipment", loadout.equipment.map((e, j) => j === i ? { ...e, level: Math.max(1, Math.min(99, level)) } : e));
+    const nextLevel = Math.max(1, Math.min(99, level));
+    const target = loadout.equipment[i];
+    upd("equipment", loadout.equipment.map((e, j) => j === i ? { ...e, level: nextLevel } : e));
+    if (target?.name) {
+      setRememberedEquipLevels((prev) => ({ ...prev, [target.name]: nextLevel }));
+      setEquipLevelInputs((prev) => ({ ...prev, [target.name]: String(nextLevel) }));
+    }
   };
 
   const addSkill = (name: string) => {
@@ -1672,7 +1799,19 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   const [allLv, setAllLv] = useState(1);
   const [allLvInput, setAllLvInput] = useState("1");
   const [statLevelInputs, setStatLevelInputs] = useState<Record<string, string>>({});
-  const [equipLevelInputs, setEquipLevelInputs] = useState<Record<number, string>>({});
+  const [equipLevelInputs, setEquipLevelInputs] = useState<Record<string, string>>({});
+  const [rememberedEquipLevels, setRememberedEquipLevels] = useState<Record<string, number>>({});
+  const [slotPickerOpen, setSlotPickerOpen] = useState<Partial<Record<EquipSlot, boolean>>>({});
+
+  useEffect(() => {
+    setRememberedEquipLevels((prev) => {
+      const next = { ...prev };
+      for (const eq of loadout.equipment) {
+        next[eq.name] = eq.level;
+      }
+      return next;
+    });
+  }, [loadout.equipment]);
 
   const setAllStatLevelsInput = (raw: string) => {
     if (!/^\d*$/.test(raw)) return;
@@ -1702,16 +1841,19 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
     setStatLevelInputs((prev) => ({ ...prev, [k]: String(next) }));
   };
 
-  const setEquipLevelInput = (idx: number, raw: string) => {
+  const setEquipLevelInput = (name: string, raw: string) => {
     if (!/^\d*$/.test(raw)) return;
-    setEquipLevelInputs((prev) => ({ ...prev, [idx]: raw }));
+    setEquipLevelInputs((prev) => ({ ...prev, [name]: raw }));
   };
 
-  const commitEquipLevel = (idx: number, raw: string) => {
+  const commitEquipLevel = (name: string, raw: string) => {
     const parsed = parseInt(raw, 10);
     const next = Math.max(1, Math.min(99, isNaN(parsed) ? 1 : parsed));
+    const idx = loadout.equipment.findIndex((entry) => entry.name === name);
+    if (idx < 0) return;
     setEquipLevel(idx, next);
-    setEquipLevelInputs((prev) => ({ ...prev, [idx]: String(next) }));
+    setRememberedEquipLevels((prev) => ({ ...prev, [name]: next }));
+    setEquipLevelInputs((prev) => ({ ...prev, [name]: String(next) }));
   };
 
   return (
@@ -1807,7 +1949,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 
           {/* Per-stat breakdown table */}
           {loadout.jobName && loadout.rank && (
-            <div>
+            <div className="max-w-[580px]">
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Stats</p>
                 <div className="flex items-center gap-1.5">
@@ -1820,13 +1962,19 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs border-collapse">
+                <table className="w-full text-xs border-collapse table-fixed">
+                  <colgroup>
+                    <col className="w-[58%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[14%]" />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th className="text-left pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium">Stat level</th>
-                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right w-14">Job</th>
-                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right w-14">Equip</th>
-                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right w-14">Total</th>
+                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right">Job</th>
+                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right">Equip</th>
+                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1836,10 +1984,10 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                       const eq = equipStats[k];
                       const total = (jobStats[k] ?? 0) + (eq ?? 0);
                       return (
-                        <tr key={k} className="border-t border-border/30">
+                        <tr key={k} className="group border-t border-border/30 hover:bg-muted/20 transition-colors">
                           <td className="py-1 pr-2">
-                            <div className="flex items-center gap-2">
-                              <span className="min-w-28 text-muted-foreground uppercase text-[10px] font-medium">
+                            <div className="flex items-center gap-1.5">
+                              <span className="min-w-24 text-muted-foreground uppercase text-[10px] font-medium">
                                 <StatLabel stat={k} icons={statIcons} full />
                               </span>
                               <Input type="text" inputMode="numeric" value={statLevelInputs[k] ?? String(lv)}
@@ -1849,9 +1997,16 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 className="h-6 text-[11px] text-center px-0 w-14" />
                             </div>
                           </td>
-                          <td className="py-0.5 text-right tabular-nums text-foreground/80">{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">-</span>}</td>
-                          <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">-</span>}</td>
-                          <td className="py-0.5 text-right tabular-nums font-bold">{total > 0 ? total.toLocaleString() : <span className="text-muted-foreground/30">-</span>}</td>
+                          <td className="py-0.5 pl-2 text-right tabular-nums text-foreground/80 border-l border-border/25 group-hover:bg-muted/25">
+                            <span className="inline-flex items-center justify-end gap-1">
+                              <span className="opacity-80 text-[10px]">
+                                <StatLabel stat={k} icons={statIcons} iconClassName="h-3 w-3" />
+                              </span>
+                              <span>{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">-</span>}</span>
+                            </span>
+                          </td>
+                          <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400 group-hover:bg-muted/25">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">-</span>}</td>
+                          <td className="py-0.5 text-right tabular-nums font-bold group-hover:bg-muted/25">{total > 0 ? total.toLocaleString() : <span className="text-muted-foreground/30">-</span>}</td>
                         </tr>
                       );
                     })}
@@ -1869,7 +2024,6 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Equipment</p>
             {(() => {
               const slotMap = data.slotAssignments ?? {};
-              const iconMap = data.equipIcons ?? {};
               // Items grouped by slot
               const slotToEquip: Record<string, EquipEntry> = {};
               for (const eq of loadout.equipment) {
@@ -1883,8 +2037,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                   <div className="grid grid-cols-5 gap-2">
                     {EQUIP_SLOTS.map(({ slot, Icon }) => {
                       const eq = slotToEquip[slot];
-                      const globalIdx = eq ? loadout.equipment.findIndex((e) => e.name === eq.name) : -1;
-                      const icon = eq ? getEquipmentIcon(iconMap, eq.name) : null;
+                      const icon = eq ? getPreferredEquipmentIcon(data.equipIcons, eq.name) : null;
                       const slotItems = Object.entries(slotMap)
                         .filter(([, s]) => s === slot)
                         .map(([n]) => n)
@@ -1895,8 +2048,8 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                           <div className="flex items-center justify-between px-2 pt-2 pb-0.5">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{slot}</span>
                             {eq && (
-                              <button onClick={() => setSlotEquip(slot as EquipSlot, "")} className="text-muted-foreground/40 hover:text-destructive transition-colors">
-                                <X className="w-3 h-3" />
+                              <button onClick={() => setSlotEquip(slot as EquipSlot, "")} className="rounded p-1 text-muted-foreground/50 hover:bg-muted hover:text-destructive transition-colors">
+                                <X className="w-4 h-4" />
                               </button>
                             )}
                           </div>
@@ -1918,7 +2071,24 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                           <div className="px-2 pb-2 space-y-1">
                             {eq ? (
                               <>
-                                <p className="text-[11px] font-medium text-center text-foreground/80 leading-tight line-clamp-2 min-h-[30px]">{eq.name}</p>
+                                <button
+                                  onClick={() => setSlotPickerOpen((prev) => ({ ...prev, [slot as EquipSlot]: !prev[slot as EquipSlot] }))}
+                                  className="mx-auto flex items-center gap-1 rounded px-1 py-0.5 text-[11px] font-medium text-foreground/80 hover:bg-muted"
+                                  title={`Change ${slot} equipment`}
+                                >
+                                  <span className="line-clamp-2 min-h-[30px] text-center leading-tight">{eq.name}</span>
+                                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                </button>
+                                {slotPickerOpen[slot as EquipSlot] && (
+                                  <SearchableSelect
+                                    value=""
+                                    clearOnSelect
+                                    onChange={(v) => { if (v) setSlotEquip(slot as EquipSlot, v); }}
+                                    options={slotItems.map((n) => ({ value: n, label: n }))}
+                                    placeholder="Change equipment..."
+                                    triggerClassName="h-7 text-[10px]"
+                                  />
+                                )}
                                 {/* Weapon proficiency badge */}
                                 {(() => {
                                   const rule = getEquipRuleState(loadout, data, eq.name);
@@ -1947,10 +2117,10 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 })()}
                                 <div className="flex items-center gap-1 justify-center">
                                   <span className="text-xs text-muted-foreground">Lv</span>
-                                  <Input type="text" inputMode="numeric" value={equipLevelInputs[globalIdx] ?? String(eq.level)}
-                                    onChange={(e) => setEquipLevelInput(globalIdx, e.target.value)}
-                                    onKeyDown={(e) => commitOnEnter(e, () => commitEquipLevel(globalIdx, e.currentTarget.value))}
-                                    onBlur={(e) => commitEquipLevel(globalIdx, e.target.value)}
+                                  <Input type="text" inputMode="numeric" value={equipLevelInputs[eq.name] ?? String(eq.level)}
+                                    onChange={(e) => setEquipLevelInput(eq.name, e.target.value)}
+                                    onKeyDown={(e) => commitOnEnter(e, () => commitEquipLevel(eq.name, e.currentTarget.value))}
+                                    onBlur={(e) => commitEquipLevel(eq.name, e.target.value)}
                                     className="h-6 text-xs text-center w-14 px-0" />
                                 </div>
                               </>
@@ -1978,13 +2148,13 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                           const idx = loadout.equipment.findIndex((e) => e.name === eq.name);
                           return (
                             <div key={eq.name} className="flex items-center gap-1.5 bg-muted/30 rounded-md px-2 py-1">
-                              {getEquipmentIcon(iconMap, eq.name) ? <img src={getEquipmentIcon(iconMap, eq.name)} alt="" className="w-4 h-4 object-contain" /> : <div className="w-4 h-4" />}
+                              {getPreferredEquipmentIcon(data.equipIcons, eq.name) ? <img src={getPreferredEquipmentIcon(data.equipIcons, eq.name)} alt="" className="w-4 h-4 object-contain" /> : <div className="w-4 h-4" />}
                               <span className="text-xs flex-1 truncate font-medium">{eq.name}</span>
                               <span className="text-[10px] text-muted-foreground">Lv</span>
-                              <Input type="text" inputMode="numeric" value={equipLevelInputs[idx] ?? String(eq.level)}
-                                onChange={(e) => setEquipLevelInput(idx, e.target.value)}
-                                onKeyDown={(e) => commitOnEnter(e, () => commitEquipLevel(idx, e.currentTarget.value))}
-                                onBlur={(e) => commitEquipLevel(idx, e.target.value)}
+                              <Input type="text" inputMode="numeric" value={equipLevelInputs[eq.name] ?? String(eq.level)}
+                                onChange={(e) => setEquipLevelInput(eq.name, e.target.value)}
+                                onKeyDown={(e) => commitOnEnter(e, () => commitEquipLevel(eq.name, e.currentTarget.value))}
+                                onBlur={(e) => commitEquipLevel(eq.name, e.target.value)}
                                 className="h-5 text-[10px] text-center w-12 px-0" />
                               <button onClick={() => removeEquip(idx)} className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
                             </div>
@@ -2334,24 +2504,24 @@ export default function LoadoutPage() {
                         </div>
                         <div className="min-w-0 space-y-2">
                           {loadout.equipment.length > 0 && (
-                            <div className="grid grid-cols-5 gap-x-1.5 gap-y-2 sm:grid-cols-5">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:gap-3">
                               {loadout.equipment.map((eq) => {
-                                const icon = getEquipmentIcon(data?.equipIcons, eq.name);
+                                const icon = getPreferredEquipmentIcon(data?.equipIcons, eq.name);
                                 const slot = data?.slotAssignments?.[eq.name];
                                 const rule = data ? getEquipRuleState(loadout, data, eq.name) : null;
                                 return (
-                                  <span key={eq.name} className="flex min-w-0 flex-col items-center gap-1 text-center">
-                                    <span className="relative h-11 w-[68px] shrink-0">
-                                      <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-md border border-border/50 bg-muted/30">
+                                  <span key={eq.name} className="flex min-w-0 flex-col items-center gap-1 rounded-md border border-border/40 bg-muted/10 px-2 py-1.5 text-center">
+                                    <span className="relative h-[104px] w-[94px] shrink-0">
+                                      <span className="mx-auto flex h-[86px] w-[86px] items-center justify-center overflow-hidden rounded-md border border-border/50 bg-muted/30 p-1">
                                         {icon ? (
-                                          <img src={icon} alt="" className="h-14 w-14 max-w-none shrink-0 object-contain" />
+                                          <CollapsedEquipmentIcon src={icon} alt={eq.name} />
                                         ) : (
-                                          <span className="flex h-11 w-11 items-center justify-center text-xs text-muted-foreground">?</span>
+                                          <span className="flex h-[86px] w-[86px] items-center justify-center text-xs text-muted-foreground">?</span>
                                         )}
                                       </span>
-                                      <span className="absolute bottom-0 left-[46px] rounded-sm bg-background/95 px-1 text-[10px] font-bold leading-4 text-muted-foreground shadow-sm ring-1 ring-border/60">Lv{eq.level}</span>
+                                      <span className="absolute bottom-0 right-0 rounded-sm bg-background/95 px-1 text-[10px] font-bold leading-4 text-muted-foreground shadow-sm ring-1 ring-border/60">Lv{eq.level}</span>
                                     </span>
-                                    <span className="text-[8px] font-semibold uppercase leading-none text-muted-foreground/70">{slot ?? "Gear"}</span>
+                                    <span className="text-[9px] font-semibold uppercase leading-none text-muted-foreground/70">{slot ?? "Gear"}</span>
                                     <span className="line-clamp-2 min-h-6 text-[10px] font-medium leading-tight text-foreground">{eq.name}</span>
                                     {rule?.blocked && <span className="text-[9px] font-semibold leading-none text-orange-600 dark:text-orange-400">Can't</span>}
                                     {rule?.appliesPenalty && <span className="text-[9px] font-semibold leading-none text-amber-600 dark:text-amber-400">Weak</span>}
