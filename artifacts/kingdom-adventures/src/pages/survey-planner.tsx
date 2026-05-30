@@ -94,7 +94,7 @@ function parseSurveyCsv(raw: string): Survey[] {
       const status = (cols[statusIndex] ?? "").trim();
       if (status !== "Not used") return true;
       const rawName = (cols[nameIndex] ?? "").toLowerCase();
-      return rawName.includes("dragon taming") || rawName.includes("master instructor") || rawName.includes("cash register");
+      return rawName.includes("dragon taming") || rawName.includes("master instructor") || rawName.includes("cash register") || rawName.includes("chaos stone");
     })
     .map((cols) => {
       const maxEarnableRaw = Number(cols[maxEarnableRewardCountIndex] ?? "");
@@ -148,6 +148,10 @@ function formatSurveyName(survey: Survey) {
       return decodeSurveyNameArg(arg);
     }),
   );
+}
+
+function stripSurveyPrefix(displayName: string) {
+  return displayName.replace(/^Survey:\s*/i, "").trim();
 }
 
 function normalizeJobName(name: string) {
@@ -273,6 +277,8 @@ type SurveyGroup = {
   totalMax: number;
 };
 
+const CHAOS_STONE_SURVEY_IDS = new Set([10, 21, 32]);
+
 function isOtherSurveyName(displayName: string) {
   const key = displayName.toLowerCase();
   return /materials xl|materials \(grass\)|materials \(wood\)|materials \(food\)|materials \(ore\)|materials \(mystic ore\)|fruit|medicine|vegetables|seafood|tools|equipment materials|copper coins|kairo series|skill manuals/.test(key);
@@ -288,10 +294,13 @@ function getSurveyGroupSortKey(group: SurveyGroup & { order: number }) {
   if (group.name === "Survey: Dragon Taming") {
     return [2, 0];
   }
-  if (group.name === "Other") {
-    return [4, 0];
+  if (group.name === "Survey: Chaos Stone") {
+    return [3, 0];
   }
-  return [3, group.order];
+  if (group.name === "Other") {
+    return [5, 0];
+  }
+  return [4, group.order];
 }
 
 function getFacilityIconFromSurveyGroup(groupName: string) {
@@ -304,6 +313,9 @@ function getFacilityIconFromSurveyGroup(groupName: string) {
 
 function getSurveyNameSectionFacilityIcon(displayName: string) {
   const key = displayName.toLowerCase();
+  if (key.includes("chaos stone")) {
+    return getFacilityIconByName("Chaos Stone") ?? null;
+  }
   if (key.includes("dragon taming")) {
     return getFacilityIconByName("Dragon Stables") ?? getFacilityIconByName("Dragon staples") ?? null;
   }
@@ -418,12 +430,13 @@ function AlphaTrimmedIcon({ src, alt, className }: { src: string; alt: string; c
 const GROUPED_SURVEYS: SurveyGroup[] = Object.values(
   SURVEYS.reduce((map, survey, index) => {
     const displayName = formatSurveyName(survey).trim();
+    const isChaosStone = CHAOS_STONE_SURVEY_IDS.has(survey.id) || displayName.toLowerCase().includes("chaos stone");
     const isOther = isOtherSurveyName(displayName);
-    const groupKey = isOther ? "__OTHER__" : `name:${displayName}`;
+    const groupKey = isChaosStone ? "__CHAOS_STONE__" : isOther ? "__OTHER__" : `name:${displayName}`;
     const existing = map[groupKey];
     if (!existing) {
       map[groupKey] = {
-        name: isOther ? "Other" : displayName,
+        name: isChaosStone ? "Survey: Chaos Stone" : isOther ? "Other" : displayName,
         surveys: [survey],
         totalMax: survey.maxEarnableRewardCount,
         order: isOther ? Number.MAX_SAFE_INTEGER : index,
@@ -667,6 +680,8 @@ const EQUIP_SLOTS = [
   { key: "weapon", label: "Weapon", icon: Sword, slotType: "Weapon" as const },
   { key: "accessory", label: "Accessory", icon: Gem, slotType: "Accessory" as const },
 ] as const;
+
+const SURVEY_LIST_GRID_CLASS = "grid grid-cols-[minmax(0,1fr)_72px_120px_72px_minmax(0,0.9fr)] gap-3";
 
 type EquipSlotKey = typeof EQUIP_SLOTS[number]["key"];
 
@@ -924,7 +939,7 @@ export default function SurveyPlanner() {
               </button>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 text-sm font-semibold mb-2">
+              <div className={`${SURVEY_LIST_GRID_CLASS} mb-2 text-sm font-semibold`}>
                 <div>Name</div>
                 <div className="text-center">Max</div>
                 <div className="text-center">Biome</div>
@@ -940,9 +955,9 @@ export default function SurveyPlanner() {
                   const facilityIcon = specialNameFacilityIcon ?? getFacilityIconFromSurveyGroup(group.name);
                   return (
                     <div key={groupKey} className="space-y-1 rounded-lg border border-border/20 p-1">
-                      <div className="grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 items-center rounded bg-muted/50 px-2 py-2 text-sm font-semibold cursor-pointer"
+                      <div className={`${SURVEY_LIST_GRID_CLASS} cursor-pointer items-center rounded bg-muted/50 px-2 py-2 text-sm font-semibold`}
                         onClick={() => setExpandedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }))}>
-                        <div className="font-medium flex items-center gap-1">
+                        <div className="flex min-w-0 items-center gap-1 font-medium">
                           {group.surveys.length > 1 ? (
                             expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />
                           ) : null}
@@ -961,24 +976,31 @@ export default function SurveyPlanner() {
                           {!isMasterInstructor && facilityIcon ? (
                             <AlphaTrimmedIcon src={facilityIcon} alt="" className={SURVEY_ICON_IMAGE_CLASS} />
                           ) : null}
-                          {group.name}
+                          <span className="truncate">{stripSurveyPrefix(group.name)}</span>
                         </div>
                         <div className="text-center">{getSurveyMaxLabel(group.totalMax)}{group.surveys.length > 1 ? " total" : ""}</div>
-                        <div className="text-center">—</div>
-                        <div className="text-center">—</div>
-                        <div className="text-right text-xs text-muted-foreground">
-                          {group.surveys.length > 1 ? null : "Single survey"}
+                        <div className="text-center text-xs text-muted-foreground">{expanded ? "Biome" : "—"}</div>
+                        <div className="text-center text-xs text-muted-foreground">{expanded ? "Min Lv" : "—"}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {expanded ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="inline-block w-[34px]" aria-hidden="true" />
+                              <span>Bonus Job</span>
+                            </span>
+                          ) : group.surveys.length > 1 ? null : "Single survey"}
                         </div>
                       </div>
                       {expanded && group.surveys.map((s) => (
-                        <div key={s.id} className={`grid grid-cols-[1fr_80px_140px_80px_1fr] gap-3 items-center p-2 rounded ${s.id === selectedSurveyId ? "bg-muted/40" : ""}`}>
-                          <div>
+                        <div key={s.id} className={`${SURVEY_LIST_GRID_CLASS} items-center rounded p-2 ${s.id === selectedSurveyId ? "bg-muted/40" : ""}`}>
+                          <div className="min-w-0">
                             {(() => {
                               const surveyDisplayName = formatSurveyName(s);
+                              const surveyListName = stripSurveyPrefix(surveyDisplayName);
+                              const isChaosStoneSurvey = CHAOS_STONE_SURVEY_IDS.has(s.id) || surveyDisplayName.toLowerCase().includes("chaos stone");
                               const surveyNameFacilityIcon = getSurveyNameSectionFacilityIcon(surveyDisplayName);
                               const isMasterInstructorName = isMasterInstructorSurveyName(surveyDisplayName);
                               return (
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex min-w-0 items-center gap-1.5">
                                   {isMasterInstructorName ? (
                                     <CharacterPreviewCanvas
                                       jobName="Scholar"
@@ -991,10 +1013,16 @@ export default function SurveyPlanner() {
                                       className="-my-2 h-11 w-auto shrink-0"
                                     />
                                   ) : null}
-                                  {!isMasterInstructorName && surveyNameFacilityIcon ? (
+                                  {!isMasterInstructorName && !isChaosStoneSurvey && surveyNameFacilityIcon ? (
                                     <AlphaTrimmedIcon src={surveyNameFacilityIcon} alt="" className={SURVEY_ICON_IMAGE_CLASS} />
                                   ) : null}
-                                  <Button variant="link" onClick={() => setSelectedSurveyId(s.id)}>{surveyDisplayName}</Button>
+                                  <Button
+                                    variant="link"
+                                    className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap px-0 text-left"
+                                    onClick={() => setSelectedSurveyId(s.id)}
+                                  >
+                                    {surveyListName}
+                                  </Button>
                                 </div>
                               );
                             })()}
@@ -1064,7 +1092,7 @@ export default function SurveyPlanner() {
                     onChange={(value) => setSelectedSurveyId(value ? Number(value) : null)}
                     options={ORDERED_SURVEYS.map((s) => ({
                       value: String(s.id),
-                      label: `${formatSurveyName(s)} (${getSurveyTerrainLabel(s)})`,
+                      label: `${stripSurveyPrefix(formatSurveyName(s))} (${getSurveyTerrainLabel(s)})`,
                     }))}
                     placeholder="Choose a survey..."
                     className="w-full"
@@ -1260,7 +1288,7 @@ export default function SurveyPlanner() {
                 <div className="space-y-2">
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Survey</div>
                   <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                    <div className="font-medium">{formatSurveyName(survey)}</div>
+                    <div className="font-medium">{stripSurveyPrefix(formatSurveyName(survey))}</div>
                     <div className="text-xs text-muted-foreground">{getSurveyTerrainLabel(survey)} • Min Lv {survey.minAreaLevel}</div>
                   </div>
                 </div>
