@@ -681,7 +681,7 @@ const EQUIP_SLOTS = [
   { key: "accessory", label: "Accessory", icon: Gem, slotType: "Accessory" as const },
 ] as const;
 
-const SURVEY_LIST_GRID_CLASS = "grid grid-cols-[minmax(0,1fr)_72px_120px_72px_minmax(0,0.9fr)] gap-3";
+const SURVEY_LIST_GRID_CLASS = "grid grid-cols-[minmax(0,1.35fr)_64px_96px_64px_minmax(0,0.8fr)] gap-3";
 
 type EquipSlotKey = typeof EQUIP_SLOTS[number]["key"];
 
@@ -976,7 +976,7 @@ export default function SurveyPlanner() {
                           {!isMasterInstructor && facilityIcon ? (
                             <AlphaTrimmedIcon src={facilityIcon} alt="" className={SURVEY_ICON_IMAGE_CLASS} />
                           ) : null}
-                          <span className="truncate">{stripSurveyPrefix(group.name)}</span>
+                          <span className="break-words whitespace-normal leading-tight">{stripSurveyPrefix(group.name)}</span>
                         </div>
                         <div className="text-center">{getSurveyMaxLabel(group.totalMax)}{group.surveys.length > 1 ? " total" : ""}</div>
                         <div className="text-center text-xs text-muted-foreground">{expanded ? "Biome" : "—"}</div>
@@ -1018,7 +1018,7 @@ export default function SurveyPlanner() {
                                   ) : null}
                                   <Button
                                     variant="link"
-                                    className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap px-0 text-left"
+                                    className="h-auto max-w-full break-words whitespace-normal px-0 py-0 text-left leading-tight"
                                     onClick={() => setSelectedSurveyId(s.id)}
                                   >
                                     {surveyListName}
