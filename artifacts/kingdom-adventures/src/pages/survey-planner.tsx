@@ -681,7 +681,7 @@ const EQUIP_SLOTS = [
   { key: "accessory", label: "Accessory", icon: Gem, slotType: "Accessory" as const },
 ] as const;
 
-const SURVEY_LIST_GRID_CLASS = "grid grid-cols-[minmax(0,1.35fr)_64px_96px_64px_minmax(0,0.8fr)] gap-3";
+const SURVEY_LIST_GRID_CLASS = "grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:grid-cols-[minmax(0,1.35fr)_64px_96px_64px_minmax(0,0.8fr)] md:gap-3";
 
 type EquipSlotKey = typeof EQUIP_SLOTS[number]["key"];
 
@@ -941,10 +941,10 @@ export default function SurveyPlanner() {
             <CardContent>
               <div className={`${SURVEY_LIST_GRID_CLASS} mb-2 text-sm font-semibold`}>
                 <div>Name</div>
-                <div className="text-center">Max</div>
-                <div className="text-center">Biome</div>
-                <div className="text-center">Min Lv</div>
-                <div>Bonus Job</div>
+                <div className="text-right md:text-center">Max</div>
+                <div className="hidden text-center md:block">Biome</div>
+                <div className="hidden text-center md:block">Min Lv</div>
+                <div className="hidden md:block">Bonus Job</div>
               </div>
               <div className="space-y-2">
                 {(isMobileSurveyList && !surveyListExpanded ? GROUPED_SURVEYS.slice(0, 3) : GROUPED_SURVEYS).map((group) => {
@@ -978,10 +978,10 @@ export default function SurveyPlanner() {
                           ) : null}
                           <span className="break-words whitespace-normal leading-tight">{stripSurveyPrefix(group.name)}</span>
                         </div>
-                        <div className="text-center">{getSurveyMaxLabel(group.totalMax)}{group.surveys.length > 1 ? " total" : ""}</div>
-                        <div className="text-center text-xs text-muted-foreground">{expanded ? "Biome" : "—"}</div>
-                        <div className="text-center text-xs text-muted-foreground">{expanded ? "Min Lv" : "—"}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-right md:text-center">{getSurveyMaxLabel(group.totalMax)}{group.surveys.length > 1 ? " total" : ""}</div>
+                        <div className="hidden text-center text-xs text-muted-foreground md:block">{expanded ? "Biome" : "—"}</div>
+                        <div className="hidden text-center text-xs text-muted-foreground md:block">{expanded ? "Min Lv" : "—"}</div>
+                        <div className="hidden text-xs text-muted-foreground md:block">
                           {expanded ? (
                             <span className="inline-flex items-center gap-1.5">
                               <span className="inline-block w-[34px]" aria-hidden="true" />
@@ -1027,10 +1027,10 @@ export default function SurveyPlanner() {
                               );
                             })()}
                           </div>
-                          <div className="text-center">{getSurveyMaxLabel(s.maxEarnableRewardCount)}</div>
-                          <div className="text-center">{getSurveyTerrainLabel(s)}</div>
-                          <div className="text-center">{s.minAreaLevel}</div>
-                          <div>
+                          <div className="text-right md:text-center">{getSurveyMaxLabel(s.maxEarnableRewardCount)}</div>
+                          <div className="hidden text-center md:block">{getSurveyTerrainLabel(s)}</div>
+                          <div className="hidden text-center md:block">{s.minAreaLevel}</div>
+                          <div className="hidden md:block">
                             {(() => {
                               if (!s.jobGroupId) {
                                 return <div className="text-muted-foreground">— none —</div>;
@@ -1055,6 +1055,20 @@ export default function SurveyPlanner() {
                               </div>
                               );
                             })()}
+                          </div>
+                          <div className="col-span-2 mt-1 grid grid-cols-3 gap-2 text-xs text-muted-foreground md:hidden">
+                            <div>
+                              <div className="uppercase tracking-wide">Biome</div>
+                              <div className="text-foreground">{getSurveyTerrainLabel(s)}</div>
+                            </div>
+                            <div>
+                              <div className="uppercase tracking-wide">Min Lv</div>
+                              <div className="text-foreground">{s.minAreaLevel}</div>
+                            </div>
+                            <div>
+                              <div className="uppercase tracking-wide">Bonus</div>
+                              <div className="text-foreground">{s.jobGroupId ? (JOB_GROUPS[s.jobGroupId] ?? `Group ${s.jobGroupId}`) : "None"}</div>
+                            </div>
                           </div>
                         </div>
                       ))}
