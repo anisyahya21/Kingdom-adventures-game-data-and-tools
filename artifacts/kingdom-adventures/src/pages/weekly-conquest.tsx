@@ -28,8 +28,8 @@ import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
 type MonsterSpawn = { area: string; level: number };
 type Monster = { icon?: string; spawns: MonsterSpawn[] };
 type WeeklyReward = { jobName: string; jobRank: string; diamonds: number; equipment: string };
-type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; updatedBy?: string; updatedAt?: number } | null;
-type WeeklyMonsterEntry = { name: string; monster?: Monster; spawns: MonsterSpawn[] };
+type WeeklyConquest = { monsters: string[]; reward: WeeklyReward; monsterCounts?: Record<string, number>; updatedBy?: string; updatedAt?: number } | null;
+type WeeklyMonsterEntry = { name: string; count?: number; monster?: Monster; spawns: MonsterSpawn[] };
 type WeeklySharedData = { monsters: Record<string, Monster>; weeklyConquest: WeeklyConquest; equipIcons?: Record<string, string> };
 type WeeklyMonsterStyle = { color: string; patternIndex: number };
 
@@ -432,6 +432,8 @@ export default function WeeklyConquestPage() {
   const [showConquestCalendar, setShowConquestCalendar] = useState(false);
   const [timeNow, setTimeNow] = useState(() => Date.now());
   const [conquestOffset, setConquestOffset] = useState(0);
+  const [manualConquestId, setManualConquestId] = useState<string>("0");
+  const [manualConquestError, setManualConquestError] = useState<string | null>(null);
   const [deploymentQuery, setDeploymentQuery] = useState("");
   const [deploymentOpen, setDeploymentOpen] = useState(false);
   const [disabledMapMonsters, setDisabledMapMonsters] = useState<string[]>([]);
@@ -462,7 +464,7 @@ export default function WeeklyConquestPage() {
   ) ?? null;
 
   const weeklyConquest: WeeklyConquest = browsedConquest
-    ? { monsters: browsedConquest.monsters, reward: browsedConquest.reward }
+    ? { monsters: browsedConquest.monsters, reward: browsedConquest.reward, monsterCounts: browsedConquest.monsterCounts }
     : fallbackWeeklyConquest;
   const hasJobReward = Boolean(weeklyConquest?.reward?.jobName && weeklyConquest?.reward?.jobRank);
   const equipmentRewardIcon = weeklyConquest?.reward?.equipment
@@ -491,13 +493,31 @@ export default function WeeklyConquestPage() {
   const currentTimelineId = conquestTimeline?.currentId ?? 0;
   const selectedConquestId = currentTimelineId + conquestOffset;
   const isOngoingEvent = browsedConquest ? timeNow >= browsedConquest.startedAt && timeNow < browsedConquest.endsAt : false;
+
+  useEffect(() => {
+    setManualConquestId(String(selectedConquestId + 1));
+  }, [selectedConquestId]);
+
+  const selectConquestById = useCallback((value: number) => {
+    if (!conquestTimeline?.entries?.length) return;
+    const targetId = value - 1;
+    const entry = conquestTimeline.entries.find((entryItem) => entryItem.id === targetId);
+    if (!entry) {
+      setManualConquestError("Event not available in the current timeline window.");
+      return;
+    }
+    setManualConquestError(null);
+    setConquestOffset(entry.id - currentTimelineId);
+  }, [conquestTimeline?.entries, currentTimelineId]);
   const weeklyMonsterEntries = useMemo<WeeklyMonsterEntry[]>(() => {
     return (weeklyConquest?.monsters ?? []).map((monsterName) => {
       const monster = monsters[monsterName];
       const minedSummary = MINED_MONSTER_SUMMARY_MAP[monsterName];
       const communitySpawns = communitySightings[monsterName] ?? [];
+      const count = weeklyConquest?.monsterCounts?.[monsterName];
       return {
         name: monsterName,
+        count,
         monster: {
           ...(monster ?? { spawns: [] }),
           icon: monster?.icon ?? MONSTER_ICON_MAP[monsterName],
@@ -615,8 +635,6 @@ export default function WeeklyConquestPage() {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  const conquestKillTargets = [50, 350, 600, 1200, 1500];
-
   return (
     <div className="min-h-screen bg-background transition-colors">
       <div className="max-w-5xl mx-auto px-3 py-5">
@@ -697,6 +715,16 @@ export default function WeeklyConquestPage() {
                   </div>
                   <div className="mt-2.5 grid grid-cols-3 gap-2">
                     <div className="rounded-md border border-border/60 bg-background/45 px-2 py-2 text-center">
+                      <p className="text-[10px] font-semibold text-muted-foreground">{weeklyConquest?.reward?.equipment ? weeklyConquest.reward.equipment : "Equipment - not set"}</p>
+                      <div className="mt-1.5 flex h-12 items-center justify-center">
+                        {equipmentRewardIcon ? (
+                          <img src={equipmentRewardIcon} alt="" className="h-11 w-11 object-contain" style={{ imageRendering: "pixelated" }} />
+                        ) : (
+                          <Trophy className="h-7 w-7 text-muted-foreground/50" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-border/60 bg-background/45 px-2 py-2 text-center">
                       <p className="text-[10px] font-semibold text-muted-foreground">{hasJobReward ? `${weeklyConquest!.reward.jobRank} - ${weeklyConquest!.reward.jobName}` : "Job reward - not set"}</p>
                       <div className="mt-1.5 flex h-12 items-center justify-center">
                         {hasJobReward ? (
@@ -725,52 +753,89 @@ export default function WeeklyConquestPage() {
                         )}
                       </div>
                     </div>
-                    <div className="rounded-md border border-border/60 bg-background/45 px-2 py-2 text-center">
-                      <p className="text-[10px] font-semibold text-muted-foreground">{weeklyConquest?.reward?.equipment ? weeklyConquest.reward.equipment : "Equipment - not set"}</p>
-                      <div className="mt-1.5 flex h-12 items-center justify-center">
-                        {equipmentRewardIcon ? (
-                          <img src={equipmentRewardIcon} alt="" className="h-11 w-11 object-contain" style={{ imageRendering: "pixelated" }} />
-                        ) : (
-                          <Trophy className="h-7 w-7 text-muted-foreground/50" />
-                        )}
-                      </div>
-                    </div>
                   </div>
                 </div>
 
-                <div className="rounded-md border border-border bg-muted/10 p-2">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground">Event Calendar</p>
-                      <p className="text-[11px] text-muted-foreground">Past, current and upcoming events with rewards only.</p>
+                <div className="grid gap-2 lg:grid-cols-[1fr_auto]">
+                  <div className="rounded-md border border-border bg-muted/10 p-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground">Event Calendar</p>
+                        <p className="text-[11px] text-muted-foreground">Past, current and upcoming events with rewards only.</p>
+                      </div>
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => setShowConquestCalendar((value) => !value)}>
+                        {showConquestCalendar ? <ChevronDown className="w-3.5 h-3.5 mr-1" /> : <ChevronRight className="w-3.5 h-3.5 mr-1" />}
+                        {showConquestCalendar ? "Collapse" : "Expand"}
+                      </Button>
                     </div>
-                    <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => setShowConquestCalendar((value) => !value)}>
-                      {showConquestCalendar ? <ChevronDown className="w-3.5 h-3.5 mr-1" /> : <ChevronRight className="w-3.5 h-3.5 mr-1" />}
-                      {showConquestCalendar ? "Collapse" : "Expand"}
-                    </Button>
-                  </div>
-                  {showConquestCalendar ? (
-                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {conquestEventEntries.map((entry) => {
-                        const isCurrent = entry.id === currentTimelineId;
-                        const isPast = entry.id < currentTimelineId;
-                        const entryLabel = isCurrent ? "Current" : isPast ? "Past" : "Upcoming";
-                        return (
-                          <div key={entry.id} className={`rounded-xl border p-2 ${isCurrent ? "border-primary bg-primary/10" : "border-border bg-muted/50"}`}>
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-[11px] font-semibold leading-snug truncate">{entry.name}</p>
-                                <p className="text-[9px] text-muted-foreground">{new Date(entry.startedAt).toLocaleDateString()} - {new Date(entry.endsAt).toLocaleDateString()}</p>
+                    {showConquestCalendar ? (
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {conquestEventEntries.map((entry) => {
+                          const isCurrent = entry.id === currentTimelineId;
+                          const isPast = entry.id < currentTimelineId;
+                          const entryLabel = isCurrent ? "Current" : isPast ? "Past" : "Upcoming";
+                          return (
+                            <div key={entry.id} className={`rounded-xl border p-2 ${isCurrent ? "border-primary bg-primary/10" : "border-border bg-muted/50"}`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-semibold leading-snug truncate">{entry.name}</p>
+                                  <p className="text-[9px] text-muted-foreground">{new Date(entry.startedAt).toLocaleDateString()} - {new Date(entry.endsAt).toLocaleDateString()}</p>
+                                </div>
+                                <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium ${isCurrent ? "bg-primary text-primary-foreground" : isPast ? "bg-muted text-muted-foreground" : "bg-muted/70 text-muted-foreground"}`}>
+                                  {entryLabel}
+                                </span>
                               </div>
-                              <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium ${isCurrent ? "bg-primary text-primary-foreground" : isPast ? "bg-muted text-muted-foreground" : "bg-muted/70 text-muted-foreground"}`}>
-                                {entryLabel}
-                              </span>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="rounded-md border border-border bg-muted/10 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Go to Conquest Event</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-sm font-semibold">#</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={manualConquestId}
+                        onChange={(event) => {
+                          const next = event.target.value.replace(/[^0-9]/g, "");
+                          setManualConquestError(null);
+                          setManualConquestId(next);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            const nextId = Number(manualConquestId);
+                            if (Number.isInteger(nextId) && nextId >= 1 && nextId <= 99) {
+                              selectConquestById(nextId);
+                            } else {
+                              setManualConquestError("Enter a number between 1 and 99.");
+                            }
+                          }
+                        }}
+                        placeholder="1-99"
+                        className="h-9 w-[96px] text-sm"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-9 px-3 text-[11px]"
+                        onClick={() => {
+                          const nextId = Number(manualConquestId);
+                          if (Number.isInteger(nextId) && nextId >= 1 && nextId <= 99) {
+                            selectConquestById(nextId);
+                          } else {
+                            setManualConquestError("Enter a number between 1 and 99.");
+                          }
+                        }}
+                      >
+                        Go
+                      </Button>
                     </div>
-                  ) : null}
+                    {manualConquestError ? <p className="mt-2 text-[10px] text-destructive">{manualConquestError}</p> : null}
+                  </div>
                 </div>
 
                 <div className="columns-1 sm:columns-2 lg:columns-3 gap-2">
@@ -849,7 +914,7 @@ export default function WeeklyConquestPage() {
                             >
                               {mName}
                             </Link>
-                            <p className="text-[9px] text-muted-foreground">Kills: {conquestKillTargets[i]?.toLocaleString() ?? "-"}</p>
+                            <p className="text-[9px] text-muted-foreground">Kills: {entry.count != null ? entry.count.toLocaleString() : "-"}</p>
                           </div>
                         </div>
                         {minedSummary ? (
@@ -933,7 +998,9 @@ export default function WeeklyConquestPage() {
                                   </span>
                                 )}
                               </span>
-                              <span className="line-clamp-2 min-h-[1.5rem] break-words">{entry.name}</span>
+                              <span className="line-clamp-2 min-h-[1.5rem] break-words">
+                                {entry.name}{entry.count ? ` (${entry.count})` : ""}
+                              </span>
                             </button>
                           );
                         })}

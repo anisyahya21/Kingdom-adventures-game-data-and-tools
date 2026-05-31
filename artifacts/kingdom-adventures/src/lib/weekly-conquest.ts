@@ -15,6 +15,7 @@ export type AutomaticWeeklyConquest = {
   id: number;
   name: string;
   monsters: string[];
+  monsterCounts?: Record<string, number>;
   reward: AutomaticWeeklyReward;
   startedAt: number;
   endsAt: number;
@@ -35,6 +36,7 @@ type CampaignEvent = {
   periodDays: number;
   reward: AutomaticWeeklyReward;
   monsters: string[];
+  monsterCounts?: Record<string, number>;
 };
 
 type CampaignScheduleEntry = {
@@ -102,9 +104,18 @@ function parseCampaignLookupCsv(text: string): Map<number, CampaignEvent> {
     const rawJob = asText(row[14] ?? null);
     const diamonds = asNumber(row[18] ?? null);
 
-    const monsters = [23, 29, 35, 41, 47]
-      .map((index) => asText(row[index] ?? null))
-      .filter(Boolean);
+    const monsterIndices = [23, 29, 35, 41, 47];
+    const countIndices = [24, 30, 36, 42, 48];
+    const monsters: string[] = [];
+    const monsterCounts: Record<string, number> = {};
+
+    monsterIndices.forEach((monsterIndex, entryIndex) => {
+      const monsterName = asText(row[monsterIndex] ?? null);
+      if (!monsterName) return;
+      const count = asNumber(row[countIndices[entryIndex]] ?? null);
+      monsters.push(monsterName);
+      monsterCounts[monsterName] = count;
+    });
 
     const rewardJobMatch = rawJob.match(/^([A-Z])\s+(?:Grade|Rank)\s+(.+)$/i);
     const reward: AutomaticWeeklyReward = {
@@ -114,7 +125,7 @@ function parseCampaignLookupCsv(text: string): Map<number, CampaignEvent> {
       equipment,
     };
 
-    events.set(id, { id, name, periodDays, reward, monsters });
+    events.set(id, { id, name, periodDays, reward, monsters, monsterCounts });
   }
 
   return events;
@@ -158,9 +169,18 @@ function parseCampaignLookup(rows: GvizRow[]): Map<number, CampaignEvent> {
     const rawJob = asText(cellValue(row, 14));
     const diamonds = asNumber(cellValue(row, 18));
 
-    const monsters = [23, 29, 35, 41, 47]
-      .map((index) => asText(cellValue(row, index)))
-      .filter(Boolean);
+    const monsterIndices = [23, 29, 35, 41, 47];
+    const countIndices = [24, 30, 36, 42, 48];
+    const monsters: string[] = [];
+    const monsterCounts: Record<string, number> = {};
+
+    monsterIndices.forEach((monsterIndex, entryIndex) => {
+      const monsterName = asText(cellValue(row, monsterIndex));
+      if (!monsterName) return;
+      const count = asNumber(cellValue(row, countIndices[entryIndex]));
+      monsters.push(monsterName);
+      monsterCounts[monsterName] = count;
+    });
 
     const rewardJobMatch = rawJob.match(/^([A-Z])\s+(?:Grade|Rank)\s+(.+)$/i);
     const reward: AutomaticWeeklyReward = {
@@ -170,7 +190,7 @@ function parseCampaignLookup(rows: GvizRow[]): Map<number, CampaignEvent> {
       equipment,
     };
 
-    events.set(id, { id, name, periodDays, reward, monsters });
+    events.set(id, { id, name, periodDays, reward, monsters, monsterCounts });
   }
 
   return events;
@@ -233,6 +253,7 @@ function resolveCurrentConquest(
     id: picked.event.id,
     name: picked.event.name,
     monsters: picked.event.monsters,
+    monsterCounts: picked.event.monsterCounts,
     reward: picked.event.reward,
     startedAt: picked.startedAt.getTime(),
     endsAt: picked.endsAt.getTime(),
@@ -257,6 +278,7 @@ function resolveAnchoredConquest(
     id: event.id,
     name: event.name,
     monsters: event.monsters,
+    monsterCounts: event.monsterCounts,
     reward: event.reward,
     startedAt,
     endsAt: startedAt + event.periodDays * 24 * 60 * 60 * 1000,
@@ -308,6 +330,7 @@ export async function fetchAutomaticWeeklyConquestTimeline(
       id: event.id,
       name: event.name,
       monsters: event.monsters,
+      monsterCounts: event.monsterCounts,
       reward: event.reward,
       startedAt: shiftedStart,
       endsAt: shiftedEnd,
@@ -335,6 +358,7 @@ export function buildLocalAutomaticWeeklyConquestTimeline(
         id: event.id,
         name: event.name,
         monsters: event.monsters,
+        monsterCounts: event.monsterCounts,
         reward: event.reward,
         startedAt: now.getTime(),
         endsAt: now.getTime() + event.periodDays * 24 * 60 * 60 * 1000,
@@ -362,6 +386,7 @@ export function buildLocalAutomaticWeeklyConquestTimeline(
       id: event.id,
       name: event.name,
       monsters: event.monsters,
+      monsterCounts: event.monsterCounts,
       reward: event.reward,
       startedAt,
       endsAt: startedAt + event.periodDays * 24 * 60 * 60 * 1000,
