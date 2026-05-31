@@ -32,6 +32,8 @@ type Survey = {
   maxHearts: number;
   minSuccessRate: number;
   maxSuccessRate: number;
+  minCost: number;
+  maxCost: number;
   jobGroupId?: number;
 };
 
@@ -85,6 +87,8 @@ function parseSurveyCsv(raw: string): Survey[] {
   const maxHeartsIndex = header.indexOf("maxHearts");
   const minSuccessRateIndex = header.indexOf("minSuccessRate");
   const maxSuccessRateIndex = header.indexOf("maxSuccessRate");
+  const minCostIndex = header.indexOf("minCost");
+  const maxCostIndex = header.indexOf("maxCost");
   const jobGroupIdIndex = header.indexOf("jobGroupId");
 
   const statusIndex = 1;
@@ -110,6 +114,8 @@ function parseSurveyCsv(raw: string): Survey[] {
         maxHearts: Number(cols[maxHeartsIndex] ?? "") || 0,
         minSuccessRate: Number(cols[minSuccessRateIndex] ?? "") || 0,
         maxSuccessRate: Number(cols[maxSuccessRateIndex] ?? "") || 0,
+        minCost: Number(cols[minCostIndex] ?? "") || 0,
+        maxCost: Number(cols[maxCostIndex] ?? "") || 1,
         jobGroupId: Number(cols[jobGroupIdIndex] ?? "") >= 0 ? Number(cols[jobGroupIdIndex] ?? "") : undefined,
       };
     })
@@ -671,10 +677,7 @@ const SURVEY_TERRAIN_LABELS: Record<string, string> = {
   rock: "Rock",
 };
 
-const JOB_BONUS_HINT: Record<number, string> = {
-  10: "+10% success when using Explorer jobs",
-  12: "+15% success on desert surveys with Guide jobs",
-};
+const SURVEY_BONUS_HINT = "+20% success when using a bonus job";
 
 const EQUIP_SLOTS = [
   { key: "weapon", label: "Weapon", icon: Sword, slotType: "Weapon" as const },
@@ -700,6 +703,7 @@ export default function SurveyPlanner() {
   const [slotEquipment, setSlotEquipment] = useState<SlotEquipSelection>({ weapon: null, accessory: null });
   const [accessoryId, setAccessoryId] = useState<string | null>(null);
   const [overrideValues, setOverrideValues] = useState(false);
+  const [surveyCost, setSurveyCost] = useState<number | "">(0);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [guideMarkdown, setGuideMarkdown] = useState("");
   const [guideLoading, setGuideLoading] = useState(true);
@@ -777,9 +781,15 @@ export default function SurveyPlanner() {
     return sum;
   }, [weapon, accessory, equipmentLevels]);
 
-  const surveyBonus = survey.jobGroupId ? JOB_BONUS_HINT[survey.jobGroupId] : undefined;
+  const surveyBonus = survey.jobGroupId ? SURVEY_BONUS_HINT : undefined;
   const jobIsBonusForSurvey = survey.jobGroupId && job.group === survey.jobGroupId;
   const currentJobRank = selectedJobRank ?? job.rankLabel ?? "";
+
+  const surveyCostValue = typeof surveyCost === "number" && !Number.isNaN(surveyCost) ? Math.max(0, surveyCost) : 0;
+  const effectiveCount = survey.maxEarnableRewardCount === -1 ? 100 : Math.max(1, survey.maxEarnableRewardCount);
+  const surveyProgress = survey.maxCost > survey.minCost ? Math.min(1, Math.max(0, (surveyCostValue - survey.minCost) / (survey.maxCost - survey.minCost))) : 0;
+  const surveyStage = surveyProgress * effectiveCount;
+  const minHeartAtCost = survey.minHearts + surveyStage / effectiveCount * (survey.maxHearts - survey.minHearts);
 
   const jobHeartLevelValue = typeof jobHeartLevel === "number" && !Number.isNaN(jobHeartLevel) ? Math.max(1, jobHeartLevel) : 1;
   const sharedJob = sharedData?.jobs?.[selectedJobFamily?.name ?? ""];
@@ -862,22 +872,16 @@ export default function SurveyPlanner() {
   }, []);
 
   function interpSuccess(s: Survey, hearts: number) {
-    let base = 0;
-    if (hearts <= s.minHearts) base = s.minSuccessRate;
-    else if (hearts >= s.maxHearts) base = s.maxSuccessRate;
-    else {
-      const t = (hearts - s.minHearts) / (s.maxHearts - s.minHearts);
-      base = s.minSuccessRate + t * (s.maxSuccessRate - s.minSuccessRate);
-    }
-    if (jobIsBonusForSurvey && survey.jobGroupId) {
-      const hint = JOB_BONUS_HINT[survey.jobGroupId] ?? "";
-      const m = hint.match(/\+([0-9]+)%/);
-      if (m) base = Math.min(100, base + Number(m[1]));
-    }
+    if (minHeartAtCost <= 0) return s.minSuccessRate;
+    if (hearts >= minHeartAtCost) return s.maxSuccessRate;
+    const ratio = hearts / minHeartAtCost;
+    const base = s.minSuccessRate + ratio * (s.maxSuccessRate - s.minSuccessRate);
     return Math.round(base * 10) / 10;
   }
 
-  const success = interpSuccess(survey, totalHeart);
+  const baseSuccess = interpSuccess(survey, totalHeart);
+  const bonusAmount = jobIsBonusForSurvey ? 20 : 0;
+  const success = Math.min(100, Math.round((baseSuccess + bonusAmount) * 10) / 10);
 
   return (
     <div className="p-4">
@@ -944,7 +948,7 @@ export default function SurveyPlanner() {
                 <div className="text-right md:text-center">Max</div>
                 <div className="hidden text-center md:block">Biome</div>
                 <div className="hidden text-center md:block">Min Lv</div>
-                <div className="hidden md:block">Bonus Job</div>
+                <div className="hidden md:block">Bonus Job +20%</div>
               </div>
               <div className="space-y-2">
                 {(isMobileSurveyList && !surveyListExpanded ? GROUPED_SURVEYS.slice(0, 3) : GROUPED_SURVEYS).map((group) => {
@@ -985,7 +989,7 @@ export default function SurveyPlanner() {
                           {expanded ? (
                             <span className="inline-flex items-center gap-1.5">
                               <span className="inline-block w-[34px]" aria-hidden="true" />
-                              <span>Bonus Job</span>
+                              <span>Bonus Job +20%</span>
                             </span>
                           ) : group.surveys.length > 1 ? null : "Single survey"}
                         </div>
@@ -1281,6 +1285,21 @@ export default function SurveyPlanner() {
                       {!overrideValues ? "Auto-calculated total." : "Manual override total heart value."}
                     </div>
                   </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Survey cost</div>
+                    <Input
+                      type="number"
+                      min={survey.minCost}
+                      max={survey.maxCost}
+                      value={surveyCost}
+                      onChange={(e: any) => setSurveyCost(e.target.value === "" ? "" : Number(e.target.value))}
+                      placeholder={`${survey.minCost} - ${survey.maxCost}`}
+                      className="mt-2 h-10 w-full"
+                    />
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Cost determines current survey stage between {survey.minCost} and {survey.maxCost}.
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1346,6 +1365,12 @@ export default function SurveyPlanner() {
                   <div className="flex items-center justify-between text-base font-semibold">
                     <span>Estimated success</span>
                     <strong>{success}%</strong>
+                  </div>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div>Base success: {baseSuccess}%{bonusAmount ? ` + ${bonusAmount}% bonus` : ""} = {success}%.</div>
+                    <div>Cost progress: {Math.round(surveyProgress * 100)}% of {survey.maxCost - survey.minCost}.</div>
+                    <div>Min heart at this cost: {Math.round(minHeartAtCost)}.</div>
+                    <div>Raw survey range: {survey.minHearts}–{survey.maxHearts} hearts → {survey.minSuccessRate}%–{survey.maxSuccessRate}%.</div>
                   </div>
                 </div>
               </div>
