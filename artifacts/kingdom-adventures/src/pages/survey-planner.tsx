@@ -34,6 +34,8 @@ type Survey = {
   maxSuccessRate: number;
   minCost: number;
   maxCost: number;
+  minAdditionTimeSeconds: number;
+  maxAdditionTimeSeconds: number;
   jobGroupId?: number;
 };
 
@@ -89,6 +91,8 @@ function parseSurveyCsv(raw: string): Survey[] {
   const maxSuccessRateIndex = header.indexOf("maxSuccessRate");
   const minCostIndex = header.indexOf("minCost");
   const maxCostIndex = header.indexOf("maxCost");
+  const minAdditionTimeSecondsIndex = header.indexOf("minAdditionTimeSeconds");
+  const maxAdditionTimeSecondsIndex = header.indexOf("maxAdditionTimeSeconds");
   const jobGroupIdIndex = header.indexOf("jobGroupId");
 
   const statusIndex = 1;
@@ -116,6 +120,8 @@ function parseSurveyCsv(raw: string): Survey[] {
         maxSuccessRate: Number(cols[maxSuccessRateIndex] ?? "") || 0,
         minCost: Number(cols[minCostIndex] ?? "") || 0,
         maxCost: Number(cols[maxCostIndex] ?? "") || 1,
+        minAdditionTimeSeconds: Number(cols[minAdditionTimeSecondsIndex] ?? "") || 0,
+        maxAdditionTimeSeconds: Number(cols[maxAdditionTimeSecondsIndex] ?? "") || 1,
         jobGroupId: Number(cols[jobGroupIdIndex] ?? "") >= 0 ? Number(cols[jobGroupIdIndex] ?? "") : undefined,
       };
     })
@@ -703,7 +709,7 @@ export default function SurveyPlanner() {
   const [slotEquipment, setSlotEquipment] = useState<SlotEquipSelection>({ weapon: null, accessory: null });
   const [accessoryId, setAccessoryId] = useState<string | null>(null);
   const [overrideValues, setOverrideValues] = useState(false);
-  const [surveyCost, setSurveyCost] = useState<number | "">(0);
+  const [surveyTimeMinutes, setSurveyTimeMinutes] = useState<number | "">(0);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [guideMarkdown, setGuideMarkdown] = useState("");
   const [guideLoading, setGuideLoading] = useState(true);
@@ -785,11 +791,15 @@ export default function SurveyPlanner() {
   const jobIsBonusForSurvey = survey.jobGroupId && job.group === survey.jobGroupId;
   const currentJobRank = selectedJobRank ?? job.rankLabel ?? "";
 
-  const surveyCostValue = typeof surveyCost === "number" && !Number.isNaN(surveyCost) ? Math.max(0, surveyCost) : 0;
+  const surveyTimeValue = typeof surveyTimeMinutes === "number" && !Number.isNaN(surveyTimeMinutes) ? Math.max(0, surveyTimeMinutes) : 0;
+  const surveyTimeSeconds = surveyTimeValue * 60;
   const effectiveCount = survey.maxEarnableRewardCount === -1 ? 100 : Math.max(1, survey.maxEarnableRewardCount);
-  const surveyProgress = survey.maxCost > survey.minCost ? Math.min(1, Math.max(0, (surveyCostValue - survey.minCost) / (survey.maxCost - survey.minCost))) : 0;
+  const surveyProgress = survey.maxAdditionTimeSeconds !== survey.minAdditionTimeSeconds
+    ? Math.min(1, Math.max(0, (surveyTimeSeconds - survey.minAdditionTimeSeconds) / (survey.maxAdditionTimeSeconds - survey.minAdditionTimeSeconds)))
+    : 0;
   const surveyStage = surveyProgress * effectiveCount;
-  const minHeartAtCost = survey.minHearts + surveyStage / effectiveCount * (survey.maxHearts - survey.minHearts);
+  const surveyedNumber = Math.round(surveyStage);
+  const minHeartAtTime = survey.minHearts + (surveyStage / effectiveCount) * (survey.maxHearts - survey.minHearts);
 
   const jobHeartLevelValue = typeof jobHeartLevel === "number" && !Number.isNaN(jobHeartLevel) ? Math.max(1, jobHeartLevel) : 1;
   const sharedJob = sharedData?.jobs?.[selectedJobFamily?.name ?? ""];
@@ -872,9 +882,9 @@ export default function SurveyPlanner() {
   }, []);
 
   function interpSuccess(s: Survey, hearts: number) {
-    if (minHeartAtCost <= 0) return s.minSuccessRate;
-    if (hearts >= minHeartAtCost) return s.maxSuccessRate;
-    const ratio = hearts / minHeartAtCost;
+    if (minHeartAtTime <= 0) return s.minSuccessRate;
+    if (hearts >= minHeartAtTime) return s.maxSuccessRate;
+    const ratio = hearts / minHeartAtTime;
     const base = s.minSuccessRate + ratio * (s.maxSuccessRate - s.minSuccessRate);
     return Math.round(base * 10) / 10;
   }
@@ -1286,18 +1296,17 @@ export default function SurveyPlanner() {
                     </div>
                   </div>
                   <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Survey cost</div>
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Survey time (minutes)</div>
                     <Input
                       type="number"
-                      min={survey.minCost}
-                      max={survey.maxCost}
-                      value={surveyCost}
-                      onChange={(e: any) => setSurveyCost(e.target.value === "" ? "" : Number(e.target.value))}
-                      placeholder={`${survey.minCost} - ${survey.maxCost}`}
+                      min={0}
+                      value={surveyTimeMinutes}
+                      onChange={(e: any) => setSurveyTimeMinutes(e.target.value === "" ? "" : Number(e.target.value))}
+                      placeholder={`${Math.min(survey.minAdditionTimeSeconds, survey.maxAdditionTimeSeconds) / 60} - ${Math.max(survey.minAdditionTimeSeconds, survey.maxAdditionTimeSeconds) / 60}`}
                       className="mt-2 h-10 w-full"
                     />
                     <div className="text-xs text-muted-foreground mt-2">
-                      Cost determines current survey stage between {survey.minCost} and {survey.maxCost}.
+                      Time determines current survey stage between {Math.min(survey.minAdditionTimeSeconds, survey.maxAdditionTimeSeconds) / 60} and {Math.max(survey.minAdditionTimeSeconds, survey.maxAdditionTimeSeconds) / 60} minutes.
                     </div>
                   </div>
                 </div>
@@ -1368,8 +1377,9 @@ export default function SurveyPlanner() {
                   </div>
                   <div className="text-xs text-muted-foreground space-y-1">
                     <div>Base success: {baseSuccess}%{bonusAmount ? ` + ${bonusAmount}% bonus` : ""} = {success}%.</div>
-                    <div>Cost progress: {Math.round(surveyProgress * 100)}% of {survey.maxCost - survey.minCost}.</div>
-                    <div>Min heart at this cost: {Math.round(minHeartAtCost)}.</div>
+                    <div>Surveyed number: {surveyedNumber}.</div>
+                    <div>Time progress: {Math.round(surveyProgress * 100)}% of {Math.abs(survey.maxAdditionTimeSeconds - survey.minAdditionTimeSeconds) / 60} minutes.</div>
+                    <div>Min heart at this time: {Math.round(minHeartAtTime)}.</div>
                     <div>Raw survey range: {survey.minHearts}–{survey.maxHearts} hearts → {survey.minSuccessRate}%–{survey.maxSuccessRate}%.</div>
                   </div>
                 </div>
