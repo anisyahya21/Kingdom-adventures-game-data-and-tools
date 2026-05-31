@@ -1378,7 +1378,6 @@ export default function SurveyPlanner() {
                   <div className="text-xs text-muted-foreground space-y-1">
                     <div>Base success: {baseSuccess}%{bonusAmount ? ` + ${bonusAmount}% bonus` : ""} = {success}%.</div>
                     <div>Surveyed number: {surveyedNumber}.</div>
-                    <div>Time progress: {Math.round(surveyProgress * 100)}% of {Math.abs(survey.maxAdditionTimeSeconds - survey.minAdditionTimeSeconds) / 60} minutes.</div>
                     <div>Min heart at this time: {Math.round(minHeartAtTime)}.</div>
                     <div>Raw survey range: {survey.minHearts}–{survey.maxHearts} hearts → {survey.minSuccessRate}%–{survey.maxSuccessRate}%.</div>
                   </div>
