@@ -24,9 +24,171 @@ type Skill = {
   sellPrice?: number;
   description?: string;
   weaponResistance?: string;
+  flags?: number;
 };
 
+function isSkillCraftable(skill: Skill) {
+  if (typeof skill.flags === "number") {
+    return Boolean(skill.flags & 2);
+  }
+  return CRAFTABLE_SKILL_NAMES.has(skill.name.trim());
+}
+
+function getSkillTypeLabel(skill: Skill) {
+  if (typeof skill.flags === "number") {
+    if (skill.flags & 512) return "Attack";
+    if (skill.flags & 1024) return "Attack Magic";
+    if (skill.flags & 2048) return "Recovery magic";
+  }
+  return getSkillTypeLabelByName(skill.name);
+}
+
 type SharedData = { skills?: Record<string, Skill> };
+
+function getSkillTypeLabelByName(skillName: string) {
+  const normalized = skillName.trim();
+  const exact = SKILL_TYPE_BY_NAME.get(normalized);
+  if (exact) return exact;
+
+  const patterns: Array<[RegExp, "Attack" | "Attack Magic" | "Recovery magic"]> = [
+    [/^\d+-Hit Attack$/i, "Attack"],
+    [/^Area Attack\s+.+$/i, "Attack"],
+    [/^Armor Breaker\s+.+$/i, "Attack"],
+    [/^Direct Attack\s+.+$/i, "Attack"],
+    [/^Sandman\s+.+$/i, "Attack"],
+    [/^Fire Magic\s+.+$/i, "Attack Magic"],
+    [/^Ice Magic\s+.+$/i, "Attack Magic"],
+    [/^Lightning Magic\s+.+$/i, "Attack Magic"],
+    [/^Heal\s+.+$/i, "Recovery magic"],
+    [/^Revive\s+\d+%$/i, "Recovery magic"],
+  ];
+
+  for (const [pattern, type] of patterns) {
+    if (pattern.test(normalized)) return type;
+  }
+
+  return undefined;
+}
+
+const CRAFTABLE_SKILL_NAMES = new Set([
+  "2-Hit Attack",
+  "3-Hit Attack",
+  "4-Hit Attack",
+  "5-Hit Attack",
+  "Agriculturist",
+  "Aid Specialist",
+  "All-Out Sprint",
+  "Area Attack Ⅰ",
+  "Area Attack Ⅱ",
+  "Arrow Rain",
+  "Auto Recovery HP",
+  "Auto Recovery MP",
+  "Auto Recovery Vigor",
+  "Axe Resistance",
+  "Backup",
+  "Battle Maniac",
+  "Book Resistance",
+  "Bow Resistance",
+  "Chat Ⅰ",
+  "Chat Ⅱ",
+  "Club Resistance",
+  "Construction Chief",
+  "Counter",
+  "Craftsmanship",
+  "Craftsmanship Ⅱ",
+  "Craftsmanship Ⅲ",
+  "Craftsmanship Ⅳ",
+  "Craftsmanship Ⅴ",
+  "Critical UP",
+  "Culinarian",
+  "Daring Charge",
+  "De-Fogger",
+  "Deployment Discount Ⅰ",
+  "Deployment Discount Ⅱ",
+  "Deployment Range Ⅰ",
+  "Deployment Range Ⅱ",
+  "Direct Attack Ⅰ",
+  "Dodge UP",
+  "Domestic Production",
+  "Experience UP Ⅰ",
+  "Experience UP Ⅱ",
+  "Experience UP Ⅲ",
+  "Facility Rec. UP HP",
+  "Facility Rec. UP MP",
+  "Facility Rec. UP Vigor",
+  "Fire Magic Ⅰ",
+  "Fire Magic Ⅱ",
+  "Fire Magic Ⅲ",
+  "Fire Magic Ⅳ",
+  "Gun Resistance",
+  "Half Reflect",
+  "Hammer Resistance",
+  "Heal L",
+  "Heal M",
+  "Heal Maddy",
+  "Ice Magic Ⅰ",
+  "Ice Magic Ⅱ",
+  "Ice Magic Ⅲ",
+  "Ice Magic Ⅳ",
+  "Insta-Move",
+  "Instant Construction",
+  "Instant Treasure Analysis",
+  "Instant Weeding",
+  "Instant Workshop",
+  "Instinct",
+  "Leading the Charge",
+  "Lightning Magic Ⅰ",
+  "Lightning Magic Ⅱ",
+  "Lightning Magic Ⅲ",
+  "Lightning Magic Ⅳ",
+  "Miner",
+  "Move Speed UP",
+  "Parry",
+  "Perfect Dodge",
+  "Ranch Know-How",
+  "Research",
+  "Research Ⅱ",
+  "Research Ⅲ",
+  "Research Ⅳ",
+  "Research Ⅴ",
+  "Revive 50%",
+  "Round Trip",
+  "Shield Resistance",
+  "Skilled Craftsman Ⅰ",
+  "Skilled Craftsman Ⅱ",
+  "Spear Resistance",
+  "Staff Resistance",
+  "Stealth",
+  "Strategic Retreat",
+  "Stubborn",
+  "Sword Resistance",
+  "Thief",
+  "Transport Corps",
+  "Treasure Analysis",
+]);
+
+const SKILL_TYPE_BY_NAME = new Map<string, "Attack" | "Attack Magic" | "Recovery magic">([
+  ["<0>-Hit Attack", "Attack"],
+  ["Area Attack <0>", "Attack"],
+  ["Armor Breaker <0>", "Attack"],
+  ["Arrow Rain", "Attack"],
+  ["Counter", "Attack"],
+  ["Critical UP", "Attack"],
+  ["Critical UP+", "Attack"],
+  ["Direct Attack <0>", "Attack"],
+  ["Dodge UP", "Attack"],
+  ["Full Reflect", "Attack"],
+  ["Half Reflect", "Attack"],
+  ["Myriad Arrows", "Attack"],
+  ["Parry", "Attack"],
+  ["Perfect Dodge", "Attack"],
+  ["Sandman <0>", "Attack"],
+  ["Fire Magic <0>", "Attack Magic"],
+  ["Ice Magic <0>", "Attack Magic"],
+  ["Lightning Magic <0>", "Attack Magic"],
+  ["Heal <0>", "Recovery magic"],
+  ["Revive <0>%", "Recovery magic"],
+]);
 
 const EXCLUDED_SKILL_NAMES = new Set(["normal attack", "gun attack", "critical hit"]);
 function useSharedData() {
@@ -100,7 +262,7 @@ export default function SkillsPage() {
     if (typeof window === "undefined") return "";
     return new URLSearchParams(window.location.search).get("search") ?? "";
   });
-  const [sortKey, setSortKey] = useState<"name" | "studioLevel" | "craftingIntelligence" | "buyPrice" | "sellPrice">("name");
+  const [sortKey, setSortKey] = useState<"name" | "studioLevel" | "craftingIntelligence" | "buyPrice" | "sellPrice" | "type" | "craftable">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const skills: Record<string, Skill> = data?.skills ?? {};
@@ -114,6 +276,16 @@ export default function SkillsPage() {
     .sort((a, b) => {
       const dir = sortDir === "asc" ? 1 : -1;
       if (sortKey === "name") return dir * a.name.localeCompare(b.name);
+      if (sortKey === "type") {
+        const aType = getSkillTypeLabel(a) ?? "";
+        const bType = getSkillTypeLabel(b) ?? "";
+        return dir * aType.localeCompare(bType);
+      }
+      if (sortKey === "craftable") {
+        const aCraft = isSkillCraftable(a) ? 1 : 0;
+        const bCraft = isSkillCraftable(b) ? 1 : 0;
+        return dir * (aCraft - bCraft);
+      }
       const av = a[sortKey] ?? -Infinity;
       const bv = b[sortKey] ?? -Infinity;
       return dir * ((av as number) < (bv as number) ? -1 : (av as number) > (bv as number) ? 1 : 0);
@@ -227,9 +399,11 @@ export default function SkillsPage() {
                         { key: "craftingIntelligence", label: null, align: "center", cls: "w-[130px]" },
                         { key: "buyPrice", label: "Buy Price", align: "center", cls: "w-[100px]" },
                         { key: "sellPrice", label: "Sell Price", align: "center", cls: "w-[100px]" },
+                        { key: "type", label: "Type", align: "center", cls: "w-[110px]" },
+                        { key: "craftable", label: "Craftable", align: "center", cls: "w-[100px]" },
                       ] as const).map(({ key, label, align, cls }) => (
                         <th key={key} className={`px-3 py-2 text-xs font-medium text-muted-foreground select-none cursor-pointer hover:text-foreground transition-colors ${cls} text-${align}`}
-                          onClick={() => toggleSort(key)}>
+                          onClick={() => toggleSort(key as typeof sortKey)}>
                           <span className="inline-flex items-center gap-1">
                             {key === "craftingIntelligence"
                               ? <><Zap className="w-3 h-3 text-yellow-500" />Crafting Intel</>
@@ -247,7 +421,7 @@ export default function SkillsPage() {
                   <tbody className="divide-y divide-border">
 
                     {filtered.length === 0 && (
-                      <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">
+                      <tr><td colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
                         {search ? "No skills match your search." : "No skills found."}
                       </td></tr>
                     )}
@@ -256,6 +430,7 @@ export default function SkillsPage() {
                       const isEditing = editingName === skill.name;
                       const d = isEditing ? editDraft! : skill;
                       const skillIcon = getSkillIcon(skill.name);
+                      const craftable = isSkillCraftable(skill);
                       return (
                         <tr key={skill.name} className={`hover:bg-muted/30 transition-colors ${isEditing ? "bg-sky-50 dark:bg-sky-950/20" : ""}`}>
                           <td className="px-4 py-2 font-medium">
@@ -282,6 +457,14 @@ export default function SkillsPage() {
                           </td>
                           <td className="px-3 py-2 text-center">
                             {numCell(skill.sellPrice, () => undefined, false, "$")}
+                          </td>
+                          <td className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">
+                            {getSkillTypeLabel(skill) ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <span className={craftable ? "text-emerald-600 font-semibold" : "text-destructive font-semibold"}>
+                              {craftable ? "Y" : "N"}
+                            </span>
                           </td>
                           <td className="px-3 py-2 min-w-[200px]">
                             {isEditing

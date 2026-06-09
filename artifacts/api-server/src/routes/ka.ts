@@ -81,7 +81,62 @@ export type Skill = {
   buyPrice?: number;
   sellPrice?: number;
   description?: string;
+  flags?: number;
 };
+
+const LEGACY_SKILL_TEXT_PATH = path.resolve(
+  process.cwd(),
+  "KA-Legacy-Archive",
+  "kingdom-adventures-tmp",
+  "KA_assets",
+  "xls",
+  "English.lproj",
+  "Skill.txt",
+);
+let cachedLegacySkillFlags: Record<string, number> | null = null;
+
+function loadLegacySkillFlags() {
+  if (cachedLegacySkillFlags) return cachedLegacySkillFlags;
+  cachedLegacySkillFlags = {};
+  if (!fs.existsSync(LEGACY_SKILL_TEXT_PATH)) return cachedLegacySkillFlags;
+
+  const text = fs.readFileSync(LEGACY_SKILL_TEXT_PATH, "latin1");
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const cols = line.split("\t");
+    if (cols.length < 34) continue;
+
+    const baseName = cols[29].trim();
+    const argName = cols[30].trim();
+    const resolvedName = baseName.replace("<0>", argName).trim();
+    if (!resolvedName) continue;
+
+    const lowerName = resolvedName.toLowerCase();
+    if (lowerName === "skill" || lowerName === "not used" || lowerName === "unused") continue;
+
+    const rawFlags = cols[33].trim();
+    const flag = Number(rawFlags);
+    if (!Number.isFinite(flag)) continue;
+
+    cachedLegacySkillFlags[resolvedName] = flag;
+  }
+
+  return cachedLegacySkillFlags;
+}
+
+function withLegacySkillFlags(skills: Record<string, Skill>): Record<string, Skill> {
+  const legacyFlags = loadLegacySkillFlags();
+  return Object.fromEntries(
+    Object.entries(skills).map(([key, skill]) => {
+      const enriched: Skill = {
+        ...skill,
+        flags: skill.flags ?? legacyFlags[skill.name],
+      };
+      return [key, enriched];
+    }),
+  );
+}
+
 export type Job = {
   generation: 1 | 2;
   type?: "combat" | "non-combat";
@@ -421,7 +476,11 @@ function getGroupDevices(devices: SyncedDevice[], groupId: string): SyncedDevice
 // ─── Equipment shared state ────────────────────────────────────────────────────
 
 router.get("/ka/shared", (_req, res) => {
-  res.json(readState());
+  const state = readState();
+  res.json({
+    ...state,
+    skills: withLegacySkillFlags(state.skills),
+  });
 });
 
 router.get("/ka/guides", (_req, res) => {
