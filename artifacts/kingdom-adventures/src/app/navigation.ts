@@ -17,6 +17,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/survey", label: "Survey" },
       { href: "/equipment", label: "Equipment Stats & Exchange" },
       { href: "/skills", label: "Skills" },
+      { href: "/research", label: "Research" },
+      { href: "/training-facilities", label: "Training Facilities" },
       { href: "/loadout", label: "Loadout Builder" },
       { href: "/match-finder", label: "Match Finder" },
       { href: "/town-rank", label: "Town Rank" },
@@ -60,6 +62,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Facilities",
     primary: { href: "/houses", label: "Houses & Facilities" },
+    children: [{ href: "/training-facilities", label: "Training Facilities" }],
   },
   {
     title: "Events",

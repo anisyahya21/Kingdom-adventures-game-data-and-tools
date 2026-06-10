@@ -80,6 +80,14 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventurers Shop Database",
     description: "Search Kingdom Adventurers shop unlocks, furniture, weapons, armor, accessories, items, restaurants, and skills.",
   },
+  "/research": {
+    title: "Kingdom Adventurers Research Database",
+    description: "Browse Kingdom Adventurers research data with all entries, equipment and item unlocks, facility research, max levels, and requirement items.",
+  },
+  "/training-facilities": {
+    title: "Kingdom Adventurers Training Facilities",
+    description: "Track Kingdom Adventurers training facilities and future planning tools for training-focused town progression.",
+  },
   "/houses": {
     title: "Kingdom Adventurers Houses and Facilities",
     description: "Plan Kingdom Adventurers houses and facilities with plot sizes, building costs, extra beds, shelves, monster rooms, owner jobs, upgrade costs, map unlocks, HP, range, storage, and production data.",

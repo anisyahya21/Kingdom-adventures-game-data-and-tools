@@ -175,9 +175,49 @@ const BUILT_IN_TOOLS = [
     slug: "/shops",
     title: "Shops and items",
     description: "Browse shops, required crafting facilities, and item feed planning in one place.",
-    icon: <Store className="w-6 h-6 text-indigo-500" />,
+    icon: (
+      <img
+        src="/website_icons/menu/menu_shop_cropped.png"
+        alt="Shops and items"
+        className="h-14 w-14 object-contain"
+        style={{ imageRendering: "pixelated" }}
+      />
+    ),
+    iconContainerClassName: "-ml-1 p-0 bg-transparent",
     badge: "Shops",
     badgeCategory: "shop" satisfies KaCategory,
+  },
+  {
+    slug: "/research",
+    title: "Research",
+    description: "Research browser with all entries, facility and equipment breakdowns, item requirements, and town-rank release notes.",
+    icon: (
+      <img
+        src="/website_icons/menu/menu_research_cropped.png"
+        alt="Research"
+        className="h-14 w-14 object-contain"
+        style={{ imageRendering: "pixelated" }}
+      />
+    ),
+    iconContainerClassName: "-ml-1 p-0 bg-transparent",
+    badge: "Research",
+    badgeCategory: "facility" satisfies KaCategory,
+  },
+  {
+    slug: "/training-facilities",
+    title: "Training Facilities",
+    description: "Training-focused facilities hub with room to expand into dedicated guides and optimization tools.",
+    icon: (
+      <img
+        src="/website_icons/menu/menu_train_cropped.png"
+        alt="Training facilities"
+        className="h-14 w-14 object-contain"
+        style={{ imageRendering: "pixelated" }}
+      />
+    ),
+    iconContainerClassName: "-ml-1 p-0 bg-transparent",
+    badge: "Training",
+    badgeCategory: "building" satisfies KaCategory,
   },
   {
     slug: "/houses",
@@ -532,7 +572,7 @@ export default function Home() {
               <Card className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group h-full">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
+                    <div className={tool.iconContainerClassName ?? "p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors"}>
                       {tool.icon}
                     </div>
                     <CategoryBadge category={tool.badgeCategory as KaCategory} className="text-xs px-2">

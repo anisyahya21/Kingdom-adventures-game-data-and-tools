@@ -1,4 +1,4 @@
-"If you want to use this Game Data dump somewhere else, don't forget to give credits to me (user /u/minhnim in Discord & Reddit), many thanks :) Place holder for how to exploit this data sheet: .... These sheets are raw data from the game dump, so it is guaranteed to be accurate to game mechanism Useful sheets: Job day in Job Center Apple lacking issue Foods issue Damage calculation: Kairo/Wairo Energy cost Exps gain Exps gain for equipment Exp UP Decision to cast skills for each turn in battle MP cost Attack frame during battle Marriage/Give birth calculation: ","Sheet name Simulation - Marriage Gacha***  Monster  Treasure_lookup  Facility_lookup  Item  Equip Campaign_lookup  Collection Survey Guerrilla House Job JobGroup JobPair_lookup Research Skill SpecialBoss The formula is JobGroup's id modulo by 7. E.g: Merchant's jobgroup is 1, modulo 7 gives 1, so it is Monday Another example: Cook's jobgroup is 7, modulo 7 gives 0, so it will appear on Sunday Orchard with 1 or 2 Double beds, no indoor facility, residents should have INT between 120 and 149 for Apple production Upgrade Monster Feed a little bit but not too much if you want to farm zoo animal in late game (higher level Monster Feed will spawn more animals, but higher level will take long time to finish so if you want to capture animals for zoo, it might take long time to spawn another zoo animal)
+"If you want to use this Game Data dump somewhere else, don't forget to give credits to me (user /u/minhnim in Discord & Reddit), many thanks :) Place holder for how to exploit this data sheet: .... These sheets are raw data from the game dump, so it is guaranteed to be accurate to game mechanism Useful sheets: Job day in Job Center Apple lacking issue Foods issue Damage calculation: Kairo/Wairo Energy cost Exps gain Exps gain for equipment Exp UP Decision to cast skills for each turn in battle MP cost Attack frame during battle ","Sheet name Simulation - Marriage Gacha***  Monster  Treasure_lookup  Facility_lookup  Item  Equip Campaign_lookup  Collection Survey Guerrilla House Job JobGroup JobPair_lookup Research Skill SpecialBoss The formula is JobGroup's id modulo by 7. E.g: Merchant's jobgroup is 1, modulo 7 gives 1, so it is Monday Another example: Cook's jobgroup is 7, modulo 7 gives 0, so it will appear on Sunday Orchard with 1 or 2 Double beds, no indoor facility, residents should have INT between 120 and 149 for Apple production Upgrade Monster Feed a little bit but not too much if you want to farm zoo animal in late game (higher level Monster Feed will spawn more animals, but higher level will take long time to finish so if you want to capture animals for zoo, it might take long time to spawn another zoo animal)
 Furthermore, don't deploy Monster Feed on Wasteland, check the data sheet for Cow/Pig spawn location
 Chicken gives less Food than Pig and Pig gives less food than Cow
 ( check Monster tab, id 124-130 for Chicken/Pig/Cow information) Lots of residents with Rancher skill equipped + high level Monster Feed 1) Calculate crit_rate: 2) if crit miss, calculate hit_rate, else go to 3 3) Calculate damage Kairo Room Wairo Room exp gained depends on defeated monster, each monster provides different kind of exp on particular stats. Check ""exps"" column on ""Monster"" tab Once defeated, system will choose randomly one stat between multiple stat that monster provides exp Then exp gain is: 30 * multiplier * monster's level /100, with multiplier is value of chosen exp stat above This will further be modified by other bonus like Exp I, II, III skills given baseEquip & equip, baseEquip is the item you want to level up, and equip is item to be sacrified (e.g Novel) calculate the total param value of equip (e.g novel @ level 99: 308 + 304 + 297 + 297 = 1206 )
@@ -18,8 +18,47 @@ Chicken gives less Food than Pig and Pig gives less food than Cow
            else: NOPE 
   + if skill is useable then throw dice to know if it can be casted, if not, go to next slot <= slot in first position got better chance to be casted than last position
 
-So only Line Attack, Area Attack and Debuff need to be in front line, any thing else could be done from range calculate average level = sum( HP level + MP + .... + Heart) / 12 for average level between 1 to 999, the MP cost is linear between skill's min & max MP column unit's speed decideds the unit's attack frame, which is around 30 * (speed / 25) ^ (-0.362), the higher speed is, the lower attack frame will be, so unit will do action faster
-base on this formula, unit at 6000 speed ( doable for 999 level unit) will attack around two times faster than unit at 1000 speed You see the effect better with Legendary Cave where time gauge is stopped during attack action, till monster level 1000, monsters have around 600-1000 speed, and if your royal has 5000-6000 speed, your Royal will attack at least two times. Give birth is decided at the moment of clicking on the crib, not the moment of clicking on DayCare center later 0) The compatibility showed on Date spot (A,B,C,D,E) is calculated: rank = (affinity - 50) / 10, round down,  which gives 1.. 5 corresponds to E .. A 1) Calculate child rank: look up table, capped between D and S (even if there is F in table, it will be D rank child) 2) Calculate child awakening: ","Description 99% exact game mechanic guaranteed, even for E-compatible couples Intro purpose, e.g: GachaJob for job pulls, Gacha Equip for weapons pulls monster's stats and pet's stats, eggs informations, also contains zoo animals and Chicken/Pigs/Cows Treasures information and rate, especially Kairo and Wairo Dungeon Facility/Room lookup, also contains Artisan's unlock information for furnitures Item unlock information, e.g Apple, ... weapons/shields/accessories/hats information and unlock condition weekly conquest information Museum, Aquarium and Insectarium unlock condition survey information, e.g Scholar, Reclaim Land, ... Wairo dungeon appearing time Inn/House/Mansion/Monster Room information job stats job group information (e.g skills compatibility) couple compatibility and children skills' stats and unlock information Kairo and Wairo Dungeon informations base crit rate followed a well defined table in function of Attacker's luck: then if this attack is a skill, there is a modifier: crit_rate * (100 + skill's value) / 100 , skill's value is taken from value column in Skill's tab then roll a number between 0 and 100 to see if atk is critical Hit rate = 150 + attackerDexterity - defenderAgility / 5 - defenderLuck / 5 , capped between 5 and 97 ( min =5, max=97) , Agility is called Speed in game then if this attack is a skill, there is a modifier: hit_rate * (100 - skill's value) / 100 , skill's value is taken from value column in Skill's tab roll dice 1d100, if less than hit_rate then it is a hit Magic attack is only skill with type column == 1 in Skill tab (only Fire, Ice, Lightning skills at the moment) Atk's attack atk_Atk = INT if magic attack else ATK stat, Monster doesn't have INT, its INT is calculated as monster' Dex/2 Defender'defense def_Def = DEF stat, if it is under Armor breaker's effect (DEF Down), its def_Def = def_Def * (100 - skill's value) / 100 if critical, defender's defense is further modified (devided by 8): def_Def = def_Def / 8 damage = atk_Atk * random(80,120) / 100 , minimum = 1 damage = damage - def_Def * random (70,90) /100 if damage <=5: damage = random (1,10) if weapon has advantage on that particular map's spot, damage = damage * 1.5 cost_per_difficulty: 300, 450, 500, 650 corresponding to difficult: easy, normal, hard, extreme energy cost = cost_per_difficulty + 8 * number_of_fighter cost_per_difficulty: 60, 65, 70, 80 corresponding to difficult: easy, normal, hard, extreme energy cost = max(cost_per_difficulty * max(50 * energy_mine_count, max_energy) / 100 , 1) (max_energy is your current max energy hold by energy storage + town hall storage, which is the value you see when your energy is full) This gives a general idea about affinity, but the exact malus must be calculated with the formula below. Because lower than A compatibility may match two affinities, e.g: B rank compatibility can have affinity of 90 and 95 with different malus father\mother rank F E D C B A S Bonus awakening (same rank bonus) father\mother rank","luck 0...99 100..999 1000..99999 F F F F F F F F F","crit rate 10..20 21..35 36..75 E F F F F F F F E","e.g at 0 luck, unmodified crit rate is 10%, at 99, it is 20% D F F C C C B B D","C F F C B B B A C","B F F C B A A A B","A F F B B A S S A","S F F B A A S S S","","","","","","","","","","","","","","","",""
+So only Line Attack, Area Attack and Debuff need to be in front line, any thing else could be done from range calculate average level = sum( HP level + MP + .... + Heart) / 12 for average level between 1 to 999, the MP cost is linear between skill's min & max MP column unit's speed decideds the unit's attack frame, which is around 30 * (speed / 25) ^ (-0.362) then round down, the higher speed is, the lower attack frame will be, so unit will do action faster
+base on this formula, unit at 6000 speed ( doable for 999 level unit) will attack around two times faster than unit at 1000 speed You see the effect better with Legendary Cave where time gauge is stopped during attack action, till monster level 1000, monsters have around 600-1000 speed, and if your royal has 5000-6000 speed, your Royal will attack at least two times. give the round down characteristic, there are several break point: 315, 400, 520, 696, 964, 1393, 2133, 3529, 6535 and 14467 (just for fun) speed","Description 99% exact game mechanic guaranteed, even for E-compatible couples Intro purpose, e.g: GachaJob for job pulls, Gacha Equip for weapons pulls monster's stats and pet's stats, eggs informations, also contains zoo animals and Chicken/Pigs/Cows Treasures information and rate, especially Kairo and Wairo Dungeon Facility/Room lookup, also contains Artisan's unlock information for furnitures Item unlock information, e.g Apple, ... weapons/shields/accessories/hats information and unlock condition weekly conquest information Museum, Aquarium and Insectarium unlock condition survey information, e.g Scholar, Reclaim Land, ... Wairo dungeon appearing time Inn/House/Mansion/Monster Room information job stats job group information (e.g skills compatibility) couple compatibility and children skills' stats and unlock information Kairo and Wairo Dungeon informations base crit rate followed a well defined table in function of Attacker's luck: then if this attack is a skill, there is a modifier: crit_rate * (100 + skill's value) / 100 , skill's value is taken from value column in Skill's tab then roll a number between 0 and 100 to see if atk is critical Hit rate = 150 + attackerDexterity - defenderAgility / 5 - defenderLuck / 5 , capped between 5 and 97 ( min =5, max=97) , Agility is called Speed in game then if this attack is a skill, there is a modifier: hit_rate * (100 - skill's value) / 100 , skill's value is taken from value column in Skill's tab <== this has been removed roll dice 1d100, if less than hit_rate then it is a hit Magic attack is only skill with type column == 1 in Skill tab (only Fire, Ice, Lightning skills at the moment) Atk's attack atk_Atk = INT if magic attack else ATK stat, Monster doesn't have INT, its INT is calculated as monster' Dex/2 Defender'defense def_Def = DEF stat, if it is under Armor breaker's effect (DEF Down), its def_Def = def_Def * (100 - skill's value) / 100 if critical, defender's defense is further modified (devided by 8): def_Def = def_Def / 8 damage = atk_Atk * random(80,120) / 100 , minimum = 1 damage = damage - def_Def * random (70,90) /100 if damage <=5: damage = random (1,10) if weapon has advantage on that particular map's spot, damage = damage * 1.5 cost_per_difficulty: 300, 450, 500, 650 corresponding to difficult: easy, normal, hard, extreme energy cost = cost_per_difficulty + 8 * number_of_fighter cost_per_difficulty: 60, 65, 70, 80 corresponding to difficult: easy, normal, hard, extreme energy cost = max(cost_per_difficulty * max(50 * energy_mine_count, max_energy) / 100 , 1) (max_energy is your current max energy hold by energy storage + town hall storage, which is the value you see when your energy is full) frame before round down","luck 0...99 100..999 1000..99999 frame","crit rate 10..20 21..35 36..75 ","e.g at 0 luck, unmodified crit rate is 10%, at 99, it is 20% ","","","","","","","","","","","","","","","","","","","",""
+"","6000","4.125577836","4","","","","","","","","","","","","","","","","","","","","","",""
+"","1000","7.891790321","7","","","","","","","","","","","","","","","","","","","","","",""
+"","***","***","","","","","","","","","","","","","","","","","","","","","","",""
+"","314","12.00292259","12","","","","","","","","","","","","","","","","","","","","","",""
+"","315","11.98911476","11","<==","","","","","","","","","","","","","","","","","","","","",""
+"","399","11.00584392","11","","","","","","","","","","","","","","","","","","","","","",""
+"","400","10.99587568","10","<==","","","","","","","","","","","","","","","","","","","","",""
+"","519","10.00656347","10","","","","","","","","","","","","","","","","","","","","","",""
+"","520","9.999593083","9","<==","","","","","","","","","","","","","","","","","","","","",""
+"","695","9.002788315","9","","","","","","","","","","","","","","","","","","","","","",""
+"","696","8.998103683","8","<==","","","","","","","","","","","","","","","","","","","","",""
+"","963","8.000236432","8","","","","","","","","","","","","","","","","","","","","","",""
+"","964","7.997231199","7","<==","","","","","","","","","","","","","","","","","","","","",""
+"","1392","7.001291093","7","","","","","","","","","","","","","","","","","","","","","",""
+"","1393","6.999471245","6","<==","","","","","","","","","","","","","","","","","","","","",""
+"","2132","6.000045881","6","","","","","","","","","","","","","","","","","","","","","",""
+"","2133","5.999027437","5","<==","","","","","","","","","","","","","","","","","","","","",""
+"","3528","5.000002174","5","","","","","","","","","","","","","","","","","","","","","",""
+"","3529","4.999489234","4","<==","","","","","","","","","","","","","","","","","","","","",""
+"","6534","4.000190672","4","","","","","","","","","","","","","","","","","","","","","",""
+"","6535","3.999969074","3","<==","","","","","","","","","","","","","","","","","","","","",""
+"","14466","3.000056232","3","","","","","","","","","","","","","","","","","","","","","",""
+"","14467","2.999981162","2","<==","","","","","","","","","","","","","","","","","","","","",""
+"Marriage/Give birth calculation:","","","","","","","","","","","","","","","","","","","","","","","","",""
+"","Give birth is decided at the moment of clicking on the crib, not the moment of clicking on DayCare center later","","","","","","","","","","","","","","","","","","","","","","","",""
+"","0) The compatibility showed on Date spot (A,B,C,D,E) is calculated: rank = (affinity - 50) / 10, round down,  which gives 1.. 5 corresponds to E .. A","","","","","","","","","","","","","","","","","","","","","","","",""
+"","","This gives a general idea about affinity, but the exact malus must be calculated with the formula below. Because lower than A compatibility may match two affinities, e.g: B rank compatibility can have affinity of 90 and 95 with different malus","","","","","","","","","","","","","","","","","","","","","","",""
+"","1) Calculate child rank: look up table, capped between D and S (even if there is F in table, it will be D rank child)","","","","","","","","","","","","","","","","","","","","","","","",""
+"","","father\mother rank","","E","D","C","B","A","S","","","","","","","","","","","","","","","",""
+"","","F","","F","F","F","F","F","F","","","","","","","","","","","","","","","",""
+"","","E","","F","F","F","F","F","F","","","","","","","","","","","","","","","",""
+"","","D","","F","C","C","C","B","B","","","","","","","","","","","","","","","",""
+"","","C","","F","C","B","B","B","A","","","","","","","","","","","","","","","",""
+"","","B","","F","C","B","A","A","A","","","","","","","","","","","","","","","",""
+"","","A","","F","B","B","A","S","S","","","","","","","","","","","","","","","",""
+"","","S","","F","B","A","A","S","S","","","","","","","","","","","","","","","",""
+"","2) Calculate child awakening:","","","","","","","","","","","","","","","","","","","","","","","",""
+"","","Bonus awakening (same rank bonus)","","","","","","","","","","","","","","","","","","","","","","",""
+"","","father\mother rank","","E","D","C","B","A","S","","","","","","","","","","","","","","","",""
 "","","F","-2","-2","-2","-2","-2","-2","-2","","","","","","","","","","","","","","","",""
 "","","E","-2","-2","-2","-2","-2","-2","-2","","","","","","","","","","","","","","","",""
 "","","D","-2","-2","-1","-2","-2","-2","-2","","","","","","","","","","","","","","","",""
@@ -51,9 +90,11 @@ Because of multiplication/division, the compatibility penalty isn't a fixed valu
 "","if 85<=value <= 100: high possibility, rate = 60","","","","","","","","","","","","","","","","","","","","","","","",""
 "","if value > 100: low possibility, rate =5","","","","","","","","","","","","","","","","","","","","","","","",""
 "Recovery:","the reason why residents comes back to battle with only 1 HP:","","","","","","","","","","","","","","","","","","","","","","","",""
-"","1) Search for HP recovery facilities","","","","","","","","","","","","","","","","","","","","","","","",""
-"","2) Get the one highest priority facility in list <= I didnt check if it omits already occupied facility","","","","","","","","","","","","","","","","","","","","","","","",""
-"","3) Try to assign to that facility, if it fails => abort","","","","","","","","","","","","","","","","","","","","","","","",""
+"","1) Search for available (unassigned, and not for monster) HP recovery facilities (facilities with flag full recovery facility, such as Temporary Shelter, Recovery Station)","","","","","","","","","","","","","","","","","","","","","","","",""
+"","2) Get the first highest priority facility in list (order by column usePriority)","","","","","","","","","","","","","","","","","","","","","","","",""
+"","3) Try to assign to that facility, if it fails => abort","","","<= Not sure about this one","","","","","","","","","","","","","","","","","","","","",""
+"","Sometime during deployment, the fighter automatically comes back and use HP recovery facility. I found that during AI decision loop, if their HP is below 21% and if it could change state to use HP recovery facility, AI will decide to use facility
+ HP below 21 % is therefore a neccessary condition to use HP recovery facility during deployment","","","","","","","","","","","","","","","","","","","","","","","",""
 "Battle order (front row, back row):","","","","","","","","","","","","","","","","","","","","","","","","",""
 "","order depends on two factor:
 
@@ -82,6 +123,7 @@ The base time for crafting is 4 in-game hour per day. With Skilled Craftsman II,
 
 If I get it right, the skill with station (mining, wagon cart, shop's station) get priority over other skills","","","","","","","","","","","","","","","","","","","","","","","",""
 "Farming Chaos stones,  e.g: 1 ninja awakening 14 on 6 chaos stones level 3200: https://youtu.be/7cwHFVK6kPs","","","","","","","","","","","","","","","","","","","","","","","","",""
+"","Credit of image and this method to Alfie ( /u/lr880618 ) and Chinese community","","","","","","","","","","","","","","","","","","","","","","","",""
 "","","","","","","","","Legend:","","","","","","","","","","","","","","","","",""
 "","","","","","","","","Blue: The tile where no unit/monster can stand on (they can walk by, but in no way they can stay there), e.g: tile with sign board or cave or building (Trading Post for example)","","","","","","","","","","","","","","","","",""
 "","","","","","","","","Yellow: Chaos stones","","","","","","","","","","","","","","","","",""
@@ -90,7 +132,7 @@ If I get it right, the skill with station (mining, wagon cart, shop's station) g
 "","","","","","","","","AI will search for a nearby tile they can stay in a radius of 3-4 tiles around them, so they will walk there next ","","","","","","","","","","","","","","","","",""
 "","","","","","","","","As the only space available is the closed space at the center, they will be nuked there with AoE (or with a simple Bow as it is has effect of multi-hit)","","","","","","","","","","","","","","","","",""
 "","","","","","","","","It seems there is a hard limit of number of monster on one tile, but that is a no problem,  as soon monsters are killed, monster from outside will come there","","","","","","","","","","","","","","","","",""
-"","","","","","","","","You don't need to build signs on that area level, only where chaos stones position count for monster's level","","","","","","","","","","","","","","","","",""
+"","","","","","","","","You don't need to build signs on that area level, only where chaos stones's bottom left position count for monster's level","","","","","","","","","","","","","","","","",""
 "","","","","","","","","so for map area with little land, like 3200, you can try this:","","","","","","","","","","","","","","","","",""
 "","","","","","","","","          TTTTTTTTTTTTT
           TTTTTTTTTTTTT
@@ -102,8 +144,43 @@ If I get it right, the skill with station (mining, wagon cart, shop's station) g
           TTTTTTTTTTTTT    <= other level area
           TTTTTTTTTTTTT
           TTTTTTTTTTTTT
-other area ^^ 3200 area","","","","","","","","","","","","","","","","",""
-"","Credit of image and this method to Alfie ( /u/lr880618 ) and Chinese community","","","","","","","","","","","","","","","","","","","","","","","",""
+other area  ^^3200 area","","","","","","","","","","","","","","","","",""
+"","I've check the game code, it is the lowest tile of chaos stone (in isometric view) which determine the monster and its level
+
+How the game choose the monster: it is based on map cell
+
+if mapcell is wasteland, then terrain is determined from area's terrain (select first terrain in terrain sheet has same type as arrea terrain), else it is the current map cell (tile) terrain, therefore, in rock level 56, even though there isn't any rock biome, only snow and ground, if you haven't dig it up, the terrain is ground/snow, if you dig to barren wasteland, the biome becomes rock biome.
+
+Check for every monster satisfy the the condition:
+- either:
+  - monster's terrain (terrain column in monster sheet) match the given terrain
+  - or monster's group is -1 (only ghost is in this group)
+  - or monster's group match terrain's monsterGroup
+- and satisfy the condition of areaLevelMin & areaLevelMax vs map tile's level
+
+then take a random choice in that list
+
+This should also apply to Monster Feeder for farm animal & zoo","","","","","","","","","","","","","","","","","","","","","","","",""
+"Collection","for zoo animals, refer the monster spawn rule above in Chaos stone.
+
+TLDR: to farm a zoo animal with a particular terrain & min area level in Monster sheet, you must put Monster feed on that particular terrain (or dig the ground at least once to have wasteland then that wasteland will have terrain of that area 16x16)
+
+For example, to farm Beaver before 3200, as Beaver has Swamp terrain & minareaLevel 190. As there is no swamp biome above 162 before opening map 3200, you have to dig to wasteland map area 225 (it has swamp terrain area, even though there is no swamp tile in that area), then put Monster Feed on wasteland, swamp zoo animals will begin to spawn there","","","","","","","","","","","","","","","","","","","","","","","",""
+"","For Fish/Bugs, you have to follow area terrain, no matter what the current tile biome is, for example, to farm Cricket (ground terrain), you really need to put Bug Gathering Spot on the only four map area with Ground terrain (where your very first town is)","","","","","","","","","","","","","","","","","","","","","","","",""
+"Collection prices paid by visitor","","","","","","","","","","","","","","","","","","","","","","","","",""
+"","sum of silver price of every sheves then divide by 100, then round down","","","","","","","","","","","","","","","","","","","","","","","",""
+"","if this division value is below 1 then it is set to 1","","","","","","","","","","","","","","","","","","","","","","","",""
+"","then the price is random between 1 and the above value, if you have low value collection (for example 20), it doesn't matter if you have 1 or 9 exhibition shelves, because you can only get 1 silver coin","","","","","","","","","","","","","","","","","","","","","","","",""
+"Survey","","","","","","","","","","","","","","","","","","","","","","","","",""
+"","survey cost: linear scale between minCost & maxCost columns, per number of success chances (already surveyed) and the maxEarnableRewardCount column (if it is -1 then maxEarnableRewardCount=100 for the linear calculation)","","","","","","","","","","","","","","","","","","","","","","","",""
+"","success chance:","","","","","","","","","","","","","","","","","","","","","","","",""
+"","","given currentHeart your resident's heart stat and n the number of success chances (already surveyed by you)","","","","","","","","","","","","","","","","","","","","","","",""
+"","","calculate the new_minHeart for survey, linear scale between minHearts & maxHearts columns, per n and the maxEarnableRewardCount column (if it is -1 then maxEarnableRewardCount=100 for the linear calculation)","","","","","","","","","","","","","","","","","","","","","","",""
+"","","calculate the success rate: linear scale between minSuccessRate & maxSuccessRate, per (100 * currentHeart / new_minHeart) and the maxEarnableRewardCount column (if it is -1 then maxEarnableRewardCount=100 for the linear calculation)","","","","","","","","","","","","","","","","","","","","","","",""
+"","","TL;DR: if currentHeart is 0, success = minSuccess,
+if currentHeart is half of new calculated minHeart, success is mid point between minSuccess & maxSuccess
+if currentHeart is >= new calculated minHeart, success is maxxed (maxSuccess)","","","","","","","","","","","","","","","","","","","","","","",""
+"","","the success chance is boosted by a flat 20% if job group match the survey's jobGroupId","","","","","","","","","","","","","","","","","","","","","","",""
 "Collection success rate","","","","","","","","","","","","","","","","","","","","","","","","",""
 "","table of lower limit & higher limit: 10, 40","","","","","","","","","","","","","","","","","","","","","","","",""
 "","get the pawn's Gathering param gather_param","","","","","","","","","","","","","","","","","","","","","","","",""
@@ -133,6 +210,8 @@ Another nice to have: Perfect dodge, Full Reflect, EXP I II III","","","","","",
 "","","Have several activity skill: mix of Construction Chief, Ranch Know How, Treasure Analysis, Agriculturist","","","","","","","","","","","","","","","","","","","","","","",""
 "","","If you have several choice of weapons from S/ daily rank rewards (Emerald Clubs, Sword ...) prefer sth with Luck, for crit purpose, speed is less important","","","","","","","","","","","","","","","","","","","","","","",""
 "","","Equip one of multihit skill so they can solo better vs high level monster (e.g: 5-hit skill)","","","","","","","","","","","","","","","","","","","","","","",""
+"","","My setup for 3200 town, any one who can equip Attack skill get 5 hit attack, even D rank can sap a half or a third of monster lvl 3200's HP,
+wizard or resident with Magic Attack skill get Magic skill V (because it is guaranteed to critical hit IIRC), any other low level just got Aid Specialist","","","","","","","","","","","","","","","","","","","","","","",""
 "","3) Mage for copper town: 1500INT if you want Chat III in your copper town, but it isn't a must, with over 10 copper skill, you can still gain easily over 10K-30K coin/hour","","","","","","","","","","","","","","","","","","","","","","","",""
 "","","Gears: INT set: weapons (Lightining/Ancient staves from shop or Light Staff from S/ rank daily), Mage Hat (from shop), Kairo shield (due to MP usage of Instant Workshop), Leather Armor/Dress (from shops), Magic Pendant/Silver Ring (from shops)","","","","","","","","","","","","","","","","","","","","","","",""
 "","","Skills: Craftsmanship V, Instant Workshop, Skilled Craftman II (double working time from 4 to 8 hour), Move Speed Up, All Out Sprint, Domestic Production (so they won't go out of town, beside rescuing, this is better than Strategic Retreat), Aid Specialist (if near Chaos/Cave),","","","","","","","","","","","","","","","","","","","","","","",""
@@ -153,7 +232,7 @@ Another nice to have: Perfect dodge, Full Reflect, EXP I II III","","","","","",
 "","","Remove TownHall","","","","","","","","","","","","","","","","","","","","","","",""
 "","Best profession for miner?
 
-Researcher, 
+Researcher, or anyone doing research (equiping Research skills)
 
 because they can do the miner while researching.
 To do this, you have to equip your researcher miner skill

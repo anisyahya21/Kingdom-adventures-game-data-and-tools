@@ -20,6 +20,8 @@ const LoadoutPage = lazy(() => import("@/pages/loadout"));
 const EggsPage = lazy(() => import("@/pages/eggs"));
 const EggsPetsMonstersPage = lazy(() => import("@/pages/eggs-pets-monsters"));
 const ShopsPage = lazy(() => import("@/pages/shops"));
+const ResearchPage = lazy(() => import("@/pages/research"));
+const TrainingFacilitiesPage = lazy(() => import("@/pages/training-facilities"));
 const SyncDevicesPage = lazy(() => import("@/pages/sync-devices"));
 const WorldMapPage = lazy(() => import("@/pages/world-map"));
 const ChaosSetupLabPage = lazy(() => import("@/pages/chaos-setup-lab"));
@@ -170,6 +172,8 @@ function Router() {
         <Route path="/monster-pet-stats">{() => <MonsterPetStatsPage />}</Route>
         <Route path="/shops">{() => <ShopsPage />}</Route>
         <Route path="/shops/:slug">{() => <ShopsPage />}</Route>
+        <Route path="/research">{() => <ResearchPage />}</Route>
+        <Route path="/training-facilities">{() => <TrainingFacilitiesPage />}</Route>
         <Route path="/sync-devices">{() => <SyncDevicesPage />}</Route>
         <Route path="/world-map">{() => <WorldMapPage />}</Route>
         <Route path="/world-map-v2">{() => <WorldMapV2Page />}</Route>
