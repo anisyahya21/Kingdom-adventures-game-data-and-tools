@@ -31,7 +31,9 @@ function isSkillCraftable(skill: Skill) {
   if (typeof skill.flags === "number") {
     return Boolean(skill.flags & 2);
   }
-  return CRAFTABLE_SKILL_NAMES.has(skill.name.trim());
+  const name = skill.name.trim();
+  if (/^Chat\b/i.test(name)) return true;
+  return CRAFTABLE_SKILL_NAMES.has(name);
 }
 
 function getSkillTypeLabel(skill: Skill) {
@@ -91,6 +93,7 @@ const CRAFTABLE_SKILL_NAMES = new Set([
   "Bow Resistance",
   "Chat Ⅰ",
   "Chat Ⅱ",
+  "Chat Ⅲ",
   "Club Resistance",
   "Construction Chief",
   "Counter",
