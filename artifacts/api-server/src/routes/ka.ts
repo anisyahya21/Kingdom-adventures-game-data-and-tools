@@ -256,6 +256,24 @@ const DEFAULT_STATE: SharedState = {
   communityGuides: [],
 };
 
+const DEPRECATED_GUIDE_SLUGS = new Set([
+  "tips-ticks-and-faq",
+]);
+
+function pruneDeprecatedGuides(state: SharedState): boolean {
+  const before = state.communityGuides.length;
+  if (!before) return false;
+  state.communityGuides = state.communityGuides.filter(
+    (guide) => !DEPRECATED_GUIDE_SLUGS.has(String(guide.slug ?? "").trim().toLowerCase()),
+  );
+  const removed = before - state.communityGuides.length;
+  if (removed > 0) {
+    console.info(`shared-state: removed ${removed} deprecated guide entry`);
+    return true;
+  }
+  return false;
+}
+
 function ensureDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
@@ -376,6 +394,7 @@ async function writeStateToDb(state: SharedState): Promise<void> {
 }
 
 let stateCache: SharedState = readStateFromFile();
+void pruneDeprecatedGuides(stateCache);
 
 async function bootstrapSharedStatePersistence() {
   try {
@@ -385,11 +404,19 @@ async function bootstrapSharedStatePersistence() {
       const persisted = await readStateFromDb();
       if (persisted) {
         stateCache = persisted;
+        const cleaned = pruneDeprecatedGuides(stateCache);
+        if (cleaned) {
+          await writeStateToDb(stateCache);
+        }
         writeStateFile(stateCache);
         persistenceMode = "database";
         console.info("shared-state: persistence mode=database (loaded existing state)");
       } else {
+        const cleaned = pruneDeprecatedGuides(stateCache);
         await writeStateToDb(stateCache);
+        if (cleaned) {
+          console.info("shared-state: migrated deprecated guide cleanup to database");
+        }
         persistenceMode = "database";
         console.info("shared-state: persistence mode=database (initialized from file snapshot)");
       }
@@ -410,6 +437,7 @@ function readState(): SharedState {
 }
 
 function writeState(state: SharedState) {
+  void pruneDeprecatedGuides(state);
   stateCache = state;
   writeStateFile(state);
   if (persistenceMode !== "database") {
