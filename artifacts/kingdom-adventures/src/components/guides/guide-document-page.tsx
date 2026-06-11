@@ -27,8 +27,10 @@ import { EQUIPMENT_CATALOG } from "@/lib/generated-equipment-data";
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS, getShopHref } from "@/lib/shop-utils";
 import { getJobProfile } from "@/game-data/job-profile";
+import { FACILITIES } from "@/game-data/facilities";
 import { googleSheetUrl, googleDocUrl } from "@/lib/api";
 import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon, getItemIcon } from "@/lib/equipment-icons";
+import { getSkillIcon } from "@/lib/skill-icons";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 import { AffinityBadge, RankBadge } from "@/components/ka/badges";
 import { getEntityHref } from "@/components/ka/entity-link";
@@ -254,6 +256,11 @@ function buildGuideLinks(): GuideLink[] {
     links.set(key, href);
   };
 
+  const addItemLink = (label: string, search?: string) => {
+    const query = search ?? label;
+    add(label, `/shops/item-shop?search=${encodeURIComponent(query)}`);
+  };
+
   const blockedAutoLabels = new Set([
     "important",
     "miner",
@@ -303,6 +310,34 @@ function buildGuideLinks(): GuideLink[] {
   });
 
   add("Master Smithy", "/houses?tab=facilities&facilityTab=map");
+  for (const facility of FACILITIES) {
+    if (!facility?.name) continue;
+    add(facility.name, `/houses?tab=facilities&search=${encodeURIComponent(facility.name)}`);
+  }
+
+  add("Master Instructor", buildJobHref("Scholar"));
+  add("Master Instructors", buildJobHref("Scholar"));
+  add("Watch Tower", "/houses?tab=facilities&search=Low%20Watchtower");
+  add("Watchtower", "/houses?tab=facilities&search=Low%20Watchtower");
+  add("Windmill", "/houses?tab=facilities&search=Windmill");
+
+  addItemLink("Chaos Stone");
+  addItemLink("Chaos Stones", "Chaos Stone");
+  addItemLink("Cash Register");
+  addItemLink("Cash Registers", "Cash Register");
+  addItemLink("Silver Coin");
+  addItemLink("Silver Coins", "Silver Coin");
+  addItemLink("Copper Coin");
+  addItemLink("Copper Coins", "Copper Coin");
+  addItemLink("Running Shoes", "Running Shoes");
+  addItemLink("Miracle Mallet", "Miracle Mallet");
+  addItemLink("Helmet Sample", "Helmet Sample");
+  addItemLink("Armor Sample", "Armor Sample");
+  addItemLink("Weapon Sample", "Weapon Sample");
+  addItemLink("Shield Sample", "Shield Sample");
+  addItemLink("Sage's Tome", "Sage's Tome");
+  addItemLink("Sage’s Tome", "Sage's Tome");
+
   add("Novel", getEntityHref("equipment", "F/ Novel") ?? `/equipment-stats?search=${encodeURIComponent("F/ Novel")}`);
   add("Weapon Shop", "/shops/weapon-shop");
   add("Weapons Shop", "/shops/weapon-shop");
@@ -334,6 +369,34 @@ function buildGuideLinks(): GuideLink[] {
   return Array.from(links.entries())
     .map(([label, href]) => ({ label, href }))
     .sort((a, b) => b.label.length - a.label.length);
+}
+
+function singularizeGuideLabel(label: string) {
+  if (label.endsWith("ies") && label.length > 3) return `${label.slice(0, -3)}y`;
+  if (label.endsWith("s") && !label.endsWith("ss") && label.length > 1) return label.slice(0, -1);
+  return label;
+}
+
+const GUIDE_ICON_LABEL_ALIASES: Record<string, string> = {
+  "master instructor": "Scholar",
+  "master instructors": "Scholar",
+  "watch tower": "Low Watchtower",
+  "watchtower": "Low Watchtower",
+  "cash registers": "Cash Register",
+  "chaos stones": "Chaos Stone",
+  "silver coins": "Silver Coin",
+  "copper coins": "Copper Coin",
+  "sage’s tome": "Sage's Tome",
+};
+
+function getGuideIconLabelCandidates(label: string) {
+  const base = label.trim();
+  if (!base) return [];
+  const lower = base.toLowerCase();
+  const aliased = GUIDE_ICON_LABEL_ALIASES[lower];
+  const singular = singularizeGuideLabel(base);
+  const singularAlias = GUIDE_ICON_LABEL_ALIASES[singular.toLowerCase()];
+  return Array.from(new Set([base, aliased, singular, singularAlias].filter(Boolean) as string[]));
 }
 
 const GUIDE_LINKS = buildGuideLinks();
@@ -491,6 +554,11 @@ function resolveAutoGuideInlineIcon(
     if (profile?.job?.icon) return profile.job.icon;
   }
 
+  for (const candidate of getGuideIconLabelCandidates(request.label)) {
+    const skillIcon = getSkillIcon(candidate);
+    if (skillIcon) return skillIcon;
+  }
+
   const hrefEquipment = getEquipmentSearchFromHref(request.href);
   if (hrefEquipment) {
     const guessedEquipmentName = findEquipmentCatalogItem(hrefEquipment)?.name ?? hrefEquipment;
@@ -505,10 +573,16 @@ function resolveAutoGuideInlineIcon(
     if (profile?.job?.icon) return profile.job.icon;
   }
 
-  return getItemIcon(request.label)
-    ?? getFacilityIconByName(request.label)
-    ?? getFurnitureIcon(request.label)
-    ?? undefined;
+  for (const candidate of getGuideIconLabelCandidates(request.label)) {
+    const item = getItemIcon(candidate);
+    if (item) return item;
+    const facility = getFacilityIconByName(candidate);
+    if (facility) return facility;
+    const furniture = getFurnitureIcon(candidate);
+    if (furniture) return furniture;
+  }
+
+  return undefined;
 }
 
 function findEquipmentCatalogItem(search: string) {
