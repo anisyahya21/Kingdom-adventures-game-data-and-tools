@@ -272,7 +272,9 @@ if (facilityIconManifest && Array.isArray((facilityIconManifest as ConfirmedFaci
     if (typeof icon.filename !== "string" || icon.filename.length === 0) continue;
     const chosenFilename = withPreferredFacilityStateFilename(icon.id, icon.filename);
     const iconPath = `/website_icons/facilities_confirmed/${chosenFilename}?v=${ICON_CACHE_VERSION}`;
-    facilityIconLookup.set(icon.id, iconPath);
+    if (!facilityIconLookup.has(icon.id)) {
+      facilityIconLookup.set(icon.id, iconPath);
+    }
     if (typeof icon.name === "string" && icon.name.trim().length > 0) {
       facilityNameIconLookup.set(normalizeIconName(icon.name), iconPath);
     }
