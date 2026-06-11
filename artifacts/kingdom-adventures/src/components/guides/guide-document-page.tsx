@@ -101,7 +101,7 @@ function renderInlineGuideIcon(src: string, key: string) {
       key={key}
       src={src}
       alt=""
-      className="mr-[0.28em] inline-block h-[1.46em] w-[1.46em] shrink-0 align-[-0.22em] object-contain"
+      className="mr-[0.28em] inline-block h-[1.75em] w-[1.75em] shrink-0 align-[-0.26em] object-contain"
       style={{ imageRendering: "auto" }}
       loading="lazy"
     />
