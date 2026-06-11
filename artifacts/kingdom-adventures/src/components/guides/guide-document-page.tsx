@@ -725,12 +725,6 @@ function resolveAutoGuideInlineIcon(
   }
 
   for (const candidate of getGuideIconLabelCandidates(request.label)) {
-    const jobProfile = getJobProfile(shared, candidate);
-    if (jobProfile?.job?.icon) return jobProfile.job.icon;
-    if (jobProfile) return buildInlineJobIconSrc(jobProfile.name);
-  }
-
-  for (const candidate of getGuideIconLabelCandidates(request.label)) {
     const skillIcon = getSkillIcon(candidate);
     if (skillIcon) return skillIcon;
   }
@@ -765,6 +759,12 @@ function resolveAutoGuideInlineIcon(
     if (facility) return facility;
     const furniture = getFurnitureIcon(candidate);
     if (furniture) return furniture;
+  }
+
+  for (const candidate of getGuideIconLabelCandidates(request.label)) {
+    const jobProfile = getJobProfile(shared, candidate);
+    if (jobProfile?.job?.icon) return jobProfile.job.icon;
+    if (jobProfile) return buildInlineJobIconSrc(jobProfile.name);
   }
 
   return undefined;
