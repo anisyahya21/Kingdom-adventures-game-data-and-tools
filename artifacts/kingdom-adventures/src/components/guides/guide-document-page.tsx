@@ -263,10 +263,6 @@ function buildGuideLinks(): GuideLink[] {
 
   const blockedAutoLabels = new Set([
     "important",
-    "miner",
-    "mover",
-    "research",
-    "royal",
   ]);
 
   Object.keys(shared.jobs ?? {}).forEach((name) => {
@@ -543,15 +539,20 @@ function resolveAutoGuideInlineIcon(
   request: InlineGuideIconRequest,
   equipIcons: Record<string, string> | undefined,
 ) {
+  const shared = localSharedData as { jobs?: Record<string, GuideJob> };
   const target = request.target;
   if (target?.type === "equipment") {
     const icon = getEquipmentIcon(equipIcons, target.equipmentName);
     if (icon) return icon;
   }
   if (target?.type === "job") {
-    const shared = localSharedData as { jobs?: Record<string, GuideJob> };
     const profile = getJobProfile(shared, target.jobName);
     if (profile?.job?.icon) return profile.job.icon;
+  }
+
+  for (const candidate of getGuideIconLabelCandidates(request.label)) {
+    const jobProfile = getJobProfile(shared, candidate);
+    if (jobProfile?.job?.icon) return jobProfile.job.icon;
   }
 
   for (const candidate of getGuideIconLabelCandidates(request.label)) {
@@ -568,10 +569,18 @@ function resolveAutoGuideInlineIcon(
 
   const hrefJobName = getJobNameFromHref(request.href);
   if (hrefJobName) {
-    const shared = localSharedData as { jobs?: Record<string, GuideJob> };
     const profile = getJobProfile(shared, hrefJobName);
     if (profile?.job?.icon) return profile.job.icon;
   }
+
+  try {
+    const url = new URL(request.href, window.location.origin);
+    if (url.pathname === "/weekly-conquest") {
+      return getFacilityIconByName("Weekly Conquest Bonus")
+        ?? getItemIcon("Diamonds")
+        ?? undefined;
+    }
+  } catch {}
 
   for (const candidate of getGuideIconLabelCandidates(request.label)) {
     const item = getItemIcon(candidate);
