@@ -73,12 +73,20 @@ const FURNITURE_VARIANT2_PREFERRED = new Set([
   "training room",
 ]);
 
-const FACILITY_TO_FURNITURE_ICON_ALIAS: Record<string, string> = {
-  "survey corps hq": "Survey Room",
-  "studio": "Art Workbench",
-  "orchard": "Fruit Tree",
-  "recovery room": "Recovery Station",
+const FACILITY_STATE_PREFERENCE_BY_ID: Record<number, 1 | 2> = {
+  70: 1,
+  71: 1,
+  76: 1,
+  89: 1,
+  238: 2,
 };
+
+function withPreferredFacilityStateFilename(id: number, filename: string): string {
+  if (!filename.endsWith(".png") || filename.includes("_state")) return filename;
+  const preferred = FACILITY_STATE_PREFERENCE_BY_ID[id];
+  if (!preferred) return filename;
+  return filename.replace(/\.png$/i, `_state${preferred}.png`);
+}
 
 function pickVariantFilename(
   variants: ManifestVariant[] | undefined,
@@ -262,7 +270,8 @@ if (facilityIconManifest && Array.isArray((facilityIconManifest as ConfirmedFaci
   for (const icon of (facilityIconManifest as ConfirmedFacilityManifest).icons as ConfirmedFacilityIconEntry[]) {
     if (typeof icon.id !== "number" || !Number.isFinite(icon.id)) continue;
     if (typeof icon.filename !== "string" || icon.filename.length === 0) continue;
-    const iconPath = `/website_icons/facilities_confirmed/${icon.filename}?v=${ICON_CACHE_VERSION}`;
+    const chosenFilename = withPreferredFacilityStateFilename(icon.id, icon.filename);
+    const iconPath = `/website_icons/facilities_confirmed/${chosenFilename}?v=${ICON_CACHE_VERSION}`;
     facilityIconLookup.set(icon.id, iconPath);
     if (typeof icon.name === "string" && icon.name.trim().length > 0) {
       facilityNameIconLookup.set(normalizeIconName(icon.name), iconPath);
@@ -296,11 +305,6 @@ export function getFacilityIcon(id: number | undefined | null): string | undefin
 export function getFacilityIconByName(name: string | undefined | null): string | undefined {
   if (!name) return undefined;
   const normalizedName = normalizeIconName(name);
-  const aliasedFurnitureName = FACILITY_TO_FURNITURE_ICON_ALIAS[normalizedName];
-  if (aliasedFurnitureName) {
-    const aliasIcon = getFurnitureIcon(aliasedFurnitureName);
-    if (aliasIcon) return aliasIcon;
-  }
   return facilityNameIconLookup.get(normalizedName);
 }
 
