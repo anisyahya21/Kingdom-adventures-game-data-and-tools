@@ -297,13 +297,18 @@ function writeStateFile(state: SharedState) {
 
 type DbModule = typeof import("@workspace/db");
 let dbModule: DbModule | null = null;
+let persistenceMode: "database" | "file" = "file";
 
 async function initDbModule() {
-  if (!process.env.DATABASE_URL) return;
+  if (!process.env.DATABASE_URL) {
+    console.info("shared-state: persistence mode=file (DATABASE_URL missing)");
+    return;
+  }
   try {
     dbModule = await import("@workspace/db");
   } catch (error) {
     console.warn("shared-state: database module unavailable, falling back to file storage", error);
+    console.info("shared-state: persistence mode=file (db module unavailable)");
   }
 }
 
@@ -378,9 +383,15 @@ if (dbModule) {
   if (persisted) {
     stateCache = persisted;
     writeStateFile(stateCache);
+    persistenceMode = "database";
+    console.info("shared-state: persistence mode=database (loaded existing state)");
   } else {
     await writeStateToDb(stateCache);
+    persistenceMode = "database";
+    console.info("shared-state: persistence mode=database (initialized from file snapshot)");
   }
+} else {
+  persistenceMode = "file";
 }
 
 function readState(): SharedState {
@@ -390,6 +401,9 @@ function readState(): SharedState {
 function writeState(state: SharedState) {
   stateCache = state;
   writeStateFile(state);
+  if (persistenceMode !== "database") {
+    console.warn("shared-state: writing with file fallback; set DATABASE_URL to enable durable DB persistence");
+  }
   void writeStateToDb(state);
 }
 
