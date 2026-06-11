@@ -204,6 +204,7 @@ function isIncCol(col: string): string | null {
 
 const SHEET_ID = "1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk";
 const GID = "123527243";
+const EQUIPMENT_CACHE_KEY = "equipment-sheet-v2";
 const EQUIPMENT_RANKS = ["S", "A", "B", "C", "D", "E", "F"] as const;
 type CraftFilter = "All" | "Craftable" | "Not Craftable";
 
@@ -367,7 +368,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
       return res.text();
     })
     .catch((err) => {
-      const cached = readBrowserCache<EquipmentItem[]>("equipment-sheet", 7 * 24 * 60 * 60 * 1000);
+      const cached = readBrowserCache<EquipmentItem[]>(EQUIPMENT_CACHE_KEY, 7 * 24 * 60 * 60 * 1000);
       if (cached) return `__KA_CACHED_EQUIPMENT__${JSON.stringify(cached)}`;
       const localSnapshot = parseLocalEquipmentSnapshot();
       if (localSnapshot.length > 0) return `__KA_CACHED_EQUIPMENT__${JSON.stringify(localSnapshot)}`;
@@ -376,7 +377,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
   if (text.startsWith("__KA_CACHED_EQUIPMENT__")) {
     const cachedItems = JSON.parse(text.replace("__KA_CACHED_EQUIPMENT__", "")) as EquipmentItem[];
     const dedupedCachedItems = dedupeEquipmentItems(cachedItems);
-    writeBrowserCache("equipment-sheet", dedupedCachedItems);
+    writeBrowserCache(EQUIPMENT_CACHE_KEY, dedupedCachedItems);
     return dedupedCachedItems;
   }
   const json = text.replace(/^[^(]+\(/, "").replace(/\);?\s*$/, "");
@@ -473,7 +474,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     return { uid: item.sourceId === null ? String(index) : String(item.sourceId), ...item, name: `${item.name} ${suffix}` };
   });
   const dedupedItems = dedupeEquipmentItems(items);
-  writeBrowserCache("equipment-sheet", dedupedItems);
+  writeBrowserCache(EQUIPMENT_CACHE_KEY, dedupedItems);
   return dedupedItems;
 }
 
@@ -980,14 +981,14 @@ export default function EquipmentPage() {
     queryKey: ["equipment"],
     queryFn: fetchSheet,
     initialData: () => {
-      const cached = readBrowserCache<EquipmentItem[]>("equipment-sheet", 7 * 24 * 60 * 60 * 1000);
+      const cached = readBrowserCache<EquipmentItem[]>(EQUIPMENT_CACHE_KEY, 7 * 24 * 60 * 60 * 1000);
       if (!cached) {
         const localSnapshot = parseLocalEquipmentSnapshot();
         if (localSnapshot.length > 0) return localSnapshot;
         return undefined;
       }
       const dedupedCached = dedupeEquipmentItems(cached);
-      if (dedupedCached.length !== cached.length) writeBrowserCache("equipment-sheet", dedupedCached);
+      if (dedupedCached.length !== cached.length) writeBrowserCache(EQUIPMENT_CACHE_KEY, dedupedCached);
       return dedupedCached;
     },
     initialDataUpdatedAt: 0,
