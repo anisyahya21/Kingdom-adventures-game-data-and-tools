@@ -211,25 +211,81 @@ function InlineGuideJobIcon({ jobName }: { jobName: string }) {
   );
 }
 
-function renderInlineGuideIcon(src: string, key: string) {
+function isBedLikeGuideIcon(src: string, label?: string) {
+  const lowerSrc = src.toLowerCase();
+  const lowerLabel = (label ?? "").toLowerCase().trim();
+  if (lowerSrc.includes("guest_bed") || lowerSrc.includes("guest bed") || lowerSrc.includes("_bed") || lowerSrc.includes("/bed")) {
+    return true;
+  }
+  return /\bguest\s*beds?\b|\bbeds?\b/.test(lowerLabel);
+}
+
+function InlineGuideImageIcon({ src, label }: { src: string; label?: string }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [useFallbackImage, setUseFallbackImage] = useState(false);
+  const isBedLike = isBedLikeGuideIcon(src, label);
+
+  useEffect(() => {
+    if (!isBedLike || useFallbackImage) return;
+    let cancelled = false;
+    const targetCanvas = canvasRef.current;
+    if (!targetCanvas) return;
+
+    const image = new Image();
+    image.onload = () => {
+      if (cancelled || !canvasRef.current) return;
+      const offscreen = document.createElement("canvas");
+      offscreen.width = Math.max(1, image.naturalWidth || image.width || 1);
+      offscreen.height = Math.max(1, image.naturalHeight || image.height || 1);
+      const ctx = offscreen.getContext("2d");
+      if (!ctx) {
+        setUseFallbackImage(true);
+        return;
+      }
+      ctx.clearRect(0, 0, offscreen.width, offscreen.height);
+      ctx.drawImage(image, 0, 0);
+      drawTrimmedSquareIconToCanvas(offscreen, canvasRef.current, 48, 0);
+    };
+    image.onerror = () => {
+      if (!cancelled) setUseFallbackImage(true);
+    };
+    image.src = src;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isBedLike, src, useFallbackImage]);
+
+  if (!isBedLike || useFallbackImage) {
+    return (
+      <img
+        src={src}
+        alt=""
+        className={isBedLike
+          ? "mr-[0.28em] inline-block h-[2.3em] w-[2.3em] shrink-0 align-[-0.46em] object-contain"
+          : "mr-[0.28em] inline-block h-[1.75em] w-[1.75em] shrink-0 align-[-0.26em] object-contain"}
+        style={{ imageRendering: "auto" }}
+        loading="lazy"
+      />
+    );
+  }
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="mr-[0.28em] inline-block h-[2.3em] w-[2.3em] shrink-0 align-[-0.46em] object-contain"
+      style={{ imageRendering: "auto" }}
+      aria-hidden="true"
+    />
+  );
+}
+
+function renderInlineGuideIcon(src: string, key: string, label?: string) {
   const jobName = parseInlineJobIconSrc(src);
   if (jobName) {
     return <InlineGuideJobIcon key={key} jobName={jobName} />;
   }
-  const lowerSrc = src.toLowerCase();
-  const isBedLikeIcon = lowerSrc.includes("guest_bed") || lowerSrc.includes("guest bed") || lowerSrc.includes("_bed") || lowerSrc.includes("/bed");
-  return (
-    <img
-      key={key}
-      src={src}
-      alt=""
-      className={isBedLikeIcon
-        ? "mr-[0.28em] inline-block h-[2.05em] w-[2.05em] shrink-0 align-[-0.34em] object-contain"
-        : "mr-[0.28em] inline-block h-[1.75em] w-[1.75em] shrink-0 align-[-0.26em] object-contain"}
-      style={{ imageRendering: "auto" }}
-      loading="lazy"
-    />
-  );
+  return <InlineGuideImageIcon key={key} src={src} label={label} />;
 }
 
 function toTrimmedSquareIconDataUrl(sourceCanvas: HTMLCanvasElement, size = 40, padding = 2): string {
@@ -1288,7 +1344,7 @@ function renderInlineContent(
             className="font-medium text-primary underline underline-offset-4 decoration-dashed"
             onClick={() => options.onSelectLink?.({ id: link?.id, label: fullMatch, href, kind: link?.kind ?? "auto", target: link?.target, occurrenceKey })}
           >
-            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
+            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, fullMatch) : null}
             {fullMatch}
           </button>,
         );
@@ -1300,7 +1356,7 @@ function renderInlineContent(
             className="font-medium text-primary underline underline-offset-4"
             onClick={() => options.onOpenGuideTarget?.(link, fullMatch)}
           >
-            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
+            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, fullMatch) : null}
             {fullMatch}
           </button>,
         );
@@ -1312,7 +1368,7 @@ function renderInlineContent(
             className="font-medium text-primary underline underline-offset-4"
             onClick={() => options.onOpenEquipmentPreview?.(href, fullMatch)}
           >
-            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
+            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, fullMatch) : null}
             {fullMatch}
           </button>,
         );
@@ -1324,7 +1380,7 @@ function renderInlineContent(
             className="font-medium text-primary underline underline-offset-4"
             onClick={() => options.onOpenJobPreview?.(href, fullMatch)}
           >
-            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
+            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, fullMatch) : null}
             {fullMatch}
           </button>,
         );
@@ -1335,7 +1391,7 @@ function renderInlineContent(
             href={href}
             className="font-medium text-primary underline underline-offset-4"
           >
-            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
+            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, fullMatch) : null}
             {fullMatch}
           </a>,
         );
@@ -1369,7 +1425,7 @@ function renderInlineContent(
           className="font-medium text-primary underline underline-offset-4 decoration-dashed"
           onClick={() => options.onSelectLink?.({ id: overrideLink?.id, label: mdLink.label, href, kind: overrideLink?.kind ?? "custom", target: overrideLink?.target, occurrenceKey })}
         >
-          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
+          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, mdLink.label) : null}
           {mdLink.label}
         </button>,
       );
@@ -1381,7 +1437,7 @@ function renderInlineContent(
           className="font-medium text-primary underline underline-offset-4"
           onClick={() => options.onOpenGuideTarget?.(overrideLink, mdLink.label)}
         >
-          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
+          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, mdLink.label) : null}
           {mdLink.label}
         </button>,
       );
@@ -1393,7 +1449,7 @@ function renderInlineContent(
           className="font-medium text-primary underline underline-offset-4"
           onClick={() => options.onOpenEquipmentPreview?.(href, mdLink.label)}
         >
-          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
+          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, mdLink.label) : null}
           {mdLink.label}
         </button>,
       );
@@ -1405,7 +1461,7 @@ function renderInlineContent(
           className="font-medium text-primary underline underline-offset-4"
           onClick={() => options.onOpenJobPreview?.(href, mdLink.label)}
         >
-          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
+          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, mdLink.label) : null}
           {mdLink.label}
         </button>,
       );
@@ -1420,7 +1476,7 @@ function renderInlineContent(
           rel="noopener noreferrer"
           className="font-medium text-primary underline underline-offset-4"
         >
-          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
+          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, mdLink.label) : null}
           {mdLink.label}
         </a>,
       );
