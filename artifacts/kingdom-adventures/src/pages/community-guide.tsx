@@ -16,6 +16,17 @@ export default function CommunityGuidePage() {
   const [ownerTokens, setOwnerTokens] = useState<Record<string, string>>(() => getGuideOwnerTokens());
 
   useEffect(() => {
+    const url = new URL(window.location.href);
+    const editToken = url.searchParams.get("edit") ?? url.searchParams.get("ownerToken") ?? "";
+    if (!cachedGuide || !editToken) return;
+    setGuideOwnerToken(cachedGuide.id, editToken);
+    setOwnerTokens(getGuideOwnerTokens());
+    url.searchParams.delete("edit");
+    url.searchParams.delete("ownerToken");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [cachedGuide?.id]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadGuide() {

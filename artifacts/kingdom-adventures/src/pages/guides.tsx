@@ -42,6 +42,7 @@ export default function GuidesPage() {
       setError(null);
       const payload = await fetchCommunityGuides();
       setGuides(payload.guides);
+      setOwnerTokens(getGuideOwnerTokens());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load guides.");
     } finally {

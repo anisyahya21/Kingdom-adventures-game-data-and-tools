@@ -13,6 +13,7 @@ import { isWarioDungeonLive } from "@/pages/wario-dungeon";
 import { getFacilityIcon } from "@/lib/equipment-icons";
 
 const GACHA_BUTTON_X4_ICON = "/website_icons/requested/gacha_button_x4.png";
+const WAIRO_DUNGEON_ICON = "/website_icons/facilities_confirmed/mapchip_223_wairo_dungeon.png";
 
 const EVENT_CARDS = [
   {
@@ -34,6 +35,7 @@ const EVENT_CARDS = [
     href: "/wario-dungeon",
     title: "Wairo Dungeon",
     description: "Dedicated event page for the monthly dungeon spawn windows.",
+    customIcon: WAIRO_DUNGEON_ICON,
     icon: Clock3,
     facilityIconId: 223,
     status: "inactive" as EventStatus,
