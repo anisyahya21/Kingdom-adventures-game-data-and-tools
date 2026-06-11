@@ -31,6 +31,7 @@ import { FACILITIES } from "@/game-data/facilities";
 import { googleSheetUrl, googleDocUrl } from "@/lib/api";
 import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon, getItemIcon } from "@/lib/equipment-icons";
 import { getSkillIcon } from "@/lib/skill-icons";
+import { renderCharacterPreview } from "@/lib/character-renderer";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 import { AffinityBadge, RankBadge } from "@/components/ka/badges";
 import { getEntityHref } from "@/components/ka/entity-link";
@@ -538,6 +539,7 @@ function getJobNameFromHref(href: string) {
 function resolveAutoGuideInlineIcon(
   request: InlineGuideIconRequest,
   equipIcons: Record<string, string> | undefined,
+  jobIconLookup?: Record<string, string>,
 ) {
   const shared = localSharedData as { jobs?: Record<string, GuideJob> };
   const target = request.target;
@@ -546,11 +548,15 @@ function resolveAutoGuideInlineIcon(
     if (icon) return icon;
   }
   if (target?.type === "job") {
+    const generated = jobIconLookup?.[normalizeGuideLinkLabel(target.jobName)];
+    if (generated) return generated;
     const profile = getJobProfile(shared, target.jobName);
     if (profile?.job?.icon) return profile.job.icon;
   }
 
   for (const candidate of getGuideIconLabelCandidates(request.label)) {
+    const generated = jobIconLookup?.[normalizeGuideLinkLabel(candidate)];
+    if (generated) return generated;
     const jobProfile = getJobProfile(shared, candidate);
     if (jobProfile?.job?.icon) return jobProfile.job.icon;
   }
@@ -569,6 +575,8 @@ function resolveAutoGuideInlineIcon(
 
   const hrefJobName = getJobNameFromHref(request.href);
   if (hrefJobName) {
+    const generated = jobIconLookup?.[normalizeGuideLinkLabel(hrefJobName)];
+    if (generated) return generated;
     const profile = getJobProfile(shared, hrefJobName);
     if (profile?.job?.icon) return profile.job.icon;
   }
@@ -2168,6 +2176,7 @@ export function GuideDocumentPage({
   const [equipmentPreviewOpen, setEquipmentPreviewOpen] = useState(false);
   const [jobPreview, setJobPreview] = useState<JobPreviewItem | null>(null);
   const [jobPreviewOpen, setJobPreviewOpen] = useState(false);
+  const [generatedJobIcons, setGeneratedJobIcons] = useState<Record<string, string>>({});
   const [equipmentSetPreview, setEquipmentSetPreview] = useState<EquipmentSetPreviewItem | null>(null);
   const [equipmentSetPreviewOpen, setEquipmentSetPreviewOpen] = useState(false);
   const [marriageSimPreview, setMarriageSimPreview] = useState<MarriageSimPreviewItem | null>(null);
@@ -2213,6 +2222,44 @@ export function GuideDocumentPage({
     const shared = localSharedData as { equipIcons?: Record<string, string> };
     return shared.equipIcons;
   }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const shared = localSharedData as { jobs?: Record<string, GuideJob> };
+    const jobNames = Object.keys(shared.jobs ?? {});
+    if (!jobNames.length) {
+      setGeneratedJobIcons({});
+      return;
+    }
+
+    async function buildJobIconMap() {
+      const next: Record<string, string> = {};
+      for (const jobName of jobNames) {
+        const cacheKey = normalizeGuideLinkLabel(jobName);
+        if (!cacheKey || next[cacheKey]) continue;
+
+        const previewCanvas = document.createElement("canvas");
+        previewCanvas.width = 40;
+        previewCanvas.height = 40;
+        const variantSeed = Array.from(jobName).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+        const variant = (variantSeed % 2) === 0 ? 1 : 2;
+        const ok = await renderCharacterPreview(previewCanvas, {
+          jobName,
+          variant,
+          equipState: "right",
+          scale: 1,
+          poseFrame: 0,
+        });
+        if (!ok) continue;
+        next[cacheKey] = previewCanvas.toDataURL("image/png");
+      }
+      if (!cancelled) setGeneratedJobIcons(next);
+    }
+
+    buildJobIconMap();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const resolveInlineIcon = useMemo(
     () => (request: InlineGuideIconRequest) => {
       const normalizedLabel = normalizeGuideLinkLabel(request.label);
@@ -2230,9 +2277,9 @@ export function GuideDocumentPage({
       if (disabledIconOccurrenceKeys.has(request.occurrenceKey)) return undefined;
       if (disabledAutoIconLabels.has(normalizedLabel)) return undefined;
 
-      return resolveAutoGuideInlineIcon(request, sharedEquipIcons);
+      return resolveAutoGuideInlineIcon(request, sharedEquipIcons, generatedJobIcons);
     },
-    [customGuideIcons, disabledAutoIconLabels, disabledIconOccurrenceKeys, sharedEquipIcons],
+    [customGuideIcons, disabledAutoIconLabels, disabledIconOccurrenceKeys, generatedJobIcons, sharedEquipIcons],
   );
   const selectedExactSpotKeys = useMemo(() => new Set(selectedExactSpots.map((spot) => spot.occurrenceKey).filter(Boolean) as string[]), [selectedExactSpots]);
   const equipmentOptions = useMemo(
