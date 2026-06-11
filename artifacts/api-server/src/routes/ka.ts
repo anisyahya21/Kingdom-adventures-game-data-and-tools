@@ -2,6 +2,7 @@ import { Router, type Request } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { eq } from "drizzle-orm";
 import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached, refreshStaticSourceIfStale } from "../lib/google-cache";
 import { renderJobPreview, renderJobPreviewByName } from "../lib/character-preview";
 import multer from "multer";
@@ -27,6 +28,7 @@ type UploadedImageRequest = Request & { file?: { filename: string } };
 
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const STATE_FILE = path.join(DATA_DIR, "ka_shared.json");
+const DB_STATE_KEY = "ka_shared_state_v1";
 
 export interface HistoryEntry {
   id: string;
@@ -258,7 +260,7 @@ function ensureDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-function readState(): SharedState {
+function readStateFromFile(): SharedState {
   try {
     ensureDir();
     if (!fs.existsSync(STATE_FILE)) return { ...DEFAULT_STATE };
@@ -288,9 +290,107 @@ function readState(): SharedState {
   }
 }
 
-function writeState(state: SharedState) {
+function writeStateFile(state: SharedState) {
   ensureDir();
   fs.writeFileSync(STATE_FILE, JSON.stringify(state));
+}
+
+type DbModule = typeof import("@workspace/db");
+let dbModule: DbModule | null = null;
+
+async function initDbModule() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    dbModule = await import("@workspace/db");
+  } catch (error) {
+    console.warn("shared-state: database module unavailable, falling back to file storage", error);
+  }
+}
+
+function sanitizeStateCandidate(value: unknown): SharedState | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = value as Partial<SharedState>;
+  return {
+    ...DEFAULT_STATE,
+    history: [],
+    weaponCategories: [],
+    monsters: {},
+    weeklyConquest: null,
+    jobs: {},
+    pairs: [],
+    marriageMatcher: null,
+    skills: {},
+    loadouts: [],
+    loadoutsUpdatedAt: null,
+    loadoutBoxSetups: [],
+    loadoutBoxSetupsUpdatedAt: null,
+    loadoutBoxSetupShares: {},
+    syncedDevices: [],
+    communitySightings: {},
+    communityGuides: [],
+    ...parsed,
+  };
+}
+
+async function readStateFromDb(): Promise<SharedState | null> {
+  if (!dbModule) return null;
+  try {
+    const rows = await dbModule.db
+      .select({ value: dbModule.appStateTable.value })
+      .from(dbModule.appStateTable)
+      .where(eq(dbModule.appStateTable.key, DB_STATE_KEY))
+      .limit(1);
+    if (!rows.length) return null;
+    return sanitizeStateCandidate(rows[0].value);
+  } catch (error) {
+    console.warn("shared-state: failed reading from database, using file fallback", error);
+    return null;
+  }
+}
+
+async function writeStateToDb(state: SharedState): Promise<void> {
+  if (!dbModule) return;
+  try {
+    await dbModule.db
+      .insert(dbModule.appStateTable)
+      .values({
+        key: DB_STATE_KEY,
+        value: state as unknown as Record<string, unknown>,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: dbModule.appStateTable.key,
+        set: {
+          value: state as unknown as Record<string, unknown>,
+          updatedAt: new Date(),
+        },
+      });
+  } catch (error) {
+    console.warn("shared-state: failed writing to database", error);
+  }
+}
+
+let stateCache: SharedState = readStateFromFile();
+
+await initDbModule();
+if (dbModule) {
+  const persisted = await readStateFromDb();
+  if (persisted) {
+    stateCache = persisted;
+    writeStateFile(stateCache);
+  } else {
+    await writeStateToDb(stateCache);
+  }
+}
+
+function readState(): SharedState {
+  return stateCache;
+}
+
+function writeState(state: SharedState) {
+  stateCache = state;
+  writeStateFile(state);
+  void writeStateToDb(state);
 }
 
 function appendHistory(state: SharedState, entry: Omit<HistoryEntry, "id" | "timestamp">) {
