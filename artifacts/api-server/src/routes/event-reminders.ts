@@ -2,12 +2,15 @@ import { Router } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { eq } from "drizzle-orm";
 import webpush, { type PushSubscription } from "web-push";
 
 const router = Router();
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "event-reminder-subscriptions.json");
 const VAPID_KEY_FILE = path.join(DATA_DIR, "event-reminder-vapid-keys.json");
+const DB_STORE_KEY = "ka_event_reminder_subscriptions_v1";
+const DB_VAPID_KEY = "ka_event_reminder_vapid_v1";
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
@@ -85,9 +88,37 @@ type VapidKeyPair = {
   privateKey: string;
 };
 
+type DbModule = typeof import("@workspace/db");
+
+let dbModule: DbModule | null = null;
+let persistenceMode: "database" | "file" = "file";
+let storeCache: Store = readStoreFromFile();
 let cachedVapidKeys: VapidKeyPair | null = null;
 
-function readStore(): Store {
+function ensureDataDir() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function isStoreEmpty(store: Store | null | undefined) {
+  return !store || !Array.isArray(store.subscriptions) || store.subscriptions.length === 0;
+}
+
+function sanitizeStoreCandidate(value: unknown): Store | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = value as Partial<Store>;
+  return {
+    subscriptions: Array.isArray(parsed.subscriptions) ? parsed.subscriptions : [],
+  };
+}
+
+function sanitizeVapidCandidate(value: unknown): VapidKeyPair | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = value as Partial<VapidKeyPair>;
+  if (!parsed.publicKey || !parsed.privateKey) return null;
+  return { publicKey: parsed.publicKey, privateKey: parsed.privateKey };
+}
+
+function readStoreFromFile(): Store {
   try {
     return JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
   } catch {
@@ -95,9 +126,113 @@ function readStore(): Store {
   }
 }
 
-function writeStore(store: Store) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+function writeStoreFile(store: Store) {
+  ensureDataDir();
   fs.writeFileSync(STORE_FILE, JSON.stringify(store, null, 2));
+}
+
+async function initDbModule() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    dbModule = await import("@workspace/db");
+  } catch (error) {
+    console.warn("event-reminders: database module unavailable, using file fallback", error);
+  }
+}
+
+async function readStoreFromDb(): Promise<Store | null> {
+  if (!dbModule) return null;
+  try {
+    const rows = await dbModule.db
+      .select({ value: dbModule.appStateTable.value })
+      .from(dbModule.appStateTable)
+      .where(eq(dbModule.appStateTable.key, DB_STORE_KEY))
+      .limit(1);
+    if (!rows.length) return null;
+    return sanitizeStoreCandidate(rows[0].value);
+  } catch (error) {
+    console.warn("event-reminders: failed reading subscriptions from database", error);
+    return null;
+  }
+}
+
+async function writeStoreToDb(store: Store): Promise<boolean> {
+  if (!dbModule) return false;
+  try {
+    await dbModule.db
+      .insert(dbModule.appStateTable)
+      .values({
+        key: DB_STORE_KEY,
+        value: store as unknown as Record<string, unknown>,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: dbModule.appStateTable.key,
+        set: {
+          value: store as unknown as Record<string, unknown>,
+          updatedAt: new Date(),
+        },
+      });
+    return true;
+  } catch (error) {
+    console.warn("event-reminders: failed writing subscriptions to database", error);
+    return false;
+  }
+}
+
+async function readVapidFromDb(): Promise<VapidKeyPair | null> {
+  if (!dbModule) return null;
+  try {
+    const rows = await dbModule.db
+      .select({ value: dbModule.appStateTable.value })
+      .from(dbModule.appStateTable)
+      .where(eq(dbModule.appStateTable.key, DB_VAPID_KEY))
+      .limit(1);
+    if (!rows.length) return null;
+    return sanitizeVapidCandidate(rows[0].value);
+  } catch (error) {
+    console.warn("event-reminders: failed reading VAPID keys from database", error);
+    return null;
+  }
+}
+
+async function writeVapidToDb(keys: VapidKeyPair): Promise<boolean> {
+  if (!dbModule) return false;
+  try {
+    await dbModule.db
+      .insert(dbModule.appStateTable)
+      .values({
+        key: DB_VAPID_KEY,
+        value: keys as unknown as Record<string, unknown>,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: dbModule.appStateTable.key,
+        set: {
+          value: keys as unknown as Record<string, unknown>,
+          updatedAt: new Date(),
+        },
+      });
+    return true;
+  } catch (error) {
+    console.warn("event-reminders: failed writing VAPID keys to database", error);
+    return false;
+  }
+}
+
+function readStore(): Store {
+  return storeCache;
+}
+
+async function writeStore(store: Store) {
+  storeCache = store;
+  if (persistenceMode === "database") {
+    const persisted = await writeStoreToDb(store);
+    if (persisted) return;
+    persistenceMode = "file";
+    console.info("event-reminders: persistence mode=file fallback");
+  }
+  writeStoreFile(store);
 }
 
 function normalizeOffset(value: unknown) {
@@ -128,8 +263,8 @@ function subscriptionHash(endpoint: string, subscriptionId: string) {
   return crypto.createHash("sha256").update(`${endpoint}:${subscriptionId}`).digest("hex");
 }
 
-function configureWebPush() {
-  const keyPair = getVapidKeys();
+async function configureWebPush() {
+  const keyPair = await getVapidKeys();
   const publicKey = keyPair?.publicKey;
   const privateKey = keyPair?.privateKey;
   const subject = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
@@ -149,11 +284,11 @@ function readGeneratedVapidKeys(): VapidKeyPair | null {
 }
 
 function writeGeneratedVapidKeys(keys: VapidKeyPair) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  ensureDataDir();
   fs.writeFileSync(VAPID_KEY_FILE, JSON.stringify(keys, null, 2));
 }
 
-function getVapidKeys(): VapidKeyPair | null {
+async function getVapidKeys(): Promise<VapidKeyPair | null> {
   const envPublicKey = process.env.VAPID_PUBLIC_KEY;
   const envPrivateKey = process.env.VAPID_PRIVATE_KEY;
   if (envPublicKey && envPrivateKey) {
@@ -163,17 +298,92 @@ function getVapidKeys(): VapidKeyPair | null {
 
   if (cachedVapidKeys) return cachedVapidKeys;
 
-  const generatedKeys = readGeneratedVapidKeys();
-  if (generatedKeys) {
-    cachedVapidKeys = generatedKeys;
+  if (persistenceMode === "database") {
+    const dbKeys = await readVapidFromDb();
+    if (dbKeys) {
+      cachedVapidKeys = dbKeys;
+      return cachedVapidKeys;
+    }
+  }
+
+  const fileKeys = readGeneratedVapidKeys();
+  if (fileKeys) {
+    cachedVapidKeys = fileKeys;
+    if (persistenceMode === "database") {
+      const persisted = await writeVapidToDb(cachedVapidKeys);
+      if (!persisted) {
+        persistenceMode = "file";
+        console.info("event-reminders: persistence mode=file fallback");
+      }
+    }
     return cachedVapidKeys;
   }
 
   const freshKeys = webpush.generateVAPIDKeys();
   cachedVapidKeys = { publicKey: freshKeys.publicKey, privateKey: freshKeys.privateKey };
+
+  if (persistenceMode === "database") {
+    const persisted = await writeVapidToDb(cachedVapidKeys);
+    if (persisted) {
+      return cachedVapidKeys;
+    }
+    persistenceMode = "file";
+    console.info("event-reminders: persistence mode=file fallback");
+  }
+
   writeGeneratedVapidKeys(cachedVapidKeys);
   return cachedVapidKeys;
 }
+
+async function bootstrapEventReminderPersistence() {
+  try {
+    await initDbModule();
+    if (!dbModule) {
+      persistenceMode = "file";
+      console.info("event-reminders: persistence mode=file fallback");
+      return;
+    }
+
+    const dbStore = await readStoreFromDb();
+    if (isStoreEmpty(dbStore)) {
+      const fileStore = readStoreFromFile();
+      if (!isStoreEmpty(fileStore)) {
+        storeCache = fileStore;
+        const migrated = await writeStoreToDb(storeCache);
+        if (!migrated) throw new Error("failed migrating reminder subscriptions to database");
+        console.info("event-reminders: migrated file snapshot to database");
+      } else {
+        const seeded = await writeStoreToDb(storeCache);
+        if (!seeded) throw new Error("failed seeding reminder subscriptions in database");
+      }
+    } else {
+      storeCache = dbStore;
+    }
+
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+      const dbKeys = await readVapidFromDb();
+      if (dbKeys) {
+        cachedVapidKeys = dbKeys;
+      } else {
+        const fileKeys = readGeneratedVapidKeys();
+        if (fileKeys) {
+          cachedVapidKeys = fileKeys;
+          const migratedKeys = await writeVapidToDb(fileKeys);
+          if (!migratedKeys) throw new Error("failed migrating VAPID keys to database");
+        }
+      }
+    }
+
+    persistenceMode = "database";
+    console.info("event-reminders: persistence mode=database");
+  } catch (error) {
+    persistenceMode = "file";
+    console.warn("event-reminders: database initialization failed, using file fallback", error);
+    console.info("event-reminders: persistence mode=file fallback");
+  }
+}
+
+void bootstrapEventReminderPersistence();
 
 function eventClockDateToLocalDate(date: Date, offset: number) {
   return new Date(date.getTime() - offset * HOUR_MS);
@@ -244,12 +454,12 @@ async function sendReminder(subscription: ReminderSubscription, kind: string, sc
   await webpush.sendNotification(subscription.pushSubscription, payload);
 }
 
-router.get("/event-reminders/config", (_req, res) => {
-  const keyPair = getVapidKeys();
+router.get("/event-reminders/config", async (_req, res) => {
+  const keyPair = await getVapidKeys();
   res.json({ configured: Boolean(keyPair?.publicKey && keyPair.privateKey), publicKey: keyPair?.publicKey || "" });
 });
 
-router.post("/event-reminders/subscriptions", (req, res) => {
+router.post("/event-reminders/subscriptions", async (req, res) => {
   const pushSubscription = req.body?.pushSubscription;
   const subscriptionId = String(req.body?.subscriptionId || "");
   const title = String(req.body?.title || "");
@@ -280,11 +490,11 @@ router.post("/event-reminders/subscriptions", (req, res) => {
   };
 
   store.subscriptions = [...store.subscriptions.filter((subscription) => subscription.id !== id), next];
-  writeStore(store);
+  await writeStore(store);
   res.json({ ok: true, id });
 });
 
-router.delete("/event-reminders/subscriptions", (req, res) => {
+router.delete("/event-reminders/subscriptions", async (req, res) => {
   const endpoint = String(req.body?.endpoint || "");
   const subscriptionId = String(req.body?.subscriptionId || "");
   if (!endpoint || !subscriptionId) {
@@ -293,18 +503,18 @@ router.delete("/event-reminders/subscriptions", (req, res) => {
   }
   const store = readStore();
   store.subscriptions = store.subscriptions.filter((subscription) => subscription.id !== subscriptionHash(endpoint, subscriptionId));
-  writeStore(store);
+  await writeStore(store);
   res.json({ ok: true });
 });
 
-router.post("/event-reminders/test", (req, res) => {
+router.post("/event-reminders/test", async (req, res) => {
   const pushSubscription = req.body?.pushSubscription;
   const delaySeconds = Math.max(3, Math.min(30, Number(req.body?.delaySeconds || 5)));
   if (!isPushSubscription(pushSubscription)) {
     res.status(400).json({ error: "A browser push subscription is required." });
     return;
   }
-  if (!configureWebPush()) {
+  if (!(await configureWebPush())) {
     res.status(503).json({ error: "Web Push VAPID keys are not configured." });
     return;
   }
@@ -335,7 +545,7 @@ router.post("/event-reminders/send-due", async (req, res) => {
     res.status(401).json({ error: "Unauthorized." });
     return;
   }
-  if (!configureWebPush()) {
+  if (!(await configureWebPush())) {
     res.status(503).json({ error: "Web Push VAPID keys are not configured." });
     return;
   }
@@ -365,7 +575,7 @@ router.post("/event-reminders/send-due", async (req, res) => {
     }
   }
 
-  writeStore(store);
+  await writeStore(store);
   res.json({ ok: true, sent, failed, checked: store.subscriptions.length });
 });
 
