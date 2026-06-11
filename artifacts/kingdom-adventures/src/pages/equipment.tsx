@@ -230,10 +230,19 @@ const ELEMENT_ICON_BY_ATTR: Record<number, { label: string; src: string }> = {
 const ELEMENT_BONUS_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 
 function parseElementAttribute(raw: unknown, rawType: unknown): number | null {
-  const type = Number(rawType);
   const parsed = Number(raw);
-  if (!Number.isFinite(type) || type < 1 || type > 9) return null;
-  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 7) return null;
+
+  const type = Number(rawType);
+  if (Number.isFinite(type)) {
+    return type >= 1 && type <= 9 ? parsed : null;
+  }
+
+  // Some sheet exports provide textual slot/category values instead of numeric equip type.
+  // In that format, element attributes are only valid for weapon entries.
+  const resolvedSlot = slotFromEquipmentType(rawType);
+  if (resolvedSlot !== "Weapon") return null;
+
   return parsed;
 }
 
