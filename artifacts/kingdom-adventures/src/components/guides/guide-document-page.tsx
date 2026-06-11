@@ -36,6 +36,7 @@ import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 import { AffinityBadge, RankBadge } from "@/components/ka/badges";
 import { getEntityHref } from "@/components/ka/entity-link";
 import iconManifest from "../../../../../website_icons/manifest.json";
+import facilityIconManifest from "../../../../../website_icons/facilities_confirmed/manifest.json";
 
 export type GuideSectionOverlay = {
   title: string;
@@ -104,10 +105,13 @@ type GuideIconCatalogEntry = {
 };
 
 type GuideIconManifest = {
-  items?: Array<{ name?: string }>;
-  furniture?: Array<{ name?: string }>;
-  equipment?: Array<{ name?: string }>;
-  facilities?: Array<{ name?: string }>;
+  items?: Array<{ name?: string; filename?: string }>;
+  furniture?: Array<{ name?: string; filename?: string }>;
+  equipment?: Array<{ name?: string; filename?: string }>;
+};
+
+type GuideFacilityIconManifest = {
+  icons?: Array<{ id?: number; type?: string; name?: string; filename?: string }>;
 };
 
 const INLINE_JOB_ICON_PREFIX = "ka-job-preview:";
@@ -2458,6 +2462,8 @@ export function GuideDocumentPage({
   const [selectedExactSpots, setSelectedExactSpots] = useState<SelectedGuideLink[]>([]);
   const [exactSpotPickMode, setExactSpotPickMode] = useState(false);
   const [linkScope, setLinkScope] = useState<"phrase" | "spot">("phrase");
+  const [guideToolTab, setGuideToolTab] = useState<"links" | "icons">("icons");
+  const [iconSearchQuery, setIconSearchQuery] = useState("");
   const [draftPhrase, setDraftPhrase] = useState("");
   const [draftHref, setDraftHref] = useState("");
   const [targetType, setTargetType] = useState<LinkTargetType>("equipment");
@@ -2547,6 +2553,59 @@ export function GuideDocumentPage({
       .filter((entry) => Boolean(entry.icon)) as Array<{ name: string; short: string; icon: string }>,
     [sharedStatIcons],
   );
+  const iconCatalog = useMemo(() => {
+    const manifest = iconManifest as GuideIconManifest;
+    const facilityManifest = facilityIconManifest as GuideFacilityIconManifest;
+    const entries: GuideIconCatalogEntry[] = [];
+    const seen = new Set<string>();
+
+    const addEntry = (name: string, src: string, category: string, aliases: string[] = []) => {
+      const cleanName = name.trim();
+      const cleanSrc = src.trim();
+      if (!cleanName || !cleanSrc) return;
+      const dedupeKey = `${cleanName.toLowerCase()}|${cleanSrc}`;
+      if (seen.has(dedupeKey)) return;
+      seen.add(dedupeKey);
+      entries.push({
+        name: cleanName,
+        src: cleanSrc,
+        category,
+        search: `${cleanName} ${aliases.join(" ")} ${category}`.toLowerCase(),
+      });
+    };
+
+    for (const item of manifest.items ?? []) {
+      if (!item?.name || !item?.filename) continue;
+      const src = item.filename.includes("/") ? `/website_icons/${item.filename}` : `/website_icons/items/${item.filename}`;
+      addEntry(item.name, src, "item");
+    }
+    for (const equip of manifest.equipment ?? []) {
+      if (!equip?.name || !equip?.filename) continue;
+      addEntry(equip.name, `/website_icons/equipment/${equip.filename}`, "equipment");
+    }
+    for (const furniture of manifest.furniture ?? []) {
+      if (!furniture?.name || !furniture?.filename) continue;
+      addEntry(furniture.name, `/website_icons/furniture/${furniture.filename}`, "furniture");
+    }
+    for (const facility of facilityManifest.icons ?? []) {
+      if (!facility?.name || !facility?.filename) continue;
+      if (facility.type && facility.type !== "facility") continue;
+      if (facility.filename.startsWith("mapchip_")) continue;
+      addEntry(facility.name, `/website_icons/facilities_confirmed/${facility.filename}`, "facility");
+    }
+    for (const stat of GUIDE_EQUIPMENT_STATS) {
+      const icon = sharedStatIcons?.[stat];
+      if (!icon) continue;
+      addEntry(stat, icon, "stat", [GUIDE_STAT_SHORT[stat] ?? stat]);
+    }
+
+    return entries.sort((a, b) => a.name.localeCompare(b.name));
+  }, [sharedStatIcons]);
+  const filteredIconCatalog = useMemo(() => {
+    const query = iconSearchQuery.trim().toLowerCase();
+    if (!query) return iconCatalog.slice(0, 180);
+    return iconCatalog.filter((entry) => entry.search.includes(query)).slice(0, 180);
+  }, [iconCatalog, iconSearchQuery]);
   const resolveInlineIcon = useMemo(
     () => (request: InlineGuideIconRequest) => {
       const normalizedLabel = normalizeGuideLinkLabel(request.label);
@@ -2781,6 +2840,7 @@ export function GuideDocumentPage({
   };
 
   const openLinkTools = () => {
+    setGuideToolTab("links");
     setSelectedLink(null);
     setSelectedExactSpots([]);
     setExactSpotPickMode(false);
@@ -3302,6 +3362,7 @@ export function GuideDocumentPage({
                                 target: link.target,
                               });
                               setDraftIconSrc(icon ?? "");
+                              setGuideToolTab("icons");
                               setLinkDialogOpen(true);
                             },
                           }),
@@ -3359,7 +3420,7 @@ export function GuideDocumentPage({
 
       {isOwner ? (
         <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-[min(96vw,1200px)] max-w-none max-h-[92vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Guide Link Tools</DialogTitle>
               <DialogDescription>
@@ -3379,6 +3440,15 @@ export function GuideDocumentPage({
                   {linkSaveError}
                 </div>
               ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" variant={guideToolTab === "links" ? "default" : "outline"} onClick={() => setGuideToolTab("links")}>
+                  Link Editor
+                </Button>
+                <Button type="button" size="sm" variant={guideToolTab === "icons" ? "default" : "outline"} onClick={() => setGuideToolTab("icons")}>
+                  Icon Editor
+                </Button>
+              </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Word or phrase</label>
@@ -3458,6 +3528,8 @@ export function GuideDocumentPage({
                 </div>
               )}
 
+              {guideToolTab === "links" ? (
+                <>
               <div className="grid gap-3 sm:grid-cols-[150px_1fr]">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Link to</label>
@@ -3571,68 +3643,6 @@ export function GuideDocumentPage({
                 ) : null}
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Inline icon source</label>
-                  <Input
-                    value={draftIconSrc}
-                    onChange={(event) => setDraftIconSrc(event.target.value)}
-                    placeholder="/website_icons/furniture/furniture_287_Survey_Room__add_job_obj_02.png"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={applySuggestedGuideIcon}
-                  disabled={isSavingOverrides || !(draftPhrase.trim() || selectedExactSpots.length || selectedLink)}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Use Suggested Icon
-                </Button>
-                <Button
-                  type="button"
-                  className="gap-2"
-                  onClick={saveSuggestedGuideIconQuick}
-                  disabled={isSavingOverrides || !(draftPhrase.trim() || selectedExactSpots.length || selectedLink)}
-                >
-                  <Plus className="h-4 w-4" />
-                  One-Click Save Suggested
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={saveSelectedGuideIcon}
-                  disabled={isSavingOverrides || !(draftPhrase.trim() || selectedExactSpots.length || selectedLink) || !draftIconSrc.trim()}
-                >
-                  <Plus className="h-4 w-4" />
-                  Save Icon
-                </Button>
-              </div>
-
-              {statIconOptions.length ? (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Quick stat icons (click to pick)</label>
-                  <div className="flex flex-wrap gap-2">
-                    {statIconOptions.map((entry) => (
-                      <Button
-                        key={entry.name}
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="gap-2"
-                        onClick={() => setDraftIconSrc(entry.icon)}
-                        disabled={isSavingOverrides}
-                      >
-                        <img src={entry.icon} alt={entry.short} className="h-4 w-4 object-contain" />
-                        {entry.short}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0 text-xs text-muted-foreground">
                   Target: <span className="break-all text-foreground/80">{guideTargetLabel(getDraftTarget() ?? undefined) || getDraftTargetHref() || "Choose a target"}</span>
@@ -3642,7 +3652,6 @@ export function GuideDocumentPage({
                   Save
                 </Button>
               </div>
-            </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -3711,6 +3720,112 @@ export function GuideDocumentPage({
                 )}
               </div>
             </div>
+                </>
+              ) : null}
+
+              {guideToolTab === "icons" ? (
+                <>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Inline icon source</label>
+                  <Input
+                    value={draftIconSrc}
+                    onChange={(event) => setDraftIconSrc(event.target.value)}
+                    placeholder="/website_icons/furniture/furniture_287_Survey_Room__add_job_obj_02.png"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={applySuggestedGuideIcon}
+                  disabled={isSavingOverrides || !(draftPhrase.trim() || selectedExactSpots.length || selectedLink)}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Use Suggested Icon
+                </Button>
+                <Button
+                  type="button"
+                  className="gap-2"
+                  onClick={saveSuggestedGuideIconQuick}
+                  disabled={isSavingOverrides || !(draftPhrase.trim() || selectedExactSpots.length || selectedLink)}
+                >
+                  <Plus className="h-4 w-4" />
+                  One-Click Save Suggested
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={saveSelectedGuideIcon}
+                  disabled={isSavingOverrides || !(draftPhrase.trim() || selectedExactSpots.length || selectedLink) || !draftIconSrc.trim()}
+                >
+                  <Plus className="h-4 w-4" />
+                  Save Icon
+                </Button>
+              </div>
+
+              {statIconOptions.length ? (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Quick stat icons (click to pick)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {statIconOptions.map((entry) => (
+                      <Button
+                        key={entry.name}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => setDraftIconSrc(entry.icon)}
+                        disabled={isSavingOverrides}
+                      >
+                        <img src={entry.icon} alt={entry.short} className="h-4 w-4 object-contain" />
+                        {entry.short}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/20 px-3 py-2">
+                <div className="text-xs text-muted-foreground">Need exact icon names? Open the full icon name library page.</div>
+                <a href="/icon-library" target="_blank" rel="noreferrer" className="inline-flex">
+                  <Button type="button" size="sm" variant="outline" className="gap-2">
+                    <ExternalLink className="h-4 w-4" />
+                    Open Icon Name Library
+                  </Button>
+                </a>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-medium text-muted-foreground">Search icons by name</label>
+                  <span className="text-xs text-muted-foreground">{filteredIconCatalog.length} matches</span>
+                </div>
+                <Input
+                  value={iconSearchQuery}
+                  onChange={(event) => setIconSearchQuery(event.target.value)}
+                  placeholder="Search icons: int, guest bed, tool workshop, ore..."
+                />
+                <div className="max-h-64 overflow-y-auto rounded-md border border-border bg-muted/10 p-2">
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
+                    {filteredIconCatalog.map((entry) => (
+                      <button
+                        key={`${entry.category}-${entry.name}-${entry.src}`}
+                        type="button"
+                        onClick={() => setDraftIconSrc(entry.src)}
+                        className={`rounded-md border p-2 text-left transition hover:border-primary/50 hover:bg-primary/5 ${draftIconSrc === entry.src ? "border-primary bg-primary/10" : "border-border"}`}
+                      >
+                        <div className="mb-1 flex items-center gap-2">
+                          <img src={entry.src} alt={entry.name} className="h-5 w-5 rounded-sm object-contain" />
+                          <span className="truncate text-xs font-medium">{entry.name}</span>
+                        </div>
+                        <div className="text-[10px] uppercase text-muted-foreground">{entry.category}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -3781,6 +3896,9 @@ export function GuideDocumentPage({
                   <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">No removed auto-icons.</div>
                 )}
               </div>
+            </div>
+                </>
+              ) : null}
             </div>
           </DialogContent>
         </Dialog>

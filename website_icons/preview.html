@@ -4619,7 +4619,49 @@
     </div>
 </div>
 
+<h2>Stat Icons (from shared data)</h2>
+<div class="icon-grid" id="statIconGrid">
+    <div class="icon-card">
+        <div class="name">Load this page through localhost to view stat icons.</div>
+        <div class="meta">Source: /ka-api/ka/shared</div>
+    </div>
+</div>
+
     <script>
+    async function loadStatIcons() {
+        const grid = document.getElementById('statIconGrid');
+        if (!grid) return;
+        try {
+            const response = await fetch('/ka-api/ka/shared');
+            if (!response.ok) return;
+            const payload = await response.json();
+            const statIcons = payload?.state?.statIcons || payload?.statIcons || {};
+            const orderedStats = ['HP', 'MP', 'Vigor', 'Attack', 'Defence', 'Speed', 'Luck', 'Intelligence', 'Dexterity', 'Gather', 'Move', 'Heart'];
+            const entries = orderedStats
+                .filter((name) => typeof statIcons[name] === 'string' && statIcons[name])
+                .map((name) => ({ name, src: statIcons[name] }));
+
+            if (!entries.length) return;
+            grid.innerHTML = '';
+            entries.forEach((entry, index) => {
+                const card = document.createElement('div');
+                card.className = 'icon-card';
+                card.setAttribute('data-name', entry.name.toLowerCase());
+                card.setAttribute('data-id', String(index));
+                card.setAttribute('data-category', 'stats');
+                card.innerHTML = `
+                    <img src="${entry.src}" alt="${entry.name}">
+                    <div class="name">${entry.name}</div>
+                    <div class="id">Stat</div>
+                    <div class="meta">shared stat icon</div>
+                `;
+                grid.appendChild(card);
+            });
+        } catch {
+            // Keep fallback card when shared stat icons are unavailable.
+        }
+    }
+
     function filterIcons() {
         const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
         const cards = document.querySelectorAll('.icon-card');
@@ -4643,6 +4685,8 @@
             }
         });
     }
+
+    loadStatIcons();
     </script>
 </body>
 </html>
