@@ -556,16 +556,20 @@ const GUIDE_ICON_LABEL_ALIASES: Record<string, string> = {
   "bed": "Guest Bed",
   "add beds": "Guest Bed",
   "ad beds": "Guest Bed",
+  "movers facility": "Movers",
+  "mover facility": "Movers",
 };
 
 function getGuideIconLabelCandidates(label: string) {
   const base = label.trim();
   if (!base) return [];
   const lower = base.toLowerCase();
+  const withoutFacilitySuffix = base.replace(/\s+facilit(?:y|ies)\b/i, "").trim();
   const aliased = GUIDE_ICON_LABEL_ALIASES[lower];
   const singular = singularizeGuideLabel(base);
   const singularAlias = GUIDE_ICON_LABEL_ALIASES[singular.toLowerCase()];
-  return Array.from(new Set([base, aliased, singular, singularAlias].filter(Boolean) as string[]));
+  const noSuffixAlias = GUIDE_ICON_LABEL_ALIASES[withoutFacilitySuffix.toLowerCase()];
+  return Array.from(new Set([base, withoutFacilitySuffix, aliased, singular, singularAlias, noSuffixAlias].filter(Boolean) as string[]));
 }
 
 const GUIDE_LINKS = buildGuideLinks();
