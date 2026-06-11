@@ -377,22 +377,33 @@ async function writeStateToDb(state: SharedState): Promise<void> {
 
 let stateCache: SharedState = readStateFromFile();
 
-await initDbModule();
-if (dbModule) {
-  const persisted = await readStateFromDb();
-  if (persisted) {
-    stateCache = persisted;
-    writeStateFile(stateCache);
-    persistenceMode = "database";
-    console.info("shared-state: persistence mode=database (loaded existing state)");
-  } else {
-    await writeStateToDb(stateCache);
-    persistenceMode = "database";
-    console.info("shared-state: persistence mode=database (initialized from file snapshot)");
+async function bootstrapSharedStatePersistence() {
+  try {
+    console.info("shared-state: starting background persistence initialization");
+    await initDbModule();
+    if (dbModule) {
+      const persisted = await readStateFromDb();
+      if (persisted) {
+        stateCache = persisted;
+        writeStateFile(stateCache);
+        persistenceMode = "database";
+        console.info("shared-state: persistence mode=database (loaded existing state)");
+      } else {
+        await writeStateToDb(stateCache);
+        persistenceMode = "database";
+        console.info("shared-state: persistence mode=database (initialized from file snapshot)");
+      }
+    } else {
+      persistenceMode = "file";
+      console.info("shared-state: persistence mode=file (using local file state)");
+    }
+  } catch (error) {
+    persistenceMode = "file";
+    console.warn("shared-state: initialization failed, using file fallback", error);
   }
-} else {
-  persistenceMode = "file";
 }
+
+void bootstrapSharedStatePersistence();
 
 function readState(): SharedState {
   return stateCache;
