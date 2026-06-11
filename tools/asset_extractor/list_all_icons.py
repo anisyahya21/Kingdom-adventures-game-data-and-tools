@@ -8,11 +8,12 @@ from pathlib import Path
 
 
 ATTR_NAMES = {
-    1: "Ground",
+    0: "Water",
+    1: "Soil",
     2: "Grass",
-    3: "Sand",
+    3: "Desert",
     4: "Rock",
-    5: "Volcano",
+    5: "Fire",
     6: "Snow",
     7: "Swamp",
 }
@@ -328,7 +329,7 @@ def generate_html_preview(manifest_path: Path, linked_facilities_manifest_path: 
             lambda equip: (
                 f"Type {equip.get('type', '?')}"
                 + (
-                    f" | {ATTR_NAMES.get(equip.get('attribute'), equip.get('attribute'))}"
+                    f" | {equip.get('biome') or ATTR_NAMES.get(equip.get('attribute'), equip.get('attribute'))}"
                     if equip.get("attribute") not in (None, -1)
                     else ""
                 )

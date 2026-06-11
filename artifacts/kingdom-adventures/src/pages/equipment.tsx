@@ -112,6 +112,7 @@ const STAT_SHORT: Record<string, string> = {
 const MOBILE_SORT_OPTIONS = [
   { value: "mobile-sort", label: "Sort by" },
   { value: "name", label: "Name" },
+  { value: "element", label: "Element" },
   { value: "slot", label: "Slot" },
   { value: "studioLevel", label: "Studio Lv" },
   { value: "intReq", label: "INT Req" },
@@ -216,6 +217,26 @@ function slotFromEquipmentType(rawType: string | number | null): string {
   return typeof rawType === "string" ? rawType.trim() : "";
 }
 
+const ELEMENT_ICON_BY_ATTR: Record<number, { label: string; src: string }> = {
+  0: { label: "Water", src: "/website_icons/attributes/attribute_0_water.png" },
+  1: { label: "Soil", src: "/website_icons/attributes/attribute_1_ground.png" },
+  2: { label: "Grass", src: "/website_icons/attributes/attribute_2_grass.png" },
+  3: { label: "Desert", src: "/website_icons/attributes/attribute_3_sand.png" },
+  4: { label: "Rock", src: "/website_icons/attributes/attribute_4_rock.png" },
+  5: { label: "Fire", src: "/website_icons/attributes/attribute_5_volcano.png" },
+  6: { label: "Snow", src: "/website_icons/attributes/attribute_6_snow.png" },
+  7: { label: "Swamp", src: "/website_icons/attributes/attribute_7_swamp.png" },
+};
+const ELEMENT_BONUS_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+
+function parseElementAttribute(raw: unknown, rawType: unknown): number | null {
+  const type = Number(rawType);
+  const parsed = Number(raw);
+  if (!Number.isFinite(type) || type < 1 || type > 9) return null;
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
 export interface EquipmentItem {
   uid: string;
   name: string;
@@ -224,6 +245,7 @@ export interface EquipmentItem {
   sheetSlot: string;
   baseStats: Record<string, number>;
   incStats: Record<string, number>;
+  elementAttribute: number | null;
   crafterStudioLevel: number;
   crafterIntelligence: number;
 }
@@ -261,6 +283,7 @@ function parseLocalEquipmentSnapshot(): EquipmentItem[] {
   const header = rows[2] ?? [];
   const nameColIdx = header.indexOf("name");
   const typeColIdx = header.indexOf("type");
+  const attributeColIdx = header.indexOf("attribute");
   const craftLvlIdx = header.indexOf("craftTermStudioLevel");
   const craftIntIdx = header.indexOf("craftTermIntelligence");
 
@@ -297,6 +320,10 @@ function parseLocalEquipmentSnapshot(): EquipmentItem[] {
     const rawType = typeColIdx >= 0 ? row[typeColIdx] : null;
     const parsedType = rawType == null || rawType === "" ? null : Number(rawType);
     const sheetSlot = slotFromEquipmentType(Number.isFinite(parsedType as number) ? parsedType : rawType);
+    const elementAttribute = parseElementAttribute(
+      attributeColIdx >= 0 ? row[attributeColIdx] : null,
+      Number.isFinite(parsedType as number) ? parsedType : rawType,
+    );
 
     const baseStats: Record<string, number> = Object.fromEntries(STAT_ORDER.map((stat) => [stat, 0]));
     const incStats: Record<string, number> = Object.fromEntries(STAT_ORDER.map((stat) => [stat, 0]));
@@ -314,6 +341,7 @@ function parseLocalEquipmentSnapshot(): EquipmentItem[] {
       sheetSlot,
       baseStats,
       incStats,
+      elementAttribute,
       crafterStudioLevel: Number(row[craftLvlIdx]) || 0,
       crafterIntelligence: Number(row[craftIntIdx]) || 0,
     });
@@ -359,6 +387,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     if (equipmentType >= 0) return equipmentType;
     return cols.findIndex((c, i) => i !== nameColIdx && /^(slot|category|kind)$/i.test(c));
   })();
+  const attributeColIdx = cols.findIndex((c) => /^(attribute|element|biome)$/i.test(c.trim()));
   const craftLvlIdx = cols.findIndex((c) => /crafterstudio|studio.?level|crafter.?studio/i.test(c));
   const craftIntIdx = cols.findIndex((c) => /craftermintelligence|crafter.?intel|craft.*int/i.test(c));
 
@@ -386,6 +415,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
     const displayName = getVariantDisplayName(name, sourceId);
     const rawSlot = slotColIdx >= 0 ? get(slotColIdx) : null;
     const sheetSlot = slotFromEquipmentType(rawSlot);
+    const elementAttribute = parseElementAttribute(attributeColIdx >= 0 ? get(attributeColIdx) : null, rawSlot);
     const baseStats: Record<string, number> = {};
     const incStats: Record<string, number> = {};
     for (let i = 0; i < cols.length; i++) {
@@ -399,7 +429,7 @@ async function fetchSheet(): Promise<EquipmentItem[]> {
       if (baseStats[s] === undefined) baseStats[s] = 0;
       if (incStats[s] === undefined) incStats[s] = 0;
     }
-    rawItems.push({ name: displayName, sourceName: name, sourceId, sheetSlot, baseStats, incStats, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
+    rawItems.push({ name: displayName, sourceName: name, sourceId, sheetSlot, baseStats, incStats, elementAttribute, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
   }
 
   const dedupedRawItems: Omit<EquipmentItem, "uid">[] = [];
@@ -1007,10 +1037,14 @@ export default function EquipmentPage() {
   const [craftFilter, setCraftFilter] = useState<CraftFilter>("All");
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [elementSortFirst, setElementSortFirst] = useState<number | null>(null);
+  const [elementSortMenuOpen, setElementSortMenuOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [openFilterMenu, setOpenFilterMenu] = useState<string | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  const mobileElementSortMenuRef = useRef<HTMLDivElement>(null);
+  const desktopElementSortMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const params = new URLSearchParams(locationSearch);
     const nextSearch = params.get("search");
@@ -1020,10 +1054,17 @@ export default function EquipmentPage() {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) setOpenFilterMenu(null);
+      const insideMobileMenu = mobileElementSortMenuRef.current?.contains(e.target as Node) ?? false;
+      const insideDesktopMenu = desktopElementSortMenuRef.current?.contains(e.target as Node) ?? false;
+      if (!insideMobileMenu && !insideDesktopMenu) setElementSortMenuOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (sortCol !== "element") setElementSortMenuOpen(false);
+  }, [sortCol]);
 
   // Comparison checkboxes
   const [selectedUids, setSelectedUids] = useState<Set<string>>(new Set());
@@ -1196,6 +1237,7 @@ export default function EquipmentPage() {
 
   const [sortByInc, setSortByInc] = useState(false);
   const [rowsToShow, setRowsToShow] = useState<"25" | "50" | "100" | "all">("25");
+  const [activeElementBonuses, setActiveElementBonuses] = useState<Set<number>>(new Set());
 
   const allStudioLevels = useMemo(
     () => [...new Set(items.filter((i) => i.crafterStudioLevel > 0).map((i) => i.crafterStudioLevel))].sort((a, b) => a - b),
@@ -1223,11 +1265,38 @@ export default function EquipmentPage() {
     else { setSortCol(col); setSortDir("desc"); }
   };
 
-  const getItemStatVal = useCallback((item: EquipmentItem, stat: string) => {
+  const toggleElementBonus = useCallback((attr: number) => {
+    setActiveElementBonuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(attr)) next.delete(attr);
+      else next.add(attr);
+      return next;
+    });
+  }, []);
+
+  const getItemElementMultiplier = useCallback((item: EquipmentItem) => {
+    if (item.elementAttribute === null) return 1;
+    return activeElementBonuses.has(item.elementAttribute) ? 1.5 : 1;
+  }, [activeElementBonuses]);
+
+  const applyElementBonus = useCallback((value: number, item: EquipmentItem) => {
+    return Math.round(value * getItemElementMultiplier(item));
+  }, [getItemElementMultiplier]);
+
+  const getItemStatAtLevel = useCallback((item: EquipmentItem, stat: string, level: number) => {
     const base = getEffectiveStat(item, stat, "base", overrides);
     const inc = getEffectiveStat(item, stat, "inc", overrides);
-    return statAtLevel(base, inc, getItemLevel(item.uid));
-  }, [overrides, itemLevels]);
+    return applyElementBonus(statAtLevel(base, inc, level), item);
+  }, [overrides, applyElementBonus]);
+
+  const getItemIncStatVal = useCallback((item: EquipmentItem, stat: string) => {
+    const inc = getEffectiveStat(item, stat, "inc", overrides);
+    return applyElementBonus(inc, item);
+  }, [overrides, applyElementBonus]);
+
+  const getItemStatVal = useCallback((item: EquipmentItem, stat: string) => {
+    return getItemStatAtLevel(item, stat, getItemLevel(item.uid));
+  }, [getItemStatAtLevel, itemLevels]);
 
   const filtered = useMemo(() => {
     let list = compareMode ? items.filter((i) => selectedUids.has(i.uid)) : items;
@@ -1268,19 +1337,35 @@ export default function EquipmentPage() {
       list = [...list].sort((a, b) => {
         let av: number | string, bv: number | string;
         if (sortCol === "name") { av = a.name; bv = b.name; }
+        else if (sortCol === "element") {
+          const aAttr = a.elementAttribute;
+          const bAttr = b.elementAttribute;
+
+          if (elementSortFirst !== null) {
+            const aIsPreferred = aAttr === elementSortFirst;
+            const bIsPreferred = bAttr === elementSortFirst;
+            if (aIsPreferred !== bIsPreferred) return aIsPreferred ? -1 : 1;
+          }
+
+          if (aAttr === null && bAttr !== null) return 1;
+          if (bAttr === null && aAttr !== null) return -1;
+
+          av = aAttr === null ? 99 : aAttr;
+          bv = bAttr === null ? 99 : bAttr;
+        }
         else if (sortCol === "studioLevel") { av = a.crafterStudioLevel; bv = b.crafterStudioLevel; }
         else if (sortCol === "intReq") { av = a.crafterIntelligence; bv = b.crafterIntelligence; }
         else if (sortCol === "slot") { av = getItemSlot(a.name); bv = getItemSlot(b.name); }
         else {
-          av = sortByInc ? getEffectiveStat(a, sortCol, "inc", overrides) : getItemStatVal(a, sortCol);
-          bv = sortByInc ? getEffectiveStat(b, sortCol, "inc", overrides) : getItemStatVal(b, sortCol);
+          av = sortByInc ? getItemIncStatVal(a, sortCol) : getItemStatVal(a, sortCol);
+          bv = sortByInc ? getItemIncStatVal(b, sortCol) : getItemStatVal(b, sortCol);
         }
         if (typeof av === "string" && typeof bv === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
         return sortDir === "asc" ? Number(av) - Number(bv) : Number(bv) - Number(av);
       });
     }
     return list;
-  }, [items, compareMode, selectedUids, search, slotFilters, rankFilters, excludeStatFilters, studioFilters, intFilters, craftFilter, favsOnly, favs, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemSlot]);
+  }, [items, compareMode, selectedUids, search, slotFilters, rankFilters, excludeStatFilters, studioFilters, intFilters, craftFilter, favsOnly, favs, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemIncStatVal, getItemSlot, elementSortFirst]);
 
   const visibleItems = useMemo(() => {
     if (rowsToShow === "all") return filtered;
@@ -1315,14 +1400,12 @@ export default function EquipmentPage() {
         const item = items.find((i) => i.name === entry.itemName);
         if (!item) continue;
         for (const s of STAT_ORDER) {
-          const base = getEffectiveStat(item, s, "base", overrides);
-          const inc = getEffectiveStat(item, s, "inc", overrides);
-          totals[s] += statAtLevel(base, inc, entry.level);
+          totals[s] += getItemStatAtLevel(item, s, entry.level);
         }
       }
       return { id: loadoutItem.id, label: loadoutItem.label, totals };
     });
-  }, [loadout, items, overrides]);
+  }, [loadout, items, getItemStatAtLevel]);
 
   const SortIcon = ({ col }: { col: string }) => {
     if (sortCol !== col) return <ArrowUpDown className="w-3 h-3 text-muted-foreground/40 shrink-0" />;
@@ -1334,7 +1417,7 @@ export default function EquipmentPage() {
     return STAT_ORDER.filter((stat) => !excludeStatFilters.has(stat));
   }, [hideExcludedStatColumns, excludeStatFilters]);
 
-  const colCount = 9 + visibleStats.length; // drag, checkbox, favorite, icon, name, level, slot, craftable, ...stats
+  const colCount = 10 + visibleStats.length; // drag, checkbox, favorite, icon, name, element, level, slot, craftable, ...stats
 
   useEffect(() => {
     if (!sortCol) return;
@@ -1403,6 +1486,37 @@ export default function EquipmentPage() {
           </p>
         </PageHeader>
 
+        <Card className="shadow-sm mb-4">
+          <CardContent className="py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Element bonus</span>
+              {ELEMENT_BONUS_OPTIONS.map((attr) => {
+                const element = ELEMENT_ICON_BY_ATTR[attr];
+                const active = activeElementBonuses.has(attr);
+                return (
+                  <Button
+                    key={attr}
+                    size="sm"
+                    variant={active ? "default" : "outline"}
+                    className="h-8 px-2 gap-1.5"
+                    onClick={() => toggleElementBonus(attr)}
+                    title={`${element.label} +50% planning bonus`}
+                  >
+                    <img src={element.src} alt={element.label} className="w-4 h-4 object-contain" />
+                    <span className="text-[11px]">{element.label}</span>
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {activeElementBonuses.size > 0 && (
+          <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+            Element bonus on map biome buffs damage by 50%, it does not give 50% more stats, this tool applies a 50% stat bonus only to help plan and visualize, but that is not accurate.
+          </div>
+        )}
+
         {/* Stat icons row */}
         <Card className="shadow-sm mb-4">
           <CardContent className="py-3">
@@ -1466,15 +1580,59 @@ export default function EquipmentPage() {
               options={MOBILE_SORT_OPTIONS}
               triggerClassName="h-8 text-sm w-32"
             />
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 shrink-0"
-              onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
-              title={`Sort direction: ${sortDir === "asc" ? "Ascending" : "Descending"}`}
-            >
-              {sortDir === "asc" ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
-            </Button>
+            <div className="relative" ref={mobileElementSortMenuRef}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => {
+                  if (sortCol === "element") {
+                    setElementSortMenuOpen((v) => !v);
+                    return;
+                  }
+                  setSortDir((d) => d === "asc" ? "desc" : "asc");
+                }}
+                title={sortCol === "element" ? "Pick which element appears first" : `Sort direction: ${sortDir === "asc" ? "Ascending" : "Descending"}`}
+              >
+                {sortDir === "asc" ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
+              </Button>
+              {sortCol === "element" && elementSortMenuOpen && (
+                <div className="absolute z-50 right-0 top-full mt-1 w-44 rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setElementSortFirst(null);
+                      setElementSortMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground"
+                  >
+                    <span className={`w-3.5 h-3.5 shrink-0 ${elementSortFirst === null ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                    Default element order
+                  </button>
+                  {ELEMENT_BONUS_OPTIONS.map((attr) => {
+                    const element = ELEMENT_ICON_BY_ATTR[attr];
+                    return (
+                      <button
+                        key={attr}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSortCol("element");
+                          setElementSortFirst(attr);
+                          setElementSortMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground"
+                      >
+                        <span className={`w-3.5 h-3.5 shrink-0 ${elementSortFirst === attr ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                        <img src={element.src} alt={element.label} className="w-3.5 h-3.5 object-contain" />
+                        {element.label} first
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
           {selectedUids.size > 0 && !compareMode && (
             <Button size="sm" variant="outline" className="h-8 gap-1.5 border-primary text-primary hover:bg-primary/5" onClick={() => setCompareMode(true)}>
@@ -1718,18 +1876,70 @@ export default function EquipmentPage() {
                             else setSelectedUids(new Set());
                           }} title="Select all visible" />
                       </th>
-                      <th className="px-2 py-2 w-8 shrink-0" />
-                      <th className="px-2 py-2 w-8 shrink-0 text-muted-foreground/70" title="Favorites">
+                      <th className="px-1.5 py-2 w-8 shrink-0" />
+                      <th className="px-1.5 py-2 w-8 shrink-0 text-muted-foreground/70" title="Favorites">
                         <Star className="w-3.5 h-3.5 mx-auto" />
                       </th>
-                      <th className="text-left px-2 py-2 font-medium text-muted-foreground whitespace-nowrap">
+                      <th className="text-left px-1.5 py-2 font-medium text-muted-foreground whitespace-nowrap">
                         <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-foreground">Name <SortIcon col="name" /></button>
                       </th>
-                      <th className="text-center px-2 py-2 font-medium text-muted-foreground whitespace-nowrap w-16">Level</th>
-                      <th className="text-left px-2 py-2 font-medium text-muted-foreground whitespace-nowrap">
+                      <th className="text-center px-1 py-2 font-medium text-muted-foreground whitespace-nowrap w-11">
+                        <div className="relative inline-flex items-center gap-1" ref={desktopElementSortMenuRef}>
+                          <button onClick={() => handleSort("element")} className="inline-flex items-center gap-1 hover:text-foreground">Element</button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSortCol("element");
+                              setElementSortMenuOpen((v) => !v);
+                            }}
+                            className="inline-flex items-center hover:text-foreground"
+                            title="Pick which element appears first"
+                          >
+                            <SortIcon col="element" />
+                          </button>
+                          {sortCol === "element" && elementSortMenuOpen && (
+                            <div className="absolute z-50 right-0 top-full mt-1 w-44 rounded-md border border-border bg-popover shadow-md text-xs overflow-hidden">
+                              <button
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setElementSortFirst(null);
+                                  setElementSortMenuOpen(false);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground"
+                              >
+                                <span className={`w-3.5 h-3.5 shrink-0 ${elementSortFirst === null ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                                Default element order
+                              </button>
+                              {ELEMENT_BONUS_OPTIONS.map((attr) => {
+                                const element = ELEMENT_ICON_BY_ATTR[attr];
+                                return (
+                                  <button
+                                    key={attr}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setSortCol("element");
+                                      setElementSortFirst(attr);
+                                      setElementSortMenuOpen(false);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors text-foreground"
+                                  >
+                                    <span className={`w-3.5 h-3.5 shrink-0 ${elementSortFirst === attr ? "text-primary" : "opacity-0"}`}><CheckCircle2 className="w-3.5 h-3.5" /></span>
+                                    <img src={element.src} alt={element.label} className="w-3.5 h-3.5 object-contain" />
+                                    {element.label} first
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </th>
+                      <th className="text-center px-1.5 py-2 font-medium text-muted-foreground whitespace-nowrap w-16">Level</th>
+                      <th className="text-left px-1.5 py-2 font-medium text-muted-foreground whitespace-nowrap">
                         <button onClick={() => handleSort("slot")} className="flex items-center gap-1 hover:text-foreground">Slot <SortIcon col="slot" /></button>
                       </th>
-                      <th className="text-left px-2 py-2 font-medium text-muted-foreground whitespace-nowrap">
+                      <th className="text-left px-1.5 py-2 font-medium text-muted-foreground whitespace-nowrap">
                         <div className="flex items-center gap-1">
                           <button onClick={() => handleSort("studioLevel")} className="flex items-center gap-1 hover:text-foreground">Studio Lv <SortIcon col="studioLevel" /></button>
                           <span className="text-muted-foreground/40">/</span>
@@ -1815,7 +2025,7 @@ export default function EquipmentPage() {
                               <IconUpload iconKey={`equip:${item.name}`} icons={equipIcons}
                                 onSave={(icons) => handleEquipIcons(icons, item.name)} size={26} />
                             </td>
-                            <td className="px-2 py-1.5 whitespace-nowrap">
+                            <td className="px-1.5 py-1.5 whitespace-nowrap">
                               <button onClick={() => setExpandedItem(isExpanded ? null : item.uid)}
                                 className="flex items-center gap-1.5 font-medium text-left hover:text-primary transition-colors group" title={isExpanded ? "Click to collapse" : "Click to view base and growth"}>
                                 {isExpanded
@@ -1829,18 +2039,30 @@ export default function EquipmentPage() {
                                 )}
                               </button>
                             </td>
-                            <td className="px-2 py-1.5">
+                            <td className="px-1 py-1.5 text-center">
+                              {item.elementAttribute !== null && ELEMENT_ICON_BY_ATTR[item.elementAttribute] ? (
+                                <img
+                                  src={ELEMENT_ICON_BY_ATTR[item.elementAttribute].src}
+                                  alt={ELEMENT_ICON_BY_ATTR[item.elementAttribute].label}
+                                  className="w-4 h-4 object-contain mx-auto"
+                                  title={ELEMENT_ICON_BY_ATTR[item.elementAttribute].label}
+                                />
+                              ) : (
+                                <span className="text-muted-foreground/40">-</span>
+                              )}
+                            </td>
+                            <td className="px-1.5 py-1.5">
                               <NumInput value={level} min={1} max={99}
                                 onChange={(v) => setItemLevel(item.uid, v)}
                                 className="h-7 w-16 text-xs text-center mx-auto bg-background border-border/70"
                                 inputClassName="px-1" />
                             </td>
-                            <td className="px-2 py-1.5">
+                            <td className="px-1.5 py-1.5">
                               <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
                                 {itemSlot !== " " ? itemSlot : item.sheetSlot || " "}
                               </span>
                             </td>
-                            <td className="px-2 py-1.5">
+                            <td className="px-1.5 py-1.5">
                               {item.crafterStudioLevel === 0
                                 ? <span className="text-destructive text-xs font-medium">Not craftable</span>
                                 : <span className="text-xs"><strong>{item.crafterStudioLevel}</strong>{item.crafterIntelligence > 0 && <> / INT <strong>{item.crafterIntelligence}</strong></>}</span>}
@@ -1860,7 +2082,7 @@ export default function EquipmentPage() {
   }
 
   const displayVal = sortByInc
-    ? getEffectiveStat(item, stat, "inc", overrides)
+    ? getItemIncStatVal(item, stat)
     : getItemStatVal(item, stat);
 
   return (
@@ -1895,10 +2117,15 @@ export default function EquipmentPage() {
                                   )}
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-2">
-                                  {STAT_ORDER.filter((stat) => { const base = getEffectiveStat(item, stat, "base", overrides); const inc = getEffectiveStat(item, stat, "inc", overrides); const current = statAtLevel(base, inc, level); return base !== 0 || inc !== 0 || current !== 0; }).map((stat) => {
-                                    const base = getEffectiveStat(item, stat, "base", overrides);
-                                    const inc = getEffectiveStat(item, stat, "inc", overrides);
-                                    const current = statAtLevel(base, inc, level);
+                                  {STAT_ORDER.filter((stat) => {
+                                    const base = applyElementBonus(getEffectiveStat(item, stat, "base", overrides), item);
+                                    const inc = getItemIncStatVal(item, stat);
+                                    const current = getItemStatAtLevel(item, stat, level);
+                                    return base !== 0 || inc !== 0 || current !== 0;
+                                  }).map((stat) => {
+                                    const base = applyElementBonus(getEffectiveStat(item, stat, "base", overrides), item);
+                                    const inc = getItemIncStatVal(item, stat);
+                                    const current = getItemStatAtLevel(item, stat, level);
                                     return (
                                       <div key={stat} className="rounded-md border border-border bg-background/70 px-2 py-2">
                                         <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
@@ -1961,7 +2188,7 @@ export default function EquipmentPage() {
                       if (unset) return null;
 
                       const value = sortByInc
-                        ? getEffectiveStat(item, stat, "inc", overrides)
+                        ? getItemIncStatVal(item, stat)
                         : getItemStatVal(item, stat);
 
                       if (value === 0) return null;
@@ -2080,14 +2307,14 @@ export default function EquipmentPage() {
                         {isExpanded && (
                           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {STAT_ORDER.filter((stat) => {
-                              const base = getEffectiveStat(item, stat, "base", overrides);
-                              const inc = getEffectiveStat(item, stat, "inc", overrides);
-                              const current = statAtLevel(base, inc, level);
+                              const base = applyElementBonus(getEffectiveStat(item, stat, "base", overrides), item);
+                              const inc = getItemIncStatVal(item, stat);
+                              const current = getItemStatAtLevel(item, stat, level);
                               return base !== 0 || inc !== 0 || current !== 0;
                             }).map((stat) => {
-                              const base = getEffectiveStat(item, stat, "base", overrides);
-                              const inc = getEffectiveStat(item, stat, "inc", overrides);
-                              const current = statAtLevel(base, inc, level);
+                              const base = applyElementBonus(getEffectiveStat(item, stat, "base", overrides), item);
+                              const inc = getItemIncStatVal(item, stat);
+                              const current = getItemStatAtLevel(item, stat, level);
                               return (
                                 <div key={stat} className="rounded-md border border-border bg-background/70 px-3 py-3">
                                   <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
@@ -2258,13 +2485,11 @@ export default function EquipmentPage() {
                                     )}
                                     {item && entry.itemName && (
                                       <div className="text-[10px] text-muted-foreground space-y-0.5 mt-1">
-                                        {STAT_ORDER.filter((s) => statAtLevel(getEffectiveStat(item, s, "base", overrides), getEffectiveStat(item, s, "inc", overrides), entry.level) > 0).map((s) => {
-                                          const b = getEffectiveStat(item, s, "base", overrides);
-                                          const inc = getEffectiveStat(item, s, "inc", overrides);
+                                        {STAT_ORDER.filter((s) => getItemStatAtLevel(item, s, entry.level) > 0).map((s) => {
                                           return (
                                             <div key={s} className="flex items-center justify-between">
                                               <span className="flex items-center gap-1">{statIcons[s] && <img src={statIcons[s]} alt={s} className="w-3 h-3 object-contain" />}{s}</span>
-                                              <span className="font-medium text-foreground tabular-nums">{statAtLevel(b, inc, entry.level)}</span>
+                                              <span className="font-medium text-foreground tabular-nums">{getItemStatAtLevel(item, s, entry.level)}</span>
                                             </div>
                                           );
                                         })}

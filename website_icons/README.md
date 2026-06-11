@@ -1,16 +1,16 @@
 # Kingdom Adventures Website Icons
 
-Exported on: 2026-05-25 19:45:50
+Exported on: 2026-06-11 01:33:56
 Scale: 1x
 
 ## Structure
 
 ```
-website_icons/
+..\..\website_icons/
   items/           161 item icons
   equipment/       307 equipment icons
   eggs/            8 egg icons
-  attributes/      7 field attribute icons
+  attributes/      8 field attribute icons
   manifest.json    Complete metadata for all icons
 ```
 
@@ -27,15 +27,15 @@ Each icon PNG is linked to its game entity through `manifest.json`.
 ### Equipment
 - File: `equipment/equip_XXX.png`
 - Linked to equipment ID, type, and attribute
-- Attributes: Ground(1), Grass(2), Sand(3), Rock(4), Volcano(5), Snow(6), Swamp(7)
+- Attributes: Water(0), Ground(1), Grass(2), Sand(3), Rock(4), Volcano(5), Snow(6), Swamp(7)
 
 ### Eggs
 - File: `eggs/egg_X.png` (X = 0-7)
 - White, Blue, Green, Red, Purple, Black, Yellow, Rainbow
 
 ### Attributes
-- File: `attributes/attribute_X_name.png` (X = 1-7)
-- Ground, Grass, Sand, Rock, Volcano, Snow, Swamp
+- File: `attributes/attribute_X_name.png` (X = 0-7)
+- Water, Ground, Grass, Sand, Rock, Volcano, Snow, Swamp
 
 ## Integration Example
 

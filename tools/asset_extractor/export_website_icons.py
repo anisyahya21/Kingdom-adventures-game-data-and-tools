@@ -251,6 +251,17 @@ def export_equipment_icons(output_dir: Path, scale: int = 1) -> list[dict]:
     exported = []
     errors = []
     
+    biome_names = {
+        0: "Water",
+        1: "Soil",
+        2: "Grass",
+        3: "Desert",
+        4: "Rock",
+        5: "Fire",
+        6: "Snow",
+        7: "Swamp",
+    }
+
     for equip in equips:
         equip_id = equip["id"]
         icon_u = equip.get("iconU")
@@ -350,11 +361,16 @@ def export_equipment_icons(output_dir: Path, scale: int = 1) -> list[dict]:
             filename = f"equip_{equip_id:03d}.png"
             icon.save(equip_dir / filename, "PNG")
             
+            raw_attribute = equip.get("attribute")
+            # Biome attributes apply only to combat weapons (type 1..9).
+            biome_attribute = raw_attribute if equip_type in range(1, 10) and isinstance(raw_attribute, int) and raw_attribute >= 0 else None
+
             exported.append({
                 "id": equip_id,
                 "name": equip["name"],
                 "type": equip_type,
-                "attribute": equip.get("attribute"),
+                "attribute": biome_attribute,
+                "biome": biome_names.get(biome_attribute),
                 "filename": filename,
                 "method": method,
                 "sheet": f"{sheet_name}.png",
@@ -473,9 +489,9 @@ def export_egg_icons(output_dir: Path, scale: int = 1) -> list[dict]:
 def export_attribute_icons(output_dir: Path, scale: int = 1) -> list[dict]:
     """Export field attribute icons to attributes/ subfolder.
     
-    field_attribute_icon.png is 112×28 with TWO rows:
-    - Top 14px: transparent-base variants (preferred)
-    - Bottom 14px: colored tiles used only to repair clipped-looking missing pixels
+    field_attribute_icon.png is 112×28.
+    Export uses a strict fixed-grid crop rule: 8 columns × 2 rows, 14×14 cells.
+    For attributes, only first-row cells are used with no trimming/padding.
     """
     print("\n[Field Attributes]")
     attr_dir = output_dir / "attributes"
@@ -490,74 +506,18 @@ def export_attribute_icons(output_dir: Path, scale: int = 1) -> list[dict]:
     
     source_img = Image.open(attr_png).convert("RGBA")
     
-    attr_names = ["Ground", "Grass", "Sand", "Rock", "Volcano", "Snow", "Swamp"]
+    attr_names = ["Water", "Ground", "Grass", "Sand", "Rock", "Volcano", "Snow", "Swamp"]
     exported = []
     
-    # Use top row as requested, with bottom-row foreground repair for missing body pixels.
-    ATTRIBUTE_ICON_W = 16
+    # Deterministic fixed grid crop: first row only, no heuristics.
+    ATTRIBUTE_ICON_W = 14
     ATTRIBUTE_ICON_H = 14
     
-    for i, name in enumerate(attr_names, 1):
-        src_x = (i - 1) * ATTRIBUTE_ICON_W
+    for i, name in enumerate(attr_names):
+        src_x = i * ATTRIBUTE_ICON_W
         src_y = 0
-        
-        top_row = source_img.crop((src_x, 0, src_x + ATTRIBUTE_ICON_W, src_y + ATTRIBUTE_ICON_H))
-        bottom_row = source_img.crop((src_x, 14, src_x + ATTRIBUTE_ICON_W, 14 + ATTRIBUTE_ICON_H))
 
-        # Extract likely foreground from bottom row by removing border-connected background.
-        fg = bottom_row.copy()
-        fg_px = fg.load()
-        w, h = fg.size
-        visited = [[False] * w for _ in range(h)]
-
-        def _is_bg_like(c1: tuple[int, int, int, int], c2: tuple[int, int, int, int]) -> bool:
-            return (
-                abs(c1[0] - c2[0]) <= 10
-                and abs(c1[1] - c2[1]) <= 10
-                and abs(c1[2] - c2[2]) <= 10
-            )
-
-        edge_seeds: list[tuple[int, int]] = []
-        for x in range(w):
-            edge_seeds.append((x, 0))
-            edge_seeds.append((x, h - 1))
-        for y in range(h):
-            edge_seeds.append((0, y))
-            edge_seeds.append((w - 1, y))
-
-        for sx, sy in edge_seeds:
-            if visited[sy][sx]:
-                continue
-            seed_color = fg_px[sx, sy]
-            stack = [(sx, sy)]
-            visited[sy][sx] = True
-            while stack:
-                cx, cy = stack.pop()
-                cur = fg_px[cx, cy]
-                fg_px[cx, cy] = (0, 0, 0, 0)
-                for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
-                    if nx < 0 or ny < 0 or nx >= w or ny >= h or visited[ny][nx]:
-                        continue
-                    nxt = fg_px[nx, ny]
-                    if _is_bg_like(nxt, seed_color) or _is_bg_like(nxt, cur):
-                        visited[ny][nx] = True
-                        stack.append((nx, ny))
-
-        # Compose: top row stays authoritative; fill only where top is transparent.
-        icon = top_row.copy()
-        icon_px = icon.load()
-        for y in range(h):
-            for x in range(w):
-                if icon_px[x, y][3] == 0 and fg_px[x, y][3] > 0:
-                    icon_px[x, y] = fg_px[x, y]
-
-        canvas_w, canvas_h = 18, 16
-        canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-        # Keep a deterministic 1px margin around the native 16x14 icon cell.
-        paste_x = 1
-        paste_y = 1
-        canvas.paste(icon, (paste_x, paste_y))
-        icon = canvas
+        icon = source_img.crop((src_x, src_y, src_x + ATTRIBUTE_ICON_W, src_y + ATTRIBUTE_ICON_H))
         
         # Scale if requested
         if scale > 1:
@@ -1135,15 +1095,15 @@ Each icon PNG is linked to its game entity through `manifest.json`.
 ### Equipment
 - File: `equipment/equip_XXX.png`
 - Linked to equipment ID, type, and attribute
-- Attributes: Ground(1), Grass(2), Sand(3), Rock(4), Volcano(5), Snow(6), Swamp(7)
+- Attributes: Water(0), Ground(1), Grass(2), Sand(3), Rock(4), Volcano(5), Snow(6), Swamp(7)
 
 ### Eggs
 - File: `eggs/egg_X.png` (X = 0-7)
 - White, Blue, Green, Red, Purple, Black, Yellow, Rainbow
 
 ### Attributes
-- File: `attributes/attribute_X_name.png` (X = 1-7)
-- Ground, Grass, Sand, Rock, Volcano, Snow, Swamp
+- File: `attributes/attribute_X_name.png` (X = 0-7)
+- Water, Ground, Grass, Sand, Rock, Volcano, Snow, Swamp
 
 ## Integration Example
 

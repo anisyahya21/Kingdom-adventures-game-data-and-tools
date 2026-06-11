@@ -1735,20 +1735,20 @@ class InspectorHandler(http.server.BaseHTTPRequestHandler):
                 import traceback
                 self._send_error_json(500, f"egg-icon: {exc}\n{traceback.format_exc()}")
 
-        # /api/attribute-icon?id=N[&scale=S] — extract field attribute icon (1-7)
-        # field_attribute_icon.png is 112×28 with two rows (top=transparent, bottom=colored)
-        # Crop only top 16×14 portion (transparent version)
-        # 1=Ground, 2=Grass, 3=Sand, 4=Rock, 5=Volcano, 6=Snow, 7=Swamp
+        # /api/attribute-icon?id=N[&scale=S] — extract field attribute icon (0-7)
+        # field_attribute_icon.png is 112×28 (8 cols × 2 rows, each 14×14).
+        # Use strict fixed-grid crop from first row only, no trimming/padding.
+        # 0=Water, 1=Ground, 2=Grass, 3=Sand, 4=Rock, 5=Volcano, 6=Snow, 7=Swamp
         elif route == "attribute-icon":
             try:
                 from PIL import Image
                 import io as _io
                 KA = config.KA_ASSETS_DIR
-                attr_id = int(query.get("id", ["1"])[0])
+                attr_id = int(query.get("id", ["0"])[0])
                 scale = min(int(query.get("scale", ["4"])[0]), 8)
                 
-                if attr_id < 1 or attr_id > 7:
-                    self._send_error_json(404, f"attribute {attr_id} out of range (1-7)")
+                if attr_id < 0 or attr_id > 7:
+                    self._send_error_json(404, f"attribute {attr_id} out of range (0-7)")
                     return
                 
                 attr_png = KA / "com" / "field_attribute_icon.png"
@@ -1758,17 +1758,16 @@ class InspectorHandler(http.server.BaseHTTPRequestHandler):
                 
                 source_img = Image.open(attr_png).convert("RGBA")
                 
-                # Crop only top transparent portion
-                ATTRIBUTE_ICON_W = 16
-                ATTRIBUTE_ICON_H = 14  # Top half only
-                src_x = (attr_id - 1) * ATTRIBUTE_ICON_W
+                # Strict first-row 14x14 fixed-grid crop.
+                ATTRIBUTE_ICON_W = 14
+                ATTRIBUTE_ICON_H = 14
+                src_x = attr_id * ATTRIBUTE_ICON_W
                 src_y = 0
                 
                 if src_x + ATTRIBUTE_ICON_W > source_img.width:
                     self._send_error_json(500, f"attribute {attr_id} crop out of bounds")
                     return
                 
-                # Crop only top 14px (transparent version)
                 icon = source_img.crop((src_x, src_y, src_x + ATTRIBUTE_ICON_W, src_y + ATTRIBUTE_ICON_H))
                 
                 if scale > 1:
@@ -1777,9 +1776,9 @@ class InspectorHandler(http.server.BaseHTTPRequestHandler):
                 buf = _io.BytesIO()
                 icon.save(buf, format="PNG")
                 
-                attr_names = ["", "Ground", "Grass", "Sand", "Rock", "Volcano", "Snow", "Swamp"]
+                attr_names = ["Water", "Ground", "Grass", "Sand", "Rock", "Volcano", "Snow", "Swamp"]
                 extra_headers = {
-                    "X-Icon-Method": "attribute_transparent_only",
+                    "X-Icon-Method": "attribute_first_row_grid_14x14",
                     "X-Icon-Status": "filled",
                     "X-Icon-Sheet": "com/field_attribute_icon.png",
                     "X-Icon-Attribute": attr_names[attr_id],
