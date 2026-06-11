@@ -488,6 +488,19 @@ function buildGuideLinks(): GuideLink[] {
   addItemLink("Shield Sample", "Shield Sample");
   addItemLink("Sage's Tome", "Sage's Tome");
   addItemLink("Sage’s Tome", "Sage's Tome");
+  addItemLink("Bronze");
+  addItemLink("Iron Ore");
+  addItemLink("Gold Nugget");
+  addItemLink("High Grade Brick");
+  addItemLink("Large Nail");
+  addItemLink("Sturdy Board");
+
+  add("Guest Bed", "/shops/furniture-shop?search=Guest%20Bed");
+  add("Guest Beds", "/shops/furniture-shop?search=Guest%20Bed");
+  add("Bed", "/shops/furniture-shop?search=Guest%20Bed");
+  add("Beds", "/shops/furniture-shop?search=Guest%20Bed");
+  add("Add Beds", "/shops/furniture-shop?search=Guest%20Bed");
+  add("Ad Beds", "/shops/furniture-shop?search=Guest%20Bed");
 
   add("Novel", getEntityHref("equipment", "F/ Novel") ?? `/equipment-stats?search=${encodeURIComponent("F/ Novel")}`);
   add("Weapon Shop", "/shops/weapon-shop");
@@ -538,6 +551,11 @@ const GUIDE_ICON_LABEL_ALIASES: Record<string, string> = {
   "silver coins": "Silver Coin",
   "copper coins": "Copper Coin",
   "sage’s tome": "Sage's Tome",
+  "guest beds": "Guest Bed",
+  "beds": "Guest Bed",
+  "bed": "Guest Bed",
+  "add beds": "Guest Bed",
+  "ad beds": "Guest Bed",
 };
 
 function getGuideIconLabelCandidates(label: string) {
