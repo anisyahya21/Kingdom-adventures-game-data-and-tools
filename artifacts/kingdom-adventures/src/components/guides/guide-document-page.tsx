@@ -101,11 +101,60 @@ function renderInlineGuideIcon(src: string, key: string) {
       key={key}
       src={src}
       alt=""
-      className="mr-[0.22em] inline-block h-[1.05em] w-[1.05em] shrink-0 align-[-0.12em] object-contain"
+      className="mr-[0.28em] inline-block h-[1.46em] w-[1.46em] shrink-0 align-[-0.22em] object-contain"
       style={{ imageRendering: "auto" }}
       loading="lazy"
     />
   );
+}
+
+function toTrimmedSquareIconDataUrl(sourceCanvas: HTMLCanvasElement, size = 40, padding = 2): string {
+  const sourceCtx = sourceCanvas.getContext("2d");
+  if (!sourceCtx) return sourceCanvas.toDataURL("image/png");
+
+  const { width, height } = sourceCanvas;
+  if (!width || !height) return sourceCanvas.toDataURL("image/png");
+  const imageData = sourceCtx.getImageData(0, 0, width, height).data;
+
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const alpha = imageData[(y * width + x) * 4 + 3];
+      if (alpha > 8) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return sourceCanvas.toDataURL("image/png");
+
+  const cropWidth = maxX - minX + 1;
+  const cropHeight = maxY - minY + 1;
+  const targetCanvas = document.createElement("canvas");
+  targetCanvas.width = size;
+  targetCanvas.height = size;
+  const targetCtx = targetCanvas.getContext("2d");
+  if (!targetCtx) return sourceCanvas.toDataURL("image/png");
+
+  const usableSize = Math.max(1, size - padding * 2);
+  const scale = Math.min(usableSize / cropWidth, usableSize / cropHeight);
+  const drawWidth = cropWidth * scale;
+  const drawHeight = cropHeight * scale;
+  const drawX = (size - drawWidth) / 2;
+  const drawY = (size - drawHeight) / 2;
+
+  targetCtx.imageSmoothingEnabled = false;
+  targetCtx.clearRect(0, 0, size, size);
+  targetCtx.drawImage(sourceCanvas, minX, minY, cropWidth, cropHeight, drawX, drawY, drawWidth, drawHeight);
+
+  return targetCanvas.toDataURL("image/png");
 }
 
 type EquipmentCatalogItem = {
@@ -2250,7 +2299,7 @@ export function GuideDocumentPage({
           poseFrame: 0,
         });
         if (!ok) continue;
-        next[cacheKey] = previewCanvas.toDataURL("image/png");
+        next[cacheKey] = toTrimmedSquareIconDataUrl(previewCanvas, 40, 2);
       }
       if (!cancelled) setGeneratedJobIcons(next);
     }
