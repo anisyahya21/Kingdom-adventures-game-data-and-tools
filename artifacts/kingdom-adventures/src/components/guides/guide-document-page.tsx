@@ -2771,9 +2771,9 @@ export function GuideDocumentPage({
     setDraftPhrase("");
   };
 
-  const saveSelectedGuideIcon = () => {
-    const iconSrc = draftIconSrc.trim();
-    if (!iconSrc) return;
+  const saveGuideIconOverride = (iconSrc: string) => {
+    const normalizedIconSrc = iconSrc.trim();
+    if (!normalizedIconSrc) return;
 
     const spots = linkScope === "spot"
       ? (selectedExactSpots.length ? selectedExactSpots : selectedLink ? [selectedLink] : [])
@@ -2801,10 +2801,37 @@ export function GuideDocumentPage({
         ...(occurrenceKeys.length
           ? spots
             .filter((spot): spot is SelectedGuideLink & { occurrenceKey: string } => Boolean(spot.occurrenceKey))
-            .map((spot) => ({ id: makeCustomLinkId(), phrase: spot.label, iconSrc, occurrenceKey: spot.occurrenceKey }))
-          : [{ id: makeCustomLinkId(), phrase, iconSrc }]),
+            .map((spot) => ({ id: makeCustomLinkId(), phrase: spot.label, iconSrc: normalizedIconSrc, occurrenceKey: spot.occurrenceKey }))
+          : [{ id: makeCustomLinkId(), phrase, iconSrc: normalizedIconSrc }]),
       ],
     });
+  };
+
+  const saveSelectedGuideIcon = () => {
+    saveGuideIconOverride(draftIconSrc);
+  };
+
+  const saveSuggestedGuideIconQuick = () => {
+    const fallbackSpot = selectedExactSpots[0];
+    const label = draftPhrase.trim() || selectedLink?.label || fallbackSpot?.label || "";
+    if (!label) return;
+    const href = selectedLink?.href || getDraftTargetHref() || "";
+    const occurrenceKey = selectedLink?.occurrenceKey || fallbackSpot?.occurrenceKey || "";
+    const icon = resolveAutoGuideInlineIcon(
+      {
+        label,
+        href,
+        occurrenceKey,
+        target: selectedLink?.target,
+      },
+      sharedEquipIcons,
+    );
+    if (!icon) {
+      setLinkSaveError("No suggested icon was found for this phrase.");
+      return;
+    }
+    setDraftIconSrc(icon);
+    saveGuideIconOverride(icon);
   };
 
   const applySuggestedGuideIcon = () => {
@@ -3397,7 +3424,7 @@ export function GuideDocumentPage({
                 ) : null}
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Inline icon source</label>
                   <Input
@@ -3411,17 +3438,26 @@ export function GuideDocumentPage({
                   variant="outline"
                   className="gap-2"
                   onClick={applySuggestedGuideIcon}
-                  disabled={!(draftPhrase.trim() || selectedExactSpots.length || selectedLink)}
+                  disabled={isSavingOverrides || !(draftPhrase.trim() || selectedExactSpots.length || selectedLink)}
                 >
                   <Pencil className="h-4 w-4" />
                   Use Suggested Icon
                 </Button>
                 <Button
                   type="button"
+                  className="gap-2"
+                  onClick={saveSuggestedGuideIconQuick}
+                  disabled={isSavingOverrides || !(draftPhrase.trim() || selectedExactSpots.length || selectedLink)}
+                >
+                  <Plus className="h-4 w-4" />
+                  One-Click Save Suggested
+                </Button>
+                <Button
+                  type="button"
                   variant="outline"
                   className="gap-2"
                   onClick={saveSelectedGuideIcon}
-                  disabled={!(draftPhrase.trim() || selectedExactSpots.length || selectedLink) || !draftIconSrc.trim()}
+                  disabled={isSavingOverrides || !(draftPhrase.trim() || selectedExactSpots.length || selectedLink) || !draftIconSrc.trim()}
                 >
                   <Plus className="h-4 w-4" />
                   Save Icon
