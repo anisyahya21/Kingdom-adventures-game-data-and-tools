@@ -95,7 +95,112 @@ type InlineGuideIconRequest = {
   target?: GuideLinkTarget;
 };
 
+const INLINE_JOB_ICON_PREFIX = "ka-job-preview:";
+
+function buildInlineJobIconSrc(jobName: string): string {
+  return `${INLINE_JOB_ICON_PREFIX}${encodeURIComponent(jobName)}`;
+}
+
+function parseInlineJobIconSrc(src: string): string | undefined {
+  if (!src.startsWith(INLINE_JOB_ICON_PREFIX)) return undefined;
+  const encoded = src.slice(INLINE_JOB_ICON_PREFIX.length);
+  if (!encoded) return undefined;
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return encoded;
+  }
+}
+
+function drawTrimmedSquareIconToCanvas(sourceCanvas: HTMLCanvasElement, targetCanvas: HTMLCanvasElement, size = 40, padding = 2): void {
+  const sourceCtx = sourceCanvas.getContext("2d");
+  const targetCtx = targetCanvas.getContext("2d");
+  if (!sourceCtx || !targetCtx) return;
+
+  const { width, height } = sourceCanvas;
+  if (!width || !height) return;
+  const imageData = sourceCtx.getImageData(0, 0, width, height).data;
+
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const alpha = imageData[(y * width + x) * 4 + 3];
+      if (alpha > 8) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  targetCanvas.width = size;
+  targetCanvas.height = size;
+  targetCtx.clearRect(0, 0, size, size);
+  if (maxX < minX || maxY < minY) return;
+
+  const cropWidth = maxX - minX + 1;
+  const cropHeight = maxY - minY + 1;
+  const usableSize = Math.max(1, size - padding * 2);
+  const scale = Math.min(usableSize / cropWidth, usableSize / cropHeight);
+  const drawWidth = cropWidth * scale;
+  const drawHeight = cropHeight * scale;
+  const drawX = (size - drawWidth) / 2;
+  const drawY = (size - drawHeight) / 2;
+
+  targetCtx.imageSmoothingEnabled = false;
+  targetCtx.drawImage(sourceCanvas, minX, minY, cropWidth, cropHeight, drawX, drawY, drawWidth, drawHeight);
+}
+
+function InlineGuideJobIcon({ jobName }: { jobName: string }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const targetCanvas = canvasRef.current;
+    if (!targetCanvas) return;
+
+    const offscreen = document.createElement("canvas");
+    offscreen.width = 40;
+    offscreen.height = 40;
+    const variantSeed = Array.from(jobName).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const variant = (variantSeed % 2) === 0 ? 1 : 2;
+
+    renderCharacterPreview(offscreen, {
+      jobName,
+      variant,
+      equipState: "right",
+      scale: 1,
+      poseFrame: 0,
+    }).then((ok) => {
+      if (cancelled || !ok || !canvasRef.current) return;
+      drawTrimmedSquareIconToCanvas(offscreen, canvasRef.current, 40, 2);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobName]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="mr-[0.28em] inline-block h-[1.75em] w-[1.75em] shrink-0 align-[-0.26em] object-contain"
+      style={{ imageRendering: "auto" }}
+      aria-hidden="true"
+    />
+  );
+}
+
 function renderInlineGuideIcon(src: string, key: string) {
+  const jobName = parseInlineJobIconSrc(src);
+  if (jobName) {
+    return <InlineGuideJobIcon key={key} jobName={jobName} />;
+  }
   return (
     <img
       key={key}
@@ -588,7 +693,6 @@ function getJobNameFromHref(href: string) {
 function resolveAutoGuideInlineIcon(
   request: InlineGuideIconRequest,
   equipIcons: Record<string, string> | undefined,
-  jobIconLookup?: Record<string, string>,
 ) {
   const shared = localSharedData as { jobs?: Record<string, GuideJob> };
   const target = request.target;
@@ -597,17 +701,15 @@ function resolveAutoGuideInlineIcon(
     if (icon) return icon;
   }
   if (target?.type === "job") {
-    const generated = jobIconLookup?.[normalizeGuideLinkLabel(target.jobName)];
-    if (generated) return generated;
     const profile = getJobProfile(shared, target.jobName);
     if (profile?.job?.icon) return profile.job.icon;
+    if (profile) return buildInlineJobIconSrc(profile.name);
   }
 
   for (const candidate of getGuideIconLabelCandidates(request.label)) {
-    const generated = jobIconLookup?.[normalizeGuideLinkLabel(candidate)];
-    if (generated) return generated;
     const jobProfile = getJobProfile(shared, candidate);
     if (jobProfile?.job?.icon) return jobProfile.job.icon;
+    if (jobProfile) return buildInlineJobIconSrc(jobProfile.name);
   }
 
   for (const candidate of getGuideIconLabelCandidates(request.label)) {
@@ -624,10 +726,9 @@ function resolveAutoGuideInlineIcon(
 
   const hrefJobName = getJobNameFromHref(request.href);
   if (hrefJobName) {
-    const generated = jobIconLookup?.[normalizeGuideLinkLabel(hrefJobName)];
-    if (generated) return generated;
     const profile = getJobProfile(shared, hrefJobName);
     if (profile?.job?.icon) return profile.job.icon;
+    if (profile) return buildInlineJobIconSrc(profile.name);
   }
 
   try {
@@ -2225,7 +2326,6 @@ export function GuideDocumentPage({
   const [equipmentPreviewOpen, setEquipmentPreviewOpen] = useState(false);
   const [jobPreview, setJobPreview] = useState<JobPreviewItem | null>(null);
   const [jobPreviewOpen, setJobPreviewOpen] = useState(false);
-  const [generatedJobIcons, setGeneratedJobIcons] = useState<Record<string, string>>({});
   const [equipmentSetPreview, setEquipmentSetPreview] = useState<EquipmentSetPreviewItem | null>(null);
   const [equipmentSetPreviewOpen, setEquipmentSetPreviewOpen] = useState(false);
   const [marriageSimPreview, setMarriageSimPreview] = useState<MarriageSimPreviewItem | null>(null);
@@ -2271,44 +2371,6 @@ export function GuideDocumentPage({
     const shared = localSharedData as { equipIcons?: Record<string, string> };
     return shared.equipIcons;
   }, []);
-  useEffect(() => {
-    let cancelled = false;
-    const shared = localSharedData as { jobs?: Record<string, GuideJob> };
-    const jobNames = Object.keys(shared.jobs ?? {});
-    if (!jobNames.length) {
-      setGeneratedJobIcons({});
-      return;
-    }
-
-    async function buildJobIconMap() {
-      const next: Record<string, string> = {};
-      for (const jobName of jobNames) {
-        const cacheKey = normalizeGuideLinkLabel(jobName);
-        if (!cacheKey || next[cacheKey]) continue;
-
-        const previewCanvas = document.createElement("canvas");
-        previewCanvas.width = 40;
-        previewCanvas.height = 40;
-        const variantSeed = Array.from(jobName).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-        const variant = (variantSeed % 2) === 0 ? 1 : 2;
-        const ok = await renderCharacterPreview(previewCanvas, {
-          jobName,
-          variant,
-          equipState: "right",
-          scale: 1,
-          poseFrame: 0,
-        });
-        if (!ok) continue;
-        next[cacheKey] = toTrimmedSquareIconDataUrl(previewCanvas, 40, 2);
-      }
-      if (!cancelled) setGeneratedJobIcons(next);
-    }
-
-    buildJobIconMap();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
   const resolveInlineIcon = useMemo(
     () => (request: InlineGuideIconRequest) => {
       const normalizedLabel = normalizeGuideLinkLabel(request.label);
@@ -2326,9 +2388,9 @@ export function GuideDocumentPage({
       if (disabledIconOccurrenceKeys.has(request.occurrenceKey)) return undefined;
       if (disabledAutoIconLabels.has(normalizedLabel)) return undefined;
 
-      return resolveAutoGuideInlineIcon(request, sharedEquipIcons, generatedJobIcons);
+      return resolveAutoGuideInlineIcon(request, sharedEquipIcons);
     },
-    [customGuideIcons, disabledAutoIconLabels, disabledIconOccurrenceKeys, generatedJobIcons, sharedEquipIcons],
+    [customGuideIcons, disabledAutoIconLabels, disabledIconOccurrenceKeys, sharedEquipIcons],
   );
   const selectedExactSpotKeys = useMemo(() => new Set(selectedExactSpots.map((spot) => spot.occurrenceKey).filter(Boolean) as string[]), [selectedExactSpots]);
   const equipmentOptions = useMemo(

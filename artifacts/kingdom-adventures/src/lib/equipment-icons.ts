@@ -15,6 +15,7 @@ type ManifestFacilityEntry = {
 };
 type ConfirmedFacilityIconEntry = {
   id: number;
+  type?: string;
   name?: string;
   filename: string;
 };
@@ -270,6 +271,8 @@ if (facilityIconManifest && Array.isArray((facilityIconManifest as ConfirmedFaci
   for (const icon of (facilityIconManifest as ConfirmedFacilityManifest).icons as ConfirmedFacilityIconEntry[]) {
     if (typeof icon.id !== "number" || !Number.isFinite(icon.id)) continue;
     if (typeof icon.filename !== "string" || icon.filename.length === 0) continue;
+    if (icon.filename.startsWith("mapchip_")) continue;
+    if (typeof icon.type === "string" && icon.type !== "facility") continue;
     const chosenFilename = withPreferredFacilityStateFilename(icon.id, icon.filename);
     const iconPath = `/website_icons/facilities_confirmed/${chosenFilename}?v=${ICON_CACHE_VERSION}`;
     if (!facilityIconLookup.has(icon.id)) {
