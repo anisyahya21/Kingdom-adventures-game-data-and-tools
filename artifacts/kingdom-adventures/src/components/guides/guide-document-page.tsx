@@ -659,6 +659,57 @@ const GUIDE_STAT_SHORT: Record<string, string> = {
   Heart: "Hrt",
 };
 
+const GUIDE_STAT_CANONICAL_BY_ALIAS: Record<string, string> = {
+  hp: "HP",
+  mp: "MP",
+  vig: "Vigor",
+  vigor: "Vigor",
+  atk: "Attack",
+  attack: "Attack",
+  def: "Defence",
+  defense: "Defence",
+  defence: "Defence",
+  spd: "Speed",
+  speed: "Speed",
+  lck: "Luck",
+  luck: "Luck",
+  int: "Intelligence",
+  intelligence: "Intelligence",
+  dex: "Dexterity",
+  dexterity: "Dexterity",
+  gth: "Gather",
+  gather: "Gather",
+  mov: "Move",
+  move: "Move",
+  hrt: "Heart",
+  heart: "Heart",
+};
+
+function resolveGuideStatIconByLabel(label: string, statIcons: Record<string, string> | undefined): string | undefined {
+  if (!label || !statIcons) return undefined;
+  const normalized = normalizeGuideLinkLabel(label)
+    .replace(/\b(stat|stats)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return undefined;
+
+  const direct = statIcons[normalized] ?? statIcons[label.trim()];
+  if (direct) return direct;
+
+  const canonical = GUIDE_STAT_CANONICAL_BY_ALIAS[normalized];
+  if (canonical && statIcons[canonical]) return statIcons[canonical];
+
+  if (normalized.includes(" ")) {
+    const parts = normalized.split(" ");
+    for (const part of parts) {
+      const mapped = GUIDE_STAT_CANONICAL_BY_ALIAS[part];
+      if (mapped && statIcons[mapped]) return statIcons[mapped];
+    }
+  }
+
+  return undefined;
+}
+
 function equipmentSlotFromType(rawType: number) {
   if (rawType === 11) return "Shield";
   if (rawType === 12) return "Armor";
@@ -2411,6 +2462,20 @@ export function GuideDocumentPage({
     const shared = localSharedData as { equipIcons?: Record<string, string> };
     return shared.equipIcons;
   }, []);
+  const sharedStatIcons = useMemo(() => {
+    const shared = localSharedData as { statIcons?: Record<string, string> };
+    return shared.statIcons;
+  }, []);
+  const statIconOptions = useMemo(
+    () => GUIDE_EQUIPMENT_STATS
+      .map((name) => ({
+        name,
+        short: GUIDE_STAT_SHORT[name] ?? name,
+        icon: sharedStatIcons?.[name],
+      }))
+      .filter((entry) => Boolean(entry.icon)) as Array<{ name: string; short: string; icon: string }>,
+    [sharedStatIcons],
+  );
   const resolveInlineIcon = useMemo(
     () => (request: InlineGuideIconRequest) => {
       const normalizedLabel = normalizeGuideLinkLabel(request.label);
@@ -2815,6 +2880,12 @@ export function GuideDocumentPage({
     const fallbackSpot = selectedExactSpots[0];
     const label = draftPhrase.trim() || selectedLink?.label || fallbackSpot?.label || "";
     if (!label) return;
+    const statIcon = resolveGuideStatIconByLabel(label, sharedStatIcons);
+    if (statIcon) {
+      setDraftIconSrc(statIcon);
+      saveGuideIconOverride(statIcon);
+      return;
+    }
     const href = selectedLink?.href || getDraftTargetHref() || "";
     const occurrenceKey = selectedLink?.occurrenceKey || fallbackSpot?.occurrenceKey || "";
     const icon = resolveAutoGuideInlineIcon(
@@ -2838,6 +2909,11 @@ export function GuideDocumentPage({
     const fallbackSpot = selectedExactSpots[0];
     const label = draftPhrase.trim() || selectedLink?.label || fallbackSpot?.label || "";
     if (!label) return;
+    const statIcon = resolveGuideStatIconByLabel(label, sharedStatIcons);
+    if (statIcon) {
+      setDraftIconSrc(statIcon);
+      return;
+    }
     const href = selectedLink?.href || getDraftTargetHref() || "";
     const occurrenceKey = selectedLink?.occurrenceKey || fallbackSpot?.occurrenceKey || "";
     const autoIcon = resolveAutoGuideInlineIcon(
@@ -3463,6 +3539,28 @@ export function GuideDocumentPage({
                   Save Icon
                 </Button>
               </div>
+
+              {statIconOptions.length ? (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Quick stat icons (click to pick)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {statIconOptions.map((entry) => (
+                      <Button
+                        key={entry.name}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => setDraftIconSrc(entry.icon)}
+                        disabled={isSavingOverrides}
+                      >
+                        <img src={entry.icon} alt={entry.short} className="h-4 w-4 object-contain" />
+                        {entry.short}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0 text-xs text-muted-foreground">
