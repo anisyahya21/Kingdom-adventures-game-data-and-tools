@@ -98,8 +98,8 @@ function renderInlineGuideIcon(src: string, key: string) {
       key={key}
       src={src}
       alt=""
-      className="mr-1 inline-block h-4 w-4 shrink-0 align-[-0.2em] rounded-sm object-contain"
-      style={{ imageRendering: "pixelated" }}
+      className="mr-1 inline-block h-[18px] w-[18px] shrink-0 align-[-0.2em] rounded-sm object-contain"
+      style={{ imageRendering: "auto" }}
       loading="lazy"
     />
   );
@@ -3201,7 +3201,7 @@ export function GuideDocumentPage({
                             {icon.occurrenceKey ? <span className="ml-2 text-[10px] uppercase text-primary">one spot</span> : null}
                           </div>
                           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                            <img src={icon.iconSrc} alt="" className="h-4 w-4 rounded-sm object-contain" style={{ imageRendering: "pixelated" }} />
+                            <img src={icon.iconSrc} alt="" className="h-5 w-5 rounded-sm object-contain" style={{ imageRendering: "auto" }} />
                             <span className="truncate">{icon.iconSrc}</span>
                           </div>
                         </div>
