@@ -35,6 +35,7 @@ import { renderCharacterPreview } from "@/lib/character-renderer";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 import { AffinityBadge, RankBadge } from "@/components/ka/badges";
 import { getEntityHref } from "@/components/ka/entity-link";
+import iconManifest from "../../../../../website_icons/manifest.json";
 
 export type GuideSectionOverlay = {
   title: string;
@@ -93,6 +94,20 @@ type InlineGuideIconRequest = {
   href: string;
   occurrenceKey: string;
   target?: GuideLinkTarget;
+};
+
+type GuideIconCatalogEntry = {
+  name: string;
+  src: string;
+  category: string;
+  search: string;
+};
+
+type GuideIconManifest = {
+  items?: Array<{ name?: string }>;
+  furniture?: Array<{ name?: string }>;
+  equipment?: Array<{ name?: string }>;
+  facilities?: Array<{ name?: string }>;
 };
 
 const INLINE_JOB_ICON_PREFIX = "ka-job-preview:";
@@ -189,7 +204,7 @@ function InlineGuideJobIcon({ jobName }: { jobName: string }) {
   return (
     <canvas
       ref={canvasRef}
-      className="mr-[0.28em] inline-block h-[1.75em] w-[1.75em] shrink-0 align-[-0.26em] object-contain"
+      className="mr-[0.28em] inline-block h-[2.1em] w-[2.1em] shrink-0 align-[-0.32em] object-contain"
       style={{ imageRendering: "auto" }}
       aria-hidden="true"
     />
@@ -2159,7 +2174,7 @@ function JobPreviewDialog({
       >
         <DialogHeader>
           <DialogTitle ref={titleRef} tabIndex={-1} className="flex items-center gap-2">
-            {item.job.icon ? <img src={item.job.icon} alt={item.name} className="h-7 w-7 rounded object-contain" /> : null}
+            {item.job.icon ? <img src={item.job.icon} alt={item.name} className="h-[2.1rem] w-[2.1rem] rounded object-contain" /> : null}
             {item.name}
           </DialogTitle>
           <DialogDescription>Job reference from the database.</DialogDescription>
