@@ -14,8 +14,8 @@ export const KNOWN_JOB_SHOPS: Record<string, string[]> = {
   Entertainer: ["Insectarium", "Aquarium", "Museum"],
   Farmer: ["Orchard (Rank C+)", "Survey Corps HQ (Rank B+)"],
   Mage: ["Skill Shop"],
-  Merchant: ["Survey Corps HQ (Rank B+)"],
-  Monk: ["Church"],
+  Merchant: ["Inn", "Survey Corps HQ (Rank B+)"],
+  Monk: ["Church", "Recovery Room"],
   Mover: ["Survey Corps HQ (Rank B+)"],
   Rancher: ["Monster House", "Survey Corps HQ (Rank B+)"],
   Researcher: ["Analysis Lab", "Research Lab"],
@@ -50,14 +50,19 @@ export function splitBuildingRankNote(entry: string) {
 }
 
 function getJobsForBuildingName(buildingName: string): BuildingJobOwner[] {
+  const normalizedLookupName = normalizeBuildingLookupName(buildingName);
   return Object.entries(KNOWN_JOB_SHOPS).flatMap(([jobName, buildings]) =>
     buildings.flatMap((entry) => {
       const parsed = splitBuildingRankNote(entry);
-      return parsed.buildingName === buildingName
+      return normalizeBuildingLookupName(parsed.buildingName) === normalizedLookupName
         ? [{ jobName, rankNote: parsed.rankNote }]
         : [];
     }),
   );
+}
+
+function normalizeBuildingLookupName(value: string) {
+  return value.trim().replace(/\s+plot$/i, "").trim();
 }
 
 export function getJobsForBuilding(buildingName: string): BuildingJobOwner[] {

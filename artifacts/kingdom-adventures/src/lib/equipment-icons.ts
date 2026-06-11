@@ -73,6 +73,13 @@ const FURNITURE_VARIANT2_PREFERRED = new Set([
   "training room",
 ]);
 
+const FACILITY_TO_FURNITURE_ICON_ALIAS: Record<string, string> = {
+  "survey corps hq": "Survey Room",
+  "studio": "Art Workbench",
+  "orchard": "Fruit Tree",
+  "recovery room": "Recovery Station",
+};
+
 function pickVariantFilename(
   variants: ManifestVariant[] | undefined,
   preferredVariantIndex: number,
@@ -289,6 +296,11 @@ export function getFacilityIcon(id: number | undefined | null): string | undefin
 export function getFacilityIconByName(name: string | undefined | null): string | undefined {
   if (!name) return undefined;
   const normalizedName = normalizeIconName(name);
+  const aliasedFurnitureName = FACILITY_TO_FURNITURE_ICON_ALIAS[normalizedName];
+  if (aliasedFurnitureName) {
+    const aliasIcon = getFurnitureIcon(aliasedFurnitureName);
+    if (aliasIcon) return aliasIcon;
+  }
   return facilityNameIconLookup.get(normalizedName);
 }
 

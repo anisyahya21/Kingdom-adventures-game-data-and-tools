@@ -21,6 +21,13 @@ export type GuideCustomLink = {
   occurrenceKey?: string;
 };
 
+export type GuideCustomIcon = {
+  id: string;
+  phrase: string;
+  iconSrc: string;
+  occurrenceKey?: string;
+};
+
 export type GuideLinkTarget =
   | { type: "equipment"; equipmentName: string }
   | { type: "job"; jobName: string }
@@ -31,7 +38,10 @@ export type GuideLinkTarget =
 export type GuideLinkOverrides = {
   disabledAutoLinks: string[];
   disabledOccurrences?: string[];
+  disabledAutoIcons?: string[];
+  disabledIconOccurrences?: string[];
   customLinks: GuideCustomLink[];
+  customIcons?: GuideCustomIcon[];
 };
 
 const OWNER_KEY = "ka_community_guide_owner_tokens";
@@ -40,7 +50,10 @@ const LINK_OVERRIDES_KEY = "ka_community_guide_link_overrides";
 const EMPTY_LINK_OVERRIDES: GuideLinkOverrides = {
   disabledAutoLinks: [],
   disabledOccurrences: [],
+  disabledAutoIcons: [],
+  disabledIconOccurrences: [],
   customLinks: [],
+  customIcons: [],
 };
 
 export function getGuideOwnerTokens(): Record<string, string> {
@@ -72,7 +85,10 @@ function getAllGuideLinkOverrides(): Record<string, GuideLinkOverrides> {
         {
           disabledAutoLinks: Array.isArray(overrides.disabledAutoLinks) ? overrides.disabledAutoLinks : [],
           disabledOccurrences: Array.isArray(overrides.disabledOccurrences) ? overrides.disabledOccurrences : [],
+          disabledAutoIcons: Array.isArray(overrides.disabledAutoIcons) ? overrides.disabledAutoIcons : [],
+          disabledIconOccurrences: Array.isArray(overrides.disabledIconOccurrences) ? overrides.disabledIconOccurrences : [],
           customLinks: Array.isArray(overrides.customLinks) ? overrides.customLinks : [],
+          customIcons: Array.isArray(overrides.customIcons) ? overrides.customIcons : [],
         },
       ]),
     );
@@ -87,7 +103,10 @@ export function getGuideLinkOverrides(guideId: string): GuideLinkOverrides {
   return {
     disabledAutoLinks: [...overrides.disabledAutoLinks],
     disabledOccurrences: [...(overrides.disabledOccurrences ?? [])],
+    disabledAutoIcons: [...(overrides.disabledAutoIcons ?? [])],
+    disabledIconOccurrences: [...(overrides.disabledIconOccurrences ?? [])],
     customLinks: [...overrides.customLinks],
+    customIcons: [...(overrides.customIcons ?? [])],
   };
 }
 
@@ -101,6 +120,8 @@ export function normalizeGuideLinkOverrides(overrides?: Partial<GuideLinkOverrid
   return {
     disabledAutoLinks: Array.from(new Set((overrides?.disabledAutoLinks ?? []).map((label) => label.trim().toLowerCase()).filter(Boolean))),
     disabledOccurrences: Array.from(new Set((overrides?.disabledOccurrences ?? []).map((key) => key.trim()).filter(Boolean))),
+    disabledAutoIcons: Array.from(new Set((overrides?.disabledAutoIcons ?? []).map((label) => label.trim().toLowerCase()).filter(Boolean))),
+    disabledIconOccurrences: Array.from(new Set((overrides?.disabledIconOccurrences ?? []).map((key) => key.trim()).filter(Boolean))),
     customLinks: (overrides?.customLinks ?? [])
       .map((link) => ({
         id: link.id,
@@ -110,6 +131,14 @@ export function normalizeGuideLinkOverrides(overrides?: Partial<GuideLinkOverrid
         occurrenceKey: String(link.occurrenceKey ?? "").trim() || undefined,
       }))
       .filter((link) => link.phrase && link.href),
+    customIcons: (overrides?.customIcons ?? [])
+      .map((icon) => ({
+        id: icon.id,
+        phrase: String(icon.phrase ?? "").trim(),
+        iconSrc: String(icon.iconSrc ?? "").trim(),
+        occurrenceKey: String(icon.occurrenceKey ?? "").trim() || undefined,
+      }))
+      .filter((icon) => icon.phrase && icon.iconSrc),
   };
 }
 

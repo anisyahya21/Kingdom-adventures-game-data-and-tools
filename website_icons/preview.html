@@ -129,6 +129,51 @@
             padding: 1px;
             object-fit: contain;
         }
+        .state-crop {
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            --target-size: 80;
+            --target-w: var(--target-size);
+            --target-h: var(--target-size);
+        }
+        .linked-facility-icon .state-crop.main {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 8px;
+        }
+        .furniture-icon .state-crop.main {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 8px;
+        }
+        .state-crop img {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        .state-crop.crop-exact img {
+            width: calc(var(--src-w) * 1px * var(--target-w) / var(--crop-w));
+            height: calc(var(--src-h) * 1px * var(--target-h) / var(--crop-h));
+            transform: translate(
+                calc(-1 * var(--crop-x) * 1px * var(--target-w) / var(--crop-w)),
+                calc(-1 * var(--crop-y) * 1px * var(--target-h) / var(--crop-h))
+            );
+            transform-origin: top left;
+        }
+        .variant-crop {
+            width: 56px;
+            height: 56px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background: #fff;
+            padding: 1px;
+            --target-size: 56;
+            --target-w: 56;
+            --target-h: 56;
+        }
     </style>
 </head>
 <body>
@@ -3104,11 +3149,11 @@
 <h2>Furniture (80)</h2>
 <div class="icon-grid">
     <div class="icon-card furniture-icon" data-name="temporary shelter" data-id="106" data-category="furniture">
-        <img src="furniture/furniture_106_Temporary_Shelter__bed_04.png" alt="Temporary Shelter">
+        <span class="state-crop main crop-exact" style="--target-size:80;--src-w:86;--src-h:48;--crop-x:0;--crop-y:0;--crop-w:48;--crop-h:48;"><img src="furniture/furniture_106_Temporary_Shelter__bed_04.png" alt="Temporary Shelter"></span>
 
         <div class="variants"><img class="variant-thumb" src="furniture/furniture_106_Temporary_Shelter__bed_04_2.png" alt="Temporary Shelter variant" title="variant 2"><img class="variant-thumb" src="furniture/furniture_106_Temporary_Shelter__bed_04_3.png" alt="Temporary Shelter variant" title="variant 3"></div>        <div class="name">Temporary Shelter</div>
         <div class="id">ID 106</div>
-        <div class="meta">variants=3 | source=bed_04.png</div>
+        <div class="meta">variants=3 | source=bed_04.png | crop=opt-slot0</div>
     </div>
     <div class="icon-card furniture-icon" data-name="hard bed" data-id="131" data-category="furniture">
         <img src="furniture/furniture_131_Hard_Bed__bed_00.png" alt="Hard Bed">
@@ -4049,10 +4094,14 @@
 <h2>Linked Facilities (84)</h2>
 <div class="icon-grid">
     <div class="icon-card linked-facility-icon" data-name="reindeer stable" data-id="238" data-category="facilities_confirmed">
-        <img src="facilities_confirmed/facility_238_reindeer_stable.png" alt="Reindeer Stable">
+        <img src="facilities_confirmed/facility_238_reindeer_stable_state2.png" alt="Reindeer Stable">
+        <div class="variants">
+            <img class="variant-thumb" src="facilities_confirmed/facility_238_reindeer_stable_state1.png" alt="Reindeer Stable state 1" title="state 1">
+            <img class="variant-thumb" src="facilities_confirmed/facility_238_reindeer_stable_state2.png" alt="Reindeer Stable state 2" title="state 2">
+        </div>
         <div class="name">Reindeer Stable</div>
         <div class="id">ID 238</div>
-        <div class="meta">facility | source=add_building_1_03.png | chip=300 | size=1x1</div>
+        <div class="meta">facility | source=add_building_1_03.png | chip=300 | size=1x1 | states=2 | crop=state-files</div>
     </div>
     <div class="icon-card linked-facility-icon" data-name="high grade storehouse (eggs)" data-id="214" data-category="facilities_confirmed">
         <img src="facilities_confirmed/facility_214_high_grade_storehouse_eggs.png" alt="High Grade Storehouse (Eggs)">
@@ -4331,10 +4380,14 @@
         <div class="meta">facility | source=obj_45.png | chip=121 | size=1x1</div>
     </div>
     <div class="icon-card linked-facility-icon" data-name="simple stove" data-id="76" data-category="facilities_confirmed">
-        <img src="facilities_confirmed/facility_076_simple_stove.png" alt="Simple Stove">
+        <img src="facilities_confirmed/facility_076_simple_stove_state1.png" alt="Simple Stove">
+        <div class="variants">
+            <img class="variant-thumb" src="facilities_confirmed/facility_076_simple_stove_state1.png" alt="Simple Stove state 1" title="state 1">
+            <img class="variant-thumb" src="facilities_confirmed/facility_076_simple_stove_state2.png" alt="Simple Stove state 2" title="state 2">
+        </div>
         <div class="name">Simple Stove</div>
         <div class="id">ID 76</div>
-        <div class="meta">facility | source=obj_44.png | chip=120 | size=1x1</div>
+        <div class="meta">facility | source=obj_44.png | chip=120 | size=1x1 | states=2 | crop=state-files</div>
     </div>
     <div class="icon-card linked-facility-icon" data-name="nighttime meeting place" data-id="30" data-category="facilities_confirmed">
         <img src="facilities_confirmed/facility_030_nighttime_meeting_place.png" alt="Nighttime Meeting Place">
@@ -4367,16 +4420,24 @@
         <div class="meta">facility | source=obj_40.png | chip=111 | size=1x1</div>
     </div>
     <div class="icon-card linked-facility-icon" data-name="wagon yard" data-id="71" data-category="facilities_confirmed">
-        <img src="facilities_confirmed/facility_071_wagon_yard.png" alt="Wagon Yard">
+        <img src="facilities_confirmed/facility_071_wagon_yard_state1.png" alt="Wagon Yard">
+        <div class="variants">
+            <img class="variant-thumb" src="facilities_confirmed/facility_071_wagon_yard_state1.png" alt="Wagon Yard state 1" title="state 1">
+            <img class="variant-thumb" src="facilities_confirmed/facility_071_wagon_yard_state2.png" alt="Wagon Yard state 2" title="state 2">
+        </div>
         <div class="name">Wagon Yard</div>
         <div class="id">ID 71</div>
-        <div class="meta">facility | source=building_27.png | chip=109 | size=1x1</div>
+        <div class="meta">facility | source=building_27.png | chip=109 | size=1x1 | states=2 | crop=state-files</div>
     </div>
     <div class="icon-card linked-facility-icon" data-name="stables" data-id="70" data-category="facilities_confirmed">
-        <img src="facilities_confirmed/facility_070_stables.png" alt="Stables">
+        <img src="facilities_confirmed/facility_070_stables_state1.png" alt="Stables">
+        <div class="variants">
+            <img class="variant-thumb" src="facilities_confirmed/facility_070_stables_state1.png" alt="Stables state 1" title="state 1">
+            <img class="variant-thumb" src="facilities_confirmed/facility_070_stables_state2.png" alt="Stables state 2" title="state 2">
+        </div>
         <div class="name">Stables</div>
         <div class="id">ID 70</div>
-        <div class="meta">facility | source=building_26.png | chip=110 | size=1x1</div>
+        <div class="meta">facility | source=building_26.png | chip=110 | size=1x1 | states=2 | crop=state-files</div>
     </div>
     <div class="icon-card linked-facility-icon" data-name="low watchtower" data-id="31" data-category="facilities_confirmed">
         <img src="facilities_confirmed/facility_031_low_watchtower.png" alt="Low Watchtower">
@@ -4403,10 +4464,14 @@
         <div class="meta">facility | source=monster_away_00.png | chip=115 | size=1x1</div>
     </div>
     <div class="icon-card linked-facility-icon" data-name="windmill" data-id="89" data-category="facilities_confirmed">
-        <img src="facilities_confirmed/facility_089_windmill.png" alt="Windmill">
+        <img src="facilities_confirmed/facility_089_windmill_state1.png" alt="Windmill">
+        <div class="variants">
+            <img class="variant-thumb" src="facilities_confirmed/facility_089_windmill_state1.png" alt="Windmill state 1" title="state 1">
+            <img class="variant-thumb" src="facilities_confirmed/facility_089_windmill_state2.png" alt="Windmill state 2" title="state 2">
+        </div>
         <div class="name">Windmill</div>
         <div class="id">ID 89</div>
-        <div class="meta">facility | source=windmill_00.png | chip=118 | size=2x2</div>
+        <div class="meta">facility | source=windmill_00.png | chip=118 | size=2x2 | states=2 | crop=state-files</div>
     </div>
     <div class="icon-card linked-facility-icon" data-name="monster statue" data-id="85" data-category="facilities_confirmed">
         <img src="facilities_confirmed/facility_085_monster_statue.png" alt="Monster Statue">

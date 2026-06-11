@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import {
+  type GuideCustomIcon,
   type GuideLinkTarget,
   type GuideLinkOverrides,
   getGuideLinkOverrides,
@@ -27,7 +28,7 @@ import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS, getShopHref } from "@/lib/shop-utils";
 import { getJobProfile } from "@/game-data/job-profile";
 import { googleSheetUrl, googleDocUrl } from "@/lib/api";
-import { getEquipmentIcon } from "@/lib/equipment-icons";
+import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon, getItemIcon } from "@/lib/equipment-icons";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 import { AffinityBadge, RankBadge } from "@/components/ka/badges";
 import { getEntityHref } from "@/components/ka/entity-link";
@@ -83,6 +84,26 @@ type SelectedGuideLink = {
   target?: GuideLinkTarget;
   occurrenceKey?: string;
 };
+
+type InlineGuideIconRequest = {
+  label: string;
+  href: string;
+  occurrenceKey: string;
+  target?: GuideLinkTarget;
+};
+
+function renderInlineGuideIcon(src: string, key: string) {
+  return (
+    <img
+      key={key}
+      src={src}
+      alt=""
+      className="mr-1 inline-block h-4 w-4 shrink-0 align-[-0.2em] rounded-sm object-contain"
+      style={{ imageRendering: "pixelated" }}
+      loading="lazy"
+    />
+  );
+}
 
 type EquipmentCatalogItem = {
   id: number;
@@ -455,6 +476,41 @@ function getJobNameFromHref(href: string) {
   }
 }
 
+function resolveAutoGuideInlineIcon(
+  request: InlineGuideIconRequest,
+  equipIcons: Record<string, string> | undefined,
+) {
+  const target = request.target;
+  if (target?.type === "equipment") {
+    const icon = getEquipmentIcon(equipIcons, target.equipmentName);
+    if (icon) return icon;
+  }
+  if (target?.type === "job") {
+    const shared = localSharedData as { jobs?: Record<string, GuideJob> };
+    const profile = getJobProfile(shared, target.jobName);
+    if (profile?.job?.icon) return profile.job.icon;
+  }
+
+  const hrefEquipment = getEquipmentSearchFromHref(request.href);
+  if (hrefEquipment) {
+    const guessedEquipmentName = findEquipmentCatalogItem(hrefEquipment)?.name ?? hrefEquipment;
+    const equipmentIcon = getEquipmentIcon(equipIcons, guessedEquipmentName);
+    if (equipmentIcon) return equipmentIcon;
+  }
+
+  const hrefJobName = getJobNameFromHref(request.href);
+  if (hrefJobName) {
+    const shared = localSharedData as { jobs?: Record<string, GuideJob> };
+    const profile = getJobProfile(shared, hrefJobName);
+    if (profile?.job?.icon) return profile.job.icon;
+  }
+
+  return getItemIcon(request.label)
+    ?? getFacilityIconByName(request.label)
+    ?? getFurnitureIcon(request.label)
+    ?? undefined;
+}
+
 function findEquipmentCatalogItem(search: string) {
   if (!search) return null;
   const catalog = EQUIPMENT_CATALOG as readonly EquipmentCatalogItem[];
@@ -735,6 +791,7 @@ function renderInlineContent(
     occurrenceScope?: string;
     onSelectLink?: (link: SelectedGuideLink) => void;
     onToggleExactSpot?: (link: SelectedGuideLink) => void;
+    resolveInlineIcon?: (request: InlineGuideIconRequest) => string | undefined;
     onOpenEquipmentPreview?: (href: string, label: string) => void;
     onOpenJobPreview?: (href: string, label: string) => void;
     onOpenGuideTarget?: (link: GuideLink, label: string) => void;
@@ -870,6 +927,9 @@ function renderInlineContent(
       if (options?.disabledOccurrenceKeys?.has(occurrenceKey)) continue;
       const link = findGuideLinkForOccurrence(effectiveLinks, fullMatch, occurrenceKey);
       const href = link?.href;
+      const inlineIconSrc = href
+        ? options?.resolveInlineIcon?.({ label: fullMatch, href, occurrenceKey, target: link?.target })
+        : undefined;
 
       if (!href) continue;
 
@@ -895,6 +955,7 @@ function renderInlineContent(
             className="font-medium text-primary underline underline-offset-4 decoration-dashed"
             onClick={() => options.onSelectLink?.({ id: link?.id, label: fullMatch, href, kind: link?.kind ?? "auto", target: link?.target, occurrenceKey })}
           >
+            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
             {fullMatch}
           </button>,
         );
@@ -906,6 +967,7 @@ function renderInlineContent(
             className="font-medium text-primary underline underline-offset-4"
             onClick={() => options.onOpenGuideTarget?.(link, fullMatch)}
           >
+            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
             {fullMatch}
           </button>,
         );
@@ -917,6 +979,7 @@ function renderInlineContent(
             className="font-medium text-primary underline underline-offset-4"
             onClick={() => options.onOpenEquipmentPreview?.(href, fullMatch)}
           >
+            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
             {fullMatch}
           </button>,
         );
@@ -928,6 +991,7 @@ function renderInlineContent(
             className="font-medium text-primary underline underline-offset-4"
             onClick={() => options.onOpenJobPreview?.(href, fullMatch)}
           >
+            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
             {fullMatch}
           </button>,
         );
@@ -938,6 +1002,7 @@ function renderInlineContent(
             href={href}
             className="font-medium text-primary underline underline-offset-4"
           >
+            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
             {fullMatch}
           </a>,
         );
@@ -960,6 +1025,9 @@ function renderInlineContent(
     const occurrenceDisabled = options?.disabledOccurrenceKeys?.has(occurrenceKey);
     const overrideLink = findGuideLinkForOccurrence(effectiveLinks, mdLink.label, occurrenceKey);
     const href = occurrenceDisabled ? mdLink.url : overrideLink?.href ?? mdLink.url;
+    const inlineIconSrc = !occurrenceDisabled
+      ? options?.resolveInlineIcon?.({ label: mdLink.label, href, occurrenceKey, target: overrideLink?.target })
+      : undefined;
     if (options?.linkEditMode && options.onSelectLink) {
       parts.push(
         <button
@@ -968,6 +1036,7 @@ function renderInlineContent(
           className="font-medium text-primary underline underline-offset-4 decoration-dashed"
           onClick={() => options.onSelectLink?.({ id: overrideLink?.id, label: mdLink.label, href, kind: overrideLink?.kind ?? "custom", target: overrideLink?.target, occurrenceKey })}
         >
+          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
           {mdLink.label}
         </button>,
       );
@@ -979,6 +1048,7 @@ function renderInlineContent(
           className="font-medium text-primary underline underline-offset-4"
           onClick={() => options.onOpenGuideTarget?.(overrideLink, mdLink.label)}
         >
+          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
           {mdLink.label}
         </button>,
       );
@@ -990,6 +1060,7 @@ function renderInlineContent(
           className="font-medium text-primary underline underline-offset-4"
           onClick={() => options.onOpenEquipmentPreview?.(href, mdLink.label)}
         >
+          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
           {mdLink.label}
         </button>,
       );
@@ -1001,6 +1072,7 @@ function renderInlineContent(
           className="font-medium text-primary underline underline-offset-4"
           onClick={() => options.onOpenJobPreview?.(href, mdLink.label)}
         >
+          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
           {mdLink.label}
         </button>,
       );
@@ -1015,6 +1087,7 @@ function renderInlineContent(
           rel="noopener noreferrer"
           className="font-medium text-primary underline underline-offset-4"
         >
+          {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`) : null}
           {mdLink.label}
         </a>,
       );
@@ -1042,6 +1115,7 @@ function renderLine(
     occurrenceScope?: string;
     onSelectLink?: (link: SelectedGuideLink) => void;
     onToggleExactSpot?: (link: SelectedGuideLink) => void;
+    resolveInlineIcon?: (request: InlineGuideIconRequest) => string | undefined;
     onOpenEquipmentPreview?: (href: string, label: string) => void;
     onOpenJobPreview?: (href: string, label: string) => void;
     onOpenGuideTarget?: (link: GuideLink, label: string) => void;
@@ -1980,7 +2054,12 @@ export function GuideDocumentPage({
   const [error, setError] = useState<string | null>(null);
   const [linkOverrides, setLinkOverridesState] = useState<GuideLinkOverrides>(() => {
     const normalizedServerOverrides = normalizeGuideLinkOverrides(serverLinkOverrides);
-    if (normalizedServerOverrides.disabledAutoLinks.length || normalizedServerOverrides.customLinks.length) return normalizedServerOverrides;
+    if (
+      normalizedServerOverrides.disabledAutoLinks.length
+      || normalizedServerOverrides.customLinks.length
+      || (normalizedServerOverrides.disabledAutoIcons?.length ?? 0) > 0
+      || (normalizedServerOverrides.customIcons?.length ?? 0) > 0
+    ) return normalizedServerOverrides;
     return ownerGuideId ? getGuideLinkOverrides(ownerGuideId) : normalizedServerOverrides;
   });
   const [linkEditMode, setLinkEditMode] = useState(false);
@@ -2001,6 +2080,7 @@ export function GuideDocumentPage({
   const [marriageParentA, setMarriageParentA] = useState("");
   const [marriageParentB, setMarriageParentB] = useState("");
   const [marriageChild, setMarriageChild] = useState("");
+  const [draftIconSrc, setDraftIconSrc] = useState("");
   const [equipmentPreview, setEquipmentPreview] = useState<EquipmentPreviewItem | null>(null);
   const [equipmentPreviewOpen, setEquipmentPreviewOpen] = useState(false);
   const [jobPreview, setJobPreview] = useState<JobPreviewItem | null>(null);
@@ -2037,6 +2117,40 @@ export function GuideDocumentPage({
 
   const effectiveLinks = useMemo(() => buildEffectiveGuideLinks(linkOverrides), [linkOverrides]);
   const disabledOccurrenceKeys = useMemo(() => new Set(linkOverrides.disabledOccurrences ?? []), [linkOverrides.disabledOccurrences]);
+  const disabledAutoIconLabels = useMemo(
+    () => new Set((linkOverrides.disabledAutoIcons ?? []).map((label) => normalizeGuideLinkLabel(label))),
+    [linkOverrides.disabledAutoIcons],
+  );
+  const disabledIconOccurrenceKeys = useMemo(
+    () => new Set(linkOverrides.disabledIconOccurrences ?? []),
+    [linkOverrides.disabledIconOccurrences],
+  );
+  const customGuideIcons = useMemo(() => linkOverrides.customIcons ?? [], [linkOverrides.customIcons]);
+  const sharedEquipIcons = useMemo(() => {
+    const shared = localSharedData as { equipIcons?: Record<string, string> };
+    return shared.equipIcons;
+  }, []);
+  const resolveInlineIcon = useMemo(
+    () => (request: InlineGuideIconRequest) => {
+      const normalizedLabel = normalizeGuideLinkLabel(request.label);
+      const exactOverride = customGuideIcons.find(
+        (icon) => icon.occurrenceKey === request.occurrenceKey
+          && normalizeGuideLinkLabel(icon.phrase) === normalizedLabel,
+      );
+      if (exactOverride?.iconSrc) return exactOverride.iconSrc;
+
+      const phraseOverride = customGuideIcons.find(
+        (icon) => !icon.occurrenceKey && normalizeGuideLinkLabel(icon.phrase) === normalizedLabel,
+      );
+      if (phraseOverride?.iconSrc) return phraseOverride.iconSrc;
+
+      if (disabledIconOccurrenceKeys.has(request.occurrenceKey)) return undefined;
+      if (disabledAutoIconLabels.has(normalizedLabel)) return undefined;
+
+      return resolveAutoGuideInlineIcon(request, sharedEquipIcons);
+    },
+    [customGuideIcons, disabledAutoIconLabels, disabledIconOccurrenceKeys, sharedEquipIcons],
+  );
   const selectedExactSpotKeys = useMemo(() => new Set(selectedExactSpots.map((spot) => spot.occurrenceKey).filter(Boolean) as string[]), [selectedExactSpots]);
   const equipmentOptions = useMemo(
     () => (EQUIPMENT_CATALOG as readonly EquipmentCatalogItem[])
@@ -2074,7 +2188,10 @@ export function GuideDocumentPage({
   useEffect(() => {
     const normalizedServerOverrides = normalizeGuideLinkOverrides(serverLinkOverrides);
     setLinkOverridesState(
-      normalizedServerOverrides.disabledAutoLinks.length || normalizedServerOverrides.customLinks.length
+      normalizedServerOverrides.disabledAutoLinks.length
+      || normalizedServerOverrides.customLinks.length
+      || (normalizedServerOverrides.disabledAutoIcons?.length ?? 0) > 0
+      || (normalizedServerOverrides.customIcons?.length ?? 0) > 0
         ? normalizedServerOverrides
         : ownerGuideId
           ? getGuideLinkOverrides(ownerGuideId)
@@ -2086,6 +2203,7 @@ export function GuideDocumentPage({
     setSelectedLink(null);
     setLinkScope("phrase");
     setLinkDialogOpen(false);
+    setDraftIconSrc("");
   }, [ownerGuideId, serverLinkOverrides]);
 
   useEffect(() => {
@@ -2243,6 +2361,7 @@ export function GuideDocumentPage({
     setSelectedExactSpots([]);
     setExactSpotPickMode(false);
     setLinkScope("phrase");
+    setDraftIconSrc("");
     setLinkDialogOpen(true);
   };
 
@@ -2338,6 +2457,7 @@ export function GuideDocumentPage({
     setMarriageParentB("");
     setMarriageChild("");
     setDraftHref("");
+    setDraftIconSrc("");
   };
 
   const removeSelectedGuideLink = () => {
@@ -2363,10 +2483,80 @@ export function GuideDocumentPage({
     setDraftPhrase("");
   };
 
+  const saveSelectedGuideIcon = () => {
+    const iconSrc = draftIconSrc.trim();
+    if (!iconSrc) return;
+
+    const spots = linkScope === "spot"
+      ? (selectedExactSpots.length ? selectedExactSpots : selectedLink ? [selectedLink] : [])
+      : [];
+    const phrase = draftPhrase.trim() || selectedLink?.label || "";
+    if (!phrase && !spots.length) return;
+    const occurrenceKeys = spots.map((spot) => spot.occurrenceKey).filter(Boolean) as string[];
+    const occurrenceKeySet = new Set(occurrenceKeys);
+
+    saveLinkOverrides({
+      ...linkOverrides,
+      disabledAutoIcons: phrase
+        ? (linkOverrides.disabledAutoIcons ?? []).filter((label) => normalizeGuideLinkLabel(label) !== normalizeGuideLinkLabel(phrase))
+        : linkOverrides.disabledAutoIcons,
+      disabledIconOccurrences: occurrenceKeys.length
+        ? (linkOverrides.disabledIconOccurrences ?? []).filter((key) => !occurrenceKeySet.has(key))
+        : linkOverrides.disabledIconOccurrences,
+      customIcons: [
+        ...(linkOverrides.customIcons ?? []).filter((icon) => {
+          if (icon.occurrenceKey && occurrenceKeySet.has(icon.occurrenceKey)) return false;
+          const samePhrase = phrase && normalizeGuideLinkLabel(icon.phrase) === normalizeGuideLinkLabel(phrase);
+          if (occurrenceKeys.length) return true;
+          return !samePhrase || Boolean(icon.occurrenceKey);
+        }),
+        ...(occurrenceKeys.length
+          ? spots
+            .filter((spot): spot is SelectedGuideLink & { occurrenceKey: string } => Boolean(spot.occurrenceKey))
+            .map((spot) => ({ id: makeCustomLinkId(), phrase: spot.label, iconSrc, occurrenceKey: spot.occurrenceKey }))
+          : [{ id: makeCustomLinkId(), phrase, iconSrc }]),
+      ],
+    });
+  };
+
+  const removeSelectedGuideIcon = () => {
+    if (!selectedLink && !selectedExactSpots.length) return;
+    const spots = linkScope === "spot"
+      ? (selectedExactSpots.length ? selectedExactSpots : selectedLink ? [selectedLink] : [])
+      : [];
+    const phrase = draftPhrase.trim() || selectedLink?.label || "";
+    const occurrenceKeys = spots.map((spot) => spot.occurrenceKey).filter(Boolean) as string[];
+    const occurrenceKeySet = new Set(occurrenceKeys);
+
+    saveLinkOverrides({
+      ...linkOverrides,
+      disabledAutoIcons: phrase && !occurrenceKeys.length
+        ? Array.from(new Set([...(linkOverrides.disabledAutoIcons ?? []), normalizeGuideLinkLabel(phrase)]))
+        : (linkOverrides.disabledAutoIcons ?? []),
+      disabledIconOccurrences: occurrenceKeys.length
+        ? Array.from(new Set([...(linkOverrides.disabledIconOccurrences ?? []), ...occurrenceKeys]))
+        : (linkOverrides.disabledIconOccurrences ?? []),
+      customIcons: (linkOverrides.customIcons ?? []).filter((icon) => {
+        if (icon.occurrenceKey && occurrenceKeySet.has(icon.occurrenceKey)) return false;
+        if (!occurrenceKeys.length && phrase && normalizeGuideLinkLabel(icon.phrase) === normalizeGuideLinkLabel(phrase) && !icon.occurrenceKey) {
+          return false;
+        }
+        return true;
+      }),
+    });
+  };
+
   const removeCustomLink = (id: string) => {
     saveLinkOverrides({
       ...linkOverrides,
       customLinks: linkOverrides.customLinks.filter((link) => link.id !== id),
+    });
+  };
+
+  const removeCustomIcon = (id: string) => {
+    saveLinkOverrides({
+      ...linkOverrides,
+      customIcons: (linkOverrides.customIcons ?? []).filter((icon) => icon.id !== id),
     });
   };
 
@@ -2377,10 +2567,24 @@ export function GuideDocumentPage({
     });
   };
 
+  const restoreAutoIcon = (label: string) => {
+    saveLinkOverrides({
+      ...linkOverrides,
+      disabledAutoIcons: (linkOverrides.disabledAutoIcons ?? []).filter((item) => item !== label),
+    });
+  };
+
   const restoreDisabledOccurrence = (occurrenceKey: string) => {
     saveLinkOverrides({
       ...linkOverrides,
       disabledOccurrences: (linkOverrides.disabledOccurrences ?? []).filter((item) => item !== occurrenceKey),
+    });
+  };
+
+  const restoreDisabledIconOccurrence = (occurrenceKey: string) => {
+    saveLinkOverrides({
+      ...linkOverrides,
+      disabledIconOccurrences: (linkOverrides.disabledIconOccurrences ?? []).filter((item) => item !== occurrenceKey),
     });
   };
 
@@ -2411,7 +2615,16 @@ export function GuideDocumentPage({
     const firstSpot = selectedExactSpots[0] ?? null;
     setSelectedLink(firstSpot);
     setDraftPhrase(selectedExactSpots.map((spot) => spot.label).join(", "));
-    if (firstSpot) applyTargetFromHref(firstSpot.href, firstSpot.target);
+    if (firstSpot) {
+      applyTargetFromHref(firstSpot.href, firstSpot.target);
+      const icon = resolveInlineIcon({
+        label: firstSpot.label,
+        href: firstSpot.href,
+        occurrenceKey: firstSpot.occurrenceKey ?? "",
+        target: firstSpot.target,
+      });
+      setDraftIconSrc(icon ?? "");
+    }
   };
 
   const openEquipmentPreview = (href: string, label: string) => {
@@ -2588,6 +2801,7 @@ export function GuideDocumentPage({
                             exactSpotPickMode,
                             selectedOccurrenceKeys: selectedExactSpotKeys,
                             occurrenceScope: `${section.id}:${index}`,
+                            resolveInlineIcon,
                             onOpenEquipmentPreview: openEquipmentPreview,
                             onOpenJobPreview: openJobPreview,
                             onOpenGuideTarget: openGuideTarget,
@@ -2601,6 +2815,13 @@ export function GuideDocumentPage({
                               setDraftPhrase(link.label);
                               setLinkScope(link.occurrenceKey ? "spot" : "phrase");
                               applyTargetFromHref(link.href, link.target);
+                              const icon = resolveInlineIcon({
+                                label: link.label,
+                                href: link.href,
+                                occurrenceKey: link.occurrenceKey ?? "",
+                                target: link.target,
+                              });
+                              setDraftIconSrc(icon ?? "");
                               setLinkDialogOpen(true);
                             },
                           }),
@@ -2708,6 +2929,10 @@ export function GuideDocumentPage({
                       <Trash2 className="h-4 w-4" />
                       Remove This Link
                     </Button>
+                    <Button size="sm" variant="outline" className="gap-2 text-destructive hover:text-destructive" onClick={removeSelectedGuideIcon}>
+                      <Trash2 className="h-4 w-4" />
+                      Remove This Icon
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -2715,6 +2940,13 @@ export function GuideDocumentPage({
                       onClick={() => {
                         setDraftPhrase(selectedLink.label);
                         applyTargetFromHref(selectedLink.href, selectedLink.target);
+                        const icon = resolveInlineIcon({
+                          label: selectedLink.label,
+                          href: selectedLink.href,
+                          occurrenceKey: selectedLink.occurrenceKey ?? "",
+                          target: selectedLink.target,
+                        });
+                        setDraftIconSrc(icon ?? "");
                       }}
                     >
                       <Pencil className="h-4 w-4" />
@@ -2853,6 +3085,27 @@ export function GuideDocumentPage({
                 ) : null}
               </div>
 
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Inline icon source</label>
+                  <Input
+                    value={draftIconSrc}
+                    onChange={(event) => setDraftIconSrc(event.target.value)}
+                    placeholder="/website_icons/furniture/furniture_287_Survey_Room__add_job_obj_02.png"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={saveSelectedGuideIcon}
+                  disabled={!(draftPhrase.trim() || selectedExactSpots.length || selectedLink) || !draftIconSrc.trim()}
+                >
+                  <Plus className="h-4 w-4" />
+                  Save Icon
+                </Button>
+              </div>
+
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0 text-xs text-muted-foreground">
                   Target: <span className="break-all text-foreground/80">{guideTargetLabel(getDraftTarget() ?? undefined) || getDraftTargetHref() || "Choose a target"}</span>
@@ -2928,6 +3181,77 @@ export function GuideDocumentPage({
                   </div>
                 ) : (
                   <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">No removed auto-links.</div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2 text-sm font-medium">
+                  <span>Custom Icons</span>
+                  {(linkOverrides.customIcons ?? []).length ? <span className="text-xs font-normal text-muted-foreground">{(linkOverrides.customIcons ?? []).length}</span> : null}
+                </div>
+                {(linkOverrides.customIcons ?? []).length ? (
+                  <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                    {(linkOverrides.customIcons ?? []).map((icon) => (
+                      <div key={icon.id} className="flex items-start justify-between gap-3 rounded-md border border-border p-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">
+                            {icon.phrase}
+                            {icon.occurrenceKey ? <span className="ml-2 text-[10px] uppercase text-primary">one spot</span> : null}
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                            <img src={icon.iconSrc} alt="" className="h-4 w-4 rounded-sm object-contain" style={{ imageRendering: "pixelated" }} />
+                            <span className="truncate">{icon.iconSrc}</span>
+                          </div>
+                        </div>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={() => removeCustomIcon(icon.id)}>
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Remove custom icon</span>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">No custom icons yet.</div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2 text-sm font-medium">
+                  <span>Removed Auto-Icons</span>
+                  {(linkOverrides.disabledAutoIcons ?? []).length || (linkOverrides.disabledIconOccurrences ?? []).length ? (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {(linkOverrides.disabledAutoIcons ?? []).length + (linkOverrides.disabledIconOccurrences ?? []).length}
+                    </span>
+                  ) : null}
+                </div>
+                {(linkOverrides.disabledAutoIcons ?? []).length || (linkOverrides.disabledIconOccurrences ?? []).length ? (
+                  <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                    {(linkOverrides.disabledAutoIcons ?? []).map((label) => (
+                      <div key={label} className="flex items-center justify-between gap-3 rounded-md border border-border p-2">
+                        <div className="min-w-0 truncate text-sm font-medium">{label}</div>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => restoreAutoIcon(label)}>
+                          <RotateCcw className="h-4 w-4" />
+                          <span className="sr-only">Restore auto-icon</span>
+                        </Button>
+                      </div>
+                    ))}
+                    {(linkOverrides.disabledIconOccurrences ?? []).map((key) => (
+                      <div key={key} className="flex items-center justify-between gap-3 rounded-md border border-border p-2">
+                        <div className="min-w-0 truncate text-sm font-medium">
+                          one exact spot
+                          <span className="ml-2 text-[10px] uppercase text-primary">one spot</span>
+                        </div>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => restoreDisabledIconOccurrence(key)}>
+                          <RotateCcw className="h-4 w-4" />
+                          <span className="sr-only">Restore exact spot icon</span>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">No removed auto-icons.</div>
                 )}
               </div>
             </div>
