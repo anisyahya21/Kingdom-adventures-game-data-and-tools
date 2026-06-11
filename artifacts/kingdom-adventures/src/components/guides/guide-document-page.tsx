@@ -201,12 +201,16 @@ function renderInlineGuideIcon(src: string, key: string) {
   if (jobName) {
     return <InlineGuideJobIcon key={key} jobName={jobName} />;
   }
+  const lowerSrc = src.toLowerCase();
+  const isBedLikeIcon = lowerSrc.includes("guest_bed") || lowerSrc.includes("guest bed") || lowerSrc.includes("_bed") || lowerSrc.includes("/bed");
   return (
     <img
       key={key}
       src={src}
       alt=""
-      className="mr-[0.28em] inline-block h-[1.75em] w-[1.75em] shrink-0 align-[-0.26em] object-contain"
+      className={isBedLikeIcon
+        ? "mr-[0.28em] inline-block h-[2.05em] w-[2.05em] shrink-0 align-[-0.34em] object-contain"
+        : "mr-[0.28em] inline-block h-[1.75em] w-[1.75em] shrink-0 align-[-0.26em] object-contain"}
       style={{ imageRendering: "auto" }}
       loading="lazy"
     />
@@ -497,10 +501,10 @@ function buildGuideLinks(): GuideLink[] {
 
   add("Guest Bed", "/shops/furniture-shop?search=Guest%20Bed");
   add("Guest Beds", "/shops/furniture-shop?search=Guest%20Bed");
-  add("Bed", "/shops/furniture-shop?search=Guest%20Bed");
-  add("Beds", "/shops/furniture-shop?search=Guest%20Bed");
-  add("Add Beds", "/shops/furniture-shop?search=Guest%20Bed");
-  add("Ad Beds", "/shops/furniture-shop?search=Guest%20Bed");
+  add("Bed", "/shops/furniture-shop?search=Bed");
+  add("Beds", "/shops/furniture-shop?search=Bed");
+  add("Add Beds", "/shops/furniture-shop?search=Bed");
+  add("Ad Beds", "/shops/furniture-shop?search=Bed");
 
   add("Novel", getEntityHref("equipment", "F/ Novel") ?? `/equipment-stats?search=${encodeURIComponent("F/ Novel")}`);
   add("Weapon Shop", "/shops/weapon-shop");
@@ -552,10 +556,10 @@ const GUIDE_ICON_LABEL_ALIASES: Record<string, string> = {
   "copper coins": "Copper Coin",
   "sage’s tome": "Sage's Tome",
   "guest beds": "Guest Bed",
-  "beds": "Guest Bed",
-  "bed": "Guest Bed",
-  "add beds": "Guest Bed",
-  "ad beds": "Guest Bed",
+  "beds": "Bed",
+  "bed": "Bed",
+  "add beds": "Bed",
+  "ad beds": "Bed",
   "movers facility": "Movers",
   "mover facility": "Movers",
 };
@@ -2356,6 +2360,8 @@ export function GuideDocumentPage({
   const pendingMobileSectionRef = useRef<string | null>(null);
   const scrollAnchorTimerRef = useRef<number | null>(null);
   const appliedOverrideSyncKeyRef = useRef<string>("");
+  const previousOwnerGuideIdRef = useRef<string | undefined>(undefined);
+  const [isSavingOverrides, setIsSavingOverrides] = useState(false);
 
   const normalizedServerOverrides = useMemo(
     () => normalizeGuideLinkOverrides(serverLinkOverrides),
@@ -2376,14 +2382,16 @@ export function GuideDocumentPage({
       setGuideLinkOverrides(ownerGuideId, normalized);
     }
     if (ownerGuideId && ownerToken) {
+      setIsSavingOverrides(true);
       saveGuideLinkOverrides(ownerGuideId, ownerToken, normalized, title)
-        .then((payload) => {
-          const saved = payload.guide?.linkOverrides ? normalizeGuideLinkOverrides(payload.guide.linkOverrides) : normalized;
-          setLinkOverridesState(saved);
-          setGuideLinkOverrides(ownerGuideId, saved);
+        .then(() => {
+          // Keep optimistic local overrides to avoid response clobbering in-flight icon edits.
         })
         .catch((err) => {
           setLinkSaveError(err instanceof Error ? err.message : "Could not save guide links.");
+        })
+        .finally(() => {
+          setIsSavingOverrides(false);
         });
     }
   };
@@ -2462,6 +2470,8 @@ export function GuideDocumentPage({
     const syncKey = `${ownerGuideId ?? ""}|${normalizedServerOverridesKey}`;
     if (appliedOverrideSyncKeyRef.current === syncKey) return;
     appliedOverrideSyncKeyRef.current = syncKey;
+    const guideChanged = previousOwnerGuideIdRef.current !== ownerGuideId;
+    previousOwnerGuideIdRef.current = ownerGuideId;
 
     setLinkOverridesState(
       normalizedServerOverrides.disabledAutoLinks.length
@@ -2473,13 +2483,15 @@ export function GuideDocumentPage({
           ? getGuideLinkOverrides(ownerGuideId)
           : normalizedServerOverrides,
     );
-    setLinkEditMode(false);
-    setExactSpotPickMode(false);
-    setSelectedExactSpots([]);
-    setSelectedLink(null);
-    setLinkScope("phrase");
-    setLinkDialogOpen(false);
-    setDraftIconSrc("");
+    if (guideChanged) {
+      setLinkEditMode(false);
+      setExactSpotPickMode(false);
+      setSelectedExactSpots([]);
+      setSelectedLink(null);
+      setLinkScope("phrase");
+      setLinkDialogOpen(false);
+      setDraftIconSrc("");
+    }
   }, [ownerGuideId, normalizedServerOverrides, normalizedServerOverridesKey]);
 
   useEffect(() => {
@@ -2793,6 +2805,24 @@ export function GuideDocumentPage({
           : [{ id: makeCustomLinkId(), phrase, iconSrc }]),
       ],
     });
+  };
+
+  const applySuggestedGuideIcon = () => {
+    const fallbackSpot = selectedExactSpots[0];
+    const label = draftPhrase.trim() || selectedLink?.label || fallbackSpot?.label || "";
+    if (!label) return;
+    const href = selectedLink?.href || getDraftTargetHref() || "";
+    const occurrenceKey = selectedLink?.occurrenceKey || fallbackSpot?.occurrenceKey || "";
+    const autoIcon = resolveAutoGuideInlineIcon(
+      {
+        label,
+        href,
+        occurrenceKey,
+        target: selectedLink?.target,
+      },
+      sharedEquipIcons,
+    );
+    if (autoIcon) setDraftIconSrc(autoIcon);
   };
 
   const removeSelectedGuideIcon = () => {
@@ -3164,6 +3194,12 @@ export function GuideDocumentPage({
             </DialogHeader>
 
             <div className="grid gap-3">
+              {isSavingOverrides ? (
+                <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">
+                  Saving guide overrides...
+                </div>
+              ) : null}
+
               {linkSaveError ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                   {linkSaveError}
@@ -3370,6 +3406,16 @@ export function GuideDocumentPage({
                     placeholder="/website_icons/furniture/furniture_287_Survey_Room__add_job_obj_02.png"
                   />
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={applySuggestedGuideIcon}
+                  disabled={!(draftPhrase.trim() || selectedExactSpots.length || selectedLink)}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Use Suggested Icon
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
