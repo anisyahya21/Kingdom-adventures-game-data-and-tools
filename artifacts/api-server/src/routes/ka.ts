@@ -170,10 +170,20 @@ type GuideCustomLink = {
   occurrenceKey?: string;
 };
 
+type GuideCustomIcon = {
+  id: string;
+  phrase: string;
+  iconSrc: string;
+  occurrenceKey?: string;
+};
+
 type GuideLinkOverrides = {
   disabledAutoLinks: string[];
   disabledOccurrences?: string[];
+  disabledAutoIcons?: string[];
+  disabledIconOccurrences?: string[];
   customLinks: GuideCustomLink[];
+  customIcons?: GuideCustomIcon[];
 };
 
 type GuideLinkTarget =
@@ -317,6 +327,20 @@ function sanitizeGuideLinkOverrides(overrides: unknown): GuideLinkOverrides {
           .filter(Boolean),
       ),
     ).slice(0, 500),
+    disabledAutoIcons: Array.from(
+      new Set(
+        (Array.isArray(input.disabledAutoIcons) ? input.disabledAutoIcons : [])
+          .map((label) => String(label ?? "").trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ).slice(0, 300),
+    disabledIconOccurrences: Array.from(
+      new Set(
+        (Array.isArray(input.disabledIconOccurrences) ? input.disabledIconOccurrences : [])
+          .map((key) => String(key ?? "").trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, 500),
     customLinks: (Array.isArray(input.customLinks) ? input.customLinks : [])
       .map((link) => ({
         id: String(link?.id || crypto.randomUUID()),
@@ -326,6 +350,15 @@ function sanitizeGuideLinkOverrides(overrides: unknown): GuideLinkOverrides {
         occurrenceKey: String(link?.occurrenceKey ?? "").trim() || undefined,
       }))
       .filter((link) => link.phrase && link.href)
+      .slice(0, 300),
+    customIcons: (Array.isArray(input.customIcons) ? input.customIcons : [])
+      .map((icon) => ({
+        id: String(icon?.id || crypto.randomUUID()),
+        phrase: String(icon?.phrase ?? "").trim(),
+        iconSrc: String(icon?.iconSrc ?? "").trim(),
+        occurrenceKey: String(icon?.occurrenceKey ?? "").trim() || undefined,
+      }))
+      .filter((icon) => icon.phrase && icon.iconSrc)
       .slice(0, 300),
   };
 }
