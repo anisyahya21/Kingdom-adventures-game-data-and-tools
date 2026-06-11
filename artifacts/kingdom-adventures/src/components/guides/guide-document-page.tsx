@@ -2333,6 +2333,16 @@ export function GuideDocumentPage({
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
   const pendingMobileSectionRef = useRef<string | null>(null);
   const scrollAnchorTimerRef = useRef<number | null>(null);
+  const appliedOverrideSyncKeyRef = useRef<string>("");
+
+  const normalizedServerOverrides = useMemo(
+    () => normalizeGuideLinkOverrides(serverLinkOverrides),
+    [serverLinkOverrides],
+  );
+  const normalizedServerOverridesKey = useMemo(
+    () => JSON.stringify(normalizedServerOverrides),
+    [normalizedServerOverrides],
+  );
 
   const isOwner = Boolean(ownerGuideId);
 
@@ -2427,7 +2437,10 @@ export function GuideDocumentPage({
   }, []);
 
   useEffect(() => {
-    const normalizedServerOverrides = normalizeGuideLinkOverrides(serverLinkOverrides);
+    const syncKey = `${ownerGuideId ?? ""}|${normalizedServerOverridesKey}`;
+    if (appliedOverrideSyncKeyRef.current === syncKey) return;
+    appliedOverrideSyncKeyRef.current = syncKey;
+
     setLinkOverridesState(
       normalizedServerOverrides.disabledAutoLinks.length
       || normalizedServerOverrides.customLinks.length
@@ -2445,7 +2458,7 @@ export function GuideDocumentPage({
     setLinkScope("phrase");
     setLinkDialogOpen(false);
     setDraftIconSrc("");
-  }, [ownerGuideId, serverLinkOverrides]);
+  }, [ownerGuideId, normalizedServerOverrides, normalizedServerOverridesKey]);
 
   useEffect(() => {
     let cancelled = false;
