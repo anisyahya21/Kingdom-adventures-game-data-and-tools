@@ -695,13 +695,30 @@ function buildEffectiveGuideLinks(overrides?: GuideLinkOverrides): GuideLink[] {
     occurrenceKey: link.occurrenceKey,
   }));
 
+  const customLinkKeys = new Set(
+    customLinks.map((link) => `${link.occurrenceKey ?? "*"}:${normalizeGuideLinkLabel(link.label)}`),
+  );
+  const customIconPhraseLinks = (overrides?.customIcons ?? [])
+    .filter((icon) => Boolean(icon.phrase?.trim()))
+    .filter((icon) => {
+      const key = `${icon.occurrenceKey ?? "*"}:${normalizeGuideLinkLabel(icon.phrase)}`;
+      return !customLinkKeys.has(key);
+    })
+    .map((icon) => ({
+      id: `icon-${icon.id}`,
+      label: icon.phrase,
+      href: "",
+      kind: "custom" as const,
+      occurrenceKey: icon.occurrenceKey,
+    }));
+
   const customLabels = new Set(customLinks.filter((link) => !link.occurrenceKey).map((link) => normalizeGuideLinkLabel(link.label)));
   const autoLinks = GUIDE_LINKS
     .filter((link) => !disabledLabels.has(normalizeGuideLinkLabel(link.label)))
     .filter((link) => !customLabels.has(normalizeGuideLinkLabel(link.label)))
     .map((link) => ({ ...link, kind: "auto" as const }));
 
-  return [...customLinks, ...autoLinks].sort((a, b) => b.label.length - a.label.length);
+  return [...customLinks, ...customIconPhraseLinks, ...autoLinks].sort((a, b) => b.label.length - a.label.length);
 }
 
 const GUIDE_EQUIPMENT_STATS = [
@@ -1320,11 +1337,9 @@ function renderInlineContent(
       if (options?.disabledOccurrenceKeys?.has(occurrenceKey)) continue;
       const link = findGuideLinkForOccurrence(effectiveLinks, fullMatch, occurrenceKey);
       const href = link?.href;
-      const inlineIconSrc = href
-        ? options?.resolveInlineIcon?.({ label: fullMatch, href, occurrenceKey, target: link?.target })
-        : undefined;
+      const inlineIconSrc = options?.resolveInlineIcon?.({ label: fullMatch, href: href ?? "", occurrenceKey, target: link?.target });
 
-      if (!href) continue;
+      if (!href && !inlineIconSrc) continue;
 
       const blockedByPhrase = PROTECTED_PHRASES.some(({ phrase, blockedLabels }) => {
         if (!blockedLabels.includes(normalizedLabel)) return false;
@@ -1389,16 +1404,25 @@ function renderInlineContent(
           </button>,
         );
       } else {
-        parts.push(
-          <a
-            key={`${fullMatch}-${absoluteMatchIndex}`}
-            href={href}
-            className="font-medium text-primary underline underline-offset-4"
-          >
-            {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, fullMatch) : null}
-            {fullMatch}
-          </a>,
-        );
+        if (href) {
+          parts.push(
+            <a
+              key={`${fullMatch}-${absoluteMatchIndex}`}
+              href={href}
+              className="font-medium text-primary underline underline-offset-4"
+            >
+              {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, fullMatch) : null}
+              {fullMatch}
+            </a>,
+          );
+        } else {
+          parts.push(
+            <span key={`${fullMatch}-${absoluteMatchIndex}`} className="font-medium text-foreground/95">
+              {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, fullMatch) : null}
+              {fullMatch}
+            </span>,
+          );
+        }
       }
 
       innerLastIndex = rawMatchStart + prefix.length + fullMatch.length;
