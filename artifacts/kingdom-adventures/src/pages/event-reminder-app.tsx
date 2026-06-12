@@ -30,6 +30,7 @@ type ReminderOption = {
   title: string;
   detail: string;
   startsAt: Date;
+  adjustedStartsAt: Date;
   offsetHours: number;
   mode: ReminderMode;
   definition: ReminderDefinition;
@@ -43,6 +44,9 @@ type SavedReminder = {
 };
 
 const STORAGE_KEY = "kaStandaloneEventReminders";
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
 
 function readSaved(): Record<string, SavedReminder> {
   try {
@@ -81,6 +85,12 @@ function nextReminderGachaEvent(event: GachaEvent, now: Date, offset: number) {
     .filter((window) => window.endAt.getTime() >= now.getTime())
     .sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
   return windows[0] ?? buildGachaEventWindow(event, eventClockYear + 1, offset);
+}
+
+function nextWeeklyConquestStart(now: Date, offset: number) {
+  const eventClockNow = new Date(now.getTime() + offset * HOUR_MS);
+  const cycle = Math.floor((eventClockNow.getTime() - WEEKLY_ANCHOR_START) / (7 * DAY_MS)) + 1;
+  return new Date(WEEKLY_ANCHOR_START + cycle * 7 * DAY_MS - offset * HOUR_MS);
 }
 
 function StatusGrid({ status }: { status: BrowserPushStatus | null }) {
@@ -261,7 +271,13 @@ function ReminderRow({
       ) : null}
 
       <div className="mt-3 flex items-center justify-between gap-3">
-        <OffsetControl value={option.offsetHours} disabled={active} onChange={onOffsetChange} />
+        <div className="flex items-center gap-3">
+          <OffsetControl value={option.offsetHours} disabled={active} onChange={onOffsetChange} />
+          <div className="rounded-xl bg-black/20 px-3 py-2 text-right">
+            <div className="text-[11px] text-slate-500">Offset timer</div>
+            <div className="mt-0.5 font-mono text-sm text-slate-100">{formatCountdown(option.adjustedStartsAt, now)}</div>
+          </div>
+        </div>
         {active ? (
           <Button type="button" variant="outline" onClick={onUnsubscribe} disabled={busy} className="border-red-300/30 bg-red-500/10 text-red-50 hover:bg-red-500/20">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellOff className="h-4 w-4" />}
@@ -314,27 +330,33 @@ export default function EventReminderAppPage() {
   }, []);
 
   const options = useMemo(() => {
-    const nextWairo = getNextWarioDungeonSpawn(now, eventOffset);
-    const wairo: ReminderOption[] = nextWairo ? [{
+    const wairoOffset = customOffsets["wairo:all"] ?? saved["wairo:all"]?.offsetHours ?? eventOffset;
+    const nextWairoBase = getNextWarioDungeonSpawn(now, eventOffset);
+    const nextWairoAdjusted = getNextWarioDungeonSpawn(now, wairoOffset);
+    const wairo: ReminderOption[] = nextWairoBase && nextWairoAdjusted ? [{
       id: "wairo:all",
       group: "Wairo",
       title: "All Wairo Dungeon spawns",
       detail: wairoTwoStep ? "Notify one hour before and when every Wairo spawn starts." : "Notify when every Wairo spawn starts.",
-      startsAt: nextWairo.startsAt,
-      offsetHours: customOffsets["wairo:all"] ?? saved["wairo:all"]?.offsetHours ?? eventOffset,
+      startsAt: nextWairoBase.startsAt,
+      adjustedStartsAt: nextWairoAdjusted.startsAt,
+      offsetHours: wairoOffset,
       mode: wairoTwoStep ? "one-hour-and-start" : "start",
       definition: { type: "wairo" },
     }] : [];
 
     const weeklyTimeline = buildLocalAutomaticWeeklyConquestTimeline(now, 1);
     const currentWeekly = weeklyTimeline.entries.find((entry) => entry.id === weeklyTimeline.currentId);
+    const weeklyOffset = customOffsets["weekly-conquest:rotation"] ?? saved["weekly-conquest:rotation"]?.offsetHours ?? eventOffset;
+    const weeklyAdjusted = nextWeeklyConquestStart(now, weeklyOffset);
     const weekly: ReminderOption[] = currentWeekly ? [{
       id: "weekly-conquest:rotation",
       group: "Weekly",
       title: "Weekly Conquest reset",
       detail: "Notify when the next weekly conquest rotation starts.",
       startsAt: new Date(currentWeekly.endsAt),
-      offsetHours: customOffsets["weekly-conquest:rotation"] ?? saved["weekly-conquest:rotation"]?.offsetHours ?? 0,
+      adjustedStartsAt: weeklyAdjusted,
+      offsetHours: weeklyOffset,
       mode: "start",
       definition: { type: "weekly-conquest" },
     }] : [];
@@ -344,13 +366,16 @@ export default function EventReminderAppPage() {
       .map((event): ReminderOption => {
         const resolved = nextReminderGachaEvent(event, now, eventOffset);
         const id = `gacha:${event.id}`;
+        const optionOffset = customOffsets[id] ?? saved[id]?.offsetHours ?? eventOffset;
+        const adjusted = nextReminderGachaEvent(event, now, optionOffset);
         return {
           id,
           group: event.kind === "facilities" ? "S Rank Facility" : "S Rank Gacha",
           title: event.title,
           detail: event.poolLabel,
           startsAt: resolved.startAt,
-          offsetHours: customOffsets[id] ?? saved[id]?.offsetHours ?? eventOffset,
+          adjustedStartsAt: adjusted.startAt,
+          offsetHours: optionOffset,
           mode: "start",
           definition: { type: "gacha", event },
         };

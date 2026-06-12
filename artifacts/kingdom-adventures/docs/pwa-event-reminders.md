@@ -6,7 +6,7 @@ The reminder PWA is a separate one-page app at `/event-reminders`. It is intenti
 
 - `public/manifest.json` - starts the installed PWA at `/event-reminders` and scopes it to that page.
 - `public/event-reminder-sw.js` - service worker for standard Web Push and notification taps.
-- `public/pwa-icon.svg` - Home Screen/install icon.
+- `public/pwa-icon.svg` - Home Screen/install icon source. Replace this file to ship a different app icon.
 - `src/lib/pwa.ts` - registers the service worker.
 - `src/lib/web-push.ts` - browser Push API helpers and iOS standalone detection.
 - `src/pages/event-reminder-app.tsx` - the mobile-first standalone reminder app.
@@ -36,12 +36,14 @@ Generate VAPID keys:
 pnpm --filter @workspace/api-server exec web-push generate-vapid-keys
 ```
 
-Schedule this endpoint every few minutes:
+Optional external cron endpoint (still supported):
 
 ```txt
 POST /ka-api/ka/event-reminders/send-due
 x-cron-secret: your secret
 ```
+
+The API server also runs an in-process due-check sweep every minute. This means reminders continue to fire on normal long-running deployments even if no external cron is configured.
 
 ## Supported Reminder Types
 

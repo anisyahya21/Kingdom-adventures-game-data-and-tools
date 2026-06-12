@@ -94,6 +94,8 @@ let dbModule: DbModule | null = null;
 let persistenceMode: "database" | "file" = "file";
 let storeCache: Store = readStoreFromFile();
 let cachedVapidKeys: VapidKeyPair | null = null;
+let autoSchedulerStarted = false;
+let autoSchedulerBusy = false;
 
 function ensureDataDir() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -421,9 +423,10 @@ function wairoNotificationTimes(subscription: ReminderSubscription, now: Date) {
   return candidates.sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
-function nextWeeklyConquestStart(now: Date) {
-  const offset = Math.floor((now.getTime() - WEEKLY_ANCHOR_START) / (7 * DAY_MS)) + 1;
-  return new Date(WEEKLY_ANCHOR_START + offset * 7 * DAY_MS);
+function nextWeeklyConquestStart(now: Date, offsetHours: number) {
+  const eventClockNow = new Date(now.getTime() + offsetHours * HOUR_MS);
+  const cycle = Math.floor((eventClockNow.getTime() - WEEKLY_ANCHOR_START) / (7 * DAY_MS)) + 1;
+  return new Date(WEEKLY_ANCHOR_START + cycle * 7 * DAY_MS - offsetHours * HOUR_MS);
 }
 
 function notificationTimes(subscription: ReminderSubscription, now: Date) {
@@ -432,7 +435,7 @@ function notificationTimes(subscription: ReminderSubscription, now: Date) {
   const offset = subscription.offsetHours;
   let startAt: Date | undefined;
   if (subscription.definition.type === "gacha") startAt = nextGachaStart(subscription.definition.event, now, offset);
-  if (subscription.definition.type === "weekly-conquest") startAt = nextWeeklyConquestStart(now);
+  if (subscription.definition.type === "weekly-conquest") startAt = nextWeeklyConquestStart(now, offset);
   if (!startAt) return [];
 
   const times = [{ kind: "start", at: startAt }];
@@ -452,6 +455,60 @@ async function sendReminder(subscription: ReminderSubscription, kind: string, sc
     scheduledAt: scheduledAt.toISOString(),
   });
   await webpush.sendNotification(subscription.pushSubscription, payload);
+}
+
+async function sendDueReminders(now: Date, lookAheadMs: number) {
+  const store = readStore();
+  let sent = 0;
+  let failed = 0;
+
+  for (const subscription of store.subscriptions) {
+    const due = notificationTimes(subscription, now).filter(({ kind, at }) => {
+      const diff = at.getTime() - now.getTime();
+      const key = `${kind}:${at.toISOString()}`;
+      return diff >= -5 * 60_000 && diff <= lookAheadMs && !subscription.sentKeys.includes(key);
+    });
+
+    for (const item of due) {
+      const key = `${item.kind}:${item.at.toISOString()}`;
+      try {
+        await sendReminder(subscription, item.kind, item.at);
+        subscription.sentKeys = [...subscription.sentKeys.slice(-25), key];
+        sent += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+  }
+
+  await writeStore(store);
+  return { sent, failed, checked: store.subscriptions.length };
+}
+
+async function runAutoDueSweep() {
+  if (autoSchedulerBusy) return;
+  autoSchedulerBusy = true;
+  try {
+    const configured = await configureWebPush();
+    if (!configured) return;
+    const result = await sendDueReminders(new Date(), 60_000);
+    if (result.sent || result.failed) {
+      console.info("event-reminders: auto sweep", result);
+    }
+  } catch (error) {
+    console.warn("event-reminders: auto sweep failed", error);
+  } finally {
+    autoSchedulerBusy = false;
+  }
+}
+
+function startAutoDueScheduler() {
+  if (autoSchedulerStarted) return;
+  autoSchedulerStarted = true;
+  void runAutoDueSweep();
+  setInterval(() => {
+    void runAutoDueSweep();
+  }, 60_000);
 }
 
 router.get("/event-reminders/config", async (_req, res) => {
@@ -552,31 +609,10 @@ router.post("/event-reminders/send-due", async (req, res) => {
 
   const now = new Date();
   const lookAheadMs = Math.max(60_000, Math.min(15 * 60_000, Number(req.body?.lookAheadMs || 5 * 60_000)));
-  const store = readStore();
-  let sent = 0;
-  let failed = 0;
-
-  for (const subscription of store.subscriptions) {
-    const due = notificationTimes(subscription, now).filter(({ kind, at }) => {
-      const diff = at.getTime() - now.getTime();
-      const key = `${kind}:${at.toISOString()}`;
-      return diff >= -5 * 60_000 && diff <= lookAheadMs && !subscription.sentKeys.includes(key);
-    });
-
-    for (const item of due) {
-      const key = `${item.kind}:${item.at.toISOString()}`;
-      try {
-        await sendReminder(subscription, item.kind, item.at);
-        subscription.sentKeys = [...subscription.sentKeys.slice(-25), key];
-        sent += 1;
-      } catch {
-        failed += 1;
-      }
-    }
-  }
-
-  await writeStore(store);
-  res.json({ ok: true, sent, failed, checked: store.subscriptions.length });
+  const result = await sendDueReminders(now, lookAheadMs);
+  res.json({ ok: true, ...result });
 });
+
+startAutoDueScheduler();
 
 export default router;
