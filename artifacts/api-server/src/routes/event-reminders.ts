@@ -851,6 +851,12 @@ function getDiscordHealth(): DiscordHealth {
   };
 }
 
+function normalizeTelegramBotUsername() {
+  const raw = process.env.TELEGRAM_BOT_USERNAME?.trim();
+  if (!raw) return "";
+  return raw.replace(/^@+/, "");
+}
+
 async function exchangeDiscordOAuthCode(code: string) {
   const clientId = process.env.DISCORD_CLIENT_ID?.trim();
   const clientSecret = process.env.DISCORD_CLIENT_SECRET?.trim();
@@ -908,6 +914,16 @@ async function exchangeDiscordOAuthCode(code: string) {
 router.get("/event-reminders/config", async (_req, res) => {
   const keyPair = await getVapidKeys();
   res.json({ configured: Boolean(keyPair?.publicKey && keyPair.privateKey), publicKey: keyPair?.publicKey || "" });
+});
+
+router.get("/event-reminders/telegram/status", async (_req, res) => {
+  const botUsername = normalizeTelegramBotUsername();
+  res.json({
+    configured: Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim()),
+    botUsername,
+    botUrl: botUsername ? `https://t.me/${encodeURIComponent(botUsername)}` : "",
+    idHelperUrl: "https://t.me/userinfobot",
+  });
 });
 
 router.get("/event-reminders/discord/health", async (_req, res) => {

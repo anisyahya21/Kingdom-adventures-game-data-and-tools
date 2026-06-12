@@ -51,6 +51,13 @@ type DeliveryTargets = {
   telegramChatId: string;
 };
 
+type TelegramStatus = {
+  configured: boolean;
+  botUsername: string;
+  botUrl: string;
+  idHelperUrl: string;
+};
+
 type DiscordStatus = {
   connected: boolean;
   username: string;
@@ -378,6 +385,12 @@ export default function EventReminderAppPage() {
   const [discordTestBusy, setDiscordTestBusy] = useState(false);
   const [channels, setChannels] = useState<DeliveryChannels>(() => readDeliverySettings().channels);
   const [targets, setTargets] = useState<DeliveryTargets>(() => readDeliverySettings().targets);
+  const [telegramStatus, setTelegramStatus] = useState<TelegramStatus>({
+    configured: false,
+    botUsername: "",
+    botUrl: "",
+    idHelperUrl: "https://t.me/userinfobot",
+  });
   const [discordStatus, setDiscordStatus] = useState<DiscordStatus>({
     connected: false,
     username: "",
@@ -407,11 +420,23 @@ export default function EventReminderAppPage() {
     }
   }, [channels.discord, clientId]);
 
+  const syncTelegramStatus = useCallback(async () => {
+    try {
+      const response = await fetch(apiUrl("/event-reminders/telegram/status"));
+      if (!response.ok) return;
+      const data = await response.json() as TelegramStatus;
+      setTelegramStatus(data);
+    } catch {
+      // Ignore network errors for status polling.
+    }
+  }, []);
+
   const refresh = useCallback(() => {
     setNow(new Date());
     getBrowserPushStatus().then(setStatus).catch(() => {});
     void syncDiscordStatus();
-  }, [syncDiscordStatus]);
+    void syncTelegramStatus();
+  }, [syncDiscordStatus, syncTelegramStatus]);
 
   useEventRefresh(refresh, 180_000);
 
@@ -426,6 +451,10 @@ export default function EventReminderAppPage() {
   useEffect(() => {
     void syncDiscordStatus();
   }, [syncDiscordStatus]);
+
+  useEffect(() => {
+    void syncTelegramStatus();
+  }, [syncTelegramStatus]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -734,15 +763,46 @@ export default function EventReminderAppPage() {
               </label>
               <label className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-2">
                 <span>Telegram</span>
-                <Switch checked={channels.telegram} onCheckedChange={(checked) => setChannels((current) => ({ ...current, telegram: checked }))} />
+                <Switch
+                  checked={channels.telegram}
+                  onCheckedChange={(checked) => {
+                    setChannels((current) => ({ ...current, telegram: checked }));
+                    if (checked && telegramStatus.botUrl) {
+                      window.open(telegramStatus.botUrl, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                />
               </label>
               {channels.telegram ? (
-                <input
-                  value={targets.telegramChatId}
-                  onChange={(event) => setTargets((current) => ({ ...current, telegramChatId: event.target.value }))}
-                  placeholder="Telegram chat ID (example: 123456789)"
-                  className="w-full rounded-xl bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
-                />
+                <div className="space-y-2 rounded-xl bg-black/20 p-3">
+                  <div className="text-xs text-slate-300">Telegram is on. Open the bot chat, tap Start, then paste your chat ID below.</div>
+                  {telegramStatus.botUrl ? (
+                    <a
+                      href={telegramStatus.botUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white"
+                    >
+                      Open Telegram bot
+                    </a>
+                  ) : (
+                    <div className="text-xs text-amber-200">Set TELEGRAM_BOT_USERNAME on the server to enable one-tap Telegram bot open.</div>
+                  )}
+                  <a
+                    href={telegramStatus.idHelperUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-2 inline-flex items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-100"
+                  >
+                    Get my Telegram ID
+                  </a>
+                  <input
+                    value={targets.telegramChatId}
+                    onChange={(event) => setTargets((current) => ({ ...current, telegramChatId: event.target.value }))}
+                    placeholder="Telegram chat ID (example: 123456789)"
+                    className="w-full rounded-xl bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+                  />
+                </div>
               ) : null}
               <label className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-2">
                 <span>Discord</span>

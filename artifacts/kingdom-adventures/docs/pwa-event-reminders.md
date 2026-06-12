@@ -27,6 +27,7 @@ VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:you@example.com
 EVENT_REMINDER_CRON_SECRET=
 TELEGRAM_BOT_TOKEN=
+TELEGRAM_BOT_USERNAME=
 EVENT_REMINDER_PUBLIC_BASE_URL=https://kingdom-adventures-community-tools.vercel.app
 DISCORD_BOT_TOKEN=
 DISCORD_CLIENT_ID=
@@ -69,7 +70,7 @@ There is no daily Weekly Conquest reminder.
 The reminder app now supports channel selection per reminder setup:
 
 - Web Push (browser/web push)
-- Telegram (requires `TELEGRAM_BOT_TOKEN` and user chat ID)
+- Telegram (requires `TELEGRAM_BOT_TOKEN` and user chat ID; set `TELEGRAM_BOT_USERNAME` to show a one-tap "Open Telegram bot" link in the app)
 - Discord DM (requires Discord OAuth connection + `DISCORD_BOT_TOKEN`)
 
 Users can enable one channel or multiple channels together.
