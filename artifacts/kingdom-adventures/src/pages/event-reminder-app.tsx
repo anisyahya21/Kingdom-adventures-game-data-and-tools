@@ -62,6 +62,7 @@ type ReminderSchedulePreview = {
   subscriptionId: string;
   title: string;
   offsetHours: number;
+  clientTimeZoneOffsetMinutes?: number;
   mode: ReminderMode;
   channels: DeliveryChannels;
   next: Array<{ kind: string; at: string; inMinutes: number }>;
@@ -763,6 +764,17 @@ export default function EventReminderAppPage() {
     setScheduleCheckBusy(true);
     setMessage("Checking reminder schedule on server...");
     try {
+      await fetch(apiUrl("/event-reminders/subscriptions/sync-client-context"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          clientTimeZoneOffsetMinutes: new Date().getTimezoneOffset(),
+        }),
+      }).catch(() => {
+        // Best effort sync before debug fetch.
+      });
+
       const response = await fetch(apiUrl(`/event-reminders/debug/next-due?clientId=${encodeURIComponent(clientId)}`));
       if (!response.ok) {
         const errorBody = await response.json().catch(() => null) as { error?: string } | null;
@@ -775,7 +787,10 @@ export default function EventReminderAppPage() {
         return;
       }
       const next = withNext.next[0];
-      setMessage(`Server next due: ${withNext.title} (${next.kind}) in ${next.inMinutes}m | saved offset ${withNext.offsetHours}h | mode ${withNext.mode}.`);
+      const tzPart = withNext.clientTimeZoneOffsetMinutes === undefined
+        ? "server tz missing"
+        : `server tz offset ${withNext.clientTimeZoneOffsetMinutes}m`;
+      setMessage(`Server next due: ${withNext.title} (${next.kind}) in ${next.inMinutes}m | saved offset ${withNext.offsetHours}h | mode ${withNext.mode} | ${tzPart}.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not check reminder schedule.");
     } finally {
