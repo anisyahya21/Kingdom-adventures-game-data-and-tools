@@ -1245,6 +1245,33 @@ router.delete("/event-reminders/subscriptions", async (req, res) => {
   res.json({ ok: true });
 });
 
+router.post("/event-reminders/subscriptions/sync-client-context", async (req, res) => {
+  const clientId = String(req.body?.clientId || "").trim();
+  const clientTimeZoneOffsetMinutes = normalizeTimeZoneOffset(req.body?.clientTimeZoneOffsetMinutes);
+  if (!clientId || clientTimeZoneOffsetMinutes === undefined) {
+    res.status(400).json({ error: "clientId and clientTimeZoneOffsetMinutes are required." });
+    return;
+  }
+
+  const store = readStore();
+  let updated = 0;
+  store.subscriptions = store.subscriptions.map((subscription) => {
+    if (subscription.clientId !== clientId) return subscription;
+    if (subscription.clientTimeZoneOffsetMinutes === clientTimeZoneOffsetMinutes) return subscription;
+    updated += 1;
+    return {
+      ...subscription,
+      clientTimeZoneOffsetMinutes,
+      updatedAt: Date.now(),
+    };
+  });
+
+  if (updated > 0) {
+    await writeStore(store);
+  }
+  res.json({ ok: true, updated });
+});
+
 router.post("/event-reminders/test", async (req, res) => {
   const pushSubscription = req.body?.pushSubscription;
   const clientId = String(req.body?.clientId || "").trim();
@@ -1350,6 +1377,7 @@ router.get("/event-reminders/debug/next-due", async (req, res) => {
       subscriptionId: subscription.subscriptionId,
       title: subscription.title,
       offsetHours: subscription.offsetHours,
+      clientTimeZoneOffsetMinutes: subscription.clientTimeZoneOffsetMinutes,
       mode: subscription.mode,
       channels: subscription.channels,
       next: nextNotificationPreview(subscription, now, 3),

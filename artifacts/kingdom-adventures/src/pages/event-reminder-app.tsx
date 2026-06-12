@@ -476,6 +476,19 @@ export default function EventReminderAppPage() {
   }, [syncTelegramStatus]);
 
   useEffect(() => {
+    void fetch(apiUrl("/event-reminders/subscriptions/sync-client-context"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId,
+        clientTimeZoneOffsetMinutes: new Date().getTimezoneOffset(),
+      }),
+    }).catch(() => {
+      // Ignore sync failures; subscriptions can still be updated when user re-saves.
+    });
+  }, [clientId]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const discord = params.get("discord");
     const discordMessage = params.get("message");
