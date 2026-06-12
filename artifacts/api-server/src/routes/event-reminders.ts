@@ -123,6 +123,21 @@ let autoSchedulerBusy = false;
 
 const DISCORD_DM_FAILURE_MESSAGE = "Discord DM failed — check privacy settings or shared server access.";
 const OAUTH_STATE_SECRET = process.env.DISCORD_OAUTH_STATE_SECRET || crypto.randomBytes(32).toString("hex");
+const MISSING_DISCORD_BOT_TOKEN_MESSAGE = "missing DISCORD_BOT_TOKEN";
+const MISSING_DISCORD_CLIENT_ID_MESSAGE = "missing DISCORD_CLIENT_ID";
+const MISSING_DISCORD_CLIENT_SECRET_MESSAGE = "missing DISCORD_CLIENT_SECRET";
+const REDIRECT_URI_MISMATCH_MESSAGE = "redirect URI mismatch";
+
+type DiscordHealth = {
+  botTokenConfigured: boolean;
+  clientIdConfigured: boolean;
+  clientSecretConfigured: boolean;
+  redirectUriConfigured: boolean;
+  oauthStateSecretConfigured: boolean;
+  missingErrors: string[];
+  oauthReady: boolean;
+  dmReady: boolean;
+};
 
 function ensureDataDir() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -812,11 +827,36 @@ function discordRedirectUri() {
   return `${base}/ka-api/ka/event-reminders/discord/callback`;
 }
 
+function getDiscordHealth(): DiscordHealth {
+  const botTokenConfigured = Boolean(process.env.DISCORD_BOT_TOKEN?.trim());
+  const clientIdConfigured = Boolean(process.env.DISCORD_CLIENT_ID?.trim());
+  const clientSecretConfigured = Boolean(process.env.DISCORD_CLIENT_SECRET?.trim());
+  const redirectUriConfigured = Boolean(process.env.DISCORD_REDIRECT_URI?.trim());
+  const oauthStateSecretConfigured = Boolean(process.env.DISCORD_OAUTH_STATE_SECRET?.trim());
+  const missingErrors: string[] = [];
+
+  if (!botTokenConfigured) missingErrors.push(MISSING_DISCORD_BOT_TOKEN_MESSAGE);
+  if (!clientIdConfigured) missingErrors.push(MISSING_DISCORD_CLIENT_ID_MESSAGE);
+  if (!clientSecretConfigured) missingErrors.push(MISSING_DISCORD_CLIENT_SECRET_MESSAGE);
+
+  return {
+    botTokenConfigured,
+    clientIdConfigured,
+    clientSecretConfigured,
+    redirectUriConfigured,
+    oauthStateSecretConfigured,
+    missingErrors,
+    oauthReady: clientIdConfigured && clientSecretConfigured,
+    dmReady: botTokenConfigured,
+  };
+}
+
 async function exchangeDiscordOAuthCode(code: string) {
   const clientId = process.env.DISCORD_CLIENT_ID?.trim();
   const clientSecret = process.env.DISCORD_CLIENT_SECRET?.trim();
   if (!clientId || !clientSecret) {
-    throw new Error("Discord OAuth is not configured.");
+    if (!clientId) throw new Error(MISSING_DISCORD_CLIENT_ID_MESSAGE);
+    throw new Error(MISSING_DISCORD_CLIENT_SECRET_MESSAGE);
   }
 
   const tokenBody = new URLSearchParams({
@@ -834,6 +874,11 @@ async function exchangeDiscordOAuthCode(code: string) {
   });
 
   if (!tokenResponse.ok) {
+    const tokenError = await tokenResponse.json().catch(() => null) as { error?: string; error_description?: string } | null;
+    const details = `${tokenError?.error || ""} ${tokenError?.error_description || ""}`.toLowerCase();
+    if (details.includes("redirect") || details.includes("redirect_uri")) {
+      throw new Error(REDIRECT_URI_MISMATCH_MESSAGE);
+    }
     throw new Error(`Discord OAuth token exchange failed (${tokenResponse.status})`);
   }
 
@@ -865,6 +910,14 @@ router.get("/event-reminders/config", async (_req, res) => {
   res.json({ configured: Boolean(keyPair?.publicKey && keyPair.privateKey), publicKey: keyPair?.publicKey || "" });
 });
 
+router.get("/event-reminders/discord/health", async (_req, res) => {
+  const health = getDiscordHealth();
+  res.json({
+    ok: health.oauthReady && health.dmReady,
+    ...health,
+  });
+});
+
 router.get("/event-reminders/discord/connect", async (req, res) => {
   const clientId = String(req.query?.clientId || "").trim();
   if (!clientId) {
@@ -873,8 +926,12 @@ router.get("/event-reminders/discord/connect", async (req, res) => {
   }
 
   const discordClientId = process.env.DISCORD_CLIENT_ID?.trim();
-  if (!discordClientId || !process.env.DISCORD_CLIENT_SECRET?.trim()) {
-    res.status(503).json({ error: "Discord OAuth is not configured on the server." });
+  if (!discordClientId) {
+    res.status(503).json({ error: MISSING_DISCORD_CLIENT_ID_MESSAGE });
+    return;
+  }
+  if (!process.env.DISCORD_CLIENT_SECRET?.trim()) {
+    res.status(503).json({ error: MISSING_DISCORD_CLIENT_SECRET_MESSAGE });
     return;
   }
 
@@ -915,8 +972,16 @@ router.get("/event-reminders/discord/callback", async (req, res) => {
     });
     await writeStore(store);
     res.redirect(`${returnTo}/event-reminders?discord=connected`);
-  } catch {
-    res.redirect(`${returnTo}/event-reminders?discord=error`);
+  } catch (error) {
+    const rawMessage = error instanceof Error ? error.message : "Discord connect failed.";
+    const message = [
+      MISSING_DISCORD_CLIENT_ID_MESSAGE,
+      MISSING_DISCORD_CLIENT_SECRET_MESSAGE,
+      REDIRECT_URI_MISMATCH_MESSAGE,
+    ].includes(rawMessage)
+      ? rawMessage
+      : "Discord connect failed.";
+    res.redirect(`${returnTo}/event-reminders?discord=error&message=${encodeURIComponent(message)}`);
   }
 });
 
@@ -929,12 +994,57 @@ router.get("/event-reminders/discord/status", async (req, res) => {
 
   const store = readStore();
   const connection = getDiscordConnection(store, clientId);
+  const health = getDiscordHealth();
   res.json({
     connected: Boolean(connection),
     username: connection?.username || "",
     lastError: connection?.lastDmError || "",
-    oauthConfigured: Boolean(process.env.DISCORD_CLIENT_ID?.trim() && process.env.DISCORD_CLIENT_SECRET?.trim()),
+    oauthConfigured: health.oauthReady,
+    missingErrors: health.missingErrors,
+    config: {
+      botTokenConfigured: health.botTokenConfigured,
+      clientIdConfigured: health.clientIdConfigured,
+      clientSecretConfigured: health.clientSecretConfigured,
+      redirectUriConfigured: health.redirectUriConfigured,
+      oauthStateSecretConfigured: health.oauthStateSecretConfigured,
+    },
   });
+});
+
+router.post("/event-reminders/discord/test", async (req, res) => {
+  const clientId = String(req.body?.clientId || "").trim();
+  if (!clientId) {
+    res.status(400).json({ error: "clientId is required." });
+    return;
+  }
+
+  if (!process.env.DISCORD_BOT_TOKEN?.trim()) {
+    res.status(503).json({ error: MISSING_DISCORD_BOT_TOKEN_MESSAGE });
+    return;
+  }
+
+  const store = readStore();
+  const connection = getDiscordConnection(store, clientId);
+  if (!connection) {
+    res.status(400).json({ error: "Connect Discord first before Discord test." });
+    return;
+  }
+
+  try {
+    await sendDiscordReminder(
+      connection.userId,
+      "KA Events Discord test",
+      "Discord DM delivery is working.",
+      "discord-test",
+    );
+    updateDiscordDmError(store, clientId, undefined);
+    await writeStore(store);
+    res.json({ ok: true });
+  } catch {
+    updateDiscordDmError(store, clientId, DISCORD_DM_FAILURE_MESSAGE);
+    await writeStore(store);
+    res.status(502).json({ error: DISCORD_DM_FAILURE_MESSAGE });
+  }
 });
 
 router.post("/event-reminders/discord/disconnect", async (req, res) => {
@@ -995,7 +1105,7 @@ router.post("/event-reminders/subscriptions", async (req, res) => {
   }
   if (channels.discord) {
     if (!process.env.DISCORD_BOT_TOKEN?.trim()) {
-      res.status(503).json({ error: "Discord channel is not configured on the server." });
+      res.status(503).json({ error: MISSING_DISCORD_BOT_TOKEN_MESSAGE });
       return;
     }
     if (!isDiscordConnected(store, clientId)) {
@@ -1065,7 +1175,7 @@ router.post("/event-reminders/test", async (req, res) => {
     return;
   }
   if (channels.discord && !process.env.DISCORD_BOT_TOKEN?.trim()) {
-    res.status(503).json({ error: "Discord channel is not configured on the server." });
+    res.status(503).json({ error: MISSING_DISCORD_BOT_TOKEN_MESSAGE });
     return;
   }
   if (channels.discord) {

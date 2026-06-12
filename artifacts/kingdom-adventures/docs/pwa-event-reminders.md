@@ -31,9 +31,11 @@ EVENT_REMINDER_PUBLIC_BASE_URL=https://kingdom-adventures-community-tools.vercel
 DISCORD_BOT_TOKEN=
 DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
-DISCORD_REDIRECT_URI=
+DISCORD_REDIRECT_URI=https://<your-render-api-host>/ka-api/ka/event-reminders/discord/callback
 DISCORD_OAUTH_STATE_SECRET=
 ```
+
+Important: `DISCORD_REDIRECT_URI` must point to the backend API callback on your Render service. Do not set it to the Vercel frontend URL.
 
 If `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are missing, the API server will generate a server-side key pair in `data/event-reminder-vapid-keys.json`. This is enough for testing and simple hosting, but stable production secrets are better because existing browser subscriptions depend on the same public/private key pair staying available across deploys.
 
@@ -66,7 +68,7 @@ There is no daily Weekly Conquest reminder.
 
 The reminder app now supports channel selection per reminder setup:
 
-- App push (browser/web push)
+- Web Push (browser/web push)
 - Telegram (requires `TELEGRAM_BOT_TOKEN` and user chat ID)
 - Discord DM (requires Discord OAuth connection + `DISCORD_BOT_TOKEN`)
 

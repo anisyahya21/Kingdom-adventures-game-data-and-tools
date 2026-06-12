@@ -56,6 +56,14 @@ type DiscordStatus = {
   username: string;
   lastError: string;
   oauthConfigured: boolean;
+  missingErrors: string[];
+  config: {
+    botTokenConfigured: boolean;
+    clientIdConfigured: boolean;
+    clientSecretConfigured: boolean;
+    redirectUriConfigured: boolean;
+    oauthStateSecretConfigured: boolean;
+  };
 };
 
 const STORAGE_KEY = "kaStandaloneEventReminders";
@@ -367,9 +375,23 @@ export default function EventReminderAppPage() {
   const [expanded, setExpanded] = useState<"all" | "gacha">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [testBusy, setTestBusy] = useState(false);
+  const [discordTestBusy, setDiscordTestBusy] = useState(false);
   const [channels, setChannels] = useState<DeliveryChannels>(() => readDeliverySettings().channels);
   const [targets, setTargets] = useState<DeliveryTargets>(() => readDeliverySettings().targets);
-  const [discordStatus, setDiscordStatus] = useState<DiscordStatus>({ connected: false, username: "", lastError: "", oauthConfigured: false });
+  const [discordStatus, setDiscordStatus] = useState<DiscordStatus>({
+    connected: false,
+    username: "",
+    lastError: "",
+    oauthConfigured: false,
+    missingErrors: [],
+    config: {
+      botTokenConfigured: false,
+      clientIdConfigured: false,
+      clientSecretConfigured: false,
+      redirectUriConfigured: false,
+      oauthStateSecretConfigured: false,
+    },
+  });
 
   const syncDiscordStatus = useCallback(async () => {
     try {
@@ -408,15 +430,18 @@ export default function EventReminderAppPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const discord = params.get("discord");
+    const discordMessage = params.get("message");
     if (discord === "connected") {
       setMessage("Discord connected. You can now enable Discord DM delivery.");
       void syncDiscordStatus();
       params.delete("discord");
+      params.delete("message");
       const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
       window.history.replaceState({}, "", next);
     } else if (discord === "error") {
-      setMessage("Discord connect failed. Please try again.");
+      setMessage(discordMessage || "Discord connect failed. Please try again.");
       params.delete("discord");
+      params.delete("message");
       const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
       window.history.replaceState({}, "", next);
     }
@@ -506,6 +531,29 @@ export default function EventReminderAppPage() {
       await syncDiscordStatus();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not disconnect Discord.");
+    }
+  };
+
+  const sendDiscordTestDm = async () => {
+    setDiscordTestBusy(true);
+    setMessage("Sending Discord test DM...");
+    try {
+      const response = await fetch(apiUrl("/event-reminders/discord/test"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId }),
+      });
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(errorBody?.error || "Could not send Discord test DM.");
+      }
+      setMessage("Discord test DM sent.");
+      await syncDiscordStatus();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not send Discord test DM.");
+      await syncDiscordStatus();
+    } finally {
+      setDiscordTestBusy(false);
     }
   };
 
@@ -711,16 +759,37 @@ export default function EventReminderAppPage() {
                       Connected as {discordStatus.username || "Discord user"}
                       {discordStatus.lastError ? <div className="mt-1 text-amber-200">{discordStatus.lastError}</div> : null}
                     </div>
-                    <Button type="button" variant="outline" onClick={disconnectDiscord} className="border-white/20 bg-transparent text-slate-100 hover:bg-white/10">
-                      Disconnect
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" onClick={sendDiscordTestDm} disabled={discordTestBusy} className="bg-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-700">
+                        {discordTestBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+                        {discordTestBusy ? "Sending..." : "Send Discord test DM"}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={disconnectDiscord} className="border-white/20 bg-transparent text-slate-100 hover:bg-white/10">
+                        Disconnect
+                      </Button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between gap-2">
-                    <span>{discordStatus.oauthConfigured ? "Connect Discord to enable Discord DM reminders." : "Discord OAuth is not configured on the server yet."}</span>
-                    <Button type="button" onClick={connectDiscord} disabled={!discordStatus.oauthConfigured} className="bg-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-700">
-                      Connect Discord
-                    </Button>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{discordStatus.oauthConfigured ? "Connect Discord to enable Discord DM reminders." : "Discord OAuth is not configured on the server yet."}</span>
+                      <Button type="button" onClick={connectDiscord} disabled={!discordStatus.oauthConfigured} className="bg-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-700">
+                        Connect Discord
+                      </Button>
+                    </div>
+                    {discordStatus.missingErrors.length > 0 ? (
+                      <div className="space-y-1 text-amber-200">
+                        {discordStatus.missingErrors.map((item) => (
+                          <div key={item}>{item}</div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {!discordStatus.config.redirectUriConfigured ? (
+                      <div className="text-amber-200">Set DISCORD_REDIRECT_URI to the Render API callback URL.</div>
+                    ) : null}
+                    {!discordStatus.config.oauthStateSecretConfigured ? (
+                      <div className="text-amber-200">Set DISCORD_OAUTH_STATE_SECRET for stable OAuth state validation.</div>
+                    ) : null}
                   </div>
                 )}
               </div>
