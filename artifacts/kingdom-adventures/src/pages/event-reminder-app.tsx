@@ -652,6 +652,7 @@ export default function EventReminderAppPage() {
         body: JSON.stringify({
           pushSubscription: pushSubscriptionJson,
           clientId,
+          clientTimeZoneOffsetMinutes: new Date().getTimezoneOffset(),
           subscriptionId: option.id,
           title: option.title,
           offsetHours: option.offsetHours,

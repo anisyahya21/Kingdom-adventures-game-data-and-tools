@@ -90,6 +90,7 @@ type DiscordConnection = {
 type ReminderSubscription = {
   id: string;
   clientId: string;
+  clientTimeZoneOffsetMinutes?: number;
   endpoint?: string;
   pushSubscription?: PushSubscription;
   subscriptionId: string;
@@ -290,6 +291,12 @@ function normalizeOffset(value: unknown) {
   const parsed = Number.parseInt(String(value ?? "0"), 10);
   if (!Number.isFinite(parsed)) return 0;
   return Math.min(23, Math.max(-23, parsed));
+}
+
+function normalizeTimeZoneOffset(value: unknown) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed)) return undefined;
+  return Math.min(840, Math.max(-840, parsed));
 }
 
 function normalizeChannels(value: unknown): ReminderChannels {
@@ -532,6 +539,44 @@ function eventClockDateToLocalDate(date: Date, offset: number) {
   return new Date(date.getTime() - offset * HOUR_MS);
 }
 
+function isValidDayInMonth(year: number, month: number, day: number) {
+  const monthAnchor = new Date(Date.UTC(year, month, 1));
+  const candidate = new Date(Date.UTC(year, month, day));
+  return (
+    candidate.getUTCFullYear() === monthAnchor.getUTCFullYear()
+    && candidate.getUTCMonth() === monthAnchor.getUTCMonth()
+    && candidate.getUTCDate() === day
+  );
+}
+
+function eventClockDateToLocalDateForClient(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  offsetHours: number,
+  clientTimeZoneOffsetMinutes?: number,
+) {
+  if (clientTimeZoneOffsetMinutes === undefined) {
+    return eventClockDateToLocalDate(new Date(year, month, day, hour, 0, 0, 0), offsetHours);
+  }
+
+  const eventClockLocalMs = Date.UTC(year, month, day, hour, 0, 0, 0)
+    + clientTimeZoneOffsetMinutes * 60_000;
+  return new Date(eventClockLocalMs - offsetHours * HOUR_MS);
+}
+
+function eventClockNowYearMonth(now: Date, offsetHours: number, clientTimeZoneOffsetMinutes?: number) {
+  if (clientTimeZoneOffsetMinutes === undefined) {
+    const adjusted = new Date(now.getTime() + offsetHours * HOUR_MS);
+    return { year: adjusted.getFullYear(), month: adjusted.getMonth() };
+  }
+
+  const adjustedMs = now.getTime() + offsetHours * HOUR_MS - clientTimeZoneOffsetMinutes * 60_000;
+  const adjusted = new Date(adjustedMs);
+  return { year: adjusted.getUTCFullYear(), month: adjusted.getUTCMonth() };
+}
+
 function gachaStartForYear(event: GachaEvent, year: number, offset: number) {
   return eventClockDateToLocalDate(new Date(year, event.startMonth - 1, event.startDay, 0, 0, 0, 0), offset);
 }
@@ -546,15 +591,22 @@ function nextGachaStart(event: GachaEvent, now: Date, offset: number) {
 
 function wairoNotificationTimes(subscription: ReminderSubscription, now: Date) {
   const offset = subscription.offsetHours;
-  const eventClockNow = new Date(now.getTime() + offset * HOUR_MS);
+  const clientTimeZoneOffsetMinutes = subscription.clientTimeZoneOffsetMinutes;
+  const eventClockNow = eventClockNowYearMonth(now, offset, clientTimeZoneOffsetMinutes);
   const candidates: Array<{ kind: string; at: Date }> = [];
   for (let monthOffset = -1; monthOffset <= 2; monthOffset += 1) {
-    const year = eventClockNow.getFullYear();
-    const month = eventClockNow.getMonth() + monthOffset;
+    const year = eventClockNow.year;
+    const month = eventClockNow.month + monthOffset;
     for (const entry of WAIRO_DUNGEON_SCHEDULE) {
-      const eventClockStart = new Date(year, month, entry.day, entry.hour, 0, 0, 0);
-      if (eventClockStart.getDate() !== entry.day) continue;
-      const startAt = eventClockDateToLocalDate(eventClockStart, offset);
+      if (!isValidDayInMonth(year, month, entry.day)) continue;
+      const startAt = eventClockDateToLocalDateForClient(
+        year,
+        month,
+        entry.day,
+        entry.hour,
+        offset,
+        clientTimeZoneOffsetMinutes,
+      );
       candidates.push({ kind: "start", at: startAt });
       if (subscription.mode === "one-hour-and-start") {
         candidates.push({ kind: "one-hour", at: new Date(startAt.getTime() - HOUR_MS) });
@@ -1160,6 +1212,7 @@ router.post("/event-reminders/subscriptions", async (req, res) => {
   const next: ReminderSubscription = {
     id,
     clientId,
+    clientTimeZoneOffsetMinutes: normalizeTimeZoneOffset(req.body?.clientTimeZoneOffsetMinutes),
     endpoint: isPushSubscription(pushSubscription) ? pushSubscription.endpoint : undefined,
     pushSubscription: isPushSubscription(pushSubscription) ? pushSubscription : undefined,
     subscriptionId,
