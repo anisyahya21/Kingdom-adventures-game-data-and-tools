@@ -853,6 +853,7 @@ export default function EventReminderAppPage() {
               <div className="rounded-xl bg-black/20 px-3 py-2 text-xs text-slate-300">
                 {discordStatus.connected ? (
                   <div className="space-y-2">
+                    <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 1: Join Server</div>
                     <div className="flex items-center justify-between gap-2">
                       <a
                         href={DISCORD_SERVER_INVITE_URL}
@@ -863,12 +864,14 @@ export default function EventReminderAppPage() {
                         Join KA Discord server
                       </a>
                     </div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 2: Connected</div>
                     <div className="flex items-center justify-between gap-2">
                     <div>
                       Connected as {discordStatus.username || "Discord user"}
                       {discordStatus.lastError ? <div className="mt-1 text-amber-200">{discordStatus.lastError}</div> : null}
                     </div>
                     <div className="flex items-center gap-2">
+                      <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 3:</div>
                       <Button type="button" onClick={sendDiscordTestDm} disabled={discordTestBusy} className="bg-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-700">
                         {discordTestBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
                         {discordTestBusy ? "Sending..." : "Send Discord test DM"}
@@ -881,12 +884,7 @@ export default function EventReminderAppPage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span>{discordStatus.oauthConfigured ? "Connect Discord to enable Discord DM reminders." : "Discord OAuth is not configured on the server yet."}</span>
-                      <Button type="button" onClick={connectDiscord} disabled={!discordStatus.oauthConfigured} className="bg-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-700">
-                        Connect Discord
-                      </Button>
-                    </div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 1: Join Server</div>
                     <div className="flex items-center justify-between gap-2">
                       <span>Join the KA Discord server first so bot DMs can work.</span>
                       <a
@@ -898,6 +896,15 @@ export default function EventReminderAppPage() {
                         Join KA Discord server
                       </a>
                     </div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 2: Connect Discord</div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{discordStatus.oauthConfigured ? "Connect Discord to enable Discord DM reminders." : "Discord OAuth is not configured on the server yet."}</span>
+                      <Button type="button" onClick={connectDiscord} disabled={!discordStatus.oauthConfigured} className="bg-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-700">
+                        Connect Discord
+                      </Button>
+                    </div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 3: Send Test DM</div>
+                    <div className="text-slate-300">After connecting, tap Send Discord test DM.</div>
                     {discordStatus.missingErrors.length > 0 ? (
                       <div className="space-y-1 text-amber-200">
                         {discordStatus.missingErrors.map((item) => (
