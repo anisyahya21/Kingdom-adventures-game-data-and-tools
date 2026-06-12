@@ -1238,6 +1238,26 @@ router.post("/event-reminders/test", async (req, res) => {
   res.json({ ok: true, delaySeconds });
 });
 
+router.post("/event-reminders/telegram/test", async (req, res) => {
+  const chatId = String(req.body?.chatId || "").trim();
+  if (!chatId || !isValidTelegramChatId(chatId)) {
+    res.status(400).json({ error: "Telegram test requires a valid chat id." });
+    return;
+  }
+
+  if (!process.env.TELEGRAM_BOT_TOKEN?.trim()) {
+    res.status(503).json({ error: "Telegram channel is not configured on the server." });
+    return;
+  }
+
+  try {
+    await sendTelegramReminder(chatId, "KA Events Telegram test", "Telegram DM delivery is working.", "telegram-test");
+    res.json({ ok: true });
+  } catch {
+    res.status(502).json({ error: "Telegram send failed. Start the bot chat first, then retry." });
+  }
+});
+
 router.post("/event-reminders/send-due", async (req, res) => {
   const secret = process.env.EVENT_REMINDER_CRON_SECRET;
   if (secret && req.header("x-cron-secret") !== secret) {

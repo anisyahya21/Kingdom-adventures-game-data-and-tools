@@ -383,6 +383,7 @@ export default function EventReminderAppPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [testBusy, setTestBusy] = useState(false);
   const [discordTestBusy, setDiscordTestBusy] = useState(false);
+  const [telegramTestBusy, setTelegramTestBusy] = useState(false);
   const [channels, setChannels] = useState<DeliveryChannels>(() => readDeliverySettings().channels);
   const [targets, setTargets] = useState<DeliveryTargets>(() => readDeliverySettings().targets);
   const [telegramStatus, setTelegramStatus] = useState<TelegramStatus>({
@@ -583,6 +584,33 @@ export default function EventReminderAppPage() {
       await syncDiscordStatus();
     } finally {
       setDiscordTestBusy(false);
+    }
+  };
+
+  const sendTelegramTestDm = async () => {
+    const chatId = targets.telegramChatId.trim();
+    if (!chatId) {
+      setMessage("Telegram test requires a valid chat id.");
+      return;
+    }
+
+    setTelegramTestBusy(true);
+    setMessage("Sending Telegram test DM...");
+    try {
+      const response = await fetch(apiUrl("/event-reminders/telegram/test"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId }),
+      });
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(errorBody?.error || "Could not send Telegram test DM.");
+      }
+      setMessage("Telegram test DM sent.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not send Telegram test DM.");
+    } finally {
+      setTelegramTestBusy(false);
     }
   };
 
@@ -796,6 +824,15 @@ export default function EventReminderAppPage() {
                   >
                     Get my Telegram ID
                   </a>
+                  <Button
+                    type="button"
+                    onClick={sendTelegramTestDm}
+                    disabled={telegramTestBusy || !targets.telegramChatId.trim()}
+                    className="ml-2 bg-sky-500 text-white hover:bg-sky-500 disabled:bg-slate-700"
+                  >
+                    {telegramTestBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+                    {telegramTestBusy ? "Sending..." : "Send Telegram test DM"}
+                  </Button>
                   <input
                     value={targets.telegramChatId}
                     onChange={(event) => setTargets((current) => ({ ...current, telegramChatId: event.target.value }))}
