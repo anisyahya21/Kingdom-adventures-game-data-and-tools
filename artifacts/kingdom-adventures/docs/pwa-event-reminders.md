@@ -26,6 +26,8 @@ VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:you@example.com
 EVENT_REMINDER_CRON_SECRET=
+TELEGRAM_BOT_TOKEN=
+EVENT_REMINDER_PUBLIC_BASE_URL=https://kingdom-adventures-community-tools.vercel.app
 ```
 
 If `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are missing, the API server will generate a server-side key pair in `data/event-reminder-vapid-keys.json`. This is enough for testing and simple hosting, but stable production secrets are better because existing browser subscriptions depend on the same public/private key pair staying available across deploys.
@@ -54,6 +56,16 @@ The API server also runs an in-process due-check sweep every minute. This means 
 - Weekly Conquest reset notification
 
 There is no daily Weekly Conquest reminder.
+
+## Optional Delivery Channels
+
+The reminder app now supports channel selection per reminder setup:
+
+- App push (browser/web push)
+- Telegram (requires `TELEGRAM_BOT_TOKEN` and user chat ID)
+- Discord (requires user webhook URL)
+
+Users can enable one channel or multiple channels together.
 
 ## iPhone Testing
 

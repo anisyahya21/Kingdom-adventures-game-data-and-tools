@@ -8,9 +8,7 @@ import { useEventHourOffset } from "@/lib/event-time";
 import { getDeferredInstallPrompt, listenForInstallPrompt, promptInstall } from "@/lib/pwa";
 import {
   getBrowserPushStatus,
-  getCurrentBrowserPushSubscription,
   isIosDevice,
-  scheduleLocalTestNotification,
   subscribeBrowserPush,
   type BrowserPushStatus,
 } from "@/lib/web-push";
@@ -43,7 +41,20 @@ type SavedReminder = {
   savedAt: number;
 };
 
+type DeliveryChannels = {
+  push: boolean;
+  telegram: boolean;
+  discord: boolean;
+};
+
+type DeliveryTargets = {
+  telegramChatId: string;
+  discordWebhookUrl: string;
+};
+
 const STORAGE_KEY = "kaStandaloneEventReminders";
+const DELIVERY_SETTINGS_KEY = "kaReminderDeliverySettings";
+const CLIENT_ID_KEY = "kaReminderClientId";
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
@@ -58,6 +69,43 @@ function readSaved(): Record<string, SavedReminder> {
 
 function writeSaved(value: Record<string, SavedReminder>) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+}
+
+function readDeliverySettings(): { channels: DeliveryChannels; targets: DeliveryTargets } {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(DELIVERY_SETTINGS_KEY) || "{}") as {
+      channels?: Partial<DeliveryChannels>;
+      targets?: Partial<DeliveryTargets>;
+    };
+    return {
+      channels: {
+        push: Boolean(parsed.channels?.push ?? true),
+        telegram: Boolean(parsed.channels?.telegram ?? false),
+        discord: Boolean(parsed.channels?.discord ?? false),
+      },
+      targets: {
+        telegramChatId: String(parsed.targets?.telegramChatId || ""),
+        discordWebhookUrl: String(parsed.targets?.discordWebhookUrl || ""),
+      },
+    };
+  } catch {
+    return {
+      channels: { push: true, telegram: false, discord: false },
+      targets: { telegramChatId: "", discordWebhookUrl: "" },
+    };
+  }
+}
+
+function writeDeliverySettings(channels: DeliveryChannels, targets: DeliveryTargets) {
+  window.localStorage.setItem(DELIVERY_SETTINGS_KEY, JSON.stringify({ channels, targets }));
+}
+
+function getOrCreateClientId() {
+  const existing = window.localStorage.getItem(CLIENT_ID_KEY);
+  if (existing) return existing;
+  const id = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  window.localStorage.setItem(CLIENT_ID_KEY, id);
+  return id;
 }
 
 function formatCountdown(target: Date, now: Date) {
@@ -301,6 +349,7 @@ function ReminderRow({
 export default function EventReminderAppPage() {
   const [now, setNow] = useState(() => new Date());
   const [eventOffset] = useEventHourOffset();
+  const [clientId] = useState(() => getOrCreateClientId());
   const [status, setStatus] = useState<BrowserPushStatus | null>(null);
   const [message, setMessage] = useState("");
   const [showInstallHelp, setShowInstallHelp] = useState(() => new URLSearchParams(window.location.search).get("install") === "1");
@@ -313,6 +362,8 @@ export default function EventReminderAppPage() {
   const [expanded, setExpanded] = useState<"all" | "gacha">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [testBusy, setTestBusy] = useState(false);
+  const [channels, setChannels] = useState<DeliveryChannels>(() => readDeliverySettings().channels);
+  const [targets, setTargets] = useState<DeliveryTargets>(() => readDeliverySettings().targets);
 
   const refresh = useCallback(() => {
     setNow(new Date());
@@ -328,6 +379,10 @@ export default function EventReminderAppPage() {
   useEffect(() => {
     return listenForInstallPrompt(() => setInstallPromptAvailable(Boolean(getDeferredInstallPrompt())));
   }, []);
+
+  useEffect(() => {
+    writeDeliverySettings(channels, targets);
+  }, [channels, targets]);
 
   const options = useMemo(() => {
     const wairoOffset = customOffsets["wairo:all"] ?? saved["wairo:all"]?.offsetHours ?? eventOffset;
@@ -395,19 +450,26 @@ export default function EventReminderAppPage() {
       delete next[option.id];
       return next;
     });
-    setMessage(`Checking notification support for ${option.title}...`);
+    setMessage(`Saving reminder channels for ${option.title}...`);
     try {
-      const pushSubscription = await subscribeBrowserPush();
+      let pushSubscriptionJson: ReturnType<PushSubscription["toJSON"]> | null = null;
+      if (channels.push) {
+        const pushSubscription = await subscribeBrowserPush();
+        pushSubscriptionJson = pushSubscription.toJSON();
+      }
       const response = await fetch(apiUrl("/event-reminders/subscriptions"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pushSubscription: pushSubscription.toJSON(),
+          pushSubscription: pushSubscriptionJson,
+          clientId,
           subscriptionId: option.id,
           title: option.title,
           offsetHours: option.offsetHours,
           mode: option.mode,
           definition: option.definition,
+          channels,
+          targets,
         }),
       });
       if (!response.ok) {
@@ -430,14 +492,11 @@ export default function EventReminderAppPage() {
     setBusyId(option.id);
     setMessage(`Turning off ${option.title} reminders...`);
     try {
-      const pushSubscription = await getCurrentBrowserPushSubscription();
-      if (pushSubscription) {
-        await fetch(apiUrl("/event-reminders/subscriptions"), {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint: pushSubscription.endpoint, subscriptionId: option.id }),
-        });
-      }
+      await fetch(apiUrl("/event-reminders/subscriptions"), {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, subscriptionId: option.id }),
+      });
       setSaved((current) => {
         const next = { ...current };
         delete next[option.id];
@@ -458,13 +517,35 @@ export default function EventReminderAppPage() {
   };
 
   const needsIosInstall = isIosDevice() && status?.supported && !status.standalone;
-  const blockedReason = status && !status.supported ? status.supportReason : "";
+  const noChannelReason = !channels.push && !channels.telegram && !channels.discord ? "Select at least one delivery channel." : "";
+  const pushBlockedReason = channels.push && status && !status.supported ? status.supportReason : "";
+  const telegramTargetReason = channels.telegram && !targets.telegramChatId.trim() ? "Telegram enabled: add your Telegram chat ID." : "";
+  const discordTargetReason = channels.discord && !targets.discordWebhookUrl.trim() ? "Discord enabled: add your Discord webhook URL." : "";
+  const blockedReason = noChannelReason || pushBlockedReason || telegramTargetReason || discordTargetReason;
   const sendTestNotification = async () => {
     setTestBusy(true);
     setMessage("Scheduling a test notification for 5 seconds from now...");
     try {
-      await scheduleLocalTestNotification(5);
-      setMessage("Test notification scheduled. It should arrive in about 5 seconds.");
+      let pushSubscriptionJson: ReturnType<PushSubscription["toJSON"]> | null = null;
+      if (channels.push) {
+        const pushSubscription = await subscribeBrowserPush();
+        pushSubscriptionJson = pushSubscription.toJSON();
+      }
+      const response = await fetch(apiUrl("/event-reminders/test"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          delaySeconds: 5,
+          channels,
+          targets,
+          pushSubscription: pushSubscriptionJson,
+        }),
+      });
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(errorBody?.error || "Test could not be scheduled.");
+      }
+      setMessage("Test notification scheduled across selected channels. It should arrive in about 5 seconds.");
       await syncStatus();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not send a test notification.");
@@ -527,6 +608,41 @@ export default function EventReminderAppPage() {
           ) : null}
 
           {message ? <div className="rounded-2xl border border-white/10 bg-white/10 p-3 text-sm text-slate-100">{message}</div> : null}
+
+          <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-sky-300">Delivery Channels</div>
+            <div className="mt-3 space-y-2 text-sm">
+              <label className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-2">
+                <span>App push</span>
+                <Switch checked={channels.push} onCheckedChange={(checked) => setChannels((current) => ({ ...current, push: checked }))} />
+              </label>
+              <label className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-2">
+                <span>Telegram</span>
+                <Switch checked={channels.telegram} onCheckedChange={(checked) => setChannels((current) => ({ ...current, telegram: checked }))} />
+              </label>
+              {channels.telegram ? (
+                <input
+                  value={targets.telegramChatId}
+                  onChange={(event) => setTargets((current) => ({ ...current, telegramChatId: event.target.value }))}
+                  placeholder="Telegram chat ID (example: 123456789)"
+                  className="w-full rounded-xl bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+                />
+              ) : null}
+              <label className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-2">
+                <span>Discord</span>
+                <Switch checked={channels.discord} onCheckedChange={(checked) => setChannels((current) => ({ ...current, discord: checked }))} />
+              </label>
+              {channels.discord ? (
+                <input
+                  value={targets.discordWebhookUrl}
+                  onChange={(event) => setTargets((current) => ({ ...current, discordWebhookUrl: event.target.value }))}
+                  placeholder="Discord webhook URL"
+                  className="w-full rounded-xl bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+                />
+              ) : null}
+            </div>
+            <div className="mt-2 text-xs text-slate-500">Reminder channel settings are saved on this device and applied when you turn reminders on.</div>
+          </div>
 
           <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-300">Test mode</div>

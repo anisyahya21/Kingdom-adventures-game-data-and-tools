@@ -65,15 +65,29 @@ type ReminderDefinition =
   | { type: "wairo"; event?: { day: number; hour: number } }
   | { type: "weekly-conquest" };
 
+type ReminderChannels = {
+  push: boolean;
+  telegram: boolean;
+  discord: boolean;
+};
+
+type ReminderTargets = {
+  telegramChatId?: string;
+  discordWebhookUrl?: string;
+};
+
 type ReminderSubscription = {
   id: string;
-  endpoint: string;
-  pushSubscription: PushSubscription;
+  clientId: string;
+  endpoint?: string;
+  pushSubscription?: PushSubscription;
   subscriptionId: string;
   title: string;
   offsetHours: number;
   mode: ReminderMode;
   definition: ReminderDefinition;
+  channels: ReminderChannels;
+  targets: ReminderTargets;
   createdAt: number;
   updatedAt: number;
   sentKeys: string[];
@@ -243,6 +257,35 @@ function normalizeOffset(value: unknown) {
   return Math.min(23, Math.max(-23, parsed));
 }
 
+function normalizeChannels(value: unknown): ReminderChannels {
+  const parsed = (value || {}) as Partial<ReminderChannels>;
+  return {
+    push: Boolean(parsed.push),
+    telegram: Boolean(parsed.telegram),
+    discord: Boolean(parsed.discord),
+  };
+}
+
+function hasAnyChannel(channels: ReminderChannels) {
+  return channels.push || channels.telegram || channels.discord;
+}
+
+function normalizeTargets(value: unknown): ReminderTargets {
+  const parsed = (value || {}) as Partial<ReminderTargets>;
+  return {
+    telegramChatId: typeof parsed.telegramChatId === "string" ? parsed.telegramChatId.trim() : undefined,
+    discordWebhookUrl: typeof parsed.discordWebhookUrl === "string" ? parsed.discordWebhookUrl.trim() : undefined,
+  };
+}
+
+function isValidDiscordWebhook(url: string) {
+  return /^https:\/\/(?:canary\.)?discord\.com\/api\/webhooks\/[A-Za-z0-9_\-]+\/[A-Za-z0-9_\-]+$/i.test(url);
+}
+
+function isValidTelegramChatId(chatId: string) {
+  return /^-?\d{5,20}$/.test(chatId);
+}
+
 function isPushSubscription(value: unknown): value is PushSubscription {
   if (!value || typeof value !== "object") return false;
   const candidate = value as PushSubscription;
@@ -261,8 +304,8 @@ function isValidDefinition(value: unknown): value is ReminderDefinition {
   return false;
 }
 
-function subscriptionHash(endpoint: string, subscriptionId: string) {
-  return crypto.createHash("sha256").update(`${endpoint}:${subscriptionId}`).digest("hex");
+function subscriptionHash(clientId: string, subscriptionId: string) {
+  return crypto.createHash("sha256").update(`${clientId}:${subscriptionId}`).digest("hex");
 }
 
 async function configureWebPush() {
@@ -448,17 +491,89 @@ function notificationTimes(subscription: ReminderSubscription, now: Date) {
 async function sendReminder(subscription: ReminderSubscription, kind: string, scheduledAt: Date) {
   const oneHour = kind === "one-hour";
   const visual = notificationVisualFor(subscription, oneHour);
-  const payload = JSON.stringify({
-    title: visual.title,
-    body: visual.body,
-    tag: subscription.subscriptionId,
-    url: `/event-reminders?focus=${encodeURIComponent(subscription.subscriptionId)}`,
-    scheduledAt: scheduledAt.toISOString(),
-    icon: visual.icon,
-    badge: visual.badge,
-    image: visual.image,
+  let delivered = 0;
+  let failed = 0;
+
+  if (subscription.channels.push && subscription.pushSubscription) {
+    const payload = JSON.stringify({
+      title: visual.title,
+      body: visual.body,
+      tag: subscription.subscriptionId,
+      url: `/event-reminders?focus=${encodeURIComponent(subscription.subscriptionId)}`,
+      scheduledAt: scheduledAt.toISOString(),
+      icon: visual.icon,
+      badge: visual.badge,
+      image: visual.image,
+    });
+    try {
+      if (!(await configureWebPush())) {
+        throw new Error("Web Push VAPID keys are not configured.");
+      }
+      await webpush.sendNotification(subscription.pushSubscription, payload);
+      delivered += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  if (subscription.channels.telegram && subscription.targets.telegramChatId) {
+    try {
+      await sendTelegramReminder(subscription.targets.telegramChatId, visual.title, visual.body, subscription.subscriptionId);
+      delivered += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  if (subscription.channels.discord && subscription.targets.discordWebhookUrl) {
+    try {
+      await sendDiscordReminder(subscription.targets.discordWebhookUrl, visual.title, visual.body, subscription.subscriptionId);
+      delivered += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  return { delivered, failed };
+}
+
+async function sendTelegramReminder(chatId: string, title: string, body: string, subscriptionId: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
+  const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: `*${title}*\n${body}\n\n#${subscriptionId.replace(/[^a-zA-Z0-9_:-]/g, "_")}`,
+      parse_mode: "Markdown",
+      disable_web_page_preview: true,
+    }),
   });
-  await webpush.sendNotification(subscription.pushSubscription, payload);
+  if (!response.ok) {
+    throw new Error(`Telegram send failed (${response.status})`);
+  }
+}
+
+async function sendDiscordReminder(webhookUrl: string, title: string, body: string, subscriptionId: string) {
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content: `**${title}**\n${body}`,
+      embeds: [
+        {
+          title,
+          description: body,
+          color: 0x22c55e,
+          footer: { text: `Reminder ${subscriptionId}` },
+        },
+      ],
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Discord send failed (${response.status})`);
+  }
 }
 
 function notificationVisualFor(subscription: ReminderSubscription, oneHour: boolean) {
@@ -529,12 +644,13 @@ async function sendDueReminders(now: Date, lookAheadMs: number) {
 
     for (const item of due) {
       const key = `${item.kind}:${item.at.toISOString()}`;
-      try {
-        await sendReminder(subscription, item.kind, item.at);
+      const result = await sendReminder(subscription, item.kind, item.at);
+      if (result.delivered > 0) {
         subscription.sentKeys = [...subscription.sentKeys.slice(-25), key];
-        sent += 1;
-      } catch {
-        failed += 1;
+        sent += result.delivered;
+      }
+      if (result.failed > 0) {
+        failed += result.failed;
       }
     }
   }
@@ -547,8 +663,7 @@ async function runAutoDueSweep() {
   if (autoSchedulerBusy) return;
   autoSchedulerBusy = true;
   try {
-    const configured = await configureWebPush();
-    if (!configured) return;
+    await configureWebPush();
     const result = await sendDueReminders(new Date(), 60_000);
     if (result.sent || result.failed) {
       console.info("event-reminders: auto sweep", result);
@@ -576,29 +691,59 @@ router.get("/event-reminders/config", async (_req, res) => {
 
 router.post("/event-reminders/subscriptions", async (req, res) => {
   const pushSubscription = req.body?.pushSubscription;
+  const clientId = String(req.body?.clientId || "").trim();
   const subscriptionId = String(req.body?.subscriptionId || "");
   const title = String(req.body?.title || "");
   const mode = String(req.body?.mode || "start") as ReminderMode;
   const definition = req.body?.definition;
+  const channels = normalizeChannels(req.body?.channels || { push: true });
+  const targets = normalizeTargets(req.body?.targets);
 
-  if (!isPushSubscription(pushSubscription) || !subscriptionId || !title || !["start", "one-hour-and-start"].includes(mode) || !isValidDefinition(definition)) {
+  if (!clientId || !subscriptionId || !title || !["start", "one-hour-and-start"].includes(mode) || !isValidDefinition(definition)) {
     res.status(400).json({ error: "Invalid reminder subscription payload." });
     return;
   }
+  if (!hasAnyChannel(channels)) {
+    res.status(400).json({ error: "Select at least one notification channel." });
+    return;
+  }
+  if (channels.push && !isPushSubscription(pushSubscription)) {
+    res.status(400).json({ error: "Push channel requires a browser push subscription." });
+    return;
+  }
+  if (channels.telegram) {
+    if (!targets.telegramChatId || !isValidTelegramChatId(targets.telegramChatId)) {
+      res.status(400).json({ error: "Telegram channel requires a valid chat id." });
+      return;
+    }
+    if (!process.env.TELEGRAM_BOT_TOKEN) {
+      res.status(503).json({ error: "Telegram channel is not configured on the server." });
+      return;
+    }
+  }
+  if (channels.discord) {
+    if (!targets.discordWebhookUrl || !isValidDiscordWebhook(targets.discordWebhookUrl)) {
+      res.status(400).json({ error: "Discord channel requires a valid Discord webhook URL." });
+      return;
+    }
+  }
 
   const store = readStore();
-  const id = subscriptionHash(pushSubscription.endpoint, subscriptionId);
+  const id = subscriptionHash(clientId, subscriptionId);
   const now = Date.now();
   const existing = store.subscriptions.find((subscription) => subscription.id === id);
   const next: ReminderSubscription = {
     id,
-    endpoint: pushSubscription.endpoint,
-    pushSubscription,
+    clientId,
+    endpoint: isPushSubscription(pushSubscription) ? pushSubscription.endpoint : undefined,
+    pushSubscription: isPushSubscription(pushSubscription) ? pushSubscription : undefined,
     subscriptionId,
     title,
     offsetHours: normalizeOffset(req.body?.offsetHours),
     mode,
     definition,
+    channels,
+    targets,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
     sentKeys: existing?.sentKeys ?? [],
@@ -610,45 +755,67 @@ router.post("/event-reminders/subscriptions", async (req, res) => {
 });
 
 router.delete("/event-reminders/subscriptions", async (req, res) => {
-  const endpoint = String(req.body?.endpoint || "");
+  const clientId = String(req.body?.clientId || "").trim();
   const subscriptionId = String(req.body?.subscriptionId || "");
-  if (!endpoint || !subscriptionId) {
-    res.status(400).json({ error: "Endpoint and subscriptionId are required." });
+  if (!clientId || !subscriptionId) {
+    res.status(400).json({ error: "clientId and subscriptionId are required." });
     return;
   }
   const store = readStore();
-  store.subscriptions = store.subscriptions.filter((subscription) => subscription.id !== subscriptionHash(endpoint, subscriptionId));
+  store.subscriptions = store.subscriptions.filter((subscription) => subscription.id !== subscriptionHash(clientId, subscriptionId));
   await writeStore(store);
   res.json({ ok: true });
 });
 
 router.post("/event-reminders/test", async (req, res) => {
   const pushSubscription = req.body?.pushSubscription;
+  const channels = normalizeChannels(req.body?.channels || { push: true });
+  const targets = normalizeTargets(req.body?.targets);
   const delaySeconds = Math.max(3, Math.min(30, Number(req.body?.delaySeconds || 5)));
-  if (!isPushSubscription(pushSubscription)) {
-    res.status(400).json({ error: "A browser push subscription is required." });
+  if (!hasAnyChannel(channels)) {
+    res.status(400).json({ error: "Select at least one test channel." });
     return;
   }
-  if (!(await configureWebPush())) {
+  if (channels.push && !isPushSubscription(pushSubscription)) {
+    res.status(400).json({ error: "Push test requires a browser push subscription." });
+    return;
+  }
+  if (channels.telegram && (!targets.telegramChatId || !isValidTelegramChatId(targets.telegramChatId))) {
+    res.status(400).json({ error: "Telegram test requires a valid chat id." });
+    return;
+  }
+  if (channels.discord && (!targets.discordWebhookUrl || !isValidDiscordWebhook(targets.discordWebhookUrl))) {
+    res.status(400).json({ error: "Discord test requires a valid webhook URL." });
+    return;
+  }
+  if (channels.push && !(await configureWebPush())) {
     res.status(503).json({ error: "Web Push VAPID keys are not configured." });
     return;
   }
 
   setTimeout(async () => {
-    const payload = JSON.stringify({
-      title: "KA Events test",
-      body: "This is your test notification.",
-      tag: `ka-event-test-${Date.now()}`,
-      url: "/event-reminders",
-      scheduledAt: new Date().toISOString(),
-    });
+    const title = "KA Events test";
+    const body = "This is your test notification.";
+    const promises: Promise<unknown>[] = [];
 
-    try {
-      await webpush.sendNotification(pushSubscription, payload);
-    } catch {
-      // The caller already got the scheduling response; failed test sends are
-      // intentionally not retried from this endpoint.
+    if (channels.push && isPushSubscription(pushSubscription)) {
+      const payload = JSON.stringify({
+        title,
+        body,
+        tag: `ka-event-test-${Date.now()}`,
+        url: "/event-reminders",
+        scheduledAt: new Date().toISOString(),
+      });
+      promises.push(webpush.sendNotification(pushSubscription, payload));
     }
+    if (channels.telegram && targets.telegramChatId) {
+      promises.push(sendTelegramReminder(targets.telegramChatId, title, body, "test"));
+    }
+    if (channels.discord && targets.discordWebhookUrl) {
+      promises.push(sendDiscordReminder(targets.discordWebhookUrl, title, body, "test"));
+    }
+
+    await Promise.allSettled(promises);
   }, delaySeconds * 1000);
 
   res.json({ ok: true, delaySeconds });
@@ -658,10 +825,6 @@ router.post("/event-reminders/send-due", async (req, res) => {
   const secret = process.env.EVENT_REMINDER_CRON_SECRET;
   if (secret && req.header("x-cron-secret") !== secret) {
     res.status(401).json({ error: "Unauthorized." });
-    return;
-  }
-  if (!(await configureWebPush())) {
-    res.status(503).json({ error: "Web Push VAPID keys are not configured." });
     return;
   }
 
