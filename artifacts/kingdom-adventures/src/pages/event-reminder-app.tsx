@@ -58,6 +58,22 @@ type TelegramStatus = {
   idHelperUrl: string;
 };
 
+type ReminderSchedulePreview = {
+  subscriptionId: string;
+  title: string;
+  offsetHours: number;
+  mode: ReminderMode;
+  channels: DeliveryChannels;
+  next: Array<{ kind: string; at: string; inMinutes: number }>;
+};
+
+type ReminderScheduleResponse = {
+  now: string;
+  graceMinutes: number;
+  autoLookAheadMinutes: number;
+  reminders: ReminderSchedulePreview[];
+};
+
 type DiscordStatus = {
   connected: boolean;
   username: string;
@@ -385,6 +401,7 @@ export default function EventReminderAppPage() {
   const [testBusy, setTestBusy] = useState(false);
   const [discordTestBusy, setDiscordTestBusy] = useState(false);
   const [telegramTestBusy, setTelegramTestBusy] = useState(false);
+  const [scheduleCheckBusy, setScheduleCheckBusy] = useState(false);
   const [channels, setChannels] = useState<DeliveryChannels>(() => readDeliverySettings().channels);
   const [targets, setTargets] = useState<DeliveryTargets>(() => readDeliverySettings().targets);
   const [telegramStatus, setTelegramStatus] = useState<TelegramStatus>({
@@ -728,6 +745,30 @@ export default function EventReminderAppPage() {
     }
   };
 
+  const checkReminderScheduleNow = async () => {
+    setScheduleCheckBusy(true);
+    setMessage("Checking reminder schedule on server...");
+    try {
+      const response = await fetch(apiUrl(`/event-reminders/debug/next-due?clientId=${encodeURIComponent(clientId)}`));
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(errorBody?.error || "Could not load reminder schedule.");
+      }
+      const data = await response.json() as ReminderScheduleResponse;
+      const withNext = data.reminders.find((item) => item.next.length > 0);
+      if (!withNext) {
+        setMessage("Server has your reminders, but no upcoming due items were found right now.");
+        return;
+      }
+      const next = withNext.next[0];
+      setMessage(`Server next due: ${withNext.title} (${next.kind}) in ${next.inMinutes}m.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not check reminder schedule.");
+    } finally {
+      setScheduleCheckBusy(false);
+    }
+  };
+
   const installApp = async () => {
     const result = await promptInstall();
     setInstallPromptAvailable(Boolean(getDeferredInstallPrompt()));
@@ -932,6 +973,10 @@ export default function EventReminderAppPage() {
             <Button type="button" onClick={sendTestNotification} disabled={testBusy || Boolean(blockedReason)} className="mt-3 w-full bg-violet-500 text-white hover:bg-violet-500 disabled:bg-slate-700">
               {testBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
               {testBusy ? "Scheduling..." : "Send test notification in 5 seconds"}
+            </Button>
+            <Button type="button" onClick={checkReminderScheduleNow} disabled={scheduleCheckBusy} className="mt-2 w-full border border-white/20 bg-transparent text-slate-100 hover:bg-white/10 disabled:bg-slate-700" variant="outline">
+              {scheduleCheckBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock3 className="h-4 w-4" />}
+              {scheduleCheckBusy ? "Checking..." : "Check reminder schedule now"}
             </Button>
             {blockedReason ? <div className="mt-2 text-xs text-amber-200">{blockedReason}</div> : <div className="mt-2 text-xs text-slate-500">This tests the installed app notification permission without waiting for an event.</div>}
           </div>

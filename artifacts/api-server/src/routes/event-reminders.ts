@@ -13,6 +13,8 @@ const DB_STORE_KEY = "ka_event_reminder_subscriptions_v1";
 const DB_VAPID_KEY = "ka_event_reminder_vapid_v1";
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
+const DEFAULT_DUE_GRACE_MS = 60 * 60 * 1000;
+const DEFAULT_AUTO_LOOKAHEAD_MS = 15 * 60 * 1000;
 const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
 const WAIRO_DUNGEON_SCHEDULE = [
   { day: 1, hour: 9 }, { day: 1, hour: 13 }, { day: 1, hour: 18 },
@@ -584,6 +586,27 @@ function notificationTimes(subscription: ReminderSubscription, now: Date) {
   return times;
 }
 
+function dueGraceMs() {
+  const raw = Number(process.env.EVENT_REMINDER_DUE_GRACE_MS || DEFAULT_DUE_GRACE_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_DUE_GRACE_MS;
+}
+
+function autoLookAheadMs() {
+  const raw = Number(process.env.EVENT_REMINDER_AUTO_LOOKAHEAD_MS || DEFAULT_AUTO_LOOKAHEAD_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_AUTO_LOOKAHEAD_MS;
+}
+
+function nextNotificationPreview(subscription: ReminderSubscription, now: Date, limit = 3) {
+  return notificationTimes(subscription, now)
+    .filter(({ at }) => at.getTime() >= now.getTime() - dueGraceMs())
+    .slice(0, limit)
+    .map(({ kind, at }) => ({
+      kind,
+      at: at.toISOString(),
+      inMinutes: Math.round((at.getTime() - now.getTime()) / 60_000),
+    }));
+}
+
 async function sendReminder(store: Store, subscription: ReminderSubscription, kind: string, scheduledAt: Date) {
   const oneHour = kind === "one-hour";
   const visual = notificationVisualFor(subscription, oneHour);
@@ -759,12 +782,13 @@ async function sendDueReminders(now: Date, lookAheadMs: number) {
   const store = readStore();
   let sent = 0;
   let failed = 0;
+  const graceMs = dueGraceMs();
 
   for (const subscription of store.subscriptions) {
     const due = notificationTimes(subscription, now).filter(({ kind, at }) => {
       const diff = at.getTime() - now.getTime();
       const key = `${kind}:${at.toISOString()}`;
-      return diff >= -5 * 60_000 && diff <= lookAheadMs && !subscription.sentKeys.includes(key);
+      return diff >= -graceMs && diff <= lookAheadMs && !subscription.sentKeys.includes(key);
     });
 
     for (const item of due) {
@@ -789,7 +813,7 @@ async function runAutoDueSweep() {
   autoSchedulerBusy = true;
   try {
     await configureWebPush();
-    const result = await sendDueReminders(new Date(), 60_000);
+    const result = await sendDueReminders(new Date(), autoLookAheadMs());
     if (result.sent || result.failed) {
       console.info("event-reminders: auto sweep", result);
     }
@@ -1256,6 +1280,34 @@ router.post("/event-reminders/telegram/test", async (req, res) => {
   } catch {
     res.status(502).json({ error: "Telegram send failed. Start the bot chat first, then retry." });
   }
+});
+
+router.get("/event-reminders/debug/next-due", async (req, res) => {
+  const clientId = String(req.query?.clientId || "").trim();
+  if (!clientId) {
+    res.status(400).json({ error: "clientId is required." });
+    return;
+  }
+
+  const now = new Date();
+  const store = readStore();
+  const reminders = store.subscriptions
+    .filter((subscription) => subscription.clientId === clientId)
+    .map((subscription) => ({
+      subscriptionId: subscription.subscriptionId,
+      title: subscription.title,
+      offsetHours: subscription.offsetHours,
+      mode: subscription.mode,
+      channels: subscription.channels,
+      next: nextNotificationPreview(subscription, now, 3),
+    }));
+
+  res.json({
+    now: now.toISOString(),
+    graceMinutes: Math.round(dueGraceMs() / 60_000),
+    autoLookAheadMinutes: Math.round(autoLookAheadMs() / 60_000),
+    reminders,
+  });
 });
 
 router.post("/event-reminders/send-due", async (req, res) => {
