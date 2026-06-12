@@ -14,7 +14,7 @@ const DB_VAPID_KEY = "ka_event_reminder_vapid_v1";
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const DEFAULT_DUE_GRACE_MS = 60 * 60 * 1000;
-const DEFAULT_AUTO_LOOKAHEAD_MS = 15 * 60 * 1000;
+const DEFAULT_AUTO_LOOKAHEAD_MS = 60 * 1000;
 const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
 const WAIRO_DUNGEON_SCHEDULE = [
   { day: 1, hour: 9 }, { day: 1, hour: 13 }, { day: 1, hour: 18 },
