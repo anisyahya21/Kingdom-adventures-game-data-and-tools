@@ -447,14 +447,72 @@ function notificationTimes(subscription: ReminderSubscription, now: Date) {
 
 async function sendReminder(subscription: ReminderSubscription, kind: string, scheduledAt: Date) {
   const oneHour = kind === "one-hour";
+  const visual = notificationVisualFor(subscription, oneHour);
   const payload = JSON.stringify({
-    title: oneHour ? `${subscription.title} in 1 hour` : subscription.title,
-    body: oneHour ? "One-hour warning." : "Your event is starting.",
+    title: visual.title,
+    body: visual.body,
     tag: subscription.subscriptionId,
-    url: "/event-reminders",
+    url: `/event-reminders?focus=${encodeURIComponent(subscription.subscriptionId)}`,
     scheduledAt: scheduledAt.toISOString(),
+    icon: visual.icon,
+    badge: visual.badge,
+    image: visual.image,
   });
   await webpush.sendNotification(subscription.pushSubscription, payload);
+}
+
+function notificationVisualFor(subscription: ReminderSubscription, oneHour: boolean) {
+  const defaultIcon = "/pwa-icon.svg";
+  const type = subscription.definition.type;
+
+  if (type === "wairo") {
+    return {
+      title: oneHour ? "Wairo Dungeon in 1 hour" : "Wairo Dungeon spawn is live",
+      body: oneHour
+        ? "Prepare your team. Wairo Dungeon will spawn in one hour."
+        : "Wairo Dungeon just spawned.",
+      icon: "/website_icons/facilities_confirmed/mapchip_223_wairo_dungeon.png",
+      badge: defaultIcon,
+      image: "/website_icons/facilities_confirmed/mapchip_223_wairo_dungeon.png",
+    };
+  }
+
+  if (type === "weekly-conquest") {
+    return {
+      title: "Weekly Conquest reset",
+      body: "A new Weekly Conquest rotation is now available.",
+      icon: "/website_icons/facilities_confirmed/facility_168_weekly_conquest_bonus.png",
+      badge: defaultIcon,
+      image: "/website_icons/facilities_confirmed/facility_168_weekly_conquest_bonus.png",
+    };
+  }
+
+  if (type === "gacha") {
+    const event = subscription.definition.event;
+    const kindLabel = event.kind === "facilities" ? "Facility" : event.kind === "jobs" ? "Job" : event.kind === "weapons" ? "Weapon" : "Item";
+    const iconByKind: Record<string, string> = {
+      facilities: "/website_icons/facilities_confirmed/facility_174_job_center.png",
+      jobs: "/website_icons/attributes/attribute_2_grass.png",
+      weapons: "/website_icons/attributes/attribute_5_volcano.png",
+      items: "/website_icons/attributes/attribute_0_water.png",
+    };
+    const icon = iconByKind[event.kind] || defaultIcon;
+    return {
+      title: oneHour ? `${event.title} in 1 hour` : `${event.title} started`,
+      body: oneHour ? `${kindLabel} gacha opens in one hour.` : `${kindLabel} gacha is now active.`,
+      icon,
+      badge: defaultIcon,
+      image: icon,
+    };
+  }
+
+  return {
+    title: oneHour ? `${subscription.title} in 1 hour` : subscription.title,
+    body: oneHour ? "One-hour warning." : "Your event is starting.",
+    icon: defaultIcon,
+    badge: defaultIcon,
+    image: undefined as string | undefined,
+  };
 }
 
 async function sendDueReminders(now: Date, lookAheadMs: number) {

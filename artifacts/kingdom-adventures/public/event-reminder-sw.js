@@ -17,8 +17,9 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Kingdom Adventurers reminder";
   const options = {
     body: payload.body || "A subscribed event is ready.",
-    icon: "/pwa-icon.svg",
-    badge: "/pwa-icon.svg",
+    icon: payload.icon || "/pwa-icon.svg",
+    badge: payload.badge || "/pwa-icon.svg",
+    image: payload.image,
     tag: payload.tag || "ka-event-reminder",
     data: {
       url: payload.url || "/event-reminders",
