@@ -76,6 +76,7 @@ type DiscordStatus = {
 const STORAGE_KEY = "kaStandaloneEventReminders";
 const DELIVERY_SETTINGS_KEY = "kaReminderDeliverySettings";
 const CLIENT_ID_KEY = "kaReminderClientId";
+const DISCORD_SERVER_INVITE_URL = "https://discord.gg/MkAKNJzye5";
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
@@ -851,7 +852,18 @@ export default function EventReminderAppPage() {
               </label>
               <div className="rounded-xl bg-black/20 px-3 py-2 text-xs text-slate-300">
                 {discordStatus.connected ? (
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <a
+                        href={DISCORD_SERVER_INVITE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-100"
+                      >
+                        Join KA Discord server
+                      </a>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
                     <div>
                       Connected as {discordStatus.username || "Discord user"}
                       {discordStatus.lastError ? <div className="mt-1 text-amber-200">{discordStatus.lastError}</div> : null}
@@ -866,6 +878,7 @@ export default function EventReminderAppPage() {
                       </Button>
                     </div>
                   </div>
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -873,6 +886,17 @@ export default function EventReminderAppPage() {
                       <Button type="button" onClick={connectDiscord} disabled={!discordStatus.oauthConfigured} className="bg-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-700">
                         Connect Discord
                       </Button>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Join the KA Discord server first so bot DMs can work.</span>
+                      <a
+                        href={DISCORD_SERVER_INVITE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-100"
+                      >
+                        Join KA Discord server
+                      </a>
                     </div>
                     {discordStatus.missingErrors.length > 0 ? (
                       <div className="space-y-1 text-amber-200">
