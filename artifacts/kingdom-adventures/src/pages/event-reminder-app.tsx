@@ -804,7 +804,7 @@ export default function EventReminderAppPage() {
               </label>
               {channels.telegram ? (
                 <div className="space-y-2 rounded-xl bg-black/20 p-3">
-                  <div className="text-xs text-slate-300">Telegram is on. Open the bot chat, tap Start, then paste your chat ID below.</div>
+                  <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 1: Open KA bot and tap Start</div>
                   {telegramStatus.botUrl ? (
                     <a
                       href={telegramStatus.botUrl}
@@ -812,16 +812,17 @@ export default function EventReminderAppPage() {
                       rel="noreferrer"
                       className="inline-flex items-center rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white"
                     >
-                      Open Telegram bot
+                      Open KA Reminders bot
                     </a>
                   ) : (
                     <div className="text-xs text-amber-200">Set TELEGRAM_BOT_USERNAME on the server to enable one-tap Telegram bot open.</div>
                   )}
+                  <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 2: Get your Telegram ID and paste it</div>
                   <a
                     href={telegramStatus.idHelperUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="ml-2 inline-flex items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-100"
+                    className="inline-flex items-center rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-100"
                   >
                     Get my Telegram ID
                   </a>
@@ -829,11 +830,12 @@ export default function EventReminderAppPage() {
                     type="button"
                     onClick={sendTelegramTestDm}
                     disabled={telegramTestBusy || !targets.telegramChatId.trim()}
-                    className="ml-2 bg-sky-500 text-white hover:bg-sky-500 disabled:bg-slate-700"
+                    className="bg-sky-500 text-white hover:bg-sky-500 disabled:bg-slate-700"
                   >
                     {telegramTestBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
                     {telegramTestBusy ? "Sending..." : "Send Telegram test DM"}
                   </Button>
+                  <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 3: Send Telegram test DM</div>
                   <input
                     value={targets.telegramChatId}
                     onChange={(event) => setTargets((current) => ({ ...current, telegramChatId: event.target.value }))}
@@ -864,14 +866,13 @@ export default function EventReminderAppPage() {
                         Join KA Discord server
                       </a>
                     </div>
-                    <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 2: Connected</div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 2: Connected to Discord</div>
                     <div className="flex items-center justify-between gap-2">
                     <div>
                       Connected as {discordStatus.username || "Discord user"}
                       {discordStatus.lastError ? <div className="mt-1 text-amber-200">{discordStatus.lastError}</div> : null}
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 3:</div>
                       <Button type="button" onClick={sendDiscordTestDm} disabled={discordTestBusy} className="bg-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-700">
                         {discordTestBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
                         {discordTestBusy ? "Sending..." : "Send Discord test DM"}
@@ -881,6 +882,7 @@ export default function EventReminderAppPage() {
                       </Button>
                     </div>
                   </div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-400">Step 3: Send test DM</div>
                   </div>
                 ) : (
                   <div className="space-y-2">
