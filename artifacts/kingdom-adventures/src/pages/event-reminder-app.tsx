@@ -49,7 +49,13 @@ type DeliveryChannels = {
 
 type DeliveryTargets = {
   telegramChatId: string;
-  discordWebhookUrl: string;
+};
+
+type DiscordStatus = {
+  connected: boolean;
+  username: string;
+  lastError: string;
+  oauthConfigured: boolean;
 };
 
 const STORAGE_KEY = "kaStandaloneEventReminders";
@@ -85,13 +91,12 @@ function readDeliverySettings(): { channels: DeliveryChannels; targets: Delivery
       },
       targets: {
         telegramChatId: String(parsed.targets?.telegramChatId || ""),
-        discordWebhookUrl: String(parsed.targets?.discordWebhookUrl || ""),
       },
     };
   } catch {
     return {
       channels: { push: true, telegram: false, discord: false },
-      targets: { telegramChatId: "", discordWebhookUrl: "" },
+      targets: { telegramChatId: "" },
     };
   }
 }
@@ -364,11 +369,27 @@ export default function EventReminderAppPage() {
   const [testBusy, setTestBusy] = useState(false);
   const [channels, setChannels] = useState<DeliveryChannels>(() => readDeliverySettings().channels);
   const [targets, setTargets] = useState<DeliveryTargets>(() => readDeliverySettings().targets);
+  const [discordStatus, setDiscordStatus] = useState<DiscordStatus>({ connected: false, username: "", lastError: "", oauthConfigured: false });
+
+  const syncDiscordStatus = useCallback(async () => {
+    try {
+      const response = await fetch(apiUrl(`/event-reminders/discord/status?clientId=${encodeURIComponent(clientId)}`));
+      if (!response.ok) return;
+      const data = await response.json() as DiscordStatus;
+      setDiscordStatus(data);
+      if (!data.connected && channels.discord) {
+        setChannels((current) => ({ ...current, discord: false }));
+      }
+    } catch {
+      // Ignore network errors for status polling.
+    }
+  }, [channels.discord, clientId]);
 
   const refresh = useCallback(() => {
     setNow(new Date());
     getBrowserPushStatus().then(setStatus).catch(() => {});
-  }, []);
+    void syncDiscordStatus();
+  }, [syncDiscordStatus]);
 
   useEventRefresh(refresh, 180_000);
 
@@ -379,6 +400,27 @@ export default function EventReminderAppPage() {
   useEffect(() => {
     return listenForInstallPrompt(() => setInstallPromptAvailable(Boolean(getDeferredInstallPrompt())));
   }, []);
+
+  useEffect(() => {
+    void syncDiscordStatus();
+  }, [syncDiscordStatus]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const discord = params.get("discord");
+    if (discord === "connected") {
+      setMessage("Discord connected. You can now enable Discord DM delivery.");
+      void syncDiscordStatus();
+      params.delete("discord");
+      const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+      window.history.replaceState({}, "", next);
+    } else if (discord === "error") {
+      setMessage("Discord connect failed. Please try again.");
+      params.delete("discord");
+      const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+      window.history.replaceState({}, "", next);
+    }
+  }, [syncDiscordStatus]);
 
   useEffect(() => {
     writeDeliverySettings(channels, targets);
@@ -442,6 +484,30 @@ export default function EventReminderAppPage() {
   }, [customOffsets, eventOffset, expanded, now, saved, search, wairoTwoStep]);
 
   const syncStatus = async () => setStatus(await getBrowserPushStatus());
+
+  const connectDiscord = () => {
+    const connectUrl = apiUrl(`/event-reminders/discord/connect?clientId=${encodeURIComponent(clientId)}&returnTo=${encodeURIComponent(window.location.origin)}`);
+    window.location.href = connectUrl;
+  };
+
+  const disconnectDiscord = async () => {
+    try {
+      const response = await fetch(apiUrl("/event-reminders/discord/disconnect"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId }),
+      });
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(errorBody?.error || "Could not disconnect Discord.");
+      }
+      setChannels((current) => ({ ...current, discord: false }));
+      setMessage("Discord disconnected.");
+      await syncDiscordStatus();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not disconnect Discord.");
+    }
+  };
 
   const subscribe = async (option: ReminderOption) => {
     setBusyId(option.id);
@@ -520,7 +586,7 @@ export default function EventReminderAppPage() {
   const noChannelReason = !channels.push && !channels.telegram && !channels.discord ? "Select at least one delivery channel." : "";
   const pushBlockedReason = channels.push && status && !status.supported ? status.supportReason : "";
   const telegramTargetReason = channels.telegram && !targets.telegramChatId.trim() ? "Telegram enabled: add your Telegram chat ID." : "";
-  const discordTargetReason = channels.discord && !targets.discordWebhookUrl.trim() ? "Discord enabled: add your Discord webhook URL." : "";
+  const discordTargetReason = channels.discord && !discordStatus.connected ? "Discord DM requires Discord connection first." : "";
   const blockedReason = noChannelReason || pushBlockedReason || telegramTargetReason || discordTargetReason;
   const sendTestNotification = async () => {
     setTestBusy(true);
@@ -535,6 +601,7 @@ export default function EventReminderAppPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          clientId,
           delaySeconds: 5,
           channels,
           targets,
@@ -547,6 +614,7 @@ export default function EventReminderAppPage() {
       }
       setMessage("Test notification scheduled across selected channels. It should arrive in about 5 seconds.");
       await syncStatus();
+      await syncDiscordStatus();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not send a test notification.");
     } finally {
@@ -613,7 +681,7 @@ export default function EventReminderAppPage() {
             <div className="text-xs font-semibold uppercase tracking-wide text-sky-300">Delivery Channels</div>
             <div className="mt-3 space-y-2 text-sm">
               <label className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-2">
-                <span>App push</span>
+                <span>Web Push</span>
                 <Switch checked={channels.push} onCheckedChange={(checked) => setChannels((current) => ({ ...current, push: checked }))} />
               </label>
               <label className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-2">
@@ -630,16 +698,32 @@ export default function EventReminderAppPage() {
               ) : null}
               <label className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-2">
                 <span>Discord</span>
-                <Switch checked={channels.discord} onCheckedChange={(checked) => setChannels((current) => ({ ...current, discord: checked }))} />
-              </label>
-              {channels.discord ? (
-                <input
-                  value={targets.discordWebhookUrl}
-                  onChange={(event) => setTargets((current) => ({ ...current, discordWebhookUrl: event.target.value }))}
-                  placeholder="Discord webhook URL"
-                  className="w-full rounded-xl bg-black/30 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+                <Switch
+                  checked={channels.discord}
+                  disabled={!discordStatus.connected}
+                  onCheckedChange={(checked) => setChannels((current) => ({ ...current, discord: checked }))}
                 />
-              ) : null}
+              </label>
+              <div className="rounded-xl bg-black/20 px-3 py-2 text-xs text-slate-300">
+                {discordStatus.connected ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      Connected as {discordStatus.username || "Discord user"}
+                      {discordStatus.lastError ? <div className="mt-1 text-amber-200">{discordStatus.lastError}</div> : null}
+                    </div>
+                    <Button type="button" variant="outline" onClick={disconnectDiscord} className="border-white/20 bg-transparent text-slate-100 hover:bg-white/10">
+                      Disconnect
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{discordStatus.oauthConfigured ? "Connect Discord to enable Discord DM reminders." : "Discord OAuth is not configured on the server yet."}</span>
+                    <Button type="button" onClick={connectDiscord} disabled={!discordStatus.oauthConfigured} className="bg-indigo-500 text-white hover:bg-indigo-500 disabled:bg-slate-700">
+                      Connect Discord
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="mt-2 text-xs text-slate-500">Reminder channel settings are saved on this device and applied when you turn reminders on.</div>
           </div>

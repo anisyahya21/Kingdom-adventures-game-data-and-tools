@@ -73,7 +73,16 @@ type ReminderChannels = {
 
 type ReminderTargets = {
   telegramChatId?: string;
-  discordWebhookUrl?: string;
+};
+
+type DiscordConnection = {
+  clientId: string;
+  userId: string;
+  username: string;
+  connectedAt: number;
+  updatedAt: number;
+  lastDmError?: string;
+  lastDmErrorAt?: number;
 };
 
 type ReminderSubscription = {
@@ -95,6 +104,7 @@ type ReminderSubscription = {
 
 type Store = {
   subscriptions: ReminderSubscription[];
+  discordConnections: DiscordConnection[];
 };
 
 type VapidKeyPair = {
@@ -111,6 +121,9 @@ let cachedVapidKeys: VapidKeyPair | null = null;
 let autoSchedulerStarted = false;
 let autoSchedulerBusy = false;
 
+const DISCORD_DM_FAILURE_MESSAGE = "Discord DM failed — check privacy settings or shared server access.";
+const OAUTH_STATE_SECRET = process.env.DISCORD_OAUTH_STATE_SECRET || crypto.randomBytes(32).toString("hex");
+
 function ensureDataDir() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
@@ -124,6 +137,7 @@ function sanitizeStoreCandidate(value: unknown): Store | null {
   const parsed = value as Partial<Store>;
   return {
     subscriptions: Array.isArray(parsed.subscriptions) ? parsed.subscriptions : [],
+    discordConnections: Array.isArray(parsed.discordConnections) ? parsed.discordConnections : [],
   };
 }
 
@@ -136,9 +150,13 @@ function sanitizeVapidCandidate(value: unknown): VapidKeyPair | null {
 
 function readStoreFromFile(): Store {
   try {
-    return JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
+    const parsed = JSON.parse(fs.readFileSync(STORE_FILE, "utf8")) as Partial<Store>;
+    return {
+      subscriptions: Array.isArray(parsed.subscriptions) ? parsed.subscriptions : [],
+      discordConnections: Array.isArray(parsed.discordConnections) ? parsed.discordConnections : [],
+    };
   } catch {
-    return { subscriptions: [] };
+    return { subscriptions: [], discordConnections: [] };
   }
 }
 
@@ -274,12 +292,75 @@ function normalizeTargets(value: unknown): ReminderTargets {
   const parsed = (value || {}) as Partial<ReminderTargets>;
   return {
     telegramChatId: typeof parsed.telegramChatId === "string" ? parsed.telegramChatId.trim() : undefined,
-    discordWebhookUrl: typeof parsed.discordWebhookUrl === "string" ? parsed.discordWebhookUrl.trim() : undefined,
   };
 }
 
-function isValidDiscordWebhook(url: string) {
-  return /^https:\/\/(?:canary\.)?discord\.com\/api\/webhooks\/[A-Za-z0-9_\-]+\/[A-Za-z0-9_\-]+$/i.test(url);
+function isDiscordConnected(store: Store, clientId: string) {
+  return Boolean(store.discordConnections.find((connection) => connection.clientId === clientId));
+}
+
+function getDiscordConnection(store: Store, clientId: string) {
+  return store.discordConnections.find((connection) => connection.clientId === clientId);
+}
+
+function upsertDiscordConnection(store: Store, next: DiscordConnection) {
+  store.discordConnections = [
+    ...store.discordConnections.filter((connection) => connection.clientId !== next.clientId),
+    next,
+  ];
+}
+
+function clearDiscordConnection(store: Store, clientId: string) {
+  store.discordConnections = store.discordConnections.filter((connection) => connection.clientId !== clientId);
+}
+
+function updateDiscordDmError(store: Store, clientId: string, error?: string) {
+  const existing = getDiscordConnection(store, clientId);
+  if (!existing) return;
+  const next: DiscordConnection = {
+    ...existing,
+    updatedAt: Date.now(),
+    lastDmError: error,
+    lastDmErrorAt: error ? Date.now() : undefined,
+  };
+  upsertDiscordConnection(store, next);
+}
+
+function base64UrlEncode(value: string) {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function base64UrlDecode(value: string) {
+  return Buffer.from(value, "base64url").toString("utf8");
+}
+
+function signDiscordState(payload: string) {
+  return crypto.createHmac("sha256", OAUTH_STATE_SECRET).update(payload).digest("hex");
+}
+
+function createDiscordState(clientId: string, returnTo: string) {
+  const payload = JSON.stringify({
+    clientId,
+    returnTo,
+    exp: Date.now() + 10 * 60 * 1000,
+  });
+  const encoded = base64UrlEncode(payload);
+  const signature = signDiscordState(encoded);
+  return `${encoded}.${signature}`;
+}
+
+function parseDiscordState(state: string): { clientId: string; returnTo: string } | null {
+  const [encoded, signature] = state.split(".");
+  if (!encoded || !signature) return null;
+  const expected = signDiscordState(encoded);
+  if (expected !== signature) return null;
+  try {
+    const parsed = JSON.parse(base64UrlDecode(encoded)) as { clientId?: string; returnTo?: string; exp?: number };
+    if (!parsed.clientId || !parsed.returnTo || !parsed.exp || parsed.exp < Date.now()) return null;
+    return { clientId: parsed.clientId, returnTo: parsed.returnTo };
+  } catch {
+    return null;
+  }
 }
 
 function isValidTelegramChatId(chatId: string) {
@@ -488,7 +569,7 @@ function notificationTimes(subscription: ReminderSubscription, now: Date) {
   return times;
 }
 
-async function sendReminder(subscription: ReminderSubscription, kind: string, scheduledAt: Date) {
+async function sendReminder(store: Store, subscription: ReminderSubscription, kind: string, scheduledAt: Date) {
   const oneHour = kind === "one-hour";
   const visual = notificationVisualFor(subscription, oneHour);
   let delivered = 0;
@@ -525,11 +606,17 @@ async function sendReminder(subscription: ReminderSubscription, kind: string, sc
     }
   }
 
-  if (subscription.channels.discord && subscription.targets.discordWebhookUrl) {
+  if (subscription.channels.discord) {
     try {
-      await sendDiscordReminder(subscription.targets.discordWebhookUrl, visual.title, visual.body, subscription.subscriptionId);
+      const connection = getDiscordConnection(store, subscription.clientId);
+      if (!connection) {
+        throw new Error("discord not connected");
+      }
+      await sendDiscordReminder(connection.userId, visual.title, visual.body, subscription.subscriptionId);
+      updateDiscordDmError(store, subscription.clientId, undefined);
       delivered += 1;
     } catch {
+      updateDiscordDmError(store, subscription.clientId, DISCORD_DM_FAILURE_MESSAGE);
       failed += 1;
     }
   }
@@ -555,10 +642,33 @@ async function sendTelegramReminder(chatId: string, title: string, body: string,
   }
 }
 
-async function sendDiscordReminder(webhookUrl: string, title: string, body: string, subscriptionId: string) {
-  const response = await fetch(webhookUrl, {
+async function sendDiscordReminder(discordUserId: string, title: string, body: string, subscriptionId: string) {
+  const botToken = process.env.DISCORD_BOT_TOKEN?.trim();
+  if (!botToken) throw new Error("DISCORD_BOT_TOKEN is not configured");
+
+  const dmChannelResponse = await fetch("https://discord.com/api/v10/users/@me/channels", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bot ${botToken}`,
+    },
+    body: JSON.stringify({ recipient_id: discordUserId }),
+  });
+  if (!dmChannelResponse.ok) {
+    throw new Error(`Discord DM channel open failed (${dmChannelResponse.status})`);
+  }
+
+  const dmChannel = await dmChannelResponse.json() as { id?: string };
+  if (!dmChannel.id) {
+    throw new Error("Discord DM channel id missing");
+  }
+
+  const response = await fetch(`https://discord.com/api/v10/channels/${encodeURIComponent(dmChannel.id)}/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bot ${botToken}`,
+    },
     body: JSON.stringify({
       content: `**${title}**\n${body}`,
       embeds: [
@@ -644,7 +754,7 @@ async function sendDueReminders(now: Date, lookAheadMs: number) {
 
     for (const item of due) {
       const key = `${item.kind}:${item.at.toISOString()}`;
-      const result = await sendReminder(subscription, item.kind, item.at);
+      const result = await sendReminder(store, subscription, item.kind, item.at);
       if (result.delivered > 0) {
         subscription.sentKeys = [...subscription.sentKeys.slice(-25), key];
         sent += result.delivered;
@@ -684,9 +794,170 @@ function startAutoDueScheduler() {
   }, 60_000);
 }
 
+function normalizeReturnTo(value: string | undefined) {
+  const fallback = (process.env.EVENT_REMINDER_PUBLIC_BASE_URL || "https://kingdom-adventures-community-tools.vercel.app").replace(/\/$/, "");
+  if (!value) return fallback;
+  try {
+    const parsed = new URL(value);
+    return parsed.origin;
+  } catch {
+    return fallback;
+  }
+}
+
+function discordRedirectUri() {
+  const configured = process.env.DISCORD_REDIRECT_URI?.trim();
+  if (configured) return configured;
+  const base = normalizeReturnTo(undefined);
+  return `${base}/ka-api/ka/event-reminders/discord/callback`;
+}
+
+async function exchangeDiscordOAuthCode(code: string) {
+  const clientId = process.env.DISCORD_CLIENT_ID?.trim();
+  const clientSecret = process.env.DISCORD_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) {
+    throw new Error("Discord OAuth is not configured.");
+  }
+
+  const tokenBody = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: discordRedirectUri(),
+  });
+
+  const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: tokenBody.toString(),
+  });
+
+  if (!tokenResponse.ok) {
+    throw new Error(`Discord OAuth token exchange failed (${tokenResponse.status})`);
+  }
+
+  const tokenData = await tokenResponse.json() as { access_token?: string };
+  if (!tokenData.access_token) {
+    throw new Error("Discord OAuth did not return an access token.");
+  }
+
+  const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
+  if (!userResponse.ok) {
+    throw new Error(`Discord user lookup failed (${userResponse.status})`);
+  }
+
+  const user = await userResponse.json() as { id?: string; username?: string; global_name?: string };
+  if (!user.id) {
+    throw new Error("Discord user id missing from OAuth profile.");
+  }
+
+  return {
+    userId: user.id,
+    username: user.global_name || user.username || "Discord user",
+  };
+}
+
 router.get("/event-reminders/config", async (_req, res) => {
   const keyPair = await getVapidKeys();
   res.json({ configured: Boolean(keyPair?.publicKey && keyPair.privateKey), publicKey: keyPair?.publicKey || "" });
+});
+
+router.get("/event-reminders/discord/connect", async (req, res) => {
+  const clientId = String(req.query?.clientId || "").trim();
+  if (!clientId) {
+    res.status(400).json({ error: "clientId is required." });
+    return;
+  }
+
+  const discordClientId = process.env.DISCORD_CLIENT_ID?.trim();
+  if (!discordClientId || !process.env.DISCORD_CLIENT_SECRET?.trim()) {
+    res.status(503).json({ error: "Discord OAuth is not configured on the server." });
+    return;
+  }
+
+  const returnTo = normalizeReturnTo(typeof req.query?.returnTo === "string" ? req.query.returnTo : undefined);
+  const state = createDiscordState(clientId, returnTo);
+  const url = new URL("https://discord.com/api/oauth2/authorize");
+  url.searchParams.set("client_id", discordClientId);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", "identify");
+  url.searchParams.set("state", state);
+  url.searchParams.set("redirect_uri", discordRedirectUri());
+
+  res.redirect(url.toString());
+});
+
+router.get("/event-reminders/discord/callback", async (req, res) => {
+  const code = String(req.query?.code || "").trim();
+  const state = String(req.query?.state || "").trim();
+  const parsedState = parseDiscordState(state);
+
+  const fallbackReturnTo = normalizeReturnTo(undefined);
+  const returnTo = parsedState?.returnTo || fallbackReturnTo;
+
+  if (!code || !parsedState) {
+    res.redirect(`${returnTo}/event-reminders?discord=error`);
+    return;
+  }
+
+  try {
+    const identity = await exchangeDiscordOAuthCode(code);
+    const store = readStore();
+    upsertDiscordConnection(store, {
+      clientId: parsedState.clientId,
+      userId: identity.userId,
+      username: identity.username,
+      connectedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    await writeStore(store);
+    res.redirect(`${returnTo}/event-reminders?discord=connected`);
+  } catch {
+    res.redirect(`${returnTo}/event-reminders?discord=error`);
+  }
+});
+
+router.get("/event-reminders/discord/status", async (req, res) => {
+  const clientId = String(req.query?.clientId || "").trim();
+  if (!clientId) {
+    res.status(400).json({ error: "clientId is required." });
+    return;
+  }
+
+  const store = readStore();
+  const connection = getDiscordConnection(store, clientId);
+  res.json({
+    connected: Boolean(connection),
+    username: connection?.username || "",
+    lastError: connection?.lastDmError || "",
+    oauthConfigured: Boolean(process.env.DISCORD_CLIENT_ID?.trim() && process.env.DISCORD_CLIENT_SECRET?.trim()),
+  });
+});
+
+router.post("/event-reminders/discord/disconnect", async (req, res) => {
+  const clientId = String(req.body?.clientId || "").trim();
+  if (!clientId) {
+    res.status(400).json({ error: "clientId is required." });
+    return;
+  }
+
+  const store = readStore();
+  clearDiscordConnection(store, clientId);
+  store.subscriptions = store.subscriptions.map((subscription) => {
+    if (subscription.clientId !== clientId) return subscription;
+    return {
+      ...subscription,
+      channels: {
+        ...subscription.channels,
+        discord: false,
+      },
+    };
+  });
+  await writeStore(store);
+  res.json({ ok: true });
 });
 
 router.post("/event-reminders/subscriptions", async (req, res) => {
@@ -698,6 +969,7 @@ router.post("/event-reminders/subscriptions", async (req, res) => {
   const definition = req.body?.definition;
   const channels = normalizeChannels(req.body?.channels || { push: true });
   const targets = normalizeTargets(req.body?.targets);
+  const store = readStore();
 
   if (!clientId || !subscriptionId || !title || !["start", "one-hour-and-start"].includes(mode) || !isValidDefinition(definition)) {
     res.status(400).json({ error: "Invalid reminder subscription payload." });
@@ -722,13 +994,16 @@ router.post("/event-reminders/subscriptions", async (req, res) => {
     }
   }
   if (channels.discord) {
-    if (!targets.discordWebhookUrl || !isValidDiscordWebhook(targets.discordWebhookUrl)) {
-      res.status(400).json({ error: "Discord channel requires a valid Discord webhook URL." });
+    if (!process.env.DISCORD_BOT_TOKEN?.trim()) {
+      res.status(503).json({ error: "Discord channel is not configured on the server." });
+      return;
+    }
+    if (!isDiscordConnected(store, clientId)) {
+      res.status(400).json({ error: "Discord channel requires Discord connection first." });
       return;
     }
   }
 
-  const store = readStore();
   const id = subscriptionHash(clientId, subscriptionId);
   const now = Date.now();
   const existing = store.subscriptions.find((subscription) => subscription.id === id);
@@ -743,7 +1018,7 @@ router.post("/event-reminders/subscriptions", async (req, res) => {
     mode,
     definition,
     channels,
-    targets,
+    targets: { telegramChatId: targets.telegramChatId },
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
     sentKeys: existing?.sentKeys ?? [],
@@ -769,6 +1044,7 @@ router.delete("/event-reminders/subscriptions", async (req, res) => {
 
 router.post("/event-reminders/test", async (req, res) => {
   const pushSubscription = req.body?.pushSubscription;
+  const clientId = String(req.body?.clientId || "").trim();
   const channels = normalizeChannels(req.body?.channels || { push: true });
   const targets = normalizeTargets(req.body?.targets);
   const delaySeconds = Math.max(3, Math.min(30, Number(req.body?.delaySeconds || 5)));
@@ -784,9 +1060,20 @@ router.post("/event-reminders/test", async (req, res) => {
     res.status(400).json({ error: "Telegram test requires a valid chat id." });
     return;
   }
-  if (channels.discord && (!targets.discordWebhookUrl || !isValidDiscordWebhook(targets.discordWebhookUrl))) {
-    res.status(400).json({ error: "Discord test requires a valid webhook URL." });
+  if (channels.discord && !clientId) {
+    res.status(400).json({ error: "Discord test requires a client ID." });
     return;
+  }
+  if (channels.discord && !process.env.DISCORD_BOT_TOKEN?.trim()) {
+    res.status(503).json({ error: "Discord channel is not configured on the server." });
+    return;
+  }
+  if (channels.discord) {
+    const store = readStore();
+    if (!getDiscordConnection(store, clientId)) {
+      res.status(400).json({ error: "Connect Discord first before Discord test." });
+      return;
+    }
   }
   if (channels.push && !(await configureWebPush())) {
     res.status(503).json({ error: "Web Push VAPID keys are not configured." });
@@ -811,8 +1098,12 @@ router.post("/event-reminders/test", async (req, res) => {
     if (channels.telegram && targets.telegramChatId) {
       promises.push(sendTelegramReminder(targets.telegramChatId, title, body, "test"));
     }
-    if (channels.discord && targets.discordWebhookUrl) {
-      promises.push(sendDiscordReminder(targets.discordWebhookUrl, title, body, "test"));
+    if (channels.discord) {
+      const store = readStore();
+      const connection = getDiscordConnection(store, clientId);
+      if (connection) {
+        promises.push(sendDiscordReminder(connection.userId, title, body, "test"));
+      }
     }
 
     await Promise.allSettled(promises);

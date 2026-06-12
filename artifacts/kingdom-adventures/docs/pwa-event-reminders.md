@@ -28,6 +28,11 @@ VAPID_SUBJECT=mailto:you@example.com
 EVENT_REMINDER_CRON_SECRET=
 TELEGRAM_BOT_TOKEN=
 EVENT_REMINDER_PUBLIC_BASE_URL=https://kingdom-adventures-community-tools.vercel.app
+DISCORD_BOT_TOKEN=
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+DISCORD_REDIRECT_URI=
+DISCORD_OAUTH_STATE_SECRET=
 ```
 
 If `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are missing, the API server will generate a server-side key pair in `data/event-reminder-vapid-keys.json`. This is enough for testing and simple hosting, but stable production secrets are better because existing browser subscriptions depend on the same public/private key pair staying available across deploys.
@@ -63,7 +68,7 @@ The reminder app now supports channel selection per reminder setup:
 
 - App push (browser/web push)
 - Telegram (requires `TELEGRAM_BOT_TOKEN` and user chat ID)
-- Discord (requires user webhook URL)
+- Discord DM (requires Discord OAuth connection + `DISCORD_BOT_TOKEN`)
 
 Users can enable one channel or multiple channels together.
 
