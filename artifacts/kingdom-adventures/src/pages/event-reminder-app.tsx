@@ -761,7 +761,7 @@ export default function EventReminderAppPage() {
         return;
       }
       const next = withNext.next[0];
-      setMessage(`Server next due: ${withNext.title} (${next.kind}) in ${next.inMinutes}m.`);
+      setMessage(`Server next due: ${withNext.title} (${next.kind}) in ${next.inMinutes}m | saved offset ${withNext.offsetHours}h | mode ${withNext.mode}.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not check reminder schedule.");
     } finally {
