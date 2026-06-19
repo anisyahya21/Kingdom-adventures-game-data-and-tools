@@ -180,7 +180,9 @@ export default function GuidesPage() {
         ) : null}
 
         {guides.map((guide) => {
-          const isOwner = ownedGuideIds.has(guide.id) || Boolean(guide.editable);
+          const isTokenOwner = ownedGuideIds.has(guide.id);
+          const isOwner = isTokenOwner || Boolean(guide.editable);
+          const ownerBadge = isTokenOwner ? "Your Guide" : (guide.editable ? "Admin" : "Google Doc");
           const isEditing = editingId === guide.id;
           const saving = savingId === guide.id;
           return (
@@ -190,7 +192,7 @@ export default function GuidesPage() {
                   <div className="p-2 rounded-lg bg-muted">
                     <BookMarked className="w-5 h-5 text-primary" />
                   </div>
-                  <Badge variant="outline">{isOwner ? "Your Guide" : "Google Doc"}</Badge>
+                  <Badge variant="outline">{ownerBadge}</Badge>
                 </div>
                 {isEditing ? (
                   <div className="mt-2 space-y-2">

@@ -78,6 +78,20 @@ function configuredAuthReady() {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim() && normalizeTelegramBotUsername());
 }
 
+function getAdminTelegramUserIds() {
+  return new Set(
+    String(process.env.TELEGRAM_ADMIN_USER_IDS || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
+
+function isAdminTelegramUser(telegramUserId?: string | null) {
+  if (!telegramUserId) return false;
+  return getAdminTelegramUserIds().has(String(telegramUserId));
+}
+
 function baseUrlFromRequest(req: Parameters<typeof router.get>[1] extends never ? never : any) {
   const origin = String(req.get("origin") || req.get("x-forwarded-origin") || "").trim();
   if (/^https?:\/\//i.test(origin)) {
@@ -249,6 +263,7 @@ async function getSessionUser(module: DbModule, rawSessionToken: string) {
       sessionId: module.userSessionsTable.id,
       sessionExpiresAt: module.userSessionsTable.expiresAt,
       userId: module.usersTable.id,
+      telegramUserId: module.usersTable.telegramUserId,
       telegramUsername: module.usersTable.telegramUsername,
       firstName: module.usersTable.firstName,
       lastName: module.usersTable.lastName,
@@ -631,6 +646,7 @@ router.get("/session", async (req, res) => {
     guest: false,
     user: {
       id: sessionUser.userId,
+      isAdmin: isAdminTelegramUser(sessionUser.telegramUserId),
       telegramUsername: sessionUser.telegramUsername || "",
       firstName: sessionUser.firstName || "",
       lastName: sessionUser.lastName || "",

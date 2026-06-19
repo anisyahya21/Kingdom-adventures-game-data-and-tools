@@ -561,7 +561,22 @@ function publicGuide(guide: CommunityGuide) {
   };
 }
 
-async function resolveAuthenticatedUserId(req: Request): Promise<string | undefined> {
+type AuthenticatedSession = {
+  userId: string;
+  telegramUserId: string;
+  isAdmin: boolean;
+};
+
+function getAdminTelegramUserIds() {
+  return new Set(
+    String(process.env.TELEGRAM_ADMIN_USER_IDS || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
+
+async function resolveAuthenticatedSession(req: Request): Promise<AuthenticatedSession | undefined> {
   const rawSessionToken = String((req as Request & { cookies?: Record<string, string> }).cookies?.[SESSION_COOKIE_NAME] || "").trim();
   if (!rawSessionToken || !process.env.DATABASE_URL) return undefined;
 
@@ -572,8 +587,12 @@ async function resolveAuthenticatedUserId(req: Request): Promise<string | undefi
 
   const tokenHash = crypto.createHash("sha256").update(rawSessionToken).digest("hex");
   const rows = await dbModule.db
-    .select({ userId: dbModule.userSessionsTable.userId })
+    .select({
+      userId: dbModule.userSessionsTable.userId,
+      telegramUserId: dbModule.usersTable.telegramUserId,
+    })
     .from(dbModule.userSessionsTable)
+    .innerJoin(dbModule.usersTable, eq(dbModule.usersTable.id, dbModule.userSessionsTable.userId))
     .where(and(
       eq(dbModule.userSessionsTable.sessionTokenHash, tokenHash),
       isNull(dbModule.userSessionsTable.revokedAt),
@@ -581,7 +600,18 @@ async function resolveAuthenticatedUserId(req: Request): Promise<string | undefi
     ))
     .limit(1);
 
-  return rows[0]?.userId;
+  const row = rows[0];
+  if (!row) return undefined;
+  return {
+    userId: row.userId,
+    telegramUserId: row.telegramUserId,
+    isAdmin: getAdminTelegramUserIds().has(String(row.telegramUserId)),
+  };
+}
+
+function canManageGuide(session: AuthenticatedSession | undefined, guide: CommunityGuide) {
+  if (!session) return false;
+  return session.isAdmin || Boolean(guide.ownerUserId && guide.ownerUserId === session.userId);
 }
 
 function uniqueGuideSlug(state: SharedState, base: string, existingId?: string) {
@@ -688,12 +718,12 @@ function getGroupDevices(devices: SyncedDevice[], groupId: string): SyncedDevice
 
 router.get("/ka/shared", async (req, res) => {
   const state = readState();
-  const currentUserId = await resolveAuthenticatedUserId(req);
+  const currentSession = await resolveAuthenticatedSession(req);
   res.json({
     ...state,
     communityGuides: state.communityGuides.map((guide) => ({
       ...publicGuide(guide),
-      editable: Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId),
+      editable: canManageGuide(currentSession, guide),
     })),
     skills: withLegacySkillFlags(state.skills),
   });
@@ -701,11 +731,11 @@ router.get("/ka/shared", async (req, res) => {
 
 router.get("/ka/guides", async (req, res) => {
   const state = readState();
-  const currentUserId = await resolveAuthenticatedUserId(req);
+  const currentSession = await resolveAuthenticatedSession(req);
   res.json({
     guides: state.communityGuides.map((guide) => ({
       ...publicGuide(guide),
-      editable: Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId),
+      editable: canManageGuide(currentSession, guide),
     })),
   });
 });
@@ -750,7 +780,7 @@ router.post("/ka/guides", async (req, res) => {
   }
 
   const state = readState();
-  const currentUserId = await resolveAuthenticatedUserId(req);
+  const currentSession = await resolveAuthenticatedSession(req);
   const now = Date.now();
   const guide: CommunityGuide = {
     id: crypto.randomUUID(),
@@ -760,7 +790,7 @@ router.post("/ka/guides", async (req, res) => {
     docUrl: cleanDocUrl,
     docId,
     ownerToken: String(ownerToken ?? crypto.randomUUID()),
-    ownerUserId: currentUserId,
+    ownerUserId: currentSession?.userId,
     createdAt: now,
     updatedAt: now,
     linkOverrides: sanitizeGuideLinkOverrides(undefined),
@@ -771,7 +801,7 @@ router.post("/ka/guides", async (req, res) => {
   res.json({
     guide: {
       ...publicGuide(guide),
-      editable: Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId),
+      editable: canManageGuide(currentSession, guide),
     },
   });
 });
@@ -783,20 +813,20 @@ router.patch("/ka/guides/:id", async (req, res) => {
     linkOverrides?: GuideLinkOverrides;
   };
   const state = readState();
-  const currentUserId = await resolveAuthenticatedUserId(req);
+  const currentSession = await resolveAuthenticatedSession(req);
   const guide = state.communityGuides.find((item) => item.id === req.params.id);
   if (!guide) {
     res.status(404).json({ error: "Guide not found." });
     return;
   }
   const canEditByToken = Boolean(ownerToken && ownerToken === guide.ownerToken);
-  const canEditByAccount = Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId);
+  const canEditByAccount = canManageGuide(currentSession, guide);
   if (!canEditByToken && !canEditByAccount) {
     res.status(403).json({ error: "Only the submitter can edit this guide." });
     return;
   }
-  if (!guide.ownerUserId && canEditByToken && currentUserId) {
-    guide.ownerUserId = currentUserId;
+  if (!guide.ownerUserId && canEditByToken && currentSession?.userId) {
+    guide.ownerUserId = currentSession.userId;
   }
   const hasTitle = Object.prototype.hasOwnProperty.call(req.body ?? {}, "title");
   const hasLinkOverrides = Object.prototype.hasOwnProperty.call(req.body ?? {}, "linkOverrides");
@@ -821,7 +851,7 @@ router.patch("/ka/guides/:id", async (req, res) => {
   res.json({
     guide: {
       ...publicGuide(guide),
-      editable: Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId),
+      editable: canManageGuide(currentSession, guide),
     },
   });
 });
@@ -829,14 +859,14 @@ router.patch("/ka/guides/:id", async (req, res) => {
 router.delete("/ka/guides/:id", async (req, res) => {
   const { ownerToken } = req.body as { ownerToken?: string };
   const state = readState();
-  const currentUserId = await resolveAuthenticatedUserId(req);
+  const currentSession = await resolveAuthenticatedSession(req);
   const guide = state.communityGuides.find((item) => item.id === req.params.id);
   if (!guide) {
     res.status(404).json({ error: "Guide not found." });
     return;
   }
   const canDeleteByToken = Boolean(ownerToken && ownerToken === guide.ownerToken);
-  const canDeleteByAccount = Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId);
+  const canDeleteByAccount = canManageGuide(currentSession, guide);
   if (!canDeleteByToken && !canDeleteByAccount) {
     res.status(403).json({ error: "Only the submitter can remove this guide." });
     return;

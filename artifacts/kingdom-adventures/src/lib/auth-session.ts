@@ -2,6 +2,7 @@ import { configuredApiBase } from "@/lib/api";
 
 export type AuthUser = {
   id: string;
+  isAdmin?: boolean;
   telegramUsername: string;
   firstName: string;
   lastName: string;
