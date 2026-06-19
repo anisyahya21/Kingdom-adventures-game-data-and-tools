@@ -4,6 +4,19 @@ export function configuredApiBase() {
   const envBase = String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
   if (typeof window === "undefined") return envBase;
 
+  const isLocalHost = /^(localhost|127\.0\.0\.1|192\.168\.)$/i.test(window.location.hostname);
+  if (window.location.protocol === "https:" && !isLocalHost && envBase) {
+    try {
+      const envOrigin = new URL(envBase).origin;
+      if (envOrigin !== window.location.origin) {
+        // Prefer same-origin /ka-api rewrites in production to keep auth cookies first-party on mobile browsers.
+        return "";
+      }
+    } catch {
+      // Ignore invalid env base and continue with existing logic.
+    }
+  }
+
   const params = new URLSearchParams(window.location.search);
   const queryBase = params.get("apiBase")?.trim().replace(/\/$/, "");
   if (queryBase) {

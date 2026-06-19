@@ -68,6 +68,20 @@ function randomCode(length = DEFAULT_CODE_LENGTH) {
   return value;
 }
 
+function normalizeDisplayName(value: string | undefined) {
+  const trimmed = String(value || "").trim();
+  return trimmed ? trimmed.slice(0, 64) : "";
+}
+
+function normalizeGameId(value: string | undefined) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  if (!/^\d{3},\d{3},\d{3}$/.test(trimmed)) {
+    throw new Error("Game ID must match 123,456,789 format.");
+  }
+  return trimmed;
+}
+
 function normalizeTelegramBotUsername() {
   const raw = process.env.TELEGRAM_BOT_USERNAME?.trim();
   if (!raw) return "";
@@ -267,6 +281,8 @@ async function getSessionUser(module: DbModule, rawSessionToken: string) {
       telegramUsername: module.usersTable.telegramUsername,
       firstName: module.usersTable.firstName,
       lastName: module.usersTable.lastName,
+      displayName: module.usersTable.displayName,
+      gameId: module.usersTable.gameId,
       photoUrl: module.usersTable.photoUrl,
     })
     .from(module.userSessionsTable)
@@ -594,16 +610,20 @@ router.get("/telegram/callback", async (req, res) => {
     domain: authCookieDomain(),
   });
 
+  const base = baseUrlFromRequest(req);
   const html = `<!doctype html>
 <html>
   <head><meta charset="utf-8" /><title>Login complete</title></head>
   <body>
     <script>
       (function () {
-        if (window.opener) {
+        if (window.opener && !window.opener.closed) {
           window.opener.postMessage({ source: "${POST_MESSAGE_SOURCE}", type: "telegram-auth-success" }, "*");
+          window.close();
+          return;
         }
-        window.close();
+        // Mobile browsers often block/ignore popup close; redirect to app to finish login in same tab.
+        window.location.replace("${encodeHtml(base)}" + "/?auth=ok");
       })();
     </script>
     Login complete. You can close this window.
@@ -640,6 +660,7 @@ router.get("/session", async (req, res) => {
   const displayName = [sessionUser.firstName, sessionUser.lastName].filter(Boolean).join(" ")
     || sessionUser.telegramUsername
     || "Telegram user";
+  const preferredDisplayName = String(sessionUser.displayName || "").trim() || displayName;
 
   res.json({
     authenticated: true,
@@ -651,9 +672,47 @@ router.get("/session", async (req, res) => {
       firstName: sessionUser.firstName || "",
       lastName: sessionUser.lastName || "",
       photoUrl: sessionUser.photoUrl || "",
-      displayName,
+      displayName: preferredDisplayName,
+      gameId: sessionUser.gameId || "",
     },
   });
+});
+
+router.post("/profile", async (req, res) => {
+  const module = await getDbModule();
+  if (!module) {
+    res.status(503).json({ error: "Database is not configured." });
+    return;
+  }
+
+  const rawSessionToken = String(req.cookies?.[SESSION_COOKIE_NAME] || "").trim();
+  if (!rawSessionToken) {
+    res.status(401).json({ error: "Sign in required." });
+    return;
+  }
+  const sessionUser = await getSessionUser(module, rawSessionToken);
+  if (!sessionUser) {
+    clearSessionCookie(res);
+    res.status(401).json({ error: "Session expired." });
+    return;
+  }
+
+  try {
+    const nextDisplayName = normalizeDisplayName((req.body as { displayName?: string } | undefined)?.displayName);
+    const nextGameId = normalizeGameId((req.body as { gameId?: string } | undefined)?.gameId);
+
+    await module.db
+      .update(module.usersTable)
+      .set({
+        displayName: nextDisplayName || null,
+        gameId: nextGameId || null,
+      })
+      .where(eq(module.usersTable.id, sessionUser.userId));
+
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Invalid profile values." });
+  }
 });
 
 router.post("/logout", async (req, res) => {

@@ -6,6 +6,8 @@ export const usersTable = pgTable("users", {
   telegramUsername: text("telegram_username"),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  displayName: text("display_name"),
+  gameId: text("game_id"),
   photoUrl: text("photo_url"),
   locale: text("locale"),
   status: text("status").notNull().default("active"),

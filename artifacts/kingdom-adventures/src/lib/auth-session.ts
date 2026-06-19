@@ -8,6 +8,7 @@ export type AuthUser = {
   lastName: string;
   photoUrl: string;
   displayName: string;
+  gameId?: string;
 };
 
 export type AuthSessionResponse = {
@@ -97,5 +98,18 @@ export async function logoutAuthSession() {
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { error?: string } | null;
     throw new Error(payload?.error || "Failed to log out.");
+  }
+}
+
+export async function updateAuthProfile(input: { displayName: string; gameId: string }) {
+  const response = await fetch(authUrl("/profile"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+  const payload = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Failed to update profile.");
   }
 }
