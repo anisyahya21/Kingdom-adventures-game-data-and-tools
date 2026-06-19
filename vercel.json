@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://kingdom-adventures-game-data-and-tools.onrender.com/api/$1"
+    },
+    {
+      "source": "/ka-api/(.*)",
+      "destination": "https://kingdom-adventures-game-data-and-tools.onrender.com/ka-api/$1"
+    }
+  ]
+}
