@@ -10,6 +10,7 @@ export type CommunityGuide = {
   docId: string;
   createdAt: number;
   updatedAt: number;
+  editable?: boolean;
   linkOverrides?: GuideLinkOverrides;
 };
 
@@ -176,13 +177,16 @@ function normalizeGuideLinkTarget(target?: GuideLinkTarget | null): GuideLinkTar
   return undefined;
 }
 
-export async function saveGuideLinkOverrides(guideId: string, ownerToken: string, overrides: GuideLinkOverrides, title?: string) {
+export async function saveGuideLinkOverrides(guideId: string, ownerToken: string | undefined, overrides: GuideLinkOverrides, title?: string) {
   const normalized = normalizeGuideLinkOverrides(overrides);
   setGuideLinkOverrides(guideId, normalized);
+  const body: Record<string, unknown> = { title, linkOverrides: normalized };
+  if (ownerToken) body.ownerToken = ownerToken;
   const response = await fetch(apiUrl(`/guides/${guideId}`), {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ownerToken, title, linkOverrides: normalized }),
+    credentials: "include",
+    body: JSON.stringify(body),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error ?? "Could not save guide links.");
@@ -194,7 +198,7 @@ export function extractGoogleDocId(url: string) {
 }
 
 export async function fetchCommunityGuides() {
-  const response = await fetch(apiUrl("/guides"));
+  const response = await fetch(apiUrl("/guides"), { credentials: "include" });
   if (!response.ok) throw new Error("Could not load guides.");
   const payload = await response.json() as { guides: CommunityGuide[] };
   writeBrowserCache("community-guides", payload);

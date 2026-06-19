@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached, refreshStaticSourceIfStale } from "../lib/google-cache";
 import { renderJobPreview, renderJobPreviewByName } from "../lib/character-preview";
 import multer from "multer";
@@ -203,6 +203,7 @@ type CommunityGuide = {
   docUrl: string;
   docId: string;
   ownerToken: string;
+  ownerUserId?: string;
   createdAt: number;
   updatedAt: number;
   linkOverrides?: GuideLinkOverrides;
@@ -316,6 +317,7 @@ function writeStateFile(state: SharedState) {
 type DbModule = typeof import("@workspace/db");
 let dbModule: DbModule | null = null;
 let persistenceMode: "database" | "file" = "file";
+const SESSION_COOKIE_NAME = "ka_session";
 
 async function initDbModule() {
   if (!process.env.DATABASE_URL) {
@@ -552,11 +554,34 @@ function sanitizeGuideLinkTarget(target: unknown): GuideLinkTarget | undefined {
 }
 
 function publicGuide(guide: CommunityGuide) {
-  const { ownerToken: _ownerToken, ...rest } = guide;
+  const { ownerToken: _ownerToken, ownerUserId: _ownerUserId, ...rest } = guide;
   return {
     ...rest,
     linkOverrides: sanitizeGuideLinkOverrides(guide.linkOverrides),
   };
+}
+
+async function resolveAuthenticatedUserId(req: Request): Promise<string | undefined> {
+  const rawSessionToken = String((req as Request & { cookies?: Record<string, string> }).cookies?.[SESSION_COOKIE_NAME] || "").trim();
+  if (!rawSessionToken || !process.env.DATABASE_URL) return undefined;
+
+  if (!dbModule) {
+    await initDbModule();
+  }
+  if (!dbModule) return undefined;
+
+  const tokenHash = crypto.createHash("sha256").update(rawSessionToken).digest("hex");
+  const rows = await dbModule.db
+    .select({ userId: dbModule.userSessionsTable.userId })
+    .from(dbModule.userSessionsTable)
+    .where(and(
+      eq(dbModule.userSessionsTable.sessionTokenHash, tokenHash),
+      isNull(dbModule.userSessionsTable.revokedAt),
+      gt(dbModule.userSessionsTable.expiresAt, new Date()),
+    ))
+    .limit(1);
+
+  return rows[0]?.userId;
 }
 
 function uniqueGuideSlug(state: SharedState, base: string, existingId?: string) {
@@ -661,17 +686,28 @@ function getGroupDevices(devices: SyncedDevice[], groupId: string): SyncedDevice
 
 // ─── Equipment shared state ────────────────────────────────────────────────────
 
-router.get("/ka/shared", (_req, res) => {
+router.get("/ka/shared", async (req, res) => {
   const state = readState();
+  const currentUserId = await resolveAuthenticatedUserId(req);
   res.json({
     ...state,
+    communityGuides: state.communityGuides.map((guide) => ({
+      ...publicGuide(guide),
+      editable: Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId),
+    })),
     skills: withLegacySkillFlags(state.skills),
   });
 });
 
-router.get("/ka/guides", (_req, res) => {
+router.get("/ka/guides", async (req, res) => {
   const state = readState();
-  res.json({ guides: state.communityGuides.map(publicGuide) });
+  const currentUserId = await resolveAuthenticatedUserId(req);
+  res.json({
+    guides: state.communityGuides.map((guide) => ({
+      ...publicGuide(guide),
+      editable: Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId),
+    })),
+  });
 });
 
 router.get("/ka/job-preview", (req, res) => {
@@ -698,7 +734,7 @@ router.get("/ka/job-preview-by-name", (req, res) => {
   }
 });
 
-router.post("/ka/guides", (req, res) => {
+router.post("/ka/guides", async (req, res) => {
   const { title, author, docUrl, ownerToken } = req.body as {
     title?: string;
     author?: string;
@@ -714,6 +750,7 @@ router.post("/ka/guides", (req, res) => {
   }
 
   const state = readState();
+  const currentUserId = await resolveAuthenticatedUserId(req);
   const now = Date.now();
   const guide: CommunityGuide = {
     id: crypto.randomUUID(),
@@ -723,6 +760,7 @@ router.post("/ka/guides", (req, res) => {
     docUrl: cleanDocUrl,
     docId,
     ownerToken: String(ownerToken ?? crypto.randomUUID()),
+    ownerUserId: currentUserId,
     createdAt: now,
     updatedAt: now,
     linkOverrides: sanitizeGuideLinkOverrides(undefined),
@@ -730,24 +768,35 @@ router.post("/ka/guides", (req, res) => {
   state.communityGuides = [guide, ...(state.communityGuides ?? [])];
   writeState(state);
   ensureGuideDocCached(docId);
-  res.json({ guide: publicGuide(guide) });
+  res.json({
+    guide: {
+      ...publicGuide(guide),
+      editable: Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId),
+    },
+  });
 });
 
-router.patch("/ka/guides/:id", (req, res) => {
+router.patch("/ka/guides/:id", async (req, res) => {
   const { ownerToken, title, linkOverrides } = req.body as {
     ownerToken?: string;
     title?: string;
     linkOverrides?: GuideLinkOverrides;
   };
   const state = readState();
+  const currentUserId = await resolveAuthenticatedUserId(req);
   const guide = state.communityGuides.find((item) => item.id === req.params.id);
   if (!guide) {
     res.status(404).json({ error: "Guide not found." });
     return;
   }
-  if (!ownerToken || ownerToken !== guide.ownerToken) {
+  const canEditByToken = Boolean(ownerToken && ownerToken === guide.ownerToken);
+  const canEditByAccount = Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId);
+  if (!canEditByToken && !canEditByAccount) {
     res.status(403).json({ error: "Only the submitter can edit this guide." });
     return;
+  }
+  if (!guide.ownerUserId && canEditByToken && currentUserId) {
+    guide.ownerUserId = currentUserId;
   }
   const hasTitle = Object.prototype.hasOwnProperty.call(req.body ?? {}, "title");
   const hasLinkOverrides = Object.prototype.hasOwnProperty.call(req.body ?? {}, "linkOverrides");
@@ -769,18 +818,26 @@ router.patch("/ka/guides/:id", (req, res) => {
   }
   guide.updatedAt = Date.now();
   writeState(state);
-  res.json({ guide: publicGuide(guide) });
+  res.json({
+    guide: {
+      ...publicGuide(guide),
+      editable: Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId),
+    },
+  });
 });
 
-router.delete("/ka/guides/:id", (req, res) => {
+router.delete("/ka/guides/:id", async (req, res) => {
   const { ownerToken } = req.body as { ownerToken?: string };
   const state = readState();
+  const currentUserId = await resolveAuthenticatedUserId(req);
   const guide = state.communityGuides.find((item) => item.id === req.params.id);
   if (!guide) {
     res.status(404).json({ error: "Guide not found." });
     return;
   }
-  if (!ownerToken || ownerToken !== guide.ownerToken) {
+  const canDeleteByToken = Boolean(ownerToken && ownerToken === guide.ownerToken);
+  const canDeleteByAccount = Boolean(currentUserId && guide.ownerUserId && guide.ownerUserId === currentUserId);
+  if (!canDeleteByToken && !canDeleteByAccount) {
     res.status(403).json({ error: "Only the submitter can remove this guide." });
     return;
   }

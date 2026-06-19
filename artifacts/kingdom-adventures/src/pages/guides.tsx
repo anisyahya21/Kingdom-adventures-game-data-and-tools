@@ -62,14 +62,15 @@ export default function GuidesPage() {
   const saveTitle = async (guide: CommunityGuide) => {
     const ownerToken = ownerTokens[guide.id];
     const title = editingTitle.trim();
-    if (!ownerToken || !title) return;
+    if (!title || (!ownerToken && !guide.editable)) return;
 
     setSavingId(guide.id);
     try {
       const response = await fetch(apiUrl(`/guides/${guide.id}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ownerToken, title }),
+        credentials: "include",
+        body: JSON.stringify(ownerToken ? { ownerToken, title } : { title }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Could not update guide.");
@@ -85,7 +86,7 @@ export default function GuidesPage() {
 
   const removeGuide = async (guide: CommunityGuide) => {
     const ownerToken = ownerTokens[guide.id];
-    if (!ownerToken) return;
+    if (!ownerToken && !guide.editable) return;
     if (!window.confirm(`Remove "${guide.title}" from the guide list?`)) return;
 
     setSavingId(guide.id);
@@ -93,7 +94,8 @@ export default function GuidesPage() {
       const response = await fetch(apiUrl(`/guides/${guide.id}`), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ownerToken }),
+        credentials: "include",
+        body: JSON.stringify(ownerToken ? { ownerToken } : {}),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? "Could not remove guide.");
@@ -178,7 +180,7 @@ export default function GuidesPage() {
         ) : null}
 
         {guides.map((guide) => {
-          const isOwner = ownedGuideIds.has(guide.id);
+          const isOwner = ownedGuideIds.has(guide.id) || Boolean(guide.editable);
           const isEditing = editingId === guide.id;
           const saving = savingId === guide.id;
           return (

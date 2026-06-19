@@ -101,7 +101,7 @@ export default function CommunityGuidePage() {
       description={`${guide.author ? `Added by ${guide.author}. ` : ""}Rendered live from the linked Google Doc.`}
       docId={guide.docId}
       docUrl={guide.docUrl}
-      ownerGuideId={ownerTokens[guide.id] ? guide.id : undefined}
+      ownerGuideId={ownerTokens[guide.id] || guide.editable ? guide.id : undefined}
       ownerToken={ownerTokens[guide.id]}
       serverLinkOverrides={guide.linkOverrides}
     />

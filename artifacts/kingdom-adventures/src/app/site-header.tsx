@@ -1,9 +1,10 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, Menu, Moon, Search, Sun, X } from "lucide-react";
+import { ArrowLeft, Loader2, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { fetchAuthSession, logoutAuthSession, startTelegramAuth, type AuthSessionResponse } from "@/lib/auth-session";
 import { buildGlobalSearchEntries } from "./global-search";
 import { NAV_SECTIONS } from "./navigation";
 
@@ -18,9 +19,13 @@ export function SiteHeader() {
         (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)
       : false,
   );
+  const [authSession, setAuthSession] = useState<AuthSessionResponse>({ authenticated: false, guest: true });
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authBusy, setAuthBusy] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const authPopupRef = useRef<Window | null>(null);
   const hasNavRef = useRef(false);
   const prevPathRef = useRef(pathname);
 
@@ -35,6 +40,21 @@ export function SiteHeader() {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
+
+  useEffect(() => {
+    let mounted = true;
+    setAuthLoading(true);
+    fetchAuthSession()
+      .then((session) => {
+        if (mounted) setAuthSession(session);
+      })
+      .finally(() => {
+        if (mounted) setAuthLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const goBack = () => {
     if (hasNavRef.current) {
@@ -72,6 +92,62 @@ export function SiteHeader() {
       entry.label.toLowerCase().includes(q),
     ).slice(0, 8);
   }, [query, searchEntries]);
+
+  useEffect(() => {
+    function handleAuthMessage(event: MessageEvent) {
+      const payload = event.data as { source?: string; type?: string } | null;
+      if (!payload || payload.source !== "ka-auth") return;
+      setAuthBusy(false);
+      setAuthLoading(true);
+      void fetchAuthSession()
+        .then((session) => setAuthSession(session))
+        .finally(() => setAuthLoading(false));
+    }
+
+    window.addEventListener("message", handleAuthMessage);
+    return () => window.removeEventListener("message", handleAuthMessage);
+  }, []);
+
+  const startLogin = async () => {
+    setAuthBusy(true);
+    try {
+      const started = await startTelegramAuth();
+      const popup = window.open(
+        started.widgetUrl,
+        "ka-telegram-login",
+        "popup=yes,width=540,height=720,resizable=yes,scrollbars=yes",
+      );
+      authPopupRef.current = popup;
+      if (!popup) {
+        window.location.href = started.widgetUrl;
+        return;
+      }
+
+      const timer = window.setInterval(() => {
+        if (!authPopupRef.current || authPopupRef.current.closed) {
+          window.clearInterval(timer);
+          authPopupRef.current = null;
+          setAuthBusy(false);
+          setAuthLoading(true);
+          void fetchAuthSession()
+            .then((session) => setAuthSession(session))
+            .finally(() => setAuthLoading(false));
+        }
+      }, 500);
+    } catch {
+      setAuthBusy(false);
+    }
+  };
+
+  const logout = async () => {
+    setAuthBusy(true);
+    try {
+      await logoutAuthSession();
+      setAuthSession({ authenticated: false, guest: true });
+    } finally {
+      setAuthBusy(false);
+    }
+  };
 
   return (
     <div className="fixed inset-x-0 top-0 z-[60] border-b border-border bg-background/90 backdrop-blur">
@@ -157,6 +233,23 @@ export function SiteHeader() {
         </Link>
 
         <div className="flex items-center gap-0.5">
+          {authLoading ? (
+            <Button variant="ghost" className="h-11 px-3 text-xs" disabled>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading
+            </Button>
+          ) : authSession.authenticated ? (
+            <Button variant="ghost" className="h-11 px-3 text-xs" onClick={logout} disabled={authBusy} title="Log out">
+              {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {authSession.user?.displayName || "Account"}
+            </Button>
+          ) : (
+            <Button variant="ghost" className="h-11 px-3 text-xs" onClick={startLogin} disabled={authBusy} title="Log in with Telegram">
+              {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Log in
+            </Button>
+          )}
+
           <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setDark((d) => !d)} title={dark ? "Switch to light mode" : "Switch to dark mode"}>
             {dark ? <Sun className="w-[30px] h-[30px]" /> : <Moon className="w-[30px] h-[30px]" />}
           </Button>

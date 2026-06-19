@@ -2726,7 +2726,7 @@ export function GuideDocumentPage({
     if (ownerGuideId) {
       setGuideLinkOverrides(ownerGuideId, normalized);
     }
-    if (ownerGuideId && ownerToken) {
+    if (ownerGuideId) {
       setIsSavingOverrides(true);
       saveGuideLinkOverrides(ownerGuideId, ownerToken, normalized, title)
         .then(() => {
