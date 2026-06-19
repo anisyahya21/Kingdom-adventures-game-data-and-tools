@@ -69,12 +69,26 @@ function configuredAuthReady() {
 }
 
 function baseUrlFromRequest(req: Parameters<typeof router.get>[1] extends never ? never : any) {
-  const explicit = process.env.AUTH_PUBLIC_BASE_URL?.trim() || process.env.EVENT_REMINDER_PUBLIC_BASE_URL?.trim();
-  if (explicit) return explicit.replace(/\/$/, "");
-  const origin = String(req.get("origin") || "").trim();
+  const origin = String(req.get("origin") || req.get("x-forwarded-origin") || "").trim();
   if (/^https?:\/\//i.test(origin)) {
     return origin.replace(/\/$/, "");
   }
+
+  const referrer = String(req.get("referer") || req.get("referrer") || "").trim();
+  if (referrer) {
+    try {
+      const url = new URL(referrer);
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        return url.origin;
+      }
+    } catch {
+      // Ignore invalid referer values.
+    }
+  }
+
+  const explicit = process.env.AUTH_PUBLIC_BASE_URL?.trim() || process.env.EVENT_REMINDER_PUBLIC_BASE_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, "");
+
   return `${req.protocol}://${req.get("host")}`;
 }
 
