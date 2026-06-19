@@ -22,6 +22,16 @@ type TelegramStartResponse = {
   widgetUrl: string;
 };
 
+export type TelegramFallbackStartResponse = {
+  ok: boolean;
+  state: string;
+  code: string;
+  expiresAt: string;
+  botUsername: string;
+  botUrl: string;
+  command: string;
+};
+
 function authUrl(path: string) {
   const base = configuredApiBase();
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
@@ -49,6 +59,32 @@ export async function startTelegramAuth(): Promise<TelegramStartResponse> {
     throw new Error(payload?.error || "Telegram login is not available.");
   }
   return response.json() as Promise<TelegramStartResponse>;
+}
+
+export async function startTelegramFallbackAuth(): Promise<TelegramFallbackStartResponse> {
+  const response = await fetch(authUrl("/telegram/fallback/start"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || "Code login is not available.");
+  }
+  return response.json() as Promise<TelegramFallbackStartResponse>;
+}
+
+export async function verifyTelegramFallbackAuth(state: string) {
+  const response = await fetch(authUrl("/telegram/fallback/verify"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ state }),
+  });
+  const payload = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Could not verify login code.");
+  }
 }
 
 export async function logoutAuthSession() {

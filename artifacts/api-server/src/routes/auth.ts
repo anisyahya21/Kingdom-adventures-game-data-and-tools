@@ -9,6 +9,7 @@ type DbModule = typeof import("@workspace/db");
 const DEFAULT_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const DEFAULT_CHALLENGE_TTL_MS = 1000 * 60 * 5;
 const DEFAULT_AUTH_MAX_AGE_SECONDS = 300;
+const DEFAULT_CODE_LENGTH = 6;
 const SESSION_COOKIE_NAME = "ka_session";
 const POST_MESSAGE_SOURCE = "ka-auth";
 
@@ -56,6 +57,15 @@ function sha256Hex(value: string) {
 
 function randomToken(size = 32) {
   return crypto.randomBytes(size).toString("base64url");
+}
+
+function randomCode(length = DEFAULT_CODE_LENGTH) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let value = "";
+  for (let index = 0; index < length; index += 1) {
+    value += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return value;
 }
 
 function normalizeTelegramBotUsername() {
@@ -147,6 +157,73 @@ function telegramAuthPayloadFromQuery(query: Record<string, unknown>) {
     hash: String(query.hash || "").trim(),
   };
 }
+
+type TelegramIdentity = {
+  telegramUserId: string;
+  telegramUsername?: string;
+  firstName?: string;
+  lastName?: string;
+  photoUrl?: string;
+};
+
+async function upsertTelegramUser(module: DbModule, identity: TelegramIdentity) {
+  const existingUserRows = await module.db
+    .select({ id: module.usersTable.id })
+    .from(module.usersTable)
+    .where(eq(module.usersTable.telegramUserId, identity.telegramUserId))
+    .limit(1);
+
+  const now = new Date();
+  let userId = existingUserRows[0]?.id;
+  if (!userId) {
+    const inserted = await module.db
+      .insert(module.usersTable)
+      .values({
+        telegramUserId: identity.telegramUserId,
+        telegramUsername: identity.telegramUsername || undefined,
+        firstName: identity.firstName || undefined,
+        lastName: identity.lastName || undefined,
+        photoUrl: identity.photoUrl || undefined,
+        status: "active",
+        createdAt: now,
+        lastLoginAt: now,
+      })
+      .returning({ id: module.usersTable.id });
+    userId = inserted[0]?.id;
+  } else {
+    await module.db
+      .update(module.usersTable)
+      .set({
+        telegramUsername: identity.telegramUsername || undefined,
+        firstName: identity.firstName || undefined,
+        lastName: identity.lastName || undefined,
+        photoUrl: identity.photoUrl || undefined,
+        lastLoginAt: now,
+      })
+      .where(eq(module.usersTable.id, userId));
+  }
+
+  return userId;
+}
+
+function normalizeLoginCommand(text: string) {
+  const match = text.trim().match(/^\/login(?:@([a-zA-Z0-9_]+))?\s+([A-Z0-9]{4,12})$/i);
+  if (!match) return null;
+  const commandBot = (match[1] || "").toLowerCase();
+  const configuredBot = normalizeTelegramBotUsername().toLowerCase();
+  if (commandBot && configuredBot && commandBot !== configuredBot) return null;
+  return match[2].toUpperCase();
+}
+
+type TelegramUpdateMessage = {
+  text?: string;
+  from?: {
+    id?: number;
+    username?: string;
+    first_name?: string;
+    last_name?: string;
+  };
+};
 
 async function createSession(module: DbModule, userId: string, ipAddress: string | undefined, userAgent: string | undefined) {
   const rawSessionToken = randomToken(48);
@@ -241,6 +318,140 @@ router.post("/telegram/start", async (req, res) => {
     expiresAt: expiresAt.toISOString(),
     widgetUrl: `${base}/ka-api/auth/telegram/widget?state=${encodeURIComponent(state)}`,
   });
+});
+
+router.post("/telegram/fallback/start", async (req, res) => {
+  const module = await getDbModule();
+  if (!module) {
+    res.status(503).json({ error: "Database is not configured." });
+    return;
+  }
+  if (!configuredAuthReady()) {
+    res.status(503).json({ error: "Telegram auth is not configured." });
+    return;
+  }
+
+  const state = randomToken(24);
+  const code = randomCode();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + challengeTtlMs());
+
+  await module.db.insert(module.authChallengesTable).values({
+    state,
+    nonce: sha256Hex(code),
+    flow: "telegram_login_code",
+    createdAt: now,
+    expiresAt,
+    ipAddress: req.ip,
+    userAgent: req.get("user-agent"),
+  });
+
+  const botUsername = normalizeTelegramBotUsername();
+  res.json({
+    ok: true,
+    state,
+    code,
+    expiresAt: expiresAt.toISOString(),
+    botUsername,
+    botUrl: botUsername ? `https://t.me/${encodeURIComponent(botUsername)}` : "",
+    command: `/login ${code}`,
+  });
+});
+
+router.post("/telegram/fallback/verify", async (req, res) => {
+  const module = await getDbModule();
+  if (!module) {
+    res.status(503).json({ error: "Database is not configured." });
+    return;
+  }
+
+  const state = String((req.body as { state?: string } | undefined)?.state || "").trim();
+  if (!state) {
+    res.status(400).json({ error: "Missing login state." });
+    return;
+  }
+
+  const challengeRows = await module.db
+    .select()
+    .from(module.authChallengesTable)
+    .where(and(
+      eq(module.authChallengesTable.state, state),
+      eq(module.authChallengesTable.flow, "telegram_login_code"),
+      isNull(module.authChallengesTable.consumedAt),
+      gt(module.authChallengesTable.expiresAt, new Date()),
+    ))
+    .limit(1);
+
+  if (!challengeRows.length) {
+    res.status(400).json({ error: "Login code is invalid or expired." });
+    return;
+  }
+
+  const challenge = challengeRows[0];
+  let telegramIdentity: TelegramIdentity | null = null;
+
+  // Search updates for any /login command whose code hash matches this challenge.
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!token) {
+    res.status(503).json({ error: "Telegram auth is not configured." });
+    return;
+  }
+
+  const updatesResponse = await fetch(`https://api.telegram.org/bot${encodeURIComponent(token)}/getUpdates?limit=100&allowed_updates=%5B%22message%22%5D`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!updatesResponse.ok) {
+    res.status(502).json({ error: "Could not verify login code. Try again." });
+    return;
+  }
+  const updatesPayload = await updatesResponse.json().catch(() => null) as { result?: Array<{ message?: TelegramUpdateMessage }> } | null;
+  const updates = updatesPayload?.result ?? [];
+
+  for (let index = updates.length - 1; index >= 0; index -= 1) {
+    const message = updates[index]?.message;
+    if (!message?.text || !message.from?.id) continue;
+    const parsedCode = normalizeLoginCommand(message.text);
+    if (!parsedCode) continue;
+    if (sha256Hex(parsedCode) !== challenge.nonce) continue;
+    telegramIdentity = {
+      telegramUserId: String(message.from.id),
+      telegramUsername: message.from.username,
+      firstName: message.from.first_name,
+      lastName: message.from.last_name,
+      photoUrl: undefined,
+    };
+    break;
+  }
+
+  if (!telegramIdentity) {
+    res.status(409).json({ error: "Code not found yet. Send /login CODE to the bot, then verify again." });
+    return;
+  }
+
+  const userId = await upsertTelegramUser(module, telegramIdentity);
+  if (!userId) {
+    res.status(500).json({ error: "Failed to create user session." });
+    return;
+  }
+
+  const session = await createSession(module, userId, req.ip, req.get("user-agent"));
+
+  await module.db
+    .update(module.authChallengesTable)
+    .set({ consumedAt: new Date() })
+    .where(eq(module.authChallengesTable.id, challenge.id));
+
+  res.cookie(SESSION_COOKIE_NAME, session.rawSessionToken, {
+    httpOnly: true,
+    secure: authCookieSecure(),
+    sameSite: authCookieSameSite(),
+    path: "/",
+    maxAge: sessionTtlMs(),
+    domain: authCookieDomain(),
+  });
+
+  res.json({ ok: true });
 });
 
 router.get("/telegram/widget", async (req, res) => {
@@ -339,41 +550,13 @@ router.get("/telegram/callback", async (req, res) => {
     return;
   }
 
-  const existingUserRows = await module.db
-    .select({ id: module.usersTable.id })
-    .from(module.usersTable)
-    .where(eq(module.usersTable.telegramUserId, payload.id))
-    .limit(1);
-
-  const now = new Date();
-  let userId = existingUserRows[0]?.id;
-  if (!userId) {
-    const inserted = await module.db
-      .insert(module.usersTable)
-      .values({
-        telegramUserId: payload.id,
-        telegramUsername: payload.username || undefined,
-        firstName: payload.first_name || undefined,
-        lastName: payload.last_name || undefined,
-        photoUrl: payload.photo_url || undefined,
-        status: "active",
-        createdAt: now,
-        lastLoginAt: now,
-      })
-      .returning({ id: module.usersTable.id });
-    userId = inserted[0]?.id;
-  } else {
-    await module.db
-      .update(module.usersTable)
-      .set({
-        telegramUsername: payload.username || undefined,
-        firstName: payload.first_name || undefined,
-        lastName: payload.last_name || undefined,
-        photoUrl: payload.photo_url || undefined,
-        lastLoginAt: now,
-      })
-      .where(eq(module.usersTable.id, userId));
-  }
+  const userId = await upsertTelegramUser(module, {
+    telegramUserId: payload.id,
+    telegramUsername: payload.username || undefined,
+    firstName: payload.first_name || undefined,
+    lastName: payload.last_name || undefined,
+    photoUrl: payload.photo_url || undefined,
+  });
 
   if (!userId) {
     res.status(500).type("text/plain").send("Failed to create user session.");

@@ -4,7 +4,16 @@ import { ArrowLeft, Loader2, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { fetchAuthSession, logoutAuthSession, startTelegramAuth, type AuthSessionResponse } from "@/lib/auth-session";
+import {
+  fetchAuthSession,
+  logoutAuthSession,
+  startTelegramAuth,
+  startTelegramFallbackAuth,
+  verifyTelegramFallbackAuth,
+  type AuthSessionResponse,
+  type TelegramFallbackStartResponse,
+} from "@/lib/auth-session";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildGlobalSearchEntries } from "./global-search";
 import { NAV_SECTIONS } from "./navigation";
 
@@ -22,6 +31,10 @@ export function SiteHeader() {
   const [authSession, setAuthSession] = useState<AuthSessionResponse>({ authenticated: false, guest: true });
   const [authLoading, setAuthLoading] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
+  const [fallbackOpen, setFallbackOpen] = useState(false);
+  const [fallbackData, setFallbackData] = useState<TelegramFallbackStartResponse | null>(null);
+  const [fallbackBusy, setFallbackBusy] = useState(false);
+  const [fallbackError, setFallbackError] = useState<string | null>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -55,6 +68,13 @@ export function SiteHeader() {
       mounted = false;
     };
   }, []);
+
+  const refreshAuthSession = () => {
+    setAuthLoading(true);
+    return fetchAuthSession()
+      .then((session) => setAuthSession(session))
+      .finally(() => setAuthLoading(false));
+  };
 
   const goBack = () => {
     if (hasNavRef.current) {
@@ -98,10 +118,7 @@ export function SiteHeader() {
       const payload = event.data as { source?: string; type?: string } | null;
       if (!payload || payload.source !== "ka-auth") return;
       setAuthBusy(false);
-      setAuthLoading(true);
-      void fetchAuthSession()
-        .then((session) => setAuthSession(session))
-        .finally(() => setAuthLoading(false));
+      void refreshAuthSession();
     }
 
     window.addEventListener("message", handleAuthMessage);
@@ -128,14 +145,42 @@ export function SiteHeader() {
           window.clearInterval(timer);
           authPopupRef.current = null;
           setAuthBusy(false);
-          setAuthLoading(true);
-          void fetchAuthSession()
-            .then((session) => setAuthSession(session))
-            .finally(() => setAuthLoading(false));
+          void refreshAuthSession();
         }
       }, 500);
     } catch {
       setAuthBusy(false);
+    }
+  };
+
+  const startFallbackLogin = async () => {
+    setFallbackOpen(true);
+    setFallbackBusy(true);
+    setFallbackError(null);
+    try {
+      const started = await startTelegramFallbackAuth();
+      setFallbackData(started);
+    } catch (error) {
+      setFallbackData(null);
+      setFallbackError(error instanceof Error ? error.message : "Code login is unavailable.");
+    } finally {
+      setFallbackBusy(false);
+    }
+  };
+
+  const verifyFallbackLogin = async () => {
+    if (!fallbackData?.state) return;
+    setFallbackBusy(true);
+    setFallbackError(null);
+    try {
+      await verifyTelegramFallbackAuth(fallbackData.state);
+      await refreshAuthSession();
+      setFallbackOpen(false);
+      setFallbackData(null);
+    } catch (error) {
+      setFallbackError(error instanceof Error ? error.message : "Could not verify code.");
+    } finally {
+      setFallbackBusy(false);
     }
   };
 
@@ -244,10 +289,16 @@ export function SiteHeader() {
               {authSession.user?.displayName || "Account"}
             </Button>
           ) : (
-            <Button variant="ghost" className="h-11 px-3 text-xs" onClick={startLogin} disabled={authBusy} title="Log in with Telegram">
-              {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Log in
-            </Button>
+            <>
+              <Button variant="ghost" className="h-11 px-3 text-xs" onClick={startLogin} disabled={authBusy} title="Log in with Telegram">
+                {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Log in
+              </Button>
+              <Button variant="ghost" className="h-11 px-2 text-[11px]" onClick={startFallbackLogin} disabled={fallbackBusy} title="Use bot code login">
+                {fallbackBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Use code
+              </Button>
+            </>
           )}
 
           <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setDark((d) => !d)} title={dark ? "Switch to light mode" : "Switch to dark mode"}>
@@ -304,6 +355,53 @@ export function SiteHeader() {
           </div>
         </div>
       </div>
+
+      <Dialog open={fallbackOpen} onOpenChange={setFallbackOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Log in with bot code</DialogTitle>
+            <DialogDescription>
+              If Telegram confirmation does not arrive, send this command to the bot and verify.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-sm">
+            {fallbackData ? (
+              <>
+                <div className="rounded-md border border-border/70 bg-muted/30 p-3 font-mono text-xs break-all">
+                  {fallbackData.command}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a href={fallbackData.botUrl} target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" variant="outline">Open Bot</Button>
+                  </a>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(fallbackData.command);
+                    }}
+                  >
+                    Copy Command
+                  </Button>
+                  <Button size="sm" onClick={verifyFallbackLogin} disabled={fallbackBusy}>
+                    {fallbackBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    I Sent It, Verify
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="text-muted-foreground">Preparing login code...</div>
+            )}
+
+            {fallbackError ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                {fallbackError}
+              </div>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
