@@ -79,6 +79,7 @@ type MarkdownLinkMatch = {
   url: string;
   start: number;
   end: number;
+  boldMarker?: "**" | "__";
 };
 
 type SelectedGuideLink = {
@@ -127,6 +128,8 @@ type ParsedGuideListNode = {
 function renderInlineMarkdownText(text: string, keyPrefix: string): ReactNode[] {
   if (!text) return [];
 
+  const decodeMarkdownEscapes = (value: string) => value.replace(/\\([\\`*{}_\[\]()#+\-.!])/g, "$1");
+
   const parts: ReactNode[] = [];
   const strongPattern = /(\\)?(\*\*|__)(.+?)\2/g;
   let lastIndex = 0;
@@ -139,23 +142,23 @@ function renderInlineMarkdownText(text: string, keyPrefix: string): ReactNode[] 
     const start = match.index ?? 0;
 
     if (start > lastIndex) {
-      parts.push(text.slice(lastIndex, start));
+      parts.push(decodeMarkdownEscapes(text.slice(lastIndex, start)));
     }
 
     if (escape) {
-      parts.push(full.slice(1));
+      parts.push(decodeMarkdownEscapes(full.slice(1)));
     } else {
-      parts.push(<strong key={`${keyPrefix}-strong-${strongIndex++}`}>{content}</strong>);
+      parts.push(<strong key={`${keyPrefix}-strong-${strongIndex++}`}>{decodeMarkdownEscapes(content)}</strong>);
     }
 
     lastIndex = start + full.length;
   }
 
   if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
+    parts.push(decodeMarkdownEscapes(text.slice(lastIndex)));
   }
 
-  if (parts.length === 0) return [text];
+  if (parts.length === 0) return [decodeMarkdownEscapes(text)];
   return parts;
 }
 
@@ -1258,12 +1261,25 @@ function renderInlineContent(
 ) {
   const effectiveLinks = options?.effectiveLinks ?? GUIDE_LINKS;
   const guideLinkPattern = buildGuideLinkPattern(effectiveLinks);
-  const markdownLinks = Array.from(text.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g)).map((match) => ({
+  const baseMarkdownLinks = Array.from(text.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g)).map((match) => ({
     label: match[1],
     url: match[2],
     start: match.index ?? 0,
     end: (match.index ?? 0) + match[0].length,
   })) as MarkdownLinkMatch[];
+  const markdownLinks = baseMarkdownLinks.map((link) => {
+    const before = text.slice(Math.max(0, link.start - 2), link.start);
+    const after = text.slice(link.end, link.end + 2);
+    if ((before === "**" || before === "__") && after === before) {
+      return {
+        ...link,
+        start: link.start - 2,
+        end: link.end + 2,
+        boldMarker: before as "**" | "__",
+      };
+    }
+    return link;
+  });
 
   if (!options?.exactSpotPickMode && !guideLinkPattern && markdownLinks.length === 0) {
     return renderInlineMarkdownText(text, `plain-${options?.occurrenceScope ?? "line"}`);
@@ -1511,7 +1527,7 @@ function renderInlineContent(
           onClick={() => options.onSelectLink?.({ id: overrideLink?.id, label: mdLink.label, href, kind: overrideLink?.kind ?? "custom", target: overrideLink?.target, occurrenceKey })}
         >
           {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, mdLink.label) : null}
-          {mdLink.label}
+          {mdLink.boldMarker ? <strong>{mdLink.label}</strong> : mdLink.label}
         </button>,
       );
     } else if (!occurrenceDisabled && overrideLink?.target && options?.onOpenGuideTarget) {
@@ -1523,7 +1539,7 @@ function renderInlineContent(
           onClick={() => options.onOpenGuideTarget?.(overrideLink, mdLink.label)}
         >
           {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, mdLink.label) : null}
-          {mdLink.label}
+          {mdLink.boldMarker ? <strong>{mdLink.label}</strong> : mdLink.label}
         </button>,
       );
     } else if (!occurrenceDisabled && options?.onOpenEquipmentPreview && isEquipmentStatsHref(href)) {
@@ -1535,7 +1551,7 @@ function renderInlineContent(
           onClick={() => options.onOpenEquipmentPreview?.(href, mdLink.label)}
         >
           {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, mdLink.label) : null}
-          {mdLink.label}
+          {mdLink.boldMarker ? <strong>{mdLink.label}</strong> : mdLink.label}
         </button>,
       );
     } else if (!occurrenceDisabled && options?.onOpenJobPreview && getJobNameFromHref(href)) {
@@ -1547,7 +1563,7 @@ function renderInlineContent(
           onClick={() => options.onOpenJobPreview?.(href, mdLink.label)}
         >
           {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, mdLink.label) : null}
-          {mdLink.label}
+          {mdLink.boldMarker ? <strong>{mdLink.label}</strong> : mdLink.label}
         </button>,
       );
     } else if (occurrenceDisabled) {
@@ -1562,7 +1578,7 @@ function renderInlineContent(
           className="font-medium text-primary underline underline-offset-4"
         >
           {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, mdLink.label) : null}
-          {mdLink.label}
+          {mdLink.boldMarker ? <strong>{mdLink.label}</strong> : mdLink.label}
         </a>,
       );
     }
