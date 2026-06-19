@@ -1577,13 +1577,19 @@ function renderInlineContent(
 }
 
 function parseListLine(line: string): { level: number; ordered: boolean; text: string } | null {
-  const match = line.match(/^(\s*)([-*]|\d+[.)])\s+(.+)$/);
+  const match = line.match(/^(\s*)([-*•●▪▫◦○]|\d+[.)])\s+(.+)$/);
   if (!match) return null;
   const indentWidth = (match[1] ?? "").replace(/\t/g, "    ").length;
-  const level = Math.floor(indentWidth / 2);
+  const marker = match[2] ?? "";
+  const bulletTier = /^\d/.test(marker)
+    ? 0
+    : /[◦○▫]/.test(marker)
+      ? 1
+      : 0;
+  const level = Math.floor(indentWidth / 2) + bulletTier;
   return {
     level,
-    ordered: /^\d/.test(match[2] ?? ""),
+    ordered: /^\d/.test(marker),
     text: match[3] ?? "",
   };
 }
