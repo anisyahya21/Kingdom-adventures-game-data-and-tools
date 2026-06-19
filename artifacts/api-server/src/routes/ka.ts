@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, gte, isNull, sql } from "drizzle-orm";
 import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached, refreshStaticSourceIfStale } from "../lib/google-cache";
 import { renderJobPreview, renderJobPreviewByName } from "../lib/character-preview";
 import multer from "multer";
@@ -567,6 +567,17 @@ type AuthenticatedSession = {
   isAdmin: boolean;
 };
 
+type AnalyticsEventRequest = {
+  eventId?: string;
+  eventType?: string;
+  route?: string;
+  toolSlug?: string;
+  anonId?: string;
+  sessionId?: string;
+  referrer?: string;
+  country?: string;
+};
+
 function getAdminTelegramUserIds() {
   return new Set(
     String(process.env.TELEGRAM_ADMIN_USER_IDS || "")
@@ -612,6 +623,30 @@ async function resolveAuthenticatedSession(req: Request): Promise<AuthenticatedS
 function canManageGuide(session: AuthenticatedSession | undefined, guide: CommunityGuide) {
   if (!session) return false;
   return session.isAdmin || Boolean(guide.ownerUserId && guide.ownerUserId === session.userId);
+}
+
+function summarizeToolSlug(route: string) {
+  const normalized = route.startsWith("/") ? route : `/${route}`;
+  const segment = normalized.split("/").filter(Boolean)[0];
+  if (!segment) return "home";
+  return segment;
+}
+
+function requireAdmin(session: AuthenticatedSession | undefined, res: Parameters<typeof router.get>[1] extends never ? never : any) {
+  if (session?.isAdmin) return true;
+  res.status(403).json({ error: "Admin access required." });
+  return false;
+}
+
+function countReminderSubscriptions() {
+  const reminderStorePath = path.join(DATA_DIR, "event-reminder-subscriptions.json");
+  if (!fs.existsSync(reminderStorePath)) return 0;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(reminderStorePath, "utf8")) as { subscriptions?: unknown[] };
+    return Array.isArray(parsed.subscriptions) ? parsed.subscriptions.length : 0;
+  } catch {
+    return 0;
+  }
 }
 
 function uniqueGuideSlug(state: SharedState, base: string, existingId?: string) {
@@ -726,6 +761,153 @@ router.get("/ka/shared", async (req, res) => {
       editable: canManageGuide(currentSession, guide),
     })),
     skills: withLegacySkillFlags(state.skills),
+  });
+});
+
+router.post("/ka/analytics/events", async (req, res) => {
+  if (!dbModule) {
+    await initDbModule();
+  }
+  if (!dbModule) {
+    res.json({ ok: true, skipped: true });
+    return;
+  }
+
+  const body = (req.body ?? {}) as AnalyticsEventRequest;
+  const route = String(body.route ?? "").trim();
+  const eventType = String(body.eventType ?? "").trim().toLowerCase();
+  const anonId = String(body.anonId ?? "").trim();
+  const sessionId = String(body.sessionId ?? "").trim();
+  if (!route || !eventType || !anonId || !sessionId) {
+    res.status(400).json({ error: "Missing required analytics event fields." });
+    return;
+  }
+
+  const currentSession = await resolveAuthenticatedSession(req);
+  const eventId = String(body.eventId ?? crypto.randomUUID()).trim();
+  const toolSlug = String(body.toolSlug ?? summarizeToolSlug(route)).trim();
+  const referrer = String(body.referrer ?? "").trim() || undefined;
+  const country = String(body.country ?? "").trim() || undefined;
+  const userAgent = req.get("user-agent") || undefined;
+
+  await dbModule.db
+    .insert(dbModule.analyticsEventsTable)
+    .values({
+      eventId,
+      eventType,
+      route,
+      toolSlug,
+      userId: currentSession?.userId,
+      anonId,
+      sessionId,
+      referrer,
+      userAgent,
+      country,
+    })
+    .onConflictDoNothing({ target: dbModule.analyticsEventsTable.eventId });
+
+  res.json({ ok: true });
+});
+
+router.get("/ka/admin/overview", async (req, res) => {
+  const currentSession = await resolveAuthenticatedSession(req);
+  if (!requireAdmin(currentSession, res)) return;
+  if (!dbModule) {
+    await initDbModule();
+  }
+  if (!dbModule) {
+    res.status(503).json({ error: "Database is not configured." });
+    return;
+  }
+
+  const usersCountResult = await dbModule.db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(dbModule.usersTable);
+
+  const activeSessionsResult = await dbModule.db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(dbModule.userSessionsTable)
+    .where(and(
+      isNull(dbModule.userSessionsTable.revokedAt),
+      gt(dbModule.userSessionsTable.expiresAt, new Date()),
+    ));
+
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const uniqueVisitors30dResult = await dbModule.db
+    .select({ count: sql<number>`count(distinct ${dbModule.analyticsEventsTable.anonId})::int` })
+    .from(dbModule.analyticsEventsTable)
+    .where(gte(dbModule.analyticsEventsTable.timestamp, since));
+
+  const state = readState();
+  res.json({
+    users: usersCountResult[0]?.count ?? 0,
+    activeSessions: activeSessionsResult[0]?.count ?? 0,
+    reminderSubscriptions: countReminderSubscriptions(),
+    guides: state.communityGuides.length,
+    uniqueVisitors30d: uniqueVisitors30dResult[0]?.count ?? 0,
+  });
+});
+
+router.get("/ka/admin/top-pages", async (req, res) => {
+  const currentSession = await resolveAuthenticatedSession(req);
+  if (!requireAdmin(currentSession, res)) return;
+  if (!dbModule) {
+    await initDbModule();
+  }
+  if (!dbModule) {
+    res.status(503).json({ error: "Database is not configured." });
+    return;
+  }
+
+  const days = Math.max(1, Math.min(365, Math.round(Number(req.query.days) || 30)));
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const rows = await dbModule.db
+    .select({
+      route: dbModule.analyticsEventsTable.route,
+      views: sql<number>`count(*)::int`,
+    })
+    .from(dbModule.analyticsEventsTable)
+    .where(and(
+      eq(dbModule.analyticsEventsTable.eventType, "page_view"),
+      gte(dbModule.analyticsEventsTable.timestamp, since),
+    ))
+    .groupBy(dbModule.analyticsEventsTable.route)
+    .orderBy(sql`count(*) desc`)
+    .limit(20);
+
+  res.json({ days, rows });
+});
+
+router.get("/ka/admin/top-tools", async (req, res) => {
+  const currentSession = await resolveAuthenticatedSession(req);
+  if (!requireAdmin(currentSession, res)) return;
+  if (!dbModule) {
+    await initDbModule();
+  }
+  if (!dbModule) {
+    res.status(503).json({ error: "Database is not configured." });
+    return;
+  }
+
+  const days = Math.max(1, Math.min(365, Math.round(Number(req.query.days) || 30)));
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const rows = await dbModule.db
+    .select({
+      toolSlug: dbModule.analyticsEventsTable.toolSlug,
+      views: sql<number>`count(*)::int`,
+    })
+    .from(dbModule.analyticsEventsTable)
+    .where(and(
+      eq(dbModule.analyticsEventsTable.eventType, "page_view"),
+      gte(dbModule.analyticsEventsTable.timestamp, since),
+    ))
+    .groupBy(dbModule.analyticsEventsTable.toolSlug)
+    .orderBy(sql`count(*) desc`)
+    .limit(20);
+
+  res.json({
+    days,
+    rows: rows.filter((row) => String(row.toolSlug ?? "").trim().length > 0),
   });
 });
 
