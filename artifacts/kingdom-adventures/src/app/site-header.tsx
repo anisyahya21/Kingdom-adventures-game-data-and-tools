@@ -284,10 +284,15 @@ export function SiteHeader() {
               Loading
             </Button>
           ) : authSession.authenticated ? (
-            <Button variant="ghost" className="h-11 px-3 text-xs" onClick={logout} disabled={authBusy} title="Log out">
-              {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {authSession.user?.displayName || "Account"}
-            </Button>
+            <>
+              <Button variant="ghost" className="h-11 px-3 text-xs" disabled title="Signed in account">
+                {authSession.user?.displayName || "Account"}
+              </Button>
+              <Button variant="ghost" className="h-11 px-2 text-[11px]" onClick={logout} disabled={authBusy} title="Log out">
+                {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Log out
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="ghost" className="h-11 px-3 text-xs" onClick={startLogin} disabled={authBusy} title="Log in with Telegram">
