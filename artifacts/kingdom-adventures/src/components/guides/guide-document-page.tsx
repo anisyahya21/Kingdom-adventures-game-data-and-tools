@@ -162,6 +162,15 @@ function renderInlineMarkdownText(text: string, keyPrefix: string): ReactNode[] 
   return parts;
 }
 
+function unwrapOuterStrongMarkdown(text: string): { text: string; strong: boolean } {
+  const match = text.match(/^\s*(\*\*|__)([\s\S]+)\1\s*$/);
+  if (!match) return { text, strong: false };
+  return {
+    text: match[2] ?? text,
+    strong: true,
+  };
+}
+
 type GuideIconCatalogEntry = {
   name: string;
   src: string;
@@ -1743,24 +1752,28 @@ function renderLine(
   }
 
   if (/^[-*]\s+/.test(trimmed)) {
+    const strongLine = unwrapOuterStrongMarkdown(trimmed.replace(/^[-*]\s+/, ""));
     return (
       <li key={index} className="list-disc text-sm leading-7 text-foreground/95" style={{ marginLeft: `${listIndentRem}rem` }}>
-        {renderInlineContent(trimmed.replace(/^[-*]\s+/, ""), options)}
+        {strongLine.strong ? <strong>{renderInlineContent(strongLine.text, options)}</strong> : renderInlineContent(strongLine.text, options)}
       </li>
     );
   }
 
   if (/^\d+\)\s+/.test(trimmed) || /^\d+\.\s+/.test(trimmed)) {
+    const strongLine = unwrapOuterStrongMarkdown(trimmed.replace(/^\d+[.)]\s+/, ""));
     return (
       <li key={index} className="list-decimal text-sm leading-7 text-foreground/95" style={{ marginLeft: `${listIndentRem}rem` }}>
-        {renderInlineContent(trimmed.replace(/^\d+[.)]\s+/, ""), options)}
+        {strongLine.strong ? <strong>{renderInlineContent(strongLine.text, options)}</strong> : renderInlineContent(strongLine.text, options)}
       </li>
     );
   }
 
+  const strongLine = unwrapOuterStrongMarkdown(trimmed);
+
   return (
     <p key={index} className="break-words text-sm leading-7 text-foreground/95 whitespace-pre-wrap">
-      {renderInlineContent(trimmed, options)}
+      {strongLine.strong ? <strong>{renderInlineContent(strongLine.text, options)}</strong> : renderInlineContent(strongLine.text, options)}
     </p>
   );
 }
