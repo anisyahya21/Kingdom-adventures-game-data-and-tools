@@ -71,6 +71,10 @@ function configuredAuthReady() {
 function baseUrlFromRequest(req: Parameters<typeof router.get>[1] extends never ? never : any) {
   const explicit = process.env.AUTH_PUBLIC_BASE_URL?.trim() || process.env.EVENT_REMINDER_PUBLIC_BASE_URL?.trim();
   if (explicit) return explicit.replace(/\/$/, "");
+  const origin = String(req.get("origin") || "").trim();
+  if (/^https?:\/\//i.test(origin)) {
+    return origin.replace(/\/$/, "");
+  }
   return `${req.protocol}://${req.get("host")}`;
 }
 
