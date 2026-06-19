@@ -16,8 +16,12 @@ let dbModule: DbModule | null = null;
 
 function authCookieSameSite(): "lax" | "strict" | "none" {
   const raw = String(process.env.AUTH_COOKIE_SAME_SITE || "none").trim().toLowerCase();
-  if (raw === "lax" || raw === "strict" || raw === "none") return raw;
-  return "none";
+  if (raw === "none") {
+    // Browsers reject SameSite=None cookies unless Secure is true.
+    return authCookieSecure() ? "none" : "lax";
+  }
+  if (raw === "lax" || raw === "strict") return raw;
+  return authCookieSecure() ? "none" : "lax";
 }
 
 function authCookieSecure() {
