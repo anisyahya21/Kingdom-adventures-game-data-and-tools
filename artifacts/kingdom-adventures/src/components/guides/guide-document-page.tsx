@@ -1662,15 +1662,27 @@ function renderListNode(
   const ListTag = list.ordered ? "ol" : "ul";
   return (
     <ListTag key={keyPrefix} className={`${list.ordered ? "list-decimal" : "list-disc"} space-y-1 pl-6 text-sm leading-7 text-foreground/95`}>
-      {list.items.map((item) => (
-        <li key={`${keyPrefix}-item-${item.lineIndex}`}>
-          {renderInlineContent(item.text, {
-            ...options,
-            occurrenceScope: `${sectionScope}:${item.lineIndex}`,
-          })}
-          {item.children.map((child, childIndex) => renderListNode(child, `${keyPrefix}-child-${item.lineIndex}-${childIndex}`, sectionScope, options))}
-        </li>
-      ))}
+      {list.items.map((item) => {
+        const strongItem = unwrapOuterStrongMarkdown(item.text);
+        return (
+          <li key={`${keyPrefix}-item-${item.lineIndex}`}>
+            {strongItem.strong ? (
+              <strong>
+                {renderInlineContent(strongItem.text, {
+                  ...options,
+                  occurrenceScope: `${sectionScope}:${item.lineIndex}`,
+                })}
+              </strong>
+            ) : (
+              renderInlineContent(strongItem.text, {
+                ...options,
+                occurrenceScope: `${sectionScope}:${item.lineIndex}`,
+              })
+            )}
+            {item.children.map((child, childIndex) => renderListNode(child, `${keyPrefix}-child-${item.lineIndex}-${childIndex}`, sectionScope, options))}
+          </li>
+        );
+      })}
     </ListTag>
   );
 }
