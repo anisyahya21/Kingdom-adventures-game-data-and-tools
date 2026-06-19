@@ -14,8 +14,8 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/ka-api/(.*)", "destination": "/ka-api/$1" },
+    { "source": "/api/(.*)", "destination": "https://kingdom-adventures-game-data-and-tools.onrender.com/api/$1" },
+    { "source": "/ka-api/(.*)", "destination": "https://kingdom-adventures-game-data-and-tools.onrender.com/ka-api/$1" },
     { "source": "/(.*\\..*)", "destination": "/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
