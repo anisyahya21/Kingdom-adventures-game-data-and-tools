@@ -97,6 +97,68 @@ type InlineGuideIconRequest = {
   target?: GuideLinkTarget;
 };
 
+type GuideRenderLineOptions = {
+  effectiveLinks?: GuideLink[];
+  disabledOccurrenceKeys?: Set<string>;
+  linkEditMode?: boolean;
+  exactSpotPickMode?: boolean;
+  selectedOccurrenceKeys?: Set<string>;
+  occurrenceScope?: string;
+  onSelectLink?: (link: SelectedGuideLink) => void;
+  onToggleExactSpot?: (link: SelectedGuideLink) => void;
+  resolveInlineIcon?: (request: InlineGuideIconRequest) => string | undefined;
+  onOpenEquipmentPreview?: (href: string, label: string) => void;
+  onOpenJobPreview?: (href: string, label: string) => void;
+  onOpenGuideTarget?: (link: GuideLink, label: string) => void;
+};
+
+type ParsedGuideListItem = {
+  lineIndex: number;
+  text: string;
+  children: ParsedGuideListNode[];
+};
+
+type ParsedGuideListNode = {
+  ordered: boolean;
+  level: number;
+  items: ParsedGuideListItem[];
+};
+
+function renderInlineMarkdownText(text: string, keyPrefix: string): ReactNode[] {
+  if (!text) return [];
+
+  const parts: ReactNode[] = [];
+  const strongPattern = /(\\)?(\*\*|__)(.+?)\2/g;
+  let lastIndex = 0;
+  let strongIndex = 0;
+
+  for (const match of text.matchAll(strongPattern)) {
+    const full = match[0];
+    const escape = match[1];
+    const content = match[3] ?? "";
+    const start = match.index ?? 0;
+
+    if (start > lastIndex) {
+      parts.push(text.slice(lastIndex, start));
+    }
+
+    if (escape) {
+      parts.push(full.slice(1));
+    } else {
+      parts.push(<strong key={`${keyPrefix}-strong-${strongIndex++}`}>{content}</strong>);
+    }
+
+    lastIndex = start + full.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  if (parts.length === 0) return [text];
+  return parts;
+}
+
 type GuideIconCatalogEntry = {
   name: string;
   src: string;
@@ -1192,20 +1254,7 @@ function parseGuide(markdown: string): ParsedGuide {
 
 function renderInlineContent(
   text: string,
-  options?: {
-    effectiveLinks?: GuideLink[];
-    disabledOccurrenceKeys?: Set<string>;
-    linkEditMode?: boolean;
-    exactSpotPickMode?: boolean;
-    selectedOccurrenceKeys?: Set<string>;
-    occurrenceScope?: string;
-    onSelectLink?: (link: SelectedGuideLink) => void;
-    onToggleExactSpot?: (link: SelectedGuideLink) => void;
-    resolveInlineIcon?: (request: InlineGuideIconRequest) => string | undefined;
-    onOpenEquipmentPreview?: (href: string, label: string) => void;
-    onOpenJobPreview?: (href: string, label: string) => void;
-    onOpenGuideTarget?: (link: GuideLink, label: string) => void;
-  },
+  options?: GuideRenderLineOptions,
 ) {
   const effectiveLinks = options?.effectiveLinks ?? GUIDE_LINKS;
   const guideLinkPattern = buildGuideLinkPattern(effectiveLinks);
@@ -1216,7 +1265,9 @@ function renderInlineContent(
     end: (match.index ?? 0) + match[0].length,
   })) as MarkdownLinkMatch[];
 
-  if (!options?.exactSpotPickMode && !guideLinkPattern && markdownLinks.length === 0) return text;
+  if (!options?.exactSpotPickMode && !guideLinkPattern && markdownLinks.length === 0) {
+    return renderInlineMarkdownText(text, `plain-${options?.occurrenceScope ?? "line"}`);
+  }
 
   const parts: ReactNode[] = [];
   let lastIndex = 0;
@@ -1228,7 +1279,9 @@ function renderInlineContent(
       const word = match[0];
       const wordStart = match.index ?? 0;
       const absoluteIndex = segmentStart + wordStart;
-      if (wordStart > wordLastIndex) parts.push(segment.slice(wordLastIndex, wordStart));
+      if (wordStart > wordLastIndex) {
+        parts.push(...renderInlineMarkdownText(segment.slice(wordLastIndex, wordStart), `spot-${segmentStart + wordLastIndex}`));
+      }
       const occurrenceKey = buildGuideOccurrenceKey(options?.occurrenceScope, absoluteIndex, word);
       const selected = options?.selectedOccurrenceKeys?.has(occurrenceKey);
       parts.push(
@@ -1245,7 +1298,9 @@ function renderInlineContent(
       );
       wordLastIndex = wordStart + word.length;
     }
-    if (wordLastIndex < segment.length) parts.push(segment.slice(wordLastIndex));
+    if (wordLastIndex < segment.length) {
+      parts.push(...renderInlineMarkdownText(segment.slice(wordLastIndex), `spot-${segmentStart + wordLastIndex}`));
+    }
   };
 
   const pushExactSpotText = (segment: string, segmentStart: number) => {
@@ -1321,7 +1376,7 @@ function renderInlineContent(
 
   const pushMarkdownLinkAwareText = (segment: string, segmentStart: number) => {
     if (!guideLinkPattern) {
-      parts.push(segment);
+      parts.push(...renderInlineMarkdownText(segment, `plain-${segmentStart}`));
       return;
     }
 
@@ -1336,7 +1391,7 @@ function renderInlineContent(
       const occurrenceKey = buildGuideOccurrenceKey(options?.occurrenceScope, absoluteMatchIndex, fullMatch);
       if (options?.disabledOccurrenceKeys?.has(occurrenceKey)) continue;
       const link = findGuideLinkForOccurrence(effectiveLinks, fullMatch, occurrenceKey);
-      const href = link?.href;
+      const href = link?.href ?? "";
       const inlineIconSrc = options?.resolveInlineIcon?.({ label: fullMatch, href: href ?? "", occurrenceKey, target: link?.target });
 
       if (!href && !inlineIconSrc) continue;
@@ -1350,10 +1405,12 @@ function renderInlineContent(
       if (blockedByPhrase) continue;
 
       if (rawMatchStart > innerLastIndex) {
-        parts.push(segment.slice(innerLastIndex, rawMatchStart));
+        parts.push(...renderInlineMarkdownText(segment.slice(innerLastIndex, rawMatchStart), `txt-${segmentStart + innerLastIndex}`));
       }
 
-      if (prefix) parts.push(prefix);
+      if (prefix) {
+        parts.push(...renderInlineMarkdownText(prefix, `prefix-${segmentStart + rawMatchStart}`));
+      }
 
       if (options?.linkEditMode && options.onSelectLink) {
         parts.push(
@@ -1361,7 +1418,7 @@ function renderInlineContent(
             key={`${fullMatch}-${absoluteMatchIndex}`}
             type="button"
             className="font-medium text-primary underline underline-offset-4 decoration-dashed"
-            onClick={() => options.onSelectLink?.({ id: link?.id, label: fullMatch, href, kind: link?.kind ?? "auto", target: link?.target, occurrenceKey })}
+            onClick={() => options.onSelectLink?.({ id: link?.id, label: fullMatch, href: href ?? "", kind: link?.kind ?? "auto", target: link?.target, occurrenceKey })}
           >
             {inlineIconSrc ? renderInlineGuideIcon(inlineIconSrc, `icon-${occurrenceKey}`, fullMatch) : null}
             {fullMatch}
@@ -1429,7 +1486,7 @@ function renderInlineContent(
     }
 
     if (innerLastIndex < segment.length) {
-      parts.push(segment.slice(innerLastIndex));
+      parts.push(...renderInlineMarkdownText(segment.slice(innerLastIndex), `txt-${segmentStart + innerLastIndex}`));
     }
   };
 
@@ -1494,7 +1551,7 @@ function renderInlineContent(
         </button>,
       );
     } else if (occurrenceDisabled) {
-      parts.push(mdLink.label);
+      parts.push(...renderInlineMarkdownText(mdLink.label, `md-label-${mdLink.start}`));
     } else {
       parts.push(
         <a
@@ -1519,25 +1576,114 @@ function renderInlineContent(
   return parts.length > 0 ? parts : text;
 }
 
+function parseListLine(line: string): { level: number; ordered: boolean; text: string } | null {
+  const match = line.match(/^(\s*)([-*]|\d+[.)])\s+(.+)$/);
+  if (!match) return null;
+  const indentWidth = (match[1] ?? "").replace(/\t/g, "    ").length;
+  const level = Math.floor(indentWidth / 2);
+  return {
+    level,
+    ordered: /^\d/.test(match[2] ?? ""),
+    text: match[3] ?? "",
+  };
+}
+
+function parseListNode(lines: string[], startIndex: number, level: number, ordered: boolean): { node: ParsedGuideListNode; nextIndex: number } {
+  const node: ParsedGuideListNode = {
+    ordered,
+    level,
+    items: [],
+  };
+
+  let cursor = startIndex;
+  while (cursor < lines.length) {
+    const meta = parseListLine(lines[cursor]);
+    if (!meta) break;
+    if (meta.level < level) break;
+
+    if (meta.level > level) {
+      if (node.items.length === 0) break;
+      const child = parseListNode(lines, cursor, meta.level, meta.ordered);
+      node.items[node.items.length - 1].children.push(child.node);
+      cursor = child.nextIndex;
+      continue;
+    }
+
+    if (meta.ordered !== ordered) break;
+
+    node.items.push({
+      lineIndex: cursor,
+      text: meta.text,
+      children: [],
+    });
+    cursor += 1;
+  }
+
+  return { node, nextIndex: cursor };
+}
+
+function renderListNode(
+  list: ParsedGuideListNode,
+  keyPrefix: string,
+  sectionScope: string,
+  options: GuideRenderLineOptions,
+): ReactNode {
+  const ListTag = list.ordered ? "ol" : "ul";
+  return (
+    <ListTag key={keyPrefix} className={`${list.ordered ? "list-decimal" : "list-disc"} space-y-1 pl-6 text-sm leading-7 text-foreground/95`}>
+      {list.items.map((item) => (
+        <li key={`${keyPrefix}-item-${item.lineIndex}`}>
+          {renderInlineContent(item.text, {
+            ...options,
+            occurrenceScope: `${sectionScope}:${item.lineIndex}`,
+          })}
+          {item.children.map((child, childIndex) => renderListNode(child, `${keyPrefix}-child-${item.lineIndex}-${childIndex}`, sectionScope, options))}
+        </li>
+      ))}
+    </ListTag>
+  );
+}
+
+function renderSectionLines(
+  lines: string[],
+  sectionScope: string,
+  imageMap: Record<string, string>,
+  options: GuideRenderLineOptions,
+): ReactNode[] {
+  const rendered: ReactNode[] = [];
+  let cursor = 0;
+
+  while (cursor < lines.length) {
+    const line = lines[cursor];
+    const meta = parseListLine(line);
+    if (meta) {
+      const { node, nextIndex } = parseListNode(lines, cursor, meta.level, meta.ordered);
+      rendered.push(renderListNode(node, `${sectionScope}-list-${cursor}`, sectionScope, options));
+      cursor = nextIndex;
+      continue;
+    }
+
+    rendered.push(
+      renderLine(line, cursor, imageMap, {
+        ...options,
+        occurrenceScope: `${sectionScope}:${cursor}`,
+      }),
+    );
+    cursor += 1;
+  }
+
+  return rendered;
+}
+
 function renderLine(
   line: string,
   index: number,
   imageMap: Record<string, string>,
-  options?: {
-    effectiveLinks?: GuideLink[];
-    disabledOccurrenceKeys?: Set<string>;
-    linkEditMode?: boolean;
-    exactSpotPickMode?: boolean;
-    selectedOccurrenceKeys?: Set<string>;
-    occurrenceScope?: string;
-    onSelectLink?: (link: SelectedGuideLink) => void;
-    onToggleExactSpot?: (link: SelectedGuideLink) => void;
-    resolveInlineIcon?: (request: InlineGuideIconRequest) => string | undefined;
-    onOpenEquipmentPreview?: (href: string, label: string) => void;
-    onOpenJobPreview?: (href: string, label: string) => void;
-    onOpenGuideTarget?: (link: GuideLink, label: string) => void;
-  },
+  options?: GuideRenderLineOptions,
 ) {
+  const leadingWhitespace = line.match(/^\s*/)?.[0] ?? "";
+  const indentLevel = Math.floor(leadingWhitespace.replace(/\t/g, "    ").length / 2);
+  const listIndentRem = 1.25 + indentLevel * 1.1;
   const trimmed = line.trim();
 
   if (!trimmed) {
@@ -1576,7 +1722,7 @@ function renderLine(
 
   if (/^[-*]\s+/.test(trimmed)) {
     return (
-      <li key={index} className="ml-5 list-disc text-sm leading-7 text-foreground/95">
+      <li key={index} className="list-disc text-sm leading-7 text-foreground/95" style={{ marginLeft: `${listIndentRem}rem` }}>
         {renderInlineContent(trimmed.replace(/^[-*]\s+/, ""), options)}
       </li>
     );
@@ -1584,7 +1730,7 @@ function renderLine(
 
   if (/^\d+\)\s+/.test(trimmed) || /^\d+\.\s+/.test(trimmed)) {
     return (
-      <li key={index} className="ml-5 list-decimal text-sm leading-7 text-foreground/95">
+      <li key={index} className="list-decimal text-sm leading-7 text-foreground/95" style={{ marginLeft: `${listIndentRem}rem` }}>
         {renderInlineContent(trimmed.replace(/^\d+[.)]\s+/, ""), options)}
       </li>
     );
@@ -3357,14 +3503,16 @@ export function GuideDocumentPage({
                       ) : null}
 
                       <div className="space-y-2">
-                        {section.lines.map((line, index) =>
-                          renderLine(line, index, parsedGuide.imageMap, {
+                        {renderSectionLines(
+                          section.lines,
+                          section.id,
+                          parsedGuide.imageMap,
+                          {
                             effectiveLinks,
                             disabledOccurrenceKeys,
                             linkEditMode,
                             exactSpotPickMode,
                             selectedOccurrenceKeys: selectedExactSpotKeys,
-                            occurrenceScope: `${section.id}:${index}`,
                             resolveInlineIcon,
                             onOpenEquipmentPreview: openEquipmentPreview,
                             onOpenJobPreview: openJobPreview,
@@ -3389,7 +3537,7 @@ export function GuideDocumentPage({
                               setGuideToolTab("icons");
                               setLinkDialogOpen(true);
                             },
-                          }),
+                          },
                         )}
                       </div>
                     </CardContent>
