@@ -31,6 +31,7 @@ export type TelegramFallbackStartResponse = {
   expiresAt: string;
   botUsername: string;
   botUrl: string;
+  deepLinkUrl?: string;
   command: string;
 };
 
@@ -51,9 +52,13 @@ export async function fetchAuthSession(): Promise<AuthSessionResponse> {
 }
 
 export async function startTelegramAuth(): Promise<TelegramStartResponse> {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   const response = await fetch(authUrl("/telegram/start"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(origin ? { "x-ka-origin": origin } : {}),
+    },
     credentials: "include",
   });
   if (!response.ok) {

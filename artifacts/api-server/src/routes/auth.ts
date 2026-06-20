@@ -107,6 +107,11 @@ function isAdminTelegramUser(telegramUserId?: string | null) {
 }
 
 function baseUrlFromRequest(req: Parameters<typeof router.get>[1] extends never ? never : any) {
+  const explicitClientOrigin = String(req.get("x-ka-origin") || "").trim();
+  if (/^https?:\/\//i.test(explicitClientOrigin)) {
+    return explicitClientOrigin.replace(/\/$/, "");
+  }
+
   const origin = String(req.get("origin") || req.get("x-forwarded-origin") || "").trim();
   if (/^https?:\/\//i.test(origin)) {
     return origin.replace(/\/$/, "");
@@ -126,6 +131,16 @@ function baseUrlFromRequest(req: Parameters<typeof router.get>[1] extends never 
 
   const explicit = process.env.AUTH_PUBLIC_BASE_URL?.trim() || process.env.EVENT_REMINDER_PUBLIC_BASE_URL?.trim();
   if (explicit) return explicit.replace(/\/$/, "");
+
+  const forwardedProto = String(req.get("x-forwarded-proto") || "").trim().toLowerCase();
+  const host = String(req.get("x-forwarded-host") || req.get("host") || "").trim();
+  if (host) {
+    const protocol = forwardedProto === "https" ? "https" : req.protocol;
+    if (protocol === "http" && !/^(localhost|127\.0\.0\.1|192\.168\.)/i.test(host)) {
+      return `https://${host}`;
+    }
+    return `${protocol}://${host}`;
+  }
 
   return `${req.protocol}://${req.get("host")}`;
 }
@@ -236,11 +251,20 @@ async function upsertTelegramUser(module: DbModule, identity: TelegramIdentity) 
 
 function normalizeLoginCommand(text: string) {
   const match = text.trim().match(/^\/login(?:@([a-zA-Z0-9_]+))?\s+([A-Z0-9]{4,12})$/i);
-  if (!match) return null;
-  const commandBot = (match[1] || "").toLowerCase();
+  if (match) {
+    const commandBot = (match[1] || "").toLowerCase();
+    const configuredBot = normalizeTelegramBotUsername().toLowerCase();
+    if (commandBot && configuredBot && commandBot !== configuredBot) return null;
+    return match[2].toUpperCase();
+  }
+
+  // Support deep-link based commands like /start login_ABC123.
+  const startMatch = text.trim().match(/^\/start(?:@([a-zA-Z0-9_]+))?\s+login[_-]?([A-Z0-9]{4,12})$/i);
+  if (!startMatch) return null;
+  const startBot = (startMatch[1] || "").toLowerCase();
   const configuredBot = normalizeTelegramBotUsername().toLowerCase();
-  if (commandBot && configuredBot && commandBot !== configuredBot) return null;
-  return match[2].toUpperCase();
+  if (startBot && configuredBot && startBot !== configuredBot) return null;
+  return startMatch[2].toUpperCase();
 }
 
 type TelegramUpdateMessage = {
@@ -385,6 +409,7 @@ router.post("/telegram/fallback/start", async (req, res) => {
     expiresAt: expiresAt.toISOString(),
     botUsername,
     botUrl: botUsername ? `https://t.me/${encodeURIComponent(botUsername)}` : "",
+    deepLinkUrl: botUsername ? `https://t.me/${encodeURIComponent(botUsername)}?start=${encodeURIComponent(`login_${code}`)}` : "",
     command: `/login ${code}`,
   });
 });
@@ -436,7 +461,16 @@ router.post("/telegram/fallback/verify", async (req, res) => {
     res.status(502).json({ error: "Could not verify login code. Try again." });
     return;
   }
-  const updatesPayload = await updatesResponse.json().catch(() => null) as { result?: Array<{ message?: TelegramUpdateMessage }> } | null;
+  const updatesPayload = await updatesResponse.json().catch(() => null) as { ok?: boolean; description?: string; result?: Array<{ message?: TelegramUpdateMessage }> } | null;
+  if (!updatesPayload?.ok) {
+    const description = String(updatesPayload?.description || "");
+    if (/webhook/i.test(description)) {
+      res.status(409).json({ error: "Bot uses webhook mode, so code verification via polling is blocked. Disable webhook or use a dedicated auth bot." });
+      return;
+    }
+    res.status(502).json({ error: `Could not verify login code. ${description || "Try again."}`.trim() });
+    return;
+  }
   const updates = updatesPayload?.result ?? [];
 
   for (let index = updates.length - 1; index >= 0; index -= 1) {

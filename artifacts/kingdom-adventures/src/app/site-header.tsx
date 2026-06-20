@@ -433,6 +433,11 @@ export function SiteHeader() {
                   <a href={fallbackData.botUrl} target="_blank" rel="noopener noreferrer">
                     <Button size="sm" variant="outline">Open Bot</Button>
                   </a>
+                  {fallbackData.deepLinkUrl ? (
+                    <a href={fallbackData.deepLinkUrl} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="outline">Open Bot with Code</Button>
+                    </a>
+                  ) : null}
                   <Button
                     size="sm"
                     variant="outline"
