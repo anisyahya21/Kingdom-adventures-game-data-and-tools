@@ -139,7 +139,7 @@ export function SiteHeader() {
     return () => window.removeEventListener("message", handleAuthMessage);
   }, []);
 
-  const startLogin = async () => {
+  const startPopupLogin = async () => {
     setAuthBusy(true);
     try {
       const started = await startTelegramAuth();
@@ -348,13 +348,13 @@ export function SiteHeader() {
             </DropdownMenu>
           ) : (
             <>
-              <Button variant="ghost" className="h-11 px-3 text-xs" onClick={startLogin} disabled={authBusy} title="Log in with Telegram">
-                {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              <Button variant="ghost" className="h-11 px-3 text-xs" onClick={startFallbackLogin} disabled={fallbackBusy} title="Log in using bot code">
+                {fallbackBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Log in
               </Button>
-              <Button variant="ghost" className="h-11 px-2 text-[11px]" onClick={startFallbackLogin} disabled={fallbackBusy} title="Use bot code login">
-                {fallbackBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Use code
+              <Button variant="ghost" className="h-11 px-2 text-[11px]" onClick={startPopupLogin} disabled={authBusy} title="Use Telegram popup login">
+                {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Popup
               </Button>
             </>
           )}
@@ -419,7 +419,7 @@ export function SiteHeader() {
           <DialogHeader>
             <DialogTitle>Log in with bot code</DialogTitle>
             <DialogDescription>
-              If Telegram confirmation does not arrive, send this command to the bot and verify.
+              This path avoids Telegram phone confirmation popups. Send this command to the bot and verify.
             </DialogDescription>
           </DialogHeader>
 
