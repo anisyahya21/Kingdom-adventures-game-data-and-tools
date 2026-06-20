@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/app/app-shell";
 import { GlobalJobPreview } from "@/components/ka/global-job-preview";
 import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL, encodeCanonicalPath, getSeoMeta } from "@/app/seo";
+import { trackPageView } from "@/lib/analytics";
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Home = lazy(() => import("@/pages/home"));
 const JobsMarriagePage = lazy(() => import("@/pages/jobs-marriage"));
@@ -42,6 +43,7 @@ const PlaythroughGuidePage = lazy(() => import("@/pages/playthrough-guide"));
 const GuidesPage = lazy(() => import("@/pages/guides"));
 const AddGuidePage = lazy(() => import("@/pages/add-guide"));
 const CommunityGuidePage = lazy(() => import("@/pages/community-guide"));
+const IconLibraryPage = lazy(() => import("@/pages/icon-library"));
 const UpdatesPage = lazy(() => import("@/pages/updates"));
 const SurveyPlanner = lazy(() => import("@/pages/survey-planner"));
 const TestPage = lazy(() => import("./pages/Test"));
@@ -49,6 +51,7 @@ const RuntimeWorldGridTestPage = lazy(() => import("@/pages/runtime-world-grid-t
 const RuntimeWorldRenderTestPage = lazy(() => import("@/pages/runtime-world-render-test"));
 const WorldMapV2Page = lazy(() => import("@/pages/world-map-v2"));
 const TerrainCompositionLabPage = lazy(() => import("@/pages/terrain-composition-lab"));
+const AdminPage = lazy(() => import("@/pages/admin"));
 
 function RouteLoading() {
   return (
@@ -195,8 +198,10 @@ function Router() {
         <Route path="/town-rank">{() => <TownRankPage />}</Route>
         <Route path="/guides/:slug">{() => <CommunityGuidePage />}</Route>
         <Route path="/guides">{() => <GuidesPage />}</Route>
+        <Route path="/icon-library">{() => <IconLibraryPage />}</Route>
         <Route path="/updates">{() => <UpdatesPage />}</Route>
         <Route path="/add-guide">{() => <AddGuidePage />}</Route>
+        <Route path="/admin">{() => <AdminPage />}</Route>
         <Route path="/playthrough-guide">{() => <PlaythroughGuidePage />}</Route>
         <Route path="/test">{() => <TestPage />}</Route>
         <Route>{() => <NotFound />}</Route>
@@ -209,6 +214,7 @@ function ScrollToTopOnRouteChange() {
   const [pathname] = useLocation();
 
   useEffect(() => {
+    void trackPageView(pathname);
     const hash = window.location.hash;
     if (hash) {
       const targetId = decodeURIComponent(hash.replace(/^#/, ""));
