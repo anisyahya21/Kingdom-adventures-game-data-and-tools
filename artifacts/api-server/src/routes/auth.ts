@@ -209,6 +209,29 @@ type TelegramIdentity = {
   photoUrl?: string;
 };
 
+async function sendTelegramLoginConfirmation(telegramUserId: string, source: "widget" | "code") {
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!token || !telegramUserId) return;
+
+  const text = source === "widget"
+    ? "You are now signed in to Kingdom Adventurers Community Tools."
+    : "Code verified. You are now signed in to Kingdom Adventurers Community Tools.";
+
+  try {
+    await fetch(`https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: telegramUserId,
+        text,
+        disable_web_page_preview: true,
+      }),
+    });
+  } catch {
+    // Messaging failures should not block login.
+  }
+}
+
 async function upsertTelegramUser(module: DbModule, identity: TelegramIdentity) {
   const existingUserRows = await module.db
     .select({ id: module.usersTable.id })
@@ -502,6 +525,8 @@ router.post("/telegram/fallback/verify", async (req, res) => {
 
   const session = await createSession(module, userId, req.ip, req.get("user-agent"));
 
+  await sendTelegramLoginConfirmation(telegramIdentity.telegramUserId, "code");
+
   await module.db
     .update(module.authChallengesTable)
     .set({ consumedAt: new Date() })
@@ -629,6 +654,8 @@ router.get("/telegram/callback", async (req, res) => {
   }
 
   const session = await createSession(module, userId, req.ip, req.get("user-agent"));
+
+  await sendTelegramLoginConfirmation(payload.id, "widget");
 
   await module.db
     .update(module.authChallengesTable)
