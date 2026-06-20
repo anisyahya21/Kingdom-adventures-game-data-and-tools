@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Check, ChevronDown, Eraser, Shield, Skull } from "lucide-react";
-import RuntimeWorldRenderTestPage, { type RuntimeExternalOverlay } from "./runtime-world-render-test";
+import RuntimeWorldRenderTestPage, { type RuntimeCellHighlightOverlay, type RuntimeExternalOverlay } from "./runtime-world-render-test";
 import { NATIVE_MAP, mapTerrainCodeToType, parseTerrainMapCsv, type TerrainType } from "@/lib/monster-truth";
 import { renderCharacterPreview } from "@/lib/character-renderer";
 import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
@@ -703,6 +703,45 @@ export default function ChaosSetupLabPage() {
       return { id, anchor, leakCount, covered: leakCount === 0 };
     });
   }, [blockedFacilityTiles, stoneAnchors, stoneIdByAnchorKey, seaTiles, occupiedByStones, pieces, openMonsterTile, openUnitTile]);
+
+  const runtimeCoverageOverlays = useMemo<RuntimeCellHighlightOverlay[]>(() => {
+    if (!showCoverageCheck) return [];
+
+    const overlays: RuntimeCellHighlightOverlay[] = [];
+
+    combinedEnvelope.forEach((k) => {
+      if (leakTiles.has(k)) return;
+      if (seaTiles.has(k)) return;
+
+      const p = parseKey(k);
+      const isCovered = occupiedByStones.has(k) || pieces.get(k) === "board";
+      const isReservedOpen =
+        (openMonsterTile && openMonsterTile.x === p.x && openMonsterTile.y === p.y) ||
+        (openUnitTile && openUnitTile.x === p.x && openUnitTile.y === p.y);
+      if (!isCovered && !isReservedOpen) {
+        overlays.push({
+          x: p.x,
+          y: p.y,
+          fillColor: "rgba(252, 211, 77, 0.42)",
+          strokeColor: "rgba(245, 158, 11, 0.72)",
+          lineWidth: 1,
+        });
+      }
+    });
+
+    leakTiles.forEach((k) => {
+      const p = parseKey(k);
+      overlays.push({
+        x: p.x,
+        y: p.y,
+        fillColor: "rgba(251, 113, 133, 0.74)",
+        strokeColor: "rgba(239, 68, 68, 0.96)",
+        lineWidth: 1.2,
+      });
+    });
+
+    return overlays;
+  }, [showCoverageCheck, combinedEnvelope, leakTiles, seaTiles, occupiedByStones, pieces, openMonsterTile, openUnitTile]);
 
   function clearAll() {
     setPieces(new Map());
@@ -2170,6 +2209,7 @@ export default function ChaosSetupLabPage() {
               special: false,
             }}
             externalOverlays={runtimeOverlays}
+            cellHighlightOverlays={runtimeCoverageOverlays}
             onCellHover={(cell) => setHoverTile(cell)}
             onCellClick={(cell) => onCellClick(cell.x, cell.y)}
           />

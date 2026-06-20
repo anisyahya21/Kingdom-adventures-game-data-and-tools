@@ -232,6 +232,14 @@ export type RuntimeExternalOverlay = {
   opacity?: number;
 };
 
+export type RuntimeCellHighlightOverlay = {
+  x: number;
+  y: number;
+  fillColor?: string;
+  strokeColor?: string;
+  lineWidth?: number;
+};
+
 type RuntimeWorldRenderTestPageProps = {
   publicMode?: boolean;
   initialZoom?: number;
@@ -245,6 +253,7 @@ type RuntimeWorldRenderTestPageProps = {
   onCellClick?: (cell: { x: number; y: number }) => void;
   onCellHover?: (cell: { x: number; y: number } | null) => void;
   externalOverlays?: RuntimeExternalOverlay[];
+  cellHighlightOverlays?: RuntimeCellHighlightOverlay[];
   showLevelOverlay?: boolean;
   hideNatureToggleButtons?: boolean;
   dimUncoveredConquestAreas?: boolean;
@@ -835,6 +844,7 @@ export default function RuntimeWorldRenderTestPage({
   onCellClick,
   onCellHover,
   externalOverlays = [],
+  cellHighlightOverlays = [],
   showLevelOverlay = false,
   hideNatureToggleButtons = false,
   dimUncoveredConquestAreas = false,
@@ -1759,6 +1769,32 @@ export default function RuntimeWorldRenderTestPage({
       }
     }
 
+    if (cellHighlightOverlays.length > 0) {
+      const halfW = (logicalTileWidth * zoom) / 2;
+      const halfH = (logicalTileHeight * zoom) / 2;
+      for (const overlay of cellHighlightOverlays) {
+        if (!Number.isFinite(overlay.x) || !Number.isFinite(overlay.y)) {
+          continue;
+        }
+        const isoCenter = worldToIso(overlay.x, overlay.y, zoom, camera.offsetX, camera.offsetY);
+        context.beginPath();
+        context.moveTo(isoCenter.x, isoCenter.y - halfH);
+        context.lineTo(isoCenter.x + halfW, isoCenter.y);
+        context.lineTo(isoCenter.x, isoCenter.y + halfH);
+        context.lineTo(isoCenter.x - halfW, isoCenter.y);
+        context.closePath();
+        if (overlay.fillColor) {
+          context.fillStyle = overlay.fillColor;
+          context.fill();
+        }
+        if (overlay.strokeColor) {
+          context.strokeStyle = overlay.strokeColor;
+          context.lineWidth = Math.max(0.8, overlay.lineWidth ?? 1.05);
+          context.stroke();
+        }
+      }
+    }
+
     if (showLevelOverlay && levelOverlayData.edges.length > 0) {
       const halfW = (logicalTileWidth * zoom) / 2;
       const halfH = (logicalTileHeight * zoom) / 2;
@@ -1873,6 +1909,7 @@ export default function RuntimeWorldRenderTestPage({
     showPortBridgePieces,
     portGateLayout,
     showCellGrid,
+    cellHighlightOverlays,
     conquestCoveredCellKeys,
     dimUncoveredConquestAreas,
     spawnOverlayCells,

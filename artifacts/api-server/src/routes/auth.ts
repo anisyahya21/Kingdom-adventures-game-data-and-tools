@@ -88,6 +88,12 @@ function normalizeTelegramBotUsername() {
   return raw.replace(/^@+/, "");
 }
 
+function telegramRequestAccessMode() {
+  const raw = String(process.env.TELEGRAM_LOGIN_REQUEST_ACCESS || "none").trim().toLowerCase();
+  if (raw === "write" || raw === "phone") return raw;
+  return "none";
+}
+
 function configuredAuthReady() {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim() && normalizeTelegramBotUsername());
 }
@@ -575,6 +581,10 @@ router.get("/telegram/widget", async (req, res) => {
   const botUsername = normalizeTelegramBotUsername();
   const base = baseUrlFromRequest(req);
   const callbackUrl = `${base}/ka-api/auth/telegram/callback?state=${encodeURIComponent(state)}`;
+  const requestAccess = telegramRequestAccessMode();
+  const requestAccessAttribute = requestAccess === "none"
+    ? ""
+    : ` data-request-access="${encodeHtml(requestAccess)}"`;
   const html = `<!doctype html>
 <html>
   <head>
@@ -592,7 +602,7 @@ router.get("/telegram/widget", async (req, res) => {
     <div class="card">
       <h1 class="title">Sign in with Telegram</h1>
       <p class="body">Use your Telegram account to continue. This does not change your reminder subscriptions.</p>
-      <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="${encodeHtml(botUsername)}" data-size="large" data-userpic="false" data-auth-url="${encodeHtml(callbackUrl)}" data-request-access="write"></script>
+      <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="${encodeHtml(botUsername)}" data-size="large" data-userpic="false" data-auth-url="${encodeHtml(callbackUrl)}"${requestAccessAttribute}></script>
     </div>
   </body>
 </html>`;
