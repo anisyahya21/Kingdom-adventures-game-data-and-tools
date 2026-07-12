@@ -53,6 +53,8 @@ export function SiteHeader() {
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const authPopupRef = useRef<Window | null>(null);
+  const authPopupPollTimerRef = useRef<number | null>(null);
+  const authPopupPollInFlightRef = useRef(false);
   const hasNavRef = useRef(false);
   const prevPathRef = useRef(pathname);
 
@@ -88,6 +90,57 @@ export function SiteHeader() {
     return fetchAuthSession()
       .then((session) => setAuthSession(session))
       .finally(() => setAuthLoading(false));
+  };
+
+  const stopAuthPopupPolling = () => {
+    if (typeof window !== "undefined" && authPopupPollTimerRef.current !== null) {
+      window.clearInterval(authPopupPollTimerRef.current);
+      authPopupPollTimerRef.current = null;
+    }
+    authPopupPollInFlightRef.current = false;
+  };
+
+  const startAuthPopupPolling = () => {
+    stopAuthPopupPolling();
+    let ticks = 0;
+    authPopupPollTimerRef.current = window.setInterval(() => {
+      ticks += 1;
+
+      if (!authPopupRef.current || authPopupRef.current.closed) {
+        stopAuthPopupPolling();
+        authPopupRef.current = null;
+        setAuthBusy(false);
+        void refreshAuthSession();
+        return;
+      }
+
+      // Stop trying after 2 minutes to avoid a stuck spinner on silent popup failures.
+      if (ticks > 120) {
+        stopAuthPopupPolling();
+        setAuthBusy(false);
+        return;
+      }
+
+      if (authPopupPollInFlightRef.current) {
+        return;
+      }
+      authPopupPollInFlightRef.current = true;
+
+      void fetchAuthSession()
+        .then((session) => {
+          if (!session.authenticated) return;
+          setAuthSession(session);
+          setAuthBusy(false);
+          if (authPopupRef.current && !authPopupRef.current.closed) {
+            authPopupRef.current.close();
+          }
+          authPopupRef.current = null;
+          stopAuthPopupPolling();
+        })
+        .finally(() => {
+          authPopupPollInFlightRef.current = false;
+        });
+    }, 1000);
   };
 
   const goBack = () => {
@@ -131,12 +184,29 @@ export function SiteHeader() {
     function handleAuthMessage(event: MessageEvent) {
       const payload = event.data as { source?: string; type?: string } | null;
       if (!payload || payload.source !== "ka-auth") return;
+      stopAuthPopupPolling();
+      if (authPopupRef.current && !authPopupRef.current.closed) {
+        authPopupRef.current.close();
+      }
+      authPopupRef.current = null;
       setAuthBusy(false);
       void refreshAuthSession();
     }
 
     window.addEventListener("message", handleAuthMessage);
     return () => window.removeEventListener("message", handleAuthMessage);
+  }, []);
+
+  useEffect(() => {
+    if (authSession.authenticated && authBusy) {
+      setAuthBusy(false);
+    }
+  }, [authBusy, authSession.authenticated]);
+
+  useEffect(() => {
+    return () => {
+      stopAuthPopupPolling();
+    };
   }, []);
 
   const startPopupLogin = async () => {
@@ -154,15 +224,10 @@ export function SiteHeader() {
         return;
       }
 
-      const timer = window.setInterval(() => {
-        if (!authPopupRef.current || authPopupRef.current.closed) {
-          window.clearInterval(timer);
-          authPopupRef.current = null;
-          setAuthBusy(false);
-          void refreshAuthSession();
-        }
-      }, 500);
+      startAuthPopupPolling();
     } catch {
+      stopAuthPopupPolling();
+      authPopupRef.current = null;
       setAuthBusy(false);
     }
   };
