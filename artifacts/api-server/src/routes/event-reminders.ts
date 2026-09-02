@@ -321,10 +321,25 @@ async function tryRecoverDatabasePersistence(reason: string): Promise<boolean> {
     await initDbModule();
     if (!dbModule) return false;
 
-    const persistedStore = await writeStoreToDb(storeCache);
-    if (!persistedStore) return false;
+    const dbStore = await readStoreFromDb();
+    if (dbStore && !isStoreEmpty(dbStore)) {
+      // DB is the source of truth. If local cache is empty, restore from DB.
+      if (isStoreEmpty(storeCache)) {
+        storeCache = dbStore;
+        lastStoreSnapshot = serializeStore(storeCache);
+        writeStoreFile(storeCache);
+      }
+    } else {
+      const persistedStore = await writeStoreToDb(storeCache);
+      if (!persistedStore) return false;
+    }
 
-    if (cachedVapidKeys) {
+    const dbVapid = await readVapidFromDb();
+    if (dbVapid) {
+      cachedVapidKeys = dbVapid;
+    }
+
+    if (cachedVapidKeys && !dbVapid) {
       const persistedVapid = await writeVapidToDb(cachedVapidKeys);
       if (!persistedVapid) return false;
     }
