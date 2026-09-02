@@ -126,6 +126,7 @@ let cachedVapidKeys: VapidKeyPair | null = null;
 let autoSchedulerStarted = false;
 let autoSchedulerBusy = false;
 let lastDbRecoveryAttemptAt = 0;
+let lastDbPersistenceError: string | null = null;
 
 const DISCORD_DM_FAILURE_MESSAGE = "Discord DM failed — check privacy settings or shared server access.";
 const OAUTH_STATE_SECRET = process.env.DISCORD_OAUTH_STATE_SECRET || crypto.randomBytes(32).toString("hex");
@@ -199,6 +200,7 @@ async function initDbModule() {
   try {
     dbModule = await import("@workspace/db");
   } catch (error) {
+    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
     console.warn("event-reminders: database module unavailable, using file fallback", error);
   }
 }
@@ -214,6 +216,7 @@ async function readStoreFromDb(): Promise<Store | null> {
     if (!rows.length) return null;
     return sanitizeStoreCandidate(rows[0].value);
   } catch (error) {
+    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
     console.warn("event-reminders: failed reading subscriptions from database", error);
     return null;
   }
@@ -238,6 +241,7 @@ async function writeStoreToDb(store: Store): Promise<boolean> {
       });
     return true;
   } catch (error) {
+    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
     console.warn("event-reminders: failed writing subscriptions to database", error);
     return false;
   }
@@ -254,6 +258,7 @@ async function readVapidFromDb(): Promise<VapidKeyPair | null> {
     if (!rows.length) return null;
     return sanitizeVapidCandidate(rows[0].value);
   } catch (error) {
+    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
     console.warn("event-reminders: failed reading VAPID keys from database", error);
     return null;
   }
@@ -278,6 +283,7 @@ async function writeVapidToDb(keys: VapidKeyPair): Promise<boolean> {
       });
     return true;
   } catch (error) {
+    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
     console.warn("event-reminders: failed writing VAPID keys to database", error);
     return false;
   }
@@ -346,10 +352,12 @@ async function tryRecoverDatabasePersistence(reason: string): Promise<boolean> {
 
     if (persistenceMode !== "database") {
       persistenceMode = "database";
+      lastDbPersistenceError = null;
       console.info(`event-reminders: persistence mode=database (recovered via ${reason})`);
     }
     return true;
   } catch (error) {
+    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
     console.warn("event-reminders: database recovery attempt failed", error);
     return false;
   }
@@ -1079,13 +1087,24 @@ router.get("/event-reminders/config", async (_req, res) => {
 router.get("/event-reminders/debug/status", async (_req, res) => {
   const store = readStore();
   const health = getDiscordHealth();
+  const dbUrl = process.env.DATABASE_URL?.trim();
+  let dbHost = "";
+  if (dbUrl) {
+    try {
+      dbHost = new URL(dbUrl).host;
+    } catch {
+      dbHost = "invalid-url";
+    }
+  }
   res.json({
     now: new Date().toISOString(),
     persistenceMode,
     database: {
       configured: Boolean(process.env.DATABASE_URL?.trim()),
       moduleLoaded: Boolean(dbModule),
+      host: dbHost,
       lastRecoveryAttemptAt: lastDbRecoveryAttemptAt > 0 ? new Date(lastDbRecoveryAttemptAt).toISOString() : null,
+      lastPersistenceError: lastDbPersistenceError,
     },
     scheduler: {
       started: autoSchedulerStarted,
