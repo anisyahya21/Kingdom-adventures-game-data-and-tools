@@ -309,9 +309,66 @@ function readStateFromFile(): SharedState {
   }
 }
 
+const fileStateBaseline = readStateFromFile();
+const baselineEquipIcons = { ...(fileStateBaseline.equipIcons ?? {}) };
+const baselineStatIcons = { ...(fileStateBaseline.statIcons ?? {}) };
+
+function mergeIconMap(
+  baseline: Record<string, string>,
+  overrides: Record<string, string> | undefined,
+): Record<string, string> {
+  const next: Record<string, string> = { ...baseline };
+  for (const [rawKey, rawValue] of Object.entries(overrides ?? {})) {
+    const key = String(rawKey || "").trim();
+    const value = String(rawValue || "").trim();
+    if (!key || !value) continue;
+    next[key] = value;
+  }
+  return next;
+}
+
+function compactIconOverridesForDatabase(
+  iconMap: Record<string, string> | undefined,
+  baseline: Record<string, string>,
+): Record<string, string> {
+  const compact: Record<string, string> = {};
+  for (const [rawKey, rawValue] of Object.entries(iconMap ?? {})) {
+    const key = String(rawKey || "").trim();
+    const value = String(rawValue || "").trim();
+    if (!key || !value) continue;
+    if ((baseline[key] ?? "") === value) continue;
+    compact[key] = value;
+  }
+  return compact;
+}
+
+function expandStateWithBaselineIcons(state: SharedState): SharedState {
+  return {
+    ...state,
+    equipIcons: mergeIconMap(baselineEquipIcons, state.equipIcons),
+    statIcons: mergeIconMap(baselineStatIcons, state.statIcons),
+  };
+}
+
+function compactStateForDatabase(state: SharedState): SharedState {
+  return {
+    ...state,
+    equipIcons: compactIconOverridesForDatabase(state.equipIcons, baselineEquipIcons),
+    statIcons: compactIconOverridesForDatabase(state.statIcons, baselineStatIcons),
+  };
+}
+
 function writeStateFile(state: SharedState) {
   ensureDir();
   fs.writeFileSync(STATE_FILE, JSON.stringify(state));
+}
+
+function serializeSharedState(state: SharedState): string | null {
+  try {
+    return JSON.stringify(state);
+  } catch {
+    return null;
+  }
 }
 
 type DbModule = typeof import("@workspace/db");
@@ -375,18 +432,19 @@ async function readStateFromDb(): Promise<SharedState | null> {
 
 async function writeStateToDb(state: SharedState): Promise<void> {
   if (!dbModule) return;
+  const persistedState = compactStateForDatabase(state);
   try {
     await dbModule.db
       .insert(dbModule.appStateTable)
       .values({
         key: DB_STATE_KEY,
-        value: state as unknown as Record<string, unknown>,
+        value: persistedState as unknown as Record<string, unknown>,
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: dbModule.appStateTable.key,
         set: {
-          value: state as unknown as Record<string, unknown>,
+          value: persistedState as unknown as Record<string, unknown>,
           updatedAt: new Date(),
         },
       });
@@ -395,8 +453,9 @@ async function writeStateToDb(state: SharedState): Promise<void> {
   }
 }
 
-let stateCache: SharedState = readStateFromFile();
+let stateCache: SharedState = expandStateWithBaselineIcons(readStateFromFile());
 void pruneDeprecatedGuides(stateCache);
+let lastSharedStateSnapshot = serializeSharedState(stateCache);
 
 async function bootstrapSharedStatePersistence() {
   try {
@@ -405,12 +464,19 @@ async function bootstrapSharedStatePersistence() {
     if (dbModule) {
       const persisted = await readStateFromDb();
       if (persisted) {
-        stateCache = persisted;
+        const persistedSnapshot = serializeSharedState(persisted);
+        stateCache = expandStateWithBaselineIcons(persisted);
+        const compactedSnapshot = serializeSharedState(compactStateForDatabase(stateCache));
+        const needsDbCompaction =
+          persistedSnapshot !== null
+          && compactedSnapshot !== null
+          && compactedSnapshot !== persistedSnapshot;
         const cleaned = pruneDeprecatedGuides(stateCache);
-        if (cleaned) {
+        if (cleaned || needsDbCompaction) {
           await writeStateToDb(stateCache);
         }
         writeStateFile(stateCache);
+        lastSharedStateSnapshot = serializeSharedState(stateCache);
         persistenceMode = "database";
         console.info("shared-state: persistence mode=database (loaded existing state)");
       } else {
@@ -419,6 +485,7 @@ async function bootstrapSharedStatePersistence() {
         if (cleaned) {
           console.info("shared-state: migrated deprecated guide cleanup to database");
         }
+        lastSharedStateSnapshot = serializeSharedState(stateCache);
         persistenceMode = "database";
         console.info("shared-state: persistence mode=database (initialized from file snapshot)");
       }
@@ -440,7 +507,14 @@ function readState(): SharedState {
 
 function writeState(state: SharedState) {
   void pruneDeprecatedGuides(state);
+
+  const nextSnapshot = serializeSharedState(state);
+  if (nextSnapshot !== null && lastSharedStateSnapshot !== null && nextSnapshot === lastSharedStateSnapshot) {
+    return;
+  }
+
   stateCache = state;
+  lastSharedStateSnapshot = nextSnapshot;
   writeStateFile(state);
   if (persistenceMode !== "database") {
     console.warn("shared-state: writing with file fallback; set DATABASE_URL to enable durable DB persistence");

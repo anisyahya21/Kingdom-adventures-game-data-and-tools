@@ -120,6 +120,7 @@ type DbModule = typeof import("@workspace/db");
 let dbModule: DbModule | null = null;
 let persistenceMode: "database" | "file" = "file";
 let storeCache: Store = readStoreFromFile();
+let lastStoreSnapshot = serializeStore(storeCache);
 let cachedVapidKeys: VapidKeyPair | null = null;
 let autoSchedulerStarted = false;
 let autoSchedulerBusy = false;
@@ -181,6 +182,14 @@ function readStoreFromFile(): Store {
 function writeStoreFile(store: Store) {
   ensureDataDir();
   fs.writeFileSync(STORE_FILE, JSON.stringify(store, null, 2));
+}
+
+function serializeStore(store: Store): string | null {
+  try {
+    return JSON.stringify(store);
+  } catch {
+    return null;
+  }
 }
 
 async function initDbModule() {
@@ -277,7 +286,13 @@ function readStore(): Store {
 }
 
 async function writeStore(store: Store) {
+  const nextSnapshot = serializeStore(store);
+  if (nextSnapshot !== null && lastStoreSnapshot !== null && nextSnapshot === lastStoreSnapshot) {
+    return;
+  }
+
   storeCache = store;
+  lastStoreSnapshot = nextSnapshot;
   if (persistenceMode === "database") {
     const persisted = await writeStoreToDb(store);
     if (persisted) return;
@@ -341,11 +356,22 @@ function clearDiscordConnection(store: Store, clientId: string) {
 function updateDiscordDmError(store: Store, clientId: string, error?: string) {
   const existing = getDiscordConnection(store, clientId);
   if (!existing) return;
+
+  const normalizedError = error?.trim() || undefined;
+  const currentError = existing.lastDmError?.trim() || undefined;
+  const currentErrorAt = existing.lastDmErrorAt;
+
+  // Skip no-op updates so the auto-scheduler does not churn DB writes.
+  if (normalizedError === currentError) {
+    if (!normalizedError && currentErrorAt === undefined) return;
+    if (normalizedError && currentErrorAt !== undefined) return;
+  }
+
   const next: DiscordConnection = {
     ...existing,
     updatedAt: Date.now(),
-    lastDmError: error,
-    lastDmErrorAt: error ? Date.now() : undefined,
+    lastDmError: normalizedError,
+    lastDmErrorAt: normalizedError ? Date.now() : undefined,
   };
   upsertDiscordConnection(store, next);
 }
@@ -506,9 +532,11 @@ async function bootstrapEventReminderPersistence() {
         const seeded = await writeStoreToDb(storeCache);
         if (!seeded) throw new Error("failed seeding reminder subscriptions in database");
       }
-    } else {
+    } else if (dbStore) {
       storeCache = dbStore;
     }
+
+    lastStoreSnapshot = serializeStore(storeCache);
 
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
       const dbKeys = await readVapidFromDb();
