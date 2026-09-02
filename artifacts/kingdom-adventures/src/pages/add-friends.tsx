@@ -38,8 +38,8 @@ function formatRemaining(ms: number) {
   return `${seconds}s`;
 }
 
-function formatAddedAgo(addedAtMs: number, nowMs: number) {
-  const diffMs = Math.max(0, nowMs - addedAtMs);
+function formatTimeAgo(timestampMs: number, nowMs: number) {
+  const diffMs = Math.max(0, nowMs - timestampMs);
   const totalSeconds = Math.floor(diffMs / 1000);
   if (totalSeconds < 60) return "just now";
 
@@ -434,8 +434,9 @@ export default function AddFriendsPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground shrink-0">
-                    Added {formatAddedAgo(entry.createdAt || entry.updatedAt, nowMs)}
+                  <div className="text-xs text-muted-foreground shrink-0 text-right leading-5">
+                    <div>Added {formatTimeAgo(entry.createdAt || entry.updatedAt, nowMs)}</div>
+                    <div>Last refreshed {formatTimeAgo(entry.updatedAt || entry.createdAt, nowMs)}</div>
                   </div>
                 </div>
               ))}
