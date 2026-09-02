@@ -1139,9 +1139,14 @@ router.get("/event-reminders/debug/status", async (_req, res) => {
   const health = getDiscordHealth();
   const dbUrl = process.env.DATABASE_URL?.trim();
   let dbHost = "";
+  let dbName = "";
+  let usesPooler = false;
   if (dbUrl) {
     try {
-      dbHost = new URL(dbUrl).host;
+      const parsedUrl = new URL(dbUrl);
+      dbHost = parsedUrl.host;
+      dbName = parsedUrl.pathname.replace(/^\//, "");
+      usesPooler = parsedUrl.host.includes("-pooler.");
     } catch {
       dbHost = "invalid-url";
     }
@@ -1153,6 +1158,8 @@ router.get("/event-reminders/debug/status", async (_req, res) => {
       configured: Boolean(process.env.DATABASE_URL?.trim()),
       moduleLoaded: Boolean(dbModule),
       host: dbHost,
+      databaseName: dbName,
+      usesPooler,
       lastRecoveryAttemptAt: lastDbRecoveryAttemptAt > 0 ? new Date(lastDbRecoveryAttemptAt).toISOString() : null,
       lastPersistenceError: lastDbPersistenceError,
     },
