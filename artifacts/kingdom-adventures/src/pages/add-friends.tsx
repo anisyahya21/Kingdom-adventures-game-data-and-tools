@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Loader2, Plus, RefreshCw } from "lucide-react";
+import { Check, Copy, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiUrl } from "@/lib/api";
@@ -309,16 +309,23 @@ export default function AddFriendsPage() {
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm text-muted-foreground">
               {me
-                ? `Your timer: ${formatRemaining(me.expiresAt - nowMs)} until your entry is removed from the list.`
+                ? (
+                  <>
+                    {`Your timer: ${formatRemaining(me.expiresAt - nowMs)} until your entry is removed from the list. You can `}
+                    <button
+                      type="button"
+                      onClick={() => void joinPool()}
+                      disabled={joining || authBusy}
+                      className="font-medium underline underline-offset-2 text-foreground disabled:opacity-60"
+                    >
+                      reset
+                    </button>
+                    {" your timer."}
+                  </>
+                )
                 : "Click + to add yourself to the list."}
             </div>
             <div className="flex items-center gap-2">
-              {me ? (
-                <Button variant="outline" size="sm" onClick={() => void joinPool()} disabled={joining || authBusy}>
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh
-                </Button>
-              ) : null}
               <Button
                 size="icon"
                 onClick={() => void joinPool()}
