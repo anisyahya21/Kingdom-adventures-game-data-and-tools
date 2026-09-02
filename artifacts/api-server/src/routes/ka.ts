@@ -257,21 +257,10 @@ const DEFAULT_STATE: SharedState = {
   communityGuides: [],
 };
 
-const DEPRECATED_GUIDE_SLUGS = new Set([
-  "tips-ticks-and-faq",
-]);
-
 function pruneDeprecatedGuides(state: SharedState): boolean {
-  const before = state.communityGuides.length;
-  if (!before) return false;
-  state.communityGuides = state.communityGuides.filter(
-    (guide) => !DEPRECATED_GUIDE_SLUGS.has(String(guide.slug ?? "").trim().toLowerCase()),
-  );
-  const removed = before - state.communityGuides.length;
-  if (removed > 0) {
-    console.info(`shared-state: removed ${removed} deprecated guide entry`);
-    return true;
-  }
+  // Disabled: title/slug-based pruning can delete user content unexpectedly.
+  // Use explicit admin deletion instead of implicit runtime filtering.
+  void state;
   return false;
 }
 
