@@ -23,6 +23,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/match-finder", label: "Match Finder" },
       { href: "/town-rank", label: "Town Rank" },
       { href: "/guides", label: "Guides" },
+      { href: "/add-friends", label: "Add Friends" },
       { href: "/admin", label: "Admin" },
     ],
     note: "Match Finder includes marriage matching and marriage sim tools.",

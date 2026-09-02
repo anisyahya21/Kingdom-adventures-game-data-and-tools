@@ -209,6 +209,16 @@ type CommunityGuide = {
   linkOverrides?: GuideLinkOverrides;
 };
 
+type FriendPoolEntry = {
+  id: string;
+  userId: string;
+  displayName: string;
+  gameId: string;
+  createdAt: number;
+  updatedAt: number;
+  expiresAt: number;
+};
+
 type SharedState = {
   overrides: Record<string, Record<string, { base?: number; inc?: number }>>;
   slotAssignments: Record<string, string>;
@@ -231,6 +241,7 @@ type SharedState = {
   syncedDevices: Array<{ id: string; name: string; createdAt: number; syncGroupId?: string }>;
   communitySightings: Record<string, CommunitySighting[]>;
   communityGuides: CommunityGuide[];
+  friendPool: FriendPoolEntry[];
 };
 
 const DEFAULT_STATE: SharedState = {
@@ -255,13 +266,97 @@ const DEFAULT_STATE: SharedState = {
   syncedDevices: [],
   communitySightings: {},
   communityGuides: [],
+  friendPool: [],
 };
+
+const FRIEND_ENTRY_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const MAX_FRIEND_POOL_ENTRIES = 500;
+const GAME_ID_PATTERN = /^\d{3},\d{3},\d{3}$/;
 
 function pruneDeprecatedGuides(state: SharedState): boolean {
   // Disabled: title/slug-based pruning can delete user content unexpectedly.
   // Use explicit admin deletion instead of implicit runtime filtering.
   void state;
   return false;
+}
+
+function normalizeProfileDisplayName(value: string | null | undefined) {
+  const trimmed = String(value || "").trim();
+  return trimmed ? trimmed.slice(0, 64) : "";
+}
+
+function normalizeProfileGameId(value: string | null | undefined) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed || !GAME_ID_PATTERN.test(trimmed)) return "";
+  return trimmed;
+}
+
+function sanitizeFriendPoolEntries(value: unknown, now = Date.now()): FriendPoolEntry[] {
+  if (!Array.isArray(value)) return [];
+
+  const normalized = value
+    .map((entry) => {
+      const item = entry && typeof entry === "object" ? entry as Partial<FriendPoolEntry> : null;
+      if (!item) return null;
+
+      const userId = String(item.userId || "").trim();
+      const displayName = normalizeProfileDisplayName(item.displayName);
+      const gameId = normalizeProfileGameId(item.gameId);
+      const createdAt = Number(item.createdAt);
+      const updatedAt = Number(item.updatedAt);
+      const expiresAt = Number(item.expiresAt);
+      const id = String(item.id || "").trim() || crypto.randomUUID();
+      if (!userId || !displayName || !gameId) return null;
+      if (!Number.isFinite(createdAt) || !Number.isFinite(updatedAt) || !Number.isFinite(expiresAt)) return null;
+      if (expiresAt <= now) return null;
+
+      return {
+        id,
+        userId,
+        displayName,
+        gameId,
+        createdAt,
+        updatedAt,
+        expiresAt,
+      } satisfies FriendPoolEntry;
+    })
+    .filter((entry): entry is FriendPoolEntry => Boolean(entry))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  const dedupedUserIds = new Set<string>();
+  const dedupedGameIds = new Set<string>();
+  const deduped: FriendPoolEntry[] = [];
+  for (const entry of normalized) {
+    if (dedupedUserIds.has(entry.userId)) continue;
+    if (dedupedGameIds.has(entry.gameId)) continue;
+    deduped.push(entry);
+    dedupedUserIds.add(entry.userId);
+    dedupedGameIds.add(entry.gameId);
+    if (deduped.length >= MAX_FRIEND_POOL_ENTRIES) break;
+  }
+  return deduped;
+}
+
+function pruneExpiredFriendPoolEntries(state: SharedState, now = Date.now()): boolean {
+  const previous = Array.isArray(state.friendPool) ? state.friendPool : [];
+  const next = sanitizeFriendPoolEntries(previous, now);
+  const changed = previous.length !== next.length
+    || previous.some((entry, index) => {
+      const normalized = next[index];
+      if (!normalized) return true;
+      return entry.id !== normalized.id
+        || entry.userId !== normalized.userId
+        || entry.displayName !== normalized.displayName
+        || entry.gameId !== normalized.gameId
+        || entry.createdAt !== normalized.createdAt
+        || entry.updatedAt !== normalized.updatedAt
+        || entry.expiresAt !== normalized.expiresAt;
+    });
+
+  if (changed) {
+    state.friendPool = next;
+  }
+  return changed;
 }
 
 function ensureDir() {
@@ -291,6 +386,7 @@ function readStateFromFile(): SharedState {
       syncedDevices: [],
       communitySightings: {},
       communityGuides: [],
+      friendPool: [],
       ...parsed,
     };
   } catch {
@@ -399,6 +495,7 @@ function sanitizeStateCandidate(value: unknown): SharedState | null {
     syncedDevices: [],
     communitySightings: {},
     communityGuides: [],
+    friendPool: [],
     ...parsed,
   };
 }
@@ -640,6 +737,8 @@ type AuthenticatedSession = {
   userId: string;
   telegramUserId: string;
   isAdmin: boolean;
+  displayName: string;
+  gameId: string;
 };
 
 type AnalyticsEventRequest = {
@@ -676,6 +775,11 @@ async function resolveAuthenticatedSession(req: Request): Promise<AuthenticatedS
     .select({
       userId: dbModule.userSessionsTable.userId,
       telegramUserId: dbModule.usersTable.telegramUserId,
+      telegramUsername: dbModule.usersTable.telegramUsername,
+      firstName: dbModule.usersTable.firstName,
+      lastName: dbModule.usersTable.lastName,
+      displayName: dbModule.usersTable.displayName,
+      gameId: dbModule.usersTable.gameId,
     })
     .from(dbModule.userSessionsTable)
     .innerJoin(dbModule.usersTable, eq(dbModule.usersTable.id, dbModule.userSessionsTable.userId))
@@ -688,10 +792,22 @@ async function resolveAuthenticatedSession(req: Request): Promise<AuthenticatedS
 
   const row = rows[0];
   if (!row) return undefined;
+  const fallbackName = [row.firstName, row.lastName]
+    .map((name) => String(name || "").trim())
+    .filter(Boolean)
+    .join(" ");
+  const displayName = normalizeProfileDisplayName(
+    String(row.displayName || "").trim()
+      || fallbackName
+      || String(row.telegramUsername || "").trim(),
+  );
+
   return {
     userId: row.userId,
     telegramUserId: row.telegramUserId,
     isAdmin: getAdminTelegramUserIds().has(String(row.telegramUserId)),
+    displayName,
+    gameId: String(row.gameId || "").trim(),
   };
 }
 
@@ -994,6 +1110,88 @@ router.get("/ka/guides", async (req, res) => {
       ...publicGuide(guide),
       editable: canManageGuide(currentSession, guide),
     })),
+  });
+});
+
+router.get("/ka/friends", async (req, res) => {
+  const currentSession = await resolveAuthenticatedSession(req);
+
+  const state = readState();
+  const now = Date.now();
+  const cleaned = pruneExpiredFriendPoolEntries(state, now);
+  if (cleaned) {
+    writeState(state);
+  }
+
+  const entries = (state.friendPool ?? [])
+    .slice()
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .map((entry) => ({
+      id: entry.id,
+      userId: entry.userId,
+      displayName: entry.displayName,
+      gameId: entry.gameId,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      expiresAt: entry.expiresAt,
+      remainingMs: Math.max(0, entry.expiresAt - now),
+    }));
+
+  res.json({
+    now,
+    ttlMs: FRIEND_ENTRY_TTL_MS,
+    authenticated: Boolean(currentSession),
+    me: currentSession ? entries.find((entry) => entry.userId === currentSession.userId) ?? null : null,
+    entries,
+  });
+});
+
+router.post("/ka/friends/join", async (req, res) => {
+  const currentSession = await resolveAuthenticatedSession(req);
+  if (!currentSession) {
+    res.status(401).json({ error: "Log in required." });
+    return;
+  }
+
+  const displayName = normalizeProfileDisplayName(currentSession.displayName);
+  const gameId = normalizeProfileGameId(currentSession.gameId);
+  if (!displayName || !gameId) {
+    res.status(400).json({ error: "Set profile display name and game ID first." });
+    return;
+  }
+
+  const state = readState();
+  const now = Date.now();
+  pruneExpiredFriendPoolEntries(state, now);
+  const pool = sanitizeFriendPoolEntries(state.friendPool, now).filter((entry) => entry.userId !== currentSession.userId);
+  const duplicateGameIdOwner = pool.find((entry) => entry.gameId === gameId);
+  if (duplicateGameIdOwner) {
+    res.status(409).json({ error: "This game ID is already in the list." });
+    return;
+  }
+
+  const previous = (state.friendPool ?? []).find((entry) => entry.userId === currentSession.userId);
+  const nextEntry: FriendPoolEntry = {
+    id: previous?.id || crypto.randomUUID(),
+    userId: currentSession.userId,
+    displayName,
+    gameId,
+    createdAt: previous?.createdAt ?? now,
+    updatedAt: now,
+    expiresAt: now + FRIEND_ENTRY_TTL_MS,
+  };
+
+  state.friendPool = [nextEntry, ...pool]
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, MAX_FRIEND_POOL_ENTRIES);
+  writeState(state);
+
+  res.json({
+    ok: true,
+    entry: {
+      ...nextEntry,
+      remainingMs: Math.max(0, nextEntry.expiresAt - now),
+    },
   });
 });
 

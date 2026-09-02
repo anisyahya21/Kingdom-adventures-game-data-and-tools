@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link } from "wouter";
-import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, BookOpen, Package, Store, Home as HomeIcon, CalendarDays, BookMarked, BriefcaseBusiness } from "lucide-react";
+import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, BookOpen, Package, Store, Home as HomeIcon, CalendarDays, BookMarked, BriefcaseBusiness, UserPlus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -242,6 +242,14 @@ const BUILT_IN_TOOLS = [
     icon: <BookMarked className="w-6 h-6 text-violet-500" />,
     badge: "Guides",
     badgeCategory: "guide" satisfies KaCategory,
+  },
+  {
+    slug: "/add-friends",
+    title: "Add Friends",
+    description: "Join the active player pool with your profile display name and game ID. Entries expire after 2 weeks and can be refreshed to move to the top.",
+    icon: <UserPlus className="w-6 h-6 text-emerald-500" />,
+    badge: "Community",
+    badgeCategory: "service" satisfies KaCategory,
   },
 ];
 

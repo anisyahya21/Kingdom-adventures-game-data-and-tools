@@ -53,6 +53,12 @@ export function buildGlobalSearchEntries(): GlobalSearchEntry[] {
   };
   const entries: GlobalSearchEntry[] = [];
 
+  entries.push({
+    label: "Add Friends",
+    subtitle: "Community tools",
+    href: "/add-friends",
+  });
+
   getJobProfiles(shared as SharedJobProfileData).forEach((profile) => {
     const relatedFacts = [
       profile.surveyCapable ? "Survey Corps HQ" : null,

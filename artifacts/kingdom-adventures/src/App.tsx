@@ -42,6 +42,7 @@ const KairoRoomPage = lazy(() => import("@/pages/kairo-room"));
 const PlaythroughGuidePage = lazy(() => import("@/pages/playthrough-guide"));
 const GuidesPage = lazy(() => import("@/pages/guides"));
 const AddGuidePage = lazy(() => import("@/pages/add-guide"));
+const AddFriendsPage = lazy(() => import("@/pages/add-friends"));
 const CommunityGuidePage = lazy(() => import("@/pages/community-guide"));
 const IconLibraryPage = lazy(() => import("@/pages/icon-library"));
 const UpdatesPage = lazy(() => import("@/pages/updates"));
@@ -198,6 +199,7 @@ function Router() {
         <Route path="/town-rank">{() => <TownRankPage />}</Route>
         <Route path="/guides/:slug">{() => <CommunityGuidePage />}</Route>
         <Route path="/guides">{() => <GuidesPage />}</Route>
+        <Route path="/add-friends">{() => <AddFriendsPage />}</Route>
         <Route path="/icon-library">{() => <IconLibraryPage />}</Route>
         <Route path="/updates">{() => <UpdatesPage />}</Route>
         <Route path="/add-guide">{() => <AddGuidePage />}</Route>
