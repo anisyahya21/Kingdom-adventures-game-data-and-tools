@@ -271,7 +271,7 @@ const DEFAULT_STATE: SharedState = {
 
 const FRIEND_ENTRY_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_FRIEND_POOL_ENTRIES = 500;
-const GAME_ID_PATTERN = /^\d{3},\d{3},\d{3}$/;
+const GAME_ID_DIGITS_PATTERN = /^\d{9}$/;
 
 function pruneDeprecatedGuides(state: SharedState): boolean {
   // Disabled: title/slug-based pruning can delete user content unexpectedly.
@@ -287,8 +287,12 @@ function normalizeProfileDisplayName(value: string | null | undefined) {
 
 function normalizeProfileGameId(value: string | null | undefined) {
   const trimmed = String(value || "").trim();
-  if (!trimmed || !GAME_ID_PATTERN.test(trimmed)) return "";
-  return trimmed;
+  if (!trimmed) return "";
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (!GAME_ID_DIGITS_PATTERN.test(digits)) return "";
+
+  return `${digits.slice(0, 3)},${digits.slice(3, 6)},${digits.slice(6, 9)}`;
 }
 
 function sanitizeFriendPoolEntries(value: unknown, now = Date.now()): FriendPoolEntry[] {

@@ -4,6 +4,7 @@ import path from "path";
 import crypto from "crypto";
 import { eq } from "drizzle-orm";
 import webpush, { type PushSubscription } from "web-push";
+import { getCachedContent, refreshStaticSourceIfStale } from "../lib/google-cache";
 
 const router = Router();
 const DATA_DIR = path.resolve(process.cwd(), "data");
@@ -17,6 +18,20 @@ const DEFAULT_DUE_GRACE_MS = 60 * 60 * 1000;
 const DEFAULT_AUTO_LOOKAHEAD_MS = 60 * 1000;
 const DB_RECOVERY_MIN_INTERVAL_MS = 60 * 1000;
 const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
+const WEEKLY_ANCHOR_EVENT_ID = 18;
+const MONSTER_SHEET_FILE = path.resolve(process.cwd(), "data/Sheet csv/KA GameData - Monster.csv");
+const MONSTER_ICON_DIR = path.resolve(process.cwd(), "artifacts/kingdom-adventures/public/monster-icons");
+const TERRAIN_CODE_TO_NAME: Record<number, string> = {
+  0: "Water",
+  1: "Ground",
+  2: "Grass",
+  3: "Sand",
+  4: "Rock",
+  5: "Volcano",
+  6: "Snow",
+  7: "Swamp",
+  [-1]: "Special",
+};
 const WAIRO_DUNGEON_SCHEDULE = [
   { day: 1, hour: 9 }, { day: 1, hour: 13 }, { day: 1, hour: 18 },
   { day: 2, hour: 15 }, { day: 2, hour: 23 },
@@ -116,6 +131,16 @@ type VapidKeyPair = {
   privateKey: string;
 };
 
+type WeeklyConquestLookupEvent = {
+  id: number;
+  monsters: Array<{ name: string; count: number }>;
+};
+
+type MonsterSpawnMeta = {
+  terrainName: string;
+  areaLevelMin: number;
+};
+
 type DbModule = typeof import("@workspace/db");
 
 let dbModule: DbModule | null = null;
@@ -127,6 +152,10 @@ let autoSchedulerStarted = false;
 let autoSchedulerBusy = false;
 let lastDbRecoveryAttemptAt = 0;
 let lastDbPersistenceError: string | null = null;
+let weeklyConquestLookupRawCache: string | null = null;
+let weeklyConquestLookupByIdCache = new Map<number, WeeklyConquestLookupEvent>();
+let monsterSpawnMetaByNameCache: Map<string, MonsterSpawnMeta> | null = null;
+let monsterIconFileNameCache: Set<string> | null = null;
 
 function formatDbError(error: unknown): string {
   if (error instanceof Error) {
@@ -798,9 +827,241 @@ function nextNotificationPreview(subscription: ReminderSubscription, now: Date, 
     }));
 }
 
+function parseSimpleCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[index + 1] === '"') {
+          field += '"';
+          index += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(field);
+      field = "";
+    } else if (char === "\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else if (char !== "\r") {
+      field += char;
+    }
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function parseGvizResponse(raw: string): { rows: Array<{ c?: Array<{ v?: string | number | boolean | null } | null> }> } {
+  const json = raw
+    .replace(/^\/\*O_o\*\/\s*google\.visualization\.Query\.setResponse\(/, "")
+    .replace(/\);\s*$/, "");
+  const parsed = JSON.parse(json) as { table?: { rows?: Array<{ c?: Array<{ v?: string | number | boolean | null } | null> }> } };
+  return { rows: parsed.table?.rows ?? [] };
+}
+
+function asText(value: string | number | boolean | null | undefined): string {
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function asNumber(value: string | number | boolean | null | undefined): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function iconSlugForMonster(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function ensureMonsterIconFileNames(): Set<string> {
+  if (monsterIconFileNameCache) return monsterIconFileNameCache;
+  try {
+    monsterIconFileNameCache = new Set(
+      fs.readdirSync(MONSTER_ICON_DIR)
+        .map((entry) => entry.toLowerCase())
+        .filter((entry) => entry.endsWith(".jpg")),
+    );
+  } catch {
+    monsterIconFileNameCache = new Set<string>();
+  }
+  return monsterIconFileNameCache;
+}
+
+function resolveMonsterIconPath(monsterName: string): string {
+  const slug = iconSlugForMonster(monsterName);
+  if (!slug) return "/website_icons/facilities_confirmed/facility_168_weekly_conquest_bonus.png";
+  const fileName = `${slug}.jpg`;
+  if (!ensureMonsterIconFileNames().has(fileName.toLowerCase())) {
+    return "/website_icons/facilities_confirmed/facility_168_weekly_conquest_bonus.png";
+  }
+  return `/monster-icons/${fileName}`;
+}
+
+function resolveMonsterIconUrl(monsterName: string): string {
+  const iconPath = resolveMonsterIconPath(monsterName);
+  if (/^https?:\/\//i.test(iconPath)) return iconPath;
+  const base = normalizeReturnTo(undefined).replace(/\/$/, "");
+  return `${base}${iconPath.startsWith("/") ? "" : "/"}${iconPath}`;
+}
+
+function getMonsterSpawnMetaByName(): Map<string, MonsterSpawnMeta> {
+  if (monsterSpawnMetaByNameCache) return monsterSpawnMetaByNameCache;
+
+  const result = new Map<string, MonsterSpawnMeta>();
+  try {
+    const csvRaw = fs.readFileSync(MONSTER_SHEET_FILE, "utf8");
+    const rows = parseSimpleCsv(csvRaw);
+    if (!rows.length) {
+      monsterSpawnMetaByNameCache = result;
+      return result;
+    }
+
+    const headerIndex = rows.findIndex((row) => row.includes("terrain") && row.includes("areaLevelMin"));
+    if (headerIndex < 0) {
+      monsterSpawnMetaByNameCache = result;
+      return result;
+    }
+
+    const header = rows[headerIndex];
+    const terrainIndex = header.indexOf("terrain");
+    const minIndex = header.indexOf("areaLevelMin");
+
+    for (const row of rows.slice(headerIndex + 1)) {
+      const name = asText(row[1]);
+      if (!name) continue;
+
+      const terrainCode = asNumber(row[terrainIndex]);
+      const areaLevelMin = asNumber(row[minIndex]);
+      const terrainName = TERRAIN_CODE_TO_NAME[terrainCode] || "Special";
+      const key = name.toLowerCase();
+
+      const existing = result.get(key);
+      if (!existing || areaLevelMin < existing.areaLevelMin) {
+        result.set(key, {
+          terrainName,
+          areaLevelMin,
+        });
+      }
+    }
+  } catch {
+    // Keep empty cache and fall back to generic copy.
+  }
+
+  monsterSpawnMetaByNameCache = result;
+  return result;
+}
+
+function getWeeklyConquestLookupById(): Map<number, WeeklyConquestLookupEvent> {
+  refreshStaticSourceIfStale("weekly-conquest-lookup");
+  const raw = getCachedContent("weekly-conquest-lookup");
+  if (!raw) return new Map<number, WeeklyConquestLookupEvent>();
+
+  if (weeklyConquestLookupRawCache === raw && weeklyConquestLookupByIdCache.size > 0) {
+    return weeklyConquestLookupByIdCache;
+  }
+
+  const parsed = new Map<number, WeeklyConquestLookupEvent>();
+  try {
+    const rows = parseGvizResponse(raw).rows;
+    const monsterIndices = [23, 29, 35, 41, 47];
+    const countIndices = [24, 30, 36, 42, 48];
+
+    for (const row of rows) {
+      const cells = row.c ?? [];
+      const id = asNumber(cells[0]?.v ?? null);
+      if (!Number.isFinite(id) || id <= 0) continue;
+
+      const monsters: Array<{ name: string; count: number }> = [];
+      monsterIndices.forEach((monsterIndex, entryIndex) => {
+        const name = asText(cells[monsterIndex]?.v ?? null);
+        if (!name) return;
+        monsters.push({
+          name,
+          count: asNumber(cells[countIndices[entryIndex]]?.v ?? null),
+        });
+      });
+
+      if (monsters.length > 0) {
+        parsed.set(id, { id, monsters });
+      }
+    }
+  } catch {
+    // Leave parsed empty and use fallback notification text.
+  }
+
+  weeklyConquestLookupRawCache = raw;
+  weeklyConquestLookupByIdCache = parsed;
+  return weeklyConquestLookupByIdCache;
+}
+
+function weeklyConquestEventIdForReminder(subscription: ReminderSubscription, oneHour: boolean, scheduledAt: Date): number {
+  const eventStartMs = scheduledAt.getTime()
+    + (oneHour ? HOUR_MS : 0)
+    + subscription.offsetHours * HOUR_MS;
+  const cycleOffset = Math.floor((eventStartMs - WEEKLY_ANCHOR_START) / (7 * DAY_MS));
+  return WEEKLY_ANCHOR_EVENT_ID + cycleOffset;
+}
+
+function formatSpawnSummary(monsterName: string): string {
+  const meta = getMonsterSpawnMetaByName().get(monsterName.toLowerCase());
+  if (!meta) return "Unknown terrain";
+  if (meta.areaLevelMin > 0) {
+    return `${meta.terrainName} terrain ${meta.areaLevelMin}+`;
+  }
+  return `${meta.terrainName} terrain`;
+}
+
+function weeklyConquestDetailLines(subscription: ReminderSubscription, oneHour: boolean, scheduledAt: Date): {
+  lines: string[];
+  primaryIcon: string;
+} | null {
+  const eventId = weeklyConquestEventIdForReminder(subscription, oneHour, scheduledAt);
+  const event = getWeeklyConquestLookupById().get(eventId);
+  if (!event || event.monsters.length === 0) return null;
+
+  const lines = event.monsters.map((monster) => {
+    const iconUrl = resolveMonsterIconUrl(monster.name);
+    const countLabel = monster.count > 0 ? String(monster.count) : "?";
+    return `${monster.name} x${countLabel} - ${formatSpawnSummary(monster.name)} - ${iconUrl}`;
+  });
+
+  return {
+    lines,
+    primaryIcon: resolveMonsterIconPath(event.monsters[0].name),
+  };
+}
+
 async function sendReminder(store: Store, subscription: ReminderSubscription, kind: string, scheduledAt: Date) {
   const oneHour = kind === "one-hour";
-  const visual = notificationVisualFor(subscription, oneHour);
+  const visual = notificationVisualFor(subscription, oneHour, scheduledAt);
   let delivered = 0;
   let failed = 0;
 
@@ -915,7 +1176,7 @@ async function sendDiscordReminder(discordUserId: string, title: string, body: s
   }
 }
 
-function notificationVisualFor(subscription: ReminderSubscription, oneHour: boolean) {
+function notificationVisualFor(subscription: ReminderSubscription, oneHour: boolean, scheduledAt: Date) {
   const defaultIcon = "/pwa-icon.svg";
   const type = subscription.definition.type;
 
@@ -932,6 +1193,17 @@ function notificationVisualFor(subscription: ReminderSubscription, oneHour: bool
   }
 
   if (type === "weekly-conquest") {
+    const detail = weeklyConquestDetailLines(subscription, oneHour, scheduledAt);
+    if (detail) {
+      return {
+        title: oneHour ? "Weekly Conquest in 1 hour" : "Weekly Conquest reset",
+        body: `${oneHour ? "Upcoming targets:" : "Targets this rotation:"}\n${detail.lines.join("\n")}`,
+        icon: detail.primaryIcon,
+        badge: defaultIcon,
+        image: detail.primaryIcon,
+      };
+    }
+
     return {
       title: "Weekly Conquest reset",
       body: "A new Weekly Conquest rotation is now available.",

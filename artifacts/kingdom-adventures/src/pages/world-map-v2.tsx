@@ -6,6 +6,7 @@ type MapTab = "isometric" | "top";
 
 export default function WorldMapV2Page() {
   const [activeTab, setActiveTab] = useState<MapTab>("isometric");
+  const [showLevelsOverlay, setShowLevelsOverlay] = useState(false);
 
   return (
     <div className="mx-auto max-w-[2400px] px-4 py-4">
@@ -34,9 +35,25 @@ export default function WorldMapV2Page() {
         >
           Top-view map
         </button>
+        {activeTab === "isometric" ? (
+          <button
+            type="button"
+            onClick={() => setShowLevelsOverlay((previous) => !previous)}
+            aria-pressed={showLevelsOverlay}
+            className={`rounded border px-5 py-2 text-sm font-semibold transition-colors ${
+              showLevelsOverlay
+                ? "border-primary bg-primary/20 text-primary"
+                : "border-border bg-card hover:bg-muted"
+            }`}
+          >
+            {showLevelsOverlay ? "Hide levels" : "Show levels"}
+          </button>
+        ) : null}
       </div>
 
-      {activeTab === "isometric" ? <RuntimeWorldRenderTestPage publicMode /> : <RuntimeWorldGridTestPage publicMode />}
+      {activeTab === "isometric"
+        ? <RuntimeWorldRenderTestPage publicMode showLevelOverlay={showLevelsOverlay} />
+        : <RuntimeWorldGridTestPage publicMode />}
     </div>
   );
 }
