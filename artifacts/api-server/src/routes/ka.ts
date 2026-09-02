@@ -416,22 +416,17 @@ function sanitizeStateCandidate(value: unknown): SharedState | null {
 
 async function readStateFromDb(): Promise<SharedState | null> {
   if (!dbModule) return null;
-  try {
-    const rows = await dbModule.db
-      .select({ value: dbModule.appStateTable.value })
-      .from(dbModule.appStateTable)
-      .where(eq(dbModule.appStateTable.key, DB_STATE_KEY))
-      .limit(1);
-    if (!rows.length) return null;
-    return sanitizeStateCandidate(rows[0].value);
-  } catch (error) {
-    console.warn("shared-state: failed reading from database, using file fallback", error);
-    return null;
-  }
+  const rows = await dbModule.db
+    .select({ value: dbModule.appStateTable.value })
+    .from(dbModule.appStateTable)
+    .where(eq(dbModule.appStateTable.key, DB_STATE_KEY))
+    .limit(1);
+  if (!rows.length) return null;
+  return sanitizeStateCandidate(rows[0].value);
 }
 
-async function writeStateToDb(state: SharedState): Promise<void> {
-  if (!dbModule) return;
+async function writeStateToDb(state: SharedState): Promise<boolean> {
+  if (!dbModule) return false;
   const persistedState = compactStateForDatabase(state);
   try {
     await dbModule.db
@@ -448,8 +443,10 @@ async function writeStateToDb(state: SharedState): Promise<void> {
           updatedAt: new Date(),
         },
       });
+    return true;
   } catch (error) {
     console.warn("shared-state: failed writing to database", error);
+    return false;
   }
 }
 
@@ -473,7 +470,8 @@ async function bootstrapSharedStatePersistence() {
           && compactedSnapshot !== persistedSnapshot;
         const cleaned = pruneDeprecatedGuides(stateCache);
         if (cleaned || needsDbCompaction) {
-          await writeStateToDb(stateCache);
+          const persistedToDb = await writeStateToDb(stateCache);
+          if (!persistedToDb) throw new Error("shared-state: failed to persist loaded state");
         }
         writeStateFile(stateCache);
         lastSharedStateSnapshot = serializeSharedState(stateCache);
@@ -481,7 +479,8 @@ async function bootstrapSharedStatePersistence() {
         console.info("shared-state: persistence mode=database (loaded existing state)");
       } else {
         const cleaned = pruneDeprecatedGuides(stateCache);
-        await writeStateToDb(stateCache);
+        const initialized = await writeStateToDb(stateCache);
+        if (!initialized) throw new Error("shared-state: failed to initialize database state from file snapshot");
         if (cleaned) {
           console.info("shared-state: migrated deprecated guide cleanup to database");
         }
@@ -519,7 +518,20 @@ function writeState(state: SharedState) {
   if (persistenceMode !== "database") {
     console.warn("shared-state: writing with file fallback; set DATABASE_URL to enable durable DB persistence");
   }
-  void writeStateToDb(state);
+  void writeStateToDb(state).then((persisted) => {
+    if (persisted) {
+      if (persistenceMode !== "database") {
+        persistenceMode = "database";
+        console.info("shared-state: persistence mode=database (recovered via write-state)");
+      }
+      return;
+    }
+
+    if (persistenceMode !== "file") {
+      persistenceMode = "file";
+      console.info("shared-state: persistence mode=file fallback");
+    }
+  });
 }
 
 function appendHistory(state: SharedState, entry: Omit<HistoryEntry, "id" | "timestamp">) {
