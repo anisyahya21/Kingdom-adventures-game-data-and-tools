@@ -128,6 +128,56 @@ let autoSchedulerBusy = false;
 let lastDbRecoveryAttemptAt = 0;
 let lastDbPersistenceError: string | null = null;
 
+function formatDbError(error: unknown): string {
+  if (error instanceof Error) {
+    const anyErr = error as Error & {
+      code?: string;
+      detail?: string;
+      hint?: string;
+      where?: string;
+      schema?: string;
+      table?: string;
+      column?: string;
+      constraint?: string;
+      cause?: unknown;
+    };
+    const parts = [error.message];
+    if (anyErr.code) parts.push(`code=${anyErr.code}`);
+    if (anyErr.detail) parts.push(`detail=${anyErr.detail}`);
+    if (anyErr.hint) parts.push(`hint=${anyErr.hint}`);
+    if (anyErr.where) parts.push(`where=${anyErr.where}`);
+    if (anyErr.schema) parts.push(`schema=${anyErr.schema}`);
+    if (anyErr.table) parts.push(`table=${anyErr.table}`);
+    if (anyErr.column) parts.push(`column=${anyErr.column}`);
+    if (anyErr.constraint) parts.push(`constraint=${anyErr.constraint}`);
+
+    const cause = anyErr.cause;
+    if (cause && cause instanceof Error && cause.message) {
+      parts.push(`cause=${cause.message}`);
+      const causeAny = cause as Error & {
+        code?: string;
+        detail?: string;
+        hint?: string;
+        where?: string;
+        schema?: string;
+        table?: string;
+        column?: string;
+        constraint?: string;
+      };
+      if (causeAny.code) parts.push(`cause.code=${causeAny.code}`);
+      if (causeAny.detail) parts.push(`cause.detail=${causeAny.detail}`);
+      if (causeAny.hint) parts.push(`cause.hint=${causeAny.hint}`);
+      if (causeAny.where) parts.push(`cause.where=${causeAny.where}`);
+      if (causeAny.schema) parts.push(`cause.schema=${causeAny.schema}`);
+      if (causeAny.table) parts.push(`cause.table=${causeAny.table}`);
+      if (causeAny.column) parts.push(`cause.column=${causeAny.column}`);
+      if (causeAny.constraint) parts.push(`cause.constraint=${causeAny.constraint}`);
+    }
+    return parts.join(" | ");
+  }
+  return String(error);
+}
+
 const DISCORD_DM_FAILURE_MESSAGE = "Discord DM failed — check privacy settings or shared server access.";
 const OAUTH_STATE_SECRET = process.env.DISCORD_OAUTH_STATE_SECRET || crypto.randomBytes(32).toString("hex");
 const MISSING_DISCORD_BOT_TOKEN_MESSAGE = "missing DISCORD_BOT_TOKEN";
@@ -200,7 +250,7 @@ async function initDbModule() {
   try {
     dbModule = await import("@workspace/db");
   } catch (error) {
-    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
+    lastDbPersistenceError = formatDbError(error);
     console.warn("event-reminders: database module unavailable, using file fallback", error);
   }
 }
@@ -216,7 +266,7 @@ async function readStoreFromDb(): Promise<Store | null> {
     if (!rows.length) return null;
     return sanitizeStoreCandidate(rows[0].value);
   } catch (error) {
-    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
+    lastDbPersistenceError = formatDbError(error);
     console.warn("event-reminders: failed reading subscriptions from database", error);
     return null;
   }
@@ -241,7 +291,7 @@ async function writeStoreToDb(store: Store): Promise<boolean> {
       });
     return true;
   } catch (error) {
-    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
+    lastDbPersistenceError = formatDbError(error);
     console.warn("event-reminders: failed writing subscriptions to database", error);
     return false;
   }
@@ -258,7 +308,7 @@ async function readVapidFromDb(): Promise<VapidKeyPair | null> {
     if (!rows.length) return null;
     return sanitizeVapidCandidate(rows[0].value);
   } catch (error) {
-    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
+    lastDbPersistenceError = formatDbError(error);
     console.warn("event-reminders: failed reading VAPID keys from database", error);
     return null;
   }
@@ -283,7 +333,7 @@ async function writeVapidToDb(keys: VapidKeyPair): Promise<boolean> {
       });
     return true;
   } catch (error) {
-    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
+    lastDbPersistenceError = formatDbError(error);
     console.warn("event-reminders: failed writing VAPID keys to database", error);
     return false;
   }
@@ -357,7 +407,7 @@ async function tryRecoverDatabasePersistence(reason: string): Promise<boolean> {
     }
     return true;
   } catch (error) {
-    lastDbPersistenceError = error instanceof Error ? error.message : String(error);
+    lastDbPersistenceError = formatDbError(error);
     console.warn("event-reminders: database recovery attempt failed", error);
     return false;
   }
