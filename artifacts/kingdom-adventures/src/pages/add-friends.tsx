@@ -38,6 +38,27 @@ function formatRemaining(ms: number) {
   return `${seconds}s`;
 }
 
+function formatAddedAgo(addedAtMs: number, nowMs: number) {
+  const diffMs = Math.max(0, nowMs - addedAtMs);
+  const totalSeconds = Math.floor(diffMs / 1000);
+  if (totalSeconds < 60) return "just now";
+
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  if (totalMinutes < 60) return `${totalMinutes}m ago`;
+
+  const totalHours = Math.floor(totalMinutes / 60);
+  if (totalHours < 24) return `${totalHours}h ago`;
+
+  const totalDays = Math.floor(totalHours / 24);
+  if (totalDays < 30) return `${totalDays}d ago`;
+
+  const totalMonths = Math.floor(totalDays / 30);
+  if (totalMonths < 12) return `${totalMonths}mo ago`;
+
+  const totalYears = Math.floor(totalDays / 365);
+  return `${totalYears}y ago`;
+}
+
 export default function AddFriendsPage() {
   const [authSession, setAuthSession] = useState<AuthSessionResponse>({ authenticated: false, guest: true });
   const [authLoading, setAuthLoading] = useState(true);
@@ -288,7 +309,7 @@ export default function AddFriendsPage() {
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm text-muted-foreground">
               {me
-                ? `Your timer: ${formatRemaining(me.expiresAt - nowMs)}`
+                ? `Your timer: ${formatRemaining(me.expiresAt - nowMs)} until your entry is removed from the list.`
                 : "Click + to add yourself to the list."}
             </div>
             <div className="flex items-center gap-2">
@@ -354,7 +375,7 @@ export default function AddFriendsPage() {
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground shrink-0">
-                    {formatRemaining(entry.expiresAt - nowMs)}
+                    Added {formatAddedAgo(entry.createdAt || entry.updatedAt, nowMs)}
                   </div>
                 </div>
               ))}
