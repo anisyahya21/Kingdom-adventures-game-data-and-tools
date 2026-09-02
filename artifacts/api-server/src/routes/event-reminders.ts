@@ -15,6 +15,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const DEFAULT_DUE_GRACE_MS = 60 * 60 * 1000;
 const DEFAULT_AUTO_LOOKAHEAD_MS = 60 * 1000;
+const DB_RECOVERY_MIN_INTERVAL_MS = 60 * 1000;
 const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
 const WAIRO_DUNGEON_SCHEDULE = [
   { day: 1, hour: 9 }, { day: 1, hour: 13 }, { day: 1, hour: 18 },
@@ -124,6 +125,7 @@ let lastStoreSnapshot = serializeStore(storeCache);
 let cachedVapidKeys: VapidKeyPair | null = null;
 let autoSchedulerStarted = false;
 let autoSchedulerBusy = false;
+let lastDbRecoveryAttemptAt = 0;
 
 const DISCORD_DM_FAILURE_MESSAGE = "Discord DM failed — check privacy settings or shared server access.";
 const OAUTH_STATE_SECRET = process.env.DISCORD_OAUTH_STATE_SECRET || crypto.randomBytes(32).toString("hex");
@@ -300,6 +302,42 @@ async function writeStore(store: Store) {
     console.info("event-reminders: persistence mode=file fallback");
   }
   writeStoreFile(store);
+
+  // Automatically try to recover DB persistence after fallback.
+  await tryRecoverDatabasePersistence("write-store");
+}
+
+async function tryRecoverDatabasePersistence(reason: string): Promise<boolean> {
+  const dbUrl = process.env.DATABASE_URL?.trim();
+  if (!dbUrl) return false;
+
+  const now = Date.now();
+  if (lastDbRecoveryAttemptAt > 0 && now - lastDbRecoveryAttemptAt < DB_RECOVERY_MIN_INTERVAL_MS) {
+    return false;
+  }
+  lastDbRecoveryAttemptAt = now;
+
+  try {
+    await initDbModule();
+    if (!dbModule) return false;
+
+    const persistedStore = await writeStoreToDb(storeCache);
+    if (!persistedStore) return false;
+
+    if (cachedVapidKeys) {
+      const persistedVapid = await writeVapidToDb(cachedVapidKeys);
+      if (!persistedVapid) return false;
+    }
+
+    if (persistenceMode !== "database") {
+      persistenceMode = "database";
+      console.info(`event-reminders: persistence mode=database (recovered via ${reason})`);
+    }
+    return true;
+  } catch (error) {
+    console.warn("event-reminders: database recovery attempt failed", error);
+    return false;
+  }
 }
 
 function normalizeOffset(value: unknown) {
@@ -892,6 +930,9 @@ async function runAutoDueSweep() {
   if (autoSchedulerBusy) return;
   autoSchedulerBusy = true;
   try {
+    if (persistenceMode === "file") {
+      await tryRecoverDatabasePersistence("auto-sweep");
+    }
     await configureWebPush();
     const result = await sendDueReminders(new Date(), autoLookAheadMs());
     if (result.sent || result.failed) {
@@ -1018,6 +1059,33 @@ async function exchangeDiscordOAuthCode(code: string) {
 router.get("/event-reminders/config", async (_req, res) => {
   const keyPair = await getVapidKeys();
   res.json({ configured: Boolean(keyPair?.publicKey && keyPair.privateKey), publicKey: keyPair?.publicKey || "" });
+});
+
+router.get("/event-reminders/debug/status", async (_req, res) => {
+  const store = readStore();
+  const health = getDiscordHealth();
+  res.json({
+    now: new Date().toISOString(),
+    persistenceMode,
+    database: {
+      configured: Boolean(process.env.DATABASE_URL?.trim()),
+      moduleLoaded: Boolean(dbModule),
+      lastRecoveryAttemptAt: lastDbRecoveryAttemptAt > 0 ? new Date(lastDbRecoveryAttemptAt).toISOString() : null,
+    },
+    scheduler: {
+      started: autoSchedulerStarted,
+      busy: autoSchedulerBusy,
+    },
+    store: {
+      subscriptionCount: store.subscriptions.length,
+      discordConnectionCount: store.discordConnections.length,
+    },
+    channels: {
+      telegramConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim()),
+      discordOauthConfigured: health.oauthReady,
+      discordDmConfigured: health.dmReady,
+    },
+  });
 });
 
 router.get("/event-reminders/telegram/status", async (_req, res) => {
