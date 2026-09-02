@@ -1199,6 +1199,26 @@ router.post("/ka/friends/join", async (req, res) => {
   });
 });
 
+router.post("/ka/friends/leave", async (req, res) => {
+  const currentSession = await resolveAuthenticatedSession(req);
+  if (!currentSession) {
+    res.status(401).json({ error: "Log in required." });
+    return;
+  }
+
+  const state = readState();
+  const now = Date.now();
+  pruneExpiredFriendPoolEntries(state, now);
+  const pool = sanitizeFriendPoolEntries(state.friendPool, now);
+  const nextPool = pool.filter((entry) => entry.userId !== currentSession.userId);
+  const removed = nextPool.length !== pool.length;
+
+  state.friendPool = nextPool;
+  writeState(state);
+
+  res.json({ ok: true, removed });
+});
+
 router.get("/ka/job-preview", (req, res) => {
   try {
     const png = renderJobPreview(req.query as Record<string, string | string[] | undefined>);

@@ -64,6 +64,7 @@ export default function AddFriendsPage() {
   const [authLoading, setAuthLoading] = useState(true);
   const [poolLoading, setPoolLoading] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -270,6 +271,49 @@ export default function AddFriendsPage() {
     }
   };
 
+  const leavePool = async () => {
+    if (!authSession.authenticated) {
+      await startTelegramLoginFlow();
+      return;
+    }
+
+    if (!window.confirm("Remove your entry from the player list?")) {
+      return;
+    }
+
+    setLeaving(true);
+    setError(null);
+    try {
+      const response = await fetch(apiUrl("/friends/leave"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: "{}",
+      });
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) {
+        if (response.status === 401) {
+          const session = await refreshAuthSession();
+          if (!session.authenticated) {
+            await startTelegramLoginFlow();
+            return;
+          }
+        }
+        throw new Error(payload?.error || "Could not remove you from the friends pool.");
+      }
+      await loadPool();
+    } catch (leaveError) {
+      const message = leaveError instanceof Error ? leaveError.message : "Could not remove you from the friends pool.";
+      if (/log in required/i.test(message)) {
+        await startTelegramLoginFlow();
+        return;
+      }
+      setError(message);
+    } finally {
+      setLeaving(false);
+    }
+  };
+
   const profileMissing = useMemo(() => {
     if (!authSession.authenticated) return false;
     const displayName = String(authSession.user?.displayName || "").trim();
@@ -315,12 +359,21 @@ export default function AddFriendsPage() {
                     <button
                       type="button"
                       onClick={() => void joinPool()}
-                      disabled={joining || authBusy}
+                      disabled={joining || leaving || authBusy}
                       className="font-medium underline underline-offset-2 text-foreground disabled:opacity-60"
                     >
                       reset
                     </button>
-                    {" your timer."}
+                    {" your timer or "}
+                    <button
+                      type="button"
+                      onClick={() => void leavePool()}
+                      disabled={joining || leaving || authBusy}
+                      className="font-medium underline underline-offset-2 text-foreground disabled:opacity-60"
+                    >
+                      remove yourself
+                    </button>
+                    {" from the list."}
                   </>
                 )
                 : "Click + to add yourself to the list."}
@@ -329,10 +382,10 @@ export default function AddFriendsPage() {
               <Button
                 size="icon"
                 onClick={() => void joinPool()}
-                disabled={joining || authBusy || authLoading}
+                disabled={joining || leaving || authBusy || authLoading}
                 title="Add yourself"
               >
-                {joining || authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-5 w-5" />}
+                {joining || leaving || authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-5 w-5" />}
               </Button>
             </div>
           </div>
