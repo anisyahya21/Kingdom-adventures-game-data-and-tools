@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 // ─── Refresh intervals ────────────────────────────────────────────────────────
-export const GUIDE_REFRESH_MS = 60_000;          // 1 min  – guides change most often
+export const GUIDE_REFRESH_MS = 24 * 60 * 60_000; // 24 hours – guide content is stable
 export const SHEET_REFRESH_MS = 30_000;          // 30 sec – temporary faster sheet refresh
 const WEEKLY_CONQUEST_REFRESH_MS = 2 * 60_000;  // 2 min  – conquest resets weekly
 
