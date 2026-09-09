@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Calculator, ChevronDown, ChevronUp, Info, Minus, Skull } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, Calculator, ChevronDown, ChevronUp, Clover, Droplets, Heart, Info, Minus, Shield, Skull, Sword, Wind, type LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,16 @@ const terrainLabels: Record<XpTerrain, string> = {
 };
 
 const formatXp = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+
+const statDisplays: Array<{ name: "HP" | "MP" | "Vigor" | "Atk" | "Def" | "Spd" | "Luck"; icon: LucideIcon }> = [
+  { name: "HP", icon: Heart },
+  { name: "MP", icon: Droplets },
+  { name: "Vigor", icon: Activity },
+  { name: "Atk", icon: Sword },
+  { name: "Def", icon: Shield },
+  { name: "Spd", icon: Wind },
+  { name: "Luck", icon: Clover },
+];
 
 function ComparisonArrow({ value, comparison }: { value: number; comparison?: number }) {
   if (comparison == null || value === comparison) return <Minus className="h-3.5 w-3.5 text-muted-foreground" aria-label="Equal" />;
@@ -47,8 +57,8 @@ function ResultCard({ result, comparison }: { result: ReturnType<typeof getXpRes
         </div>
         <div className="rounded-md bg-muted/40 p-2 text-xs">
           <div className="mb-2 font-medium">Average XP by stat per kill</div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
-            {(["HP", "MP", "Vigor", "Atk", "Def", "Spd", "Luck"] as const).map((stat) => <div key={stat} className="flex items-center justify-between gap-2"><span className="text-muted-foreground">{stat}</span><span className="flex items-center gap-1 font-medium"><ComparisonArrow value={result.statXp[stat]} comparison={comparison?.statXp[stat]} />{formatXp(result.statXp[stat])}</span></div>)}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-1 sm:grid-cols-4">
+            {statDisplays.map(({ name: stat, icon: StatIcon }) => <div key={stat} className="flex items-center justify-start gap-3"><span className="flex min-w-[4.5rem] items-center gap-1.5 text-muted-foreground"><StatIcon className="h-3.5 w-3.5" />{stat}</span><span className="flex items-center gap-1 font-medium"><ComparisonArrow value={result.statXp[stat]} comparison={comparison?.statXp[stat]} />{formatXp(result.statXp[stat])}</span></div>)}
           </div>
         </div>
         <Button variant="ghost" size="sm" className="h-7 w-full justify-between px-2 text-xs" onClick={() => setOpen((value) => !value)}>
@@ -85,7 +95,7 @@ export default function MonsterXpPage() {
             <label className="text-sm font-medium">Area level<Input type="number" min={1} max={9999} placeholder="e.g. 3200" value={level} onChange={(event) => { const value = event.target.value; setLevel(value === "" ? "" : Math.max(1, Math.min(9999, Number(value)))); }} className="mt-1" /></label>
             <div>
               <div className="mb-2 text-sm font-medium">XP Up skills</div>
-              <div className="flex flex-wrap gap-2">{([1, 2, 3] as const).map((skill) => { const icon = getSkillIcon(`Experience UP ${skill === 1 ? "I" : skill === 2 ? "II" : "III"}`); return <Button key={skill} type="button" variant={enabledXpUps.includes(skill) ? "default" : "outline"} size="sm" onClick={() => toggleXpUp(skill)}>{icon && <img src={icon} alt="" className="h-5 w-5 rounded-sm object-contain" />}XP Up {skill} <span className="ml-1 opacity-70">×{XP_UP_BONUSES[skill].toFixed(2)}</span></Button>; })}</div>
+              <div className="flex flex-wrap gap-2">{([1, 2, 3] as const).map((skill) => { const roman = skill === 1 ? "Ⅰ" : skill === 2 ? "Ⅱ" : "Ⅲ"; const skillName = `Experience UP ${roman}`; const icon = getSkillIcon(skillName); return <Button key={skill} type="button" variant={enabledXpUps.includes(skill) ? "default" : "outline"} size="sm" onClick={() => toggleXpUp(skill)}>{icon && <img src={icon} alt="" className="h-5 w-5 rounded-sm object-contain" />}{skillName} <span className="ml-1 opacity-70">×{XP_UP_BONUSES[skill].toFixed(2)}</span></Button>; })}</div>
               <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><Info className="h-3.5 w-3.5" />XP Up bonuses multiply together. Active multiplier: ×{enabledXpUps.reduce((product, skill) => product * XP_UP_BONUSES[skill as 1 | 2 | 3], 1).toFixed(2)}</p>
             </div>
           </CardContent>
