@@ -89,10 +89,11 @@ function normalizeTelegramBotUsername() {
 }
 
 function telegramRequestAccessMode() {
-  // The widget login flow sends a post-login confirmation through the bot.
-  // Requesting write access makes that permission explicit to Telegram users;
-  // deployments can still opt out with TELEGRAM_LOGIN_REQUEST_ACCESS=none.
-  const raw = String(process.env.TELEGRAM_LOGIN_REQUEST_ACCESS || "write").trim().toLowerCase();
+  // Keep the widget on Telegram's standard sign-in flow. Requesting write
+  // access adds a second Telegram approval prompt, which can be suppressed by
+  // Telegram clients and leaves the browser waiting indefinitely. Deployments
+  // can opt in explicitly when they need the bot permission.
+  const raw = String(process.env.TELEGRAM_LOGIN_REQUEST_ACCESS || "none").trim().toLowerCase();
   if (raw === "write" || raw === "phone") return raw;
   return "none";
 }
