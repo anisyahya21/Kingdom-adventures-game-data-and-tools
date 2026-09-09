@@ -89,12 +89,9 @@ function normalizeTelegramBotUsername() {
 }
 
 function telegramRequestAccessMode() {
-  // Keep the widget on Telegram's standard sign-in flow. Requesting write
-  // access adds a second Telegram approval prompt, which can be suppressed by
-  // Telegram clients and leaves the browser waiting indefinitely. Deployments
-  // can opt in explicitly when they need the bot permission.
-  const raw = String(process.env.TELEGRAM_LOGIN_REQUEST_ACCESS || "none").trim().toLowerCase();
-  if (raw === "write" || raw === "phone") return raw;
+  // Keep this login on Telegram's standard sign-in flow. The write/phone
+  // access prompt can be suppressed by Telegram clients and leaves the
+  // browser waiting indefinitely. Reminder delivery uses the bot separately.
   return "none";
 }
 
