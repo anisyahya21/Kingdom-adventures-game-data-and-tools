@@ -36,6 +36,7 @@ const MonstersPetsPage = lazy(() => import("@/pages/monsters-pets"));
 const WeeklyConquestPage = lazy(() => import("@/pages/weekly-conquest"));
 const WarioDungeonPage = lazy(() => import("@/pages/wario-dungeon"));
 const MonsterPetStatsPage = lazy(() => import("@/pages/monster-pet-stats"));
+const MonsterXpPage = lazy(() => import("@/pages/monster-xp"));
 const DailyRankRewardsPage = lazy(() => import("@/pages/daily-rank-rewards"));
 const JobCenterPage = lazy(() => import("@/pages/job-center"));
 const KairoRoomPage = lazy(() => import("@/pages/kairo-room"));
@@ -174,6 +175,7 @@ function Router() {
         <Route path="/monsters-pets">{() => <MonstersPetsPage />}</Route>
         <Route path="/monster-spawns">{() => <MonstersPage />}</Route>
         <Route path="/monster-pet-stats">{() => <MonsterPetStatsPage />}</Route>
+        <Route path="/monster-xp">{() => <MonsterXpPage />}</Route>
         <Route path="/shops">{() => <ShopsPage />}</Route>
         <Route path="/shops/:slug">{() => <ShopsPage />}</Route>
         <Route path="/research">{() => <ResearchPage />}</Route>

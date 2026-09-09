@@ -76,6 +76,10 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventurers Monster Pet Stats",
     description: "Compare Kingdom Adventurers monster and pet stats with base levels, growth values, and level-based stat tables for stronger team planning.",
   },
+  "/monster-xp": {
+    title: "Kingdom Adventurers Monster XP per Kill",
+    description: "Calculate expected Kingdom Adventurers battle XP per kill by area level, terrain, combat monster pool, and XP Up skills.",
+  },
   "/shops": {
     title: "Kingdom Adventurers Shop Database",
     description: "Search Kingdom Adventurers shop unlocks, furniture, weapons, armor, accessories, items, restaurants, and skills.",

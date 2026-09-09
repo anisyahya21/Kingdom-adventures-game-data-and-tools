@@ -51,6 +51,7 @@ export const NAV_SECTIONS: NavSection[] = [
     children: [
       { href: "/eggs", label: "Eggs & Pets" },
       { href: "/monsters-pets", label: "Monsters & Pets" },
+      { href: "/monster-xp", label: "Monster XP per kill" },
     ],
   },
   {
