@@ -108,9 +108,17 @@ function getAdminTelegramUserIds() {
   );
 }
 
-function isAdminTelegramUser(telegramUserId?: string | null) {
-  if (!telegramUserId) return false;
-  return getAdminTelegramUserIds().has(String(telegramUserId));
+function getAdminTelegramUsernames() {
+  // The default is the verified owner account. Deployments can replace this
+  // with a comma-separated TELEGRAM_ADMIN_USERNAMES allowlist.
+  const configured = String(process.env.TELEGRAM_ADMIN_USERNAMES || "AnesYahya");
+  return new Set(configured.split(",").map((value) => value.trim().replace(/^@+/, "").toLowerCase()).filter(Boolean));
+}
+
+function isAdminTelegramUser(telegramUserId?: string | null, telegramUsername?: string | null) {
+  if (telegramUserId && getAdminTelegramUserIds().has(String(telegramUserId))) return true;
+  if (!telegramUsername) return false;
+  return getAdminTelegramUsernames().has(String(telegramUsername).replace(/^@+/, "").toLowerCase());
 }
 
 function baseUrlFromRequest(req: Parameters<typeof router.get>[1] extends never ? never : any) {
@@ -739,7 +747,7 @@ router.get("/session", async (req, res) => {
     guest: false,
     user: {
       id: sessionUser.userId,
-      isAdmin: isAdminTelegramUser(sessionUser.telegramUserId),
+      isAdmin: isAdminTelegramUser(sessionUser.telegramUserId, sessionUser.telegramUsername),
       telegramUsername: sessionUser.telegramUsername || "",
       firstName: sessionUser.firstName || "",
       lastName: sessionUser.lastName || "",

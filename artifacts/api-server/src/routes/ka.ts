@@ -765,6 +765,11 @@ function getAdminTelegramUserIds() {
   );
 }
 
+function getAdminTelegramUsernames() {
+  const configured = String(process.env.TELEGRAM_ADMIN_USERNAMES || "AnesYahya");
+  return new Set(configured.split(",").map((value) => value.trim().replace(/^@+/, "").toLowerCase()).filter(Boolean));
+}
+
 async function resolveAuthenticatedSession(req: Request): Promise<AuthenticatedSession | undefined> {
   const rawSessionToken = String((req as Request & { cookies?: Record<string, string> }).cookies?.[SESSION_COOKIE_NAME] || "").trim();
   if (!rawSessionToken || !process.env.DATABASE_URL) return undefined;
@@ -809,7 +814,8 @@ async function resolveAuthenticatedSession(req: Request): Promise<AuthenticatedS
   return {
     userId: row.userId,
     telegramUserId: row.telegramUserId,
-    isAdmin: getAdminTelegramUserIds().has(String(row.telegramUserId)),
+    isAdmin: getAdminTelegramUserIds().has(String(row.telegramUserId))
+      || getAdminTelegramUsernames().has(String(row.telegramUsername || "").replace(/^@+/, "").toLowerCase()),
     displayName,
     gameId: String(row.gameId || "").trim(),
   };
