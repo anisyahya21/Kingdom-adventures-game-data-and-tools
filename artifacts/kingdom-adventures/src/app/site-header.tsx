@@ -413,13 +413,13 @@ export function SiteHeader() {
             </DropdownMenu>
           ) : (
             <>
-              <Button variant="ghost" className="h-11 px-3 text-xs" onClick={startFallbackLogin} disabled={fallbackBusy} title="Log in using bot code">
+              <Button variant="ghost" className="h-11 px-3 text-xs" onClick={startFallbackLogin} disabled={fallbackBusy} title="Log in using a Telegram bot code">
                 {fallbackBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Log in
+                Log in with code
               </Button>
-              <Button variant="ghost" className="h-11 px-2 text-[11px]" onClick={startPopupLogin} disabled={authBusy} title="Use Telegram popup login">
+              <Button variant="ghost" className="h-11 px-2 text-[11px]" onClick={startPopupLogin} disabled={authBusy} title="Log in with Telegram popup">
                 {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Popup
+                Log in with Telegram
               </Button>
             </>
           )}

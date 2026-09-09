@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Calculator, ChevronDown, ChevronUp, Info, Minus, Skull } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ALL_AREA_LEVELS, XP_TERRAINS, XP_UP_BONUSES, getXpResult, nativeTerrainAtLevel, type XpTerrain } from "@/lib/monster-xp";
 import { getSkillIcon } from "@/lib/skill-icons";
@@ -45,7 +44,7 @@ function ResultCard({ result, comparison }: { result: ReturnType<typeof getXpRes
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle className="text-base">{terrainLabels[result.terrain]}</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">{result.monsters.length} combat monsters in the pool</p>
+            <p className="mt-1 text-xs text-muted-foreground">Level {result.level} · {result.monsters.length} combat monsters in the pool</p>
           </div>
           <div className="text-right">
             <div className="flex items-center justify-end gap-1 text-2xl font-bold text-violet-500"><ComparisonArrow value={result.averageXp} comparison={comparison?.averageXp} />{formatXp(result.averageXp)}</div>
@@ -73,11 +72,24 @@ function ResultCard({ result, comparison }: { result: ReturnType<typeof getXpRes
   );
 }
 
+function AreaLevelSelect({ label, value, onChange }: { label: string; value: number | ""; onChange: (value: number | "") => void }) {
+  return (
+    <label className="text-sm font-medium">{label}
+      <select value={value} onChange={(event) => onChange(event.target.value === "" ? "" : Number(event.target.value))} className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
+        <option value="">Choose an area level</option>
+        {ALL_AREA_LEVELS.map((areaLevel) => <option key={areaLevel} value={areaLevel}>{areaLevel}</option>)}
+      </select>
+    </label>
+  );
+}
+
 export default function MonsterXpPage() {
-  const [level, setLevel] = useState<number | "">("");
+  const [levelA, setLevelA] = useState<number | "">("");
+  const [levelB, setLevelB] = useState<number | "">("");
   const [enabledXpUps, setEnabledXpUps] = useState<number[]>([]);
   const [showAll, setShowAll] = useState(false);
-  const results = useMemo(() => level === "" ? [] : nativeTerrainAtLevel(level).map((terrain) => getXpResult(terrain, level, enabledXpUps)), [level, enabledXpUps]);
+  const resultsA = useMemo(() => levelA === "" ? [] : nativeTerrainAtLevel(levelA).map((terrain) => getXpResult(terrain, levelA, enabledXpUps)), [levelA, enabledXpUps]);
+  const resultsB = useMemo(() => levelB === "" ? [] : nativeTerrainAtLevel(levelB).map((terrain) => getXpResult(terrain, levelB, enabledXpUps)), [levelB, enabledXpUps]);
   const allRows = useMemo(() => ALL_AREA_LEVELS.flatMap((areaLevel) => nativeTerrainAtLevel(areaLevel).map((terrain) => ({ areaLevel, result: getXpResult(terrain, areaLevel, enabledXpUps) }))), [enabledXpUps]);
 
   const toggleXpUp = (skill: number) => setEnabledXpUps((current) => current.includes(skill) ? current.filter((value) => value !== skill) : [...current, skill].sort());
@@ -94,8 +106,9 @@ export default function MonsterXpPage() {
         </div>
 
         <Card className="mb-6 border-violet-500/20 bg-violet-500/5">
-          <CardContent className="grid gap-5 p-4 md:grid-cols-[180px_1fr] md:items-end">
-            <label className="text-sm font-medium">Area level<Input type="number" min={1} max={9999} placeholder="e.g. 3200" value={level} onChange={(event) => { const value = event.target.value; setLevel(value === "" ? "" : Math.max(1, Math.min(9999, Number(value)))); }} className="mt-1" /></label>
+          <CardContent className="grid gap-5 p-4 md:grid-cols-[180px_180px_1fr] md:items-end">
+            <AreaLevelSelect label="Area level 1" value={levelA} onChange={setLevelA} />
+            <AreaLevelSelect label="Area level 2" value={levelB} onChange={setLevelB} />
             <div>
               <div className="mb-2 text-sm font-medium">XP Up skills</div>
               <div className="flex flex-wrap gap-2">{([1, 2, 3] as const).map((skill) => { const roman = skill === 1 ? "Ⅰ" : skill === 2 ? "Ⅱ" : "Ⅲ"; const skillName = `Experience UP ${roman}`; const icon = getSkillIcon(skillName); return <Button key={skill} type="button" variant={enabledXpUps.includes(skill) ? "default" : "outline"} size="sm" onClick={() => toggleXpUp(skill)}>{icon && <img src={icon} alt="" className="h-5 w-5 rounded-sm object-contain" />}{skillName} <span className="ml-1 opacity-70">×{XP_UP_BONUSES[skill].toFixed(2)}</span></Button>; })}</div>
@@ -104,8 +117,8 @@ export default function MonsterXpPage() {
           </CardContent>
         </Card>
 
-        <div className="mb-3 flex items-end justify-between gap-3"><div><h2 className="text-lg font-semibold">{level === "" ? "Choose an area level" : `Level ${level} results`}</h2><p className="text-xs text-muted-foreground">Ground/dirt represents digging at this area level. Other rows appear when that biome exists at this exact level.</p><p className="mt-1 text-xs text-muted-foreground">Green arrows indicate a higher value than the other available terrain; red arrows indicate a lower value.</p></div></div>
-        {level === "" ? <Card className="border-border/70 bg-card/80"><CardContent className="p-6 text-sm text-muted-foreground">Enter an area level to compare Ground/dirt with the biome available at that level.</CardContent></Card> : <div className="grid gap-4 md:grid-cols-2">{results.map((result) => <ResultCard key={result.terrain} result={result} comparison={results.find((other) => other.terrain !== result.terrain)} />)}</div>}
+        <div className="mb-3 flex items-end justify-between gap-3"><div><h2 className="text-lg font-semibold">{levelA === "" && levelB === "" ? "Choose area levels" : "Area level comparison"}</h2><p className="text-xs text-muted-foreground">Ground/dirt represents digging. Other rows appear when that biome exists at the selected level.</p><p className="mt-1 text-xs text-muted-foreground">Arrows compare the same terrain between area level 1 and area level 2.</p></div></div>
+        {levelA === "" && levelB === "" ? <Card className="border-border/70 bg-card/80"><CardContent className="p-6 text-sm text-muted-foreground">Choose one or two available area levels to compare XP per kill.</CardContent></Card> : <div className="grid gap-4 md:grid-cols-2">{[...resultsA, ...resultsB].map((result) => <ResultCard key={`${result.level}-${result.terrain}`} result={result} comparison={(result.level === levelA ? resultsB : resultsA).find((other) => other.terrain === result.terrain)} />)}</div>}
 
         <Card className="mt-6 border-border/70 bg-card/80">
           <CardHeader className="flex-row items-center justify-between space-y-0"><div><CardTitle className="text-base">All native area levels</CardTitle><p className="mt-1 text-xs text-muted-foreground">Combat-only pools. Type 1 entries from Monster.csv are excluded as farmable animals.</p></div><Button variant="outline" size="sm" onClick={() => setShowAll((value) => !value)}>{showAll ? "Hide table" : "Show table"}</Button></CardHeader>
