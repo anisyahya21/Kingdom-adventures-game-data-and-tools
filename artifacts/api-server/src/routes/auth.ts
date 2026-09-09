@@ -89,7 +89,10 @@ function normalizeTelegramBotUsername() {
 }
 
 function telegramRequestAccessMode() {
-  const raw = String(process.env.TELEGRAM_LOGIN_REQUEST_ACCESS || "none").trim().toLowerCase();
+  // The widget login flow sends a post-login confirmation through the bot.
+  // Requesting write access makes that permission explicit to Telegram users;
+  // deployments can still opt out with TELEGRAM_LOGIN_REQUEST_ACCESS=none.
+  const raw = String(process.env.TELEGRAM_LOGIN_REQUEST_ACCESS || "write").trim().toLowerCase();
   if (raw === "write" || raw === "phone") return raw;
   return "none";
 }
