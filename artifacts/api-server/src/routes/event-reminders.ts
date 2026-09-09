@@ -141,6 +141,13 @@ type MonsterSpawnMeta = {
   areaLevelMin: number;
 };
 
+type WeeklyConquestNotificationMonster = {
+  name: string;
+  count: number;
+  iconUrl: string;
+  spawnSummary: string;
+};
+
 type DbModule = typeof import("@workspace/db");
 
 let dbModule: DbModule | null = null;
@@ -1032,30 +1039,37 @@ function weeklyConquestEventIdForReminder(subscription: ReminderSubscription, on
 
 function formatSpawnSummary(monsterName: string): string {
   const meta = getMonsterSpawnMetaByName().get(monsterName.toLowerCase());
-  if (!meta) return "Unknown terrain";
+  if (!meta) return "Unknown level / biome";
   if (meta.areaLevelMin > 0) {
-    return `${meta.terrainName} terrain ${meta.areaLevelMin}+`;
+    return `${meta.areaLevelMin}+ ${meta.terrainName}`;
   }
-  return `${meta.terrainName} terrain`;
+  return `Any level ${meta.terrainName}`;
 }
 
 function weeklyConquestDetailLines(subscription: ReminderSubscription, oneHour: boolean, scheduledAt: Date): {
   lines: string[];
   primaryIcon: string;
+  monsters: WeeklyConquestNotificationMonster[];
 } | null {
   const eventId = weeklyConquestEventIdForReminder(subscription, oneHour, scheduledAt);
   const event = getWeeklyConquestLookupById().get(eventId);
   if (!event || event.monsters.length === 0) return null;
 
-  const lines = event.monsters.map((monster) => {
+  const monsters = event.monsters.map((monster) => {
     const iconUrl = resolveMonsterIconUrl(monster.name);
     const countLabel = monster.count > 0 ? String(monster.count) : "?";
-    return `${monster.name} x${countLabel} - ${formatSpawnSummary(monster.name)} - ${iconUrl}`;
+    return {
+      name: monster.name,
+      count: monster.count,
+      iconUrl,
+      spawnSummary: formatSpawnSummary(monster.name),
+    };
   });
 
   return {
-    lines,
+    lines: monsters.map((monster) => `[🖼️ ${monster.name}](${monster.iconUrl}) ×${monster.count > 0 ? monster.count : "?"} — ${monster.spawnSummary}`),
     primaryIcon: resolveMonsterIconPath(event.monsters[0].name),
+    monsters,
   };
 }
 
@@ -1102,7 +1116,13 @@ async function sendReminder(store: Store, subscription: ReminderSubscription, ki
       if (!connection) {
         throw new Error("discord not connected");
       }
-      await sendDiscordReminder(connection.userId, visual.title, visual.body, subscription.subscriptionId);
+      await sendDiscordReminder(
+        connection.userId,
+        visual.title,
+        visual.body,
+        subscription.subscriptionId,
+        "weeklyMonsters" in visual ? visual.weeklyMonsters : undefined,
+      );
       updateDiscordDmError(store, subscription.clientId, undefined);
       delivered += 1;
     } catch {
@@ -1132,7 +1152,13 @@ async function sendTelegramReminder(chatId: string, title: string, body: string,
   }
 }
 
-async function sendDiscordReminder(discordUserId: string, title: string, body: string, subscriptionId: string) {
+async function sendDiscordReminder(
+  discordUserId: string,
+  title: string,
+  body: string,
+  subscriptionId: string,
+  weeklyMonsters?: WeeklyConquestNotificationMonster[],
+) {
   const botToken = process.env.DISCORD_BOT_TOKEN?.trim();
   if (!botToken) throw new Error("DISCORD_BOT_TOKEN is not configured");
 
@@ -1162,12 +1188,18 @@ async function sendDiscordReminder(discordUserId: string, title: string, body: s
     body: JSON.stringify({
       content: `**${title}**\n${body}`,
       embeds: [
-        {
-          title,
-          description: body,
-          color: 0x22c55e,
-          footer: { text: `Reminder ${subscriptionId}` },
-        },
+        ...(weeklyMonsters?.length
+          ? weeklyMonsters.map((monster) => ({
+              title: `${monster.name} ×${monster.count > 0 ? monster.count : "?"}`,
+              description: monster.spawnSummary,
+              thumbnail: { url: monster.iconUrl },
+              color: 0x22c55e,
+            }))
+          : [{
+              title,
+              description: body,
+              color: 0x22c55e,
+            }]),
       ],
     }),
   });
@@ -1196,17 +1228,18 @@ function notificationVisualFor(subscription: ReminderSubscription, oneHour: bool
     const detail = weeklyConquestDetailLines(subscription, oneHour, scheduledAt);
     if (detail) {
       return {
-        title: oneHour ? "Weekly Conquest in 1 hour" : "Weekly Conquest reset",
-        body: `${oneHour ? "Upcoming targets:" : "Targets this rotation:"}\n${detail.lines.join("\n")}`,
+        title: oneHour ? "Weekly Conquest in 1 hour" : "New Weekly Conquest started",
+        body: `${oneHour ? "Upcoming Weekly Conquest targets:" : "A new Weekly Conquest has started!\nTargets to defeat:"}\n${detail.lines.join("\n")}`,
         icon: detail.primaryIcon,
         badge: defaultIcon,
         image: detail.primaryIcon,
+        weeklyMonsters: detail.monsters,
       };
     }
 
     return {
-      title: "Weekly Conquest reset",
-      body: "A new Weekly Conquest rotation is now available.",
+      title: "New Weekly Conquest started",
+      body: "A new Weekly Conquest has started!",
       icon: "/website_icons/facilities_confirmed/facility_168_weekly_conquest_bonus.png",
       badge: defaultIcon,
       image: "/website_icons/facilities_confirmed/facility_168_weekly_conquest_bonus.png",

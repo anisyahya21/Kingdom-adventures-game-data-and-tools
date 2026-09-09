@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Activity, ArrowDown, ArrowUp, Calculator, ChevronDown, ChevronUp, Clover, Droplets, Heart, Info, Minus, Shield, Skull, Sword, Wind, type LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowUp, Calculator, ChevronDown, ChevronUp, Info, Minus, Skull } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ALL_AREA_LEVELS, XP_TERRAINS, XP_UP_BONUSES, getXpResult, nativeTerrainAtLevel, type XpTerrain } from "@/lib/monster-xp";
 import { getSkillIcon } from "@/lib/skill-icons";
+import { localSharedData } from "@/lib/local-shared-data";
 
 const terrainLabels: Record<XpTerrain, string> = {
   "Ground/dirt": "Ground / dug dirt",
@@ -18,15 +19,17 @@ const terrainLabels: Record<XpTerrain, string> = {
 
 const formatXp = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 
-const statDisplays: Array<{ name: "HP" | "MP" | "Vigor" | "Atk" | "Def" | "Spd" | "Luck"; icon: LucideIcon }> = [
-  { name: "HP", icon: Heart },
-  { name: "MP", icon: Droplets },
-  { name: "Vigor", icon: Activity },
-  { name: "Atk", icon: Sword },
-  { name: "Def", icon: Shield },
-  { name: "Spd", icon: Wind },
-  { name: "Luck", icon: Clover },
+const statDisplays: Array<{ name: "HP" | "MP" | "Vigor" | "Atk" | "Def" | "Spd" | "Luck"; iconKey: string }> = [
+  { name: "HP", iconKey: "HP" },
+  { name: "MP", iconKey: "MP" },
+  { name: "Vigor", iconKey: "Vigor" },
+  { name: "Atk", iconKey: "Attack" },
+  { name: "Def", iconKey: "Defence" },
+  { name: "Spd", iconKey: "Speed" },
+  { name: "Luck", iconKey: "Luck" },
 ];
+
+const statIcons = (localSharedData as { statIcons?: Record<string, string> }).statIcons ?? {};
 
 function ComparisonArrow({ value, comparison }: { value: number; comparison?: number }) {
   if (comparison == null || value === comparison) return <Minus className="h-3.5 w-3.5 text-muted-foreground" aria-label="Equal" />;
@@ -58,7 +61,7 @@ function ResultCard({ result, comparison }: { result: ReturnType<typeof getXpRes
         <div className="rounded-md bg-muted/40 p-2 text-xs">
           <div className="mb-2 font-medium">Average XP by stat per kill</div>
           <div className="grid grid-cols-2 gap-x-8 gap-y-1 sm:grid-cols-4">
-            {statDisplays.map(({ name: stat, icon: StatIcon }) => <div key={stat} className="flex items-center justify-start gap-3"><span className="flex min-w-[4.5rem] items-center gap-1.5 text-muted-foreground"><StatIcon className="h-3.5 w-3.5" />{stat}</span><span className="flex items-center gap-1 font-medium"><ComparisonArrow value={result.statXp[stat]} comparison={comparison?.statXp[stat]} />{formatXp(result.statXp[stat])}</span></div>)}
+            {statDisplays.map(({ name: stat, iconKey }) => <div key={stat} className="flex items-center justify-start gap-3"><span className="flex min-w-[4.5rem] items-center gap-1.5 text-muted-foreground">{statIcons[iconKey] && <img src={statIcons[iconKey]} alt="" className="h-4 w-4 shrink-0 object-contain" />}{stat}</span><span className="flex items-center gap-1 font-medium"><ComparisonArrow value={result.statXp[stat]} comparison={comparison?.statXp[stat]} />{formatXp(result.statXp[stat])}</span></div>)}
           </div>
         </div>
         <Button variant="ghost" size="sm" className="h-7 w-full justify-between px-2 text-xs" onClick={() => setOpen((value) => !value)}>
