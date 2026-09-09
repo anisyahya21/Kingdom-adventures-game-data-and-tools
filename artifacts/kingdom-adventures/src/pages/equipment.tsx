@@ -535,7 +535,6 @@ function useShared() {
     initialData: () => ({ ...EMPTY_SHARED, ...(JSON.parse(JSON.stringify(localSharedData)) as Partial<SharedState>) }),
     staleTime: 15000,
     refetchOnWindowFocus: true,
-    refetchInterval: 15000,
   });
 
   const invalidate = useCallback(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }), [qc]);

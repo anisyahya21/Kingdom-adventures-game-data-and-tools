@@ -949,8 +949,12 @@ function getGroupDevices(devices: SyncedDevice[], groupId: string): SyncedDevice
 router.get("/ka/shared", async (req, res) => {
   const state = readState();
   const currentSession = await resolveAuthenticatedSession(req);
+  // The bundled frontend already owns the baseline catalog/icon data. Return
+  // only icon overrides here so every poll does not transfer the ~10 MB
+  // expanded baseline back through Render.
+  const responseState = compactStateForDatabase(state);
   res.json({
-    ...state,
+    ...responseState,
     communityGuides: state.communityGuides.map((guide) => ({
       ...publicGuide(guide),
       editable: canManageGuide(currentSession, guide),

@@ -264,7 +264,6 @@ export default function EquipmentExchangeCalculator() {
     queryKey: ["ka-shared"],
     queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
     staleTime: 15000,
-    refetchInterval: 15000,
   });
   const equipIcons = sharedData?.equipIcons ?? {};
   const [savedExchangeState, setSavedExchangeState] = useLocalFeature<EquipmentExchangeSavedState>(

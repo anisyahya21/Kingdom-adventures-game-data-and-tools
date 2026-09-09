@@ -11,7 +11,6 @@ export function useEquipmentIcons() {
     queryKey: ["ka-shared"],
     queryFn: () => fetchSharedWithFallback<SharedEquipmentIcons>(apiUrl("/shared")),
     staleTime: 15000,
-    refetchInterval: 15000,
   });
   return data?.equipIcons ?? {};
 }

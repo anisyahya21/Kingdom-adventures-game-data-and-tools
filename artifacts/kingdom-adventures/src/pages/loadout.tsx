@@ -417,7 +417,6 @@ function useSharedData() {
     queryKey: ["ka-shared"],
     queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
     staleTime: 15000,
-    refetchInterval: 15000,
   });
 }
 

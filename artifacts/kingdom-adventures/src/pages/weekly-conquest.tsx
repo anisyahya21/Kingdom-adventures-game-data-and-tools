@@ -418,7 +418,6 @@ function useSharedData() {
     queryFn: () => fetchSharedWithFallback<WeeklySharedData>(apiUrl("/shared")),
     initialData: () => localSharedData as WeeklySharedData,
     staleTime: 15000,
-    refetchInterval: 15000,
     refetchOnWindowFocus: true,
   });
 }

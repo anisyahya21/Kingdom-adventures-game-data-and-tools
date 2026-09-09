@@ -1445,7 +1445,6 @@ export default function EquipmentLevelingOptimizerPage() {
     queryKey: ["ka-shared"],
     queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
     staleTime: 15000,
-    refetchInterval: 15000,
   });
   const equipIcons = sharedData?.equipIcons ?? {};
   const firstItem = EQUIPMENT[0]?.id ? String(EQUIPMENT[0].id) : "";
