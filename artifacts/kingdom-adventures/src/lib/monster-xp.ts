@@ -2,7 +2,8 @@ import monsterCsv from "../../../../data/Sheet csv/KA GameData - Monster.csv?raw
 import { NATIVE_AREA_LEVELS, parseCsv } from "./monster-truth";
 
 export const XP_STAT_COLUMNS = ["HP", "MP", "Vigor", "Atk", "Def", "Spd", "Luck", "Owned??", "Int", "Dex", "Gather", "Move", "Heart"] as const;
-export const XP_UP_BONUSES = { 1: 0.25, 2: 0.5, 3: 0.75 } as const;
+export const XP_UP_BONUSES = { 1: 1.25, 2: 1.5, 3: 1.75 } as const;
+type XpStat = (typeof XP_STAT_COLUMNS)[number];
 
 export type XpTerrain = "Ground/dirt" | "Grass" | "Sand" | "Rock" | "Snow" | "Swamp" | "Volcano";
 
@@ -12,7 +13,7 @@ export type XpMonster = {
   terrain: XpTerrain;
   minLevel: number;
   maxLevel: number;
-  stats: number[];
+  stats: Record<XpStat, number>;
   averageMultiplier: number;
 };
 
@@ -25,10 +26,12 @@ export type XpResult = {
   minXp: number;
   maxXp: number;
   bonusMultiplier: number;
+  statXp: Record<XpStat, number>;
 };
 
 const rows = parseCsv(monsterCsv);
-const header = rows[0] ?? [];
+const header = rows[2] ?? [];
+const dataRows = rows.slice(3);
 const index = (name: string) => header.indexOf(name);
 const terrainIndex = index("terrain");
 const minIndex = index("areaLevelMin");
@@ -54,10 +57,12 @@ function parseMonster(row: string[]): XpMonster | null {
   // Monster type 1 entries are farmable animals/pets, not combat monsters.
   if (!name || !terrain || Number(row[typeIndex]) === 1) return null;
 
-  const stats = statIndexes
-    .map((statIndex) => Number(row[statIndex]))
-    .filter((value) => Number.isFinite(value) && value > 0);
-  if (stats.length === 0) return null;
+  const stats = Object.fromEntries(XP_STAT_COLUMNS.map((stat, position) => {
+    const value = Number(row[statIndexes[position]]);
+    return [stat, Number.isFinite(value) && value > 0 ? value : 0];
+  })) as Record<XpStat, number>;
+  const nonZeroStats = Object.values(stats).filter((value) => value > 0);
+  if (nonZeroStats.length === 0) return null;
 
   return {
     id: Number(row[idIndex]),
@@ -66,11 +71,11 @@ function parseMonster(row: string[]): XpMonster | null {
     minLevel: Number(row[minIndex]),
     maxLevel: Number(row[maxIndex]),
     stats,
-    averageMultiplier: stats.reduce((sum, value) => sum + value, 0) / stats.length,
+    averageMultiplier: nonZeroStats.reduce((sum, value) => sum + value, 0) / nonZeroStats.length,
   };
 }
 
-export const COMBAT_MONSTERS = rows.slice(1).map(parseMonster).filter((monster): monster is XpMonster => Boolean(monster));
+export const COMBAT_MONSTERS = dataRows.map(parseMonster).filter((monster): monster is XpMonster => Boolean(monster));
 
 export const XP_TERRAINS: XpTerrain[] = ["Ground/dirt", "Grass", "Sand", "Rock", "Snow", "Swamp", "Volcano"];
 
@@ -80,10 +85,17 @@ export function getEligibleMonsters(terrain: XpTerrain, level: number) {
 
 export function getXpResult(terrain: XpTerrain, level: number, enabledXpUps: number[] = []): XpResult {
   const monsters = getEligibleMonsters(terrain, level);
-  const bonusMultiplier = 1 + enabledXpUps.reduce((sum, skill) => sum + XP_UP_BONUSES[skill as 1 | 2 | 3], 0);
+  const bonusMultiplier = enabledXpUps.reduce((product, skill) => product * XP_UP_BONUSES[skill as 1 | 2 | 3], 1);
   const averageMultiplier = monsters.length === 0 ? 0 : monsters.reduce((sum, monster) => sum + monster.averageMultiplier, 0) / monsters.length;
   const xpFor = (monster: XpMonster) => 30 * monster.averageMultiplier * level / 100 * bonusMultiplier;
   const values = monsters.map(xpFor);
+  const statXp = Object.fromEntries(XP_STAT_COLUMNS.map((stat) => [
+    stat,
+    monsters.length === 0 ? 0 : monsters.reduce((sum, monster) => {
+      const nonZeroCount = Object.values(monster.stats).filter((value) => value > 0).length;
+      return sum + 30 * monster.stats[stat] * level / 100 / nonZeroCount * bonusMultiplier;
+    }, 0) / monsters.length,
+  ])) as Record<XpStat, number>;
 
   return {
     terrain,
@@ -94,6 +106,7 @@ export function getXpResult(terrain: XpTerrain, level: number, enabledXpUps: num
     minXp: values.length === 0 ? 0 : Math.min(...values),
     maxXp: values.length === 0 ? 0 : Math.max(...values),
     bonusMultiplier,
+    statXp,
   };
 }
 

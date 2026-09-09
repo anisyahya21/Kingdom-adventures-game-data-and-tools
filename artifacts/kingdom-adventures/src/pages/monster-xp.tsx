@@ -38,6 +38,12 @@ function ResultCard({ result }: { result: ReturnType<typeof getXpResult> }) {
           <div className="rounded-md bg-muted/40 p-2"><span className="text-muted-foreground">Range</span><div className="font-medium">{formatXp(result.minXp)} - {formatXp(result.maxXp)}</div></div>
           <div className="rounded-md bg-muted/40 p-2"><span className="text-muted-foreground">Avg. stat multiplier</span><div className="font-medium">{result.averageMultiplier.toFixed(3)}</div></div>
         </div>
+        <div className="rounded-md bg-muted/40 p-2 text-xs">
+          <div className="mb-2 font-medium">Average XP by stat per kill</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
+            {(["HP", "MP", "Vigor", "Atk", "Def", "Spd", "Luck"] as const).map((stat) => <div key={stat} className="flex justify-between gap-2"><span className="text-muted-foreground">{stat}</span><span className="font-medium">{formatXp(result.statXp[stat])}</span></div>)}
+          </div>
+        </div>
         <Button variant="ghost" size="sm" className="h-7 w-full justify-between px-2 text-xs" onClick={() => setOpen((value) => !value)}>
           <span>Show eligible monsters</span>{open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </Button>
@@ -48,10 +54,10 @@ function ResultCard({ result }: { result: ReturnType<typeof getXpResult> }) {
 }
 
 export default function MonsterXpPage() {
-  const [level, setLevel] = useState(3200);
+  const [level, setLevel] = useState<number | "">("");
   const [enabledXpUps, setEnabledXpUps] = useState<number[]>([]);
   const [showAll, setShowAll] = useState(false);
-  const results = useMemo(() => nativeTerrainAtLevel(level).map((terrain) => getXpResult(terrain, level, enabledXpUps)), [level, enabledXpUps]);
+  const results = useMemo(() => level === "" ? [] : nativeTerrainAtLevel(level).map((terrain) => getXpResult(terrain, level, enabledXpUps)), [level, enabledXpUps]);
   const allRows = useMemo(() => ALL_AREA_LEVELS.flatMap((areaLevel) => nativeTerrainAtLevel(areaLevel).map((terrain) => ({ areaLevel, result: getXpResult(terrain, areaLevel, enabledXpUps) }))), [enabledXpUps]);
 
   const toggleXpUp = (skill: number) => setEnabledXpUps((current) => current.includes(skill) ? current.filter((value) => value !== skill) : [...current, skill].sort());
@@ -69,17 +75,17 @@ export default function MonsterXpPage() {
 
         <Card className="mb-6 border-violet-500/20 bg-violet-500/5">
           <CardContent className="grid gap-5 p-4 md:grid-cols-[180px_1fr] md:items-end">
-            <label className="text-sm font-medium">Area level<Input type="number" min={1} max={9999} value={level} onChange={(event) => setLevel(Math.max(1, Math.min(9999, Number(event.target.value) || 1)))} className="mt-1" /></label>
+            <label className="text-sm font-medium">Area level<Input type="number" min={1} max={9999} placeholder="e.g. 3200" value={level} onChange={(event) => { const value = event.target.value; setLevel(value === "" ? "" : Math.max(1, Math.min(9999, Number(value)))); }} className="mt-1" /></label>
             <div>
               <div className="mb-2 text-sm font-medium">XP Up skills</div>
-              <div className="flex flex-wrap gap-2">{([1, 2, 3] as const).map((skill) => <Button key={skill} type="button" variant={enabledXpUps.includes(skill) ? "default" : "outline"} size="sm" onClick={() => toggleXpUp(skill)}>XP Up {skill} <span className="ml-1 opacity-70">+{XP_UP_BONUSES[skill] * 100}%</span></Button>)}</div>
-              <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><Info className="h-3.5 w-3.5" />Bonuses are applied additively to the XP result. Active bonuses: ×{(1 + enabledXpUps.reduce((sum, skill) => sum + XP_UP_BONUSES[skill as 1 | 2 | 3], 0)).toFixed(2)}</p>
+              <div className="flex flex-wrap gap-2">{([1, 2, 3] as const).map((skill) => <Button key={skill} type="button" variant={enabledXpUps.includes(skill) ? "default" : "outline"} size="sm" onClick={() => toggleXpUp(skill)}>XP Up {skill} <span className="ml-1 opacity-70">×{XP_UP_BONUSES[skill].toFixed(2)}</span></Button>)}</div>
+              <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><Info className="h-3.5 w-3.5" />XP Up bonuses multiply together. Active multiplier: ×{enabledXpUps.reduce((product, skill) => product * XP_UP_BONUSES[skill as 1 | 2 | 3], 1).toFixed(2)}</p>
             </div>
           </CardContent>
         </Card>
 
-        <div className="mb-3 flex items-end justify-between gap-3"><div><h2 className="text-lg font-semibold">Level {level} results</h2><p className="text-xs text-muted-foreground">Ground/dirt represents digging at this area level. Other rows appear when that biome exists at this exact level.</p></div></div>
-        <div className="grid gap-4 md:grid-cols-2">{results.map((result) => <ResultCard key={result.terrain} result={result} />)}</div>
+        <div className="mb-3 flex items-end justify-between gap-3"><div><h2 className="text-lg font-semibold">{level === "" ? "Choose an area level" : `Level ${level} results`}</h2><p className="text-xs text-muted-foreground">Ground/dirt represents digging at this area level. Other rows appear when that biome exists at this exact level.</p></div></div>
+        {level === "" ? <Card className="border-border/70 bg-card/80"><CardContent className="p-6 text-sm text-muted-foreground">Enter an area level to compare Ground/dirt with the biome available at that level.</CardContent></Card> : <div className="grid gap-4 md:grid-cols-2">{results.map((result) => <ResultCard key={result.terrain} result={result} />)}</div>}
 
         <Card className="mt-6 border-border/70 bg-card/80">
           <CardHeader className="flex-row items-center justify-between space-y-0"><div><CardTitle className="text-base">All native area levels</CardTitle><p className="mt-1 text-xs text-muted-foreground">Combat-only pools. Type 1 entries from Monster.csv are excluded as farmable animals.</p></div><Button variant="outline" size="sm" onClick={() => setShowAll((value) => !value)}>{showAll ? "Hide table" : "Show table"}</Button></CardHeader>

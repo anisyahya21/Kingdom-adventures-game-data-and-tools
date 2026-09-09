@@ -1,5 +1,5 @@
 ﻿import { Link } from "wouter";
-import { Database, MapPin } from "lucide-react";
+import { Calculator, Database, MapPin } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -17,6 +17,13 @@ const CARDS = [
     description: "Detailed Kingdom Adventurers monster and pet stats database with base levels, growth, and level-based stat tables.",
     icon: Database,
     badge: "Stats",
+  },
+  {
+    href: "/monster-xp",
+    title: "Monster XP per Kill",
+    description: "Compare Ground/dirt and biome XP per kill by area level, including stat-by-stat XP and XP Up skills.",
+    icon: Calculator,
+    badge: "Calculator",
   },
 ];
 
