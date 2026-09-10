@@ -1,10 +1,7 @@
 name: Backup main
 
 on:
-  push:
-    branches: [ main ]
-  schedule:
-    - cron: '0 2 * * *' # daily 02:00 UTC
+  workflow_dispatch:
 
 jobs:
   snapshot:
