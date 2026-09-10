@@ -73,6 +73,13 @@ function ResultCard({ result, comparison }: { result: ReturnType<typeof getXpRes
   );
 }
 
+function terrainComparison(result: ReturnType<typeof getXpResult>, sameLevelResults: ReturnType<typeof getXpResult>[]) {
+  if (sameLevelResults.length < 2) return undefined;
+  if (sameLevelResults.length === 2) return sameLevelResults.find((other) => other.terrain !== result.terrain);
+  const ground = sameLevelResults.find((other) => other.terrain === "Ground/dirt");
+  return result.terrain === "Ground/dirt" ? undefined : ground;
+}
+
 function AreaLevelSelect({ label, value, onChange, inputId }: { label: string; value: number | ""; onChange: (value: number | "") => void; inputId: string }) {
   const [query, setQuery] = useState(value === "" ? "" : String(value));
   const filteredLevels = ALL_AREA_LEVELS.filter((areaLevel) => String(areaLevel).includes(query.trim()));
@@ -144,8 +151,8 @@ export default function MonsterXpPage() {
           </CardContent>
         </Card>
 
-        <div className="mb-3 flex items-end justify-between gap-3"><div><h2 className="text-lg font-semibold">{levelA === "" ? "Choose an area level" : compareEnabled && levelB !== "" ? "Area level comparison" : "Area level results"}</h2><p className="text-xs text-muted-foreground">Ground/dirt represents digging. Other rows appear when that biome exists at the selected level.</p>{compareEnabled && levelB !== "" && <p className="mt-1 text-xs text-muted-foreground">Arrows compare the same terrain between the two selected area levels.</p>}</div>{compareEnabled && <Button type="button" variant="ghost" size="sm" onClick={() => { setCompareEnabled(false); setLevelB(""); }}>Remove comparison</Button>}</div>
-        {levelA === "" ? <Card className="border-border/70 bg-card/80"><CardContent className="p-6 text-sm text-muted-foreground">Choose an available area level to see XP per kill.</CardContent></Card> : <div className="grid gap-4 md:grid-cols-2">{[...resultsA, ...(compareEnabled ? resultsB : [])].map((result) => <ResultCard key={`${result.level}-${result.terrain}`} result={result} comparison={compareEnabled && levelB !== "" ? (result.level === levelA ? resultsB : resultsA).find((other) => other.terrain === result.terrain) : undefined} />)}</div>}
+        <div className="mb-3 flex items-end justify-between gap-3"><div><h2 className="text-lg font-semibold">{levelA === "" ? "Choose an area level" : compareEnabled && levelB !== "" ? "Area level comparison" : "Area level results"}</h2><p className="text-xs text-muted-foreground">Ground/dirt represents digging. Other rows appear when that biome exists at the selected level.</p>{levelA !== "" && (resultsA.length > 1 || resultsB.length > 1) && <p className="mt-1 text-xs text-muted-foreground">Arrows compare terrain values within each selected area level.</p>}</div>{compareEnabled && <Button type="button" variant="ghost" size="sm" onClick={() => { setCompareEnabled(false); setLevelB(""); }}>Remove comparison</Button>}</div>
+        {levelA === "" ? <Card className="border-border/70 bg-card/80"><CardContent className="p-6 text-sm text-muted-foreground">Choose an available area level to see XP per kill.</CardContent></Card> : <div className="grid gap-4 md:grid-cols-2">{[...resultsA, ...(compareEnabled ? resultsB : [])].map((result) => <ResultCard key={`${result.level}-${result.terrain}`} result={result} comparison={terrainComparison(result, result.level === levelA ? resultsA : resultsB)} />)}</div>}
 
         <Card className="mt-6 border-border/70 bg-card/80">
           <CardHeader className="flex-row items-center justify-between space-y-0"><div><CardTitle className="text-base">All native area levels</CardTitle><p className="mt-1 text-xs text-muted-foreground">Combat-only pools. Type 1 entries from Monster.csv are excluded as farmable animals.</p></div><Button variant="outline" size="sm" onClick={() => setShowAll((value) => !value)}>{showAll ? "Hide table" : "Show table"}</Button></CardHeader>
