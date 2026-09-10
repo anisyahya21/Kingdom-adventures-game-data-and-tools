@@ -1,5 +1,5 @@
 ﻿import { Link } from "wouter";
-import { Calculator, Database, MapPin } from "lucide-react";
+import { Calculator, Database, MapPin, PackageSearch } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -23,6 +23,13 @@ const CARDS = [
     title: "Monster XP per Kill",
     description: "Compare Ground/dirt and biome XP per kill by area level, including stat-by-stat XP and XP Up skills.",
     icon: Calculator,
+    badge: "Calculator",
+  },
+  {
+    href: "/monster-loot",
+    title: "Monster Loot",
+    description: "Find the best area level and terrain for farming a chosen item, using monster and treasure drop chances.",
+    icon: PackageSearch,
     badge: "Calculator",
   },
 ];

@@ -80,6 +80,10 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventurers Monster XP per Kill",
     description: "Calculate expected Kingdom Adventurers battle XP per kill by area level, terrain, combat monster pool, and XP Up skills.",
   },
+  "/monster-loot": {
+    title: "Kingdom Adventurers Monster Loot",
+    description: "Find the best Kingdom Adventurers area level and terrain for farming an item from combat monster treasure drops.",
+  },
   "/shops": {
     title: "Kingdom Adventurers Shop Database",
     description: "Search Kingdom Adventurers shop unlocks, furniture, weapons, armor, accessories, items, restaurants, and skills.",
