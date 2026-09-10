@@ -99,6 +99,50 @@ function configuredAuthReady() {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim() && normalizeTelegramBotUsername());
 }
 
+function telegramOidcClientId() {
+  return String(process.env.TELEGRAM_LOGIN_CLIENT_ID || "").trim();
+}
+
+function telegramOidcClientSecret() {
+  return String(process.env.TELEGRAM_LOGIN_CLIENT_SECRET || "").trim();
+}
+
+function telegramOidcReady() {
+  return Boolean(telegramOidcClientId() && telegramOidcClientSecret());
+}
+
+function base64urlJson(value: string) {
+  return JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Record<string, unknown>;
+}
+
+function decodeJwtPayload(token: string) {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Invalid Telegram ID token.");
+  return { header: base64urlJson(parts[0]), payload: base64urlJson(parts[1]), signature: Buffer.from(parts[2], "base64url"), signingInput: `${parts[0]}.${parts[1]}` };
+}
+
+async function verifyTelegramOidcIdToken(idToken: string, nonce: string) {
+  const decoded = decodeJwtPayload(idToken);
+  const algorithm = String(decoded.header.alg || "");
+  if (algorithm !== "RS256") throw new Error("Unsupported Telegram ID token algorithm.");
+  const jwksResponse = await fetch("https://oauth.telegram.org/.well-known/jwks.json");
+  if (!jwksResponse.ok) throw new Error("Could not load Telegram signing keys.");
+  const jwks = await jwksResponse.json() as { keys?: Array<Record<string, unknown>> };
+  const key = jwks.keys?.find((candidate) => candidate.kid === decoded.header.kid);
+  if (!key) throw new Error("Telegram signing key not found.");
+  const publicKey = crypto.createPublicKey({ key, format: "jwk" });
+  const validSignature = crypto.verify("RSA-SHA256", Buffer.from(decoded.signingInput), publicKey, decoded.signature);
+  if (!validSignature) throw new Error("Telegram ID token signature validation failed.");
+
+  const payload = decoded.payload;
+  const now = Math.floor(Date.now() / 1000);
+  const audience = Array.isArray(payload.aud) ? payload.aud.map(String) : [String(payload.aud || "")];
+  if (payload.iss !== "https://oauth.telegram.org" || !audience.includes(telegramOidcClientId())) throw new Error("Telegram ID token issuer or audience is invalid.");
+  if (Number(payload.exp || 0) <= now || Number(payload.iat || 0) > now + 60) throw new Error("Telegram ID token is expired or not yet valid.");
+  if (String(payload.nonce || "") !== nonce) throw new Error("Telegram ID token nonce is invalid.");
+  return payload;
+}
+
 function getAdminTelegramUserIds() {
   return new Set(
     String(process.env.TELEGRAM_ADMIN_USER_IDS || "")
@@ -384,20 +428,22 @@ router.post("/telegram/start", async (req, res) => {
     res.status(503).json({ error: "Database is not configured." });
     return;
   }
-  if (!configuredAuthReady()) {
-    res.status(503).json({ error: "Telegram auth is not configured." });
+  if (!telegramOidcReady()) {
+    res.status(503).json({ error: "Telegram Login is not configured. Set TELEGRAM_LOGIN_CLIENT_ID and TELEGRAM_LOGIN_CLIENT_SECRET from BotFather." });
     return;
   }
 
   const state = randomToken(24);
   const nonce = randomToken(16);
+  const codeVerifier = randomToken(48);
+  const codeChallenge = crypto.createHash("sha256").update(codeVerifier).digest("base64url");
   const now = new Date();
   const expiresAt = new Date(now.getTime() + challengeTtlMs());
 
   await module.db.insert(module.authChallengesTable).values({
     state,
-    nonce,
-    flow: "telegram_login",
+    nonce: JSON.stringify({ nonce, codeVerifier }),
+    flow: "telegram_oidc",
     createdAt: now,
     expiresAt,
     ipAddress: req.ip,
@@ -405,11 +451,22 @@ router.post("/telegram/start", async (req, res) => {
   });
 
   const base = baseUrlFromRequest(req);
+  const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback?state=${encodeURIComponent(state)}`;
+  const authorization = new URL("https://oauth.telegram.org/auth");
+  authorization.searchParams.set("client_id", telegramOidcClientId());
+  authorization.searchParams.set("redirect_uri", callbackUrl);
+  authorization.searchParams.set("response_type", "code");
+  authorization.searchParams.set("scope", "openid profile phone");
+  authorization.searchParams.set("state", state);
+  authorization.searchParams.set("nonce", nonce);
+  authorization.searchParams.set("code_challenge", codeChallenge);
+  authorization.searchParams.set("code_challenge_method", "S256");
+
   res.json({
     ok: true,
     state,
     expiresAt: expiresAt.toISOString(),
-    widgetUrl: `${base}/ka-api/auth/telegram/widget?state=${encodeURIComponent(state)}`,
+    widgetUrl: authorization.toString(),
   });
 });
 
@@ -646,25 +703,82 @@ router.get("/telegram/callback", async (req, res) => {
     return;
   }
 
-  const payload = telegramAuthPayloadFromQuery(req.query as Record<string, unknown>);
-  if (!payload.id || !payload.auth_date || !payload.hash || !verifyTelegramPayload(payload)) {
-    res.status(400).type("text/plain").send("Telegram signature validation failed.");
-    return;
-  }
-
-  const authDate = Number(payload.auth_date);
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  if (!Number.isFinite(authDate) || nowSeconds - authDate > authMaxAgeSeconds()) {
-    res.status(400).type("text/plain").send("Telegram auth payload is expired.");
-    return;
+  let telegramIdentity: TelegramIdentity;
+  if (challengeRows[0].flow === "telegram_oidc") {
+    const code = String(req.query?.code || "").trim();
+    if (!code) {
+      res.status(400).type("text/plain").send("Telegram authorization was not completed.");
+      return;
+    }
+    let oidcState: { nonce?: string; codeVerifier?: string };
+    try {
+      oidcState = JSON.parse(challengeRows[0].nonce) as { nonce?: string; codeVerifier?: string };
+    } catch {
+      res.status(400).type("text/plain").send("Telegram authorization state is invalid.");
+      return;
+    }
+    if (!oidcState.nonce || !oidcState.codeVerifier) {
+      res.status(400).type("text/plain").send("Telegram authorization state is incomplete.");
+      return;
+    }
+    const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback?state=${encodeURIComponent(state)}`;
+    const tokenResponse = await fetch("https://oauth.telegram.org/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: callbackUrl,
+        client_id: telegramOidcClientId(),
+        code_verifier: oidcState.codeVerifier,
+      }),
+    });
+    const tokenBody = await tokenResponse.json().catch(() => null) as { id_token?: string; error_description?: string } | null;
+    if (!tokenResponse.ok || !tokenBody?.id_token) {
+      res.status(400).type("text/plain").send(`Telegram token exchange failed: ${tokenBody?.error_description || "try again."}`);
+      return;
+    }
+    try {
+      const oidcPayload = await verifyTelegramOidcIdToken(tokenBody.id_token, oidcState.nonce);
+      telegramIdentity = {
+        telegramUserId: String(oidcPayload.id || oidcPayload.sub || ""),
+        telegramUsername: String(oidcPayload.preferred_username || "") || undefined,
+        firstName: String(oidcPayload.given_name || "") || undefined,
+        lastName: String(oidcPayload.family_name || "") || undefined,
+        photoUrl: String(oidcPayload.picture || "") || undefined,
+      };
+      if (!telegramIdentity.telegramUserId) throw new Error("Telegram ID token did not contain a user ID.");
+    } catch (error) {
+      res.status(400).type("text/plain").send(error instanceof Error ? error.message : "Telegram ID token validation failed.");
+      return;
+    }
+  } else {
+    const payload = telegramAuthPayloadFromQuery(req.query as Record<string, unknown>);
+    if (!payload.id || !payload.auth_date || !payload.hash || !verifyTelegramPayload(payload)) {
+      res.status(400).type("text/plain").send("Telegram signature validation failed.");
+      return;
+    }
+    const authDate = Number(payload.auth_date);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (!Number.isFinite(authDate) || nowSeconds - authDate > authMaxAgeSeconds()) {
+      res.status(400).type("text/plain").send("Telegram auth payload is expired.");
+      return;
+    }
+    telegramIdentity = {
+      telegramUserId: payload.id,
+      telegramUsername: payload.username || undefined,
+      firstName: payload.first_name || undefined,
+      lastName: payload.last_name || undefined,
+      photoUrl: payload.photo_url || undefined,
+    };
   }
 
   const userId = await upsertTelegramUser(module, {
-    telegramUserId: payload.id,
-    telegramUsername: payload.username || undefined,
-    firstName: payload.first_name || undefined,
-    lastName: payload.last_name || undefined,
-    photoUrl: payload.photo_url || undefined,
+    telegramUserId: telegramIdentity.telegramUserId,
+    telegramUsername: telegramIdentity.telegramUsername,
+    firstName: telegramIdentity.firstName,
+    lastName: telegramIdentity.lastName,
+    photoUrl: telegramIdentity.photoUrl,
   });
 
   if (!userId) {
@@ -674,7 +788,7 @@ router.get("/telegram/callback", async (req, res) => {
 
   const session = await createSession(module, userId, req.ip, req.get("user-agent"));
 
-  await sendTelegramLoginConfirmation(payload.id, "widget");
+  await sendTelegramLoginConfirmation(telegramIdentity.telegramUserId, "widget");
 
   await module.db
     .update(module.authChallengesTable)

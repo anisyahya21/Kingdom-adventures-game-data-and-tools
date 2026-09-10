@@ -27,6 +27,8 @@ VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:you@example.com
 EVENT_REMINDER_CRON_SECRET=
 TELEGRAM_BOT_TOKEN=
+TELEGRAM_LOGIN_CLIENT_ID=
+TELEGRAM_LOGIN_CLIENT_SECRET=
 TELEGRAM_BOT_USERNAME=
 EVENT_REMINDER_PUBLIC_BASE_URL=https://kingdom-adventures-community-tools.vercel.app
 DISCORD_BOT_TOKEN=
@@ -71,6 +73,7 @@ The reminder app now supports channel selection per reminder setup:
 
 - Web Push (browser/web push)
 - Telegram (requires `TELEGRAM_BOT_TOKEN` and user chat ID; set `TELEGRAM_BOT_USERNAME` to show a one-tap "Open Telegram bot" link in the app)
+- Telegram website login uses Telegram's OIDC flow. Create the Login client in BotFather, register the production callback URL, and set `TELEGRAM_LOGIN_CLIENT_ID` and `TELEGRAM_LOGIN_CLIENT_SECRET` on the API service. Never expose the client secret to the browser.
 - Discord DM (requires Discord OAuth connection + `DISCORD_BOT_TOKEN`)
 
 Discord users should join the KA Discord server before connecting Discord in the app so bot DMs can be delivered:
