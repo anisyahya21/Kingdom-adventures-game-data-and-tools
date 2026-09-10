@@ -437,12 +437,16 @@ router.post("/telegram/start", async (req, res) => {
   const nonce = randomToken(16);
   const codeVerifier = randomToken(48);
   const codeChallenge = crypto.createHash("sha256").update(codeVerifier).digest("base64url");
+  // Persist the exact URI used in the authorization request. The callback is
+  // proxied through Render, so reconstructing it from the callback host can
+  // produce a different URI and Telegram will reject the code as invalid.
+  const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback`;
   const now = new Date();
   const expiresAt = new Date(now.getTime() + challengeTtlMs());
 
   await module.db.insert(module.authChallengesTable).values({
     state,
-    nonce: JSON.stringify({ nonce, codeVerifier }),
+    nonce: JSON.stringify({ nonce, codeVerifier, redirectUri: callbackUrl }),
     flow: "telegram_oidc",
     createdAt: now,
     expiresAt,
@@ -450,11 +454,9 @@ router.post("/telegram/start", async (req, res) => {
     userAgent: req.get("user-agent"),
   });
 
-  const base = baseUrlFromRequest(req);
   // The redirect URI must exactly match the fixed URI registered in BotFather.
   // OAuth state is sent separately as an authorization parameter and is
   // returned to this callback by Telegram.
-  const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback`;
   const authorization = new URL("https://oauth.telegram.org/auth");
   authorization.searchParams.set("client_id", telegramOidcClientId());
   authorization.searchParams.set("redirect_uri", callbackUrl);
@@ -713,18 +715,17 @@ router.get("/telegram/callback", async (req, res) => {
       res.status(400).type("text/plain").send("Telegram authorization was not completed.");
       return;
     }
-    let oidcState: { nonce?: string; codeVerifier?: string };
+    let oidcState: { nonce?: string; codeVerifier?: string; redirectUri?: string };
     try {
-      oidcState = JSON.parse(challengeRows[0].nonce) as { nonce?: string; codeVerifier?: string };
+      oidcState = JSON.parse(challengeRows[0].nonce) as { nonce?: string; codeVerifier?: string; redirectUri?: string };
     } catch {
       res.status(400).type("text/plain").send("Telegram authorization state is invalid.");
       return;
     }
-    if (!oidcState.nonce || !oidcState.codeVerifier) {
+    if (!oidcState.nonce || !oidcState.codeVerifier || !oidcState.redirectUri) {
       res.status(400).type("text/plain").send("Telegram authorization state is incomplete.");
       return;
     }
-    const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback`;
     const tokenResponse = await fetch("https://oauth.telegram.org/token", {
       method: "POST",
       headers: {
@@ -734,7 +735,7 @@ router.get("/telegram/callback", async (req, res) => {
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
-        redirect_uri: callbackUrl,
+        redirect_uri: oidcState.redirectUri,
         client_id: telegramOidcClientId(),
         code_verifier: oidcState.codeVerifier,
       }),
