@@ -451,7 +451,10 @@ router.post("/telegram/start", async (req, res) => {
   });
 
   const base = baseUrlFromRequest(req);
-  const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback?state=${encodeURIComponent(state)}`;
+  // The redirect URI must exactly match the fixed URI registered in BotFather.
+  // OAuth state is sent separately as an authorization parameter and is
+  // returned to this callback by Telegram.
+  const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback`;
   const authorization = new URL("https://oauth.telegram.org/auth");
   authorization.searchParams.set("client_id", telegramOidcClientId());
   authorization.searchParams.set("redirect_uri", callbackUrl);
@@ -721,7 +724,7 @@ router.get("/telegram/callback", async (req, res) => {
       res.status(400).type("text/plain").send("Telegram authorization state is incomplete.");
       return;
     }
-    const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback?state=${encodeURIComponent(state)}`;
+    const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback`;
     const tokenResponse = await fetch("https://oauth.telegram.org/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
