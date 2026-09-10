@@ -441,12 +441,21 @@ router.post("/telegram/start", async (req, res) => {
   // proxied through Render, so reconstructing it from the callback host can
   // produce a different URI and Telegram will reject the code as invalid.
   const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback`;
+  const callbackOrigin = new URL(callbackUrl).origin;
+  const requestedReturnTo = String(req.get("x-ka-return-to") || "").trim();
+  let returnTo = `${callbackOrigin}/`;
+  try {
+    const candidate = new URL(requestedReturnTo);
+    if (candidate.origin === callbackOrigin) returnTo = candidate.toString();
+  } catch {
+    // Use the site root when the client did not provide a valid same-origin URL.
+  }
   const now = new Date();
   const expiresAt = new Date(now.getTime() + challengeTtlMs());
 
   await module.db.insert(module.authChallengesTable).values({
     state,
-    nonce: JSON.stringify({ nonce, codeVerifier, redirectUri: callbackUrl }),
+    nonce: JSON.stringify({ nonce, codeVerifier, redirectUri: callbackUrl, returnTo }),
     flow: "telegram_oidc",
     createdAt: now,
     expiresAt,
@@ -811,7 +820,17 @@ router.get("/telegram/callback", async (req, res) => {
     domain: authCookieDomain(),
   });
 
-  const base = baseUrlFromRequest(req);
+  let completionUrl = `${baseUrlFromRequest(req)}/?auth=ok`;
+  if (challengeRows[0].flow === "telegram_oidc") {
+    try {
+      const oidcState = JSON.parse(challengeRows[0].nonce) as { returnTo?: string };
+      const returnTo = new URL(String(oidcState.returnTo || ""));
+      returnTo.searchParams.set("auth", "ok");
+      completionUrl = returnTo.toString();
+    } catch {
+      // Keep the safe request-derived fallback for malformed legacy state.
+    }
+  }
   const html = `<!doctype html>
 <html>
   <head><meta charset="utf-8" /><title>Login complete</title></head>
@@ -824,7 +843,7 @@ router.get("/telegram/callback", async (req, res) => {
           return;
         }
         // Mobile browsers often block/ignore popup close; redirect to app to finish login in same tab.
-        window.location.replace("${encodeHtml(base)}" + "/?auth=ok");
+        window.location.replace("${encodeHtml(completionUrl)}");
       })();
     </script>
     Login complete. You can close this window.

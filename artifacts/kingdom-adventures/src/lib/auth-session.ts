@@ -57,7 +57,7 @@ export async function startTelegramAuth(): Promise<TelegramStartResponse> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(origin ? { "x-ka-origin": origin } : {}),
+      ...(origin ? { "x-ka-origin": origin, "x-ka-return-to": window.location.href } : {}),
     },
     credentials: "include",
   });
