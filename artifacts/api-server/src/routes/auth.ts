@@ -727,7 +727,10 @@ router.get("/telegram/callback", async (req, res) => {
     const callbackUrl = `${baseUrlFromRequest(req)}/ka-api/auth/telegram/callback`;
     const tokenResponse = await fetch("https://oauth.telegram.org/token", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(`${telegramOidcClientId()}:${telegramOidcClientSecret()}`).toString("base64")}`,
+      },
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
@@ -736,9 +739,9 @@ router.get("/telegram/callback", async (req, res) => {
         code_verifier: oidcState.codeVerifier,
       }),
     });
-    const tokenBody = await tokenResponse.json().catch(() => null) as { id_token?: string; error_description?: string } | null;
+    const tokenBody = await tokenResponse.json().catch(() => null) as { id_token?: string; error?: string; error_description?: string } | null;
     if (!tokenResponse.ok || !tokenBody?.id_token) {
-      res.status(400).type("text/plain").send(`Telegram token exchange failed: ${tokenBody?.error_description || "try again."}`);
+      res.status(400).type("text/plain").send(`Telegram token exchange failed: ${tokenBody?.error_description || tokenBody?.error || "try again."}`);
       return;
     }
     try {
