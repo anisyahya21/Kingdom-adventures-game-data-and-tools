@@ -17,6 +17,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/survey", label: "Survey" },
       { href: "/equipment", label: "Equipment Stats & Exchange" },
       { href: "/skills", label: "Skills" },
+      { href: "/item-sources", label: "Item & Skill Sources" },
       { href: "/research", label: "Research" },
       { href: "/training-facilities", label: "Training Facilities" },
       { href: "/loadout", label: "Loadout Builder" },

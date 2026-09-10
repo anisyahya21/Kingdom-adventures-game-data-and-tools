@@ -84,6 +84,10 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventurers Monster Loot",
     description: "Find the best Kingdom Adventurers area level and terrain for farming an item from combat monster treasure drops.",
   },
+  "/item-sources": {
+    title: "Kingdom Adventurers Item and Skill Sources",
+    description: "Search Kingdom Adventurers items and skills to find their monster, Treasure lookup, shop, dungeon, Kairo Room, Wairo Dungeon, and daily-rank sources.",
+  },
   "/shops": {
     title: "Kingdom Adventurers Shop Database",
     description: "Search Kingdom Adventurers shop unlocks, furniture, weapons, armor, accessories, items, restaurants, and skills.",
