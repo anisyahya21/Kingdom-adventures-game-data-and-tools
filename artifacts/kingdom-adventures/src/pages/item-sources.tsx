@@ -1,19 +1,83 @@
 import { useMemo, useState } from "react";
+import { Link } from "wouter";
 import { Search, PackageSearch } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getItemIcon } from "@/lib/equipment-icons";
+import { PageHeader } from "@/components/ka/page-header";
+import { getItemIcon, getEquipmentIcon, getFurnitureIcon } from "@/lib/equipment-icons";
 import { getSkillIcon } from "@/lib/skill-icons";
-import { getItemSource, ITEM_SOURCE_NOTES, searchItemSources, type SourceTarget } from "@/lib/item-sources";
+import { getMonsterSprite } from "@/lib/monster-sprites";
+import { getItemSource, searchItemSources, getTreasureSources, treasureSourceLabel, searchTreasureBoxes, type ItemSource, type SourceTarget, type TreasureSource } from "@/lib/item-sources";
+import { TREASURE_BOXES, TREASURE_BY_ID, chanceLabel, gatheringCheckRates, gatheringPool, levelLabel, treasureDisplayName, type TreasureBox } from "@/lib/treasure-lookup";
 
-function TargetIcon({ target }: { target: SourceTarget }) { const src = target.type === "skill" ? getSkillIcon(target.name) : getItemIcon(target.name); return src ? <img src={src} alt="" className="h-8 w-8 object-contain" /> : <PackageSearch className="h-7 w-7 text-muted-foreground" />; }
-export default function ItemSourcesPage() {
-  const [query, setQuery] = useState(""); const [selected, setSelected] = useState<string | null>(null);
-  const matches = useMemo(() => searchItemSources(query), [query]); const target = selected ? getItemSource(selected) : matches.length === 1 && normForSelection(query, matches[0].name) ? matches[0] : undefined;
-  const grouped = useMemo(() => { if (!target) return []; const map = new Map<string, typeof target.sources>(); for (const source of target.sources) map.set(source.kind, [...(map.get(source.kind) || []), source]); return [...map.entries()]; }, [target]);
-  return <main className="container mx-auto max-w-6xl space-y-6 px-4 py-8"><div><div className="flex items-center gap-2"><Search className="h-5 w-5 text-primary" /><h1 className="text-3xl font-semibold">Item &amp; Skill Sources</h1></div><p className="mt-2 text-muted-foreground">Search an item or skill to see where it can be obtained across Treasure lookup and the related game-data tabs.</p></div>
-    <Card><CardContent className="space-y-3 pt-6"><label htmlFor="item-source-search" className="text-sm font-medium">Search item or skill</label><Input id="item-source-search" value={query} onChange={(event) => { setQuery(event.target.value); setSelected(null); }} placeholder="Try Pretty Cloth, Myriad Arrows, or Revive 50%" autoComplete="off" />{query && !target && <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{matches.map((match) => <button key={`${match.type}-${match.name}`} onClick={() => { setSelected(match.name); setQuery(match.name); }} className="flex items-center gap-3 rounded-md border p-3 text-left hover:bg-muted"><TargetIcon target={match} /><span><span className="block font-medium">{match.name}</span><span className="text-xs text-muted-foreground">{match.type} · {match.sources.length} sources</span></span></button>)}{matches.length === 0 && <p className="text-sm text-muted-foreground">No matching item or skill.</p>}</div>}</CardContent></Card>
-    {target ? <div className="space-y-4"><Card><CardHeader className="flex-row items-center gap-3 space-y-0"><TargetIcon target={target} /><div><CardTitle>{target.name}</CardTitle><p className="text-sm text-muted-foreground">{target.type} · {target.sources.length} known sources</p></div></CardHeader></Card>{grouped.map(([kind, sources]) => <Card key={kind}><CardHeader><CardTitle className="text-lg">{kind}</CardTitle></CardHeader><CardContent className="space-y-3">{sources.map((source) => <div key={source.key} className="rounded-md border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{source.title}</span><Badge variant={source.confidence === "confirmed" ? "secondary" : "outline"}>{source.confidence}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{source.details}</p></div>)}</CardContent></Card>)}</div> : <Card><CardHeader><CardTitle>What is included</CardTitle></CardHeader><CardContent className="space-y-2 text-sm text-muted-foreground">{ITEM_SOURCE_NOTES.map((note) => <p key={note}>• {note}</p>)}</CardContent></Card>}</main>;
+function TargetIcon({ target, large=false }: { target: Pick<SourceTarget,"type"|"name">; large?:boolean }) {
+  const src = target.type === "skill" ? getSkillIcon(target.name) : target.type === "item" ? getItemIcon(target.name) : target.type === "equipment" ? getEquipmentIcon(undefined,target.name) : target.type === "furniture" ? getFurnitureIcon(target.name) : undefined;
+  return src ? <img src={src} alt={treasureDisplayName(target.name)} className={`${large ? "h-28 w-28" : "h-16 w-16"} shrink-0 object-contain [image-rendering:pixelated]`} /> : <PackageSearch className="h-8 w-8 text-muted-foreground" />;
 }
-function normForSelection(query: string, name: string) { return query.trim() && query.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+function BoxIcon({box}: {box:TreasureBox}) {
+  return box.icon ? <img src={box.icon} alt={treasureDisplayName(box.name)} className="h-24 w-24 shrink-0 object-contain [image-rendering:pixelated]" /> : <PackageSearch className="h-10 w-10 text-muted-foreground" />;
+}
+function SourceCard({source,level}: {source:ItemSource | TreasureSource;level:number|null}) {
+  const box=source.treasureId === undefined ? undefined : TREASURE_BY_ID.get(source.treasureId);
+  const monsterSprite=getMonsterSprite(source.monsterName);
+  const pool=box && level !== null && source.kind === "Terrain" ? gatheringPool(box.group,level) : [];
+  const checks=box && source.kind === "Terrain" ? gatheringCheckRates(box.group,source.terrainType) : undefined;
+  const traced=["Terrain","Monster","Kairo Room","Wairo Dungeon"].includes(source.kind);
+  return <article className="space-y-2 rounded-lg border bg-background p-3">
+    <div className="flex items-center gap-3">
+      {monsterSprite && <img src={monsterSprite.src} alt={`${source.monsterName} game sprite`} className="h-28 w-28 shrink-0 object-contain [image-rendering:pixelated]" />}
+      <div className="min-w-0 flex-1"><h4 className="font-semibold">{treasureDisplayName(source.title)}</h4><p className="text-sm text-muted-foreground">{source.location}{source.minLevel !== undefined && source.maxLevel !== undefined ? ` · Area level ${levelLabel(source.minLevel,source.maxLevel)}` : ""}</p></div>
+    </div>
+    <div className="flex flex-wrap gap-2"><Badge variant="outline">{source.kind}</Badge>{source.day && <Badge variant="secondary">{source.day} · {source.difficulty}</Badge>}{source.boxRate !== undefined && <Badge variant="secondary">Box selection: {chanceLabel(source.boxRate)}</Badge>}</div>
+    {checks && <p className="text-sm">Treasure check per gathering completion: <strong>{levelLabel(checks.min,checks.max)}%</strong>. {level === null ? "Enter an area level to see this box's share of the selection pool." : <><strong>1 in {pool.length}</strong> selection entries at area level {level}, after a successful treasure check.</>}</p>}
+    <details className="text-sm text-muted-foreground"><summary className="cursor-pointer">{traced ? "How this source works" : "Table link · conditions still being researched"}</summary><p className="mt-2 leading-relaxed">{source.boxDetails ?? source.details}</p></details>
+    {source.href && <Link href={source.href} className="inline-block text-sm underline underline-offset-4">Open {source.kind} schedule</Link>}
+  </article>;
+}
+function BoxCard({box,onReward,target,level=null,kind="All"}: {box:TreasureBox;onReward:(name:string)=>void;target?:SourceTarget;level?:number|null;kind?:string}) {
+  const origins=getTreasureSources(box.id);
+  const sources=origins.filter(s=>(kind==="All" || s.kind===kind) && (level===null || s.minLevel===undefined || s.maxLevel===undefined || s.minLevel<=level && s.maxLevel>=level));
+  const rewards=box.rewards.filter(r=>r.rate>0 && (!target || r.name===target.name && r.type===target.type));
+  return <Card className="overflow-hidden"><CardHeader className="flex-row items-center gap-3 space-y-0"><BoxIcon box={box}/><div><CardTitle className="text-base">{treasureDisplayName(treasureSourceLabel(box.id,box.name))}</CardTitle><p className="text-xs text-muted-foreground">{treasureDisplayName(box.name)} · #{box.id} · {sources.length} linked {sources.length===1 ? "source" : "sources"}</p></div></CardHeader>
+    <CardContent className="space-y-4">
+      <section><h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{target ? "1 · Your item inside this box" : "Contents of this box"}</h3>{rewards.map((r,i)=><button key={`${r.type}-${r.id}-${i}`} onClick={()=>onReward(r.name)} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 p-2 text-left text-sm hover:bg-muted"><span className="flex items-center gap-2"><TargetIcon target={{name:r.name,type:r.type as SourceTarget["type"]}}/><span>{treasureDisplayName(r.name)}<span className="block text-xs text-muted-foreground">Receive {levelLabel(r.min,r.max)} when rolled</span></span></span><span className="shrink-0 text-right font-medium">{chanceLabel(r.rate)}<span className="block text-xs font-normal text-muted-foreground">in this box</span></span></button>)}</section>
+      <section className="space-y-2 border-t pt-3"><h3 className="text-sm font-semibold">{target ? "2 · Where to get this box" : "Where to get this box"}</h3>
+        {sources.length ? <><div className="flex flex-wrap gap-1">{[...new Set(sources.map(s=>s.day ? `${s.kind} · ${s.day} · ${s.difficulty}` : s.kind))].map(label=><Badge key={label} variant="outline">{label}</Badge>)}</div><details open><summary className="cursor-pointer text-sm underline underline-offset-4">View {sources.length} {sources.length===1 ? "source" : "sources"} and box chances</summary><div className="mt-3 space-y-2">{sources.map(source=><SourceCard key={source.key} source={source} level={level}/>)}</div></details></> : <p className="text-sm text-muted-foreground">{origins.length ? "No source matches these filters." : "Contents are known; an acquisition source has not yet been identified."}</p>}
+      </section>
+      <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Box variant & evidence</summary><p className="mt-2">Group {box.group} · Gathering level bounds {levelLabel(box.minLevel,box.maxLevel)} · HP {box.hp} · Rank {box.rank} · Week {box.week} · Flags {box.flag}</p><p className="mt-1">Identically named boxes can have different contents. Level bounds apply to terrain selection; direct monster references and the special-boss reward-group selector do not use them.</p></details>
+    </CardContent></Card>;
+}
+export default function ItemSourcesPage() {
+  const [mode,setMode]=useState<"item"|"box">("item");
+  const [query,setQuery]=useState(""); const [selected,setSelected]=useState<string|null>(null);
+  const [areaLevel,setAreaLevel]=useState("");const [kind,setKind]=useState("All");
+  const [boxQuery,setBoxQuery]=useState("");const [visible,setVisible]=useState(24);
+  const level=areaLevel.trim() && Number.isInteger(Number(areaLevel)) && Number(areaLevel)>0 ? Number(areaLevel) : null;
+  const matches=useMemo(()=>searchItemSources(query),[query]);
+  const target=selected ? getItemSource(selected) : undefined;
+  const routes=target?.sources.filter(s=>s.kind!=="Treasure table") ?? [];
+  const kinds=[...new Set(routes.map(s=>s.kind))];
+  const filtered=routes.filter(s=>(kind==="All" || kind===s.kind) && (level===null || s.minLevel===undefined || s.maxLevel===undefined || s.minLevel<=level && s.maxLevel>=level));
+  const containingBoxes=target ? TREASURE_BOXES.filter(b=>b.rewards.some(r=>r.name===target.name && r.type===target.type && r.rate>0)).filter(b=>kind==="All" && level===null || getTreasureSources(b.id).some(s=>(kind==="All" || s.kind===kind) && (level===null || s.minLevel===undefined || s.maxLevel===undefined || s.minLevel<=level && s.maxLevel>=level))) : [];
+  const directSources=filtered.filter(s=>s.treasureId===undefined);
+  const boxes=useMemo(()=>searchTreasureBoxes(boxQuery),[boxQuery]);
+  const select=(name:string)=>{setQuery(name);setSelected(name);setKind("All");setMode("item");};
+  return <main className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
+    <PageHeader icon={<Search className="h-5 w-5"/>} title="Item & Skill Sources"><p>Search for an item to see its treasure boxes, monsters, digging areas, and other known sources.</p></PageHeader>
+
+    <div className="flex flex-wrap gap-2"><Button variant={mode==="item"?"default":"outline"} onClick={()=>setMode("item")}>Find an item or skill</Button><Button variant={mode==="box"?"default":"outline"} onClick={()=>setMode("box")}>Find a treasure box</Button><Link href="/monster-loot" className="self-center px-2 text-sm underline underline-offset-4">Compare monster loot</Link></div>
+    {mode==="item" ? <>
+      <Card><CardContent className="space-y-4 pt-6"><label htmlFor="item-source-search" className="text-sm font-medium">Item or skill name</label><Input id="item-source-search" value={query} onChange={e=>{setQuery(e.target.value);setSelected(null);setKind("All");}} placeholder="Try Pretty Cloth, Sturdy Board, or Myriad Arrows" autoComplete="off"/>{!target && <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{(query ? matches : matches.slice(0,9)).map(match=><button key={`${match.type}-${match.name}`} onClick={()=>select(match.name)} className="flex items-center gap-3 rounded-md border p-3 text-left hover:bg-muted"><TargetIcon target={match}/><span><span className="block font-medium">{treasureDisplayName(match.name)}</span><span className="text-xs text-muted-foreground">{match.type}</span></span></button>)}{query && !matches.length && <p>No matching entry in the indexed sources.</p>}</div>}</CardContent></Card>
+      {target && <><div className="flex items-center gap-3"><TargetIcon target={target} large/><div><h2 className="text-xl font-semibold">{treasureDisplayName(target.name)}</h2><p className="text-sm text-muted-foreground">{target.type} · {containingBoxes.length} containing box variants match your filters.</p></div></div>
+        <div className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"><div><label htmlFor="source-kind" className="text-sm font-medium">Acquisition method</label><select id="source-kind" value={kind} onChange={e=>setKind(e.target.value)} className="mt-2 h-10 w-full rounded-md border bg-background px-3"><option>All</option>{kinds.map(k=><option key={k}>{k}</option>)}</select></div><div><label htmlFor="source-area-level" className="text-sm font-medium">Area level (optional)</label><Input id="source-area-level" type="number" min="1" step="1" value={areaLevel} onChange={e=>setAreaLevel(e.target.value)} placeholder="Show all levels" className="mt-2"/><p className="mt-1 text-xs text-muted-foreground">Filters terrain and monster ranges. Other reward links remain visible.</p></div></div>
+        <div className="grid items-start gap-4 md:grid-cols-2">{containingBoxes.filter(box=>getTreasureSources(box.id).length>0).map(box=><BoxCard key={box.id} box={box} target={target} onReward={select} level={level} kind={kind}/>)}</div>
+        {containingBoxes.some(box=>getTreasureSources(box.id).length===0) && <details className="rounded-lg border p-4"><summary className="cursor-pointer text-sm font-medium">Other recorded boxes · source not yet identified</summary><p className="my-3 text-sm text-muted-foreground">These contents exist in the game table, but we have not established where you can obtain these box variants.</p><div className="grid items-start gap-4 md:grid-cols-2">{containingBoxes.filter(box=>getTreasureSources(box.id).length===0).map(box=><BoxCard key={box.id} box={box} target={target} onReward={select}/>)}</div></details>}
+        {directSources.length>0 && <section className="space-y-3"><h2 className="text-lg font-semibold">Other ways to get {target.name}</h2><div className="grid gap-3 md:grid-cols-2">{directSources.map(s=><SourceCard key={s.key} source={s} level={level}/>)}</div></section>}
+        {!containingBoxes.length && !directSources.length && <p className="rounded-lg border p-4 text-sm text-muted-foreground">No linked source matches these filters. This does not prove the item is unobtainable.</p>}
+      </>}
+    </> : <><div className="space-y-2"><label htmlFor="box-search" className="text-sm font-medium">Box name, item, source, day or difficulty</label><Input id="box-search" value={boxQuery} onChange={e=>{setBoxQuery(e.target.value);setVisible(24);}} placeholder="Try Kairo box, Tuesday Extreme, or Pretty Cloth"/><p className="text-sm text-muted-foreground">{boxes.length} matching rows. Percentages below are per reward slot, conditional on receiving these contents. They are not chances per dig or per monster defeat.</p></div><div className="grid items-start gap-4 md:grid-cols-2">{boxes.slice(0,visible).map(box=><BoxCard key={box.id} box={box} onReward={select}/>)}</div>{visible<boxes.length && <Button variant="outline" onClick={()=>setVisible(n=>n+24)}>Show 24 more</Button>}</>}
+    <details className="rounded-lg border p-4 text-sm text-muted-foreground"><summary className="cursor-pointer font-medium text-foreground">What is verified, and what still needs research?</summary><div className="mt-3 space-y-2"><p>All 1,295 treasure rows were compared against the original APK: every numeric field matched. Box images were reconstructed from the original assets.</p><p>Native code supports terrain group and area-level selection, ordinary monster drop references, separate analysis rolls, and inclusive quantity ranges. Terrain checks use a rate out of 1,000; monster and contents rolls use a rate out of 100.</p><p>Exact terrain state and nature overrides matter. Special-boss leader rewards select one box from the encounter reward group. Other battle rewards, dungeon internal treasure tables, survey limits, skill modifiers and other reward callers are not fully traced. Other acquisition links are table relationships, not a claim of complete gameplay coverage. Gacha membership is not included.</p><p>These are static code and asset findings. They have not been validated by running an instrumented original game.</p></div></details>
+  </main>;
+}

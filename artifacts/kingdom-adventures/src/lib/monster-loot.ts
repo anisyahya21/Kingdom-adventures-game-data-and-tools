@@ -1,8 +1,6 @@
-import monsterCsv from "../../../../data/Sheet csv/KA GameData - Monster.csv?raw";
-import treasureCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Treasure_lookup.csv?raw";
-import itemCsv from "../../../../data/Sheet csv/KA GameData - Item.csv?raw";
-import { NATIVE_AREA_LEVELS, parseCsv } from "./monster-truth";
+import { NATIVE_AREA_LEVELS } from "./monster-truth";
 import { getItemIcon } from "./equipment-icons";
+import { TREASURE_BOXES, TREASURE_MONSTERS } from "./treasure-lookup";
 
 export type LootTerrain = "Ground/dirt" | "Grass" | "Sand" | "Rock" | "Snow" | "Swamp" | "Volcano";
 export type LootItem = { id: number; name: string; icon?: string };
@@ -21,48 +19,19 @@ export type LootResult = {
 };
 
 const terrainByCode: Record<number, LootTerrain> = { 1: "Ground/dirt", 2: "Grass", 3: "Sand", 4: "Rock", 5: "Volcano", 6: "Snow", 7: "Swamp" };
-const monsterRows = parseCsv(monsterCsv);
-const monsterHeader = monsterRows[2] ?? [];
-const treasureRows = parseCsv(treasureCsv);
-const treasureHeader = treasureRows[0] ?? [];
-const itemRows = parseCsv(itemCsv);
-const itemHeader = itemRows[1] ?? [];
-const col = (header: string[], name: string) => header.indexOf(name);
-const numberAt = (row: string[], index: number, fallback = 0) => {
-  const value = Number(row[index]);
-  return Number.isFinite(value) ? value : fallback;
-};
-
-const itemNameById = new Map<number, string>();
-for (const row of itemRows.slice(2)) {
-  const id = numberAt(row, col(itemHeader, "id"), -1);
-  const name = row[col(itemHeader, "name")]?.trim();
-  if (id >= 0 && name) itemNameById.set(id, name);
-}
-
 const treasures = new Map<number, Treasure>();
-for (const row of treasureRows.slice(1)) {
-  const id = numberAt(row, col(treasureHeader, "id"), -1);
-  if (id < 0) continue;
-  const slots: LootSlot[] = ([1, 2, 3] as const).flatMap((slot) => {
-    const itemId = numberAt(row, col(treasureHeader, `itemId${slot}`), -1);
-    const itemName = itemNameById.get(itemId) ?? row[col(treasureHeader, `item${slot}`)]?.trim() ?? "";
-    if (itemId < 0 || !itemName) return [];
-    return [{ itemId, itemName, rate: numberAt(row, col(treasureHeader, `itemRate${slot}`)) / 100, min: numberAt(row, col(treasureHeader, `minItemNum${slot}`)), max: numberAt(row, col(treasureHeader, `maxItemNum${slot}`)) }];
-  });
-  treasures.set(id, { id, minLevel: numberAt(row, col(treasureHeader, "minLevel")), maxLevel: numberAt(row, col(treasureHeader, "maxLevel"), 9999), slots });
+for (const box of TREASURE_BOXES) {
+  treasures.set(box.id, {...box,slots:box.rewards.filter(r=>r.type==="item").map(r=>({itemId:r.id,itemName:r.name,rate:r.rate/100,min:r.min,max:r.max}))});
 }
 
 const itemSet = new Map<number, LootItem>();
 for (const treasure of treasures.values()) for (const slot of treasure.slots) itemSet.set(slot.itemId, { id: slot.itemId, name: slot.itemName, icon: getItemIcon(slot.itemName) });
 export const LOOT_ITEMS = [...itemSet.values()].sort((a, b) => a.name.localeCompare(b.name));
 
-const rawMonsters = monsterRows.slice(3).flatMap((row) => {
-  const name = row[col(monsterHeader, "name")]?.trim();
-  const terrain = terrainByCode[numberAt(row, col(monsterHeader, "terrain"))];
-  const type = numberAt(row, col(monsterHeader, "type"), -1);
-  if (!name || !terrain || type === 1) return [];
-  return [{ id: numberAt(row, col(monsterHeader, "id"), -1), name, terrain, minLevel: numberAt(row, col(monsterHeader, "areaLevelMin")), maxLevel: numberAt(row, col(monsterHeader, "areaLevelMax"), 9999), dropDataId: numberAt(row, col(monsterHeader, "dropDataId"), -1), treasureChance: numberAt(row, col(monsterHeader, "dropRate")) / 100 }];
+const rawMonsters = TREASURE_MONSTERS.flatMap((row) => {
+  const terrain=terrainByCode[row.terrain];
+  if (!terrain || row.type!==0) return [];
+  return [{...row,terrain,dropDataId:row.dropType===2 ? row.treasureId : -1,treasureChance:row.dropRate/100}];
 });
 
 export const LOOT_TERRAINS: LootTerrain[] = ["Ground/dirt", "Grass", "Sand", "Rock", "Snow", "Swamp", "Volcano"];
@@ -71,16 +40,16 @@ export function nativeLootTerrainsAtLevel(level: number) {
   return LOOT_TERRAINS.filter((terrain) => terrain === "Ground/dirt" ? (NATIVE_AREA_LEVELS.Ground ?? []).includes(level) : (NATIVE_AREA_LEVELS[terrain] ?? []).includes(level));
 }
 
-function slotForItem(treasure: Treasure | undefined, itemId: number, level: number) {
-  if (!treasure || level < treasure.minLevel || level > treasure.maxLevel) return undefined;
-  return treasure.slots.find((slot) => slot.itemId === itemId);
+function slotsForItem(treasure: Treasure | undefined, itemId: number) {
+  // Direct dropDataId lookup does not use the gathering selector's level bounds.
+  return treasure?.slots.filter((slot) => slot.itemId === itemId) ?? [];
 }
 
 export function getLootResult(terrain: LootTerrain, level: number, itemId: number): LootResult {
   const monsters = rawMonsters.filter((monster) => monster.terrain === terrain && monster.minLevel <= level && monster.maxLevel >= level).map((monster) => {
-    const slot = slotForItem(treasures.get(monster.dropDataId), itemId, level);
-    const itemChance = slot ? monster.treasureChance * slot.rate : 0;
-    const expectedQuantity = itemChance * ((slot?.min ?? 0) + (slot?.max ?? 0)) / 2;
+    const slots = slotsForItem(treasures.get(monster.dropDataId), itemId);
+    const itemChance = monster.treasureChance * (1-slots.reduce((miss,slot)=>miss*(1-slot.rate*(slot.min>0 ? 1 : slot.max/(slot.max-slot.min+1))),1));
+    const expectedQuantity = monster.treasureChance * slots.reduce((sum,slot)=>sum+slot.rate*(slot.min+slot.max)/2,0);
     return { id: monster.id, name: monster.name, minLevel: monster.minLevel, maxLevel: monster.maxLevel, treasureChance: monster.treasureChance, itemChance, expectedQuantity };
   });
   const droppers = monsters.filter((monster) => monster.itemChance > 0);
