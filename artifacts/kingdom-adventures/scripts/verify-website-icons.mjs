@@ -147,6 +147,22 @@ function main() {
   verifyPreviewSync(sourcePreviewHtml, publicPreviewHtml);
   verifyLinkedFacilitiesManifest(sourceFacilitiesManifest, publicFacilitiesManifest);
 
+  const assembled = readJson(path.join(sourceIconsDir, "facilities_assembled/manifest.json"));
+  const publicAssembled = readJson(path.join(publicIconsDir, "facilities_assembled/manifest.json"));
+  if (JSON.stringify(assembled) !== JSON.stringify(publicAssembled)) {
+    fail("Assembled facility manifests differ between source and public.");
+  }
+  const assembledIds = new Set();
+  for (const icon of assembled.icons) {
+    if (assembledIds.has(icon.id)) fail(`Duplicate assembled facility id: ${icon.id}`);
+    assembledIds.add(icon.id);
+    const relative = path.join("facilities_assembled", icon.filename);
+    const sourcePath = path.join(sourceIconsDir, relative);
+    const publicPath = path.join(publicIconsDir, relative);
+    if (!fs.existsSync(sourcePath) || !fs.existsSync(publicPath)) fail(`Missing assembled icon: ${relative}`);
+    if (!fs.readFileSync(sourcePath).equals(fs.readFileSync(publicPath))) fail(`Assembled icon copies differ: ${relative}`);
+  }
+
   console.log("ICON FAIL-SAFE: PASS");
 }
 

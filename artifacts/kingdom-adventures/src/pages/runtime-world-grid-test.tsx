@@ -119,7 +119,7 @@ const F1_TERRAIN_TYPE_NAMES: Record<number, string> = {
   14: "End",
 };
 
-export default function RuntimeWorldGridTestPage({ publicMode = false }: RuntimeWorldGridTestPageProps = {}) {
+function UnverifiedRuntimeWorldGridTestPage({ publicMode = false }: RuntimeWorldGridTestPageProps = {}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -1032,4 +1032,8 @@ function asInt(value: string | undefined, fallback: number): number {
   if (value == null || value === "") return fallback;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+export default function RuntimeWorldGridTestPage(props: RuntimeWorldGridTestPageProps = {}) {
+  return <UnverifiedRuntimeWorldGridTestPage {...props} />;
 }

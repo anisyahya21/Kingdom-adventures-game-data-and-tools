@@ -12,6 +12,7 @@ import { DataCard } from "@/components/ka/data-card";
 import { EntityLink } from "@/components/ka/entity-link";
 import { FilterBar } from "@/components/ka/filter-bar";
 import { PageHeader } from "@/components/ka/page-header";
+import { PlotPreview } from "@/components/ka/plot-preview";
 import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { MaterialIcon } from "@/lib/material-icons";
 import { getFacilityIcon, getFacilityIconByName, getFurnitureIcon, getItemIcon } from "@/lib/equipment-icons";
@@ -83,6 +84,7 @@ function resolveCardIcon(name: string, facilityId?: number): string | undefined 
 }
 
 function cardIconClass(icon: string | undefined): string {
+  if (icon?.includes("/website_icons/facilities_assembled/")) return "h-11 w-11";
   if (typeof icon === "string" && icon.includes("/website_icons/furniture/")) {
     return "h-11 w-11";
   }
@@ -92,31 +94,24 @@ function cardIconClass(icon: string | undefined): string {
   return "h-5 w-5";
 }
 
-function facilityHeroFrameClass(icon: string | undefined): string {
-  if (typeof icon === "string" && icon.includes("/website_icons/furniture/")) {
-    return "h-[5.5rem] w-[5.5rem]";
-  }
-  if (typeof icon === "string" && icon.includes("/website_icons/facilities_confirmed/")) {
-    return "h-[5.25rem] w-[5.25rem]";
-  }
-  return "h-[4.5rem] w-[4.5rem]";
-}
-
-function facilityHeroIconClass(icon: string | undefined): string {
-  if (typeof icon === "string" && icon.includes("/website_icons/furniture/")) {
-    return "h-[5rem] w-[5rem]";
-  }
-  if (typeof icon === "string" && icon.includes("/website_icons/facilities_confirmed/")) {
-    return "h-[4.75rem] w-[4.75rem]";
-  }
-  return "h-[3.75rem] w-[3.75rem]";
-}
-
-function facilityHeroScale(icon: string | undefined): number {
-  if (typeof icon === "string" && icon.includes("/website_icons/facilities_confirmed/")) {
-    return 1.22;
-  }
-  return 1;
+// The card stays the same width; artwork and details share its available space.
+function FacilityCardHeading({ f, icon, children }: {
+  f: Facility; icon: string | undefined; children?: React.ReactNode;
+}) {
+  const large = f.id === 17 || /[4-9]×[4-9]/.test(f.size);
+  return (
+    <div className={`grid items-center gap-3 ${icon ? large ? "grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]" : "grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]" : "grid-cols-1"}`}>
+      {icon && (
+        <img src={icon} alt="" className={`w-full object-contain ${large ? "h-[190px]" : "h-28"}`}
+          style={{ imageRendering: "pixelated" }} />
+      )}
+      <div className="min-w-0 space-y-2">
+        <span className="block text-[15px] leading-tight text-foreground break-words">{f.name}</span>
+        {f.size && <span className="block text-[11px] font-normal text-muted-foreground">Size {f.size}</span>}
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function BuildingName({ building }: { building: Building }) {
@@ -148,6 +143,7 @@ function BuildingGroupCard({ buildings }: { buildings: Building[] }) {
       action={<CategoryBadge category={rep.group}>{BUILDING_GROUP_LABEL[rep.group]}</CategoryBadge>}
       contentClassName="space-y-3"
     >
+      <PlotPreview buildings={buildings} />
       {merged ? (
         <div className="space-y-1">
           {buildings.map(b => (
@@ -724,28 +720,18 @@ function FacilityCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
 
   return (
     <DataCard
+      titleClassName="w-full min-w-0"
       title={
-        <div className="flex items-start gap-3">
-          {icon ? (
-            <div className={`${facilityHeroFrameClass(icon)} shrink-0 overflow-hidden rounded-md border border-border/70 bg-muted/30 p-0.5`}>
-              <img src={icon} alt="" className={`${facilityHeroIconClass(icon)} mx-auto my-auto origin-center object-contain`} style={{ imageRendering: "pixelated", transform: `scale(${facilityHeroScale(icon)})` }} />
-            </div>
-          ) : null}
-          <div className="min-w-0 pt-0.5">
-            <span className="block text-[15px] leading-tight text-foreground">{f.name}</span>
-            {f.size ? (
-              <span className="mt-1 block text-[11px] text-muted-foreground">Size {f.size}</span>
-            ) : null}
-          </div>
-        </div>
+        <FacilityCardHeading f={f} icon={icon}>
+          {facilityRoute && (
+            <Link href={facilityRoute}>
+              <Badge variant="outline" className="cursor-pointer text-[10px] bg-primary/10 text-primary border-primary/30 hover:bg-primary/15">
+                Open page
+              </Badge>
+            </Link>
+          )}
+        </FacilityCardHeading>
       }
-      action={facilityRoute && (
-        <Link href={facilityRoute}>
-          <Badge variant="outline" className="cursor-pointer text-[10px] bg-primary/10 text-primary border-primary/30 hover:bg-primary/15">
-            Open page
-          </Badge>
-        </Link>
-      )}
       meta={(f.canUpgrade || f.validRange > 0 || f.mapUnlock !== undefined) && (
           <div className="flex flex-wrap gap-1 mt-1">
             {f.size && (
@@ -880,42 +866,23 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
 
   return (
     <DataCard
+      titleClassName="w-full min-w-0"
       title={
-        <div className="flex items-start gap-3">
-          {icon ? (
-            <div className={`${facilityHeroFrameClass(icon)} shrink-0 overflow-hidden rounded-md border border-border/70 bg-muted/30 p-0.5`}>
-              <img src={icon} alt="" className={`${facilityHeroIconClass(icon)} mx-auto my-auto origin-center object-contain`} style={{ imageRendering: "pixelated", transform: `scale(${facilityHeroScale(icon)})` }} />
-            </div>
-          ) : null}
-          <div className="min-w-0 pt-0.5">
-            <span className="block text-[15px] leading-tight text-foreground">{f.name}</span>
-            {f.size ? (
-              <span className="mt-1 block text-[11px] text-muted-foreground">Size {f.size}</span>
-            ) : null}
+        <FacilityCardHeading f={f} icon={icon}>
+          <div className="flex flex-wrap gap-1">
+            <Badge variant="outline" className={`text-[10px] ${KA_FACILITY_TAB_BADGE_CLASS[f.tab]}`}>
+              {FACILITY_TABS.find(t => t.key === f.tab)?.label}
+            </Badge>
+            <Badge variant="outline" className={`text-[10px] ${KA_CATEGORY_BADGE_CLASS.success}`}>
+              Upgradeable
+            </Badge>
+            {f.validRange > 0 && <Badge variant="outline" className="text-[10px] tabular-nums">📍 {f.validRange} tiles</Badge>}
           </div>
-        </div>
-      }
-      action={
-        <Badge variant="outline" className={`text-[10px] shrink-0 ${KA_FACILITY_TAB_BADGE_CLASS[f.tab]}`}>
-          {FACILITY_TABS.find(t => t.key === f.tab)?.label}
-        </Badge>
-      }
-      meta={
-        <div className="flex flex-wrap gap-1 mt-1">
-          <Badge variant="outline" className="text-[10px] tabular-nums font-mono">{f.size}</Badge>
-          <Badge variant="outline" className={`text-[10px] ${KA_CATEGORY_BADGE_CLASS.success}`}>
-            Upgradeable
-          </Badge>
-          {f.validRange > 0 && (
-            <Badge variant="outline" className="text-[10px] tabular-nums">\ud83d\udccd {f.validRange} tiles</Badge>
-          )}
-        </div>
+          {f.minHp > 0 && <p className="text-xs font-normal text-muted-foreground">HP {f.minHp}–{f.maxHp}</p>}
+        </FacilityCardHeading>
       }
       contentClassName="space-y-2"
     >
-        {f.minHp > 0 && (
-          <p className="text-xs text-muted-foreground">HP {f.minHp}×{f.maxHp}</p>
-        )}
         <div className="space-y-1 border-t border-border pt-2">
           <div className="flex items-center justify-between gap-2">
             <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 uppercase tracking-wide font-medium">
@@ -938,12 +905,7 @@ function TownHallCard({ f, timeDiscount = 0, resourceDiscount = 0 }: { f: Facili
           </div>
           <FacilityCosts g={uG} w={uW} f={uF} o={uO} m={uM} />
           <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-            {calcTownHallMaterialCosts(rank + 1).map(({ name, qty }) => (
-              <FacilityItemCost key={name} name={name} qty={qty} />
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-            {applyResourceDiscountToItems(calcTownHallCoinCosts(rank + 1), resourceDiscount).map(({ name, qty }) => (
+            {[...calcTownHallMaterialCosts(rank + 1), ...applyResourceDiscountToItems(calcTownHallCoinCosts(rank + 1), resourceDiscount)].map(({ name, qty }) => (
               <FacilityItemCost key={name} name={name} qty={qty} />
             ))}
           </div>

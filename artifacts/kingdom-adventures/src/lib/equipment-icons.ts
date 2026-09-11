@@ -1,5 +1,6 @@
 ﻿import iconManifest from "../../../../website_icons/manifest.json";
 import facilityIconManifest from "../../../../website_icons/facilities_confirmed/manifest.json";
+import assembledFacilityIconManifest from "../../../../website_icons/facilities_assembled/manifest.json";
 
 type ManifestVariant = { index?: number; filename?: string };
 type ManifestFurnitureEntry = {
@@ -23,7 +24,7 @@ type ConfirmedFacilityManifest = {
   icons?: ConfirmedFacilityIconEntry[];
 };
 
-const ICON_CACHE_VERSION = "20260526r1";
+const ICON_CACHE_VERSION = "20260911r5";
 const FIXED_EQUIPMENT_ICON_BY_NAME: Record<string, string> = {
   "B/ Legendary Shield (B)": "equip_192.png",
   "B/ Legendary Shield (R)": "equip_198.png",
@@ -267,6 +268,14 @@ export function getEggIconByColor(colorName: string | undefined | null): string 
 const facilityIconLookup = new Map<number, string>();
 const facilityNameIconLookup = new Map<string, string>();
 
+// Finished catalog sprites composed from original parts. Keep their provenance
+// separate from the older, individually confirmed sprite exports.
+for (const icon of assembledFacilityIconManifest.icons) {
+  const iconPath = `/website_icons/facilities_assembled/${icon.filename}?v=20260911r5`;
+  facilityIconLookup.set(icon.id, iconPath);
+  facilityNameIconLookup.set(normalizeIconName(icon.name), iconPath);
+}
+
 if (facilityIconManifest && Array.isArray((facilityIconManifest as ConfirmedFacilityManifest).icons)) {
   for (const icon of (facilityIconManifest as ConfirmedFacilityManifest).icons as ConfirmedFacilityIconEntry[]) {
     if (typeof icon.id !== "number" || !Number.isFinite(icon.id)) continue;
@@ -324,6 +333,17 @@ if (iconManifest && (iconManifest as Record<string, unknown>).furniture) {
     furnitureIconLookup.set(item.name, iconPath);
     furnitureIconLookup.set(item.name.toLowerCase(), iconPath);
     furnitureIconLookup.set(normalizedName, iconPath);
+  }
+}
+
+// Share the recovered, complete furniture crops with every furniture consumer.
+for (const icon of assembledFacilityIconManifest.icons) {
+  if (!icon.sources.some(source => source.startsWith("furniture/"))) continue;
+  const iconPath = `/website_icons/facilities_assembled/${icon.filename}?v=20260911r5`;
+  for (const name of [icon.name, icon.sourceName]) {
+    furnitureIconLookup.set(name, iconPath);
+    furnitureIconLookup.set(name.toLowerCase(), iconPath);
+    furnitureIconLookup.set(normalizeIconName(name), iconPath);
   }
 }
 

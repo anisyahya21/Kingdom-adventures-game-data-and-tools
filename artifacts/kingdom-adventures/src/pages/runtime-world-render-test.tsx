@@ -1,7 +1,13 @@
+import nativeMapFacilities from "@/game-data/native-map-facilities.json";
+import nativeMapGround from "@/game-data/native-map-ground.json";
+import { recoverWaterTiles } from "@/lib/native-water";
+import { drawWaterSurface } from "@/lib/water-surface";
+import { NativeOceanBackground } from "@/components/ka/native-ocean-background";
+import { getOptDrawCommands, getSebOptDrawCommands, parseOptSprite, type OptSprite } from "@/lib/opt-sprite";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Skull } from "lucide-react";
-import { parseMapBinarySectionA } from "@/runtime/world-builder/map-loader";
-import type { ParsedMapBinary, ParsedMapCell } from "@/runtime/world-builder/types";
+import { parseNativeMapBinary, type NativeMapBinary, type NativeMapCell } from "@/runtime/world-builder/native-map";
+import type { ParsedMapCell } from "@/runtime/world-builder/types";
 import {
   NATIVE_MAP,
   mapTerrainCodeToType,
@@ -170,6 +176,7 @@ type LoadedImageAsset = {
   resolvedSrc: string;
   instanceId: number;
   image: HTMLImageElement;
+  opt?: OptSprite;
 };
 
 type PortGatePiece = {
@@ -188,13 +195,6 @@ type PortBridgePiece = {
   kind: "chip" | "wall";
   srcY?: number;
   srcH?: number;
-};
-
-type PortGateOptPlacement = {
-  cellW: number;
-  cellH: number;
-  destX: number;
-  destY: number;
 };
 
 type PortAssembly = {
@@ -295,7 +295,10 @@ type RenderDiagnostics = {
 };
 
 type RenderPipeline = {
-  parsedMap: ParsedMapBinary;
+  oceanBackground: HTMLImageElement;
+  viewportLighting: HTMLImageElement;
+  waterAssets: Map<string, { image: HTMLImageElement; opt: OptSprite }>;
+  parsedMap: NativeMapBinary;
   f1TerrainCommands: TileDrawCommand[];
   mapChipCommands: TileDrawCommand[];
   terrainCommands: TileDrawCommand[];
@@ -398,14 +401,6 @@ const PORT_ASSET_PATHS: Record<string, string> = {
   bridge_wall_00: resolveAssetUrl("world-assets/wall/bridge_wall_00.png"),
 };
 
-const PORT_GATE_OPT_PLACEMENT: Record<PortGatePiece["assetKey"], PortGateOptPlacement> = {
-  // Building .opt sidecars place each gate image inside a 96x128 render cell.
-  // Drawing the raw PNG directly makes gate_03 sit far too low on the map.
-  gate_00: { cellW: 96, cellH: 128, destX: 8, destY: 1 },
-  gate_01: { cellW: 96, cellH: 128, destX: 0, destY: 23 },
-  gate_02: { cellW: 96, cellH: 128, destX: 1, destY: 16 },
-  gate_03: { cellW: 96, cellH: 128, destX: 12, destY: 61 },
-};
 const ENABLE_MAP_NATURE_OVERLAYS = true;
 const CONTROL_ROW_EXCLUDES = new Set([27, 28, 29, 30, 31, 32, 277]);
 const BASE_TERRAIN_FAMILY_PREFIXES = ["jimen", "iwa", "suna", "swamp", "tuchi", "wasteland", "volcano_soil", "kazan", "snow"];
@@ -447,6 +442,14 @@ type FacilityOverlay = {
   zoneY: number;
   cellX: number;
   cellY: number;
+  baseHeightPixels: number;
+  spriteOffsetX: number;
+  spriteOffsetY: number;
+  spriteWidth: number;
+  spriteHeight: number;
+  originX: number;
+  originY: number;
+  chipId: number;
 };
 type DebugFacilityPlacementOverlay = {
   facilityId: number;
@@ -704,71 +707,34 @@ const NATURE_CATEGORY_CHANCE_BY_TERRAIN_TYPE: Record<number, Partial<Record<Natu
   6: { "terrain-nature": 0.2, "resource-treasure": 0.04, "human-npc": 0.01, "special-unknown": 0.02 },
   7: { "terrain-nature": 0.24, "resource-treasure": 0.04, "human-npc": 0.01, "special-unknown": 0.02 },
 };
-const ONE_PIECE_FACILITY_OVERLAYS: FacilityOverlay[] = [
-  // buildingImageId = MapChip.img (col 10) from the MapChip row where relatedDataId = facility id.
-  // DO NOT use Facility_lookup.type (col 2) — that is a facility-category code, not an image ID.
-  // Source: KA GameData - MapChip.csv rows 225-264.
-  // img.inf path: /world-assets/building/img.inf  (tab-separated: id<TAB>filename,flags)
-  { id: 172, name: "Ranking Board",        unlockLevel: 2,   buildingImageId: 69, zoneX: 6, zoneY: 8, cellX: 104, cellY: 136 }, // MapChip 232, img=69 → building_68.png
-  { id: 171, name: "Trophy Room",          unlockLevel: 3,   buildingImageId: 68, zoneX: 8, zoneY: 6, cellX: 136, cellY: 104 }, // MapChip 231, img=68 → building_67.png
-  { id: 167, name: "Briefing Room",        unlockLevel: 5,   buildingImageId: 62, zoneX: 6, zoneY: 9, cellX: 104, cellY: 152 }, // MapChip 227, img=62 → building_61.png
-  { id: 166, name: "Friend Post Office",   unlockLevel: 10,  buildingImageId: 61, zoneX: 6, zoneY: 6, cellX: 104, cellY: 104 }, // MapChip 226, img=61 → building_60.png
-  { id: 175, name: "Material Shop",        unlockLevel: 10,  buildingImageId: 72, zoneX: 9, zoneY: 5, cellX: 152, cellY: 88  }, // MapChip 235, img=72 → building_71.png
-  { id: 165, name: "Master Smithy",        unlockLevel: 11,  buildingImageId: 60, zoneX: 5, zoneY: 8, cellX: 88,  cellY: 136 }, // MapChip 225, img=60 → building_59.png
-  { id: 170, name: "Monster Farm",         unlockLevel: 14,  buildingImageId: 67, zoneX: 7, zoneY: 5, cellX: 120, cellY: 88  }, // MapChip 230, img=67 → building_66.png
-  { id: 181, name: "Underground Arena",    unlockLevel: 20,  buildingImageId: 63, zoneX: 5, zoneY: 5, cellX: 88,  cellY: 88  }, // MapChip 241, img=63 → building_62.png
-  { id: 169, name: "Treasure Room",        unlockLevel: 21,  buildingImageId: 65, zoneX: 4, zoneY: 9, cellX: 72,  cellY: 152 }, // MapChip 229, img=65 → building_64.png
-  { id: 168, name: "Weekly Conquest Bonus",unlockLevel: 22,  buildingImageId: 64, zoneX: 6, zoneY: 4, cellX: 104, cellY: 72  }, // MapChip 228, img=64 → building_63.png
-  { id: 198, name: "Movers",               unlockLevel: 23,  buildingImageId: 94, zoneX: 4, zoneY: 7, cellX: 72,  cellY: 120 }, // MapChip 260, img=94 → building_81.png
-  { id: 173, name: "Friends Agency",       unlockLevel: 30,  buildingImageId: 70, zoneX: 4, zoneY: 6, cellX: 72,  cellY: 104 }, // MapChip 233, img=70 → building_69.png
-  { id: 200, name: "Equipment Exchange",   unlockLevel: 34,  buildingImageId: 96, zoneX: 6, zoneY: 3, cellX: 104, cellY: 56  }, // MapChip 262, img=96 → building_83.png (was correct)
-  { id: 174, name: "Job Center",           unlockLevel: 35,  buildingImageId: 71, zoneX: 3, zoneY: 6, cellX: 56,  cellY: 104 }, // MapChip 234, img=71 → building_70.png
-  { id: 201, name: "Trading Post",         unlockLevel: 40,  buildingImageId: 97, zoneX: 9, zoneY: 3, cellX: 152, cellY: 56  }, // MapChip 263, img=97 → building_84.png (was correct)
-  { id: 177, name: "Instructor's Room",    unlockLevel: 41,  buildingImageId: 74, zoneX: 2, zoneY: 5, cellX: 40,  cellY: 88  }, // MapChip 237, img=74 → building_73.png
-  { id: 178, name: "Monster Fusion Lab",   unlockLevel: 45,  buildingImageId: 75, zoneX: 5, zoneY: 4, cellX: 88,  cellY: 72  }, // MapChip 238, img=75 → building_74.png
-  { id: 180, name: "Kairo Room",           unlockLevel: 58,  buildingImageId: 95, zoneX: 3, zoneY: 5, cellX: 56,  cellY: 88  }, // MapChip 261, img=95 → building_82.png
-  { id: 196, name: "Legendary Cave",       unlockLevel: 120, buildingImageId: 92, zoneX: 5, zoneY: 1, cellX: 88,  cellY: 24  }, // MapChip 258, img=92 → building_79.png
-  { id: 202, name: "Date Spot",            unlockLevel: 135, buildingImageId: 98, zoneX: 1, zoneY: 2, cellX: 24,  cellY: 40  }, // MapChip 264, img=98 → building_85.png
-];
-
+// Native area-unlock targets; cellX/Y remain exclusive ends for legacy debug overlays.
+const ONE_PIECE_FACILITY_OVERLAYS: FacilityOverlay[] = nativeMapFacilities;
 const PORT_ASSEMBLIES: PortAssembly[] = [
-  { id: "port-level-7", facilityId: 7, name: "Port", unlockLevel: 7, zoneX: 9, zoneY: 6, cellX: 152, cellY: 104 },
-  { id: "port-level-44", facilityId: 10, name: "Port", unlockLevel: 44, zoneX: 9, zoneY: 2, cellX: 152, cellY: 40 },
+  { id: "port-level-7", facilityId: 7, name: "Port", unlockLevel: 7, zoneX: 9, zoneY: 6, cellX: 152, cellY: 100 },
+  { id: "port-level-44", facilityId: 10, name: "Port", unlockLevel: 44, zoneX: 9, zoneY: 2, cellX: 152, cellY: 36 },
 ];
 
 function getPortCompositeBaseCell(port: PortAssembly): { x: number; y: number } {
   return {
-    x: port.cellX - 2,
-    y: port.cellY - 2,
+    x: port.cellX,
+    y: port.cellY,
   };
 }
 
+// Native PlaceChip combination offsets from the 4x4 port origin, direction1.
 const PORT_GATE_PIECES: PortGatePiece[] = [
-  // MANUAL TEMPORARY FIX (live import): fixed gate anchors validated in render lab.
-  { chipId: 67, facilityId: 7, buildingImageId: 2, assetKey: "gate_00", dx: 2, dy: -2 },
-  { chipId: 68, facilityId: 8, buildingImageId: 3, assetKey: "gate_01", dx: 2, dy: 0 },
-  { chipId: 69, facilityId: 9, buildingImageId: 20, assetKey: "gate_02", dx: 4, dy: 0 },
-  { chipId: 70, facilityId: 10, buildingImageId: 21, assetKey: "gate_03", dx: 4, dy: -2 },
+  { chipId: 67, facilityId: 7, buildingImageId: 2, assetKey: "gate_00", dx: 0, dy: 0 },
+  { chipId: 68, facilityId: 8, buildingImageId: 3, assetKey: "gate_01", dx: 0, dy: 2 },
+  { chipId: 69, facilityId: 9, buildingImageId: 20, assetKey: "gate_02", dx: 2, dy: 2 },
+  { chipId: 70, facilityId: 10, buildingImageId: 21, assetKey: "gate_03", dx: 2, dy: 0 },
 ];
-
 const DEFAULT_PORT_GATE_LAYOUT: PortGateLayout = {
-  gate_00: { dx: 2, dy: -2 },
-  gate_01: { dx: 2, dy: 0 },
-  gate_02: { dx: 4, dy: 0 },
-  gate_03: { dx: 4, dy: -2 },
+  gate_00: { dx: 0, dy: 0 }, gate_01: { dx: 0, dy: 2 },
+  gate_02: { dx: 2, dy: 2 }, gate_03: { dx: 2, dy: 0 },
 };
-
-const PORT_BRIDGE_PIECES: PortBridgePiece[] = [
-  // MANUAL TEMPORARY FIX (live import): connected 4x2 hashi deck.
-  { assetKey: "hashi00", dx: 6, dy: -1, kind: "chip" },
-  { assetKey: "hashi00", dx: 7, dy: -1, kind: "chip" },
-  { assetKey: "hashi00", dx: 8, dy: -1, kind: "chip" },
-  { assetKey: "hashi00", dx: 9, dy: -1, kind: "chip" },
-  { assetKey: "hashi00", dx: 6, dy: 0, kind: "chip" },
-  { assetKey: "hashi00", dx: 7, dy: 0, kind: "chip" },
-  { assetKey: "hashi00", dx: 8, dy: 0, kind: "chip" },
-  { assetKey: "hashi00", dx: 9, dy: 0, kind: "chip" },
-];
+const PORT_BRIDGE_PIECES: PortBridgePiece[] = Array.from({ length: 8 }, (_, i) => ({
+  assetKey: "hashi00", dx: 4 + i % 4, dy: 1 + Math.floor(i / 4), kind: "chip",
+}));
 const F1_TERRAIN_FAMILY_BY_TYPE: Record<number, string> = {
   1: "tuchi",
   2: "jimen",
@@ -789,6 +755,7 @@ const OLD_PORT_MAPCHIP_IDS = new Set<number>([67, 68, 69, 70]);
 const PREFERRED_DIRT_MAPCHIP_IDS = new Set<number>([5, 6, 7, 24]);
 
 function isDirtLikeCommand(command: TileDrawCommand): boolean {
+  if ([5, 6, 7].includes(command.mapChipId)) return true;
   const haystack = `${command.terrainName ?? ""} ${command.mapChipName} ${command.resolvedImgFilename} ${command.selection.sourceFilename}`.toLowerCase();
   const hasDirtToken = /\bdirt\b|\btuchi\b|\bjimen\b|mud|soil/.test(haystack);
   const hasNonDirtToken = /\bgrass\b|\bkusa\b|\bwater\b|\bmizu\b|sea|river|ocean|snow|rock|stone/.test(haystack);
@@ -806,7 +773,7 @@ function readStoredPortGateLayout(): PortGateLayout {
   }
 
   try {
-    const raw = window.localStorage.getItem("ka-runtime-port-gate-layout");
+    const raw = window.localStorage.getItem("ka-runtime-port-gate-layout-native-v1");
     if (!raw) {
       return DEFAULT_PORT_GATE_LAYOUT;
     }
@@ -831,7 +798,7 @@ function normalizePortGateOffset(
   return { dx, dy };
 }
 
-export default function RuntimeWorldRenderTestPage({
+function UnverifiedRuntimeWorldRenderTestPage({
   publicMode = false,
   initialZoom = 0.65,
   controlledZoom,
@@ -970,7 +937,7 @@ export default function RuntimeWorldRenderTestPage({
     if (publicMode) {
       return;
     }
-    window.localStorage.setItem("ka-runtime-port-gate-layout", JSON.stringify(portGateLayout));
+    window.localStorage.setItem("ka-runtime-port-gate-layout-native-v1", JSON.stringify(portGateLayout));
   }, [portGateLayout, publicMode]);
 
   function updatePortGateOffset(assetKey: PortGatePiece["assetKey"], axis: "dx" | "dy", value: number) {
@@ -1364,16 +1331,17 @@ export default function RuntimeWorldRenderTestPage({
     }
 
     context.clearRect(0, 0, width, height);
-    context.fillStyle = "#0a1018";
-    context.fillRect(0, 0, width, height);
-
     if (!pipeline) {
+      context.fillStyle = "#1d4f6c";
+      context.fillRect(0, 0, width, height);
       if (!publicMode) {
         drawGridBackground(context, width, height);
       }
       return;
     }
 
+    // Transparent world canvas composites native water over the animated ocean.
+    // Keeping the ocean separate avoids recomputing world geometry every tick.
     context.imageSmoothingEnabled = false;
 
     const filteredCommands = defaultTerrainMode
@@ -1389,32 +1357,15 @@ export default function RuntimeWorldRenderTestPage({
       }
 
       if (showPortAssemblies) {
-        for (const port of PORT_ASSEMBLIES) {
-          const base = getPortCompositeBaseCell(port);
-
-          // Keep the full port foundation attached to land.
-          // Manual fix target: 6x4 plate (structure + rear area) rooted at base.
-          for (let yy = 0; yy < 4; yy++) {
-            for (let xx = 0; xx < 6; xx++) {
-              forcedDirtCells.add(`${base.x + xx},${base.y - 2 + yy}`);
-            }
-          }
-
-          // Explicit rear strip from user request: 2x4 directly behind the port body.
-          for (let yy = 0; yy < 4; yy++) {
-            for (let xx = 0; xx < 2; xx++) {
-              forcedDirtCells.add(`${base.x + xx},${base.y - 2 + yy}`);
-            }
-          }
-
-          for (const piece of PORT_GATE_PIECES) {
-            const offset = portGateLayout[piece.assetKey] ?? { dx: piece.dx, dy: piece.dy };
-            for (let yy = 0; yy < 2; yy++) {
-              for (let xx = 0; xx < 2; xx++) {
-                forcedDirtCells.add(`${Math.round(base.x + offset.dx + xx)},${Math.round(base.y + offset.dy + yy)}`);
-              }
-            }
-          }
+        for (const port of nativeMapGround.ports) {
+          for (const [x, y] of port.ground) forcedDirtCells.add(`${x},${y}`);
+        }
+      }
+      if (showOnePieceFacilities) {
+        for (const facility of visibleOnePieceFacilities) {
+          for (let y = facility.originY; y < facility.originY + 2; y++)
+            for (let x = facility.originX; x < facility.originX + 2; x++)
+              forcedDirtCells.add(`${x},${y}`);
         }
       }
 
@@ -1425,7 +1376,7 @@ export default function RuntimeWorldRenderTestPage({
       const dirtTemplates = withoutOldPortMapchips
         .filter((command) => command.selection.assetFolder !== "nature")
         .filter((command) => command.drawGroup !== "nature-object")
-        .filter((command) => !isWaterLikeCommand(command))
+        .filter(isDirtLikeCommand)
         .sort((left, right) => left.mapChipId - right.mapChipId);
 
       const nonWaterByCell = new Map<string, TileDrawCommand>();
@@ -1457,7 +1408,9 @@ export default function RuntimeWorldRenderTestPage({
         return dirtTemplates[0] ?? null;
       };
 
-      return withoutOldPortMapchips.map((command) => {
+      return withoutOldPortMapchips.filter(command =>
+        command.drawGroup !== "nature-object" || !forcedDirtCells.has(`${command.cellX},${command.cellY}`)
+      ).map((command) => {
         if (command.selection.assetFolder === "nature" || command.drawGroup === "nature-object") {
           return command;
         }
@@ -1516,6 +1469,15 @@ export default function RuntimeWorldRenderTestPage({
     const logicalTileHeight = TILE_HEIGHT * logicalFootprintScale;
     const shouldDrawTextures = overlayMode !== "diamond-only";
     const shouldDrawDiamonds = showCellGrid;
+
+    // Water tiles and shore pieces are world geometry, unlike the viewport ocean.
+    const waterTerrainCells = new Map<string, { x: number; y: number; water: boolean }>();
+    for (const c of forcedPortDirtCommands) {
+      if (c.drawGroup === "nature-object") continue;
+      waterTerrainCells.set(`${c.cellX},${c.cellY}`, { x: c.cellX, y: c.cellY, water: isWaterLikeCommand(c) });
+    }
+    if (shouldDrawTextures) drawWaterSurface(context, pipeline.waterAssets,
+      recoverWaterTiles([...waterTerrainCells.values()]), camera, width, height);
 
     const drawCellGridOverlay = () => {
       if (!shouldDrawDiamonds) {
@@ -1639,16 +1601,7 @@ export default function RuntimeWorldRenderTestPage({
           }
 
           if (isWaterLikeCommand(command)) {
-            context.fillStyle = "#1f6ea7";
-            const halfW = (logicalTileWidth * zoom) / 2 + 0.9;
-            const halfH = (logicalTileHeight * zoom) / 2 + 0.9;
-            context.beginPath();
-            context.moveTo(iso.x, iso.y - halfH);
-            context.lineTo(iso.x + halfW, iso.y);
-            context.lineTo(iso.x, iso.y + halfH);
-            context.lineTo(iso.x - halfW, iso.y);
-            context.closePath();
-            context.fill();
+            // Already drawn using recovered water OPT/SEB and shore adjacency.
           } else {
             context.drawImage(
               image,
@@ -2639,14 +2592,14 @@ export default function RuntimeWorldRenderTestPage({
               onClick={() => setShowOnePieceFacilities((previous) => !previous)}
               className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
             >
-              old facilities (-2,-2): {showOnePieceFacilities ? "on" : "off"}
+              native facility placements: {showOnePieceFacilities ? "on" : "off"}
             </button>
             <button
               type="button"
               onClick={() => setShowNoOffsetFacilityDuplicates((previous) => !previous)}
               className="rounded border border-border bg-card px-3 py-1 hover:bg-muted"
             >
-              new facilities (no -2,-2): {showNoOffsetFacilityDuplicates ? "on" : "off"}
+              experimental offset duplicates: {showNoOffsetFacilityDuplicates ? "on" : "off"}
             </button>
             <button
               type="button"
@@ -2725,10 +2678,11 @@ export default function RuntimeWorldRenderTestPage({
 
       {error && <div className="mt-3 rounded border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-100">{error}</div>}
 
-      <div ref={containerRef} className="relative mt-3 h-[74vh] overflow-hidden rounded border border-border bg-black">
+      <div ref={containerRef} className="relative mt-3 h-[74vh] overflow-hidden rounded border border-border" style={{ backgroundColor: "#1d4f6c" }}>
+        <NativeOceanBackground image={pipeline?.oceanBackground} />
         <canvas
           ref={canvasRef}
-          className={`h-full w-full touch-none ${dragging || portGateDrag ? "cursor-grabbing" : "cursor-grab"}`}
+          className={`relative h-full w-full touch-none ${dragging || portGateDrag ? "cursor-grabbing" : "cursor-grab"}`}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerLeave}
@@ -2737,6 +2691,11 @@ export default function RuntimeWorldRenderTestPage({
           onClick={onCanvasClick}
           aria-label="Engine driven map renderer canvas"
         />
+        {/* GameForm.DrawOverlayTopAlpha 0x16be250: resGame2 SEB24/image27,
+            original 120x165 image scaled to the viewport after the world pass.
+            This fixed overlay is independent of the time-of-day lighting. */}
+        {pipeline && <img src={pipeline.viewportLighting.src} alt="" aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full select-none" />}
         {externalOverlays.length > 0 && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             {externalOverlays.map((overlay) => {
@@ -3027,7 +2986,8 @@ export default function RuntimeWorldRenderTestPage({
                   return (
                     <div key={`${x}-${y}`}>
                       {label !== "" && <span className="mr-1 text-muted-foreground">{label}</span>}
-                      ({x}, {y}) f0={c?.fields.f0 ?? "?"} f2={c?.fields.f2 ?? "?"} f1={c?.fields.f1 ?? "?"}
+                      ({x}, {y}) f2={c?.fields.f2 ?? "?"} f1={c?.fields.f1 ?? "?"}
+                      {" · height level "}{c?.heightLevel ?? "?"}{" · base height "}{c?.baseHeightPixels ?? "?"} px
                     </div>
                   );
                 })}
@@ -3085,7 +3045,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
     fetchText(IMAGE_ATLAS_PATH),
   ]);
 
-  const parsedMap = parseMapBinarySectionA(mapBinary);
+  const parsedMap = parseNativeMapBinary(mapBinary);
   const mapChipRows = parseMapChipRows(mapChipText);
   const terrainRows = parseTerrainRows(terrainText);
   const mapChipById = new Map<number, MapChipRow>(mapChipRows.map((row) => [row.id, row]));
@@ -3543,7 +3503,10 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
       try {
         const requestPath = resolveAssetUrl(`world-assets/building/${filename}`);
         const image = await loadImage(requestPath);
+        const optBytes = await fetchArrayBufferOptional(requestPath.replace(/\.png$/, ".opt"));
+        const opt = optBytes ? parseOptSprite(optBytes) : undefined;
         facilityBuildingCache.set(facility.id, {
+          opt,
           key: `facility-${facility.id}`,
           requestPath,
           resolvedSrc: image.currentSrc || image.src || requestPath,
@@ -3559,6 +3522,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
 
   await Promise.all(
     DEBUG_FACILITY_PLACEMENT_OVERLAYS.map(async (overlay) => {
+      if (facilityBuildingCache.has(overlay.facilityId)) return;
       // Debug-only asset load for fixed facility placement test.
       const filename = buildingImageById.get(overlay.mapChipImgId);
       if (!filename) {
@@ -3584,6 +3548,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
 
   await Promise.all(
     DEBUG_RAW_RANKING_BOARD_OVERLAYS.map(async (overlay) => {
+      if (facilityBuildingCache.has(overlay.facilityId)) return;
       const filename = buildingImageById.get(overlay.mapChipImgId);
       if (!filename) {
         return;
@@ -3608,6 +3573,7 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
 
   await Promise.all(
     DEBUG_RAW_LEGENDARY_CAVE_OVERLAYS.map(async (overlay) => {
+      if (facilityBuildingCache.has(overlay.facilityId)) return;
       const filename = buildingImageById.get(overlay.mapChipImgId);
       if (!filename) {
         return;
@@ -3635,12 +3601,21 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
     Object.entries(PORT_ASSET_PATHS).map(async ([assetKey, requestPath]) => {
       try {
         const image = await loadImage(requestPath);
+        let opt: OptSprite | undefined;
+        if (assetKey.startsWith("gate_") || assetKey === "hashi00" || assetKey === "bridge_wall_00") {
+          const bytes = await fetchArrayBufferOptional(requestPath.replace(/\.png$/, ".opt"));
+          if (!bytes) throw new Error(`Missing gate OPT: ${assetKey}`);
+          opt = parseOptSprite(bytes);
+          if (opt.cells.some((cell) => cell.some((component) => component.imageRef !== -1)))
+            throw new Error(`Gate references an unloaded image: ${assetKey}`);
+        }
         portAssetCache.set(assetKey, {
           key: assetKey,
           requestPath,
           resolvedSrc: image.currentSrc || image.src || requestPath,
           instanceId: nextImageInstanceId,
           image,
+          opt,
         });
         nextImageInstanceId += 1;
       } catch {
@@ -3659,8 +3634,18 @@ async function buildEngineRenderPipeline(f1RowSelectionMode: F1RowSelectionMode)
     "Atlas regions are used as metadata validation; 1x1 atlas placeholders are skipped to avoid drawing invalid assets.",
   ];
 
+  const waterAssets = new Map<string, { image: HTMLImageElement; opt: OptSprite }>();
+  await Promise.all(["mizu00", "mizu01", "mizu02", "mizu03", "mizu_edge"].map(async name => {
+    const path = resolveAssetUrl(`world-assets/chip/${name}`);
+    const [image, bytes] = await Promise.all([loadImage(`${path}.png`), fetchArrayBufferOptional(`${path}.opt`)]);
+    if (!bytes) throw new Error(`Missing original water OPT: ${name}`);
+    waterAssets.set(name, { image, opt: parseOptSprite(bytes) });
+  }));
   return {
     parsedMap,
+    waterAssets,
+    oceanBackground: await loadImage(resolveAssetUrl("world-assets/game_2/back.png")),
+    viewportLighting: await loadImage(resolveAssetUrl("world-assets/game_2/effect_00.png")),
     f1TerrainCommands,
     mapChipCommands,
     terrainCommands,
@@ -4210,22 +4195,14 @@ function hitTestPortGatePieceAtClient(
       const diamondCenterY = iso.y + (TILE_HEIGHT * zoom) / 2;
       const asset = portAssetCache?.get(piece.assetKey);
 
-      if (asset) {
-        const opt = PORT_GATE_OPT_PLACEMENT[piece.assetKey];
-        const cellDrawW = opt.cellW * zoom;
-        const cellDrawH = opt.cellH * zoom;
+      if (asset?.opt) {
+        const opt = asset.opt;
+        const cellDrawW = opt.cellWidth * zoom;
+        const cellDrawH = opt.cellHeight * zoom;
         const cellDrawX = iso.x - cellDrawW / 2;
-        const cellDrawY = diamondCenterY + TILE_HEIGHT * zoom - cellDrawH;
-        const imageDrawX = cellDrawX + opt.destX * zoom;
-        const imageDrawY = cellDrawY + opt.destY * zoom;
-        const imageDrawW = asset.image.width * zoom;
-        const imageDrawH = asset.image.height * zoom;
-        if (
-          localX >= imageDrawX &&
-          localX <= imageDrawX + imageDrawW &&
-          localY >= imageDrawY &&
-          localY <= imageDrawY + imageDrawH
-        ) {
+        const cellDrawY = iso.y + (24 - 116 - (port.cellY === 36 && piece.chipId === 67 ? 2 : 3)) * zoom;
+        const commands = getOptDrawCommands(opt, 0, 0, { x: cellDrawX, y: cellDrawY, width: cellDrawW, height: cellDrawH });
+        if (commands.some(({ destination: d }) => localX >= d.x && localX <= d.x + d.width && localY >= d.y && localY <= d.y + d.height)) {
           return piece.assetKey;
         }
       }
@@ -4275,7 +4252,7 @@ function drawOnePieceFacilityOverlays(
   context.save();
   for (const facility of facilities) {
     // cellX/cellY stores the exclusive-end of the 2x2 footprint (NW = cellX-2, cellY-2).
-    const iso = worldToIso(facility.cellX - 2, facility.cellY - 2, zoom, camera.offsetX, camera.offsetY);
+    const iso = worldToIso(facility.originX, facility.originY, zoom, camera.offsetX, camera.offsetY);
     // The correct 2x2 diamond center is one tile-halfH below the NW tile center.
     const diamondCenterY = iso.y + halfH_tile;
     if (iso.x < -96 || iso.x > canvasWidth + 96 || diamondCenterY < -128 || diamondCenterY > canvasHeight + 96) {
@@ -4302,7 +4279,7 @@ function drawOnePieceFacilityOverlays(
       context.stroke();
     }
 
-    if (facilityStyle) {
+    if (facilityStyle && showFootprint) {
       context.strokeStyle = facilityStyle.anchorStroke;
       context.lineWidth = Math.max(2, 2 * zoom);
       const anchorRadius = Math.max(4, 5 * zoom);
@@ -4319,16 +4296,15 @@ function drawOnePieceFacilityOverlays(
 
     const building = facilityBuildingCache.get(facility.id)?.image;
 
-    if (building) {
-      const drawW = building.width * zoom;
-      const drawH = building.height * zoom;
-      const drawX = iso.x - drawW / 2;
-      // Sprite bottom at south vertex of the 2x2 diamond.
-      const drawY = diamondCenterY + footprintHalfH - drawH;
-      context.shadowColor = "rgba(0,0,0,0.35)";
-      context.shadowBlur = 4;
-      context.drawImage(building, drawX, drawY, drawW, drawH);
-      context.shadowBlur = 0;
+    const opt = facilityBuildingCache.get(facility.id)?.opt;
+    if (building && opt) {
+      const anchor = worldToIso(facility.originX + 1, facility.originY + 1, zoom, camera.offsetX, camera.offsetY);
+      for (const { source: source, destination: d } of getOptDrawCommands(opt, 0, 0, {
+        x: anchor.x + facility.spriteOffsetX * zoom, y: anchor.y + (facility.spriteOffsetY - facility.baseHeightPixels) * zoom,
+        width: opt.cellWidth * zoom, height: opt.cellHeight * zoom,
+      })) {
+        context.drawImage(building, source.x, source.y, source.width, source.height, d.x, d.y, d.width, d.height);
+      }
     } else {
       const markerSize = Math.max(22, Math.min(44, TILE_WIDTH * zoom));
       context.fillStyle = "#facc15";
@@ -4687,21 +4663,27 @@ function drawPortAssemblies(
     const totalCenterY = totalCenterIso.y + halfTileH * 3;
 
     if (showBridgePieces) {
-      for (const piece of PORT_BRIDGE_PIECES) {
-        const asset = portAssetCache.get(piece.assetKey)?.image;
-        if (!asset) {
-          continue;
+      const depth = (x: number, y: number, height: number, extra: number) =>
+        100 * (y * 160 + x) + 24 * (x + y) + height + extra;
+      const draws = PORT_BRIDGE_PIECES.map(piece => ({
+        x: baseX + piece.dx, y: baseY + piece.dy, key: "hashi00", height: 0,
+        sprite: nativeMapGround.bridgeFloorSprite,
+        depth: depth(baseX + piece.dx, baseY + piece.dy, 0, 10),
+      }));
+      const nativePort = nativeMapGround.ports.find(p => p.x === baseX && p.y === baseY);
+      for (const [x, y, direction] of nativePort?.railings ?? []) {
+        draws.push({ x, y, key: "bridge_wall_00", height: 8,
+          sprite: nativeMapGround.bridgeWallSprites[direction],
+          depth: depth(x, y, 8, [-10, 124, 16024, -10][direction] + direction) });
+      }
+      for (const draw of draws.sort((a, b) => a.depth - b.depth)) {
+        const loaded = portAssetCache.get(draw.key);
+        if (!loaded?.opt) continue;
+        const iso = worldToIso(draw.x, draw.y, zoom, camera.offsetX, camera.offsetY);
+        for (const { source: s, destination: d } of getSebOptDrawCommands(
+          loaded.opt, draw.sprite, { x: iso.x / zoom, y: iso.y / zoom - draw.height }, zoom)) {
+          context.drawImage(loaded.image, s.x, s.y, s.width, s.height, d.x, d.y, d.width, d.height);
         }
-        const iso = worldToIso(baseX + piece.dx, baseY + piece.dy, zoom, camera.offsetX, camera.offsetY);
-        const srcY = piece.srcY ?? 0;
-        const srcH = piece.srcH ?? asset.height;
-        const drawW = asset.width * zoom;
-        const drawH = srcH * zoom;
-        const drawX = iso.x - drawW / 2;
-        const drawY = iso.y + halfTileH - drawH;
-        context.globalAlpha = piece.kind === "wall" ? 0.96 : 0.9;
-        context.drawImage(asset, 0, srcY, asset.width, srcH, drawX, drawY, drawW, drawH);
-        context.globalAlpha = 1;
       }
     }
 
@@ -4729,18 +4711,18 @@ function drawPortAssemblies(
         continue;
       }
 
-      const opt = PORT_GATE_OPT_PLACEMENT[piece.assetKey];
-      const cellDrawW = opt.cellW * zoom;
-      const cellDrawH = opt.cellH * zoom;
+      const opt = portAssetCache.get(piece.assetKey)?.opt;
+      if (!opt) continue;
+      const cellDrawW = opt.cellWidth * zoom;
+      const cellDrawH = opt.cellHeight * zoom;
       const cellDrawX = iso.x - cellDrawW / 2;
-      const cellDrawY = diamondCenterY + pieceHalfH - cellDrawH;
-      const drawX = cellDrawX + opt.destX * zoom;
-      const drawY = cellDrawY + opt.destY * zoom;
-      const drawW = asset.width * zoom;
-      const drawH = asset.height * zoom;
+      const cellDrawY = iso.y + (24 - 116 - (port.cellY === 36 && piece.chipId === 67 ? 2 : 3)) * zoom;
       context.shadowColor = "rgba(0,0,0,0.35)";
       context.shadowBlur = 4;
-      context.drawImage(asset, drawX, drawY, drawW, drawH);
+      for (const { source: s, destination: d } of getOptDrawCommands(opt, 0, 0,
+        { x: cellDrawX, y: cellDrawY, width: cellDrawW, height: cellDrawH })) {
+        context.drawImage(asset, s.x, s.y, s.width, s.height, d.x, d.y, d.width, d.height);
+      }
       context.shadowBlur = 0;
 
     }
@@ -4772,6 +4754,12 @@ function computeResetCamera(mapWidth: number, mapHeight: number, canvasWidth: nu
 function computeInitialCamera(mapWidth: number, mapHeight: number, canvasWidth: number, canvasHeight: number, defaultZoom: number): CameraState {
   if (typeof window !== "undefined") {
     const focus = new URLSearchParams(window.location.search).get("focus");
+    const facility = ONE_PIECE_FACILITY_OVERLAYS.find(f =>
+      f.name.toLowerCase().replace(/[^a-z0-9]/g, "") === focus);
+    if (facility) {
+      return computeCameraForWorldCell(facility.originX + 1, facility.originY + 1,
+        canvasWidth, canvasHeight, Math.max(defaultZoom, 1.5));
+    }
     const port = focus === "port44" ? PORT_ASSEMBLIES[1] : focus === "port7" || focus === "ports" ? PORT_ASSEMBLIES[0] : null;
     if (port) {
       const zoom = Math.max(defaultZoom, 0.8);
@@ -4810,7 +4798,7 @@ function drawGridBackground(context: CanvasRenderingContext2D, width: number, he
   }
 }
 
-function getParsedCellAt(parsed: ParsedMapBinary, x: number, y: number): ParsedMapCell | null {
+function getParsedCellAt(parsed: NativeMapBinary, x: number, y: number): NativeMapCell | null {
   if (x < 0 || y < 0 || x >= parsed.width || y >= parsed.height) {
     return null;
   }
@@ -5600,4 +5588,8 @@ function computeForcedNaturePlacement(input: {
     clipToDiamond: false,
     anchorMode: "force-visible-nature-full-image",
   };
+}
+
+export default function RuntimeWorldRenderTestPage(props: RuntimeWorldRenderTestPageProps = {}) {
+  return <UnverifiedRuntimeWorldRenderTestPage {...props} />;
 }

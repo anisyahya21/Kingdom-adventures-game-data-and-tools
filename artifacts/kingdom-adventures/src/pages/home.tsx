@@ -453,25 +453,6 @@ function HomeCountdownBanner() {
   );
 }
 
-function HomeWorldMapCard({ compact = false }: { compact?: boolean }) {
-  return (
-    <Link href="/world-map">
-      <Card className="cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors">
-        <CardContent className={compact ? "p-3 space-y-2" : "p-4 space-y-3"}>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className={compact ? "font-medium text-sm" : "font-medium"}>World map (Beta)</div>
-            <Badge variant="outline" className="text-[10px]">Beta</Badge>
-            {!compact && <Badge variant="outline" className="text-[10px]">Experimental</Badge>}
-          </div>
-          <div className={compact ? "text-xs text-muted-foreground leading-relaxed" : "text-sm text-muted-foreground leading-relaxed"}>
-            Tile map planner with hover info on PC, tap info on mobile, and tool/highlight/deployment modes.
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
 function HomeWorldMapV2Card({ compact = false }: { compact?: boolean }) {
   return (
     <Link href="/world-map-v2">
@@ -557,7 +538,6 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
             <HomeCountdownBanner />
             <div className="space-y-5">
-              <HomeWorldMapCard compact />
               <HomeWorldMapV2Card compact />
             </div>
           </div>
@@ -565,9 +545,6 @@ export default function Home() {
 
         <div className="hidden xl:block fixed right-6 top-28 w-[320px] 2xl:right-10 z-20">
           <HomeCountdownBanner />
-          <div className="mt-5">
-            <HomeWorldMapCard />
-          </div>
           <div className="mt-4">
             <HomeWorldMapV2Card />
           </div>

@@ -1618,7 +1618,8 @@
       "id": 5,
       "name": "Hammer",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_005.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1629,7 +1630,8 @@
       "id": 6,
       "name": "Pickaxe",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_006.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1640,7 +1642,8 @@
       "id": 7,
       "name": "Sickle",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_007.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1651,7 +1654,8 @@
       "id": 8,
       "name": "Garden Hoe",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_008.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1662,7 +1666,8 @@
       "id": 9,
       "name": "Torch",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_009.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1673,7 +1678,8 @@
       "id": 10,
       "name": "Shovel",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_010.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1684,7 +1690,8 @@
       "id": 11,
       "name": "Net",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_011.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1695,7 +1702,8 @@
       "id": 12,
       "name": "Fishing Net",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_012.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1706,7 +1714,8 @@
       "id": 13,
       "name": "Fishing Rod",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_013.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1717,7 +1726,8 @@
       "id": 14,
       "name": "Axe",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_014.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1728,7 +1738,8 @@
       "id": 15,
       "name": "Watering Can",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_015.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1739,7 +1750,8 @@
       "id": 16,
       "name": "Rake",
       "type": 10,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_016.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1751,6 +1763,7 @@
       "name": "F/ Wooden Staff",
       "type": 2,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_017.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1762,6 +1775,7 @@
       "name": "E/ Metal Ore Staff",
       "type": 2,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_018.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1773,6 +1787,7 @@
       "name": "D/ Sturdy Staff",
       "type": 2,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_019.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1784,6 +1799,7 @@
       "name": "C/ Magic Staff",
       "type": 2,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_020.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1795,6 +1811,7 @@
       "name": "B/ Diamond Staff",
       "type": 2,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_021.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1806,6 +1823,7 @@
       "name": "F/ Iron Staff",
       "type": 2,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_022.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1817,6 +1835,7 @@
       "name": "E/ Wooden Wand",
       "type": 2,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_023.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1828,6 +1847,7 @@
       "name": "C/ Spiked Staff",
       "type": 2,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_024.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1839,6 +1859,7 @@
       "name": "B/ Shining Staff",
       "type": 2,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_025.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1850,6 +1871,7 @@
       "name": "A/ Light Staff",
       "type": 2,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_026.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1861,6 +1883,7 @@
       "name": "E/ Green Staff",
       "type": 2,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_027.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1872,6 +1895,7 @@
       "name": "D/ Grief Staff",
       "type": 2,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_028.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1883,6 +1907,7 @@
       "name": "C/ Lightning Staff",
       "type": 2,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_029.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1894,6 +1919,7 @@
       "name": "B/ Thunder Staff",
       "type": 2,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_030.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1905,6 +1931,7 @@
       "name": "A/ Frosty Rod",
       "type": 2,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_031.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1916,6 +1943,7 @@
       "name": "E/ Red Staff",
       "type": 2,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_032.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1927,6 +1955,7 @@
       "name": "D/ Royal Scepter",
       "type": 2,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_033.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1938,6 +1967,7 @@
       "name": "C/ Ancient Staff",
       "type": 2,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_034.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1949,6 +1979,7 @@
       "name": "A/ Legendary Staff",
       "type": 2,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_035.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1960,6 +1991,7 @@
       "name": "S/ Mystic Staff",
       "type": 2,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_036.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1971,6 +2003,7 @@
       "name": "F/ Wooden Club",
       "type": 6,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_037.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1982,6 +2015,7 @@
       "name": "E/ Sturdy Club",
       "type": 6,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_038.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -1993,6 +2027,7 @@
       "name": "D/ Oak Club",
       "type": 6,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_039.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2004,6 +2039,7 @@
       "name": "C/ Elder Club",
       "type": 6,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_040.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2015,6 +2051,7 @@
       "name": "B/ Hero Club",
       "type": 6,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_041.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2026,6 +2063,7 @@
       "name": "E/ Gnarly Club",
       "type": 6,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_042.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2037,6 +2075,7 @@
       "name": "D/ Ladle",
       "type": 6,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_043.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2048,6 +2087,7 @@
       "name": "C/ Club",
       "type": 6,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_044.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2059,6 +2099,7 @@
       "name": "B/ Iron Club",
       "type": 6,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_045.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2070,6 +2111,7 @@
       "name": "A/ Red Club",
       "type": 6,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_046.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2081,6 +2123,7 @@
       "name": "D/ Mace",
       "type": 6,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_047.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2092,6 +2135,7 @@
       "name": "C/ Cudgel",
       "type": 6,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_048.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2103,6 +2147,7 @@
       "name": "B/ Morning Star",
       "type": 6,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_049.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2114,6 +2159,7 @@
       "name": "A/ Steel Club",
       "type": 6,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_050.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2125,6 +2171,7 @@
       "name": "S/ Golden Club",
       "type": 6,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_051.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2136,6 +2183,7 @@
       "name": "F/ Prayer Club",
       "type": 6,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_052.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2147,6 +2195,7 @@
       "name": "G/ Holy Club",
       "type": 6,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_053.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2158,6 +2207,7 @@
       "name": "C/ Light Club",
       "type": 6,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_054.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2169,6 +2219,7 @@
       "name": "A/ Angelic Club",
       "type": 6,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_055.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2180,6 +2231,7 @@
       "name": "S/ Divine Club",
       "type": 6,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_056.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2191,6 +2243,7 @@
       "name": "F/ Bludgeon",
       "type": 6,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_057.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2202,6 +2255,7 @@
       "name": "E/ Tough Club",
       "type": 6,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_058.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2213,6 +2267,7 @@
       "name": "D/ The Spike",
       "type": 6,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_059.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2224,6 +2279,7 @@
       "name": "C/ Artistic Club",
       "type": 6,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_060.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2235,6 +2291,7 @@
       "name": "A/ Emerald Club",
       "type": 6,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_061.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2246,6 +2303,7 @@
       "name": "F/ Wooden Stick",
       "type": 6,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_062.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2257,6 +2315,7 @@
       "name": "E/ Pokey Stick",
       "type": 6,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_063.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2268,6 +2327,7 @@
       "name": "D/ Spiked Club",
       "type": 6,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_064.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2279,6 +2339,7 @@
       "name": "C/ Folk Art Club",
       "type": 6,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_065.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2290,6 +2351,7 @@
       "name": "B/ Tree Branch",
       "type": 6,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_066.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2301,6 +2363,7 @@
       "name": "F/ Wooden Spear",
       "type": 4,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_067.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2312,6 +2375,7 @@
       "name": "E/ Iron Spear",
       "type": 4,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_068.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2323,6 +2387,7 @@
       "name": "D/ Master's Spear",
       "type": 4,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_069.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2334,6 +2399,7 @@
       "name": "B/ Trident",
       "type": 4,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_070.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2345,6 +2411,7 @@
       "name": "A/ Legendary Spear",
       "type": 4,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_071.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2356,6 +2423,7 @@
       "name": "E/ Fisherman's Pike",
       "type": 4,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_072.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2367,6 +2435,7 @@
       "name": "C/ Iron Pike",
       "type": 4,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_073.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2378,6 +2447,7 @@
       "name": "B/ Red Spear",
       "type": 4,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_074.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2389,6 +2459,7 @@
       "name": "A/ Steel Spear",
       "type": 4,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_075.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2400,6 +2471,7 @@
       "name": "S/ Fire Spear",
       "type": 4,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_076.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2411,6 +2483,7 @@
       "name": "E/ Bronze Spear",
       "type": 4,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_077.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2422,6 +2495,7 @@
       "name": "C/ Paladin's Spear",
       "type": 4,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_078.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2433,6 +2507,7 @@
       "name": "B/ Commander's Spear",
       "type": 4,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_079.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2444,6 +2519,7 @@
       "name": "A/ Golden Spear",
       "type": 4,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_080.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2455,6 +2531,7 @@
       "name": "S/ Black Spear",
       "type": 4,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_081.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2466,6 +2543,7 @@
       "name": "F/ Tiny Mallet",
       "type": 5,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_082.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2477,6 +2555,7 @@
       "name": "E/ Mallet",
       "type": 5,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_083.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2488,6 +2567,7 @@
       "name": "C/ Iron Hammer",
       "type": 5,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_084.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2499,6 +2579,7 @@
       "name": "B/ Big Bad Hammer",
       "type": 5,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_085.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2510,6 +2591,7 @@
       "name": "S/ Fire Hammer",
       "type": 5,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_086.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2521,6 +2603,7 @@
       "name": "E/ Basic Hammer",
       "type": 5,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_087.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2532,6 +2615,7 @@
       "name": "D/ Long Hammer",
       "type": 5,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_088.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2543,6 +2627,7 @@
       "name": "B/ Silver Hammer",
       "type": 5,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_089.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2554,6 +2639,7 @@
       "name": "A/ Master's Hammer",
       "type": 5,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_090.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2565,6 +2651,7 @@
       "name": "S/ Golden Hammer",
       "type": 5,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_091.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2576,6 +2663,7 @@
       "name": "E/ Sword",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_092.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2587,6 +2675,7 @@
       "name": "D/ Steel Sword",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_093.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2598,6 +2687,7 @@
       "name": "C/ Master's Sword",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_094.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2609,6 +2699,7 @@
       "name": "B/ Commander's Sword",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_095.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2620,6 +2711,7 @@
       "name": "A/ Artisanal Sword",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_096.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2631,6 +2723,7 @@
       "name": "F/ Fruit Knife",
       "type": 1,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_097.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2642,6 +2735,7 @@
       "name": "E/ Kitchen Knife",
       "type": 1,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_098.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2653,6 +2747,7 @@
       "name": "D/ Silver Knife",
       "type": 1,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_099.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2664,6 +2759,7 @@
       "name": "B/ Master's Knife",
       "type": 1,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_100.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2675,6 +2771,7 @@
       "name": "A/ Golden Knife",
       "type": 1,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_101.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2686,6 +2783,7 @@
       "name": "F/ Tiny Knife",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_102.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2697,6 +2795,7 @@
       "name": "E/ Scalpel",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_103.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2708,6 +2807,7 @@
       "name": "C/ Silver Scalpel",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_104.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2719,6 +2819,7 @@
       "name": "B/ Lightning Scalpel",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_105.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2730,6 +2831,7 @@
       "name": "A/ Ice Scalpel",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_106.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2741,6 +2843,7 @@
       "name": "E/ Pirate Sword",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_107.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2752,6 +2855,7 @@
       "name": "D/ Cutlass",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_108.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2763,6 +2867,7 @@
       "name": "C/ Tornado Sword",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_109.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2774,6 +2879,7 @@
       "name": "A/ Teardop Sword",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_110.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2785,6 +2891,7 @@
       "name": "S/ Fire Sword",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_111.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2796,6 +2903,7 @@
       "name": "E/ Infantry Sword",
       "type": 1,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_112.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2807,6 +2915,7 @@
       "name": "D/ Sabre",
       "type": 1,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_113.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2818,6 +2927,7 @@
       "name": "C/ Silver Sword",
       "type": 1,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_114.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2829,6 +2939,7 @@
       "name": "B/ Destruction Sword",
       "type": 1,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_115.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2840,6 +2951,7 @@
       "name": "A/ Ancient Sword",
       "type": 1,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_116.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2851,6 +2963,7 @@
       "name": "E/ Ice Knife",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_117.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2862,6 +2975,7 @@
       "name": "D/ Ice Sword",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_118.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2873,6 +2987,7 @@
       "name": "C/ Ice Greatsword",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_119.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2884,6 +2999,7 @@
       "name": "B/ Frosty Sword",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_120.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2895,6 +3011,7 @@
       "name": "S/ Blizzard Sword",
       "type": 1,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_121.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2906,6 +3023,7 @@
       "name": "E/ Kunai",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_122.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2917,6 +3035,7 @@
       "name": "D/ Ninja Star",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_123.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2928,6 +3047,7 @@
       "name": "C/ Giant Ninja Star",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_124.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2939,6 +3059,7 @@
       "name": "B/ Flame Ninja Star",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_125.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2950,6 +3071,7 @@
       "name": "A/ Giga Ninja Star",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_126.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2961,6 +3083,7 @@
       "name": "F/ Simple Katana",
       "type": 1,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_127.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2972,6 +3095,7 @@
       "name": "E/ Samurai Sword",
       "type": 1,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_128.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2983,6 +3107,7 @@
       "name": "C/ Shogun's Katana",
       "type": 1,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_129.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -2994,6 +3119,7 @@
       "name": "B/ Master's Katana",
       "type": 1,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_130.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3005,6 +3131,7 @@
       "name": "A/ Legendary Katana",
       "type": 1,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_131.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3016,6 +3143,7 @@
       "name": "F/ Bronze Sword",
       "type": 1,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_132.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3027,6 +3155,7 @@
       "name": "E/ Copper Sword",
       "type": 1,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_133.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3038,6 +3167,7 @@
       "name": "C/ Tempered Sword",
       "type": 1,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_134.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3049,6 +3179,7 @@
       "name": "B/ Lightweight Sword",
       "type": 1,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_135.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3060,6 +3191,7 @@
       "name": "A/ Honor Sword",
       "type": 1,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_136.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3071,6 +3203,7 @@
       "name": "E/ Longish Sword",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_137.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3082,6 +3215,7 @@
       "name": "D/ Bastard Sword",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_138.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3093,6 +3227,7 @@
       "name": "C/ Saint's Sword",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_139.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3104,6 +3239,7 @@
       "name": "A/ Sword of Rage",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_140.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3115,6 +3251,7 @@
       "name": "S/ Legendary Sword",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_141.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3126,6 +3263,7 @@
       "name": "D/ Black Sword",
       "type": 1,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_142.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3137,6 +3275,7 @@
       "name": "C/ Darkness Sword",
       "type": 1,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_143.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3148,6 +3287,7 @@
       "name": "B/ Sword of the Void",
       "type": 1,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_144.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3159,6 +3299,7 @@
       "name": "A/ Royal Sword",
       "type": 1,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_145.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3170,6 +3311,7 @@
       "name": "S/ Conqueror's Sword",
       "type": 1,
       "attribute": 3,
+      "biome": "Desert",
       "filename": "equip_146.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3181,6 +3323,7 @@
       "name": "D/ Normal Sword",
       "type": 1,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_147.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3192,6 +3335,7 @@
       "name": "C/ Courage Sword",
       "type": 1,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_148.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3203,6 +3347,7 @@
       "name": "B/ Hero Sword",
       "type": 1,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_149.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3214,6 +3359,7 @@
       "name": "A/ Immortal Sword",
       "type": 1,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_150.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3225,6 +3371,7 @@
       "name": "S/ Yggdrasil Sword",
       "type": 1,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_151.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3236,6 +3383,7 @@
       "name": "F/ Novel",
       "type": 9,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_152.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3247,6 +3395,7 @@
       "name": "D/ Research Guide",
       "type": 9,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_153.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3258,6 +3407,7 @@
       "name": "E/ Magnifying Glass",
       "type": 9,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_154.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3269,6 +3419,7 @@
       "name": "C/ Ancient Tome",
       "type": 9,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_155.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3280,6 +3431,7 @@
       "name": "B/ Paintbrush",
       "type": 9,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_156.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3291,6 +3443,7 @@
       "name": "D/ Pistol",
       "type": 7,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_157.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3302,6 +3455,7 @@
       "name": "C/ Rifle",
       "type": 7,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_158.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3313,6 +3467,7 @@
       "name": "B/ Musket",
       "type": 7,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_159.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3324,6 +3479,7 @@
       "name": "A/ Mighty Rifle",
       "type": 7,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_160.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3335,6 +3491,7 @@
       "name": "S/ Golden Gun",
       "type": 7,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_161.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3346,6 +3503,7 @@
       "name": "D/ Bow",
       "type": 8,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_162.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3357,6 +3515,7 @@
       "name": "C/ Infantry Bow",
       "type": 8,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_163.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3368,6 +3527,7 @@
       "name": "B/ Hunting Bow",
       "type": 8,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_164.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3379,6 +3539,7 @@
       "name": "A/ Swift Bow",
       "type": 8,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_165.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3390,6 +3551,7 @@
       "name": "S/ Champion's Bow",
       "type": 8,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_166.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3401,6 +3563,7 @@
       "name": "F/ Adze",
       "type": 3,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_167.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3412,6 +3575,7 @@
       "name": "D/ Lumberjack's Axe",
       "type": 3,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_168.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3423,6 +3587,7 @@
       "name": "C/ Steel Axe",
       "type": 3,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_169.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3434,6 +3599,7 @@
       "name": "B/ Battle Axe",
       "type": 3,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_170.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3445,6 +3611,7 @@
       "name": "S/ Legendary Axe",
       "type": 3,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_171.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3456,6 +3623,7 @@
       "name": "A/ Kairo Sword",
       "type": 1,
       "attribute": 1,
+      "biome": "Soil",
       "filename": "equip_172.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3467,6 +3635,7 @@
       "name": "A/ Kairo Hammer",
       "type": 5,
       "attribute": 2,
+      "biome": "Grass",
       "filename": "equip_173.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3478,6 +3647,7 @@
       "name": "A/ Kairo Lance",
       "type": 4,
       "attribute": 4,
+      "biome": "Rock",
       "filename": "equip_174.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3489,6 +3659,7 @@
       "name": "A/ Kairo Bow",
       "type": 8,
       "attribute": 5,
+      "biome": "Fire",
       "filename": "equip_175.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3500,6 +3671,7 @@
       "name": "A/ Kairo Gun",
       "type": 7,
       "attribute": 7,
+      "biome": "Swamp",
       "filename": "equip_176.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -3510,7 +3682,8 @@
       "id": 177,
       "name": "F/ Wooden Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_177.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3521,7 +3694,8 @@
       "id": 178,
       "name": "F/ Leather Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_178.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3532,7 +3706,8 @@
       "id": 179,
       "name": "E/ Infantry Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_179.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3543,7 +3718,8 @@
       "id": 180,
       "name": "E/ Buckler",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_180.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3554,7 +3730,8 @@
       "id": 181,
       "name": "D/ Iron Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_181.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3565,7 +3742,8 @@
       "id": 182,
       "name": "C/ Noble Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_182.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3576,7 +3754,8 @@
       "id": 183,
       "name": "A/ Hero Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_183.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3587,7 +3766,8 @@
       "id": 184,
       "name": "A/ Crystal Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_184.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3598,7 +3778,8 @@
       "id": 185,
       "name": "B/ Shell Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_185.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3609,7 +3790,8 @@
       "id": 186,
       "name": "S/ Wairo Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_186.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3620,7 +3802,8 @@
       "id": 187,
       "name": "B/ Scholar's Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_187.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3631,7 +3814,8 @@
       "id": 188,
       "name": "A/ Holy Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_188.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3642,7 +3826,8 @@
       "id": 189,
       "name": "D/ Folk Art Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_189.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3653,7 +3838,8 @@
       "id": 190,
       "name": "D/ Sturdy Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_190.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3664,7 +3850,8 @@
       "id": 191,
       "name": "C/ Nightmare Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_191.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3675,7 +3862,8 @@
       "id": 192,
       "name": "B/ Legendary Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_192.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3686,7 +3874,8 @@
       "id": 193,
       "name": "B/ Green Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_193.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3697,7 +3886,8 @@
       "id": 194,
       "name": "S/ Mirror Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_194.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3708,7 +3898,8 @@
       "id": 195,
       "name": "A/ Golden Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_195.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3719,7 +3910,8 @@
       "id": 196,
       "name": "S/ Shining Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_196.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3730,7 +3922,8 @@
       "id": 197,
       "name": "C/ Demonic Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_197.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3741,7 +3934,8 @@
       "id": 198,
       "name": "B/ Legendary Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_198.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3752,7 +3946,8 @@
       "id": 199,
       "name": "C/ Conqueror's Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_199.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3763,7 +3958,8 @@
       "id": 200,
       "name": "S/ Kairo Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_200.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -3774,7 +3970,8 @@
       "id": 201,
       "name": "F/ Loincloth",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_201.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3785,7 +3982,8 @@
       "id": 202,
       "name": "F/ Linen Garment",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_202.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3796,7 +3994,8 @@
       "id": 203,
       "name": "F/ Common Garment",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_203.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3807,7 +4006,8 @@
       "id": 204,
       "name": "E/ Yellow Garment",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_204.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3818,7 +4018,8 @@
       "id": 205,
       "name": "E/ Durable Garment",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_205.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3829,7 +4030,8 @@
       "id": 206,
       "name": "D/ Stylish Garment",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_206.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3840,7 +4042,8 @@
       "id": 207,
       "name": "D/ Thick Garment",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_207.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3851,7 +4054,8 @@
       "id": 208,
       "name": "D/ Chain Mail",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_208.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3862,7 +4066,8 @@
       "id": 209,
       "name": "C/ Skirt",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_209.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3873,7 +4078,8 @@
       "id": 210,
       "name": "B/ Dress",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_210.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3884,7 +4090,8 @@
       "id": 211,
       "name": "D/ Pajamas",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_211.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3895,7 +4102,8 @@
       "id": 212,
       "name": "C/ Fur Coat",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_212.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3906,7 +4114,8 @@
       "id": 213,
       "name": "C/ Coat",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_213.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3917,7 +4126,8 @@
       "id": 214,
       "name": "C/ Robe",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_214.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3928,7 +4138,8 @@
       "id": 215,
       "name": "B/ Fine Robe",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_215.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3939,7 +4150,8 @@
       "id": 216,
       "name": "C/ Men's Kimono",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_216.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3950,7 +4162,8 @@
       "id": 217,
       "name": "D/ Cape",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_217.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3961,7 +4174,8 @@
       "id": 218,
       "name": "C/ Durable Cape",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_218.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3972,7 +4186,8 @@
       "id": 219,
       "name": "B/ Purple Cape",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_219.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3983,7 +4198,8 @@
       "id": 220,
       "name": "A/ Royal Robe",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_220.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -3994,7 +4210,8 @@
       "id": 221,
       "name": "E/ Leather Chest Guard",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_221.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -4005,7 +4222,8 @@
       "id": 222,
       "name": "D/ Iron Chest Guard",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_222.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -4016,7 +4234,8 @@
       "id": 223,
       "name": "C/ Leather Armor",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_223.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -4027,7 +4246,8 @@
       "id": 224,
       "name": "C/ Light Mail",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_224.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -4038,7 +4258,8 @@
       "id": 225,
       "name": "B/ Bronze Armor",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_225.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -4049,7 +4270,8 @@
       "id": 226,
       "name": "B/ Silver Armor",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_226.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -4060,7 +4282,8 @@
       "id": 227,
       "name": "A/ Verdant Armor",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_227.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -4071,7 +4294,8 @@
       "id": 228,
       "name": "A/ Heavy Armor",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_228.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -4082,7 +4306,8 @@
       "id": 229,
       "name": "S/ Golden Armor",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_229.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -4093,7 +4318,8 @@
       "id": 230,
       "name": "S/ Black Chainmail",
       "type": 12,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_230.png",
       "method": "icon_body_grid",
       "sheet": "icon_body.png",
@@ -4104,7 +4330,8 @@
       "id": 231,
       "name": "F/ Bandana",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_231.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4115,7 +4342,8 @@
       "id": 232,
       "name": "F/ Alice Band",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_232.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4126,7 +4354,8 @@
       "id": 233,
       "name": "F/ Headband",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_233.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4137,7 +4366,8 @@
       "id": 234,
       "name": "F/ Turban",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_234.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4148,7 +4378,8 @@
       "id": 235,
       "name": "E/ Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_235.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4159,7 +4390,8 @@
       "id": 236,
       "name": "E/ Helmet",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_236.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4170,7 +4402,8 @@
       "id": 237,
       "name": "E/ Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_237.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4181,7 +4414,8 @@
       "id": 238,
       "name": "D/ Bandana",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_238.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4192,7 +4426,8 @@
       "id": 239,
       "name": "D/ Ninja Headband",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_239.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4203,7 +4438,8 @@
       "id": 240,
       "name": "D/ Forehead Guard",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_240.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4214,7 +4450,8 @@
       "id": 241,
       "name": "F/ Chef Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_241.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4225,7 +4462,8 @@
       "id": 242,
       "name": "F/ Top Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_242.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4236,7 +4474,8 @@
       "id": 243,
       "name": "F/ Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_243.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4247,7 +4486,8 @@
       "id": 244,
       "name": "F/ Holy Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_244.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4258,7 +4498,8 @@
       "id": 245,
       "name": "E/ Angel's Halo",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_245.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4269,7 +4510,8 @@
       "id": 246,
       "name": "E/ Pirate Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_246.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4280,7 +4522,8 @@
       "id": 247,
       "name": "E/ Director's Beret",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_247.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4291,7 +4534,8 @@
       "id": 248,
       "name": "D/ Winged Bandana",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_248.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4302,7 +4546,8 @@
       "id": 249,
       "name": "D/ Winged Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_249.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4313,7 +4558,8 @@
       "id": 250,
       "name": "D/ Winged Helm",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_250.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4324,7 +4570,8 @@
       "id": 251,
       "name": "D/ Magic Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_251.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4335,7 +4582,8 @@
       "id": 252,
       "name": "C/ Mage's Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_252.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4346,7 +4594,8 @@
       "id": 253,
       "name": "B/ Wizard's Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_253.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4357,7 +4606,8 @@
       "id": 254,
       "name": "A/ Legendary Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_254.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4368,7 +4618,8 @@
       "id": 255,
       "name": "B/ Mystic Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_255.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4379,7 +4630,8 @@
       "id": 256,
       "name": "C/ Mail Coif",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_256.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4390,7 +4642,8 @@
       "id": 257,
       "name": "B/ Shampoo Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_257.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4401,7 +4654,8 @@
       "id": 258,
       "name": "A/ Kairo Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_258.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4412,7 +4666,8 @@
       "id": 259,
       "name": "S/ Royal Crown",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_259.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4423,7 +4678,8 @@
       "id": 260,
       "name": "A/ Tiara",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_260.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4434,7 +4690,8 @@
       "id": 261,
       "name": "D/ Lookout Hat",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_261.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4445,7 +4702,8 @@
       "id": 262,
       "name": "C/ Guard Helmet",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_262.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4456,7 +4714,8 @@
       "id": 263,
       "name": "C/ Bronze Headpiece",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_263.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4467,7 +4726,8 @@
       "id": 264,
       "name": "C/ Helmet",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_264.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4478,7 +4738,8 @@
       "id": 265,
       "name": "B/ Iron Mask",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_265.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4489,7 +4750,8 @@
       "id": 266,
       "name": "B/ Iron Headpiece",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_266.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4500,7 +4762,8 @@
       "id": 267,
       "name": "A/ Black Headpiece",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_267.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4511,7 +4774,8 @@
       "id": 268,
       "name": "S/ Golden Headpiece",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_268.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4522,7 +4786,8 @@
       "id": 269,
       "name": "A/ Dragon Headpiece",
       "type": 13,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_269.png",
       "method": "icon_head_opt",
       "sheet": "icon_head.png",
@@ -4533,7 +4798,8 @@
       "id": 271,
       "name": "E/ Locket",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_271.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4544,7 +4810,8 @@
       "id": 272,
       "name": "D/ Necklace",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_272.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4555,7 +4822,8 @@
       "id": 273,
       "name": "C/ Amulet",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_273.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4566,7 +4834,8 @@
       "id": 274,
       "name": "B/ Blue Pendant",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_274.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4577,7 +4846,8 @@
       "id": 275,
       "name": "A/ Red Pendant",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_275.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4588,7 +4858,8 @@
       "id": 276,
       "name": "S/ Golden Pendant",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_276.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4599,7 +4870,8 @@
       "id": 277,
       "name": "C/ Magic Pendant",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_277.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4610,7 +4882,8 @@
       "id": 278,
       "name": "B/ Golden Bracelet",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_278.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4621,7 +4894,8 @@
       "id": 279,
       "name": "D/ Leather Band",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_279.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4632,7 +4906,8 @@
       "id": 280,
       "name": "C/ Wristband",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_280.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4643,7 +4918,8 @@
       "id": 281,
       "name": "S/ Gold Medal",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_281.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4654,7 +4930,8 @@
       "id": 282,
       "name": "D/ Scarf",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_282.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4665,7 +4942,8 @@
       "id": 283,
       "name": "B/ Collar",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_283.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4676,7 +4954,8 @@
       "id": 284,
       "name": "A/ Golden Collar",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_284.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4687,7 +4966,8 @@
       "id": 285,
       "name": "D/ Ring",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_285.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4698,7 +4978,8 @@
       "id": 286,
       "name": "C/ Pearl Ring",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_286.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4709,7 +4990,8 @@
       "id": 287,
       "name": "B/ Silver Ring",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_287.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4720,7 +5002,8 @@
       "id": 288,
       "name": "A/ Light Ring",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_288.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4731,7 +5014,8 @@
       "id": 289,
       "name": "S/ Golden Ring",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_289.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4742,7 +5026,8 @@
       "id": 290,
       "name": "C/ Gloves",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_290.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4753,7 +5038,8 @@
       "id": 291,
       "name": "B/ Leather Gloves",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_291.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4764,7 +5050,8 @@
       "id": 292,
       "name": "A/ Silk Gloves",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_292.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4775,7 +5062,8 @@
       "id": 293,
       "name": "B/ Silver Earrings",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_293.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4786,7 +5074,8 @@
       "id": 294,
       "name": "A/ Golden Earrings",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_294.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4797,7 +5086,8 @@
       "id": 295,
       "name": "S/ Royal Earrings",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_295.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4808,7 +5098,8 @@
       "id": 296,
       "name": "E/ Leather Shoes",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_296.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4819,7 +5110,8 @@
       "id": 297,
       "name": "F/ Wooden Sandals",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_297.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4830,7 +5122,8 @@
       "id": 298,
       "name": "D/ Loafers",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_298.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4841,7 +5134,8 @@
       "id": 299,
       "name": "A/ Silver Boots",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_299.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4852,7 +5146,8 @@
       "id": 300,
       "name": "B/ Boots",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_300.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4863,7 +5158,8 @@
       "id": 301,
       "name": "S/ Winged Sandals",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_301.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4874,7 +5170,8 @@
       "id": 302,
       "name": "C/ Candle",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_302.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4885,7 +5182,8 @@
       "id": 303,
       "name": "B/ Charm",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_303.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4896,7 +5194,8 @@
       "id": 304,
       "name": "A/ Golden Bell",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_304.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4907,7 +5206,8 @@
       "id": 305,
       "name": "B/ Red Ribbon",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_305.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4918,7 +5218,8 @@
       "id": 306,
       "name": "A/ Ribbon",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_306.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4929,7 +5230,8 @@
       "id": 307,
       "name": "C/ Wooden Carving",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_307.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4940,7 +5242,8 @@
       "id": 308,
       "name": "C/ Cloth Bag",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_308.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4951,7 +5254,8 @@
       "id": 309,
       "name": "B/ Gold Bag",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_309.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4962,7 +5266,8 @@
       "id": 310,
       "name": "S/ Sally Prin Figure",
       "type": 14,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_310.png",
       "method": "icon_accessory_grid",
       "sheet": "icon_accessory.png",
@@ -4974,6 +5279,7 @@
       "name": "S/ Santa Staff",
       "type": 2,
       "attribute": 6,
+      "biome": "Snow",
       "filename": "equip_311.png",
       "method": "icon_weapon_opt",
       "sheet": "icon_weapon.png",
@@ -4984,7 +5290,8 @@
       "id": 312,
       "name": "S/ Santa Shield",
       "type": 11,
-      "attribute": -1,
+      "attribute": null,
+      "biome": null,
       "filename": "equip_312.png",
       "method": "icon_sheild_opt",
       "sheet": "icon_sheild.png",
@@ -5068,53 +5375,60 @@
   ],
   "attributes": [
     {
+      "id": 0,
+      "name": "Water",
+      "filename": "attribute_0_water.png",
+      "dimensions": "14x14",
+      "rect": "(0,0,14,14)"
+    },
+    {
       "id": 1,
       "name": "Ground",
       "filename": "attribute_1_ground.png",
-      "dimensions": "18x16",
-      "rect": "(0,0,16,14)"
+      "dimensions": "14x14",
+      "rect": "(14,0,14,14)"
     },
     {
       "id": 2,
       "name": "Grass",
       "filename": "attribute_2_grass.png",
-      "dimensions": "18x16",
-      "rect": "(16,0,16,14)"
+      "dimensions": "14x14",
+      "rect": "(28,0,14,14)"
     },
     {
       "id": 3,
       "name": "Sand",
       "filename": "attribute_3_sand.png",
-      "dimensions": "18x16",
-      "rect": "(32,0,16,14)"
+      "dimensions": "14x14",
+      "rect": "(42,0,14,14)"
     },
     {
       "id": 4,
       "name": "Rock",
       "filename": "attribute_4_rock.png",
-      "dimensions": "18x16",
-      "rect": "(48,0,16,14)"
+      "dimensions": "14x14",
+      "rect": "(56,0,14,14)"
     },
     {
       "id": 5,
       "name": "Volcano",
       "filename": "attribute_5_volcano.png",
-      "dimensions": "18x16",
-      "rect": "(64,0,16,14)"
+      "dimensions": "14x14",
+      "rect": "(70,0,14,14)"
     },
     {
       "id": 6,
       "name": "Snow",
       "filename": "attribute_6_snow.png",
-      "dimensions": "18x16",
-      "rect": "(80,0,16,14)"
+      "dimensions": "14x14",
+      "rect": "(84,0,14,14)"
     },
     {
       "id": 7,
       "name": "Swamp",
       "filename": "attribute_7_swamp.png",
-      "dimensions": "18x16",
-      "rect": "(96,0,16,14)"
+      "dimensions": "14x14",
+      "rect": "(98,0,14,14)"
     }
   ],
   "gender": [
@@ -5146,28 +5460,20 @@
         {
           "index": 1,
           "filename": "furniture_106_Temporary_Shelter__bed_04.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 48
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_106_Temporary_Shelter__bed_04_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 38,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_106_Temporary_Shelter__bed_04_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 40,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 131,
@@ -5181,28 +5487,20 @@
         {
           "index": 1,
           "filename": "furniture_131_Hard_Bed__bed_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_131_Hard_Bed__bed_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 40,
-          "h": 23
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_131_Hard_Bed__bed_00_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 41,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 132,
@@ -5216,28 +5514,20 @@
         {
           "index": 1,
           "filename": "furniture_132_Bed__bed_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 46,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_132_Bed__bed_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 37,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_132_Bed__bed_01_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 39,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 133,
@@ -5251,28 +5541,20 @@
         {
           "index": 1,
           "filename": "furniture_133_Royal_Bed__bed_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 47,
-          "h": 40
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_133_Royal_Bed__bed_02_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 37,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_133_Royal_Bed__bed_02_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 39,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 134,
@@ -5286,28 +5568,20 @@
         {
           "index": 1,
           "filename": "furniture_134_Double_Bed__bed_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 46,
-          "h": 42
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_134_Double_Bed__bed_03_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 37,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_134_Double_Bed__bed_03_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 39,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 135,
@@ -5320,9 +5594,11 @@
       "variants": [
         {
           "index": 1,
-          "filename": "furniture_135_Red_Carpet__carpet02.png"
+          "filename": "furniture_135_Red_Carpet__carpet02.png",
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 136,
@@ -5335,9 +5611,11 @@
       "variants": [
         {
           "index": 1,
-          "filename": "furniture_136_Fluffy_Carpet__carpet00.png"
+          "filename": "furniture_136_Fluffy_Carpet__carpet00.png",
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 137,
@@ -5350,9 +5628,11 @@
       "variants": [
         {
           "index": 1,
-          "filename": "furniture_137_Black_Mat__carpet01.png"
+          "filename": "furniture_137_Black_Mat__carpet01.png",
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 138,
@@ -5661,20 +5941,15 @@
         {
           "index": 1,
           "filename": "furniture_143_Register__obj_06.png",
-          "u": 0,
-          "v": 0,
-          "w": 38,
-          "h": 24
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_143_Register__obj_06_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 144,
@@ -5688,20 +5963,15 @@
         {
           "index": 1,
           "filename": "furniture_144_Store_Shelves__store_shelf_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 28,
-          "h": 24
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_144_Store_Shelves__store_shelf_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 30,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 145,
@@ -5715,20 +5985,15 @@
         {
           "index": 1,
           "filename": "furniture_145_Skill_Shelves__store_shelf_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 32,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_145_Skill_Shelves__store_shelf_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 33,
-          "h": 34
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 146,
@@ -5742,20 +6007,15 @@
         {
           "index": 1,
           "filename": "furniture_146_Furniture_Shelves__obj_07.png",
-          "u": 0,
-          "v": 0,
-          "w": 40,
-          "h": 26
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_146_Furniture_Shelves__obj_07_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 28
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 147,
@@ -5769,12 +6029,10 @@
         {
           "index": 1,
           "filename": "furniture_147_Treasure_Analysis_Lab__job_obj_09.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 68
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 148,
@@ -5788,12 +6046,10 @@
         {
           "index": 1,
           "filename": "furniture_148_Research_Lab__job_obj_12.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 68
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 149,
@@ -5807,12 +6063,10 @@
         {
           "index": 1,
           "filename": "furniture_149_Hospital__job_obj_13.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 68
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 150,
@@ -5826,12 +6080,10 @@
         {
           "index": 1,
           "filename": "furniture_150_Accessory_Workshop__job_obj_06.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 64
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 151,
@@ -5845,12 +6097,10 @@
         {
           "index": 1,
           "filename": "furniture_151_Cooking_Station__job_obj_07.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 63
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 152,
@@ -5864,12 +6114,10 @@
         {
           "index": 1,
           "filename": "furniture_152_Recovery_Station__job_obj_08.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 67
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 153,
@@ -5883,12 +6131,10 @@
         {
           "index": 1,
           "filename": "furniture_153_Furniture_Workbench__job_obj_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 59
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 154,
@@ -5902,12 +6148,10 @@
         {
           "index": 1,
           "filename": "furniture_154_Weapon_Workbench__job_obj_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 70
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 155,
@@ -5921,12 +6165,10 @@
         {
           "index": 1,
           "filename": "furniture_155_Armor_Workbench__job_obj_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 70
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 156,
@@ -5940,12 +6182,10 @@
         {
           "index": 1,
           "filename": "furniture_156_Skill_Workbench__job_obj_04.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 58
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 157,
@@ -5959,12 +6199,10 @@
         {
           "index": 1,
           "filename": "furniture_157_Item_Workbench__job_obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 94,
-          "h": 64
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 158,
@@ -5978,12 +6216,10 @@
         {
           "index": 1,
           "filename": "furniture_158_Royal_Room__job_obj_05.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 71
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 159,
@@ -5997,20 +6233,15 @@
         {
           "index": 1,
           "filename": "furniture_159_Training_Room__obj_41.png",
-          "u": 0,
-          "v": 0,
-          "w": 39,
-          "h": 28
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_159_Training_Room__obj_41_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 38,
-          "h": 34
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 160,
@@ -6024,20 +6255,15 @@
         {
           "index": 1,
           "filename": "furniture_160_Shooting_Range__obj_42.png",
-          "u": 0,
-          "v": 0,
-          "w": 39,
-          "h": 26
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_160_Shooting_Range__obj_42_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 38,
-          "h": 34
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 161,
@@ -6051,20 +6277,15 @@
         {
           "index": 1,
           "filename": "furniture_161_Magic_Training_Ground__obj_43.png",
-          "u": 0,
-          "v": 0,
-          "w": 18,
-          "h": 22
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_161_Magic_Training_Ground__obj_43_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 25,
-          "h": 32
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 162,
@@ -6078,20 +6299,15 @@
         {
           "index": 1,
           "filename": "furniture_162_Ore_Workbench__room_obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 41,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_162_Ore_Workbench__room_obj_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 163,
@@ -6105,20 +6321,15 @@
         {
           "index": 1,
           "filename": "furniture_163_Desk__desk_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 40,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_163_Desk__desk_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 39,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 164,
@@ -6132,20 +6343,15 @@
         {
           "index": 1,
           "filename": "furniture_164_Dining_Table__obj_05.png",
-          "u": 0,
-          "v": 0,
-          "w": 43,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_164_Dining_Table__obj_05_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 46,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 165,
@@ -6159,20 +6365,15 @@
         {
           "index": 1,
           "filename": "furniture_165_Couch__2chair_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 28,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_165_Couch__2chair_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 46,
-          "h": 25
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 166,
@@ -6186,12 +6387,10 @@
         {
           "index": 1,
           "filename": "furniture_166_Chair__1chair_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 16,
-          "h": 20
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 167,
@@ -6205,20 +6404,15 @@
         {
           "index": 1,
           "filename": "furniture_167_Rainwater_Barrel__obj_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 19,
-          "h": 22
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_167_Rainwater_Barrel__obj_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 25,
-          "h": 32
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 168,
@@ -6232,20 +6426,15 @@
         {
           "index": 1,
           "filename": "furniture_168_Tool_Workshop__w_obj_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 40,
-          "h": 47
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_168_Tool_Workshop__w_obj_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 46,
-          "h": 55
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 169,
@@ -6259,20 +6448,15 @@
         {
           "index": 1,
           "filename": "furniture_169_Candle__obj_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 25,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_169_Candle__obj_02_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 51
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 170,
@@ -6286,20 +6470,15 @@
         {
           "index": 1,
           "filename": "furniture_170_Tree_Nursery__top_obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 41,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_170_Tree_Nursery__top_obj_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 40,
-          "h": 33
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 171,
@@ -6313,20 +6492,15 @@
         {
           "index": 1,
           "filename": "furniture_171_Decorative_Armor__obj_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 25,
-          "h": 32
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_171_Decorative_Armor__obj_03_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 31,
-          "h": 42
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 172,
@@ -6340,20 +6514,15 @@
         {
           "index": 1,
           "filename": "furniture_172_Dresser__shelf_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 26,
-          "h": 40
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_172_Dresser__shelf_03_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 30,
-          "h": 48
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 173,
@@ -6367,20 +6536,15 @@
         {
           "index": 1,
           "filename": "furniture_173_Cooking_Counter__kitchen_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 28,
-          "h": 24
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_173_Cooking_Counter__kitchen_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 30,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 174,
@@ -6394,20 +6558,15 @@
         {
           "index": 1,
           "filename": "furniture_174_Shelf__shelf_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 30,
-          "h": 26
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_174_Shelf__shelf_02_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 34,
-          "h": 33
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 175,
@@ -6421,20 +6580,15 @@
         {
           "index": 1,
           "filename": "furniture_175_Bookshelf__shelf_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 26,
-          "h": 40
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_175_Bookshelf__shelf_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 48
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 176,
@@ -6448,20 +6602,15 @@
         {
           "index": 1,
           "filename": "furniture_176_Chest_of_Drawers__shelf_04.png",
-          "u": 0,
-          "v": 0,
-          "w": 30,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_176_Chest_of_Drawers__shelf_04_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 32,
-          "h": 46
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 177,
@@ -6475,20 +6624,15 @@
         {
           "index": 1,
           "filename": "furniture_177_Kitchen_Shelves__shelf_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 33,
-          "h": 44
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_177_Kitchen_Shelves__shelf_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 35,
-          "h": 51
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 178,
@@ -6502,20 +6646,15 @@
         {
           "index": 1,
           "filename": "furniture_178_Flower_Vase__top_obj_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 24,
-          "h": 34
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_178_Flower_Vase__top_obj_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 43
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 179,
@@ -6529,20 +6668,15 @@
         {
           "index": 1,
           "filename": "furniture_179_Animal_Figurine__w_obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 24,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_179_Animal_Figurine__w_obj_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 26,
-          "h": 55
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 180,
@@ -6556,20 +6690,15 @@
         {
           "index": 1,
           "filename": "furniture_180_Vanity_Mirror__obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 32,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_180_Vanity_Mirror__obj_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 33,
-          "h": 42
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 181,
@@ -6583,12 +6712,10 @@
         {
           "index": 1,
           "filename": "furniture_181_Stove__kitchen_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 28,
-          "h": 24
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 182,
@@ -6602,20 +6729,15 @@
         {
           "index": 1,
           "filename": "furniture_182_Fireplace__sp_obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 32,
-          "h": 76
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_182_Fireplace__sp_obj_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 32,
-          "h": 85
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 183,
@@ -6629,20 +6751,15 @@
         {
           "index": 1,
           "filename": "furniture_183_Window__w_window_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 28,
-          "h": 40
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_183_Window__w_window_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 51
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 184,
@@ -6656,20 +6773,15 @@
         {
           "index": 1,
           "filename": "furniture_184_Bathtub__bath_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_184_Bathtub__bath_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 48,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 185,
@@ -6683,12 +6795,10 @@
         {
           "index": 1,
           "filename": "furniture_185_Rejuvenating_Bath__obj_09.png",
-          "u": 0,
-          "v": 0,
-          "w": 96,
-          "h": 53
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 186,
@@ -6702,20 +6812,15 @@
         {
           "index": 1,
           "filename": "furniture_186_Glittering_Stone__obj_04.png",
-          "u": 0,
-          "v": 0,
-          "w": 19,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_186_Glittering_Stone__obj_04_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 24,
-          "h": 40
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 187,
@@ -6729,20 +6834,15 @@
         {
           "index": 1,
           "filename": "furniture_187_Decorative_Plant__plant_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 18,
-          "h": 46
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_187_Decorative_Plant__plant_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 23,
-          "h": 57
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 188,
@@ -6756,20 +6856,15 @@
         {
           "index": 1,
           "filename": "furniture_188_Tomato__plant_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 27,
-          "h": 36
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_188_Tomato__plant_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 47
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 189,
@@ -6783,20 +6878,15 @@
         {
           "index": 1,
           "filename": "furniture_189_Flowers__plant_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 21,
-          "h": 23
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_189_Flowers__plant_02_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 26,
-          "h": 34
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 190,
@@ -6810,20 +6900,15 @@
         {
           "index": 1,
           "filename": "furniture_190_Pansy__plant_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 25,
-          "h": 25
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_190_Pansy__plant_03_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 37
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 191,
@@ -6837,20 +6922,15 @@
         {
           "index": 1,
           "filename": "furniture_191_Study_Desk__obj_68.png",
-          "u": 0,
-          "v": 0,
-          "w": 40,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_191_Study_Desk__obj_68_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 39,
-          "h": 47
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 205,
@@ -6879,12 +6959,10 @@
         {
           "index": 1,
           "filename": "furniture_242_Church__job_obj_10.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 67
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 243,
@@ -6898,28 +6976,20 @@
         {
           "index": 1,
           "filename": "furniture_243_Friend_Bed__bed_06.png",
-          "u": 0,
-          "v": 0,
-          "w": 46,
-          "h": 42
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_243_Friend_Bed__bed_06_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 37,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_243_Friend_Bed__bed_06_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 39,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 244,
@@ -6933,28 +7003,20 @@
         {
           "index": 1,
           "filename": "furniture_244_Guest_Bed__bed_05.png",
-          "u": 0,
-          "v": 0,
-          "w": 46,
-          "h": 42
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_244_Guest_Bed__bed_05_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 37,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_244_Guest_Bed__bed_05_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 39,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 245,
@@ -7011,20 +7073,15 @@
         {
           "index": 1,
           "filename": "furniture_246_Monster_Room__obj_9.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_246_Monster_Room__obj_9_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 48,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 247,
@@ -7038,20 +7095,15 @@
         {
           "index": 1,
           "filename": "furniture_247_Ancestor_Statue__obj_10.png",
-          "u": 0,
-          "v": 0,
-          "w": 44,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_247_Ancestor_Statue__obj_10_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 46,
-          "h": 44
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 255,
@@ -7065,12 +7117,10 @@
         {
           "index": 1,
           "filename": "furniture_255_Restaurant_Shelves__store_shelf_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 37,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 285,
@@ -7141,20 +7191,15 @@
         {
           "index": 1,
           "filename": "furniture_292_Animal_Cage__add_obj_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_292_Animal_Cage__add_obj_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 48,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 293,
@@ -7168,20 +7213,15 @@
         {
           "index": 1,
           "filename": "furniture_293_Art_House__add_obj_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 36,
-          "h": 26
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_293_Art_House__add_obj_02_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 28
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 294,
@@ -7195,20 +7235,15 @@
         {
           "index": 1,
           "filename": "furniture_294_Water_Tank__add_obj_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 44,
-          "h": 61
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_294_Water_Tank__add_obj_03_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 46,
-          "h": 62
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 295,
@@ -7222,20 +7257,15 @@
         {
           "index": 1,
           "filename": "furniture_295_Bug_Case__add_obj_04.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 43
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_295_Bug_Case__add_obj_04_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 48,
-          "h": 44
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 296,
@@ -7249,20 +7279,15 @@
         {
           "index": 1,
           "filename": "furniture_296_Cash_Register__obj_06_auto.png",
-          "u": 0,
-          "v": 0,
-          "w": 38,
-          "h": 28
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_296_Cash_Register__obj_06_auto_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 298,
@@ -7276,12 +7301,10 @@
         {
           "index": 1,
           "filename": "furniture_298_Santa_Room__add_job_obj_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 68
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 299,
@@ -7295,20 +7318,15 @@
         {
           "index": 1,
           "filename": "furniture_299_Decorative_Sled__add_obj_05.png",
-          "u": 0,
-          "v": 0,
-          "w": 37,
-          "h": 30
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_299_Decorative_Sled__add_obj_05_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     }
   ],
   "requested": [
@@ -7499,7 +7517,7 @@
     "items": 161,
     "equipment": 307,
     "eggs": 8,
-    "attributes": 7,
+    "attributes": 8,
     "gender": 2,
     "furniture": 80,
     "requested": 26

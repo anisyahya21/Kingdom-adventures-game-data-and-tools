@@ -9,14 +9,15 @@ type DataCardProps = {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+  titleClassName?: string;
 };
 
-export function DataCard({ title, action, meta, children, className, contentClassName }: DataCardProps) {
+export function DataCard({ title, action, meta, children, className, contentClassName, titleClassName }: DataCardProps) {
   return (
     <Card className={cn("flex flex-col", className)}>
       <CardHeader className="pb-2 pt-4 px-4">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-semibold leading-tight">{title}</CardTitle>
+          <CardTitle className={cn("text-sm font-semibold leading-tight", titleClassName)}>{title}</CardTitle>
           {action}
         </div>
         {meta}

@@ -5460,28 +5460,20 @@
         {
           "index": 1,
           "filename": "furniture_106_Temporary_Shelter__bed_04.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 48
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_106_Temporary_Shelter__bed_04_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 38,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_106_Temporary_Shelter__bed_04_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 40,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 131,
@@ -5495,28 +5487,20 @@
         {
           "index": 1,
           "filename": "furniture_131_Hard_Bed__bed_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_131_Hard_Bed__bed_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 40,
-          "h": 23
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_131_Hard_Bed__bed_00_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 41,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 132,
@@ -5530,28 +5514,20 @@
         {
           "index": 1,
           "filename": "furniture_132_Bed__bed_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 46,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_132_Bed__bed_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 37,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_132_Bed__bed_01_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 39,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 133,
@@ -5565,28 +5541,20 @@
         {
           "index": 1,
           "filename": "furniture_133_Royal_Bed__bed_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 47,
-          "h": 40
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_133_Royal_Bed__bed_02_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 37,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_133_Royal_Bed__bed_02_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 39,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 134,
@@ -5600,28 +5568,20 @@
         {
           "index": 1,
           "filename": "furniture_134_Double_Bed__bed_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 46,
-          "h": 42
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_134_Double_Bed__bed_03_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 37,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_134_Double_Bed__bed_03_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 39,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 135,
@@ -5634,9 +5594,11 @@
       "variants": [
         {
           "index": 1,
-          "filename": "furniture_135_Red_Carpet__carpet02.png"
+          "filename": "furniture_135_Red_Carpet__carpet02.png",
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 136,
@@ -5649,9 +5611,11 @@
       "variants": [
         {
           "index": 1,
-          "filename": "furniture_136_Fluffy_Carpet__carpet00.png"
+          "filename": "furniture_136_Fluffy_Carpet__carpet00.png",
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 137,
@@ -5664,9 +5628,11 @@
       "variants": [
         {
           "index": 1,
-          "filename": "furniture_137_Black_Mat__carpet01.png"
+          "filename": "furniture_137_Black_Mat__carpet01.png",
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 138,
@@ -5975,20 +5941,15 @@
         {
           "index": 1,
           "filename": "furniture_143_Register__obj_06.png",
-          "u": 0,
-          "v": 0,
-          "w": 38,
-          "h": 24
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_143_Register__obj_06_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 144,
@@ -6002,20 +5963,15 @@
         {
           "index": 1,
           "filename": "furniture_144_Store_Shelves__store_shelf_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 28,
-          "h": 24
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_144_Store_Shelves__store_shelf_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 30,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 145,
@@ -6029,20 +5985,15 @@
         {
           "index": 1,
           "filename": "furniture_145_Skill_Shelves__store_shelf_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 32,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_145_Skill_Shelves__store_shelf_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 33,
-          "h": 34
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 146,
@@ -6056,20 +6007,15 @@
         {
           "index": 1,
           "filename": "furniture_146_Furniture_Shelves__obj_07.png",
-          "u": 0,
-          "v": 0,
-          "w": 40,
-          "h": 26
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_146_Furniture_Shelves__obj_07_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 28
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 147,
@@ -6083,12 +6029,10 @@
         {
           "index": 1,
           "filename": "furniture_147_Treasure_Analysis_Lab__job_obj_09.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 68
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 148,
@@ -6102,12 +6046,10 @@
         {
           "index": 1,
           "filename": "furniture_148_Research_Lab__job_obj_12.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 68
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 149,
@@ -6121,12 +6063,10 @@
         {
           "index": 1,
           "filename": "furniture_149_Hospital__job_obj_13.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 68
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 150,
@@ -6140,12 +6080,10 @@
         {
           "index": 1,
           "filename": "furniture_150_Accessory_Workshop__job_obj_06.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 64
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 151,
@@ -6159,12 +6097,10 @@
         {
           "index": 1,
           "filename": "furniture_151_Cooking_Station__job_obj_07.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 63
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 152,
@@ -6178,12 +6114,10 @@
         {
           "index": 1,
           "filename": "furniture_152_Recovery_Station__job_obj_08.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 67
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 153,
@@ -6197,12 +6131,10 @@
         {
           "index": 1,
           "filename": "furniture_153_Furniture_Workbench__job_obj_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 59
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 154,
@@ -6216,12 +6148,10 @@
         {
           "index": 1,
           "filename": "furniture_154_Weapon_Workbench__job_obj_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 70
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 155,
@@ -6235,12 +6165,10 @@
         {
           "index": 1,
           "filename": "furniture_155_Armor_Workbench__job_obj_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 70
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 156,
@@ -6254,12 +6182,10 @@
         {
           "index": 1,
           "filename": "furniture_156_Skill_Workbench__job_obj_04.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 58
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 157,
@@ -6273,12 +6199,10 @@
         {
           "index": 1,
           "filename": "furniture_157_Item_Workbench__job_obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 94,
-          "h": 64
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 158,
@@ -6292,12 +6216,10 @@
         {
           "index": 1,
           "filename": "furniture_158_Royal_Room__job_obj_05.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 71
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 159,
@@ -6311,20 +6233,15 @@
         {
           "index": 1,
           "filename": "furniture_159_Training_Room__obj_41.png",
-          "u": 0,
-          "v": 0,
-          "w": 39,
-          "h": 28
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_159_Training_Room__obj_41_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 38,
-          "h": 34
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 160,
@@ -6338,20 +6255,15 @@
         {
           "index": 1,
           "filename": "furniture_160_Shooting_Range__obj_42.png",
-          "u": 0,
-          "v": 0,
-          "w": 39,
-          "h": 26
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_160_Shooting_Range__obj_42_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 38,
-          "h": 34
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 161,
@@ -6365,20 +6277,15 @@
         {
           "index": 1,
           "filename": "furniture_161_Magic_Training_Ground__obj_43.png",
-          "u": 0,
-          "v": 0,
-          "w": 18,
-          "h": 22
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_161_Magic_Training_Ground__obj_43_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 25,
-          "h": 32
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 162,
@@ -6392,20 +6299,15 @@
         {
           "index": 1,
           "filename": "furniture_162_Ore_Workbench__room_obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 41,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_162_Ore_Workbench__room_obj_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 163,
@@ -6419,20 +6321,15 @@
         {
           "index": 1,
           "filename": "furniture_163_Desk__desk_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 40,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_163_Desk__desk_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 39,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 164,
@@ -6446,20 +6343,15 @@
         {
           "index": 1,
           "filename": "furniture_164_Dining_Table__obj_05.png",
-          "u": 0,
-          "v": 0,
-          "w": 43,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_164_Dining_Table__obj_05_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 46,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 165,
@@ -6473,20 +6365,15 @@
         {
           "index": 1,
           "filename": "furniture_165_Couch__2chair_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 28,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_165_Couch__2chair_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 46,
-          "h": 25
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 166,
@@ -6500,12 +6387,10 @@
         {
           "index": 1,
           "filename": "furniture_166_Chair__1chair_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 16,
-          "h": 20
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 167,
@@ -6519,20 +6404,15 @@
         {
           "index": 1,
           "filename": "furniture_167_Rainwater_Barrel__obj_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 19,
-          "h": 22
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_167_Rainwater_Barrel__obj_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 25,
-          "h": 32
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 168,
@@ -6546,20 +6426,15 @@
         {
           "index": 1,
           "filename": "furniture_168_Tool_Workshop__w_obj_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 40,
-          "h": 47
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_168_Tool_Workshop__w_obj_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 46,
-          "h": 55
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 169,
@@ -6573,20 +6448,15 @@
         {
           "index": 1,
           "filename": "furniture_169_Candle__obj_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 25,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_169_Candle__obj_02_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 51
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 170,
@@ -6600,20 +6470,15 @@
         {
           "index": 1,
           "filename": "furniture_170_Tree_Nursery__top_obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 41,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_170_Tree_Nursery__top_obj_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 40,
-          "h": 33
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 171,
@@ -6627,20 +6492,15 @@
         {
           "index": 1,
           "filename": "furniture_171_Decorative_Armor__obj_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 25,
-          "h": 32
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_171_Decorative_Armor__obj_03_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 31,
-          "h": 42
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 172,
@@ -6654,20 +6514,15 @@
         {
           "index": 1,
           "filename": "furniture_172_Dresser__shelf_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 26,
-          "h": 40
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_172_Dresser__shelf_03_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 30,
-          "h": 48
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 173,
@@ -6681,20 +6536,15 @@
         {
           "index": 1,
           "filename": "furniture_173_Cooking_Counter__kitchen_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 28,
-          "h": 24
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_173_Cooking_Counter__kitchen_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 30,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 174,
@@ -6708,20 +6558,15 @@
         {
           "index": 1,
           "filename": "furniture_174_Shelf__shelf_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 30,
-          "h": 26
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_174_Shelf__shelf_02_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 34,
-          "h": 33
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 175,
@@ -6735,20 +6580,15 @@
         {
           "index": 1,
           "filename": "furniture_175_Bookshelf__shelf_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 26,
-          "h": 40
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_175_Bookshelf__shelf_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 48
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 176,
@@ -6762,20 +6602,15 @@
         {
           "index": 1,
           "filename": "furniture_176_Chest_of_Drawers__shelf_04.png",
-          "u": 0,
-          "v": 0,
-          "w": 30,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_176_Chest_of_Drawers__shelf_04_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 32,
-          "h": 46
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 177,
@@ -6789,20 +6624,15 @@
         {
           "index": 1,
           "filename": "furniture_177_Kitchen_Shelves__shelf_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 33,
-          "h": 44
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_177_Kitchen_Shelves__shelf_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 35,
-          "h": 51
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 178,
@@ -6816,20 +6646,15 @@
         {
           "index": 1,
           "filename": "furniture_178_Flower_Vase__top_obj_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 24,
-          "h": 34
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_178_Flower_Vase__top_obj_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 43
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 179,
@@ -6843,20 +6668,15 @@
         {
           "index": 1,
           "filename": "furniture_179_Animal_Figurine__w_obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 24,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_179_Animal_Figurine__w_obj_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 26,
-          "h": 55
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 180,
@@ -6870,20 +6690,15 @@
         {
           "index": 1,
           "filename": "furniture_180_Vanity_Mirror__obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 32,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_180_Vanity_Mirror__obj_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 33,
-          "h": 42
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 181,
@@ -6897,12 +6712,10 @@
         {
           "index": 1,
           "filename": "furniture_181_Stove__kitchen_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 28,
-          "h": 24
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 182,
@@ -6916,20 +6729,15 @@
         {
           "index": 1,
           "filename": "furniture_182_Fireplace__sp_obj_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 32,
-          "h": 76
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_182_Fireplace__sp_obj_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 32,
-          "h": 85
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 183,
@@ -6943,20 +6751,15 @@
         {
           "index": 1,
           "filename": "furniture_183_Window__w_window_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 28,
-          "h": 40
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_183_Window__w_window_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 51
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 184,
@@ -6970,20 +6773,15 @@
         {
           "index": 1,
           "filename": "furniture_184_Bathtub__bath_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_184_Bathtub__bath_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 48,
-          "h": 31
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 185,
@@ -6997,12 +6795,10 @@
         {
           "index": 1,
           "filename": "furniture_185_Rejuvenating_Bath__obj_09.png",
-          "u": 0,
-          "v": 0,
-          "w": 96,
-          "h": 53
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 186,
@@ -7016,20 +6812,15 @@
         {
           "index": 1,
           "filename": "furniture_186_Glittering_Stone__obj_04.png",
-          "u": 0,
-          "v": 0,
-          "w": 19,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_186_Glittering_Stone__obj_04_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 24,
-          "h": 40
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 187,
@@ -7043,20 +6834,15 @@
         {
           "index": 1,
           "filename": "furniture_187_Decorative_Plant__plant_00.png",
-          "u": 0,
-          "v": 0,
-          "w": 18,
-          "h": 46
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_187_Decorative_Plant__plant_00_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 23,
-          "h": 57
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 188,
@@ -7070,20 +6856,15 @@
         {
           "index": 1,
           "filename": "furniture_188_Tomato__plant_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 27,
-          "h": 36
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_188_Tomato__plant_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 47
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 189,
@@ -7097,20 +6878,15 @@
         {
           "index": 1,
           "filename": "furniture_189_Flowers__plant_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 21,
-          "h": 23
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_189_Flowers__plant_02_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 26,
-          "h": 34
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 190,
@@ -7124,20 +6900,15 @@
         {
           "index": 1,
           "filename": "furniture_190_Pansy__plant_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 25,
-          "h": 25
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_190_Pansy__plant_03_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 28,
-          "h": 37
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 191,
@@ -7151,20 +6922,15 @@
         {
           "index": 1,
           "filename": "furniture_191_Study_Desk__obj_68.png",
-          "u": 0,
-          "v": 0,
-          "w": 40,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_191_Study_Desk__obj_68_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 39,
-          "h": 47
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 205,
@@ -7193,12 +6959,10 @@
         {
           "index": 1,
           "filename": "furniture_242_Church__job_obj_10.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 67
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 243,
@@ -7212,28 +6976,20 @@
         {
           "index": 1,
           "filename": "furniture_243_Friend_Bed__bed_06.png",
-          "u": 0,
-          "v": 0,
-          "w": 46,
-          "h": 42
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_243_Friend_Bed__bed_06_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 37,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_243_Friend_Bed__bed_06_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 39,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 244,
@@ -7247,28 +7003,20 @@
         {
           "index": 1,
           "filename": "furniture_244_Guest_Bed__bed_05.png",
-          "u": 0,
-          "v": 0,
-          "w": 46,
-          "h": 42
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_244_Guest_Bed__bed_05_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 37,
-          "h": 21
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 3,
           "filename": "furniture_244_Guest_Bed__bed_05_3.png",
-          "u": 2,
-          "v": 0,
-          "w": 39,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 245,
@@ -7325,20 +7073,15 @@
         {
           "index": 1,
           "filename": "furniture_246_Monster_Room__obj_9.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_246_Monster_Room__obj_9_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 48,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 247,
@@ -7352,20 +7095,15 @@
         {
           "index": 1,
           "filename": "furniture_247_Ancestor_Statue__obj_10.png",
-          "u": 0,
-          "v": 0,
-          "w": 44,
-          "h": 38
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_247_Ancestor_Statue__obj_10_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 46,
-          "h": 44
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 255,
@@ -7379,12 +7117,10 @@
         {
           "index": 1,
           "filename": "furniture_255_Restaurant_Shelves__store_shelf_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 37,
-          "h": 27
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 285,
@@ -7455,20 +7191,15 @@
         {
           "index": 1,
           "filename": "furniture_292_Animal_Cage__add_obj_01.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_292_Animal_Cage__add_obj_01_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 48,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 293,
@@ -7482,20 +7213,15 @@
         {
           "index": 1,
           "filename": "furniture_293_Art_House__add_obj_02.png",
-          "u": 0,
-          "v": 0,
-          "w": 36,
-          "h": 26
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_293_Art_House__add_obj_02_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 28
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 294,
@@ -7509,20 +7235,15 @@
         {
           "index": 1,
           "filename": "furniture_294_Water_Tank__add_obj_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 44,
-          "h": 61
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_294_Water_Tank__add_obj_03_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 46,
-          "h": 62
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 295,
@@ -7536,20 +7257,15 @@
         {
           "index": 1,
           "filename": "furniture_295_Bug_Case__add_obj_04.png",
-          "u": 0,
-          "v": 0,
-          "w": 48,
-          "h": 43
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_295_Bug_Case__add_obj_04_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 48,
-          "h": 44
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 296,
@@ -7563,20 +7279,15 @@
         {
           "index": 1,
           "filename": "furniture_296_Cash_Register__obj_06_auto.png",
-          "u": 0,
-          "v": 0,
-          "w": 38,
-          "h": 28
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_296_Cash_Register__obj_06_auto_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 39
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 298,
@@ -7590,12 +7301,10 @@
         {
           "index": 1,
           "filename": "furniture_298_Santa_Room__add_job_obj_03.png",
-          "u": 0,
-          "v": 0,
-          "w": 90,
-          "h": 68
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     },
     {
       "id": 299,
@@ -7609,20 +7318,15 @@
         {
           "index": 1,
           "filename": "furniture_299_Decorative_Sled__add_obj_05.png",
-          "u": 0,
-          "v": 0,
-          "w": 37,
-          "h": 30
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         },
         {
           "index": 2,
           "filename": "furniture_299_Decorative_Sled__add_obj_05_2.png",
-          "u": 1,
-          "v": 0,
-          "w": 42,
-          "h": 29
+          "crop": "Complete reconstructed OPT/SEB view, transparent bounds plus 3px padding"
         }
-      ]
+      ],
+      "source": "tools/recovery/export_assembled_facility_icons.py + sync_corrected_furniture_icons.py"
     }
   ],
   "requested": [
