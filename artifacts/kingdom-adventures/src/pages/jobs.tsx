@@ -2,7 +2,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import {
-  RefreshCw, Loader2, X,
+  RefreshCw, Loader2, X, Swords, Hammer,
   Check, Star, Briefcase, ImageIcon, Heart, ArrowUpDown, Plus,
   ArrowUp, ArrowDown, Info, RotateCcw, ArrowLeft,
 } from "lucide-react";
@@ -856,10 +856,10 @@ function withCategoryBattleTypes(data: SharedData): SharedData {
   };
 }
 
-function battleTypeEmoji(type: "combat" | "non-combat" | undefined) {
-  if (type === "combat") return "âš”ï¸";
-  if (type === "non-combat") return "ðŸ› ï¸";
-  return "";
+function battleTypeIcon(type: "combat" | "non-combat" | undefined) {
+  if (type === "combat") return <Swords className="h-3.5 w-3.5" aria-hidden="true" />;
+  if (type === "non-combat") return <Hammer className="h-3.5 w-3.5" aria-hidden="true" />;
+  return null;
 }
 
 function formatCompactStatNumber(value: number | null | undefined) {
@@ -1663,7 +1663,7 @@ function AdvancedCompareDialog({
                                       : "border-emerald-500/45 bg-emerald-500/20 text-emerald-600 dark:text-emerald-300"
                                   }`}
                                 >
-                                  {battleTypeEmoji(row.job.type)}
+                                  {battleTypeIcon(row.job.type)}
                                 </span>
                               ) : (
                                 <ToneBadge category={row.job.type === "combat" ? "monster" : "success"} className="text-[9px] px-1 py-0.5">
@@ -2237,7 +2237,7 @@ function JobsTable({
                                   : "border-emerald-500/45 bg-emerald-500/20 text-emerald-600 dark:text-emerald-300"
                               }`}
                             >
-                              {battleTypeEmoji(job.type)}
+                              {battleTypeIcon(job.type)}
                             </span>
                           )}
                         </div>
