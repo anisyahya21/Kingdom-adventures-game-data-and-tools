@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { eq } from "drizzle-orm";
 import webpush, { type PushSubscription } from "web-push";
 import { getCachedContent, refreshStaticSourceIfStale } from "../lib/google-cache";
+import monsterSprites from "../../../kingdom-adventures/src/game-data/monster-sprites.json";
 
 const router = Router();
 const DATA_DIR = path.resolve(process.cwd(), "data");
@@ -19,8 +20,10 @@ const DEFAULT_AUTO_LOOKAHEAD_MS = 60 * 1000;
 const DB_RECOVERY_MIN_INTERVAL_MS = 60 * 1000;
 const WEEKLY_ANCHOR_START = Date.parse("2026-04-05T00:00:00+09:00");
 const WEEKLY_ANCHOR_EVENT_ID = 18;
-const MONSTER_SHEET_FILE = path.resolve(process.cwd(), "data/Sheet csv/KA GameData - Monster.csv");
-const MONSTER_ICON_DIR = path.resolve(process.cwd(), "artifacts/kingdom-adventures/public/monster-icons");
+const REPO_ROOT = [process.cwd(), path.resolve(process.cwd(), "../..")]
+  .find((root) => fs.existsSync(path.join(root, "data/Sheet csv/KA GameData - Monster.csv"))) || process.cwd();
+const MONSTER_SHEET_FILE = path.join(REPO_ROOT, "data/Sheet csv/KA GameData - Monster.csv");
+const MONSTER_ICON_DIR = path.join(REPO_ROOT, "artifacts/kingdom-adventures/public/monster-icons");
 const TERRAIN_CODE_TO_NAME: Record<number, string> = {
   0: "Water",
   1: "Ground",
@@ -134,6 +137,7 @@ type VapidKeyPair = {
 type WeeklyConquestLookupEvent = {
   id: number;
   monsters: Array<{ name: string; count: number }>;
+  rewards: string[];
 };
 
 type MonsterSpawnMeta = {
@@ -803,7 +807,8 @@ function notificationTimes(subscription: ReminderSubscription, now: Date) {
   const offset = subscription.offsetHours;
   let startAt: Date | undefined;
   if (subscription.definition.type === "gacha") startAt = nextGachaStart(subscription.definition.event, now, offset);
-  if (subscription.definition.type === "weekly-conquest") startAt = nextWeeklyConquestStart(now, offset);
+  // Keep the reset in the candidate list throughout the delivery grace window.
+  if (subscription.definition.type === "weekly-conquest") startAt = nextWeeklyConquestStart(new Date(now.getTime() - dueGraceMs() - 1), offset);
   if (!startAt) return [];
 
   const times = [{ kind: "start", at: startAt }];
@@ -923,6 +928,8 @@ function ensureMonsterIconFileNames(): Set<string> {
 }
 
 function resolveMonsterIconPath(monsterName: string): string {
+  const sprite = monsterSprites.find((entry) => entry.name.toLowerCase() === monsterName.toLowerCase());
+  if (sprite) return sprite.src;
   const slug = iconSlugForMonster(monsterName);
   if (!slug) return "/website_icons/facilities_confirmed/facility_168_weekly_conquest_bonus.png";
   const fileName = `${slug}.jpg`;
@@ -988,7 +995,13 @@ function getMonsterSpawnMetaByName(): Map<string, MonsterSpawnMeta> {
 
 function getWeeklyConquestLookupById(): Map<number, WeeklyConquestLookupEvent> {
   refreshStaticSourceIfStale("weekly-conquest-lookup");
-  const raw = getCachedContent("weekly-conquest-lookup");
+  let raw = getCachedContent("weekly-conquest-lookup");
+  if (!raw) {
+    try {
+      const csv = fs.readFileSync(path.join(REPO_ROOT, "data/sheet-research/raw-copies/KA GameData - Campaign_lookup.csv"), "utf8");
+      raw = JSON.stringify({ table: { rows: parseSimpleCsv(csv).map((row) => ({ c: row.map((v) => ({ v })) })) } });
+    } catch { /* No verified fallback available. */ }
+  }
   if (!raw) return new Map<number, WeeklyConquestLookupEvent>();
 
   if (weeklyConquestLookupRawCache === raw && weeklyConquestLookupByIdCache.size > 0) {
@@ -1017,7 +1030,10 @@ function getWeeklyConquestLookupById(): Map<number, WeeklyConquestLookupEvent> {
       });
 
       if (monsters.length > 0) {
-        parsed.set(id, { id, monsters });
+        const rewards = [asText(cells[8]?.v ?? null), asText(cells[14]?.v ?? null)];
+        const diamonds = asNumber(cells[18]?.v ?? null);
+        if (diamonds > 0) rewards.push(`${diamonds} diamonds`);
+        parsed.set(id, { id, monsters, rewards: rewards.filter(Boolean) });
       }
     }
   } catch {
@@ -1057,7 +1073,6 @@ function weeklyConquestDetailLines(subscription: ReminderSubscription, oneHour: 
 
   const monsters = event.monsters.map((monster) => {
     const iconUrl = resolveMonsterIconUrl(monster.name);
-    const countLabel = monster.count > 0 ? String(monster.count) : "?";
     return {
       name: monster.name,
       count: monster.count,
@@ -1067,7 +1082,10 @@ function weeklyConquestDetailLines(subscription: ReminderSubscription, oneHour: 
   });
 
   return {
-    lines: monsters.map((monster) => `[🖼️ ${monster.name}](${monster.iconUrl}) ×${monster.count > 0 ? monster.count : "?"} — ${monster.spawnSummary}`),
+    lines: [
+      ...monsters.map((monster) => `${monster.name} ×${monster.count > 0 ? monster.count : "?"} — ${monster.spawnSummary}`),
+      ...(event.rewards.length ? [`\nRewards: ${event.rewards.join(" · ")}`] : []),
+    ],
     primaryIcon: resolveMonsterIconPath(event.monsters[0].name),
     monsters,
   };
@@ -1076,6 +1094,7 @@ function weeklyConquestDetailLines(subscription: ReminderSubscription, oneHour: 
 async function sendReminder(store: Store, subscription: ReminderSubscription, kind: string, scheduledAt: Date) {
   const oneHour = kind === "one-hour";
   const visual = notificationVisualFor(subscription, oneHour, scheduledAt);
+  if (kind === "test") visual.title = "Weekly Conquest — test";
   let delivered = 0;
   let failed = 0;
 
@@ -1103,9 +1122,11 @@ async function sendReminder(store: Store, subscription: ReminderSubscription, ki
 
   if (subscription.channels.telegram && subscription.targets.telegramChatId) {
     try {
-      await sendTelegramReminder(subscription.targets.telegramChatId, visual.title, visual.body, subscription.subscriptionId);
+      await sendTelegramReminder(subscription.targets.telegramChatId, visual.title, visual.body, subscription.subscriptionId,
+        "weeklyMonsters" in visual ? visual.weeklyMonsters : undefined);
       delivered += 1;
-    } catch {
+    } catch (error) {
+      console.warn("event-reminders: Telegram delivery failed", error instanceof Error ? error.message : "Unknown error");
       failed += 1;
     }
   }
@@ -1134,21 +1155,28 @@ async function sendReminder(store: Store, subscription: ReminderSubscription, ki
   return { delivered, failed };
 }
 
-async function sendTelegramReminder(chatId: string, title: string, body: string, subscriptionId: string) {
+async function sendTelegramReminder(chatId: string, title: string, body: string, subscriptionId: string, weeklyMonsters?: WeeklyConquestNotificationMonster[]) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
-  const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`, {
+  const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const caption = `<b>${escapeHtml(title)}</b>\n${escapeHtml(body)}\n\n#${subscriptionId.replace(/[^a-zA-Z0-9_]/g, "_")}`;
+  const media = weeklyMonsters?.map((monster, index) => ({
+    type: "photo", media: monster.iconUrl,
+    caption: index === 0 ? caption : undefined, parse_mode: "HTML",
+  }));
+  const method = media?.length ? (media.length === 1 ? "sendPhoto" : "sendMediaGroup") : "sendMessage";
+  const payload = media?.length
+    ? media.length === 1 ? { chat_id: chatId, photo: media[0].media, caption, parse_mode: "HTML" }
+      : { chat_id: chatId, media }
+    : { chat_id: chatId, text: caption, parse_mode: "HTML", disable_web_page_preview: true };
+  const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(token)}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: `*${title}*\n${body}\n\n#${subscriptionId.replace(/[^a-zA-Z0-9_:-]/g, "_")}`,
-      parse_mode: "Markdown",
-      disable_web_page_preview: true,
-    }),
+    body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    throw new Error(`Telegram send failed (${response.status})`);
+    const result = await response.json().catch(() => ({})) as { description?: string };
+    throw new Error(`Telegram ${method} failed (${response.status}): ${result.description || "No description"}`);
   }
 }
 
@@ -1894,6 +1922,29 @@ router.post("/event-reminders/send-due", async (req, res) => {
   const lookAheadMs = Math.max(60_000, Math.min(15 * 60_000, Number(req.body?.lookAheadMs || 5 * 60_000)));
   const result = await sendDueReminders(now, lookAheadMs);
   res.json({ ok: true, ...result });
+});
+
+// Operator-only preview: use the saved destination and leave scheduled delivery keys alone.
+router.post("/event-reminders/debug/test-weekly", async (req, res) => {
+  const secret = process.env.EVENT_REMINDER_CRON_SECRET;
+  if (!secret || req.header("x-cron-secret") !== secret) {
+    res.status(401).json({ error: "Unauthorized." });
+    return;
+  }
+  const store = readStore();
+  const subscription = store.subscriptions.find((entry) => entry.clientId === req.body?.clientId
+    && entry.definition.type === "weekly-conquest");
+  if (!subscription) {
+    res.status(404).json({ error: "No saved weekly conquest subscription for this client." });
+    return;
+  }
+  const now = new Date();
+  if (!weeklyConquestDetailLines(subscription, false, now)) {
+    res.status(503).json({ error: "Current conquest details are unavailable; no test was sent." });
+    return;
+  }
+  const result = await sendReminder(store, { ...subscription, title: "Weekly Conquest" }, "test", now);
+  res.status(result.failed ? 502 : 200).json({ ok: result.delivered > 0 && result.failed === 0, ...result });
 });
 
 startAutoDueScheduler();
