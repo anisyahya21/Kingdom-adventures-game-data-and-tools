@@ -24,6 +24,10 @@ try {
     assert.equal(sources.treasureSourceLabel(box.id,box.name),'Arena battle reward');
   }
   assert(!sources.getTreasureSources(729).some(s=>s.kind==='Arena'));
+  for (const [id,rate] of [[403,20],[688,1]]) {
+    assert(sources.getItemSource('S/ Wairo Shield').sources.some(s=>s.treasureId===id && s.location==='Legendary Cave' && s.rate===rate));
+    assert(sources.getTreasureSources(id).some(s=>s.location==='Legendary Cave'));
+  }
   const shield=sources.getItemSource('S/ Kairo Shield');
   assert(shield.sources.some(s=>s.title==='Legendary Cave · Exploration chest' && s.treasureId===696 && s.rate===1 && s.boxRate===undefined));
   assert.equal(sources.getTreasureSources(696).filter(s=>s.title==='Legendary Cave · Exploration chest').length,1);
