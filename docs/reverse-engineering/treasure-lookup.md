@@ -89,3 +89,177 @@ User explicitly excludes item-storage/global-item destination labels and destina
 Recovered original `monster` archive (534 members; hash/entry in `monster-source.json`). `export_monster_sprites.py` joins all 169 Monster rows through resource22 and img.inf, reconstructs OPT pixels, and exports transparent static body poses. Wait-right frame0 uses layer1 rectangle (0,60,80,60), or XL (0,150,150,150); layer0 is the separate ground shadow and is omitted. One image, all_monster_l_kairo03.png, is an unpacked 160x120 sheet without OPT. No AI-generated art. Contact sheet inspected for all monsters, including Falcone and Kairobot Mage. These are original body frames enlarged for website readability, not full animation or native draw-scale emulation.
 
 Shared mapping: `src/game-data/monster-sprites.json` through `src/lib/monster-sprites.ts`; images `public/monster-sprites/<Monster.id>.png`. Item Sources uses 112px selected-item and monster frames, 96px box frames, 64px result/contents images, and expands known source lists. Existing drop/source calculations are unchanged. Focused source checks pass; typecheck has the previously known unrelated errors and none in changed modules.
+
+
+## Area, daily rank and skill corrections — 12 September 2026
+
+New user observation (attachment B5045FCA-ECA4-40B1-A66B-D42C8CE6683A, photo1): after clearing what the user reports as level24, the game displays "D Rank Samurai Discovered! You can now start recruiting", while a chest remains on the ground. This confirms a job-recruitment discovery notification distinct from collecting the chest; it does not show a recruited resident being granted. Recovered Area row37 has level24, rewardType2, jobId71 (original Job71=C Rank Knight), treasureId295. Thus the exact level24 -> D Rank Samurai relationship disagrees with the recovered record and needs tracing/version/context reconciliation. Preserve both observations; do not overwrite the native mapping or declare automatic rewards absent. Area job reward processing remains separate from the already linked treasureId path.
+
+User gameplay observation: defeat an area's boss, clear fog, then send a unit to collect its single chest; one claim per area. Existing OpenArea evidence supports the Area.treasureId relationship. The source page now explicitly explains the observed one-time sequence instead of presenting it as an unexplained Area ID. The one-time gameplay description is user evidence, not newly established full lifecycle validation.
+
+All 49 SCORE_RANKING treasure rows now join the existing DAILY_RANK_REWARDS sourceRowId mapping. Original native UpdateBattleScoreRankingReslut 0x16ec6a4 filters flag2, week and rank via predicate 0x143d304; it selects a matching row then performs contents rolls. Predicate compares week to real day-of-week minus1 and rank to the rank field. Original #584 is Friday rank E, #591 Saturday rank E. Rank rewards are grouped under a Daily Rank Bonus section by day/rank, replacing misleading 0-source chest cards in both item search and catalog. Uses existing Ranking Board artwork as the source illustration; this is not a claim that it is the exact menu-button PNG. No physical chest acquisition is implied for daily ranks.
+
+Skill-source bug: price and crafting requirement numbers exist even on noncraftable skills. Source lookup previously interpreted their presence as craftability. Shared lib/skill-crafting.ts now reads the original-checked Skill CSV's FLAG_CRAFTABLE=2; both Skills and Item Sources use it. Removed the old page-local fallback whitelist. Myriad Arrows flags4889 does not have bit2; All-Out Sprint flags2 does. Only craftable skills get the Skill Shop crafting source; a buyPrice field alone no longer creates a shop source. Treasure reward display names now decode embedded <pic=wood> etc once in treasure-lookup.ts, keeping Wood Pouch joins and searches consistent.
+
+Gacha/conquest leads remain distinct from unknown chest identification. GachaSystem.GetPrizeData 0x158d380 directly reads Item, Equip, MapChip and Job tables (calls 0x158d50c/0x158d5a4/0x158d640/0x158d6c8). CampaignRewardCheck 0x1752790 calls ExecuteScript at0x175289c and ReceiveReward at0x17528a8; original Campaign bonusScript includes direct equipment commands (Script.Type.Equip=81), with other direct reward commands. These paths do not prove that remaining unlinked Treasure rows belong to gacha or weekly conquest. Their full reward inventory and remaining unknown treasure callers still need separate recovery.
+
+Focused checks cover every rank-flag treasure row, Friday/Saturday examples, Wood Pouch joining, and the positive/negative skill craftability cases. Production build passes; broad typecheck retains unrelated existing errors, none in the modified source/skill modules. Phone-width browser checks target the reported Wood Pouch case and Myriad Arrows; no broken images or overflow in the checked rank view.
+
+## Unresolved-group follow-up: Arena and group999 — 12 September 2026
+
+### Gacha follow-up and user screenshots
+
+#### Three-facility delivery trace
+
+Original MapChip IDs:98 Mine: Energy (Facility47),296 Cash Register (Facility234),216 Dragon Stables (Facility160). Gacha eligibility is already exported:98/296 normal,216 S-rank event. InitGacha0x16ce3f4 retrieves the selected GachaPrize data at0x16ce73c, reads GetPrizeEarnNum0x158e078, and for non-item prizes casts to IStock at0x16ce840–848, invoking slot2 AddStock at0x16ce908. GOT0x2f5d210 resolves to data.IStock_TypeInfo; metadata confirms slot2=AddStock. MapChipData.AddStock0x162d8c0 resolves facilityData and tail-calls FacilityData.AddStock0x16224b8, which updates its stock. This closes the hypothesized later conversion: the traced facility gacha delivery path does not convert to a Treasure ID.
+
+Research200 Mine: Energy has result Building command [35,98,1,1]; Research231 Dragon Stables has [35,216,1,1]. ResearchSystem.ApplyResearchResult0x15db22c reads result scripts atResearchData+0x68 and calls AppData.ExecuteScript0x167918c. ARM64 dispatch for command35 resolves via jump table0x7724e2 to0x1679fbc, which creates GetEvent type2 with the MapChip ID and quantity. UpdateGetEvent0x16e2088 resolves MapChipData and facilityData, then calls FacilityData.AddStock at0x16e2250. No Treasure conversion occurs on these research delivery paths. No Cash Register research source is established by this trace.
+
+Survey76/77/78 explicitly use Treasure806 (Survey Backpack), containing Cash Register296 at100%, quantity1. Survey79/80/81 use Treasure807 (Survey Backpack), containing Dragon Stables216 at100%, quantity1. UpdateSurveyResult0x16f860c reads rewardTreasureId+0x40 at0x16f8e54 and creates that exact treasure at0x16f8e68. These links already exist in the source lookup; they do not use generic group999 rows991/934. No Mine: Energy survey link is established here.
+
+The user's proposed source exclusivity is contradicted by the recovered Area/Treasure data: Area13 level2 -> Treasure271 -> Mine: Energy98 at100%, quantity1; Area91 level4800 -> Treasure349 -> Dragon Stables216 at100%, quantity3. These use the previously traced area-clear chest path. They are static original-data/code findings, not a new live-game observation. The generic group999 rows730/841 (Mine: Energy),934 (Dragon Stables),991 (Cash Register) remain unresolved. Matching facility identity is insufficient to attribute those rows to gacha/research/survey, and none of the newly traced delivery paths establishes that attribution.
+
+Batch B2CC6E22-A6D5-4F62-B120-6289461EC0FF shows normal equipment/facility/item probability lists and job/friend-picker lists. Photos1/2 duplicate the same equipment view. Original GachaEquip row0 display occurrence fields exactly match equipment A5.059%, B15.092%, C50.539%; GachaChip row0 matches facility A6.881%, B15.301%; GachaItem row0 matches item A6.917%, B15.021%. These are displayed rank-group figures, not individual item chances; do not use the occurrence fields as the underlying roll algorithm.
+
+Native selection: GetDuringGachaData0x158ce1c takes LastOrDefault of configurations whose BaseGacha.IsDuring0x161c240 matches real month/day. GetGachaDataArray0x158dd78 dispatches separate Job/Equip/Chip/Item/Friend tables. There are61 equipment,13 facility,1 item,68 job and1 friend configurations. Lot0x158ca04 first tries the normal group table; a failed group selection can try GroupSRankExtraRateTable and force rank6 (0x158cc90–cca4). Ordinary rank rolls use ordered Hits10000 checks, with fallback rank2 for non-job draws. GetPrizeData0x158d380 directly filters original Item/Equip/MapChip/Job records by group and rank, returning RandomOrDefault; Lot constructs GachaPrize from that data record's ID. No Treasure row is used in this traced draw-selection chain. GetPrizeEarnNum0x158e078 returns MapChip.gachaEarnNum for facilities and1 otherwise.
+
+Original examples: Equip151 S/ Yggdrasil Sword group6/rank6 is eligible during matching sword S-rank events; Equip26 A/ Light Staff group1/rank5 is normal. MapChip98 Mine: Energy group1/rank5,110 Stables group1/rank4, and34 Road group1/rank5 are normal; Road awards7. Item26 Recover Energy group1/rank5 and31 Holy Herb group1/rank4 are normal. These agree with the screenshots. Matching Treasure730/731 contents do not establish gacha use of those Treasure IDs.
+
+Shared native-gacha-sources.json exports255 equipment/facility/item candidates from original tables, with normal/event availability and quantities. Normal candidates use positive baseline groups and ranks2–5; additional event groups and S-rank extra groups are marked event-only. No live-date assumption, displayed per-item probability, job/friend eligibility export, or Treasure-ID association is added. Focused source checks verify screenshot examples, S/Yggdrasil event restriction, Road quantity7, and absence of a false gacha Treasure730 join. Thus item-source knowledge improves while unresolved Treasure-row coverage remains528. Job/friend configurations and full draw probabilities remain separate follow-ups.
+
+Native-confirmed Arena source:83 Battle Bonus rows have TreasureData.FLAG_PVP_REWARD=8. PvPBattleSystem.LotPvPReward0x15d3508 filters flag8 plus calculated reward rank through predicate0x15d4770; if empty, predicate0x15d46e0 falls back to flag8 alone. Random(pool.Count) then ElementAt chooses a row and returns its ID. SetArenaTeamAndTresure0x174ea2c calls this selector at0x174eb74. InitArenaResultReward0x16d2e44 reads the stored reward ID from PvP cache, loads that TreasureData and rolls its contents through predicates/projection0x14327ec/0x1432848. This establishes Arena/PvP identity, distinct from flag2 daily ranks and SpecialBoss group selection. Source UI links all83 with an Arena label and does not publish per-battle odds or equate reward-tier numbers with daily ranks.
+
+Group999: all505 entries named Treasure Box have exactly one reward slot at100%; all have flag0 and rank6. They span IDs729–1294 with gaps, not a contiguous505-row interval. This supports a hypothesis of specific-reward delivery records, not proof of505 independently obtainable world chests. No source is assigned by that hypothesis.
+
+Relevant native consumer: MyBilling.Provisioning0x163b0ac reads ApplyTask.provisionType_ and checks literal `treasure` at0x163b784–798. The GOT relocation at0x2f5c3b8 resolves to ScriptString0x3069458 (`treasure`). GetTaskObjectId0x163be34 parses the integer suffix after that tag. Provisioning loads the supplied Treasure ID at0x163b7d8, rolls its slots via0x163c730/0x163c78c and opens the result with CreateTreasureBoxOpen0x163b9d0. This is a generic task-driven delivery path, NOT evidence that every group999 ID is sold, currently obtainable, or belongs to any particular offer/event. Exact task-to-ID records have not been recovered. Do not label all505 as purchases, gacha, or weekly conquest. Previous Gacha direct-data and Campaign script findings still apply; matching reward contents alone is insufficient.
+
+Seven remaining unlinked Battle Bonus rows are702,703,705,706,707,708,709 (flag4; groups1103,1200,1201,1202). These are not flag8 Arena rewards. Current original SpecialBoss records do not reference those groups; Legendary Cave references704 in group1200 but not705. Do not fill these gaps using neighboring names or assumed event difficulty patterns.
+
+After the Arena links:767/1295 entries have at least one source;528 remain unlinked (505 Treasure Box,7 Battle Bonus,16 other entries). Evidence inventory: RE-evidence/20260911-treasure/source-coverage-arena.json; focused disassembly in the same folder. Known-source coverage is not proof of all possible acquisition routes. Focused source checks pass; production build passes; typecheck retains unrelated existing errors and no errors in changed source modules. Changes remain local, not deployed.
+
+## Legendary Cave / endless dungeon trace — 12 September 2026
+
+Original MapChip row258 names Legendary Cave and uses category91; native MapChipData defines CATEGORY_DUNGEON_ENDLESS=91. Original Dungeon rows100–109 are the ten FLAG_ENDLESS=1 records. Initial entry/category routing is now traced in the follow-up below.
+
+Confirmed native next-floor behavior: DungeonConquestSystem.ReStartEndlessDungeon 0x153ec38 filters DungeonData using predicate0x155cc6c (BaseData.Check(1)), shuffles matching records and takes FirstOrDefault at0x153f074–084. It increments depth and assigns the selected record ID, then regenerates objects via PlaceDungeonObjects0x154274c. Thus these are random floor templates, not ten fixed floor-number ranges.
+
+The original records' ordered treasure lists are:
+
+| Dungeon record | First chest | Second chest | Third chest |
+| --- | --- | --- | --- |
+| 100 | 394 | 424 | 688 |
+| 101 | 403 | 433 | 680 |
+| 102 | 409 | 439 | 696 |
+| 103 | 415 | 445 | 704 |
+| 104 | 392 | 422 | 712 |
+| 105 | 398 | 428 | 720 |
+| 106 | 407 | 437 | 688 |
+| 107 | 402 | 432 | 680 |
+| 108 | 408 | 438 | 696 |
+| 109 | 417 | 447 | 704 |
+
+Each list uses ordered checks65,25,1. PlaceTreasures0x15432dc tries each check in order and retries the list when all fail; these values are not directly the final chest probabilities. There are26 distinct listed treasure IDs: ten Black Treasure Chest variants, ten Gold Treasure Chest variants and six Battle Bonus variants. Internal Battle Bonus naming does not imply an exclusive Kairo/Wairo source.
+
+All ten records also specify rewardTreasure728. PlaceDungeonObjects0x15429d8–0x1542a34 reads that field and creates the end-position treasure; #728 contains Copper Coin at100%, quantity1–3. The placement routine requests one random route chest (min/maxTreasureHitCount both1) and separately creates the end chest. This does not yet explain every chest the user observes: monster drops, initial entry and collection/exit lifecycle still require tracing. Do not publish a total chests-per-floor guarantee from these two creation paths alone.
+
+Evidence disassembly is in RE-evidence/20260911-treasure/{153ec38,155cc6c,154274c,15432dc,16891e8}.asm. No instrumented gameplay validation; no Legendary Cave UI changes or deployment in this research pass.
+
+### User gameplay corroboration: two chests and Kairo Shield
+
+Follow-up recovery closes entry and collection links: FacilitySystem.OnButtonTouch0x1573e98 calls MapChipData.get_IsDungeonEndless0x162d774 (category91), filters DungeonData with FLAG_ENDLESS via predicate0x15782b0, shuffles and selects a row at0x1575414–424, then assigns its ID to the new conquest at0x1575460. Normal cave placement (category34 at0x15447dc) calls AddConquest0x15423cc: area at the cave cell -> AreaData.dungeonId+0x68 -> conquest dataId+0x38. No inference from matching contents is needed for these routes.
+
+Collection preserves identity: Update0x153c0e0–100 reads TreasureComponent.dataId+0x10 into gotTreasureDataIds+0x68. Dequeue at0x153bcb0/0x153c08c passes this ID to FireTreasure0x153e478; the unchanged ID is passed to World.CreateTreasure0x153e5ec. There is no replacement reward table in this handoff. Full failure/cancellation and skill-modifier behavior remains outside this trace.
+
+Implementation: native-caves.json contains110 original Dungeon records and100 original Area joins, generated by export_caves.py; every exported area field is checked against Area_lookup.csv. Shared item-sources.ts now links exploration and completion entries separately, replacing generic dungeon-row labels. Legendary Cave has27 distinct linked treasure entries with its existing source artwork. Normal caves show their area ID and level; normal cave appearance variants are not guessed from area terrain. Contents rates remain separate from unpublished ordered-selection odds. Focused tests cover shield696, deduplication,27 cave entries, completion728, and area0 exploration358/completion448.
+
+User normal-cave attachment batch2BAAC1C5-E12B-464D-85F7-8AB5A7F053B7: photos3–5 show blue exploration chests; photo8 shows the white end chest with counter5. Photo2 also shows a white end chest. User reports normal caves finish after one floor, unlike Legendary Cave. White is appearance only and does not imply shared contents. Photos6/7 repeat earlier Legendary Cave observations. User describes Wairo's fixed cardboard-box appearance and Kairo's fixed yellow-box appearance; these are gameplay observations useful for excluding inconsistent candidate sources, not a substitute for explicit ID links.
+
+Attachment batch 0DB6DE09-6489-49D6-BB2E-CE7002832192 (12 September): photos9/10 show B1F75% with a black chest; photo1 shows B1F100% with a pale chest and counter1. Photo2 shows B2F99%, pale chest, counter3; photo3 B3F100%, pale chest, counter5. Photo4 B4F30%, black chest, counter6; photo5 B4F100%, pale chest (counter obscured). Photo6 B5F25%, black chest, counter8; photo7 B6F100%, pale chest, counter11; photo8 B10F65%, gold chest, counter18. Photos9/10 repeat the same visible state and are not independent samples. These observations strongly corroborate one variable route chest plus one pale end chest per floor in the observed run, matching the two native placement paths. Screenshots do not identify a particular reward-table variant by appearance alone or establish a shield drop rate.
+
+User reports Legendary Cave as a good source of S/ Kairo Shield. The extracted chest contents independently support an acquisition path: Dungeon102 or108 -> Treasure696 (internal name Battle Bonus) -> equipment200 S/ Kairo Shield, slot rate1%, quantity1. Among the26 route chest IDs plus728, only696 contains that named shield. The1% is conditional on analyzing chest696, not a per-floor chance. Its table-selection check is also1 but is a different, ordered selection stage; never conflate these percentages. This supports a Legendary Cave source label despite the generic Battle Bonus internal name. Daily rank classification continues to use explicit rank/day flags and source joins, not similar contents or artwork.
+
+### Purchase and gift provisioning input trace (12 September 2026)
+
+Static native evidence establishes a server-fed gift route into the treasure provisioner, but no exact unresolved treasure ID was recovered from an actual offer/gift record. Coverage remains 767/1,295 linked; 528 unresolved. Do not label the generic rows as paid purchases or gifts merely because this handler can accept them.
+
+- `MyBilling.GetBillingTable` 0x163a2b0 constructs seven built-in diamond products: dia_200_case0, dia_1000_case0, dia_3600_case0, dia_8000_case0, dia_400_case0, dia_1200_case0, dia_1500_case0. This table contains no treasure products.
+- `BillingItem.Init` 0x163f964 parses underscore-separated product fields. `ApplyTask.Init` 0x163ec28 copies BillingItem provisioning fields for purchases; its separate gift branch parses comma-separated product/display-name text, then splits the product on `_` into provisionType and provisionValue. The value recognizes on/off or an integer. `GetTaskObjectId` 0x163be34 searches provisionType for `treasure` and parses the following substring as the ID. `treasure730_1,Example` is an illustrative parser shape, NOT a recovered gift record or proof of quantity semantics.
+- `MyBilling.Provisioning` 0x163b0ac, treasure branch 0x163b784..0x163b9e8, loads the exact indexed TreasureData row, builds a reward queue through its chance delegates, and invokes CreateTreasureBoxOpen. This branch does not read task.provisionValueI (+0x48), so the second token should not be advertised as a treasure multiplier.
+- `SubForm.Run` 0x173e520 calls `KairoBase.ConnectGift` at 0x173e554 and stores the returned string array at +0x4a0. `UpdateGiftThread` 0x173aa5c converts these strings to ApplyTask at 0x173abc4, checks Enable, then AddApplyTask / UpdateApplyTask.
+- `KairoBase.ConnectGift` 0x2410bb8 builds a query using key `pw`, concatenates `gift.php`, calls Connect at 0x2410ce0, and splits the returned text on newlines. Endpoint name, query key and delimiter are original ScriptString literals resolved through ELF relocations. No network requests or gift redemption were attempted.
+- `GameForm.UpdateNotifyValue` 0x16bbc34 also feeds qualifying NotifyManager values into the gift-string ApplyTask constructor at 0x16bbe00. This establishes another input channel, not the identities of its actual rewards.
+- Direct B/BL caller inventory also finds purchase registration, purchase restoration, saved-task loading and BillingForm gift handling. This inventory is not exhaustive coverage of dynamic dispatch.
+
+Search results: zero `treasure` immediately followed by numeric-ID string literals in ScriptString; zero corresponding byte-pattern matches across 104 extracted original-table files and 1,224 APK asset members. Raw-member searching does not decode every proprietary/compressed inner resource and cannot prove the records never existed. No captured gift response was located in the current evidence inventory. Actual server response or saved gift/task records are required to associate this route with specific IDs; even a current response may not explain historical records.
+
+Evidence: workspace `RE-evidence/20260911-treasure/{trace_provision_inputs.py,check_provision_records.py,provision-record-search.txt,provision-callers.txt,provision-trace.txt,gift-network-trace.txt}` and address-named disassemblies. Next useful work is inspecting an available local game save/notification cache or authorized captured gift response for exact records; do not manufacture or submit gift strings to test the server.
+
+### Gacha chest presentation trace (12 September 2026)
+
+User screenshots show ten facility prizes displayed over open rank-coloured chests; Dragon Stables and high-grade storehouses have S/rainbow presentation. User reports ticket singles and diamond singles/tens. Native code confirms the common draw path and a rank-based graphic selector; it does NOT connect this presentation to the 505 generic TreasureData records.
+
+- `GachaPrize` contains only DataType (+0), DataId (+4), Rank (+8). Rank constants D=2, C=3, B=4, A=5, S=6.
+- `DrawGacha` 0x171258c reads each GachaPrize from the result vector at +0x260 and passes it, plus the open-state boolean, into `DrawGachaCapsules` at 0x1712c58. It separately draws the actual equipment/item/human/map-chip reward and its name using the prize data.
+- `DrawGachaCapsules` 0x1765bac computes `2 * max(Rank - 2, 0) + isOpen` (0x1765c24..0x1765c64). Thus D uses frames0/1, C2/3, B4/5, A6/7, S8/9. It calls DrawSebImg with SEB3 and image7, or image8 for DataType11. No TreasureData read or prize-DataId-based chest lookup occurs in this complete helper. Colour names are screenshot observations; frame selection is native evidence.
+- `UpdateGachaCountSelect` 0x16e8dd8: single option first attempts UseGachaTicket(type,1) at 0x16e8e78; if unsuccessful, it computes/pays the one-draw currency cost. Both reach CreateGacha with count1. Ten option computes/pays cost for10 and reaches the same CreateGacha at 0x16e9010 with count10; it does not call UseGachaTicket in that branch.
+- `CreateGacha` 0x1765ab4 constructs the same form type0x36 and stores prize type +0x14c and count +0x150. The already traced InitGacha performs the draw and direct reward delivery. Payment choice does not introduce a separate treasure-record presentation path here.
+
+Conclusion: gacha visibly opens chests, but this recovered renderer uses rank-indexed animation frames, not generic treasure IDs. The screenshots therefore do not resolve those IDs. Counts remain unchanged. This is static native analysis, not an instrumented original-game run. Evidence: address-named disassemblies plus gacha-render-trace.txt and gacha-create-trace.txt under workspace RE-evidence/20260911-treasure. No website changes were made for this finding.
+
+### Generic record structure and loader audit (12 September 2026)
+
+Confirmed from original Treasure.txt rows and native TreasureData.Load 0x1633e18: group999's 505 records already exist in the bundled table. The row loader sequentially reads ID/name/numeric fields through StringArrayStream, including the final flag; it does not synthesize these records from gacha prizes. This establishes their static origin, not whether every row is used at runtime.
+
+| Treasure IDs | Count | Positive reward payload |
+| --- | ---: | --- |
+| 729 | 1 | S/ Yggdrasil Sword (equipment151), x1 |
+| 730-732 | 3 | Mine: Energy98, Stables110, Monster Feed128; x1 each |
+| 733-754 | 22 | Copper Coin12, x1-3; all 22 original rows identical except ID |
+| 816-998 | 183 | Furniture/facility MapChip IDs in strictly increasing order, from29 to304 with gaps; x1 |
+| 999-1294 | 296 | Every equipment ID17-312 in exact order, x1; treasureId = equipmentId + 982 |
+
+All 505 have name Treasure Box, res27, image54, group999, minLevel=maxLevel=hp=1, rank6, week-1, flag0, and one positive 100% reward lane. Correction to earlier shorthand: they are NOT all quantity-one rewards, because the 22 Copper Coin definitions specify1-3.
+
+Equipment table has313 rows (IDs0-312). IDs0-16 excluded from the large block are Bare-Handed, three No Equipment entries, and worker tools. The block contains all seven equipment ranks, including28 F and37 E entries. Its complete equipment-catalog coverage and uniform chest appearance differ from both gacha eligibility and rank-based gacha presentation.
+
+Against the recovered normal/event gacha candidate union, generic rows match123 equipment +100 furniture rows;174 equipment +86 furniture +22 coin rows do not match. Matching reward contents still does not establish a treasure-ID consumer. No job rewards occur in this group. Count terminology:505 records are not505 distinct rewards or505 proven obtainable chests.
+
+Strongly supported interpretation: these blocks are catalog-like generic reward definitions, broader than gacha. Unknown: intended consuming feature, active/legacy status, whether definitions were originally author-generated, and actual runtime use of each ID. Do not label them gacha, gift, purchase, or unused without a concrete reference. Keep the acquisition-source count unchanged (528 unresolved records overall), and keep known direct item sources separate from unresolved duplicate definitions.
+
+Deterministic checks: check_generic_records.py passes against original raw rows, confirms the equipment offset for all296 entries and22 byte-equivalent parsed coin rows apart from ID. Evidence under workspace RE-evidence/20260911-treasure: analyze_generic_records.py, generic-record-blocks.json, check_generic_records.py, generic-record-check.txt, treasure-loader-trace.txt,1633e18.asm. No website data or UI changes in this audit.
+
+### Production/plot observations follow-up (12 September 2026)
+
+- Both original Treasure.txt and the CSV agree:806/807 are Survey Backpack (Cash Register / Dragon Stables), while816/817 are Treasure Box (Land S/M). No name discrepancy was found in these local versions; an external screenshot showing other IDs would need comparison against its version.
+- House setup0x15a683c uses PlaceChip calls at15a6a3c,15a6b84,15a6ce0,15a6e3c,15a6fc0. This supports automatic plot-component placement already recovered in the building work; no generic treasure conversion appears in this setup method. This does not validate the user's separate daycare/third-town unlock claim, which remains untraced.
+- AISystem.UpdateCraft0x14a51d4 calls World.CreateProduct at14a688c with type, ID, quantity1. World.CreateProduct0x147941c loads collection/equipment/mapchip/item/skill data and attaches stock via AddStock1479828. Neither traced method calls TreasureData or CreateTreasure. The recovered crafting-product path is not an invisible TreasureData reward. Other branches and eligibility should not be inferred from this fact alone.
+- New explicit table references: Cooking160/161 group200 is referenced by Terrain139; Meat162/163 group201 by Terrain140. Both terrain records have category1, dataId-1, drop rate1000 and count range1-2. The existing website deliberately links only category0 gathering terrain, so these references do not currently appear as resolved gameplay sources. Their category1 creation/consumption route must be traced before naming a cooking facility or ordinary digging as the source. This is a stronger lead than the reward names alone.
+- Remaining Battle Bonus groups1103/1200/1201/1202 have no original SpecialBoss match; unchanged from the prior native audit. Similar rewards do not establish a current Kairo/Wairo encounter.
+
+Evidence: production-methods.txt, craft-house-trace.txt, product-create-trace.txt,14a51d4.asm,15a683c.asm,147941c.asm under RE-evidence/20260911-treasure. No website code changes or linked-count changes in this follow-up. Next specific target: category1 Terrain139/140 creation and harvesting, including why dataId is -1; map-facility/reclaimed-land/daycare unlock specifics remain pending.
+
+### Map cooking characters: native source connection (12 September 2026)
+
+The user's website-map screenshot suggests the cooking characters. Visual inspection of nature/human_02.png confirms the white-hatted pot chef; human_03.png depicts the roasting character. Original Terrain139 references resource20/image59 -> human_03.png, natureGroup1, treasure group200 -> Cooking160/161. Terrain140 references resource20/image58 -> human_02.png, natureGroup2, treasure group201 -> Meat162/163. The apparent pot/meat and roast/soup mismatch is in the recovered data; do not silently swap the reward groups to match visual expectations.
+
+Native selector closed: AISystem.GetTerrainData0x148cdb4 obtains a tile's nature entity through MaterialSystem.GetNature. When present, predicate14da20c matches candidate Terrain.natureGroupId(+0x2c) to the base tile's terrain natureGroupId, and candidate Terrain.img(+0x34) to nature ImageComponent.texId. It does not exclude category1. Precise correction to shorthand 'ground type': this field is natureGroupId, not Terrain.type. A failed match falls back to the base map chip's terrain.
+
+ScrGather0x1485d2c obtains this selected terrain at1486bc0, tests itemDropRate through Hits1000 at1486d6c, and filters TreasureData using predicate14da558: matching dropGroupId plus inclusive area-level bounds. It then creates the selected treasure at1486f8c. The original rows160-163 have levels1-999. Thus these four entries have a statically traced gathering source associated with the matching map nature character; they are not supported as player-built cooking-facility output.
+
+Focused check_cooking_map_sources.py passes the original row/group/image/range assertions and writes cooking-map-source-check.json. Existing source-index logic excludes category1 in gatheringTerrains, explaining the missing website links. Website linked count still reads767/528 until this category is integrated with an appropriate label; research has now established these four conditional source connections, leaving524 previously unresolved records without such a connection. No live gameplay interaction or global spawn-frequency validation was performed. Map placement/availability of every instance and post-level999 behaviour remain outside this trace. Do not extrapolate this finding to all category1 records without auditing them.
+
+Evidence:148cdb4.asm,14da20c.asm,14da558.asm,1485d2c.asm,nature-predicates.txt,gather-terrain-trace.txt,scr-gather-trace.txt and cooking-map-source-check.json under RE-evidence/20260911-treasure. No website code changes this turn.
+
+### Controlled storage comparison (12 September 2026)
+
+High Grade Storehouse (Wood): original MapChip269 -> Facility207, gacha group1/rank6/quantity1. Original Survey1,12,23 explicitly use rewardTreasureId756; original Treasure756 is Survey Backpack containing MapChip269 x1 at100%. Generic Treasure971 independently contains the same MapChip269 x1. The previously closed survey delivery creates its explicit rewardTreasureId (756); facility gacha selects the MapChip candidate and calls MapChipData.AddStock -> FacilityData.AddStock. That terminal method only checks its flag/cap and updates stock; no generic treasure or separate discovery conversion occurs there. No971 reference was established in either route. This comparison does not exclude every possible consumer elsewhere.
+
+Indoor Storage (Wood): original MapChip139 -> Facility94, gacha group-1/rank0; absent from the recovered positive gacha pool. Original House5 (Furniture Shop) has storage139 in the parsed fixed-component fields. SetupHouse's already traced PlaceChip path places initial components directly. Generic Treasure881 nevertheless contains MapChip139 x1, with the same generic metadata as971. This is a counterexample to treating every generic record as a gacha reward.
+
+Across high-grade storehouses, generic970-978 map to MapChip268-276, while Survey Backpacks755-763 contain those same IDs. All nine MapChips are recovered S-event gacha candidates. These are distinct IDs and paths, not interchangeable wrappers. Additional original area chests348/350/351 contain high-grade Item/Energy/Mystic Ore storehouses respectively, x3; do not state a universal survey/gacha-only restriction for the entire family in this recovered version.
+
+Conclusion: gacha is a confirmed source for the high-grade storage ITEM, but no generic Treasure971 link was found. The catalog includes both gacha-eligible and automatically placed components. Generic records remain unclassified, rather than being marked gacha or unused. Counts unchanged by this comparison. Static table/code evidence, not live validation; no website changes. Inputs checked: original MapChip/House/Survey/Treasure, native-gacha-sources.json, and prior disassemblies162d8c0/16224b8/16ce3f4/16f860c/15a683c.
+
+### Known-source presentation (12 September 2026)
+
+User explicitly deferred unexplained generic definitions and requested known sources including gacha. Item search now only renders containing boxes with a matching acquisition link; the collapsed unlinked-box list is removed. Direct sources (including existing recovered gacha eligibility) remain visible and included in the displayed entry count. Full raw definitions remain in the renamed Treasure data lookup mode. Focused source checks and production build pass; broad typecheck retains unrelated existing errors. Local change, not pushed.

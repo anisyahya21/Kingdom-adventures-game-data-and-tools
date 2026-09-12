@@ -1,3 +1,4 @@
+import { isSkillCraftable } from "@/lib/skill-crafting";
 import { useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -27,14 +28,6 @@ type Skill = {
   flags?: number;
 };
 
-function isSkillCraftable(skill: Skill) {
-  if (typeof skill.flags === "number") {
-    return Boolean(skill.flags & 2);
-  }
-  const name = skill.name.trim();
-  if (/^Chat\b/i.test(name)) return true;
-  return CRAFTABLE_SKILL_NAMES.has(name);
-}
 
 function getSkillTypeLabel(skill: Skill) {
   if (typeof skill.flags === "number") {
@@ -71,104 +64,6 @@ function getSkillTypeLabelByName(skillName: string) {
 
   return undefined;
 }
-
-const CRAFTABLE_SKILL_NAMES = new Set([
-  "2-Hit Attack",
-  "3-Hit Attack",
-  "4-Hit Attack",
-  "5-Hit Attack",
-  "Agriculturist",
-  "Aid Specialist",
-  "All-Out Sprint",
-  "Area Attack Ⅰ",
-  "Area Attack Ⅱ",
-  "Arrow Rain",
-  "Auto Recovery HP",
-  "Auto Recovery MP",
-  "Auto Recovery Vigor",
-  "Axe Resistance",
-  "Backup",
-  "Battle Maniac",
-  "Book Resistance",
-  "Bow Resistance",
-  "Chat Ⅰ",
-  "Chat Ⅱ",
-  "Chat Ⅲ",
-  "Club Resistance",
-  "Construction Chief",
-  "Counter",
-  "Craftsmanship",
-  "Craftsmanship Ⅱ",
-  "Craftsmanship Ⅲ",
-  "Craftsmanship Ⅳ",
-  "Craftsmanship Ⅴ",
-  "Critical UP",
-  "Culinarian",
-  "Daring Charge",
-  "De-Fogger",
-  "Deployment Discount Ⅰ",
-  "Deployment Discount Ⅱ",
-  "Deployment Range Ⅰ",
-  "Deployment Range Ⅱ",
-  "Direct Attack Ⅰ",
-  "Dodge UP",
-  "Domestic Production",
-  "Experience UP Ⅰ",
-  "Experience UP Ⅱ",
-  "Experience UP Ⅲ",
-  "Facility Rec. UP HP",
-  "Facility Rec. UP MP",
-  "Facility Rec. UP Vigor",
-  "Fire Magic Ⅰ",
-  "Fire Magic Ⅱ",
-  "Fire Magic Ⅲ",
-  "Fire Magic Ⅳ",
-  "Gun Resistance",
-  "Half Reflect",
-  "Hammer Resistance",
-  "Heal L",
-  "Heal M",
-  "Heal Maddy",
-  "Ice Magic Ⅰ",
-  "Ice Magic Ⅱ",
-  "Ice Magic Ⅲ",
-  "Ice Magic Ⅳ",
-  "Insta-Move",
-  "Instant Construction",
-  "Instant Treasure Analysis",
-  "Instant Weeding",
-  "Instant Workshop",
-  "Instinct",
-  "Leading the Charge",
-  "Lightning Magic Ⅰ",
-  "Lightning Magic Ⅱ",
-  "Lightning Magic Ⅲ",
-  "Lightning Magic Ⅳ",
-  "Miner",
-  "Move Speed UP",
-  "Parry",
-  "Perfect Dodge",
-  "Ranch Know-How",
-  "Research",
-  "Research Ⅱ",
-  "Research Ⅲ",
-  "Research Ⅳ",
-  "Research Ⅴ",
-  "Revive 50%",
-  "Round Trip",
-  "Shield Resistance",
-  "Skilled Craftsman Ⅰ",
-  "Skilled Craftsman Ⅱ",
-  "Spear Resistance",
-  "Staff Resistance",
-  "Stealth",
-  "Strategic Retreat",
-  "Stubborn",
-  "Sword Resistance",
-  "Thief",
-  "Transport Corps",
-  "Treasure Analysis",
-]);
 
 const SKILL_TYPE_BY_NAME = new Map<string, "Attack" | "Attack Magic" | "Recovery magic">([
   ["<0>-Hit Attack", "Attack"],

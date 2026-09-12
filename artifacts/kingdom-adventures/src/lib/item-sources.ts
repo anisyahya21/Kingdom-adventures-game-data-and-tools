@@ -1,17 +1,19 @@
 import itemCsv from "../../../../data/Sheet csv/KA GameData - Item.csv?raw";
 import areaCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Area_lookup.csv?raw";
 import surveyCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Survey.csv?raw";
-import dungeonCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Dungeon.csv?raw";
+import caves from "@/game-data/native-caves.json";
+import gachaSources from "@/game-data/native-gacha-sources.json";
 import facilityCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Facility_lookup.csv?raw";
 import { DAILY_RANK_REWARDS } from "@/game-data/daily-rank-rewards";
+import { getSkillCrafting } from "@/lib/skill-crafting";
 import { localSharedData } from "@/lib/local-shared-data";
 import { parseCsv } from "@/lib/monster-truth";
 import { gatheringTerrains, TREASURE_TERRAIN_NAMES, TREASURE_BOXES, TREASURE_MONSTERS, TREASURE_SPECIAL_BOSSES, specialBossDay } from "@/lib/treasure-lookup";
 
-export type SourceKind = "Monster" | "Terrain" | "Area reward" | "Survey" | "Dungeon" | "Kairo Room" | "Wairo Dungeon" | "Daily Rank Reward" | "Item Shop" | "Restaurant" | "Orchard" | "Skill Shop" | "Skill crafting" | "Crafting" | "Treasure table";
+export type SourceKind = "Monster" | "Terrain" | "Area reward" | "Survey" | "Dungeon" | "Gacha" | "Arena" | "Kairo Room" | "Wairo Dungeon" | "Daily Rank Reward" | "Item Shop" | "Restaurant" | "Orchard" | "Skill Shop" | "Skill crafting" | "Crafting" | "Treasure table";
 export type SourceTargetType = "item" | "skill" | "equipment" | "furniture" | "job" | "valuable";
 export type SourceTarget = { name: string; type: SourceTargetType; sources: ItemSource[] };
-export type ItemSource = { kind: SourceKind; title: string; details: string; confidence: "confirmed" | "derived"; key: string; treasureId?: number; monsterName?: string; minLevel?: number; maxLevel?: number; rate?: number; quantity?: string; location?: string; terrainType?: number; boxRate?: number; boxDetails?: string; day?: string; difficulty?: string; href?: string };
+export type ItemSource = { kind: SourceKind; title: string; details: string; confidence: "confirmed" | "derived"; key: string; treasureId?: number; monsterName?: string; minLevel?: number; maxLevel?: number; rate?: number; quantity?: string; location?: string; terrainType?: number; boxRate?: number; boxDetails?: string; day?: string; difficulty?: string; rankLabel?: string; oneTime?: boolean; sourceImage?: string; href?: string };
 
 const clean = (value: unknown) => String(value ?? "").trim();
 const number = (value: unknown, fallback = 0) => { const n = Number(value); return Number.isFinite(n) ? n : fallback; };
@@ -63,9 +65,28 @@ function addDirectTreasure(raw: string, headerRow: number, idField: string, kind
   const rows = parseCsv(raw); const header = headers(rows, headerRow); const idIndex = index(header, idField); if (idIndex < 0) return;
   for (const row of rows.slice(headerRow + 1)) { const treasure = treasures.get(number(row[idIndex], -1)); if (treasure) addTreasureRewards(treasure, kind, title(row, header), details(row, header)); }
 }
-addDirectTreasure(areaCsv, 0, "treasureId", "Area reward", (r,h) => `Area #${val(r,h,"id")} (level ${val(r,h,"level")})`, (r,h) => `Area table reward link on ${TREASURE_TERRAIN_NAMES[number(val(r,h,"terrain"))] ?? "unmapped terrain"}. The award trigger still needs tracing.`);
+addDirectTreasure(areaCsv, 0, "treasureId", "Area reward", (r,h) => `Clear area #${val(r,h,"id")} · Level ${val(r,h,"level")}`, (r,h) => `Defeat this area’s boss to clear the fog, then send a unit to claim the chest. One chest per area, claimed once. Terrain: ${TREASURE_TERRAIN_NAMES[number(val(r,h,"terrain"))] ?? "unmapped"}.`);
 addDirectTreasure(surveyCsv, 0, "rewardTreasureId", "Survey", (r,h) => val(r,h,"nameText").replace("<0>",val(r,h,"nameArg")) || `Survey #${val(r,h,"id")}`, (r,h) => `${TREASURE_TERRAIN_NAMES[number(val(r,h,"terrain"))] ?? "Unmapped terrain"}, area level ${val(r,h,"minAreaLevel")}+. Survey #${val(r,h,"id")}; success check, costs, time and reward limits are separate from the contents roll.`);
-addDirectTreasure(dungeonCsv, 0, "rewardTreasure", "Dungeon", (r) => `Dungeon completion reward #${r[0]}`, () => "Completion reward link in the dungeon table. The dungeon's location and internal treasure encounters need a separate trace.");
+for (const dungeon of caves.dungeons) {
+  const endless=(dungeon.flag & 1)!==0;
+  const locations=endless ? [{id:-1,level:0}] : caves.areas.filter(area=>area.dungeonId===dungeon.id);
+  for (const area of locations) {
+    const place=endless ? "Legendary Cave" : `Normal cave · Area #${area.id} · Level ${area.level}`;
+    const extra={location:place, sourceImage:endless ? "/website_icons/facilities_confirmed/facility_196_legendary_cave.png" : undefined};
+    for (const [id,check] of dungeon.treasureTable[0]) {
+      const treasure=treasures.get(id);
+      if (!treasure || check<=0) continue;
+      addTreasureRewards(treasure,"Dungeon",`${place} · Exploration chest`,
+        endless ? "One exploration chest per floor, selected from the randomly chosen floor configuration. This box is one possible result. Selection uses ordered checks; the contents percentage is not a per-floor chance. Collected boxes retain their treasure ID when released outside the cave for analysis."
+        : `Explore the cave in this area. Its configuration places ${range(String(dungeon.minChests),String(dungeon.maxChests))} exploration chests, selected using ordered checks. This box is one possible result; its contents percentage is not its appearance chance. The white completion chest is separate.`,
+        "derived",extra);
+    }
+    const completion=treasures.get(dungeon.rewardTreasure);
+    if (completion) addTreasureRewards(completion,"Dungeon",`${place} · White completion chest`,
+      endless ? "Reach the end of a floor to collect its white completion chest, then continue to the next floor. This chest is separate from the floor's exploration chest. White is the appearance; this entry lists the actual contents."
+      : "Finish this area's single-floor cave to collect its white completion chest. Exploration chests are separate. White is the appearance; different caves can use different reward entries.","derived",extra);
+  }
+}
 
 for (const boss of TREASURE_SPECIAL_BOSSES) {
   const pool = [...treasures.values()].filter(t => t.group === boss.rewardGroup);
@@ -78,15 +99,43 @@ for (const boss of TREASURE_SPECIAL_BOSSES) {
       href:kind === "Kairo Room" && day ? `/kairo-room#kairo-room-${day.toLowerCase()}` : undefined});
 }
 
+// LotPvPReward filters FLAG_PVP_REWARD=8 and the calculated reward tier.
+// The fallback pool also requires flag8. A generic Battle Bonus name is insufficient.
+for (const box of TREASURE_BOXES.filter(box=>(box.flag & 8)!==0)) {
+  const treasure=treasures.get(box.id);
+  if (treasure) addTreasureRewards(treasure,"Arena","Arena battle reward",
+    "Possible Arena (PvP) reward. The game selects one reward entry from a pool determined by battle-rank conditions, then rolls that entry’s contents. The contents percentage is not the chance per battle. This is separate from the daily rank bonus.",
+    "derived",{location:"Arena (PvP)"});
+}
+
+for (const reward of gachaSources) add(reward.name,reward.type as SourceTargetType,{
+  kind:"Gacha",title:reward.title,confidence:"derived",quantity:String(reward.quantity),
+  details:reward.availability==="normal"
+    ? `Included in the normal ${reward.title.toLowerCase()} pool. Receive ${reward.quantity} when selected. Active events can change the pool and probabilities; check the in-game probability list.`
+    : `Available during matching ${reward.rank===6 ? "S-rank " : ""}${reward.title.toLowerCase()} events in the recovered schedule. Receive ${reward.quantity} when selected. Availability depends on the active event; check the in-game probability list.`,
+});
+
 const items = parseCsv(itemCsv); const itemHeader = headers(items, 1); const flags = index(itemHeader, "flag"); const craftGroup = index(itemHeader, "craftGroup");
 const facilities = parseCsv(facilityCsv); const facilityHeader = headers(facilities); const facilityCraft = index(facilityHeader, "craftGroup"); const facilityName = index(facilityHeader, "name"); const facilityByGroup = new Map<string, string[]>();
 if (facilityCraft >= 0 && facilityName >= 0) for (const row of facilities.slice(1)) { const group = clean(row[facilityCraft]); if (group !== "-1" && group) facilityByGroup.set(group, [...(facilityByGroup.get(group) || []), clean(row[facilityName])]); }
 for (const row of items.slice(2)) { const name = val(row, itemHeader, "name"); if (!name) continue; const flag = flags >= 0 ? number(row[flags]) : 0; const group = craftGroup >= 0 ? clean(row[craftGroup]) : "-1"; if (flag & 128) add(name, "item", { kind: "Item Shop", title: "Item Shop", details: "Available through the item shop data flag", confidence: "confirmed" }); if (flag & 1024) add(name, "item", { kind: "Restaurant", title: "Restaurant", details: "Available through the restaurant data flag", confidence: "confirmed" }); if (group === "70") add(name, "item", { kind: "Orchard", title: "Orchard", details: "Produced by orchard craft group 70", confidence: "confirmed" }); else if (group !== "-1" && group !== "") for (const facility of new Set(facilityByGroup.get(group) || [])) add(name, "item", { kind: "Crafting", title: facility, details: `Item.csv craft group ${group}`, confidence: "derived" }); }
 
 const skills = (localSharedData.skills || {}) as Record<string, { name?: string; buyPrice?: number; studioLevel?: number | null; craftingIntelligence?: number | null }>;
-for (const skill of Object.values(skills)) { if (!skill.name) continue; if (skill.buyPrice != null && skill.buyPrice > 0) add(skill.name, "skill", { kind: "Skill Shop", title: "Skill Shop", details: `Buy price ${skill.buyPrice}`, confidence: "confirmed" }); if (skill.studioLevel != null || skill.craftingIntelligence != null) add(skill.name, "skill", { kind: "Skill crafting", title: "Skill Studio", details: `Studio level ${skill.studioLevel ?? "-"}; crafting intelligence ${skill.craftingIntelligence ?? "-"}`, confidence: "confirmed" }); }
+for (const skill of Object.values(skills)) {
+  if (!skill.name) continue;
+  const crafting=getSkillCrafting(skill.name);
+  if (crafting) add(skill.name,"skill", {kind:"Skill crafting",title:"Skill Shop",details:`Craft at shop level ${crafting.studioLevel} with ${crafting.intelligence} intelligence.`,confidence:"confirmed",href:"/skills"});
+}
 
-for (const day of DAILY_RANK_REWARDS) for (const reward of day.rewards) { const fields: Array<[string, string, SourceTargetType]> = [["weapon", reward.weapon, "equipment"], ["armor", reward.armor, "equipment"], ["shield", reward.shield, "equipment"], ["overallItem1", reward.overallItem1, "item"], ["overallItem2", reward.overallItem2, "item"], ["ticket", reward.ticket, "item"], ["skill", reward.skill, "skill"]]; for (const [slot, name, type] of fields) if (name) add(name, type, { kind: "Daily Rank Reward", title: `${day.day} rank ${reward.rankLabel}`, details: `${slot}; source row ${reward.sourceRowId}`, confidence: "confirmed" }); }
+// Shared daily-rank mapping supplies the actual treasure row, day, and rank.
+// Index native contents, rather than duplicating the summary's reward names.
+for (const day of DAILY_RANK_REWARDS) for (const tier of day.rewards) {
+  const treasure=treasures.get(tier.sourceRowId);
+  if (treasure) addTreasureRewards(treasure,"Daily Rank Reward",`${day.day} · Rank ${tier.rankLabel}`,
+    "Daily rank bonus for this day and achieved rank. Presented as a rank reward rather than a chest to collect.","confirmed",
+    {day:day.day,rankLabel:tier.rankLabel,href:"/daily-rank-rewards"});
+}
+
 
 export const ITEM_SOURCE_TARGETS = [...targets.values()].map((target) => ({ ...target, sources: target.sources.sort((a,b) => a.kind.localeCompare(b.kind) || a.title.localeCompare(b.title)) })).sort((a,b) => a.name.localeCompare(b.name));
 export function searchItemSources(query: string) { const q = norm(query); if (!q) return ITEM_SOURCE_TARGETS.slice(0, 30); return ITEM_SOURCE_TARGETS.filter((target) => norm(target.name).includes(q)).slice(0, 50); }
@@ -109,6 +158,7 @@ export function getTreasureSources(id:number): TreasureSource[] { return [...(bo
 export function treasureSourceLabel(id:number, nativeName:string) {
   if (nativeName !== "Battle Bonus") return nativeName;
   const sources=getTreasureSources(id);
+  if (sources.some(s=>s.kind === "Arena")) return "Arena battle reward";
   if (sources.some(s=>s.kind === "Kairo Room")) return "Kairo Room reward box";
   if (sources.some(s=>s.kind === "Wairo Dungeon")) return "Wairo Dungeon reward box";
   return nativeName;
@@ -121,3 +171,6 @@ export function searchTreasureBoxes(query:string) {
     return words.every(word=>haystack.includes(word));
   });
 }
+
+export function getDailyRankSource(id:number) { return getTreasureSources(id).find(s=>s.kind==="Daily Rank Reward"); }
+export const DAILY_RANK_SOURCE_IMAGE = "/website_icons/facilities_confirmed/facility_172_ranking_board.png";

@@ -1,6 +1,6 @@
 import data from "@/game-data/native-treasure.json";
 
-export const TREASURE_BOXES = data.treasures;
+export const TREASURE_BOXES = data.treasures.map(box=>({...box,rewards:box.rewards.map(reward=>({...reward,name:treasureDisplayName(reward.name)}))}));
 export const TREASURE_MONSTERS = data.monsters;
 export const TREASURE_SPECIAL_BOSSES = data.specialBosses;
 // CheckTerm kind 3 compares GetRealDayOfWeek; JCalendar uses Sunday=1.
