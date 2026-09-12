@@ -301,3 +301,42 @@ check(!b.validatePlacement(item(17,68,68),state,index).error,'new hall immediate
 check(!b.validatePlacement({...hall,x:51,y:51},state,b.placementIndex(state,land,hall.id)).error,'hall move excludes its own former coverage');
 check(!!b.validatePlacement({...b.makeItem('plot',undefined,'S'),x:110,y:110},empty,emptyIndex).error,'LandPlaceSystem still requires town coverage');
 console.log(`${checks} total assertions including original town coverage flags, moves, boundary strokes and protected map buildings.`);
+
+// Collision audit: all rendered facility footprints, all rotations, every cell.
+for(const fid of Object.keys(rules).map(Number))for(let direction=0;direction<4;direction++) {
+ const existing={...item(fid,50,50),direction};
+ const occupiedState={...empty,items:[existing]}, occupiedIndex=b.placementIndex(occupiedState,land);
+ for(const cell of b.cells(existing)) {
+  check(occupiedIndex.occupied.get(b.key(cell))?.id===existing.id,`every occupied square ${fid}/${direction}`);
+  const roadOnCell={...b.makeItem('road'),...cell};
+  check(b.validatePlacement(roadOnCell,occupiedState,occupiedIndex).error==='This space is already occupied.',`road cannot enter ${fid}/${direction} footprint`);
+ }
+ if(b.isManualFacility(fid)&&b.facilityById.get(fid)?.tab!=='indoors') {
+  const same={...existing,id:crypto.randomUUID()};
+  check(b.validatePlacement(same,occupiedState,occupiedIndex).error==='This space is already occupied.',`duplicate facility collision ${fid}/${direction}`);
+ }
+ // Omitting the moved object must not omit a different occupant.
+ const other={...b.makeItem('road'),x:110,y:110};
+ const movingState={...empty,items:[existing,other]};
+ const movingIndex=b.placementIndex(movingState,land,existing.id);
+ check(movingIndex.occupied.get('110,110')?.id===other.id,'move index keeps other occupants');
+}
+const stones=Array.from({length:7},(_,n)=>item(191,100+3*n,100));
+const capped={...empty,items:stones};
+check(b.placementLimit(191)===7,'Chaos Stone normal acquisition budget');
+check(!!b.validatePlacement(item(191,130,100),capped,b.placementIndex(capped,land)).error,'eighth stone rejected');
+check(!b.validatePlacement({...stones[0],x:130},capped,b.placementIndex(capped,land,stones[0].id)).error,'moving at cap allowed');
+const six=b.removeItem(capped,stones[0].id).state;
+check(!b.validatePlacement(item(191,130,100),six,b.placementIndex(six,land)).error,'removal returns one available copy');
+const legacy={...capped,items:[...stones,item(191,130,100)]};
+const restored=b.decodeWorld(JSON.stringify({...legacy,items:[...b.initialWorld().items,...legacy.items]}));
+check(b.placedCount(restored.items,191)===8,'legacy excess stones are preserved');
+check(!b.validatePlacement({...stones[0],y:110},legacy,b.placementIndex(legacy,land,stones[0].id)).error,'legacy over-limit layout can be repaired by moving');
+check(!!b.validatePlacement(item(191,140,110),legacy,b.placementIndex(legacy,land)).error,'legacy excess does not permit more');
+const savedStone={...empty,items:[stones[0]]}, invalidGhost={...stones[0],id:'preview-stone'};
+const invalidDraws=render.builderDraws(savedStone,invalidGhost,false);
+check(invalidDraws.some(d=>d.itemId===stones[0].id),'saved stone remains visible behind invalid preview');
+check(!invalidDraws.some(d=>d.itemId===invalidGhost.id),'invalid preview sprite is not drawn');
+check(render.builderDraws(savedStone,{...stones[0],x:105},false).some(d=>d.itemId===stones[0].id&&d.x===stones[0].x+1),'invalid move preserves original position');
+check(render.builderDraws(savedStone,{...invalidGhost,x:105},true).some(d=>d.itemId===invalidGhost.id&&d.opacity<1),'valid preview remains translucent');
+console.log(`${checks} total assertions including all-facility collisions, preview rejection and finite Chaos Stone supply.`);

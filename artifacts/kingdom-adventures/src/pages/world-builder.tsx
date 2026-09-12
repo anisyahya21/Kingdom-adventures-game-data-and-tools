@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { BUILDINGS, PLOT_SIZES, PLOT_TILES } from '@/game-data/buildings';
 import { FACILITIES, FACILITY_TABS } from '@/game-data/facilities';
 import nativeGround from '@/game-data/native-map-ground.json';
-import { BUILDER_ASSETS, BUILDER_PETS, requiresTownCoverage, canHousePet, assignPet, SAVE_KEY, surroundCoverage, isManualFacility, containingPlot, supportHeight, MAX_TOWN_LEVEL, buildLine, placeLine, supportsLinePlacement, cells, contains, decodeWorld, dimensions, initialFurniture, initialWorld, isHall, isOriginalMapPlacement, isMapStructure, itemName, key, makeItem, placementIndex, reclaimError, removeItem, rotateItem, rotateContents, territory, townRadius, validatePlacement, type BuilderItem, type BuilderState, type Cell } from '@/lib/world-builder';
+import { BUILDER_ASSETS, BUILDER_PETS, placementLimit, placedCount, requiresTownCoverage, canHousePet, assignPet, SAVE_KEY, surroundCoverage, isManualFacility, containingPlot, supportHeight, MAX_TOWN_LEVEL, buildLine, placeLine, supportsLinePlacement, cells, contains, decodeWorld, dimensions, initialFurniture, initialWorld, isHall, isOriginalMapPlacement, isMapStructure, itemName, key, makeItem, placementIndex, reclaimError, removeItem, rotateItem, rotateContents, territory, townRadius, validatePlacement, type BuilderItem, type BuilderState, type Cell } from '@/lib/world-builder';
 import { builderDraws, diamond, drawBuilder, hitBuilder } from '@/lib/world-builder-render';
 
 import { BuilderSpriteCache } from '@/lib/builder-sprite-cache';
@@ -115,7 +115,8 @@ export default function WorldBuilderPage() {
       if(!commit(next,`${itemName(item)} placed.`))return;
       if(moving){setTool('select');setDraft(null);setSelectedId(item.id);}
       else if(item.kind==='plot'){setTool('select');setDraft(null);setSelectedId(item.id);setAssignOpen(true);}
-      else setDraft({...draft,id:crypto.randomUUID()});
+      else if(placementLimit(item.facilityId)!==undefined&&placedCount(next.items,item.facilityId!)>=placementLimit(item.facilityId)!) {setTool('select');setDraft(null);setSelectedId(item.id);setMessage(`${itemName(item)} placed. All ${placementLimit(item.facilityId)} available copies are placed.`);}
+      else {setDraft({...draft,id:crypto.randomUUID()});setHover(null);}
       return;
     }
     const hit=[...world.items].reverse().find(i=>i.parentId&&contains(i,c))??[...world.items].reverse().find(i=>contains(i,c));
@@ -140,9 +141,10 @@ export default function WorldBuilderPage() {
     if(commit({...world,items:[...world.items.filter(i=>i.id!==plot.id&&i.parentId!==plot.id),plot,...initialFurniture(plot)]},`${itemName(plot)} assigned.`))setAssignOpen(false);
   };
   const ghost=tool==='place'&&draft&&hover?{...draft,...hover}:null;
+  const ghostError=ghost?validatePlacement(ghost,world,index).error:undefined;
   const effectSource=ghost??selected;
   const effectCells=useMemo(()=>new Set(surround&&effectSource?surroundCoverage(effectSource).map(key):[]),[surround,effectSource]);
-  const draws=useMemo(()=>builderDraws(world,ghost),[world,ghost?.x,ghost?.y,draft]);
+  const draws=useMemo(()=>builderDraws(world,ghost,!ghostError),[world,ghost?.x,ghost?.y,draft,ghostError]);
   useEffect(()=>spriteCache.subscribe(()=>setImageVersion(v=>v+1)),[spriteCache]);
   useEffect(()=>{
     for(const id of new Set(draws.map(d=>d.sprite))) {
@@ -212,7 +214,7 @@ export default function WorldBuilderPage() {
         if(phase==='cancel')return;
         const result=placeLine(world,land,draft,start,end);
         if(result.added)commit(result.state,`${result.added} ${itemName(draft)} tiles placed.${result.skipped?` ${result.skipped} blocked tiles skipped.`:''}`);
-        else setMessage('No tiles placed: every tile is blocked or fails this facility�s placement rules.');
+        else setMessage('No tiles placed: every tile is blocked or fails this facility placement rules.');
       }:undefined} editorCellElevation={cell=>{const plot=containingPlot({id:'surface-probe',kind:'road',direction:0,level:1,fullness:0,...cell},world);return supportHeight(plot);}} onCellClick={tap} onCellHover={setHover} drawEditorLayer={drawLayer} onEditorObjectClick={(point,camera)=>{
         if(tool!=='select'&&tool!=='remove')return false;
         const id=hitBuilder(point,camera,draws,spriteCache.alpha);const item=world.items.find(i=>i.id===id);
@@ -220,6 +222,7 @@ export default function WorldBuilderPage() {
         if(tool==='remove')remove(item);else setSelectedId(item.id);
         return true;
       }}/>
+      {ghost&&<div role="status" aria-label="Placement preview" className={`pointer-events-none absolute left-2 top-5 z-20 max-w-[calc(100%-110px)] rounded-lg border px-3 py-2 text-sm shadow-lg ${ghostError?'border-red-400 bg-red-950 text-red-100':'border-emerald-400 bg-emerald-950 text-emerald-100'}`}>{ghostError?`Cannot place: ${ghostError}`:`Preview: ${itemName(ghost)} � tap to place`}</div>}
       <div role="toolbar" aria-label="Map building tools" className="absolute right-2 top-3 z-20 flex flex-col gap-2 rounded-xl border bg-card/95 p-1.5 shadow-lg">
       <Button aria-label="Build" title="Build" className="h-14 w-14 p-1 sm:h-16 sm:w-16 sm:p-2" disabled={!ready} onClick={()=>{setBuildOpen(true);setSelectedId(null);}}><BuildIcon large/></Button>
       <Button aria-label="Remove" title="Remove" className="h-14 w-14 p-1 sm:h-16 sm:w-16 sm:p-2" variant={tool==='remove'?'destructive':'outline'} aria-pressed={tool==='remove'} onClick={()=>{setTool(tool==='remove'?'select':'remove');setDraft(null);setSelectedId(null);setMessage('Remove mode: tap a removable object. Drag to pan.');}}><BuildIcon remove large/></Button>
@@ -258,8 +261,8 @@ export default function WorldBuilderPage() {
             {v==='unclaim'?<Waves className="mx-auto h-20 w-16 text-sky-500"/>:<img className={iconClass} src={BUILDER_ASSETS.sprites[BUILDER_ASSETS.facilities[v==='gravel'?'3':v].variants[0]].url} alt=""/>}<span className="mt-1 block text-sm font-medium">{v==='road'?'Road':v==='gravel'?'Gravel Path':v==='reclaim'?'Reclaim land':'Unclaim land'}</span>
           </button>)}
           {tab==='dungeons'&&Object.values(BUILDER_ASSETS.dungeons).filter(d=>d.name.toLowerCase().includes(query.toLowerCase())).map(d=><button className="rounded-lg border bg-card p-2 hover:border-primary hover:bg-muted" key={d.chipId} onClick={()=>choose({...makeItem('dungeon'),dungeonChipId:d.chipId})}><img src={d.menuIcon} alt="" className={iconClass}/><span className="block text-sm font-medium">{d.name}</span><span className="text-xs text-muted-foreground">{d.width}×{d.height}</span></button>)}
-          {visible.map(f=><button className="rounded-lg border bg-card p-2 hover:border-primary hover:bg-muted" key={f.id} onClick={()=>choose(makeItem('facility',f.id))}>
-            <img src={BUILDER_ASSETS.facilities[String(f.id)].menuIcon} alt="" className={iconClass} loading="lazy"/><span className="mt-1 block text-sm font-medium">{f.name}</span><span className="text-xs text-muted-foreground">{BUILDER_ASSETS.facilities[f.id].width}×{BUILDER_ASSETS.facilities[f.id].height}{BUILDER_ASSETS.facilities[f.id].expandsTown&&f.id!==17?` · expands ${f.validRange}`:''}</span>
+          {visible.map(f=><button className="rounded-lg border bg-card p-2 hover:border-primary hover:bg-muted disabled:opacity-50" disabled={placementLimit(f.id)!==undefined&&placedCount(world.items,f.id)>=placementLimit(f.id)!} key={f.id} onClick={()=>choose(makeItem('facility',f.id))}>
+            <img src={BUILDER_ASSETS.facilities[String(f.id)].menuIcon} alt="" className={iconClass} loading="lazy"/><span className="mt-1 block text-sm font-medium">{f.name}</span>{placementLimit(f.id)!==undefined&&<span className="block text-xs font-medium">{placedCount(world.items,f.id)}/{placementLimit(f.id)} placed</span>}<span className="text-xs text-muted-foreground">{BUILDER_ASSETS.facilities[f.id].width}×{BUILDER_ASSETS.facilities[f.id].height}{BUILDER_ASSETS.facilities[f.id].expandsTown&&f.id!==17?` · expands ${f.validRange}`:''}</span>
           </button>)}
         </div>
         {!visible.length&&tab!=='env'&&tab!=='dungeons'&&<p className="py-10 text-center text-muted-foreground">No facilities match your search.</p>}

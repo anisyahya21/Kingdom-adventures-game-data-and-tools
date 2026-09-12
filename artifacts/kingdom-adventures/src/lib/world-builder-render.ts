@@ -2,7 +2,10 @@ import { BUILDER_ASSETS, dimensions, containingPlot, supportHeight, template, ty
 import { PLOT_TILES } from '@/game-data/buildings';
 
 export type BuilderDraw = {sprite:string;x:number;y:number;elevation:number;depth:number;opacity:number;itemId:string};
-export function builderDraws(state:BuilderState, ghost?:BuilderItem|null):BuilderDraw[] {
+export function builderDraws(state:BuilderState, ghost?:BuilderItem|null, previewValid=true):BuilderDraw[] {
+  // Invalid previews must not appear as another placed building. Keep the saved
+  // original visible when an attempted move is invalid.
+  if(!previewValid)ghost=null;
   const draws:BuilderDraw[]=[];
   const items=[...state.items.filter(item=>item.id!==ghost?.id),...(ghost?[ghost]:[])];
   const barriers=new Set(items.filter(item=>item.kind==='facility'&&BUILDER_ASSETS.facilities[String(item.facilityId)]?.barrierFrames).map(item=>`${item.x},${item.y}`));
