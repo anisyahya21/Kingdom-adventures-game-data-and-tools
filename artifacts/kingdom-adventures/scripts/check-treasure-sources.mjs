@@ -24,14 +24,14 @@ try {
     assert.equal(sources.treasureSourceLabel(box.id,box.name),'Arena battle reward');
   }
   assert(!sources.getTreasureSources(729).some(s=>s.kind==='Arena'));
-  for (const [id,rate] of [[403,20],[688,1]]) {
-    assert(sources.getItemSource('S/ Wairo Shield').sources.some(s=>s.treasureId===id && s.location==='Legendary Cave' && s.rate===rate));
-    assert(sources.getTreasureSources(id).some(s=>s.location==='Legendary Cave'));
+  assert(sources.getItemSource('S/ Wairo Shield').sources.some(s=>s.treasureId===403 && s.location==='Legendary Cave' && s.rate===20));
+  assert(sources.getTreasureSources(403).some(s=>s.location==='Legendary Cave'));
+  for (const id of [680,688,696,704,712,720]) {
+    assert(!sources.getTreasureSources(id).some(s=>s.location==='Legendary Cave'));
   }
-  const shield=sources.getItemSource('S/ Kairo Shield');
-  assert(shield.sources.some(s=>s.title==='Legendary Cave · Exploration chest' && s.treasureId===696 && s.rate===1 && s.boxRate===undefined));
-  assert.equal(sources.getTreasureSources(696).filter(s=>s.title==='Legendary Cave · Exploration chest').length,1);
-  assert.equal(lookup.TREASURE_BOXES.filter(b=>sources.getTreasureSources(b.id).some(s=>s.location==='Legendary Cave')).length,27);
+  assert(sources.getTreasureSources(688).some(s=>s.kind==='Wairo Dungeon'));
+  assert(!sources.getItemSource('S/ Wairo Shield').sources.some(s=>s.treasureId===688 && s.location==='Legendary Cave'));
+  assert.equal(lookup.TREASURE_BOXES.filter(b=>sources.getTreasureSources(b.id).some(s=>s.location==='Legendary Cave')).length,21);
   assert(sources.getTreasureSources(728).some(s=>s.title==='Legendary Cave · White completion chest'));
   assert(sources.getTreasureSources(358).some(s=>s.title==='Normal cave · Area #0 · Level 1 · Exploration chest'));
   assert(sources.getTreasureSources(448).some(s=>s.title==='Normal cave · Area #0 · Level 1 · White completion chest'));

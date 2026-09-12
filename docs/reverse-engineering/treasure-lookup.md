@@ -263,3 +263,9 @@ Conclusion: gacha is a confirmed source for the high-grade storage ITEM, but no 
 ### Known-source presentation (12 September 2026)
 
 User explicitly deferred unexplained generic definitions and requested known sources including gacha. Item search now only renders containing boxes with a matching acquisition link; the collapsed unlinked-box list is removed. Direct sources (including existing recovered gacha eligibility) remain visible and included in the displayed entry count. Full raw definitions remain in the renamed Treasure data lookup mode. Focused source checks and production build pass; broad typecheck retains unrelated existing errors. Local change, not pushed.
+
+### Correction: withhold disputed cave event-box sources (12 September 2026)
+
+User reports Wairo Boxes cannot be obtained from Legendary Cave. Earlier static-array interpretation and regression assertions promoted event-table references too strongly. Shared item-sources now withholds nonzero-group exploration definitions for endless caves:680,688,696,704,712,720. Raw Dungeon and Treasure tables are unchanged; this is a conservative publication correction, not a recovered explanation of the native array semantics. Ordinary black/gold group0 cave links and completion728 remain. Wairo Shield retains black chest403; Wairo Dungeon retains its own688 source. Earlier claims of confirmed Legendary Cave acquisition via these six event records are withdrawn pending investigation. Coverage totals in earlier notes are historical and must be regenerated before reuse.
+
+Regression checks verify both directions of Wairo Shield/688 exclude Legendary Cave,403 remains,688 retains Wairo Dungeon, and all six disputed cave links are absent. Source checks pass. Production build passes; typecheck retains unrelated existing errors. No original-game runtime validation claimed.

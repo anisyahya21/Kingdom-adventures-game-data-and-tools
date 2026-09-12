@@ -76,6 +76,9 @@ for (const dungeon of caves.dungeons) {
     for (const [id,check] of dungeon.treasureTable[0]) {
       const treasure=treasures.get(id);
       if (!treasure || check<=0) continue;
+      // Event reward definitions in endless-cave tables have disputed runtime semantics.
+      // Keep raw data intact, but withhold these acquisition claims pending recovery.
+      if (endless && treasure.group !== 0) continue;
       addTreasureRewards(treasure,"Dungeon",`${place} · Exploration chest`,
         endless ? "One exploration chest per floor, selected from the randomly chosen floor configuration. This box is one possible result. Selection uses ordered checks; the contents percentage is not a per-floor chance. Collected boxes retain their treasure ID when released outside the cave for analysis."
         : `Explore the cave in this area. Its configuration places ${range(String(dungeon.minChests),String(dungeon.maxChests))} exploration chests, selected using ordered checks. This box is one possible result; its contents percentage is not its appearance chance. The white completion chest is separate.`,
