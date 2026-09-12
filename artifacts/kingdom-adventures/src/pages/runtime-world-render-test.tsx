@@ -1,3 +1,4 @@
+import { zoomAt, wheelZoomFactor } from '@/lib/map-camera';
 import nativeMapFacilities from "@/game-data/native-map-facilities.json";
 import nativeMapGround from "@/game-data/native-map-ground.json";
 import { recoverWaterTiles } from "@/lib/native-water";
@@ -113,6 +114,7 @@ type AtlasRegion = {
 };
 
 type SpriteSelection = {
+  assetFolder?: string;
   method: "seb-block0" | "opt-slot" | "full-image" | "placeholder-skip" | "missing-image";
   sourceFilename: string;
   srcX: number;
@@ -241,9 +243,17 @@ export type RuntimeCellHighlightOverlay = {
 };
 
 type RuntimeWorldRenderTestPageProps = {
+  /** Optional editor layer; the public reference map has no editor state. */
+  drawEditorLayer?: (context: CanvasRenderingContext2D, camera: CameraState, width: number, height: number) => void;
+  onTerrainReady?: (land: Set<string>) => void;
+  editorCellPicking?: boolean;
+  editorCellElevation?: (cell:{x:number;y:number})=>number;
+  onEditorLine?: (start:{x:number;y:number},end:{x:number;y:number},phase:'preview'|'commit'|'cancel')=>void;
+  onEditorObjectClick?: (point:{x:number;y:number},camera:CameraState) => boolean;
   publicMode?: boolean;
   initialZoom?: number;
   controlledZoom?: number;
+  zoomRequest?: {factor:number;token:number}|null;
   showCellGrid?: boolean;
   visibleOnePieceFacilityIds?: number[];
   landOverrideCells?: Array<{ x: number; y: number }>;
@@ -799,9 +809,16 @@ function normalizePortGateOffset(
 }
 
 function UnverifiedRuntimeWorldRenderTestPage({
+  drawEditorLayer,
+  onTerrainReady,
+  editorCellPicking = false,
+  editorCellElevation,
+  onEditorLine,
+  onEditorObjectClick,
   publicMode = false,
   initialZoom = 0.65,
   controlledZoom,
+  zoomRequest,
   showCellGrid = false,
   visibleOnePieceFacilityIds,
   landOverrideCells = [],
@@ -822,6 +839,8 @@ function UnverifiedRuntimeWorldRenderTestPage({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const suppressNextCanvasClickRef = useRef(false);
+  const editorLineRef=useRef<{id:number;start:{x:number;y:number};end:{x:number;y:number}}|null>(null);
+  const pointerStartRef = useRef<{x:number;y:number}|null>(null);
   const activeTouchPointsRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const touchMovedRef = useRef(false);
   const pinchStateRef = useRef<{
@@ -830,7 +849,19 @@ function UnverifiedRuntimeWorldRenderTestPage({
     anchorWorldX: number;
     anchorWorldY: number;
   } | null>(null);
-  const [camera, setCamera] = useState<CameraState>({ offsetX: 0, offsetY: 0, zoom: 1 });
+  const [camera, setCamera] = useState<CameraState>({ offsetX: 0, offsetY: 0, zoom: editorCellPicking ? initialZoom : 1 });
+  const [resizeVersion,setResizeVersion]=useState(0);
+  useEffect(()=>{
+    if(!editorCellPicking||!containerRef.current)return;
+    let previous:{width:number;height:number}|null=null;
+    const observer=new ResizeObserver(entries=>{
+      const {width,height}=entries[0].contentRect;
+      if(previous?.width===width&&previous.height===height)return;
+      if(previous){const dx=(width-previous.width)/2,dy=(height-previous.height)/2;setCamera(c=>({...c,offsetX:c.offsetX+dx,offsetY:c.offsetY+dy}));}
+      previous={width,height};setResizeVersion(v=>v+1);
+    });
+    observer.observe(containerRef.current);return()=>observer.disconnect();
+  },[editorCellPicking]);
   const [dragging, setDragging] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null);
@@ -864,7 +895,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
   const [error, setError] = useState<string | null>(null);
   const allowMapInteraction = !publicMode || interactiveInPublicMode || !!onCellClick || !!onCellHover;
   const visibleOnePieceFacilitySet = useMemo(
-    () => (visibleOnePieceFacilityIds && visibleOnePieceFacilityIds.length > 0 ? new Set(visibleOnePieceFacilityIds) : null),
+    () => (visibleOnePieceFacilityIds ? new Set(visibleOnePieceFacilityIds) : null),
     [visibleOnePieceFacilityIds],
   );
   const visibleOnePieceFacilities = useMemo(
@@ -910,21 +941,30 @@ function UnverifiedRuntimeWorldRenderTestPage({
       return;
     }
 
-    const zoomForFocus = typeof controlledZoom === "number" && Number.isFinite(controlledZoom)
-      ? Math.max(0.08, Math.min(3.5, controlledZoom))
-      : camera.zoom;
-    const halfW = (TILE_WIDTH * zoomForFocus) / 2;
-    const halfH = (TILE_HEIGHT * zoomForFocus) / 2;
-    const worldIsoX = (focusCell.x - focusCell.y) * halfW;
-    const worldIsoY = (focusCell.x + focusCell.y) * halfH;
-
-    setCamera((previous) => ({
+    setCamera(previous=>({
       ...previous,
-      zoom: zoomForFocus,
-      offsetX: width / 2 - worldIsoX,
-      offsetY: height / 2 - worldIsoY,
+      offsetX:width/2-(focusCell.x-focusCell.y)*TILE_WIDTH*previous.zoom/2,
+      offsetY:height/2-(focusCell.x+focusCell.y)*TILE_HEIGHT*previous.zoom/2,
     }));
-  }, [camera.zoom, controlledZoom, focusCell]);
+  }, [focusCell]);
+
+  useEffect(()=>{
+    if(!zoomRequest||!containerRef.current)return;
+    const {clientWidth,clientHeight}=containerRef.current;
+    setCamera(previous=>zoomAt(previous,previous.zoom*zoomRequest.factor,clientWidth/2,clientHeight/2));
+  },[zoomRequest]);
+
+  useEffect(()=>{
+    const canvas=canvasRef.current;
+    if(!editorCellPicking||!canvas)return;
+    const wheel=(event:WheelEvent)=>{
+      event.preventDefault();event.stopPropagation();
+      const rect=canvas.getBoundingClientRect();
+      setCamera(previous=>zoomAt(previous,previous.zoom*wheelZoomFactor(event.deltaY,event.deltaMode),event.clientX-rect.left,event.clientY-rect.top));
+    };
+    canvas.addEventListener('wheel',wheel,{passive:false});
+    return()=>canvas.removeEventListener('wheel',wheel);
+  },[editorCellPicking]);
 
   const natureCategoryVisibility = useMemo<NatureCategoryVisibility>(() => ({
     "terrain-nature": showTerrainNature,
@@ -1722,6 +1762,8 @@ function UnverifiedRuntimeWorldRenderTestPage({
       }
     }
 
+    drawEditorLayer?.(context, camera, width, height);
+
     if (cellHighlightOverlays.length > 0) {
       const halfW = (logicalTileWidth * zoom) / 2;
       const halfH = (logicalTileHeight * zoom) / 2;
@@ -1844,6 +1886,11 @@ function UnverifiedRuntimeWorldRenderTestPage({
       }
     }
   }, [
+    resizeVersion,
+    drawEditorLayer,
+    landOverrideCells,
+    reclaimedTintKeys,
+    visibleOnePieceFacilities,
     activeCommands,
     camera,
     defaultTerrainMode,
@@ -1874,6 +1921,14 @@ function UnverifiedRuntimeWorldRenderTestPage({
     showTileCenters,
     terrainAlignmentMode,
   ]);
+
+  useEffect(() => {
+    if (!onTerrainReady || !pipeline || !activeCommands.length) return;
+    const land = new Set(activeCommands.filter(c => c.drawGroup === 'base-terrain' && !isWaterLikeCommand(c)).map(c => `${c.cellX},${c.cellY}`));
+    for (const [x,y] of nativeMapGround.facilityGround) land.add(`${x},${y}`);
+    for (const port of nativeMapGround.ports) for (const [x,y] of port.ground) land.add(`${x},${y}`);
+    onTerrainReady(land);
+  }, [activeCommands, pipeline, onTerrainReady]);
 
   const hoveredCellInfo = useMemo(() => {
     if (!hoveredCell || !pipeline) {
@@ -2213,7 +2268,20 @@ function UnverifiedRuntimeWorldRenderTestPage({
     return hitTestPortGatePieceAtClient(clientX, clientY, canvasRef.current, camera, portGateLayout, pipeline?.portAssetCache);
   }
 
+  function pickEditorCell(clientX:number,clientY:number) {
+    const canvas=canvasRef.current;if(!canvas)return null;
+    const ground=pointerToWorldFromClient(clientX,clientY,canvas,camera,editorCellPicking);
+    const elevation=ground?editorCellElevation?.(ground)??0:0;
+    return elevation?pointerToWorldFromClient(clientX,clientY+elevation*camera.zoom,canvas,camera,editorCellPicking):ground;
+  }
+
   function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
+    pointerStartRef.current = {x:event.clientX,y:event.clientY};
+    suppressNextCanvasClickRef.current = false;
+    if(onEditorLine&&event.pointerType==='mouse'&&event.button===0&&!event.shiftKey) {
+      const cell=pointerToWorldFromClient(event.clientX,event.clientY,event.currentTarget,camera,true);
+      if(cell){editorLineRef.current={id:event.pointerId,start:cell,end:cell};event.currentTarget.setPointerCapture(event.pointerId);onEditorLine(cell,cell,'preview');return;}
+    }
     if (event.pointerType === "touch") {
       touchMovedRef.current = false;
       const rect = event.currentTarget.getBoundingClientRect();
@@ -2272,6 +2340,15 @@ function UnverifiedRuntimeWorldRenderTestPage({
   }
 
   function onPointerUp(event: React.PointerEvent<HTMLCanvasElement>) {
+    const line=editorLineRef.current;
+    if(line&&line.id===event.pointerId) {
+      editorLineRef.current=null;pointerStartRef.current=null;suppressNextCanvasClickRef.current=true;
+      if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+      const end=pointerToWorldFromClient(event.clientX,event.clientY,event.currentTarget,camera,true)??line.end;
+      onEditorLine?.(line.start,end,event.type==='pointercancel'?'cancel':'commit');return;
+    }
+    if(pointerStartRef.current && Math.hypot(event.clientX-pointerStartRef.current.x,event.clientY-pointerStartRef.current.y)>6) suppressNextCanvasClickRef.current=true;
+    pointerStartRef.current=null;
     if (event.pointerType === "touch") {
       activeTouchPointsRef.current.delete(event.pointerId);
       if (activeTouchPointsRef.current.size < 2) {
@@ -2294,13 +2371,13 @@ function UnverifiedRuntimeWorldRenderTestPage({
   }
 
   function onPointerLeave() {
+    if(editorLineRef.current)return;
     activeTouchPointsRef.current.clear();
     pinchStateRef.current = null;
     touchMovedRef.current = false;
 
     if (portGateDrag) {
       setHoveredCell(null);
-      onCellHover?.(null);
       return;
     }
     setDragging(false);
@@ -2309,6 +2386,12 @@ function UnverifiedRuntimeWorldRenderTestPage({
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
+    const line=editorLineRef.current;
+    if(line&&line.id===event.pointerId) {
+      const cell=pointerToWorldFromClient(event.clientX,event.clientY,event.currentTarget,camera,true);
+      if(cell){line.end=cell;onEditorLine?.(line.start,cell,'preview');}return;
+    }
+    if(pointerStartRef.current && Math.hypot(event.clientX-pointerStartRef.current.x,event.clientY-pointerStartRef.current.y)>6) suppressNextCanvasClickRef.current=true;
     if (event.pointerType === "touch" && activeTouchPointsRef.current.has(event.pointerId)) {
       const rect = event.currentTarget.getBoundingClientRect();
       const localX = event.clientX - rect.left;
@@ -2393,11 +2476,10 @@ function UnverifiedRuntimeWorldRenderTestPage({
 
     if (!allowMapInteraction) {
       setHoveredCell(null);
-      onCellHover?.(null);
       return;
     }
 
-    const nextHover = pointerToWorld(event, canvasRef.current, camera);
+    const nextHover = pickEditorCell(event.clientX,event.clientY);
     setHoveredCell(nextHover);
     onCellHover?.(nextHover);
   }
@@ -2415,13 +2497,15 @@ function UnverifiedRuntimeWorldRenderTestPage({
     if (!pipeline || !canvasRef.current) {
       return;
     }
-    const clicked = pointerToWorldFromClient(event.clientX, event.clientY, canvasRef.current, camera);
+    const rect=canvasRef.current.getBoundingClientRect();
+    if(onEditorObjectClick?.({x:event.clientX-rect.left,y:event.clientY-rect.top},camera))return;
+    const clicked = pickEditorCell(event.clientX,event.clientY);
     setSelectedCell(clicked);
-    onCellClick?.(clicked);
+    if(clicked) onCellClick?.(clicked);
   }
 
   function onWheel(event: React.WheelEvent<HTMLCanvasElement>) {
-    if (!event.shiftKey) {
+    if (editorCellPicking || !event.shiftKey) {
       return;
     }
 
@@ -2465,7 +2549,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
         </>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+      <div className={editorCellPicking ? 'hidden' : 'mt-3 flex flex-wrap items-center gap-2 text-xs'}>
         <button type="button" onClick={resetCamera} className="rounded border border-border bg-card px-3 py-1 hover:bg-muted">
           reset camera
         </button>
@@ -2670,7 +2754,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
         )}
       </div>
 
-      {publicMode && (
+      {publicMode && !editorCellPicking && (
         <div className="mt-2 text-sm font-medium text-amber-500">
           Controls: Shift + mouse wheel to zoom. Pinch to zoom on mobile.
         </div>
@@ -2678,13 +2762,14 @@ function UnverifiedRuntimeWorldRenderTestPage({
 
       {error && <div className="mt-3 rounded border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-100">{error}</div>}
 
-      <div ref={containerRef} className="relative mt-3 h-[74vh] overflow-hidden rounded border border-border" style={{ backgroundColor: "#1d4f6c" }}>
+      <div ref={containerRef} className={`relative mt-3 overflow-hidden rounded border border-border ${editorCellPicking?'h-[calc(100dvh-285px)] min-h-[360px]':'h-[74vh]'}`} style={{ backgroundColor: "#1d4f6c" }}>
         <NativeOceanBackground image={pipeline?.oceanBackground} />
         <canvas
           ref={canvasRef}
           className={`relative h-full w-full touch-none ${dragging || portGateDrag ? "cursor-grabbing" : "cursor-grab"}`}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
           onPointerLeave={onPointerLeave}
           onPointerMove={onPointerMove}
           onWheel={onWheel}
@@ -4117,6 +4202,7 @@ function pointerToWorldFromClient(
   clientY: number,
   canvas: HTMLCanvasElement,
   camera: CameraState,
+  centered = false,
 ): { x: number; y: number } | null {
   const rect = canvas.getBoundingClientRect();
   const localX = clientX - rect.left;
@@ -4132,8 +4218,8 @@ function pointerToWorldFromClient(
   const isoY = localY - camera.offsetY;
   const worldX = (isoX / halfW + isoY / halfH) / 2;
   const worldY = (isoY / halfH - isoX / halfW) / 2;
-  const x = Math.floor(worldX);
-  const y = Math.floor(worldY);
+  const x = centered ? Math.round(worldX) : Math.floor(worldX);
+  const y = centered ? Math.round(worldY) : Math.floor(worldY);
   if (x < 0 || y < 0) {
     return null;
   }

@@ -152,6 +152,10 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventurers World Map V2",
     description: "View the work-in-progress Kingdom Adventurers isometric world map with terrain, facilities, resources, and map chip layers.",
   },
+  "/world-builder": {
+    title: "Kingdom Adventurers World Builder",
+    description: "Plan towns, land plots and indoor facilities on the world map. Save your kingdom in your browser.",
+  },
   "/map-2-testing": {
     title: "Kingdom Adventurers Map 2 Testing",
     description: "Review Kingdom Adventurers map testing data for exploration and progression planning.",
