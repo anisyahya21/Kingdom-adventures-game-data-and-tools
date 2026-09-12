@@ -1,3 +1,4 @@
+import placementRules from '@/game-data/builder-placement-rules.json';
 import rawAssets from '@/game-data/builder-assets.json';
 import mapFacilities from '@/game-data/native-map-facilities.json';
 import mapGround from '@/game-data/native-map-ground.json';
@@ -85,6 +86,18 @@ export function isOriginalMapPlacement(item:BuilderItem) {
 }
 export function isMapStructure(item:BuilderItem) {
   return initialWorld().items.some(original=>original.id===item.id);
+}
+// Native MapChip FLAG_OUT_TERRITORY_OK (65536), with the hall/category-52
+// outside-only branch. ChipReplaceSystem delegates to the same placement check.
+export function townPlacementRule(item:BuilderItem): 'inside'|'outside'|'anywhere' {
+  if(item.kind==='dungeon')return 'anywhere'; // Existing editor-only dungeon planning.
+  if(item.kind==='plot')return 'inside'; // LandPlaceSystem.CheckPlace 0x15a4168.
+  const fid=item.kind==='road'?(item.facilityId??4):item.facilityId;
+  const rule=(placementRules.facilities as Record<string,{townCoverage:string}>)[String(fid)]?.townCoverage;
+  return rule==='anywhere'||rule==='outside'?rule:'inside';
+}
+export function requiresTownCoverage(item:BuilderItem) {
+  return !item.parentId&&townPlacementRule(item)==='inside';
 }
 export function makeItem(kind: BuilderItem['kind'], facilityId?: number, size?: PlotSize): BuilderItem {
   return {id:crypto.randomUUID(),kind,facilityId,size,x:0,y:0,direction:0,level:1,fullness:0};
@@ -178,7 +191,10 @@ export function validatePlacement(item: BuilderItem, state: BuilderState, index:
   if(item.kind==='dungeon')return BUILDER_ASSETS.dungeons[String(item.dungeonChipId)]?{}:{error:'Unknown dungeon.'};
   if(isHall(item)) {
     if(state.items.filter(i=>isHall(i)&&i.id!==item.id).length>=5) return {error:'You can place up to five Town Halls.'};
-  } else if(footprint.some(c=>!index.covered.has(key(c)))) return {error:'The whole footprint must be inside town coverage.'};
+  }
+  const townRule=townPlacementRule(item);
+  if(townRule==='inside'&&footprint.some(c=>!index.covered.has(key(c)))) return {error:'The whole footprint must be inside town coverage.'};
+  if(townRule==='outside'&&footprint.some(c=>index.covered.has(key(c)))) return {error:'The whole footprint must be outside existing town coverage.'};
   // ChipPlaceSystem.CheckPlace 0x15087a4..0x1508814 calls
   // ContainsExpansionChip: another non-hall expansion's full range rectangle
   // excludes placement, across facility types (not just identical facilities).

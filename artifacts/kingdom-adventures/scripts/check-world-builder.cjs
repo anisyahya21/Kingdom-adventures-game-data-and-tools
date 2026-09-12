@@ -129,7 +129,9 @@ check(duplicate.added===0&&duplicate.skipped===6,'occupied stroke cannot overlap
 const crossing=b.placeLine(state,land,item(23,0,0),{x:49,y:50},{x:55,y:50});
 check(crossing.added===3&&crossing.skipped===4,'wall line skips whole hall footprint');
 const boundary=b.placeLine(state,land,road,{x:65,y:40},{x:70,y:40});
-check(boundary.added===3&&boundary.skipped===3,'line cannot bypass coverage');
+check(boundary.added===6&&boundary.skipped===0,'roads cross town boundary under native OUT_TERRITORY_OK');
+const wallBoundary=b.placeLine(state,land,item(23,0,0),{x:65,y:40},{x:70,y:40});
+check(wallBoundary.added===3&&wallBoundary.skipped===3,'walls still require every cell in town coverage');
 check(render.builderDraws({version:1,items:[{...road,facilityId:3}],reclaimed:[]})[0].sprite===b.BUILDER_ASSETS.facilities['3'].variants[0],'gravel uses original MapChip33 sprite');
 console.log(`${checks} total assertions including town-level cap and drag lines.`);
 
@@ -266,3 +268,36 @@ for(const dungeon of Object.values(b.BUILDER_ASSETS.dungeons)) {
  check(fs.existsSync(path.resolve(root,'../public',dungeon.menuIcon.slice(1))),'dungeon menu art exists');
 }
 console.log(`${checks} total assertions including pet assignments and dungeons.`);
+
+// Original MapChip placement flags: exercise every exported outdoor facility.
+const rules=load(path.join(root,'game-data/builder-placement-rules.json')).default.facilities;
+const empty={version:1,items:[],reclaimed:[]}, emptyIndex=b.placementIndex(empty,land);
+for(const [fid,rule] of Object.entries(rules)) {
+ const candidate=item(Number(fid),110,110);
+ check(b.townPlacementRule(candidate)===(rule.category===35||rule.category===52?'outside':(rule.flags&65536)?'anywhere':'inside'),`native rule ${fid}`);
+ if(!b.isManualFacility(Number(fid))||b.facilityById.get(Number(fid))?.tab==='indoors')continue;
+ const error=b.validatePlacement(candidate,empty,emptyIndex).error;
+ check(rule.townCoverage==='inside'?!!error:!error,`outside placement follows native rule ${fid}`);
+ if(rule.townCoverage==='anywhere') {
+  check(!b.requiresTownCoverage(candidate),`coverage reductions do not strand exempt ${fid}`);
+  const wetIndex={...emptyIndex,land:new Set(land)};wetIndex.land.delete(b.key(b.cells(candidate).at(-1)));
+  check(!!b.validatePlacement(candidate,empty,wetIndex).error,`exempt ${fid} still checks every land cell`);
+  const occupiedIndex={...emptyIndex,occupied:new Map([[b.key(b.cells(candidate).at(-1)),hall]])};
+  check(!!b.validatePlacement(candidate,empty,occupiedIndex).error,`exempt ${fid} still cannot overlap`);
+ }
+}
+for(const fid of [3,4,68,69,78,90,92,161,164,191,192,226,239,241]) {
+ check(b.townPlacementRule(item(fid,110,110))==='anywhere',`explicit native exemption ${fid}`);
+}
+for(const original of b.initialWorld().items.filter(i=>!i.fixed)) {
+ const moved={...original,x:110,y:110};
+ check(!b.validatePlacement(moved,{...empty,items:[original]},b.placementIndex({...empty,items:[original]},land,original.id)).error,`original ${original.facilityId} moves outside town`);
+ check(!b.requiresTownCoverage(moved),`moved original ${original.facilityId} remains exempt after save`);
+ check(!!b.removeItem({...empty,items:[moved]},moved.id).error,'native movement exemption does not allow removal');
+}
+check(!b.validatePlacement({...road,x:110,y:110},empty,emptyIndex).error,'legacy road without facilityId is exempt');
+check(!!b.validatePlacement(item(17,65,65),state,index).error,'new hall cannot overlap another town coverage');
+check(!b.validatePlacement(item(17,68,68),state,index).error,'new hall immediately outside coverage allowed');
+check(!b.validatePlacement({...hall,x:51,y:51},state,b.placementIndex(state,land,hall.id)).error,'hall move excludes its own former coverage');
+check(!!b.validatePlacement({...b.makeItem('plot',undefined,'S'),x:110,y:110},empty,emptyIndex).error,'LandPlaceSystem still requires town coverage');
+console.log(`${checks} total assertions including original town coverage flags, moves, boundary strokes and protected map buildings.`);

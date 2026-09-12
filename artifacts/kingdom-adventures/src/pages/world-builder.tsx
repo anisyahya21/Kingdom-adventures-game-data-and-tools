@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { BUILDINGS, PLOT_SIZES, PLOT_TILES } from '@/game-data/buildings';
 import { FACILITIES, FACILITY_TABS } from '@/game-data/facilities';
 import nativeGround from '@/game-data/native-map-ground.json';
-import { BUILDER_ASSETS, BUILDER_PETS, canHousePet, assignPet, SAVE_KEY, surroundCoverage, isManualFacility, containingPlot, supportHeight, MAX_TOWN_LEVEL, buildLine, placeLine, supportsLinePlacement, cells, contains, decodeWorld, dimensions, initialFurniture, initialWorld, isHall, isOriginalMapPlacement, isMapStructure, itemName, key, makeItem, placementIndex, reclaimError, removeItem, rotateItem, rotateContents, territory, townRadius, validatePlacement, type BuilderItem, type BuilderState, type Cell } from '@/lib/world-builder';
+import { BUILDER_ASSETS, BUILDER_PETS, requiresTownCoverage, canHousePet, assignPet, SAVE_KEY, surroundCoverage, isManualFacility, containingPlot, supportHeight, MAX_TOWN_LEVEL, buildLine, placeLine, supportsLinePlacement, cells, contains, decodeWorld, dimensions, initialFurniture, initialWorld, isHall, isOriginalMapPlacement, isMapStructure, itemName, key, makeItem, placementIndex, reclaimError, removeItem, rotateItem, rotateContents, territory, townRadius, validatePlacement, type BuilderItem, type BuilderState, type Cell } from '@/lib/world-builder';
 import { builderDraws, diamond, drawBuilder, hitBuilder } from '@/lib/world-builder-render';
 
 import { BuilderSpriteCache } from '@/lib/builder-sprite-cache';
@@ -86,7 +86,7 @@ export default function WorldBuilderPage() {
   const commit=(next:BuilderState,notice:string)=>{
     // A hall move/rank reduction or removed expansion must not strand buildings.
     const area=territory(next.items);
-    const unsupported=next.items.find(i=>i.kind!=='dungeon'&&!i.parentId&&!i.fixed&&!isHall(i)&&!isOriginalMapPlacement(i)&&cells(i).some(c=>!area.has(key(c))));
+    const unsupported=next.items.find(i=>requiresTownCoverage(i)&&!i.fixed&&!isOriginalMapPlacement(i)&&cells(i).some(c=>!area.has(key(c))));
     if(unsupported){setMessage(`That would leave ${itemName(unsupported)} outside town coverage. Move or remove it first.`);return false;}
     setUndo(h=>[...h.slice(-39),world]);setRedo([]);setWorld(next);setMessage(notice);return true;
   };
@@ -212,7 +212,7 @@ export default function WorldBuilderPage() {
         if(phase==='cancel')return;
         const result=placeLine(world,land,draft,start,end);
         if(result.added)commit(result.state,`${result.added} ${itemName(draft)} tiles placed.${result.skipped?` ${result.skipped} blocked tiles skipped.`:''}`);
-        else setMessage('No tiles placed: the line is blocked or outside town coverage.');
+        else setMessage('No tiles placed: every tile is blocked or fails this facility’s placement rules.');
       }:undefined} editorCellElevation={cell=>{const plot=containingPlot({id:'surface-probe',kind:'road',direction:0,level:1,fullness:0,...cell},world);return supportHeight(plot);}} onCellClick={tap} onCellHover={setHover} drawEditorLayer={drawLayer} onEditorObjectClick={(point,camera)=>{
         if(tool!=='select'&&tool!=='remove')return false;
         const id=hitBuilder(point,camera,draws,spriteCache.alpha);const item=world.items.find(i=>i.id===id);
