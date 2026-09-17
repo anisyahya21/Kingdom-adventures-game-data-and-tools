@@ -22,8 +22,15 @@ import { toPng } from "html-to-image";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { getEquipmentIcon } from "@/lib/equipment-icons";
+import { getSkillIcon } from "@/lib/skill-icons";
+import { planGear, type GoalMode, type StatGoal } from "@/lib/loadout-goal-planner";
 import { simulateBatch, simulateDuel, type Combatant, type BattleResult, type BatchResult } from "@/lib/combat-simulator";
 import { getJobProfile } from "@/game-data/job-profile";
+import {
+  RESIDENT_STAT_ITEMS,
+  residentStatItemBonuses,
+  type ResidentStatItemCounts,
+} from "@/game-data/resident-stat-items";
 import { KA_RANK_BADGE_CLASS } from "@/design-system/category-styles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,6 +54,16 @@ type Loadout = {
   statLevels?: Record<string, number>; // per-stat levels (primary)
   equipment: EquipEntry[];
   skills: string[];
+  // Resident-wide "Water of ..." valuables used (player-wide bonus, stored per
+  // loadout so the totals stay self-contained). Counts keyed by item key.
+  residentStatItems?: ResidentStatItemCounts;
+  // Stat-goal planner: targets plus the constraints the player set on the last
+  // suggestion (items they do not own, owned levels that cannot change).
+  goalPlanner?: {
+    goals?: Record<string, StatGoal>;
+    unavailable?: string[];
+    ownedLevels?: Record<string, number>;
+  };
 };
 type BoxSetupKind = "kairo" | "wairo";
 type BoxStatRuleMode = "level" | "value";
@@ -243,8 +260,71 @@ function commitOnEnter(e: React.KeyboardEvent<HTMLInputElement>, commit: () => v
   }
 }
 
+/**
+ * Compact numeric field used for the small inline values on this page: no
+ * spinner column, right-aligned tabular digits, selects its content on focus,
+ * commits on blur/Enter and reverts on Escape.
+ */
+function CompactNumberInput({
+  value,
+  min = 0,
+  max,
+  ariaLabel,
+  onValueChange,
+  className = "",
+}: {
+  value: number;
+  min?: number;
+  max?: number;
+  ariaLabel?: string;
+  onValueChange: (value: number) => void;
+  className?: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const resolve = (raw: string) => {
+    const cleaned = raw.replace(/[^\d]/g, "");
+    const parsed = cleaned === "" ? min : Number.parseInt(cleaned, 10);
+    const upper = max ?? Number.POSITIVE_INFINITY;
+    return Math.min(upper, Math.max(min, Number.isFinite(parsed) ? parsed : min));
+  };
+  return (
+    <Input
+      type="text"
+      inputMode="numeric"
+      aria-label={ariaLabel}
+      value={draft ?? String(value)}
+      onFocus={(event) => event.currentTarget.select()}
+      onChange={(event) => setDraft(event.target.value.replace(/[^\d]/g, ""))}
+      onBlur={(event) => {
+        onValueChange(resolve(event.target.value));
+        setDraft(null);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          onValueChange(resolve(event.currentTarget.value));
+          setDraft(null);
+          event.currentTarget.blur();
+        }
+        if (event.key === "Escape") {
+          setDraft(null);
+          event.currentTarget.blur();
+        }
+      }}
+      className={`h-7 rounded-md px-2 text-right text-xs font-semibold tabular-nums ${className}`}
+    />
+  );
+}
+
 function getPreferredEquipmentIcon(icons: Record<string, string> | undefined, name: string | undefined | null) {
   return getEquipmentIcon(null, name) ?? getEquipmentIcon(icons, name);
+}
+
+function residentItemsSome(counts: ResidentStatItemCounts | undefined): boolean {
+  return RESIDENT_STAT_ITEMS.some((item) => (counts?.[item.key] ?? 0) > 0);
+}
+
+function residentItemsEqual(a: ResidentStatItemCounts | undefined, b: ResidentStatItemCounts | undefined): boolean {
+  return RESIDENT_STAT_ITEMS.every((item) => (a?.[item.key] ?? 0) === (b?.[item.key] ?? 0));
 }
 
 const COLLAPSED_ICON_TRIM_CACHE = new Map<string, string>();
@@ -600,8 +680,10 @@ function calcEquipStats(loadout: Loadout, data: SharedData): Record<string, numb
 function calcStats(loadout: Loadout, data: SharedData): Record<string, number> {
   const job = calcJobStats(loadout, data);
   const equip = calcEquipStats(loadout, data);
+  const items = residentStatItemBonuses(loadout.residentStatItems);
   const total = { ...job };
   for (const [k, v] of Object.entries(equip)) total[k] = (total[k] ?? 0) + v;
+  for (const [k, v] of Object.entries(items)) total[k] = (total[k] ?? 0) + v;
   return total;
 }
 
@@ -1577,7 +1659,12 @@ function ScreenshotCard({ loadout, stats }: { loadout: Loadout; stats: Record<st
           <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Skills</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
             {loadout.skills.map((s, i) => (
-              <div key={i} style={{ background: "#312e81", borderRadius: 4, padding: "2px 8px", fontSize: 11, color: "#c7d2fe" }}>{s}</div>
+              <div key={i} style={{ background: "#312e81", borderRadius: 4, padding: "2px 8px", fontSize: 11, color: "#c7d2fe", display: "flex", alignItems: "center", gap: 4 }}>
+                {getSkillIcon(s) && (
+                  <img src={getSkillIcon(s)} alt="" style={{ width: 14, height: 14, objectFit: "contain", imageRendering: "pixelated" }} />
+                )}
+                {s}
+              </div>
             ))}
           </div>
         </div>
@@ -1694,6 +1781,285 @@ function CharacterPreview({
 
 // ─── Loadout Editor ───────────────────────────────────────────────────────────
 
+// ─── Stat goal planner ───────────────────────────────────────────────────────
+
+const GOAL_MODES: Array<{ value: "off" | GoalMode; label: string }> = [
+  { value: "off", label: "Any" },
+  { value: "min", label: "At least" },
+  { value: "max", label: "At most" },
+  { value: "range", label: "Between" },
+];
+
+function GoalPlannerPanel({
+  loadout,
+  data,
+  baseStats,
+  onApply,
+  onChange,
+}: {
+  loadout: Loadout;
+  data: SharedData;
+  /** Job curve + valuables: everything the planner cannot change. */
+  baseStats: Record<string, number>;
+  onApply: (picks: Array<{ name: string; level: number }>) => void;
+  onChange: (next: Loadout) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const planner = loadout.goalPlanner ?? {};
+  const goals = planner.goals ?? {};
+  const unavailable = useMemo(() => planner.unavailable ?? [], [planner.unavailable]);
+  const ownedLevels = planner.ownedLevels ?? {};
+
+  const setPlanner = (patch: Partial<NonNullable<Loadout["goalPlanner"]>>) =>
+    onChange({ ...loadout, goalPlanner: { ...planner, ...patch } });
+
+  const setGoal = (stat: string, next: StatGoal | null) => {
+    const goalsNext = { ...goals };
+    if (next && next.mode) goalsNext[stat] = next;
+    else delete goalsNext[stat];
+    setPlanner({ goals: goalsNext });
+  };
+
+  // Candidate gear + contributions, using the same affinity rules as the totals.
+  const { slots, contribution } = useMemo(() => {
+    const slotMap = data.slotAssignments ?? {};
+    const overrides = data.overrides ?? {};
+    const profile = loadout.jobName ? getJobProfile(data, loadout.jobName) : null;
+    const bySlot = new Map<string, string[]>();
+    const multipliers = new Map<string, number>();
+    const contributions = new Map<string, Record<string, number>>();
+
+    for (const [name, slot] of Object.entries(slotMap)) {
+      if (unavailable.includes(name)) continue;
+      if (!overrides[name]) continue;
+      const weaponType = slot === "Shield" ? "Shield" : data.weaponTypes?.[name] ?? null;
+      const prof = slot === "Shield"
+        ? profile?.equipmentAccess.shield ?? null
+        : slot === "Weapon" && weaponType && weaponType !== "Tool"
+          ? profile?.equipmentAccess.weapons[weaponType] ?? null
+          : null;
+      if (!profile || prof === "cannot") continue;
+      const resistanceSkill = findResistanceSkill(data.skills, weaponType);
+      const resists = !!resistanceSkill && loadout.skills.includes(resistanceSkill.name);
+      multipliers.set(name, prof === "weak" && !resists ? 0.5 : 1);
+      const list = bySlot.get(slot) ?? [];
+      list.push(name);
+      bySlot.set(slot, list);
+    }
+
+    const contributionOf = (name: string, level: number): Record<string, number> => {
+      const cacheKey = `${name}|${level}`;
+      const hit = contributions.get(cacheKey);
+      if (hit) return hit;
+      const multiplier = multipliers.get(name) ?? 1;
+      const out: Record<string, number> = {};
+      for (const [stat, entry] of Object.entries(overrides[name] ?? {})) {
+        const base = entry?.base ?? 0;
+        const inc = entry?.inc ?? 0;
+        if (base || inc) out[normStat(stat)] = Math.floor(statAtLevel(base, inc, level) * multiplier);
+      }
+      contributions.set(cacheKey, out);
+      return out;
+    };
+
+    return {
+      slots: EQUIP_SLOTS
+        .map(({ slot }) => ({ slot, items: (bySlot.get(slot) ?? []).sort() }))
+        .filter((entry) => entry.items.length > 0),
+      contribution: contributionOf,
+    };
+  }, [data, loadout.jobName, loadout.skills, unavailable]);
+
+  const result = useMemo(() => {
+    if (!open) return null;
+    if (Object.keys(goals).length === 0) return null;
+    return planGear({ baseStats, goals, slots, contribution, pinnedLevels: ownedLevels });
+  }, [open, baseStats, goals, slots, contribution, ownedLevels]);
+
+  const goalKeys = Object.keys(goals);
+
+  return (
+    <div className="mt-3 rounded-lg border border-border/60 bg-muted/10">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+      >
+        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`} />
+          Stat goal planner
+          {goalKeys.length > 0 && (
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-primary">
+              {goalKeys.length} target{goalKeys.length === 1 ? "" : "s"}
+            </span>
+          )}
+          {result && (
+            <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal ${result.unmet.length === 0 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
+              {result.unmet.length === 0 ? "targets met" : `${result.unmet.length} still short`}
+            </span>
+          )}
+        </span>
+        <span className="text-[10px] text-muted-foreground/70">suggests gear for the stats you want - valuables are included, never suggested</span>
+      </button>
+
+      {open && (
+        <div className="space-y-3 border-t border-border/50 px-3 py-3">
+          {/* Targets */}
+          <div>
+            <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Targets</p>
+            <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-3 xl:grid-cols-4">
+              {[...STAT_KEYS].map((stat) => {
+                const goal = goals[stat];
+                const mode: "off" | GoalMode = goal?.mode ?? "off";
+                return (
+                  <div key={stat} className="flex flex-col gap-1.5 rounded-md border border-border/50 bg-background/40 px-2 py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-14 shrink-0 text-[10px] font-medium uppercase text-muted-foreground">
+                        <StatLabel stat={stat} icons={data.statIcons} />
+                      </span>
+                      <select
+                        value={mode}
+                        aria-label={`${stat} goal`}
+                        onChange={(e) => {
+                          const nextMode = e.target.value as "off" | GoalMode;
+                          if (nextMode === "off") return setGoal(stat, null);
+                          if (nextMode === "min") return setGoal(stat, { mode: "min", min: goal?.min ?? goal?.max ?? 0 });
+                          if (nextMode === "max") return setGoal(stat, { mode: "max", max: goal?.max ?? goal?.min ?? 0 });
+                          return setGoal(stat, { mode: "range", min: goal?.min ?? 0, max: goal?.max ?? 0 });
+                        }}
+                        className="h-7 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-[11px]"
+                      >
+                        {GOAL_MODES.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
+                      </select>
+                    </div>
+                    {goal && (
+                      <div className="flex items-center gap-1.5">
+                        {mode === "range" ? (
+                          <>
+                            <CompactNumberInput value={goal?.min ?? 0} min={0} ariaLabel={`${stat} lower bound`} className="min-w-0 flex-1"
+                              onValueChange={(value) => setGoal(stat, { mode: "range", min: value, max: goal?.max ?? 0 })} />
+                            <span className="shrink-0 text-[10px] font-medium text-muted-foreground">to</span>
+                            <CompactNumberInput value={goal?.max ?? 0} min={0} ariaLabel={`${stat} upper bound`} className="min-w-0 flex-1"
+                              onValueChange={(value) => setGoal(stat, { mode: "range", min: goal?.min ?? 0, max: value })} />
+                          </>
+                        ) : (
+                          <CompactNumberInput
+                            value={mode === "max" ? (goal?.max ?? 0) : (goal?.min ?? 0)}
+                            min={0}
+                            ariaLabel={mode === "max" ? `${stat} maximum` : `${stat} minimum`}
+                            className="min-w-0 flex-1"
+                            onValueChange={(value) => setGoal(stat, mode === "max" ? { mode: "max", max: value } : { mode: "min", min: value })}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Suggestion */}
+          {goalKeys.length === 0 && (
+            <p className="text-[11px] text-muted-foreground">Pick at least one target above (for example Attack "At least" 300) to get gear suggestions.</p>
+          )}
+
+          {result && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Suggested gear {result.picks.length > 0 && <span className="normal-case tracking-normal">({result.picks.length} slot{result.picks.length === 1 ? "" : "s"})</span>}
+                </p>
+                {result.picks.length > 0 && (
+                  <Button size="sm" className="h-7 gap-1.5 text-xs"
+                    title="Equip every suggested item (slots you already have gear in are replaced)"
+                    onClick={() => onApply(result.picks.map((pick) => ({ name: pick.item, level: pick.level })))}>
+                    Equip all {result.picks.length} slot{result.picks.length === 1 ? "" : "s"}
+                  </Button>
+                )}
+              </div>
+
+              {result.picks.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">No gear in the allowed slots can reach these targets.</p>
+              ) : (
+                <div className="space-y-1">
+                  {result.picks.map((pick) => {
+                    const icon = getPreferredEquipmentIcon(data.equipIcons, pick.item);
+                    const pinned = ownedLevels[pick.item];
+                    return (
+                      <div key={`${pick.slot}-${pick.item}`} className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
+                        <span className="w-16 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{pick.slot}</span>
+                        {icon
+                          ? <img src={icon} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
+                          : <span className="h-6 w-6 shrink-0" />}
+                        <span className="min-w-0 flex-1 truncate text-xs font-medium">{pick.item}</span>
+                        <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          Lv
+                          <CompactNumberInput value={pinned ?? pick.level} min={1} max={99} ariaLabel={`${pick.item} owned level`}
+                            className="w-14"
+                            onValueChange={(value) => setPlanner({ ownedLevels: { ...ownedLevels, [pick.item]: value } })} />
+                        </label>
+                        <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                          title={`Equip ${pick.item} in the ${pick.slot} slot`}
+                          onClick={() => onApply([{ name: pick.item, level: pick.level }])}>
+                          Equip
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive"
+                          title="I do not have this item"
+                          onClick={() => setPlanner({ unavailable: [...unavailable, pick.item] })}>
+                          Don't have
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-1 text-[11px] sm:grid-cols-3 lg:grid-cols-4">
+                {goalKeys.map((stat) => {
+                  const goal = goals[stat];
+                  const value = result.stats[stat] ?? 0;
+                  const short = result.unmet.includes(stat);
+                  return (
+                    <div key={stat} className={`flex items-center justify-between rounded border px-1.5 py-1 ${short ? "border-amber-500/40 bg-amber-500/10" : "border-emerald-500/30 bg-emerald-500/10"}`}>
+                      <span className="text-[10px] uppercase text-muted-foreground"><StatLabel stat={stat} icons={data.statIcons} /></span>
+                      <span className="tabular-nums text-foreground/80">
+                        {value.toLocaleString()}
+                        <span className="ml-1 text-[10px] text-muted-foreground">{goalLabelText(goal)}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {(unavailable.length > 0 || Object.keys(ownedLevels).length > 0) && (
+                <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                  {unavailable.length > 0 && <span>Excluded: {unavailable.join(", ")}</span>}
+                  {Object.keys(ownedLevels).length > 0 && <span>Locked levels: {Object.entries(ownedLevels).map(([name, level]) => `${name} Lv${level}`).join(", ")}</span>}
+                  <Button size="sm" variant="ghost" className="h-5 px-1 text-[10px]"
+                    onClick={() => setPlanner({ unavailable: [], ownedLevels: {} })}>
+                    Clear constraints
+                  </Button>
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground/70">
+                Values include your universal valuables. Set a level on an item you already own to force that level, or mark it "Don't have" to re-route.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function goalLabelText(goal: StatGoal | undefined): string {
+  if (!goal) return "";
+  if (goal.mode === "min") return `>= ${goal.min ?? 0}`;
+  if (goal.mode === "max") return `<= ${goal.max ?? 0}`;
+  return `${goal.min ?? 0}-${goal.max ?? 0}`;
+}
+
 function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   loadout: Loadout;
   data: SharedData;
@@ -1718,11 +2084,19 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   const ranks = job ? Object.keys(job.ranks).sort() : ["S","A","B","C","D"];
   const jobStats = useMemo(() => calcJobStats(loadout, data), [loadout, data]);
   const equipStats = useMemo(() => calcEquipStats(loadout, data), [loadout, data]);
+  const itemBonuses = useMemo(() => residentStatItemBonuses(loadout.residentStatItems), [loadout.residentStatItems]);
+  // Job curve + valuables only: what the goal planner starts from.
+  const plannerBase = useMemo(() => {
+    const t = { ...jobStats };
+    for (const [k, v] of Object.entries(itemBonuses)) t[k] = (t[k] ?? 0) + v;
+    return t;
+  }, [jobStats, itemBonuses]);
   const stats = useMemo(() => {
     const t = { ...jobStats };
     for (const [k, v] of Object.entries(equipStats)) t[k] = (t[k] ?? 0) + v;
+    for (const [k, v] of Object.entries(itemBonuses)) t[k] = (t[k] ?? 0) + v;
     return t;
-  }, [jobStats, equipStats]);
+  }, [jobStats, equipStats, itemBonuses]);
 
   const upd = useCallback(<K extends keyof Loadout>(field: K, val: Loadout[K]) => {
     onChange({ ...loadout, [field]: val });
@@ -1768,7 +2142,8 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 
   const addSkill = (name: string) => {
     if (!name || loadout.skills.includes(name) || loadout.skills.length >= 9) return;
-    upd("skills", [...loadout.skills, name].sort());
+    // Keep the order the user added the skills in; the game uses slot order.
+    upd("skills", [...loadout.skills, name]);
   };
   const removeSkill = (name: string) => upd("skills", loadout.skills.filter((s) => s !== name));
 
@@ -1957,22 +2332,24 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                     onChange={(e) => setAllStatLevelsInput(e.target.value)}
                     onKeyDown={(e) => commitOnEnter(e, () => commitAllStatLevels(e.currentTarget.value))}
                     onBlur={(e) => commitAllStatLevels(e.target.value)}
-                    className="h-5 text-[11px] text-center px-0 w-14" />
+                    className="h-7 w-16 rounded-md px-2 text-right text-xs font-semibold tabular-nums" />
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse table-fixed">
                   <colgroup>
-                    <col className="w-[58%]" />
-                    <col className="w-[14%]" />
-                    <col className="w-[14%]" />
-                    <col className="w-[14%]" />
+                    <col className="w-[48%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[13%]" />
                   </colgroup>
                   <thead>
                     <tr>
                       <th className="text-left pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium">Stat level</th>
                       <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right">Job</th>
                       <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right">Equip</th>
+                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right" title="Water of ... items used">Items</th>
                       <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right">Total</th>
                     </tr>
                   </thead>
@@ -1981,7 +2358,8 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                       const hasJob = jobStats[k] !== undefined;
                       const lv = getStatLevel(loadout, k);
                       const eq = equipStats[k];
-                      const total = (jobStats[k] ?? 0) + (eq ?? 0);
+                      const item = itemBonuses[k];
+                      const total = (jobStats[k] ?? 0) + (eq ?? 0) + (item ?? 0);
                       return (
                         <tr key={k} className="group border-t border-border/30 hover:bg-muted/20 transition-colors">
                           <td className="py-1 pr-2">
@@ -1993,7 +2371,8 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 onChange={(e) => setStatLevelInput(k, e.target.value)}
                                 onKeyDown={(e) => commitOnEnter(e, () => commitStatLevel(k, e.currentTarget.value))}
                                 onBlur={(e) => commitStatLevel(k, e.target.value)}
-                                className="h-6 text-[11px] text-center px-0 w-14" />
+                                onFocus={(e) => e.currentTarget.select()}
+                                className="h-7 w-16 rounded-md px-2 text-right text-xs font-semibold tabular-nums" />
                             </div>
                           </td>
                           <td className="py-0.5 pl-2 text-right tabular-nums text-foreground/80 border-l border-border/25 group-hover:bg-muted/25">
@@ -2005,6 +2384,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                             </span>
                           </td>
                           <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400 group-hover:bg-muted/25">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">-</span>}</td>
+                          <td className="py-0.5 text-right tabular-nums text-amber-600 dark:text-amber-400 group-hover:bg-muted/25">{item ? `+${item.toLocaleString()}` : <span className="text-muted-foreground/20">-</span>}</td>
                           <td className="py-0.5 text-right tabular-nums font-bold group-hover:bg-muted/25">{total > 0 ? total.toLocaleString() : <span className="text-muted-foreground/30">-</span>}</td>
                         </tr>
                       );
@@ -2014,6 +2394,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
               </div>
             </div>
           )}
+
         </div>
 
         {/* Right: Equipment + Skills */}
@@ -2120,7 +2501,8 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                     onChange={(e) => setEquipLevelInput(eq.name, e.target.value)}
                                     onKeyDown={(e) => commitOnEnter(e, () => commitEquipLevel(eq.name, e.currentTarget.value))}
                                     onBlur={(e) => commitEquipLevel(eq.name, e.target.value)}
-                                    className="h-6 text-xs text-center w-14 px-0" />
+                                    onFocus={(e) => e.currentTarget.select()}
+                                    className="h-7 w-16 rounded-md px-2 text-right text-xs font-semibold tabular-nums" />
                                 </div>
                               </>
                             ) : (
@@ -2173,12 +2555,16 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
               Skills <span className="normal-case font-normal">({loadout.skills.length}/9)</span>
             </p>
             <div className="flex flex-wrap gap-1 mb-2 min-h-6">
-              {loadout.skills.map((s) => (
-                <ToneBadge key={s} category="skill" className="text-xs gap-1 px-2 py-0.5">
-                  {s}
-                  <button onClick={() => removeSkill(s)} className="hover:text-destructive ml-0.5"><X className="w-2.5 h-2.5" /></button>
-                </ToneBadge>
-              ))}
+              {loadout.skills.map((s) => {
+                const icon = getSkillIcon(s);
+                return (
+                  <ToneBadge key={s} category="skill" className="text-xs gap-1 px-2 py-0.5">
+                    {icon && <img src={icon} alt="" className="h-4 w-4 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />}
+                    {s}
+                    <button onClick={() => removeSkill(s)} className="hover:text-destructive ml-0.5"><X className="w-2.5 h-2.5" /></button>
+                  </ToneBadge>
+                );
+              })}
               {loadout.skills.length === 0 && <span className="text-xs text-muted-foreground/60">No skills selected</span>}
             </div>
             {loadout.skills.length < 9 && allSkills.length > 0 && (
@@ -2186,7 +2572,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                 value=""
                 clearOnSelect
                 onChange={(v) => { if (v) addSkill(v); }}
-                options={allSkills.filter((s) => !loadout.skills.includes(s)).map((s) => ({ value: s, label: s }))}
+                options={allSkills.filter((s) => !loadout.skills.includes(s)).map((s) => ({ value: s, label: s, icon: getSkillIcon(s) }))}
                 placeholder="+ Add skill..."
                 triggerClassName="h-7 text-xs"
               />
@@ -2194,6 +2580,24 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
             {allSkills.length === 0 && <p className="text-xs text-muted-foreground/60">No skills in database yet.</p>}
           </div>
         </div>
+
+        {/* Stat goal planner (only exists while this loadout is expanded) */}
+        <GoalPlannerPanel
+          loadout={loadout}
+          data={data}
+          baseStats={plannerBase}
+          onChange={onChange}
+          onApply={(picks) => {
+            // Replace only the suggested slots so gear in other slots is kept.
+            const slotMap = data.slotAssignments ?? {};
+            const touched = new Set(picks.map((pick) => slotMap[pick.name]));
+            const kept = loadout.equipment.filter((entry) => !touched.has(slotMap[entry.name]));
+            upd("equipment", [
+              ...kept,
+              ...picks.map((pick) => ({ name: pick.name, level: Math.max(1, Math.min(99, pick.level)) })),
+            ]);
+          }}
+        />
       </div>
     </div>
   );
@@ -2243,6 +2647,10 @@ export default function LoadoutPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_loadout", "");
   const [showNote, setShowNote] = useState(false);
+  // Universal "Water of ..." valuables: entered once for the whole page and
+  // mirrored onto every loadout so all stat totals pick them up.
+  const [residentItems, setResidentItems] = useLocalFeature<ResidentStatItemCounts>("ka_resident_stat_items", {});
+  const residentMigrationRef = useRef(false);
   const [activeToolTab, setActiveToolTab] = useState<BoxSetupKind | "combat">("kairo");
   const [sharedSetup, setSharedSetup] = useState<BoxSetupShare | null>(null);
   const [shareLoadError, setShareLoadError] = useState<string | null>(null);
@@ -2274,6 +2682,23 @@ export default function LoadoutPage() {
     save([...loadouts, duplicate]);
     setExpandedId(newId);
   }, [loadouts, save]);
+
+  // One-time: adopt counts an older loadout may already carry.
+  useEffect(() => {
+    if (residentMigrationRef.current) return;
+    if (loadouts.length === 0 && !data) return;
+    residentMigrationRef.current = true;
+    if (residentItemsSome(residentItems)) return;
+    const carried = loadouts.map((l) => l.residentStatItems).find((counts) => residentItemsSome(counts));
+    if (carried) setResidentItems({ ...carried });
+  }, [loadouts, data, residentItems, setResidentItems]);
+
+  // Keep every loadout in step with the universal setting.
+  useEffect(() => {
+    if (loadouts.length === 0) return;
+    if (loadouts.every((l) => residentItemsEqual(l.residentStatItems, residentItems))) return;
+    save(loadouts.map((l) => ({ ...l, residentStatItems: { ...residentItems } })));
+  }, [loadouts, residentItems, save]);
 
   const updateSetup = useCallback((updated: BoxSetup) => {
     saveSetups(setups.map((setup) => setup.id === updated.id ? updated : setup));
@@ -2403,6 +2828,42 @@ export default function LoadoutPage() {
             />
           </div>
         )}
+
+        {/* Universal settings: resident-wide valuables ("Water of ...") */}
+        <Card className="mb-5">
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-sm">
+              Universal Settings
+              <span className="text-[11px] font-normal text-muted-foreground">
+                how many valuables you have used - applies to every resident
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {RESIDENT_STAT_ITEMS.map((item) => {
+                const used = Math.max(0, Math.floor(residentItems[item.key] ?? 0));
+                const bonus = used * item.amount;
+                return (
+                  <label key={item.key} className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/15 px-2 py-1.5">
+                    <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground/80" title={item.name}>
+                      {item.name}
+                    </span>
+                    <span className="w-10 shrink-0 text-right text-[11px] tabular-nums text-amber-600 dark:text-amber-400">
+                      {bonus ? `+${bonus}` : ""}
+                    </span>
+                    <CompactNumberInput value={used} min={0} max={99} ariaLabel={`${item.name} used`} className="w-14 shrink-0"
+                      onValueChange={(value) => setResidentItems({ ...residentItems, [item.key]: value })} />
+                  </label>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[11px] leading-tight text-muted-foreground">
+              Each one raises that stat by {RESIDENT_STAT_ITEMS[0].amount} for all residents (original Valuable table). There is no equivalent item for
+              Speed, Luck, Intelligence, Dexterity, Gather, Move or Heart. These values are copied onto every loadout below.
+            </p>
+          </CardContent>
+        </Card>
 
         {isLoading && (
           <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
