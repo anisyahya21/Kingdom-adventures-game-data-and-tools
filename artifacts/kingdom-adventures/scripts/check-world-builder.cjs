@@ -73,7 +73,15 @@ const plot={...b.makeItem('plot',undefined,'XL'),x:40,y:40,houseId:6};
 const furniture=b.initialFurniture(plot);const shelf=furniture.find(f=>f.role==='shelves');
 const full={...state,items:[hall,plot,...furniture,...Array.from({length:8},()=>({...shelf,id:crypto.randomUUID(),fixed:false}))]};
 check(!!b.indoorLimit({...shelf,id:'extra'},plot,full.items),'shelf limit counts initial shelf');
-check(!!b.indoorLimit(item(103,42,42),plot,full.items),'wrong shop shelf rejected');
+check(!!b.indoorLimit(item(103,42,42),plot,full.items),'store plot still enforces its own shelf count');
+// User policy 17 September: any store-shelf appearance fits any store plot.
+const weaponShop={...b.makeItem('plot',undefined,'S'),x:40,y:40,houseId:2};
+const weaponItems=[hall,weaponShop,...b.initialFurniture(weaponShop)];
+for(const id of [103,104,105,193])check(!b.indoorLimit(item(id,42,42),weaponShop,weaponItems),`shelf ${id} fits a Weapon Shop`);
+const innPlot={...b.makeItem('plot',undefined,'S'),x:40,y:40,houseId:7};
+check(!!b.indoorLimit(item(103,42,42),innPlot,[hall,innPlot,...b.initialFurniture(innPlot)]),'shelves are still refused outside a store plot');
+const orchard={...b.makeItem('plot',undefined,'S'),x:40,y:40,houseId:18};
+check(!!b.indoorLimit(item(229,42,42),orchard,[hall,orchard,...b.initialFurniture(orchard)]),'zero-capacity store plot still refuses shelves');
 const sPlot={...plot,size:'S'};check(!!b.indoorLimit(item(99,42,42),sPlot,[]),'zero-extra-bed shop restriction');
 check(!!b.validatePlacement(item(129,80,80),state,index).error,'indoors cannot be placed outside a plot');
 const wet={x:52,y:60},dryIndex={...index,land:new Set(index.land)};dryIndex.land.delete(b.key(wet));
@@ -133,6 +141,81 @@ check(boundary.added===6&&boundary.skipped===0,'roads cross town boundary under 
 const wallBoundary=b.placeLine(state,land,item(23,0,0),{x:65,y:40},{x:70,y:40});
 check(wallBoundary.added===3&&wallBoundary.skipped===3,'walls still require every cell in town coverage');
 check(render.builderDraws({version:1,items:[{...road,facilityId:3}],reclaimed:[]})[0].sprite===b.BUILDER_ASSETS.facilities['3'].variants[0],'gravel uses original MapChip33 sprite');
+// Removing mirrors building: one drag clears the wall/fence/path line it crosses.
+const wallStroke=b.placeLine(state,land,item(23,0,0),{x:40,y:40},{x:45,y:40});
+const cleared=b.removeLine(wallStroke.state,{x:40,y:40},{x:45,y:40});
+check(cleared.removed===6&&cleared.state.items.length===state.items.length,'dragged line clears every wall tile');
+check(state.items.length===1&&wallStroke.state.items.length===7,'removal does not mutate the previous state');
+const mixed={...state,items:[hall,...wallStroke.state.items.filter(i=>i.id!==hall.id),item(29,52,40),item(129,53,41)]};
+const mixedCleared=b.removeLine(mixed,{x:40,y:40},{x:45,y:40});
+check(mixedCleared.removed===6&&mixedCleared.state.items.some(i=>i.facilityId===29)&&mixedCleared.state.items.some(i=>i.facilityId===129)&&mixedCleared.state.items.some(i=>i.id===hall.id),'dragged removal leaves facilities, indoor pieces and landmarks');
+check(b.removeLine(state,{x:90,y:90},{x:93,y:90}).removed===0,'empty ground removes nothing');
+const diagonal=b.removeLine({...state,items:[item(23,10,10),item(23,11,11)]},{x:10,y:10},{x:11,y:11});
+check(diagonal.removed===2,'diagonal drag still clears both wall cells it passes');
+check(b.lineTargets(mixed,{x:44,y:40},{x:44,y:40}).length===1,'line targets expose the crossed wall');
+const paved={...state,items:[...wallStroke.state.items.filter(i=>i.id!==hall.id),{...road,x:60,y:60},{...road,x:61,y:60}]};
+check(b.removeLine(paved,{x:60,y:60},{x:61,y:60}).removed===2,'roads are cleared by the same drag');
+check(b.removeLine({...state,items:[wallStroke.state.items[1],{...item(17,0,0),id:'second-hall',x:44,y:44}]},{x:44,y:40},{x:44,y:44}).state.items.some(i=>i.id==='second-hall'),'a hall crossing the drag is never removed');
+// User report 17 September: the 2x2 Skill Workbench covered a shelf standing in
+// the cell in front of it, while the shelf behind it looked correct. Both are
+// now ordered by the recovered native cell-major depth key.
+const shopPlot={...b.makeItem('plot',undefined,'M'),id:'shop-plot',houseId:6,x:47,y:65,direction:0};
+const workbench={...b.makeItem('facility',117),id:'workbench',parentId:'shop-plot',x:50,y:66,facing:2,direction:0};
+const frontShelf={...b.makeItem('facility',104),id:'front-shelf',parentId:'shop-plot',x:50,y:68,direction:0};
+const backShelf={...b.makeItem('facility',104),id:'back-shelf',parentId:'shop-plot',x:49,y:66,direction:0};
+const shop={version:1,items:[shopPlot,workbench,frontShelf,backShelf],reclaimed:[]};
+const paintOrder=[];for(const d of render.builderDraws(shop))if(!paintOrder.includes(d.itemId))paintOrder.push(d.itemId);
+check(paintOrder.indexOf('front-shelf')>paintOrder.indexOf('workbench'),'a shelf in the cell in front of the 2x2 workbench paints over it');
+check(paintOrder.indexOf('workbench')>paintOrder.indexOf('back-shelf'),'the 2x2 workbench still paints over the shelf behind it');
+const floor=b.BUILDER_ASSETS.plots['6-M'].supportHeight;
+check(render.builderDraws(shop).find(d=>d.itemId==='front-shelf').depth===b.nativeDepth({x:50,y:68},floor+5),'indoor shelf keys from its own cell and floor height');
+check(render.builderDraws(shop).find(d=>d.itemId==='workbench').depth===b.nativeDepth({x:51,y:67},floor+20+2),'2x2 workbench keys from its native south-east anchor');
+console.log(`${checks} total assertions including dragged wall, fence and path removal.`);
+
+// Gate (facility117-style entrance assembly): two cells, one door frame per cell.
+// World.CreateEntranceDoor 0x14766bc gives the entrance two frames and the native
+// choice samples the neighbour one step along the wall: another entrance uses the
+// continuation frame 0, anything else the end frame 1.
+const gate=(x,y,direction)=>({...b.makeItem('facility',28),id:`gate-${x}-${y}`,x,y,direction,facing:direction});
+const castleWall=(x,y)=>({...b.makeItem('facility',26),id:`wall-${x}-${y}`,x,y,direction:0,facing:0});
+const gateDoors=items=>render.builderDraws({version:1,items,reclaimed:[]}).filter(d=>d.itemId.startsWith('gate')&&d.elevation>0);
+const gateParts=b.BUILDER_ASSETS.facilities['28'].rotationDraws[3].filter(p=>p.depth>=0);
+const endFrame=gateParts.find(p=>p.y===0).sprite, continueFrame=gateParts.find(p=>p.y===1).sprite;
+const walledGate=gateDoors([castleWall(100,89),gate(100,90,3),castleWall(100,92)]);
+check(walledGate[0].x===100&&walledGate[0].y===90&&walledGate[1].y===91,'gate reserves both cells along the wall axis');
+check(walledGate[0].sprite===endFrame,'the gate cell next to a wall draws the end frame');
+check(walledGate[1].sprite===continueFrame,'the gate cell next to its own partner draws the continuation frame');
+const chainedGate=gateDoors([gate(100,90,3),gate(100,92,3)]);
+check(chainedGate[0].sprite===endFrame&&chainedGate[1].sprite===continueFrame,'unchained ends still draw the end frame');
+check(chainedGate[2].sprite===continueFrame&&chainedGate[3].sprite===continueFrame,'a chained gate continues the neighbour frame instead of repeating an end post');
+check(chainedGate[2].depth===b.nativeDepth({x:100,y:92},5)&&chainedGate[3].depth===b.nativeDepth({x:100,y:93},5),'chained gate cells keep their own native cell depth');
+const mirroredGate=gateDoors([castleWall(100,89),gate(100,90,1)]);
+check(mirroredGate[0].sprite!==endFrame&&mirroredGate[1].sprite!==continueFrame,'perpendicular gate facings use their own door artwork');
+// User-confirmed gameplay rule (17 September): a Gate only turns 90 degrees, so
+// its two allowed orientations are the ones that keep the door on its cells
+// (facing east and facing south). The 180-degree flip is forbidden.
+const gateDraft=b.makeItem('facility',28);
+check(gateDraft.direction===1&&b.dimensions(gateDraft).join(',')==='1,2','a new gate starts along the wall axis');
+let spun=gateDraft,seen=[];
+for(let i=0;i<4;i++){spun=b.rotateItem(spun);seen.push(spun.direction);}
+check(seen.join(',')==='2,1,2,1','gate rotation only cycles its two 90-degree orientations');
+check(seen.every(d=>b.allowedDirections(gateDraft).includes(d))&&b.allowedDirections(gateDraft).join(',')==='1,2','gate directions are limited to facing east and facing south');
+check(b.dimensions({...gateDraft,direction:2}).join(',')==='2,1','the second gate orientation turns the footprint 90 degrees');
+const legacyGateSave=b.decodeWorld(JSON.stringify({...state,items:[...b.initialWorld().items,gate(100,90,3),gate(101,95,0)]}));
+check(legacyGateSave.items.find(i=>i.x===100&&i.y===90&&i.facilityId===28).direction===1,'a saved gate facing west snaps to east without moving cells');
+check(legacyGateSave.items.some(i=>i.x===101&&i.y===95&&i.facilityId===28&&i.direction===2),'a saved gate facing north snaps to south on the same axis');
+check(b.rotateItem(gate(100,90,0)).direction===2&&b.rotateItem(gate(100,90,3)).direction===1,'rotating a legacy gate snaps its facing instead of changing cells');
+const pillar=b.makeItem('facility',26);
+check(b.allowedDirections(pillar).join(',')==='0,1,2,3'&&b.rotateItem(b.rotateItem(pillar)).direction===2,'other facilities still rotate through all four directions');
+check(b.rotatedDirections(gateDraft)&&b.rotatedDirections(pillar),'rotatable facilities advertise their rotate button');
+console.log(`${checks} total assertions including gate door frames and wall junctions.`);
+
+// The drawn boundary follows a hall that is being moved.
+const hallMove={...hall,x:90,y:90};
+check(b.previewTerritory([hall],hallMove).has('90,90')&&!b.previewTerritory([hall],hallMove).has('50,50'),'moved hall carries its boundary');
+check(b.territory([hall]).has('50,50')&&!b.previewTerritory([hall],hallMove).has('51,51'),'boundary leaves the old hall square');
+check(b.previewTerritory([hall],{...item(29,50,50),id:hall.id}) instanceof Set,'non-hall drafts keep the saved boundary');
+check(b.previewTerritory([hall,item(29,70,70)],null).size===b.territory([hall,item(29,70,70)]).size,'no draft means the plain territory');
 console.log(`${checks} total assertions including town-level cap and drag lines.`);
 
 const cameraMath=load(path.join(root,'lib/map-camera.ts'));
@@ -173,8 +256,10 @@ for(const fid of [23,24,25,26,27])for(let mask=0;mask<16;mask++) {
  const wallState={...state,items:[center,...neighbors,item(26,61,61),item(28,63,60)]};
  const d=render.builderDraws(wallState).find(d=>d.itemId===center.id);
  check(d.sprite===b.BUILDER_ASSETS.facilities[fid].barrierFrames[mask],'all native masks, mixed materials and diagonal exclusion');
- check(d.x===60&&d.y===60&&d.elevation===0&&d.depth===12005,'native barrier anchor and child depth');
+ check(d.x===60&&d.y===60&&d.elevation===0&&d.depth===b.nativeDepth({x:60,y:60},5),'native barrier anchor and child depth');
 }
+check(b.nativeDepth({x:0,y:0})===0&&b.nativeDepth({x:1,y:0})===124&&b.nativeDepth({x:0,y:1})===16024,'native depth key is cell-major over the 160-wide map');
+check(b.groundDepth({x:2,y:3})<b.groundDepth({x:3,y:3})&&b.groundDepth({x:0,y:159})<b.nativeDepth({x:0,y:0},0),'ground pieces stay below every placed depth');
 const wallCenter=item(26,60,60),wallEast=item(24,61,60);
 const wallState={...state,items:[wallCenter,wallEast]};
 const wallSprite=(s,g)=>render.builderDraws(s,g).find(d=>d.itemId===wallCenter.id).sprite;
@@ -210,7 +295,7 @@ for(let direction=0;direction<4;direction++) {
  const gate={...item(28,60,60),direction},parts=render.builderDraws({...state,items:[gate,item(26,61,61)]});
  const gateParts=parts.filter(d=>d.itemId===gate.id),floor=gateParts.filter(d=>d.depth<0),doors=gateParts.filter(d=>d.depth>=0);
  check(floor.length===2&&doors.length===2,'gate floor and door pieces remain independently sortable');
- check(doors.every(d=>d.depth===100*(d.x+d.y)+([1,2].includes(direction)?26:5)),'gate uses native per-cell facing depth');
+ check(doors.every(d=>d.depth-b.nativeDepth({x:d.x,y:d.y})===([1,2].includes(direction)?26:5)),'gate uses native per-cell facing depth');
  check(floor.every(d=>parts.indexOf(d)<parts.findIndex(p=>p.itemId!==gate.id)),'gate ground never paints over walls');
  check(doors.every(d=>b.cells(gate).some(c=>c.x===d.x&&c.y===d.y)),'gate sections anchored within rotated footprint');
 }

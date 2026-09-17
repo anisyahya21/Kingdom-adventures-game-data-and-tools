@@ -30,7 +30,24 @@ export const MAX_TOWN_LEVEL = 100; // User-specified builder limit.
 export const SAVE_KEY = 'ka-world-builder-v1';
 export const key = (c: Cell) => `${c.x},${c.y}`;
 export const facilityById = new Map(FACILITIES.map(f => [f.id, f]));
-export const inBounds = (c: Cell) => Number.isInteger(c.x) && Number.isInteger(c.y) && c.x >= 0 && c.y >= 0 && c.x < 160 && c.y < 160;
+export const MAP_SIZE = 160;
+export const inBounds = (c: Cell) => Number.isInteger(c.x) && Number.isInteger(c.y) && c.x >= 0 && c.y >= 0 && c.x < MAP_SIZE && c.y < MAP_SIZE;
+// Recovered native entity depth key. CreateFurniture 0x1476194..14761b0 stores
+// Position=(cellX*stepX, height, cellY*stepZ) and the renderer orders by the
+// 160-wide cell index (default depth step 0x64, depth-15d6480.asm) plus the
+// world x+z term, the facing offset (5 for 0/3, 20 for 1/2) and the layer.
+// The entity anchor for a multi-cell assembly is its south-east cell
+// (placement/workshop-overlap-tests.json: "native entity anchor is +1,+1").
+export function nativeDepth(cell: Cell, offset = 0) {
+  return 100 * (cell.y * MAP_SIZE + cell.x) + 24 * (cell.x + cell.y) + offset;
+}
+// Ground pieces (plot floors, entrance ground, roads) paint before everything.
+export function groundDepth(cell: Cell) {
+  return -1e9 + cell.y * MAP_SIZE + cell.x;
+}
+// Exported plot/gate preview pieces carry the older 100*(x+y) depth; the part
+// that still orders pieces inside one cell is that sub-cell offset.
+export const pieceOffset = (depth: number, local: Cell) => depth - 100 * (local.x + local.y);
 export function dimensions(item: BuilderItem): [number, number] {
   const a = item.kind==='dungeon'?BUILDER_ASSETS.dungeons[String(item.dungeonChipId)]:BUILDER_ASSETS.facilities[String(item.facilityId)];
   let [w,h] = item.kind === 'plot' ? PLOT_TILES[item.size ?? 'S'].split('×').map(Number) : item.kind === 'road' ? [1,1] : [a?.width ?? 1,a?.height ?? 1];
@@ -75,6 +92,12 @@ export function territory(items: BuilderItem[]) {
   }
   return result;
 }
+// The drawn town boundary follows a town hall that is being moved: the draft
+// replaces the saved hall so its territory travels with the preview.
+export function previewTerritory(items: BuilderItem[], draft?: BuilderItem | null) {
+  if (!draft || !items.some(i => i.id === draft.id)) return territory(items);
+  return territory(items.map(i => i.id === draft.id ? {...i, x:draft.x, y:draft.y, direction:draft.direction} : i));
+}
 export function initialWorld(): BuilderState {
   return {version:1,geometryRevision:2,reclaimed:[],items:[
     ...mapFacilities.map(f => ({id:`native-${f.id}`,kind:'facility' as const,facilityId:f.id,x:f.originX,y:f.originY,direction:0,level:1,fullness:0,fixed:f.id===196})),
@@ -101,8 +124,25 @@ export function requiresTownCoverage(item:BuilderItem) {
   return !item.parentId&&townPlacementRule(item)==='inside';
 }
 export function makeItem(kind: BuilderItem['kind'], facilityId?: number, size?: PlotSize): BuilderItem {
-  return {id:crypto.randomUUID(),kind,facilityId,size,x:0,y:0,direction:0,level:1,fullness:0};
+  const item: BuilderItem={id:crypto.randomUUID(),kind,facilityId,size,x:0,y:0,direction:0,level:1,fullness:0};
+  return {...item,direction:allowedDirections(item)[0]};
 }
+// The Gate is an entrance: the game only offers a 90-degree turn, i.e. the two
+// orientations that place the door on its cells with the hinge on the same side
+// (facing east = direction1 and facing south = direction2). The other two are a
+// forbidden 180-degree flip whose artwork hangs half a cell off the footprint.
+// User-confirmed gameplay observation 17 September; not an independently
+// recovered native flag.
+export const gateFacilityId = 28;
+export const gateDirections = [1,2];
+export function allowedDirections(item: BuilderItem): number[] {
+  if(item.kind==='facility'&&item.facilityId===gateFacilityId)return gateDirections;
+  return [0,1,2,3];
+}
+export const rotatedDirections = (item: BuilderItem) => allowedDirections(item).length > 1;
+// A forbidden gate facing keeps its wall axis and takes the legal facing on that
+// axis (0/2 and 1/3 share a footprint, so no cell changes).
+export const legalGateDirection = (direction:number) => direction % 2 ? 1 : 2;
 export function itemName(item: BuilderItem) {
   if(item.kind==='dungeon')return BUILDER_ASSETS.dungeons[String(item.dungeonChipId)]?.name??'Dungeon';
   if (item.kind === 'road') return item.facilityId===3?'Gravel Path':'Road';
@@ -157,8 +197,9 @@ export function indoorLimit(item: BuilderItem, plot: BuilderItem, items: Builder
     if (siblings.filter(i=>bedIds.has(i.facilityId!) && i.role!=='bed').length >= b.beds[index]) return 'This plot has reached its extra-bed limit.';
   }
   if (shelfIds.has(item.facilityId!)) {
-    const allowed=template(plot)?.fixed.find(f=>f.role==='shelves')?.facilityId;
-    if (allowed!==item.facilityId) return 'This shelf type is not allowed in this building.';
+    // User policy 17 September: any store-shelf appearance fits any plot that
+    // has a native shelf slot. Only the plot's own shelf count is enforced.
+    if (!template(plot)?.fixed.some(f=>f.role==='shelves')) return 'Shelves only fit inside a shop or storage plot.';
     if (siblings.filter(i=>shelfIds.has(i.facilityId!)).length>=b.store[index]) return 'This plot has reached its shelf limit.';
   }
   if (item.facilityId===157 && siblings.filter(i=>i.facilityId===157).length>=b.monster[index]) return 'This plot has reached its monster-room limit.';
@@ -229,7 +270,12 @@ export function removeItem(state:BuilderState,id:string): {state:BuilderState;er
 }
 export function rotateItem(item:BuilderItem):BuilderItem {
   if(item.fixed || isMapStructure(item)) return item;
-  return {...item,direction:(item.direction+1)%4,facing:((item.facing??item.direction)+1)%4};
+  const allowed=allowedDirections(item);
+  const current=allowed.indexOf(item.direction);
+  const next=item.kind==='facility'&&item.facilityId===gateFacilityId&&current<0?legalGateDirection(item.direction):allowed[current<0?0:(current+1)%allowed.length];
+  // Plot fixtures keep their own facing offset; the gate has no separate facing.
+  const facing=item.kind==='facility'&&item.facilityId===gateFacilityId?next:((item.facing??item.direction)+1)%4;
+  return {...item,direction:next,facing};
 }
 export function rotateContents(plot:BuilderItem,items:BuilderItem[]):BuilderItem[] {
   const [w,h]=dimensions(plot);
@@ -268,6 +314,10 @@ export function decodeWorld(text:string):BuilderState {
   if(s.items.some(i=>i.parentId&&!s.items.some(p=>p.id===i.parentId&&p.kind==='plot'))) throw Error('Missing parent plot');
   // User-confirmed Inn exception: both initial Guest Beds can be replaced.
   for(const item of s.items)if(item.facilityId===155&&s.items.some(p=>p.id===item.parentId&&p.kind==='plot'&&p.houseId===7))item.fixed=false;
+  // User-confirmed gameplay rule: gates only exist in the two legal facings.
+  // Old saves keep their cells and snap onto the legal facing of the same axis.
+  for(const item of s.items)if(item.kind==='facility'&&item.facilityId===gateFacilityId&&!gateDirections.includes(item.direction))
+    {item.direction=legalGateDirection(item.direction);item.facing=item.direction;}
   for(const fixed of initialWorld().items.filter(i=>i.fixed)) {
     const saved=s.items.find(i=>i.id===fixed.id);
     if(!saved||saved.x!==fixed.x||saved.y!==fixed.y||saved.facilityId!==fixed.facilityId||!saved.fixed) throw Error('Fixed structure changed');
@@ -304,4 +354,16 @@ export function placeLine(state:BuilderState,land:Set<string>,draft:BuilderItem,
     added.push(item);for(const cell of cells(item))index.occupied.set(key(cell),item);
   }
   return {state:{...state,items:[...state.items,...added]},added:added.length,skipped};
+}
+// Removing works like building: the same dragged line clears the walls, fences
+// and paths it crosses. Fixed structures and other facilities are left alone.
+export function lineTargets(state:BuilderState,start:Cell,end:Cell) {
+  const path=new Set(buildLine(start,end).map(key));
+  return state.items.filter(i=>!i.fixed&&!isMapStructure(i)&&supportsLinePlacement(i)&&cells(i).some(c=>path.has(key(c))));
+}
+export function removeLine(state:BuilderState,start:Cell,end:Cell) {
+  const targets=lineTargets(state,start,end);
+  if(!targets.length)return {state,removed:0};
+  const ids=new Set(targets.map(i=>i.id));
+  return {state:{...state,items:state.items.filter(i=>!ids.has(i.id)&&!ids.has(i.parentId??''))},removed:targets.length};
 }

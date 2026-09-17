@@ -249,7 +249,11 @@ type RuntimeWorldRenderTestPageProps = {
   editorCellPicking?: boolean;
   editorCellElevation?: (cell:{x:number;y:number})=>number;
   onEditorLine?: (start:{x:number;y:number},end:{x:number;y:number},phase:'preview'|'commit'|'cancel')=>void;
+  /** Optional gate: a line drag only starts when this accepts the pressed cell. */
+  editorLineAllowed?: (start:{x:number;y:number})=>boolean;
   onEditorObjectClick?: (point:{x:number;y:number},camera:CameraState) => boolean;
+  /** Stretch the renderer to its parent box instead of the fixed page height. */
+  fillHeight?: boolean;
   publicMode?: boolean;
   initialZoom?: number;
   controlledZoom?: number;
@@ -814,7 +818,9 @@ function UnverifiedRuntimeWorldRenderTestPage({
   editorCellPicking = false,
   editorCellElevation,
   onEditorLine,
+  editorLineAllowed,
   onEditorObjectClick,
+  fillHeight = false,
   publicMode = false,
   initialZoom = 0.65,
   controlledZoom,
@@ -2280,7 +2286,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
     suppressNextCanvasClickRef.current = false;
     if(onEditorLine&&event.pointerType==='mouse'&&event.button===0&&!event.shiftKey) {
       const cell=pointerToWorldFromClient(event.clientX,event.clientY,event.currentTarget,camera,true);
-      if(cell){editorLineRef.current={id:event.pointerId,start:cell,end:cell};event.currentTarget.setPointerCapture(event.pointerId);onEditorLine(cell,cell,'preview');return;}
+      if(cell&&(!editorLineAllowed||editorLineAllowed(cell))){editorLineRef.current={id:event.pointerId,start:cell,end:cell};event.currentTarget.setPointerCapture(event.pointerId);onEditorLine(cell,cell,'preview');return;}
     }
     if (event.pointerType === "touch") {
       touchMovedRef.current = false;
@@ -2528,7 +2534,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
   }
 
   return (
-    <div className={publicMode ? "mx-auto max-w-[2400px]" : "mx-auto max-w-[1500px] p-4"}>
+    <div className={fillHeight ? "flex h-full min-h-0 w-full flex-col" : publicMode ? "mx-auto max-w-[2400px]" : "mx-auto max-w-[1500px] p-4"}>
       {!publicMode && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2762,7 +2768,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
 
       {error && <div className="mt-3 rounded border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-100">{error}</div>}
 
-      <div ref={containerRef} className={`relative mt-3 overflow-hidden rounded border border-border ${editorCellPicking?'h-[calc(100dvh-285px)] min-h-[360px]':'h-[74vh]'}`} style={{ backgroundColor: "#1d4f6c" }}>
+      <div ref={containerRef} className={`relative overflow-hidden border border-border ${fillHeight?'min-h-0 flex-1 rounded-none border-0':`mt-3 rounded ${editorCellPicking?'h-[calc(100dvh-285px)] min-h-[360px]':'h-[74vh]'}`}`} style={{ backgroundColor: "#1d4f6c" }}>
         <NativeOceanBackground image={pipeline?.oceanBackground} />
         <canvas
           ref={canvasRef}
