@@ -1,3 +1,16 @@
+/**
+ * SUPERSEDED FOR DISPLAY — do not use this module to render acquisition data.
+ *
+ * Item & Skill Sources now renders from the generated treasure-source projection:
+ *   src/game-data/treasure-source-profiles.json + src/lib/treasure-source-graph.ts
+ * whose data owner is RE-evidence/20260917-treasure-source-graph/.
+ *
+ * This file is kept because the generated graph cites it as the evidence reference for the
+ * inferred joins it contributed (Item.csv flag 128 shop, flag 1024 restaurant, craftGroup 70
+ * orchard, craftGroup → FacilityData recipes) in its `mechanisms` table. Removing it would leave
+ * those references dangling, so treat it as the historical evidence source for those joins
+ * rather than as a live mapping. Nothing here should be re-exported to a page again.
+ */
 import itemCsv from "../../../../data/Sheet csv/KA GameData - Item.csv?raw";
 import areaCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Area_lookup.csv?raw";
 import surveyCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Survey.csv?raw";
