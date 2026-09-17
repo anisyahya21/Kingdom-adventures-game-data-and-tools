@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import {
   ANIMAL_MONSTER_CARDS,
   COMBAT_MONSTER_CARDS,
+  MAX_AREA_LEVEL,
   filterMonsterCards,
-  spawnAreaLevels,
+  selectableAreaLevels,
   statXp,
   xpPerKill,
   type MonsterCard,
@@ -108,10 +109,23 @@ function formatRange(min: number, max: number) {
 }
 
 function XpBlock({ card }: { card: MonsterCard }) {
-  const levels = useMemo(() => spawnAreaLevels(card), [card]);
+  const levelSuggestions = useMemo(() => selectableAreaLevels(card.minLevel), [card.minLevel]);
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState(card.minLevel);
+  const [draft, setDraft] = useState(String(card.minLevel));
   const statEntries = useMemo(() => statXp(card, level), [card, level]);
+  const typed = draft.trim();
+  const filteredLevels = typed ? levelSuggestions.filter((entry) => String(entry).startsWith(typed)) : levelSuggestions;
+  const commit = (raw: string) => {
+    const parsed = Number(raw);
+    if (raw.trim() !== "" && Number.isInteger(parsed) && parsed >= card.minLevel && parsed <= MAX_AREA_LEVEL) {
+      setLevel(parsed);
+      setDraft(String(parsed));
+      return;
+    }
+    // Nothing to commit yet (empty or below the lowest spawn level): keep the last valid level.
+    if (raw.trim() === "") setDraft("");
+  };
   return (
     <div className="mt-2 border-t border-border/60 bg-muted/20">
       <button
@@ -139,23 +153,24 @@ function XpBlock({ card }: { card: MonsterCard }) {
               id={`level-${card.id}`}
               list={`level-${card.id}-options`}
               inputMode="numeric"
-              value={level}
+              value={draft}
               onChange={(event) => {
-                const next = Number(event.target.value);
-                if (Number.isFinite(next) && next >= card.minLevel && next <= Math.min(card.maxLevel, 9999)) {
-                  setLevel(Math.trunc(next));
-                }
+                const raw = event.target.value.replace(/[^0-9]/g, "");
+                setDraft(raw);
+                commit(raw);
+              }}
+              onBlur={() => {
+                if (draft.trim() === "" || Number(draft) < card.minLevel) setDraft(String(level));
               }}
               className="h-7 w-20 text-xs"
             />
             <datalist id={`level-${card.id}-options`}>
-              {levels.map((entry) => (
+              {filteredLevels.map((entry) => (
                 <option key={entry} value={entry} />
               ))}
             </datalist>
             <span className="text-[11px] text-muted-foreground">
-              min {card.minLevel} · area levels on {card.terrainName}: {levels.slice(0, 6).join(", ")}
-              {levels.length > 6 ? "…" : ""}
+              any area level {card.minLevel}+ · biome does not restrict spawns
             </span>
           </div>
           <div className="flex items-center gap-2">

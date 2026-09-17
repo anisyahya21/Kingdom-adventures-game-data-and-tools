@@ -16,7 +16,8 @@
  */
 import monsterCsv from "../../../../data/Sheet csv/KA GameData - Monster.csv?raw";
 import sprites from "@/game-data/monster-sprites.json";
-import { NATIVE_AREA_LEVELS, parseCsv } from "@/lib/monster-truth";
+import { parseCsv } from "@/lib/monster-truth";
+import { ALL_AREA_LEVELS } from "@/lib/monster-xp";
 import { TREASURE_BY_ID, treasureDisplayName } from "@/lib/treasure-lookup";
 import { caveForTerrain, type CaveAppearance } from "@/lib/cave-lookup";
 import { getItemIcon } from "@/lib/equipment-icons";
@@ -246,15 +247,17 @@ export function statXp(card: MonsterCard, level: number): StatXpEntry[] {
   }));
 }
 
+export const MAX_AREA_LEVEL = 9999;
+
 /**
- * Area levels that exist on the map for this monster's terrain and lie inside its own range.
- * The native map only has this biome at these levels, so they are the levels the monster can
- * actually be met at (the cave level and these share the same source).
+ * Area levels the game can put this monster at, for the XP level box.
+ *
+ * Spawns are not biome-locked: the random spawn mechanic can place a monster in an area whose
+ * biome differs from its own row, so any area level at or above its lowest spawn level is a real
+ * possibility (a rock monster at level 3200, for example). Suggestions are the map's area levels.
  */
-export function spawnAreaLevels(card: MonsterCard): number[] {
-  const ceiling = Math.min(card.maxLevel, 9999);
-  const levels = NATIVE_AREA_LEVELS[card.terrainName] ?? [];
-  return levels.filter((level) => level >= card.minLevel && level <= ceiling);
+export function selectableAreaLevels(minLevel: number): number[] {
+  return ALL_AREA_LEVELS.filter((level) => level >= minLevel && level <= MAX_AREA_LEVEL);
 }
 
 /** Card to show when a monster is focused, with the level list used by the XP panel. */
