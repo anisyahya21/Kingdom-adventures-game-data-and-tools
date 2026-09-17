@@ -68,7 +68,7 @@ function BoxBlock({ card, animal }: { card: MonsterCard; animal: boolean }) {
   return (
     <div className="mt-2 border-t border-border/60 px-2.5 pt-2">
       <div className="flex items-center gap-2">
-        <img src={card.box.icon} alt="" className="h-7 w-7 object-contain [image-rendering:pixelated]" />
+        <img src={card.box.icon} alt="" className="h-9 w-9 object-contain [image-rendering:pixelated]" />
         <span className="min-w-0">
           <span className="block truncate text-sm font-semibold">{card.box.name}</span>
           <span className="block text-[11px] text-muted-foreground">
@@ -86,12 +86,12 @@ function BoxBlock({ card, animal }: { card: MonsterCard; animal: boolean }) {
         {card.box.rewards.map((reward) => (
           <li
             key={`${card.id}-${reward.name}`}
-            className="flex items-center gap-2 rounded bg-muted/50 px-2 py-[3px]"
+            className="flex items-center gap-2 rounded bg-muted/50 px-2 py-0"
           >
             {reward.icon ? (
-              <img src={reward.icon} alt="" className="h-5 w-5 object-contain [image-rendering:pixelated]" />
+              <img src={reward.icon} alt="" className="h-6 w-6 object-contain [image-rendering:pixelated]" />
             ) : (
-              <span className="h-5 w-5" />
+              <span className="h-6 w-6" />
             )}
             <span className="min-w-0 truncate text-xs text-foreground/90">
               {reward.name} <span className="text-muted-foreground">{formatRange(reward.min, reward.max)}</span>
