@@ -22,16 +22,16 @@ function terrainChipClass(card: MonsterCard) {
 
 function MonsterArt({ card }: { card: MonsterCard }) {
   return (
-    <div className="flex h-[190px] items-end justify-center rounded-t-[9px] bg-[radial-gradient(115%_90%_at_50%_105%,hsl(258_32%_22%),hsl(222_28%_14%)_62%)]">
+    <div className="flex h-[168px] items-center justify-center rounded-t-[9px] bg-[radial-gradient(115%_90%_at_50%_105%,hsl(258_32%_22%),hsl(222_28%_14%)_62%)]">
       {card.sprite ? (
         <img
           src={card.sprite}
           alt={card.name}
-          className="mb-4 h-[150px] w-auto [image-rendering:pixelated]"
+          className="h-[150px] w-auto [image-rendering:pixelated]"
           loading="lazy"
         />
       ) : (
-        <Skull className="mb-16 h-10 w-10 text-muted-foreground/40" />
+        <Skull className="h-10 w-10 text-muted-foreground/40" />
       )}
     </div>
   );
@@ -39,18 +39,23 @@ function MonsterArt({ card }: { card: MonsterCard }) {
 
 function Chips({ card }: { card: MonsterCard }) {
   return (
-    <div className="flex flex-wrap gap-1 px-2.5 pt-1.5">
-      <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-px text-xs ${terrainChipClass(card)}`}>
+    <div className="flex flex-wrap items-stretch gap-1.5 px-2.5 pt-1.5">
+      <span
+        className={`inline-flex items-center gap-1 self-center rounded border px-1.5 py-0.5 text-xs ${terrainChipClass(card)}`}
+      >
         <span className="font-semibold">
           {card.terrainName} {card.minLevel}+
         </span>
       </span>
       {card.cave && (
-        <span className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-px text-xs text-foreground/90">
-          <img src={card.cave.icon} alt="" className="h-4 w-4 object-contain [image-rendering:pixelated]" />
-          <span className="font-semibold">
-            {card.cave.name} Lv {card.minLevel}+
-          </span>
+        <span className="ml-auto flex flex-1 items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1">
+          <img
+            src={card.cave.icon}
+            alt=""
+            className="h-10 w-10 shrink-0 object-contain [image-rendering:pixelated]"
+          />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground/90">{card.cave.name}</span>
+          <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">Lv {card.minLevel}+</span>
         </span>
       )}
     </div>
