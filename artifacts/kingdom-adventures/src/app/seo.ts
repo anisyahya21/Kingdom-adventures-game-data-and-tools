@@ -61,12 +61,14 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     description: "Plan Kingdom Adventurers eggs and pets with hatching, compatibility, and pet data.",
   },
   "/monsters": {
-    title: "Kingdom Adventurers Monster Spawns",
-    description: "Search Kingdom Adventurers monsters, spawn locations, levels, drops, and map data.",
+    title: "Kingdom Adventurers Monster Spawns and Loot",
+    description:
+      "One card per Kingdom Adventurers monster: spawn biome and level, the cave that spawns it, its treasure box contents and chances, and average XP per kill.",
   },
   "/monster-spawns": {
-    title: "Kingdom Adventurers Monster Spawns",
-    description: "Search Kingdom Adventurers monster spawn locations, levels, drops, and map data.",
+    title: "Kingdom Adventurers Monster Spawns and Loot",
+    description:
+      "One card per Kingdom Adventurers monster: spawn biome and level, the cave that spawns it, its treasure box contents and chances, and average XP per kill.",
   },
   "/monsters-pets": {
     title: "Kingdom Adventurers Monsters and Pets",
@@ -81,8 +83,9 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     description: "Calculate expected Kingdom Adventurers battle XP per kill by area level, terrain, combat monster pool, and XP Up skills.",
   },
   "/monster-loot": {
-    title: "Kingdom Adventurers Monster Loot",
-    description: "Find the best Kingdom Adventurers area level and terrain for farming an item from combat monster treasure drops.",
+    title: "Kingdom Adventurers Monster Spawns and Loot",
+    description:
+      "Monster loot now lives on the monster spawns page: search a monster to see its treasure box contents, drop chances and cave.",
   },
   "/item-sources": {
     title: "Kingdom Adventurers Item and Skill Sources",

@@ -1,397 +1,322 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Info, Loader2, Plus, RefreshCw, Search, Skull, Users } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, Info, Search, Skull } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
-import { apiUrl } from "@/lib/api";
-import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
 import {
-  MINED_MONSTER_SUMMARIES,
-  mergeUniqueSpawns,
-  type CommunitySighting,
-} from "@/lib/monster-truth";
+  ANIMAL_MONSTER_CARDS,
+  COMBAT_MONSTER_CARDS,
+  filterMonsterCards,
+  spawnAreaLevels,
+  statXp,
+  xpPerKill,
+  type MonsterCard,
+} from "@/lib/monster-cards";
 
-type SharedMonster = { icon?: string };
+const formatNumber = (value: number, digits = 1) =>
+  value.toLocaleString(undefined, { maximumFractionDigits: digits });
 
-function MonsterImage({ src, name, large = false }: { src?: string; name: string; large?: boolean }) {
+function terrainChipClass(card: MonsterCard) {
+  return `border-border bg-muted/40 text-foreground/90 chip-terrain-${card.terrainClass}`;
+}
+
+function MonsterArt({ card }: { card: MonsterCard }) {
   return (
-    <div className={`${large ? "h-24 w-48" : "h-14 w-28 sm:h-16 sm:w-32"} shrink-0 overflow-hidden rounded-md border border-border bg-muted/30`}>
-      {src ? (
-        <img src={src} alt={name} className="h-full w-full object-cover object-center" loading="lazy" />
+    <div className="flex h-[190px] items-end justify-center rounded-t-[9px] bg-[radial-gradient(115%_90%_at_50%_105%,hsl(258_32%_22%),hsl(222_28%_14%)_62%)]">
+      {card.sprite ? (
+        <img
+          src={card.sprite}
+          alt={card.name}
+          className="mb-4 h-[150px] w-auto [image-rendering:pixelated]"
+          loading="lazy"
+        />
       ) : (
-        <div className="flex h-full w-full items-center justify-center">
-          <Skull className={`${large ? "h-7 w-7" : "h-5 w-5"} text-muted-foreground/40`} />
+        <Skull className="mb-16 h-10 w-10 text-muted-foreground/40" />
+      )}
+    </div>
+  );
+}
+
+function Chips({ card }: { card: MonsterCard }) {
+  return (
+    <div className="flex flex-wrap gap-1 px-2.5 pt-1.5">
+      <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-px text-xs ${terrainChipClass(card)}`}>
+        <span className="font-semibold">
+          {card.terrainName} {card.minLevel}+
+        </span>
+      </span>
+      {card.cave && (
+        <span className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-px text-xs text-foreground/90">
+          <img src={card.cave.icon} alt="" className="h-4 w-4 object-contain [image-rendering:pixelated]" />
+          <span className="font-semibold">
+            {card.cave.name} Lv {card.minLevel}+
+          </span>
+        </span>
+      )}
+    </div>
+  );
+}
+
+function BoxBlock({ card, animal }: { card: MonsterCard; animal: boolean }) {
+  if (!card.box) return null;
+  return (
+    <div className="mt-2 border-t border-border/60 px-2.5 pt-2">
+      <div className="flex items-center gap-2">
+        <img src={card.box.icon} alt="" className="h-7 w-7 object-contain [image-rendering:pixelated]" />
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold">{card.box.name}</span>
+          <span className="block text-[11px] text-muted-foreground">
+            {animal ? "Material yield" : `Treasure #${card.box.id}`}
+          </span>
+        </span>
+        <span className="ml-auto text-right">
+          <span className="block text-sm font-semibold text-violet-400">{card.box.rate}%</span>
+          <span className="block text-[11px] text-muted-foreground">
+            {animal ? "when collected" : "box per kill"}
+          </span>
+        </span>
+      </div>
+      <ul className="mt-1.5 space-y-[3px]">
+        {card.box.rewards.map((reward) => (
+          <li
+            key={`${card.id}-${reward.name}`}
+            className="flex items-center gap-2 rounded bg-muted/50 px-2 py-[3px]"
+          >
+            {reward.icon ? (
+              <img src={reward.icon} alt="" className="h-5 w-5 object-contain [image-rendering:pixelated]" />
+            ) : (
+              <span className="h-5 w-5" />
+            )}
+            <span className="min-w-0 truncate text-xs text-foreground/90">
+              {reward.name} <span className="text-muted-foreground">{formatRange(reward.min, reward.max)}</span>
+            </span>
+            <span className="ml-auto text-xs font-semibold tabular-nums">{reward.rate}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function formatRange(min: number, max: number) {
+  return min === max ? `×${min}` : `×${min}-${max}`;
+}
+
+function XpBlock({ card }: { card: MonsterCard }) {
+  const levels = useMemo(() => spawnAreaLevels(card), [card]);
+  const [open, setOpen] = useState(false);
+  const [level, setLevel] = useState(card.minLevel);
+  const statEntries = useMemo(() => statXp(card, level), [card, level]);
+  return (
+    <div className="mt-2 border-t border-border/60 bg-muted/20">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs"
+        aria-expanded={open}
+      >
+        {open ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+        <span className="font-medium">XP per kill</span>
+        <span className="ml-auto text-sm font-semibold tabular-nums text-violet-400">
+          {formatNumber(xpPerKill(card, level))}
+        </span>
+        <span className="text-[11px] text-muted-foreground">
+          at Lv {level}
+        </span>
+      </button>
+      {open && (
+        <div className="space-y-2 px-2.5 pb-2.5">
+          <div className="flex items-center gap-2">
+            <label htmlFor={`level-${card.id}`} className="text-[11px] font-medium text-muted-foreground">
+              Area level
+            </label>
+            <Input
+              id={`level-${card.id}`}
+              list={`level-${card.id}-options`}
+              inputMode="numeric"
+              value={level}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                if (Number.isFinite(next) && next >= card.minLevel && next <= Math.min(card.maxLevel, 9999)) {
+                  setLevel(Math.trunc(next));
+                }
+              }}
+              className="h-7 w-20 text-xs"
+            />
+            <datalist id={`level-${card.id}-options`}>
+              {levels.map((entry) => (
+                <option key={entry} value={entry} />
+              ))}
+            </datalist>
+            <span className="text-[11px] text-muted-foreground">
+              min {card.minLevel} · area levels on {card.terrainName}: {levels.slice(0, 6).join(", ")}
+              {levels.length > 6 ? "…" : ""}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Average XP per kill</span>
+            <span className="text-lg font-bold tabular-nums text-violet-400">{formatNumber(xpPerKill(card, level))}</span>
+          </div>
+          <div>
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Average XP per stat
+            </span>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {statEntries.map((entry) => (
+                <span
+                  key={entry.stat}
+                  className="inline-flex items-center gap-1 rounded border border-border bg-muted/50 px-1.5 py-px text-xs"
+                  title={entry.label}
+                >
+                  {entry.icon ? (
+                    <img src={entry.icon} alt={entry.label} className="h-4 w-4 object-contain [image-rendering:pixelated]" />
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">{entry.label}</span>
+                  )}
+                  <span className="font-semibold tabular-nums">{formatNumber(entry.value)}</span>
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function SpawnChip({ area, level }: { area: string; level: number }) {
+function MonsterTile({ card, animal = false }: { card: MonsterCard; animal?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded border border-border bg-muted/30 px-2 py-0.5 text-[11px] leading-5 text-muted-foreground">
-      <span className="font-medium text-foreground/80">{area}</span>
-      <span>Lv {level}</span>
-    </span>
+    <Card className="overflow-hidden">
+      <MonsterArt card={card} />
+      <div className="flex items-center gap-2 px-2.5 pt-2">
+        <span className="truncate text-base font-bold">{card.name}</span>
+        <span className="text-[11px] text-muted-foreground">#{card.id}</span>
+        <span
+          className={`ml-auto rounded-full border px-2 text-[11px] ${
+            animal ? "border-amber-500/40 bg-amber-500/10 text-amber-300" : "border-violet-500/40 bg-violet-500/10 text-violet-300"
+          }`}
+        >
+          {animal ? "Animal" : "Combat"}
+        </span>
+      </div>
+      <Chips card={card} />
+      <BoxBlock card={card} animal={animal} />
+      {animal ? (
+        <p className="mt-2 border-t border-border/60 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+          Not fought in battle, so there is no XP per kill.
+        </p>
+      ) : (
+        <XpBlock card={card} />
+      )}
+    </Card>
   );
 }
 
-function useSharedIcons() {
-  return useQuery({
-    queryKey: ["ka-shared-monster-icons"],
-    queryFn: () => fetchSharedWithFallback<{ monsters: Record<string, SharedMonster> }>(apiUrl("/shared")),
-    staleTime: 5 * 60_000,
-  });
-}
-
-const SIGHTINGS_CACHE_KEY = "ka_monster_community_sightings";
-
-function readSightingsCache(): Record<string, CommunitySighting[]> {
-  try {
-    const raw = localStorage.getItem(SIGHTINGS_CACHE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeSightingsCache(data: Record<string, CommunitySighting[]>) {
-  try {
-    localStorage.setItem(SIGHTINGS_CACHE_KEY, JSON.stringify(data));
-  } catch {
-    // ignore
-  }
-}
-
-function useCommunitySightings() {
-  return useQuery({
-    queryKey: ["ka-community-sightings"],
-    queryFn: async (): Promise<Record<string, CommunitySighting[]>> => {
-      try {
-        const res = await fetch(apiUrl("/community-sightings"));
-        if (!res.ok) throw new Error("not ok");
-        const data = await res.json();
-        writeSightingsCache(data);
-        return data;
-      } catch {
-        return readSightingsCache();
-      }
-    },
-    staleTime: 5 * 60_000,
-    initialData: readSightingsCache,
-  });
+function TileGrid({ cards, animal = false }: { cards: MonsterCard[]; animal?: boolean }) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {cards.map((card) => (
+        <div key={`${card.id}-${card.terrainCode}`} id={`monster-${card.id}`}>
+          <MonsterTile card={card} animal={animal} />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function MonstersPage() {
-  const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_monsters") ?? "");
+  const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+  const focus = params.get("monster") ?? "";
+  const [query, setQuery] = useState(params.get("search") ?? focus);
   const [showNote, setShowNote] = useState(false);
-  const [expandedMonster, setExpandedMonster] = useState<string | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("monster") ?? null;
-  });
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sightingDrafts, setSightingDrafts] = useState<Record<string, { area: string; level: string }>>({});
-  const { data, isLoading, refetch } = useSharedIcons();
-  const { data: communitySightings = {} } = useCommunitySightings();
-  const queryClient = useQueryClient();
-  const expandedRowRef = useRef<HTMLDivElement | null>(null);
 
-  const saveMutation = useMutation({
-    mutationFn: async (sightings: Record<string, CommunitySighting[]>) => {
-      writeSightingsCache(sightings);
-      const res = await fetch(apiUrl("/community-sightings"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: sightings }),
-      });
-      if (!res.ok) throw new Error("Failed to save");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ka-community-sightings"] });
-    },
-  });
-
-  const monsters = useMemo(() => {
-    const sharedMonsters = data?.monsters ?? {};
-    return MINED_MONSTER_SUMMARIES.map((monster) => {
-      const sightings = communitySightings[monster.name] ?? [];
-      return {
-        ...monster,
-        icon: sharedMonsters[monster.name]?.icon ?? MONSTER_ICON_MAP[monster.name],
-        communitySightings: sightings,
-        combinedSpawns: mergeUniqueSpawns(monster.nativeMapSpawns, sightings),
-      };
-    });
-  }, [communitySightings, data?.monsters]);
-
-  const filteredMonsters = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return monsters;
-    return monsters.filter((monster) => {
-      const searchable = [
-        monster.name,
-        monster.terrainName,
-        String(monster.areaLevelMin),
-        String(monster.areaLevelMax),
-        ...monster.combinedSpawns.flatMap((spawn) => [spawn.area, String(spawn.level), `lv ${spawn.level}`]),
-      ].join(" ").toLowerCase();
-      return searchable.includes(query);
-    });
-  }, [monsters, searchQuery]);
-
-  useEffect(() => {
-    if (expandedRowRef.current) {
-      expandedRowRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, []);
-
-  const updateSightingDraft = useCallback((monsterName: string, patch: Partial<{ area: string; level: string }>) => {
-    setSightingDrafts((current) => ({
-      ...current,
-      [monsterName]: {
-        area: current[monsterName]?.area ?? "",
-        level: current[monsterName]?.level ?? "",
-        ...patch,
-      },
-    }));
-  }, []);
-
-  const addCommunitySighting = useCallback((monsterName: string) => {
-    const draft = sightingDrafts[monsterName];
-    const area = draft?.area?.trim() ?? "";
-    const level = Number(draft?.level ?? "");
-    if (!area || !Number.isFinite(level)) return;
-
-    const existing = communitySightings[monsterName] ?? [];
-    const alreadyExists = existing.some(
-      (entry) => entry.area.trim().toLowerCase() === area.toLowerCase() && entry.level === level,
-    );
-    if (alreadyExists) return;
-
-    const updated = {
-      ...communitySightings,
-      [monsterName]: [...existing, { area, level }].sort((left, right) => {
-        const areaCmp = left.area.localeCompare(right.area);
-        if (areaCmp !== 0) return areaCmp;
-        return left.level - right.level;
-      }),
-    };
-    saveMutation.mutate(updated);
-    queryClient.setQueryData(["ka-community-sightings"], updated);
-    updateSightingDraft(monsterName, { area: "", level: "" });
-  }, [communitySightings, saveMutation, queryClient, updateSightingDraft, sightingDrafts]);
-
-  const removeCommunitySighting = useCallback((monsterName: string, target: CommunitySighting) => {
-    const existing = communitySightings[monsterName] ?? [];
-    const filtered = existing.filter(
-      (entry) => !(entry.area === target.area && entry.level === target.level),
-    );
-    const updated = { ...communitySightings };
-    if (filtered.length === 0) {
-      delete updated[monsterName];
-    } else {
-      updated[monsterName] = filtered;
-    }
-    saveMutation.mutate(updated);
-    queryClient.setQueryData(["ka-community-sightings"], updated);
-  }, [communitySightings, saveMutation, queryClient]);
+  const combat = useMemo(() => filterMonsterCards(COMBAT_MONSTER_CARDS, query), [query]);
+  const animals = useMemo(() => filterMonsterCards(ANIMAL_MONSTER_CARDS, query), [query]);
+  const total = COMBAT_MONSTER_CARDS.length + ANIMAL_MONSTER_CARDS.length;
 
   return (
     <div className="min-h-screen bg-background transition-colors">
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <Skull className="w-5 h-5 text-violet-500" />Monster Spawns
-            </h1>
-          </div>
+      <div className="mx-auto max-w-6xl px-4 py-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
+            <Skull className="h-5 w-5 text-violet-500" />
+            Monster Spawns &amp; Loot
+          </h1>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setShowNote((value) => !value)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
-              <Info className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-8 gap-1.5 text-muted-foreground">
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowNote((value) => !value)}
+              className="h-8 w-8 text-muted-foreground"
+              title="Page notes"
+            >
+              <Info className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
 
+        <p className="mb-3 max-w-3xl text-sm text-muted-foreground">
+          One card per monster: where it spawns, the cave that spawns it, what its treasure box contains and the
+          average XP per kill.
+        </p>
+
+        <div className="mb-3 rounded-lg border border-border bg-muted/15 px-3 py-2 text-xs text-muted-foreground">
+          Spawn biome and level range come from <code>KA GameData - Monster.csv</code>. A cave spawns monsters whose
+          terrain matches the cave and whose level range contains the area level (recovered from the game code), so the
+          cave level shown is the monster&apos;s own lowest level.
+        </div>
+
         {showNote && (
-          <div className="mb-4">
+          <div className="mb-3">
             <textarea
-              value={pageNote}
-              onChange={(event) => setPageNote(event.target.value)}
-              onBlur={() => localStorage.setItem("ka_note_monsters", pageNote)}
-              placeholder="Personal notes for this page... (only visible to you, saved on this device)"
-              className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
+              defaultValue={localStorage.getItem("ka_note_monsters") ?? ""}
+              onBlur={(event) => localStorage.setItem("ka_note_monsters", event.target.value)}
+              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
+              className="h-20 w-full resize-none rounded-md border border-input bg-muted/20 px-3 py-2 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         )}
 
-        <div className="mb-4 rounded-lg border border-border bg-muted/15 px-4 py-3 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground mb-1">Mined-first spawn view</p>
-          <p>
-            Terrain, Min Lv. and Max Lv. come from <code>KA GameData - Monster.csv</code>. Native spawn levels are only shown where the current mined terrain map resolves them.
-            If a monster still has an incomplete spawn picture, you can keep local community sightings here instead of leaving it blank.
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Monster Spawns Database</h2>
-        </div>
-
         <div className="relative mb-3">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
           <Input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search monsters, terrain, or spawn level"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search monsters, biomes, caves or dropped items"
             className="h-9 pl-9 text-sm"
           />
         </div>
 
-        <Card className="shadow-sm overflow-hidden">
-          <div className="divide-y divide-border">
-            {filteredMonsters.map((monster) => {
-              const isExpanded = expandedMonster === monster.name;
-              const draft = sightingDrafts[monster.name] ?? { area: "", level: "" };
-              const previewSpawns = monster.combinedSpawns.slice(0, 6);
-              const hiddenSpawnCount = Math.max(0, monster.combinedSpawns.length - previewSpawns.length);
-              return (
-                <div key={monster.id || monster.name} ref={expandedMonster === monster.name ? expandedRowRef : null}>
-                  <div className="flex items-center gap-3 px-3 py-2 hover:bg-muted/20 transition-colors">
-                    <MonsterImage src={monster.icon} name={monster.name} />
-                    <button onClick={() => setExpandedMonster(isExpanded ? null : monster.name)} className="grid flex-1 grid-cols-1 gap-1 text-left lg:grid-cols-[minmax(180px,260px)_minmax(0,1fr)_160px] lg:items-center">
-                      <div className="flex min-w-0 items-center gap-2">
-                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-primary shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-                        <span className={`truncate font-medium text-sm ${isExpanded ? "text-primary underline underline-offset-2 decoration-primary/40" : ""}`}>{monster.name}</span>
-                      </div>
-                      <div className="flex min-w-0 flex-wrap gap-1">
-                        {previewSpawns.length > 0 ? (
-                          <>
-                            {previewSpawns.map((spawn, index) => (
-                              <SpawnChip key={`${monster.name}-preview-${spawn.area}-${spawn.level}-${index}`} area={spawn.area} level={spawn.level} />
-                            ))}
-                            {hiddenSpawnCount > 0 ? (
-                              <span className="inline-flex items-center rounded border border-border/70 px-2 py-0.5 text-[11px] leading-5 text-muted-foreground">+{hiddenSpawnCount}</span>
-                            ) : null}
-                          </>
-                        ) : (
-                          <span className="text-[11px] text-muted-foreground">No resolved spawn levels</span>
-                        )}
-                      </div>
-                      <div className="hidden text-right text-[11px] text-muted-foreground lg:block">
-                        <span className="font-medium text-foreground/80">{monster.terrainName}</span>
-                        <span> Lv {monster.areaLevelMin}-{monster.areaLevelMax}</span>
-                      </div>
-                    </button>
-                  </div>
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Combat monsters</h2>
+          <span className="text-xs text-muted-foreground">
+            {query ? `${combat.length} of ${COMBAT_MONSTER_CARDS.length}` : COMBAT_MONSTER_CARDS.length}
+          </span>
+        </div>
+        {combat.length ? (
+          <TileGrid cards={combat} />
+        ) : (
+          <Card className="p-6 text-sm text-muted-foreground">No combat monsters match that search.</Card>
+        )}
 
-                  {isExpanded && (
-                    <div className="bg-muted/10 px-3 py-3 border-t border-border/50">
-                      <div className="grid gap-3 lg:grid-cols-[200px_minmax(0,1fr)]">
-                        <div className="hidden lg:block">
-                          <MonsterImage src={monster.icon} name={monster.name} large />
-                        </div>
+        <div className="mb-1.5 mt-8 flex items-baseline justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Farmable animals</h2>
+          <span className="text-xs text-muted-foreground">
+            {query ? `${animals.length} of ${ANIMAL_MONSTER_CARDS.length}` : ANIMAL_MONSTER_CARDS.length}
+          </span>
+        </div>
+        <p className="mb-2 max-w-3xl text-xs text-muted-foreground">
+          Not fought in battle and not spawned by caves. Their row is a material yield, listed here so the treasure
+          contents are still searchable.
+        </p>
+        {animals.length ? (
+          <TileGrid cards={animals} animal />
+        ) : (
+          <Card className="p-6 text-sm text-muted-foreground">No animals match that search.</Card>
+        )}
 
-                        <div className="min-w-0 space-y-3">
-                          <div className="grid gap-2 sm:grid-cols-3">
-                            <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Terrain</p>
-                              <p className="text-sm font-medium">{monster.terrainName}</p>
-                            </div>
-                            <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Min Lv.</p>
-                              <p className="text-sm font-medium">{monster.areaLevelMin}</p>
-                            </div>
-                            <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Max Lv.</p>
-                              <p className="text-sm font-medium">{monster.areaLevelMax}</p>
-                            </div>
-                          </div>
-
-                          {monster.spawnNote ? (
-                            <div className="rounded-md border border-dashed border-border/70 bg-background/40 px-3 py-3">
-                              <p className="text-xs text-muted-foreground">{monster.spawnNote}</p>
-                            </div>
-                          ) : null}
-
-                          {monster.nativeMapSpawns.length > 0 && (
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-2">Native Map Spawns</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {monster.nativeMapSpawns.map((spawn, index) => (
-                                  <SpawnChip key={`${monster.name}-${spawn.area}-${spawn.level}-${index}`} area={spawn.area} level={spawn.level} />
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-3 rounded-md border border-border/60 bg-background/40 px-3 py-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                          <p className="text-xs font-medium text-muted-foreground">Sighted by community data</p>
-                        </div>
-                        {monster.communitySightings.length > 0 ? (
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {monster.communitySightings.map((entry, index) => (
-                              <button
-                                key={`${monster.name}-community-${entry.area}-${entry.level}-${index}`}
-                                type="button"
-                                onClick={() => removeCommunitySighting(monster.name, entry)}
-                                className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/30 px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-muted/50"
-                                title="Remove this local sighting"
-                              >
-                                <span className="font-medium">{entry.area}</span>
-                                <span>Lv {entry.level}</span>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground/70 mb-3">No community sightings added on this device yet.</p>
-                        )}
-
-                        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px_auto]">
-                          <Input
-                            value={draft.area}
-                            onChange={(event) => updateSightingDraft(monster.name, { area: event.target.value })}
-                            placeholder="Biome or area, like Grass or Snow"
-                            className="h-8 text-xs"
-                          />
-                          <Input
-                            value={draft.level}
-                            onChange={(event) => updateSightingDraft(monster.name, { level: event.target.value })}
-                            placeholder="Lv"
-                            inputMode="numeric"
-                            className="h-8 text-xs"
-                          />
-                          <Button type="button" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => addCommunitySighting(monster.name)}>
-                            <Plus className="w-3.5 h-3.5" />
-                            Add sighting
-                          </Button>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground/70 mt-2">Sightings are shared with all users.</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {filteredMonsters.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-                No monsters match that search.
-              </div>
-            ) : null}
-          </div>
-        </Card>
-
-        <p className="text-xs text-muted-foreground mt-4 text-center">
-          {filteredMonsters.length === monsters.length
-            ? `${monsters.length} monsters`
-            : `${filteredMonsters.length} of ${monsters.length} monsters`}
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          {total} monster rows · {COMBAT_MONSTER_CARDS.length} combat · {ANIMAL_MONSTER_CARDS.length} farmable
         </p>
       </div>
     </div>

@@ -619,7 +619,7 @@ export default function ItemSourcesPage() {
       <div className="flex flex-wrap gap-2">
         <Button variant={mode === "item" ? "default" : "outline"} onClick={() => setMode("item")}>Find an item or skill</Button>
         <Button variant={mode === "treasure" ? "default" : "outline"} onClick={() => setMode("treasure")}>Treasure data lookup</Button>
-        <Button variant="ghost" asChild><Link href="/monster-loot">Compare monster loot</Link></Button>
+        <Button variant="ghost" asChild><Link href="/monster-spawns">Browse monster loot</Link></Button>
       </div>
 
       {mode === "item" ? (

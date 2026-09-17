@@ -37,7 +37,6 @@ const WeeklyConquestPage = lazy(() => import("@/pages/weekly-conquest"));
 const WarioDungeonPage = lazy(() => import("@/pages/wario-dungeon"));
 const MonsterPetStatsPage = lazy(() => import("@/pages/monster-pet-stats"));
 const MonsterXpPage = lazy(() => import("@/pages/monster-xp"));
-const MonsterLootPage = lazy(() => import("@/pages/monster-loot"));
 const ItemSourcesPage = lazy(() => import("@/pages/item-sources"));
 const DailyRankRewardsPage = lazy(() => import("@/pages/daily-rank-rewards"));
 const JobCenterPage = lazy(() => import("@/pages/job-center"));
@@ -179,7 +178,8 @@ function Router() {
         <Route path="/monster-spawns">{() => <MonstersPage />}</Route>
         <Route path="/monster-pet-stats">{() => <MonsterPetStatsPage />}</Route>
         <Route path="/monster-xp">{() => <MonsterXpPage />}</Route>
-        <Route path="/monster-loot">{() => <MonsterLootPage />}</Route>
+        {/* The old item-first Monster Loot page is merged into the card page. */}
+        <Route path="/monster-loot">{() => <MonstersPage />}</Route>
         <Route path="/item-sources">{() => <ItemSourcesPage />}</Route>
         <Route path="/shops">{() => <ShopsPage />}</Route>
         <Route path="/shops/:slug">{() => <ShopsPage />}</Route>

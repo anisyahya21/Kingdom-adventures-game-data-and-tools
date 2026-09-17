@@ -74,7 +74,7 @@ export function buildGlobalSearchEntries(): GlobalSearchEntry[] {
   });
 
   Object.keys(shared.monsters ?? {}).forEach((name) =>
-    entries.push({ label: name, subtitle: "Monster Spawns", href: "/monster-spawns" }),
+    entries.push({ label: name, subtitle: "Monster Spawns & Loot", href: "/monster-spawns" }),
   );
 
   Object.keys(shared.skills ?? {}).forEach((name) =>
