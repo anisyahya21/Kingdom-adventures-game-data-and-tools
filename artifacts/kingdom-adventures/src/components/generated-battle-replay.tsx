@@ -364,7 +364,7 @@ function StageOverlayLayer({
           <div
             key={item.key}
             className="pointer-events-none absolute"
-            style={{ left: item.anchor.left, top: item.anchor.top, transform: "translate(-50%, -100%) scale(0.15)", transformOrigin: "bottom center" }}
+            style={{ left: item.anchor.left, top: `calc(${item.anchor.top} - 40px)`, transform: "translate(-50%, -100%) scale(0.3)", transformOrigin: "bottom center" }}
             data-skill-trigger={item.skillId}
           >
             {/*
