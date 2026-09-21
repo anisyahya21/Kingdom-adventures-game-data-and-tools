@@ -41,6 +41,10 @@ const ItemSourcesPage = lazy(() => import("@/pages/item-sources"));
 const DailyRankRewardsPage = lazy(() => import("@/pages/daily-rank-rewards"));
 const JobCenterPage = lazy(() => import("@/pages/job-center"));
 const KairoRoomPage = lazy(() => import("@/pages/kairo-room"));
+const BattleReplayPage = lazy(() => import("@/pages/battle-replay"));
+const BattleSetupPage = lazy(() => import("@/pages/battle-setup"));
+const StrategySearchPage = lazy(() => import("@/pages/strategy-search"));
+const PlayerBattlePage = lazy(() => import("@/pages/player-battle"));
 const PlaythroughGuidePage = lazy(() => import("@/pages/playthrough-guide"));
 const GuidesPage = lazy(() => import("@/pages/guides"));
 const AddGuidePage = lazy(() => import("@/pages/add-guide"));
@@ -203,6 +207,10 @@ function Router() {
         <Route path="/daily-rank-rewards">{() => <DailyRankRewardsPage />}</Route>
         <Route path="/job-center">{() => <JobCenterPage />}</Route>
         <Route path="/kairo-room">{() => <KairoRoomPage />}</Route>
+        <Route path="/battle-replay">{() => <BattleReplayPage />}</Route>
+        <Route path="/battle-setup">{() => <BattleSetupPage />}</Route>
+        <Route path="/strategy-search">{() => <StrategySearchPage />}</Route>
+        <Route path="/battle">{() => <PlayerBattlePage />}</Route>
         <Route path="/gacha-events">{() => <GachaEventsPage />}</Route>
         <Route path="/town-rank">{() => <TownRankPage />}</Route>
         <Route path="/guides/:slug">{() => <CommunityGuidePage />}</Route>

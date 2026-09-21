@@ -69,6 +69,25 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
     proxy: {
+      /*
+       * PASS 16 COMMAND 16.9: in development the page posts to the relative `/api/battle-run`,
+       * which production serves from the Vercel Python function. Locally that path is forwarded to
+       * the same handler run as a plain Python process (`BATTLE_RUNNER_PORT`, default 8787), so no
+       * environment-dependent URL is ever hardcoded in the app.
+       */
+      "/api/battle-run": {
+        target: `http://127.0.0.1:${process.env.BATTLE_RUNNER_PORT || 8787}`,
+        changeOrigin: true,
+      },
+      /*
+       * Local-only strategy-search jobs (2026-09-20). Same local runner process as battle-run;
+       * the endpoints are transport only and refuse to invent scores while the engine module is
+       * absent. Production keeps these routes unproxied (local-only feature).
+       */
+      "/api/strategy-search": {
+        target: `http://127.0.0.1:${process.env.BATTLE_RUNNER_PORT || 8787}`,
+        changeOrigin: true,
+      },
       "/ka": {
         target: `http://localhost:${process.env.API_PORT || 3001}`,
         changeOrigin: true,

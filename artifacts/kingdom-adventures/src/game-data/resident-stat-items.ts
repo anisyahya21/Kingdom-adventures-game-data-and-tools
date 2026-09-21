@@ -17,8 +17,12 @@
  * Intelligence, Dexterity, Gather, Move or Heart - those stats only ever come
  * from the job curve and equipment.
  *
- * The bonus lands on the game's unbounded "extra" value (HP/MP also raise their
- * maximum), which is why a resident's effective stat can sit above the job
+ * Native applies the bonus after character creation, in `ecs.ValuableSystem` (see
+ * `resident-valuable-effects.ts` for the recovered dispatch): HP/MP/Vigor raise the parameter's
+ * *maximum* through `Parameter.AddMaxValue 0x16828a4`, Attack/Defence raise its *value* through
+ * `Parameter.Add 0x16827e0`, and the combat read is `value_ + extraValue_`
+ * (`Parameter.get_value 0x16825cc`). The loadout conversion therefore carries the bonus as the
+ * parameter's extra value/maximum, which is why a resident's effective stat can sit above the job
  * curve at the same level. It is a player-wide bonus, not a per-job value.
  */
 

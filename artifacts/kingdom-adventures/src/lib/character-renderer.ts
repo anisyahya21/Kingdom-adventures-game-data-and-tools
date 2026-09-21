@@ -39,7 +39,7 @@ type OptEntry = {
   slots: Record<string, Slot>;
 };
 
-type SpriteDirRules = {
+export type SpriteDirRules = {
   inf: Record<string, Record<string, string>>;
   opts: Record<string, OptEntry>;
 };
@@ -82,7 +82,7 @@ type AssetRef = {
 
 type AlphaBounds = [number, number, number, number];
 
-type RenderEnvelope = {
+export type RenderEnvelope = {
   rules: CharacterRules;
   job: JobRow;
   variant: number;
@@ -97,6 +97,13 @@ type RenderEnvelope = {
   cropY: number;
   cropW: number;
   cropH: number;
+  /**
+   * The pose reference of each drawn frame in **SEB line coordinates**: the body line's `ox` and the
+   * shadow line's `oy` (`poseRefs`). The base canvas normalises every frame's reference onto
+   * `(originX, originY)`, so a caller that wants the SEB origin - the point the native draw chain
+   * `dest = cell + SEB(transX, transY)` places on the entity origin - must offset by this value.
+   */
+  poseReferences: { x: number; y: number }[];
 };
 
 export type CharacterRenderParams = {
@@ -123,6 +130,23 @@ function loadCharacterRules(): Promise<CharacterRules> {
       });
   }
   return rulesPromise;
+}
+
+/**
+ * The baked `character_sprites/character-rules.json` document, in the shape the native battle
+ * render paths need (each part directory's original `img.inf` index table plus its OPT grid).
+ *
+ * This is the same document and the same cached fetch the character preview uses - the battle
+ * replay's native human path must not grow a second copy of these tables.
+ */
+export type HumanPartRules = {
+  spriteBase: string;
+  dirs: Record<string, SpriteDirRules>;
+};
+
+export async function loadHumanPartRules(): Promise<HumanPartRules> {
+  const rules = await loadCharacterRules();
+  return { spriteBase: rules.spriteBase, dirs: rules.dirs };
 }
 
 function spriteUrl(rules: CharacterRules, dir: string, filename: string): string {
@@ -404,9 +428,11 @@ async function createRenderEnvelope(params: CharacterRenderParams): Promise<Rend
   const poseName = params.equipState === "up" ? "equip_wait_up.seb" : hasEquipment ? "equip_wait_right.seb" : "wait_right.seb";
 
   const extentValues: Array<[number, number, number, number]> = [];
+  const poseReferences: { x: number; y: number }[] = [];
   for (let frame = 0; frame < 4; frame += 1) {
     const extentOps = getPoseOps(rules, poseName, frame);
     const [extentBodyOx, , extentRefOy] = poseRefs(extentOps);
+    poseReferences.push({ x: extentBodyOx, y: extentRefOy });
     extentValues.push(poseExtents(extentOps, extentBodyOx, extentRefOy));
   }
 
@@ -434,6 +460,7 @@ async function createRenderEnvelope(params: CharacterRenderParams): Promise<Rend
     height,
     originX: -minX,
     originY: -minY,
+    poseReferences,
   };
 
   let bounds: AlphaBounds | null = null;
@@ -466,6 +493,27 @@ function getRenderEnvelope(params: CharacterRenderParams): Promise<RenderEnvelop
   const promise = createRenderEnvelope(params);
   envelopeCache.set(key, promise);
   return promise;
+}
+
+/**
+ * Envelope metadata for callers that place the preview themselves (the battle replay's native
+ * scene needs one source-art pixel per logical scene pixel).
+ *
+ * `originX/originY` is where the pose reference (`bodyOx`/`refOy` of the pose ops) sits inside the
+ * untrimmed base canvas, and `cropX/cropY/cropW/cropH` is the alpha-trimmed box that
+ * `renderCharacterPreview` draws into the canvas. The pose reference inside the crop is therefore
+ * `(cropX - originX, cropY - originY)`.
+ *
+ * A caller that anchors by the pose reference alone draws the unit
+ * `(poseReferences[frame].x, poseReferences[frame].y)` away from where the SEB origin belongs; the
+ * native chain puts the SEB origin on the entity origin (`dest = cell + SEB(transX, transY)`), which
+ * is also what the human composite does (`left = frame.transX`, `top = frame.transY`). Adding the
+ * frame's reference to the canvas offset makes both human renderers share that one convention.
+ */
+export async function getCharacterPreviewEnvelope(
+  params: CharacterRenderParams,
+): Promise<RenderEnvelope | null> {
+  return getRenderEnvelope(params);
 }
 
 export async function renderCharacterPreview(canvas: HTMLCanvasElement, params: CharacterRenderParams): Promise<boolean> {

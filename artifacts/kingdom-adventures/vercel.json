@@ -1,4 +1,11 @@
 {
+  "functions": {
+    "api/battle-run.py": {
+      "includeFiles": "api/{_battle_runtime/**,_battle_preview.py}",
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
   "routes": [
     {
       "src": "^/sitemap\\.xml$",

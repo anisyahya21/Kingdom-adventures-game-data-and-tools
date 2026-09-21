@@ -22,6 +22,8 @@ export type KaStatus = "Ready" | "In Progress" | "Research Needed";
 export type KaFacilityTabStyle = "env" | "materials" | "amenity" | "indoors" | "map";
 export type KaRank = "S" | "A" | "B" | "C" | "D";
 export type KaAffinity = "A" | "B" | "C" | "D" | "E";
+/** Presentation-only encounter difficulty palette; not game data. */
+export type KaDifficulty = "Easy" | "Normal" | "Hard" | "Extreme";
 
 export const KA_CATEGORY_BADGE_CLASS: Record<KaCategory, string> = {
   job: "bg-sky-500/10 text-sky-700 border-sky-500/30 dark:text-sky-300",
@@ -42,6 +44,13 @@ export const KA_CATEGORY_BADGE_CLASS: Record<KaCategory, string> = {
   warning: "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-300",
   success: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300",
   muted: "bg-muted/40 text-muted-foreground border-border",
+};
+
+export const KA_DIFFICULTY_BADGE_CLASS: Record<KaDifficulty, string> = {
+  Easy: "bg-green-500/10 text-green-700 border-green-500/30 dark:text-green-300",
+  Normal: "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-300",
+  Hard: "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-300",
+  Extreme: "bg-red-500/10 text-red-700 border-red-500/30 dark:text-red-300",
 };
 
 export const KA_STATUS_BADGE_CLASS: Record<KaStatus, string> = {

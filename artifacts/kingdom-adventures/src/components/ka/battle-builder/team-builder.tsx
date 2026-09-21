@@ -1,0 +1,526 @@
+import { useEffect, useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, Copy, Plus, Search, Trash2, UserPlus } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/searchable-select";
+import { DifficultyBadge, RankBadge } from "@/components/ka/badges";
+import {
+  ENCOUNTER_FAMILIES,
+  ENCOUNTER_VARIANTS,
+  JOB_CATALOG,
+  JOB_BY_ID,
+  MONSTER_BY_ID,
+  difficultyName,
+  type BattleEncounterVariant,
+} from "@/lib/battle-setup";
+import type { SavedLoadout } from "@/lib/battle-legality";
+import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
+import {
+  createDraftCharacter,
+  draftCharacterFromLoadout,
+  gearInSlot,
+  moveInList,
+  removeAt,
+  type BuilderSharedData,
+  type DraftCharacter,
+} from "@/lib/battle-team-draft";
+import {
+  CharacterSprite,
+  CharacterSpriteThumb,
+  GearSlotEditors,
+  PetSlotIconStrip,
+  PetSlotsSection,
+  SkillSlotEditor,
+  StatLevelEditor,
+} from "./editors";
+
+/* ------------------------------------------------------------------ */
+/* 1 - Encounter (comes first)                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Presentation-only helpers for the encounter tiles. The family label comes from the recovered table
+ * and is long ("Saturday - Kairobot Knight's Challenge"); the tile shows the part after the weekday so
+ * the card stays readable. The boss art is the monster's own recovered sprite (`MONSTER_BY_ID.src`),
+ * with the wiki icon map as the existing fallback - no new game data is introduced.
+ */
+function shortFamilyName(name: string): string {
+  const separator = name.indexOf(" - ");
+  return separator === -1 ? name : name.slice(separator + 3);
+}
+
+function encounterBoss(entry: BattleEncounterVariant): { name: string | null; art: string | null } {
+  const boss = MONSTER_BY_ID.get(entry.boss.monsterId);
+  if (!boss) return { name: null, art: null };
+  return { name: boss.name, art: boss.src || MONSTER_ICON_MAP[boss.name] || null };
+}
+
+/**
+ * Recovered titles carry the difficulty as a trailing "(Hard)" suffix; the card and the Selected
+ * row show the difficulty once as a badge, so drop the suffix when it exactly matches the name.
+ */
+function encounterTitle(entry: BattleEncounterVariant): string {
+  const suffix = ` (${entry.difficultyName})`;
+  return entry.title.endsWith(suffix) ? entry.title.slice(0, -suffix.length) : entry.title;
+}
+
+export function EncounterSection({
+  encounterId,
+  onSelect,
+}: {
+  encounterId: number;
+  onSelect: (encounterId: number) => void;
+}) {
+  const current = ENCOUNTER_VARIANTS.find((entry) => entry.id === encounterId) ?? ENCOUNTER_VARIANTS[0];
+  // Start on the selected encounter's own family instead of the 20-card "All" list; "All" stays
+  // selectable, so every encounter remains reachable.
+  const [family, setFamily] = useState<string>(() => current.familyId);
+  const [query, setQuery] = useState("");
+
+  // Keep the selected encounter inside the visible list when the page switches encounter.
+  useEffect(() => {
+    if (family !== "all" && current.familyId !== family) setFamily(current.familyId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current.familyId]);
+
+  const visible = useMemo(() => {
+    const text = query.trim().toLowerCase();
+    return ENCOUNTER_VARIANTS.filter((entry) => {
+      if (family !== "all" && entry.familyId !== family) return false;
+      if (!text) return true;
+      return (
+        entry.title.toLowerCase().includes(text) ||
+        entry.familyName.toLowerCase().includes(text) ||
+        difficultyName(entry.difficulty).toLowerCase().includes(text) ||
+        String(entry.id) === text
+      );
+    });
+  }, [family, query]);
+
+  return (
+    <Card data-builder-encounter>
+      <CardHeader>
+        <CardTitle>1 - Pick an encounter</CardTitle>
+        <CardDescription>Who you fight first. The team is built and run against this encounter.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex min-w-[12rem] flex-1 items-center gap-2 rounded border bg-background px-2 py-1">
+            <Search className="h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              aria-label="Search encounters"
+              placeholder="Search encounters..."
+              className="w-full bg-transparent text-sm outline-none"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <div className="flex flex-wrap gap-1" role="tablist" aria-label="Encounter families">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={family === "all"}
+              className={`rounded border px-2 py-1 text-xs font-medium ${family === "all" ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}
+              onClick={() => setFamily("all")}
+            >
+              All
+            </button>
+            {ENCOUNTER_FAMILIES.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                role="tab"
+                aria-selected={family === entry.id}
+                className={`rounded border px-2 py-1 text-xs font-medium ${family === entry.id ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}
+                onClick={() => setFamily(entry.id)}
+                title={entry.name}
+              >
+                {shortFamilyName(entry.name)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid max-h-72 grid-cols-1 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map((entry: BattleEncounterVariant) => {
+            const selected = entry.id === encounterId;
+            const boss = encounterBoss(entry);
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                onClick={() => onSelect(entry.id)}
+                aria-pressed={selected}
+                data-encounter-option={entry.id}
+                data-difficulty={entry.difficulty}
+                data-encounter-boss={entry.boss.monsterId}
+                className={`flex items-center gap-2 rounded-lg border p-1.5 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "bg-card hover:border-primary/60 hover:bg-muted"}`}
+              >
+                <span className="ka-encounter-art" data-encounter-art={boss.art ? "recovered" : "missing"}>
+                  {boss.art ? (
+                    <img src={boss.art} alt="" className="ka-encounter-art__img" />
+                  ) : (
+                    <span className="ka-encounter-art__empty">?</span>
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-1">
+                    <span className="truncate text-xs font-semibold">{encounterTitle(entry)}</span>
+                    <DifficultyBadge difficulty={entry.difficultyName} className="shrink-0 text-[9px]" />
+                  </span>
+                  <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+                    {boss.name ? `${boss.name} · ` : ""}
+                    {entry.enemyTotal} enemies · Lv {entry.levelField} · {shortFamilyName(entry.familyName)}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {visible.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">No encounters match your search.</p> : null}
+
+        <div className="flex flex-wrap items-center gap-2 text-xs" data-selected-encounter={current.id}>
+          <span className="ka-hud-strip__label">Selected</span>
+          <span className="font-medium">{encounterTitle(current)}</span>
+          <DifficultyBadge difficulty={current.difficultyName} className="text-[9px]" />
+          <span className="text-muted-foreground">
+            {encounterBoss(current).name ?? "boss art not recovered"} · {current.enemyTotal} enemies ·{" "}
+            {shortFamilyName(current.familyName)}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Presets (copied from the Loadout Builder)                           */
+/* ------------------------------------------------------------------ */
+
+function PresetSection({
+  savedLoadouts,
+  onCopy,
+}: {
+  savedLoadouts: SavedLoadout[];
+  onCopy: (loadout: SavedLoadout) => void;
+}) {
+  const usable = savedLoadouts.filter((entry) => entry && typeof entry === "object");
+  return (
+    <div className="space-y-1.5" data-builder-presets>
+      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        Loadout presets <span className="normal-case font-normal">(copied into the team)</span>
+      </span>
+      {usable.length === 0 ? (
+        <p className="text-[11px] text-muted-foreground/70">
+          No saved loadouts yet. Create a character below, or build presets in the Loadout Builder first.
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {usable.map((loadout, index) => (
+            <button
+              key={loadout.id ?? `${loadout.name ?? "loadout"}-${index}`}
+              type="button"
+              onClick={() => onCopy(loadout)}
+              className="flex items-center gap-1.5 rounded border bg-card px-2 py-1 text-xs hover:border-primary hover:bg-muted"
+              data-preset-option={loadout.id ?? index}
+              title="Copy this loadout into the team as a new character"
+            >
+              <Copy className="h-3 w-3" />
+              {loadout.name?.trim() || loadout.jobName?.trim() || `Loadout ${index + 1}`}
+              {loadout.rank ? <RankBadge rank={loadout.rank} /> : null}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Team member editor                                                  */
+/* ------------------------------------------------------------------ */
+
+function CharacterCard({
+  character,
+  index,
+  count,
+  data,
+  allSkills,
+  onChange,
+  onRemove,
+  onMove,
+}: {
+  character: DraftCharacter;
+  index: number;
+  count: number;
+  data: BuilderSharedData | null;
+  allSkills: string[];
+  onChange: (next: DraftCharacter) => void;
+  onRemove: () => void;
+  onMove: (direction: -1 | 1) => void;
+}) {
+  const job = JOB_BY_ID.get(character.jobName ?? "");
+  const ranks = useMemo(() => {
+    const fromShared = data?.jobs?.[character.jobName ?? ""]?.ranks;
+    const keys = fromShared ? Object.keys(fromShared) : job?.ranks ?? ["D", "C", "B", "A", "S"];
+    return keys.sort();
+  }, [data, character.jobName, job]);
+  const [open, setOpen] = useState(index === 0);
+  const weapon = gearInSlot(character, "weapon", data?.slotAssignments);
+
+  return (
+    <div className="rounded-lg border bg-card" data-builder-character={index} data-character-id={character.id}>
+      <div className="flex flex-wrap items-center gap-2 border-b px-2 py-1.5">
+        <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-[10px] font-semibold" data-team-slot={index}>
+          {index + 1}
+        </span>
+        {/* Collapsed row identity: the equipped portrait plus the declared pets, both live from the
+            same draft the expanded editor edits. */}
+        <CharacterSpriteThumb character={character} data={data} />
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-semibold">{character.name?.trim() || `Character ${index + 1}`}</span>
+            {character.rank ? <RankBadge rank={character.rank} /> : null}
+          </span>
+          <span className="truncate text-[11px] text-muted-foreground">
+            {character.jobName ?? "no job"}
+            {weapon ? ` · ${weapon.name}` : ""}
+          </span>
+        </span>
+        <PetSlotIconStrip pets={character.householdPets ?? []} />
+        <span className="ml-auto flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => onMove(-1)}
+            disabled={index === 0}
+            className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+            title="Move earlier in the team order"
+            aria-label="Move unit up"
+            data-action="move-unit-up"
+          >
+            <ArrowUp className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove(1)}
+            disabled={index === count - 1}
+            className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+            title="Move later in the team order"
+            aria-label="Move unit down"
+            data-action="move-unit-down"
+          >
+            <ArrowDown className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            className="rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+            data-action="toggle-unit"
+          >
+            {open ? "Close" : "Edit"}
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded p-1 text-muted-foreground hover:text-destructive"
+            title="Remove unit"
+            aria-label="Remove unit"
+            data-action="remove-unit"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </span>
+      </div>
+
+      {open ? (
+        <div className="space-y-3 p-2.5">
+          <div className="flex flex-wrap items-start gap-3">
+            <CharacterSprite character={character} data={data} />
+            <div className="min-w-[14rem] flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Input
+                  value={character.name ?? ""}
+                  onChange={(event) => onChange({ ...character, name: event.target.value })}
+                  className="h-7 w-40 text-xs"
+                  aria-label="Character name"
+                />
+                <SearchableSelect
+                  value={character.jobName ?? ""}
+                  onChange={(jobName) => {
+                    const nextJob = JOB_BY_ID.get(jobName);
+                    onChange({
+                      ...character,
+                      jobName,
+                      rank: nextJob && !nextJob.ranks.includes((character.rank ?? "D") as never) ? nextJob.ranks[0] ?? "D" : character.rank,
+                    });
+                  }}
+                  options={JOB_CATALOG.map((entry) => ({ value: entry.id, label: entry.name }))}
+                  placeholder="Job..."
+                  triggerClassName="h-7 w-40 text-xs"
+                />
+                <SearchableSelect
+                  value={character.rank ?? ""}
+                  onChange={(rank) => onChange({ ...character, rank })}
+                  options={ranks.map((rank) => ({ value: rank, label: rank }))}
+                  placeholder="Rank..."
+                  triggerClassName="h-7 w-20 text-xs"
+                />
+                <div className="flex overflow-hidden rounded border border-input" role="group" aria-label="Gender">
+                  {[
+                    { value: 0, label: "Male" },
+                    { value: 1, label: "Female" },
+                  ].map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      aria-pressed={(character.gender ?? 0) === option.value}
+                      onClick={() => onChange({ ...character, gender: option.value })}
+                      className={`px-2 py-0.5 text-[11px] font-medium ${(character.gender ?? 0) === option.value ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                      data-gender={option.value}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <label className="flex items-center gap-1 text-[11px] text-muted-foreground" title="Declared native grow/awakening steps (native limit +30 per step).">
+                  Awaken
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={character.awakening === undefined ? "" : String(character.awakening)}
+                    onChange={(event) => {
+                      const raw = event.target.value.trim();
+                      onChange({ ...character, awakening: raw === "" ? undefined : Math.max(0, Number(raw) || 0) });
+                    }}
+                    className="h-6 w-12 text-right text-xs tabular-nums"
+                    aria-label="Awakening steps"
+                  />
+                </label>
+              </div>
+              <div>
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Gear</span>
+                <GearSlotEditors character={character} data={data} onChange={onChange} />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Stats <span className="normal-case font-normal">(current value incl. gear, editable training level)</span>
+            </span>
+            <StatLevelEditor character={character} data={data} onChange={onChange} />
+          </div>
+
+          <div>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Skills</span>
+            <SkillSlotEditor
+              skills={character.skills ?? []}
+              invocations={(character.skills ?? []).map((_, i) => character.skillInvocations?.[i])}
+              allSkills={allSkills}
+              onChange={(skills, invocations) =>
+                onChange({
+                  ...character,
+                  skills,
+                  skillInvocations: invocations.map((level) => (level === 0 || level === 1 || level === 2 ? level : undefined)) as number[],
+                })
+              }
+              idPrefix={character.id}
+              jobName={character.jobName}
+            />
+          </div>
+
+          <PetSlotsSection character={character} allSkills={allSkills} onPetsChange={(pets) => onChange({ ...character, householdPets: pets })} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 2 - Ordered team                                                    */
+/* ------------------------------------------------------------------ */
+
+export function TeamSection({
+  characters,
+  data,
+  allSkills,
+  savedLoadouts,
+  onChange,
+}: {
+  characters: DraftCharacter[];
+  data: BuilderSharedData | null;
+  allSkills: string[];
+  savedLoadouts: SavedLoadout[];
+  onChange: (next: DraftCharacter[]) => void;
+}) {
+  const humans = characters.length;
+  return (
+    <Card data-builder-team>
+      <CardHeader>
+        <CardTitle>2 - Your team, in order</CardTitle>
+        <CardDescription>
+          Slot 1 is sent first. Copy a Loadout Builder preset or create a character; each unit carries its own job,
+          rank, stats, gear, skills and pets.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <PresetSection savedLoadouts={savedLoadouts} onCopy={(loadout) => onChange([...characters, draftCharacterFromLoadout(loadout, characters.length + 1)])} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 text-xs"
+            onClick={() => onChange([...characters, createDraftCharacter(characters.length + 1)])}
+            data-action="create-character"
+          >
+            <UserPlus className="h-3 w-3" /> Create character
+          </Button>
+          {/*
+            Party size, in the recovered native terms: INIT_MAX_BOSS_BATTLE_MEMBERS_NUM /
+            INIT_MAX_DUNGEON_CONQUEST_MEMBERS_NUM are 2 (the initial members a battle starts with),
+            while BossConquestSystem.GetMaxMembersNum / DungeonConquestSystem.GetMaxMembersNum return
+            ValuableSystem.GetSpEffect(4 or 5) + 2 (the Military Training Manual for boss battles /
+            Legendary Expedition Map for cave conquests). This site cannot read owned valuable
+            effects, so the real formation cap is unknown here and a bigger roster is only flagged.
+          */}
+          <span className="text-xs text-muted-foreground" data-team-count={humans}>
+            {humans} unit(s) · the native initial max is 2 (INIT_MAX_BOSS_BATTLE_MEMBERS_NUM); the runtime formation
+            cap is 2 + your own Military Training Manual / Legendary Expedition Map effect (ValuableSystem.GetSpEffect
+            4/5), which this site cannot read, so a bigger roster is sent with the unvalidated-cap warning.
+          </span>
+        </div>
+
+        {characters.length === 0 ? (
+          <p className="rounded border border-dashed p-4 text-center text-xs text-muted-foreground">
+            No units yet - copy a preset above or create a character.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {characters.map((character, index) => (
+              <CharacterCard
+                key={character.id}
+                character={character}
+                index={index}
+                count={characters.length}
+                data={data}
+                allSkills={allSkills}
+                onChange={(next) => onChange(characters.map((entry, i) => (i === index ? next : entry)))}
+                onRemove={() => onChange(removeAt(characters, index))}
+                onMove={(direction) => onChange(moveInList(characters, index, index + direction))}
+              />
+            ))}
+          </div>
+        )}
+
+        {humans > 0 ? (
+          <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
+            <Plus className="h-3 w-3" />
+            Ordered team: the runner receives this exact order.
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}

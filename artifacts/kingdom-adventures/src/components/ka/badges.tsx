@@ -3,9 +3,11 @@ import { Badge } from "@/components/ui/badge";
 import {
   KA_AFFINITY_BADGE_CLASS,
   KA_CATEGORY_BADGE_CLASS,
+  KA_DIFFICULTY_BADGE_CLASS,
   KA_RANK_BADGE_CLASS,
   type KaAffinity,
   type KaCategory,
+  type KaDifficulty,
   type KaRank,
 } from "@/design-system/category-styles";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,15 @@ export function AffinityBadge({ affinity, className }: { affinity: KaAffinity | 
   return (
     <Badge variant="outline" className={cn("text-[10px] shrink-0", style, className)}>
       {affinity}
+    </Badge>
+  );
+}
+
+export function DifficultyBadge({ difficulty, className }: { difficulty: KaDifficulty | string; className?: string }) {
+  const style = KA_DIFFICULTY_BADGE_CLASS[difficulty as KaDifficulty] ?? KA_CATEGORY_BADGE_CLASS.muted;
+  return (
+    <Badge variant="outline" className={cn("text-[10px] shrink-0", style, className)}>
+      {difficulty}
     </Badge>
   );
 }

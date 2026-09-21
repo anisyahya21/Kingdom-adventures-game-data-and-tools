@@ -1,16 +1,24 @@
-﻿import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
+import { STAT_CANONICAL, STAT_COLUMNS, STAT_KEYS } from "@/game-data/stat-parameter-ids";
+import { getStatIcon, STAT_ICON_KEY } from "@/lib/stat-icons";
+import {
+  battleSetupFromLoadouts,
+  writeLoadoutHandoff,
+  type SavedLoadoutPet,
+  type SharedLoadoutData,
+} from "@/lib/battle-legality";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Plus, Trash2, Loader2, Camera,
   ChevronDown, ChevronRight, Package, X, Check, Pencil,
-  Download, Copy, Info, RotateCcw, Crown, Sword, Shield, Gem,
+  Download, Copy, Info, RotateCcw, Crown, Sword, Shield, Gem, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -31,7 +39,9 @@ import {
   residentStatItemBonuses,
   type ResidentStatItemCounts,
 } from "@/game-data/resident-stat-items";
+import { RESIDENT_STAT_ITEMS_KEY } from "@/lib/resident-valuable-settings";
 import { KA_RANK_BADGE_CLASS } from "@/design-system/category-styles";
+import { MONSTER_CATALOG, MONSTER_PARAMETER_IDS } from "@/lib/battle-setup";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +64,18 @@ type Loadout = {
   statLevels?: Record<string, number>; // per-stat levels (primary)
   equipment: EquipEntry[];
   skills: string[];
+  /**
+   * Declared native grow/awakening step count for this character (per unit). Undefined = not
+   * declared; the converter then reports an explicit unknown instead of inventing a cap.
+   */
+  awakening?: number;
+  /** Declared invocation levels parallel to `skills`: native index 0/1/2. Absent = native default 1. */
+  skillInvocations?: number[];
+  /**
+   * The resident's declared household pets (absent = not a house owner; `[]` = house owner with no
+   * pets). Pet placement stays with the backend; the page never positions them.
+   */
+  householdPets?: SavedLoadoutPet[];
   // Resident-wide "Water of ..." valuables used (player-wide bonus, stored per
   // loadout so the totals stay self-contained). Counts keyed by item key.
   residentStatItems?: ResidentStatItemCounts;
@@ -112,25 +134,14 @@ type BoxSetupShare = { id: string; setup: BoxSetup; createdAt: number; updatedAt
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// Canonical short stat keys used throughout
-const STAT_KEYS = ["hp","mp","vig","atk","def","spd","lck","int","dex","gth","mov","hrt"] as const;
-const GAME_STAT_COLUMNS: Array<Array<typeof STAT_KEYS[number]>> = [
-  ["hp", "mp", "vig"],
-  ["atk", "def", "spd", "lck"],
-  ["int", "dex", "gth", "mov", "hrt"],
-];
 const STAT_LABEL: Record<string, string> = {
   hp:"HP", mp:"MP", vig:"Vig", atk:"Atk", def:"Def",
   spd:"Spd", lck:"Lck", int:"Int", dex:"Dex", gth:"Gth", mov:"Mov", hrt:"Hrt",
 };
-const STAT_FULL: Record<string, string> = {
-  hp:"HP", mp:"MP", vig:"Vigor", atk:"Attack", def:"Defence",
-  spd:"Speed", lck:"Luck", int:"Intelligence", dex:"Dexterity",
-  gth:"Gather", mov:"Move", hrt:"Heart",
-};
+const STAT_FULL: Record<string, string> = { ...STAT_ICON_KEY };
 function StatLabel({ stat, icons, full = false, iconClassName = "h-3.5 w-3.5" }: { stat: string; icons?: Record<string, string>; full?: boolean; iconClassName?: string }) {
   const label = full ? (STAT_FULL[stat] ?? stat) : (STAT_LABEL[stat] ?? stat);
-  const icon = icons?.[stat] ?? icons?.[STAT_FULL[stat] ?? ""] ?? icons?.[STAT_LABEL[stat] ?? ""];
+  const icon = getStatIcon(icons, stat);
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
       {icon && <img src={icon} alt="" className={`${iconClassName} shrink-0 object-contain`} />}
@@ -138,35 +149,6 @@ function StatLabel({ stat, icons, full = false, iconClassName = "h-3.5 w-3.5" }:
     </span>
   );
 }
-// Universal stat alias map — normalises any spelling/abbreviation to the canonical short key.
-// All variants are lowercased before lookup.
-const STAT_CANONICAL: Record<string, string> = {
-  // HP
-  hp:"hp",
-  // MP
-  mp:"mp",
-  // Vigor
-  vig:"vig", vigor:"vig",
-  // Attack
-  atk:"atk", att:"atk", attack:"atk",
-  // Defence / Defense
-  def:"def", defence:"def", defense:"def",
-  // Speed
-  spd:"spd", speed:"spd",
-  // Luck
-  lck:"lck", luck:"lck",
-  // Intelligence
-  int:"int", intel:"int", intelligence:"int",
-  // Dexterity
-  dex:"dex", dext:"dex", dexterity:"dex",
-  // Gather
-  gth:"gth", gather:"gth",
-  // Move / Movement
-  mov:"mov", move:"mov", movement:"mov",
-  // Heart
-  hrt:"hrt", heart:"hrt",
-};
-
 const EQUIP_SLOTS = [
   { slot: "Head",      Icon: Crown   },
   { slot: "Weapon",    Icon: Sword   },
@@ -485,7 +467,11 @@ function getEquipRuleState(loadout: Loadout, data: SharedData, equipName: string
         : null;
   const resistanceSkill = findResistanceSkill(data.skills, weaponType);
   const hasResistanceSkillEquipped = !!resistanceSkill && loadout.skills.includes(resistanceSkill.name);
-  const blocked = prof === "cannot";
+  // Native `JobData.GetAffinity 0x16208d0` lifts BOTH the rejected (-1) and the weak (0) verdict to
+  // 1 when a possessed type-48 EQUIP_MASTER skill's value equals the equipment type, before
+  // `EquipData.CanEquip 0x1620e14` sees the value, so the declared resistance skill unblocks the
+  // item as well as removing the halving. Same rule as `battle-legality` (equipment-job-admission).
+  const blocked = prof === "cannot" && !hasResistanceSkillEquipped;
   const appliesPenalty = prof === "weak" && !hasResistanceSkillEquipped;
   return { slot, weaponType, prof, resistanceSkill, hasResistanceSkillEquipped, appliesPenalty, blocked };
 }
@@ -753,6 +739,7 @@ function loadoutToCombatant(loadout: Loadout, data: SharedData): Combatant {
 }
 
 function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: SharedData }) {
+  const [, navigate] = useLocation();
   const [aName, setAName] = useState("Attacker A");
   const [bName, setBName] = useState("Attacker B");
   const [aMode, setAMode] = useState<CombatSourceMode>("manual");
@@ -788,6 +775,32 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
     if (!resolvedA || !resolvedB) return;
     setBattle(simulateDuel(resolvedA, resolvedB));
     setBatch(simulateBatch(resolvedA, resolvedB, Math.max(1, batchCount)));
+  };
+
+  /**
+   * Battle Setup transfer. Only the saved loadouts selected here are sent, and the setup page
+   * re-runs the canonical conversion, so a manual (hand-typed) combatant is never presented as a
+   * saved loadout.
+   */
+  const battleSetupLoadouts = useMemo(() => {
+    const picked = [
+      aMode === "loadout" ? aImported : null,
+      bMode === "loadout" ? bImported : null,
+    ].filter((entry): entry is Loadout => Boolean(entry));
+    return picked.filter((entry, index) => picked.findIndex((other) => other.id === entry.id) === index);
+  }, [aMode, bMode, aImported, bImported]);
+
+  const battleSetupPreview = useMemo(() => {
+    if (battleSetupLoadouts.length === 0) return null;
+    return battleSetupFromLoadouts(battleSetupLoadouts, data as unknown as SharedLoadoutData, {
+      encounterId: 19,
+    });
+  }, [battleSetupLoadouts, data]);
+
+  const sendToBattleSetup = () => {
+    if (battleSetupLoadouts.length === 0) return;
+    writeLoadoutHandoff(battleSetupLoadouts.map((entry) => entry.id));
+    navigate("/battle-setup");
   };
 
   const battleSummary = useMemo(() => {
@@ -865,9 +878,15 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
   );
 
   return (
-    <Card className="mt-6">
+    <Card className="mt-6" data-duel-model-card>
       <CardHeader>
-        <CardTitle className="text-base">Combat Sandbox (Normal Attack)</CardTitle>
+        <CardTitle className="text-base">Simplified duel estimate (not the recovered combat model)</CardTitle>
+        <CardDescription data-duel-model-note>
+          This panel runs the site's own simplified JavaScript model (single-target normal attacks
+          from atk/def/spd/dex/lck/int). It is not the recovered combat simulator, it does not model
+          skills, equipment, targeting or timing, and its numbers are not authoritative. Use Battle
+          Setup (below) to run the recovered Python runner with a legal team.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -895,14 +914,65 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
         <div className="flex flex-wrap items-center gap-2">
           <ThemedNumberInput value={batchCount} min={1} onValueChange={(value) => setBatchCount(Math.max(1, value))} className="h-8 w-32" />
           <span className="text-xs text-muted-foreground">batch size</span>
-          <Button size="sm" onClick={run}>Run simulation</Button>
+          <Button size="sm" onClick={run} data-action="run-duel-estimate">
+            Run simplified duel estimate
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={sendToBattleSetup}
+            disabled={battleSetupLoadouts.length === 0 || Boolean(battleSetupPreview && !battleSetupPreview.setup)}
+            data-action="send-to-battle-setup"
+            data-loadout-count={battleSetupLoadouts.length}
+            data-legal={battleSetupPreview ? (battleSetupPreview.setup ? "true" : "false") : "none"}
+            title={
+              battleSetupLoadouts.length === 0
+                ? "Select at least one saved loadout as Attacker A or B first."
+                : battleSetupPreview && !battleSetupPreview.setup
+                  ? "This selection has legality errors; open Battle Setup to see them."
+                  : "Send the selected saved loadouts to Battle Setup as the player team."
+            }
+          >
+            Send to Battle Setup
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-600/90"
+            onClick={() => {
+              if (battleSetupLoadouts.length === 0) return;
+              writeLoadoutHandoff(battleSetupLoadouts.map((entry) => entry.id));
+              navigate("/battle");
+            }}
+            disabled={battleSetupLoadouts.length === 0 || Boolean(battleSetupPreview && !battleSetupPreview.setup)}
+            data-action="send-to-player-battle"
+            title={
+              battleSetupLoadouts.length === 0
+                ? "Select at least one saved loadout as Attacker A or B first."
+                : battleSetupPreview && !battleSetupPreview.setup
+                  ? "This selection has legality errors; open Player Battle to review them."
+                  : "Open the Player Battle page with these loadouts selected."
+            }
+          >
+            <Sword className="w-3.5 h-3.5" />
+            Send to Player Battle
+          </Button>
         </div>
+
+        {battleSetupPreview ? (
+          <div className="rounded-md border border-border bg-transparent px-3 py-2 text-xs" data-duel-legality-preview data-legal={battleSetupPreview.setup ? "true" : "false"}>
+            Battle Setup transfer for {battleSetupLoadouts.length} selected loadout(s):{" "}
+            <strong>{battleSetupPreview.issues.filter((issue) => issue.category === "ERROR").length}</strong> error(s),{" "}
+            <strong>{battleSetupPreview.issues.filter((issue) => issue.category === "WARNING").length}</strong> warning(s),{" "}
+            <strong>{battleSetupPreview.issues.filter((issue) => issue.category === "UNKNOWN_NATIVE_RULE").length}</strong> unresolved native rule(s).
+            {battleSetupPreview.setup ? "" : " The setup page will show the exact ERROR issues instead of guessing."}
+          </div>
+        ) : null}
 
         {(battle || batch) && (
           <div className="space-y-3 text-sm">
             {batch && (
               <div className="rounded-md border border-border bg-transparent px-3 py-2 text-xs">
-                Batch outcomes: <strong>{resolvedA?.name ?? "A"}</strong> ahead in {formatNum(batch.leftWins)} ({formatPct(batch.leftWins, batch.total)}), <strong>{resolvedB?.name ?? "B"}</strong> ahead in {formatNum(batch.rightWins)} ({formatPct(batch.rightWins, batch.total)}), draws {formatNum(batch.draws)} ({formatPct(batch.draws, batch.total)}) out of {formatNum(batch.total)}.
+                Simplified-model batch outcomes: <strong>{resolvedA?.name ?? "A"}</strong> ahead in {formatNum(batch.leftWins)} ({formatPct(batch.leftWins, batch.total)}), <strong>{resolvedB?.name ?? "B"}</strong> ahead in {formatNum(batch.rightWins)} ({formatPct(batch.rightWins, batch.total)}), draws {formatNum(batch.draws)} ({formatPct(batch.draws, batch.total)}) out of {formatNum(batch.total)}.
               </div>
             )}
             {battle && (
@@ -2060,6 +2130,218 @@ function goalLabelText(goal: StatGoal | undefined): string {
   return `${goal.min ?? 0}-${goal.max ?? 0}`;
 }
 
+/**
+ * Ordered skill slots with a per-slot declared invocation level.
+ *
+ * Native invocation index: 0 = highest activation chance, 1 = ordinary (the native default), 2 =
+ * lowest (`GetInvocationRate 0x15dff08` indexes the rate array directly). "Default (1)" stores no
+ * declared level, so the converter reports the native default instead of a made-up percentage.
+ */
+const INVOCATION_LEVEL_OPTIONS = [
+  { value: "", label: "Trigger: default" },
+  { value: "0", label: "Trigger: high (0)" },
+  { value: "1", label: "Trigger: ordinary (1)" },
+  { value: "2", label: "Trigger: low (2)" },
+] as const;
+
+function SkillSlotList({
+  skills,
+  invocations,
+  allSkills,
+  onChange,
+  idPrefix,
+}: {
+  skills: string[];
+  invocations: Array<number | undefined>;
+  allSkills: string[];
+  onChange: (skills: string[], invocations: Array<number | undefined>) => void;
+  idPrefix: string;
+}) {
+  const move = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= skills.length) return;
+    const nextSkills = [...skills];
+    const nextInvocations = skills.map((_, i) => invocations[i]);
+    [nextSkills[index], nextSkills[target]] = [nextSkills[target], nextSkills[index]];
+    [nextInvocations[index], nextInvocations[target]] = [nextInvocations[target], nextInvocations[index]];
+    onChange(nextSkills, nextInvocations);
+  };
+  const setLevel = (index: number, raw: string) => {
+    const next = skills.map((_, i) => invocations[i]);
+    next[index] = raw === "" ? undefined : Number(raw);
+    onChange([...skills], next);
+  };
+  const remove = (index: number) => {
+    const nextSkills: string[] = [];
+    const nextInvocations: Array<number | undefined> = [];
+    skills.forEach((skill, i) => {
+      if (i === index) return;
+      nextSkills.push(skill);
+      nextInvocations.push(invocations[i]);
+    });
+    onChange(nextSkills, nextInvocations);
+  };
+  const add = (name: string) => {
+    if (!name || skills.includes(name) || skills.length >= 9) return;
+    onChange([...skills, name], [...skills.map((_, i) => invocations[i]), undefined]);
+  };
+  return (
+    <div className="space-y-2">
+      <div className="space-y-1" data-skill-slots={idPrefix}>
+        {skills.map((skill, index) => {
+          const icon = getSkillIcon(skill);
+          const level = invocations[index];
+          return (
+            <div key={`${skill}-${index}`} className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 px-1.5 py-1" data-skill-slot={index}>
+              <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                {icon && <img src={icon} alt="" className="h-4 w-4 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />}
+                <span className="truncate text-xs font-medium">{skill}</span>
+              </span>
+              <select
+                value={level === 0 || level === 1 || level === 2 ? String(level) : ""}
+                onChange={(event) => setLevel(index, event.target.value)}
+                aria-label={`${skill} invocation level`}
+                className="h-6 rounded border border-input bg-background px-1 text-[10px] text-foreground"
+              >
+                {INVOCATION_LEVEL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <button type="button" onClick={() => move(index, -1)} disabled={index === 0} className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30" title="Move skill up (higher priority)">
+                <ArrowUp className="h-3 w-3" />
+              </button>
+              <button type="button" onClick={() => move(index, 1)} disabled={index === skills.length - 1} className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30" title="Move skill down (lower priority)">
+                <ArrowDown className="h-3 w-3" />
+              </button>
+              <button type="button" onClick={() => remove(index)} className="rounded p-0.5 text-muted-foreground hover:text-destructive" title="Remove skill">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          );
+        })}
+        {skills.length === 0 && <span className="text-xs text-muted-foreground/60">No skills selected</span>}
+      </div>
+      {skills.length < 9 && allSkills.length > 0 && (
+        <SearchableSelect
+          value=""
+          clearOnSelect
+          onChange={(v) => { if (v) add(v); }}
+          options={allSkills.filter((s) => !skills.includes(s)).map((s) => ({ value: s, label: s, icon: getSkillIcon(s) }))}
+          placeholder="+ Add skill..."
+          triggerClassName="h-7 text-xs"
+        />
+      )}
+      {allSkills.length === 0 && <p className="text-xs text-muted-foreground/60">No skills in database yet.</p>}
+    </div>
+  );
+}
+
+/** One attached household pet: catalog species, declared level, parameters and ordered skills. */
+function HouseholdPetRow({
+  pet,
+  index,
+  allSkills,
+  onChange,
+  onRemove,
+}: {
+  pet: SavedLoadoutPet;
+  index: number;
+  allSkills: string[];
+  onChange: (next: SavedLoadoutPet) => void;
+  onRemove: () => void;
+}) {
+  const species = MONSTER_CATALOG.find((entry) => entry.id === pet.monsterId);
+  const [showParameters, setShowParameters] = useState(false);
+  return (
+    <div className="space-y-2 rounded-md border border-border/60 bg-muted/15 p-2" data-household-pet={index}>
+      <div className="flex items-center gap-2">
+        <SearchableSelect
+          value={species ? String(pet.monsterId) : ""}
+          onChange={(v) => {
+            const id = Number(v);
+            const found = MONSTER_CATALOG.find((entry) => entry.id === id);
+            onChange({ ...pet, monsterId: Number.isFinite(id) ? id : pet.monsterId, name: pet.name || found?.name });
+          }}
+          options={MONSTER_CATALOG.map((entry) => ({ value: String(entry.id), label: entry.name, icon: entry.src }))}
+          placeholder="Species..."
+          triggerClassName="h-7 flex-1 text-xs"
+        />
+        <Input
+          value={pet.name ?? ""}
+          onChange={(event) => onChange({ ...pet, name: event.target.value })}
+          placeholder={species?.name ?? "Pet name"}
+          className="h-7 w-32 text-xs"
+          aria-label="Pet name"
+        />
+        <button type="button" onClick={onRemove} className="rounded p-1 text-muted-foreground hover:text-destructive" title="Remove pet">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          Level
+          <Input
+            type="text"
+            inputMode="numeric"
+            value={pet.level === undefined ? "" : String(pet.level)}
+            onChange={(event) => {
+              const raw = event.target.value.trim();
+              onChange({ ...pet, level: raw === "" ? undefined : Math.max(1, Number(raw) || 1) });
+            }}
+            className="h-6 w-14 text-right text-xs tabular-nums"
+            aria-label="Pet level"
+          />
+        </label>
+        <span className="text-[10px] text-muted-foreground/70">Declared training level for every monster parameter; no stat curve is inferred.</span>
+        <button type="button" onClick={() => setShowParameters((v) => !v)} className="text-[10px] text-muted-foreground underline hover:text-foreground">
+          {showParameters ? "Hide parameters" : "Raw parameters"}
+        </button>
+      </div>
+      {showParameters && (
+        <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
+          {MONSTER_PARAMETER_IDS.map((id) => (
+            <label key={id} className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+              <span>Param {id}</span>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={pet.parameters?.[String(id)]?.rawValue === undefined ? "" : String(pet.parameters[String(id)]?.rawValue)}
+                onChange={(event) => {
+                  const raw = event.target.value.trim();
+                  const parameters = { ...(pet.parameters ?? {}) };
+                  const current = { ...(parameters[String(id)] ?? {}) };
+                  if (raw === "") delete current.rawValue;
+                  else current.rawValue = Number(raw) || 0;
+                  if (Object.keys(current).length === 0) delete parameters[String(id)];
+                  else parameters[String(id)] = current;
+                  onChange({ ...pet, parameters: Object.keys(parameters).length > 0 ? parameters : undefined });
+                }}
+                className="h-6 w-16 text-right text-xs tabular-nums"
+                aria-label={`Pet parameter ${id} raw value`}
+              />
+            </label>
+          ))}
+        </div>
+      )}
+      <SkillSlotList
+        skills={pet.skills ?? []}
+        invocations={pet.skills?.map((_, i) => pet.skillInvocations?.[i]) ?? []}
+        allSkills={allSkills}
+        onChange={(skills, invocations) =>
+          onChange({
+            ...pet,
+            skills,
+            skillInvocations: invocations.map((level) =>
+              level === 0 || level === 1 || level === 2 ? level : undefined,
+            ) as number[],
+          })
+        }
+        idPrefix={`pet-${index}`}
+      />
+    </div>
+  );
+}
+
 function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   loadout: Loadout;
   data: SharedData;
@@ -2140,12 +2422,18 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
     }
   };
 
-  const addSkill = (name: string) => {
-    if (!name || loadout.skills.includes(name) || loadout.skills.length >= 9) return;
-    // Keep the order the user added the skills in; the game uses slot order.
-    upd("skills", [...loadout.skills, name]);
+  // Skills are ordered (the game uses slot order) and each slot carries its declared invocation
+  // level (native 0 = highest chance, 1 = ordinary default, 2 = lowest); `undefined` for a slot
+  // means "not declared" and converts to the labelled native default.
+  const setSkills = (nextSkills: string[], nextInvocations: Array<number | undefined>) => {
+    onChange({
+      ...loadout,
+      skills: nextSkills,
+      skillInvocations: nextInvocations.map((level) =>
+        level === 0 || level === 1 || level === 2 ? level : undefined,
+      ) as number[],
+    });
   };
-  const removeSkill = (name: string) => upd("skills", loadout.skills.filter((s) => s !== name));
 
   const takeScreenshot = async () => {
     if (!hiddenRef.current) return;
@@ -2293,18 +2581,35 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
               triggerClassName="h-8 text-sm"
             />
             {loadout.jobName && (
-              <select
-                value={loadout.rank}
-                onChange={(e) => upd("rank", e.target.value)}
-                className="h-8 w-28 rounded-md border border-input bg-background px-2 text-sm text-foreground"
-              >
-                <option value="" disabled>Select rank</option>
-                {ranks.map((r) => (
-                  <option key={r} value={r}>
-                    Rank {r}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={loadout.rank}
+                  onChange={(e) => upd("rank", e.target.value)}
+                  className="h-8 w-28 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                >
+                  <option value="" disabled>Select rank</option>
+                  {ranks.map((r) => (
+                    <option key={r} value={r}>
+                      Rank {r}
+                    </option>
+                  ))}
+                </select>
+                <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground" title="Declared native grow/awakening step count for this character. The per-unit cap is the Job.csv maxLevel plus 30 per step; leave blank if not declared.">
+                  Awakening
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={loadout.awakening === undefined ? "" : String(loadout.awakening)}
+                    onChange={(event) => {
+                      const raw = event.target.value.trim();
+                      upd("awakening", raw === "" ? undefined : Math.max(0, Math.min(999, Number(raw) || 0)));
+                    }}
+                    placeholder="-"
+                    className="h-7 w-14 text-right text-xs tabular-nums"
+                    aria-label="Awakening steps"
+                  />
+                </label>
+              </div>
             )}
             {loadout.jobName && (() => {
               const slotMap = data.slotAssignments ?? {};
@@ -2552,32 +2857,76 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
           {/* Skills */}
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-              Skills <span className="normal-case font-normal">({loadout.skills.length}/9)</span>
+              Skills <span className="normal-case font-normal">({loadout.skills.length}/9, priority order)</span>
             </p>
-            <div className="flex flex-wrap gap-1 mb-2 min-h-6">
-              {loadout.skills.map((s) => {
-                const icon = getSkillIcon(s);
-                return (
-                  <ToneBadge key={s} category="skill" className="text-xs gap-1 px-2 py-0.5">
-                    {icon && <img src={icon} alt="" className="h-4 w-4 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />}
-                    {s}
-                    <button onClick={() => removeSkill(s)} className="hover:text-destructive ml-0.5"><X className="w-2.5 h-2.5" /></button>
-                  </ToneBadge>
-                );
-              })}
-              {loadout.skills.length === 0 && <span className="text-xs text-muted-foreground/60">No skills selected</span>}
+            <SkillSlotList
+              skills={loadout.skills}
+              invocations={loadout.skills.map((_, i) => loadout.skillInvocations?.[i])}
+              allSkills={allSkills}
+              onChange={setSkills}
+              idPrefix={loadout.id}
+            />
+            <p className="mt-1 text-[10px] leading-tight text-muted-foreground/70">
+              Order is the slot priority sent to the simulator. Trigger is the native invocation index (0 high, 1 ordinary default, 2 low).
+            </p>
+          </div>
+
+          {/* Household pets */}
+          <div>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Household pets <span className="normal-case font-normal">({loadout.householdPets?.length ?? 0})</span>
+              </p>
+              <label
+                className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+                title={
+                  (loadout.householdPets?.length ?? 0) > 0
+                    ? "Remove the attached pets individually before un-declaring this resident."
+                    : undefined
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={loadout.householdPets !== undefined}
+                  disabled={(loadout.householdPets?.length ?? 0) > 0}
+                  onChange={(event) => upd("householdPets", event.target.checked ? [] : undefined)}
+                />
+                This resident is a house owner
+              </label>
             </div>
-            {loadout.skills.length < 9 && allSkills.length > 0 && (
-              <SearchableSelect
-                value=""
-                clearOnSelect
-                onChange={(v) => { if (v) addSkill(v); }}
-                options={allSkills.filter((s) => !loadout.skills.includes(s)).map((s) => ({ value: s, label: s, icon: getSkillIcon(s) }))}
-                placeholder="+ Add skill..."
-                triggerClassName="h-7 text-xs"
-              />
+            {loadout.householdPets === undefined ? (
+              <p className="text-[11px] leading-tight text-muted-foreground/70">
+                Not declared a house owner. Declaring is explicit: an owner either brings the complete list below or explicitly brings none.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {loadout.householdPets.map((pet, index) => (
+                  <HouseholdPetRow
+                    key={`${pet.monsterId}-${index}`}
+                    pet={pet}
+                    index={index}
+                    allSkills={allSkills}
+                    onChange={(next) => upd("householdPets", (loadout.householdPets ?? []).map((entry, i) => (i === index ? next : entry)))}
+                    onRemove={() => upd("householdPets", (loadout.householdPets ?? []).filter((_, i) => i !== index))}
+                  />
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1 text-xs"
+                  onClick={() => upd("householdPets", [...(loadout.householdPets ?? []), { monsterId: MONSTER_CATALOG[0]?.id ?? 116 }])}
+                >
+                  <Plus className="h-3 w-3" /> Add pet
+                </Button>
+                <p className="text-[10px] leading-tight text-muted-foreground/70">
+                  Pet capacity and placement come from the backend preview on the Player Battle page; this page never positions or caps pets.
+                </p>
+                <p className="text-[10px] leading-tight text-muted-foreground/70">
+                  Pet stats are not derived: a pet with no entered level or raw parameters keeps empty defaults, so its combat parameters
+                  must be entered explicitly to be real.
+                </p>
+              </div>
             )}
-            {allSkills.length === 0 && <p className="text-xs text-muted-foreground/60">No skills in database yet.</p>}
           </div>
         </div>
 
@@ -2649,7 +2998,7 @@ export default function LoadoutPage() {
   const [showNote, setShowNote] = useState(false);
   // Universal "Water of ..." valuables: entered once for the whole page and
   // mirrored onto every loadout so all stat totals pick them up.
-  const [residentItems, setResidentItems] = useLocalFeature<ResidentStatItemCounts>("ka_resident_stat_items", {});
+  const [residentItems, setResidentItems] = useLocalFeature<ResidentStatItemCounts>(RESIDENT_STAT_ITEMS_KEY, {});
   const residentMigrationRef = useRef(false);
   const [activeToolTab, setActiveToolTab] = useState<BoxSetupKind | "combat">("kairo");
   const [sharedSetup, setSharedSetup] = useState<BoxSetupShare | null>(null);
@@ -2808,6 +3157,11 @@ export default function LoadoutPage() {
                 }} className="h-8 w-8 text-muted-foreground" title="Reset all loadouts">
                   <RotateCcw className="w-3.5 h-3.5" />
                 </Button>
+                <Link href="/battle" data-action="open-player-battle" className="inline-flex">
+                  <Button size="sm" className="h-8 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-600/90">
+                    <Sword className="w-3.5 h-3.5" />Player Battle
+                  </Button>
+                </Link>
                 <Button size="sm" onClick={addLoadout} className="h-8 gap-1.5">
                   <Plus className="w-3.5 h-3.5" />New Loadout
                 </Button>
@@ -2818,6 +3172,23 @@ export default function LoadoutPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
+        <Card className="mb-5 border-emerald-500/40 bg-emerald-500/5">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <Sword className="h-4 w-4 text-emerald-600" />Player Battle
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Pick saved loadouts, encounter and difficulty, preview the read-only formation, then run the authoritative simulator.
+              </p>
+            </div>
+            <Link href="/battle" className="inline-flex" data-action="open-player-battle-card">
+              <Button size="sm" className="h-8 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-600/90">
+                <Sword className="w-3.5 h-3.5" />Open Player Battle
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
         {showNote && (
           <div className="mb-4">
             <textarea
@@ -2933,7 +3304,7 @@ export default function LoadoutPage() {
                         {hasStats && (
                           <div className="sm:col-span-2 px-1 py-1">
                             <div className="grid grid-cols-3 gap-x-4 gap-y-2 sm:max-w-[620px]">
-                              {GAME_STAT_COLUMNS.map((column, columnIndex) => {
+                              {STAT_COLUMNS.map((column, columnIndex) => {
                                 const visibleStats = column.filter((k) => stats[k]);
                                 if (visibleStats.length === 0) return null;
                                 return (
@@ -3063,6 +3434,11 @@ export default function LoadoutPage() {
                 Combat Sandbox
               </button>
             </div>
+            <p className="px-1 text-[11px] text-muted-foreground">
+              Multi Box Kairo/Wairo setups and the Combat Sandbox are community research tools with a simplified model - not the authoritative player battle.{" "}
+              <Link href="/battle" className="font-medium text-emerald-600 underline dark:text-emerald-400">Open Player Battle</Link>{" "}
+              for a real run.
+            </p>
 
             {setups.map((setup) => (
               activeToolTab === setup.id ? (

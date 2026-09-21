@@ -139,6 +139,11 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventurers Kairo Room",
     description: "Find Kingdom Adventurers Kairo Room data, rewards, and planning details.",
   },
+  "/battle-replay": {
+    title: "Kingdom Adventurers Battle Replay",
+    description:
+      "First-pass visual replay of Wairo Dungeon and Kairo Room fights using original battle assets: arena, units, damage numbers, status labels, skill balloons and hit effects.",
+  },
   "/gacha-events": {
     title: "Kingdom Adventurers Gacha Events",
     description: "Track Kingdom Adventurers gacha events, banners, timing, and reward planning.",
