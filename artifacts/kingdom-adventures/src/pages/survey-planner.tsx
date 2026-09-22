@@ -11,6 +11,7 @@ import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { getJobProfiles, getJobsThatOpenBuilding, type SharedJobProfileData } from "@/game-data/job-profile";
+import { TERRAIN_NAMES } from "@/game-data/terrain-labels";
 import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon } from "@/lib/equipment-icons";
 import surveyCsv from "../../../../data/Sheet csv/KA GameData - Survey.csv?raw";
 import jobCsv from "../../../../data/Sheet csv/KA GameData - Job.csv?raw";
@@ -102,7 +103,7 @@ function parseSurveyCsv(raw: string): Survey[] {
       const status = (cols[statusIndex] ?? "").trim();
       if (status !== "Not used") return true;
       const rawName = (cols[nameIndex] ?? "").toLowerCase();
-      return rawName.includes("dragon taming") || rawName.includes("master instructor") || rawName.includes("cash register") || rawName.includes("chaos stone");
+      return rawName.includes("dragon taming") || rawName.includes("master instructor") || rawName.includes("cash register") || rawName.includes("chaos stone") || rawName.includes("bridge blueprints");
     })
     .map((cols) => {
       const maxEarnableRaw = Number(cols[maxEarnableRewardCountIndex] ?? "");
@@ -478,11 +479,7 @@ function getSurveyMaxLabel(max: number) {
 }
 
 function getSurveyTerrainLabel(survey: Survey) {
-  const iconMatch = survey.name.match(/<pic=([^>]+)>/i);
-  if (iconMatch) {
-    return SURVEY_TERRAIN_LABELS[iconMatch[1]] ?? iconMatch[1].replace(/_/g, " ");
-  }
-  return TERRAIN_LABELS[survey.terrain] ?? `Terrain ${survey.terrain}`;
+  return TERRAIN_NAMES[survey.terrain] ?? `Unmapped terrain (${survey.terrain})`;
 }
 
 type GuideSection = {
@@ -658,31 +655,6 @@ function renderLine(line: string, index: number, imageMap: Record<string, string
 }
 
 // --- App constants and CSV-driven derived data ---
-const TERRAIN_LABELS: Record<number, string> = {
-  0: "Plains",
-  1: "Forest",
-  2: "Desert",
-  3: "Mountains",
-  4: "Sand",
-  5: "Volcano",
-  6: "Snow",
-  7: "Swamp",
-  15: "Ground",
-};
-
-const SURVEY_TERRAIN_LABELS: Record<string, string> = {
-  grass: "Plains",
-  wood: "Forest",
-  food: "Farmland",
-  iron: "Mountains",
-  magic: "Magic",
-  stamina: "Stamina",
-  snow: "Snow",
-  swamp: "Swamp",
-  desert: "Desert",
-  rock: "Rock",
-};
-
 const SURVEY_BONUS_HINT = "+20% success when using a bonus job";
 
 const EQUIP_SLOTS = [
@@ -953,10 +925,13 @@ export default function SurveyPlanner() {
               </button>
             </CardHeader>
             <CardContent>
+              <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
+                Terrain is the map area's type used by the survey: grass, sand, rock, and so on. Sand is the sandy terrain often called desert; “Desert soil” is a separate terrain state. The old “Mountains” label was incorrect. Terrain code 15 has no confirmed name. Bridge Blueprint rows are marked “Not used” in the source data, so their in-game availability is unverified.
+              </p>
               <div className={`${SURVEY_LIST_GRID_CLASS} mb-2 text-sm font-semibold`}>
                 <div>Name</div>
                 <div className="text-right md:text-center">Max</div>
-                <div className="hidden text-center md:block">Biome</div>
+                <div className="hidden text-center md:block">Terrain</div>
                 <div className="hidden text-center md:block">Min Lv</div>
                 <div className="hidden md:block">Bonus Job +20%</div>
               </div>
@@ -993,7 +968,7 @@ export default function SurveyPlanner() {
                           <span className="break-words whitespace-normal leading-tight">{stripSurveyPrefix(group.name)}</span>
                         </div>
                         <div className="text-right md:text-center">{getSurveyMaxLabel(group.totalMax)}{group.surveys.length > 1 ? " total" : ""}</div>
-                        <div className="hidden text-center text-xs text-muted-foreground md:block">{expanded ? "Biome" : "—"}</div>
+                        <div className="hidden text-center text-xs text-muted-foreground md:block">{expanded ? "Terrain" : "—"}</div>
                         <div className="hidden text-center text-xs text-muted-foreground md:block">{expanded ? "Min Lv" : "—"}</div>
                         <div className="hidden text-xs text-muted-foreground md:block">
                           {expanded ? (
@@ -1072,7 +1047,7 @@ export default function SurveyPlanner() {
                           </div>
                           <div className="col-span-2 mt-1 grid grid-cols-3 gap-2 text-xs text-muted-foreground md:hidden">
                             <div>
-                              <div className="uppercase tracking-wide">Biome</div>
+                              <div className="uppercase tracking-wide">Terrain</div>
                               <div className="text-foreground">{getSurveyTerrainLabel(s)}</div>
                             </div>
                             <div>

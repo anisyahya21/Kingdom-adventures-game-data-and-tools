@@ -1,4 +1,5 @@
 import data from "@/game-data/native-treasure.json";
+import { TERRAIN_NAMES } from "@/game-data/terrain-labels";
 
 export const TREASURE_BOXES = data.treasures.map(box=>({...box,rewards:box.rewards.map(reward=>({...reward,name:treasureDisplayName(reward.name)}))}));
 export const TREASURE_MONSTERS = data.monsters;
@@ -16,7 +17,7 @@ export function chanceLabel(rate: number) {
 }
 export type TreasureBox = typeof TREASURE_BOXES[number];
 export const TREASURE_BY_ID = new Map(TREASURE_BOXES.map(box => [box.id, box]));
-export const TREASURE_TERRAIN_NAMES: Record<number,string> = {0:"Water",1:"Ground / dirt",2:"Grass",3:"Sand",4:"Rock",5:"Volcano",6:"Snow",7:"Swamp",8:"Snow soil",9:"Desert soil",10:"Volcanic soil",11:"Rocky soil",12:"Swamp soil",13:"Grassland soil"};
+export const TREASURE_TERRAIN_NAMES: Record<number, string> = TERRAIN_NAMES;
 export function treasureDisplayName(name:string) { return name.replace(/<pic=([^>]+)>/g,(_,s:string)=>s.charAt(0).toUpperCase()+s.slice(1)).replace(/_/g," ").trim(); }
 export function gatheringTerrains(group: number) {
   return data.terrains.filter(t => t.category === 0 && t.dropGroup === group && t.rate > 0);
