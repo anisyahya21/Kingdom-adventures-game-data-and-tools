@@ -40,6 +40,7 @@ export function SiteHeader() {
   const [authSession, setAuthSession] = useState<AuthSessionResponse>({ authenticated: false, guest: true });
   const [authLoading, setAuthLoading] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [fallbackOpen, setFallbackOpen] = useState(false);
   const [fallbackData, setFallbackData] = useState<TelegramFallbackStartResponse | null>(null);
   const [fallbackBusy, setFallbackBusy] = useState(false);
@@ -306,8 +307,8 @@ export function SiteHeader() {
 
   return (
     <div className="fixed inset-x-0 top-0 z-[60] border-b border-border bg-background/90 backdrop-blur">
-      <div className="w-full px-2 sm:px-4 h-14 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-0.5">
+      <div className="w-full min-w-0 px-2 sm:px-4 h-14 flex items-center justify-between gap-1 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-0.5">
           {pathname !== "/" && (
             <Button variant="ghost" size="icon" className="h-11 w-11" onClick={goBack} title="Go back">
               <ArrowLeft className="w-[30px] h-[30px]" />
@@ -381,13 +382,13 @@ export function SiteHeader() {
 
         <Link
           href="/"
-          className="text-xl sm:text-2xl font-semibold truncate hover:opacity-80 transition-opacity"
+          className="min-w-0 text-base sm:text-2xl font-semibold truncate hover:opacity-80 transition-opacity"
           title="Go to home page"
         >
-          Kingdom Adventurers
+          <span className="sm:hidden">KA</span><span className="hidden sm:inline">Kingdom Adventurers</span>
         </Link>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
           {authLoading ? (
             <Button variant="ghost" className="h-11 px-3 text-xs" disabled>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -412,16 +413,10 @@ export function SiteHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <>
-              <Button variant="ghost" className="h-11 px-3 text-xs" onClick={startFallbackLogin} disabled={fallbackBusy} title="Log in using a Telegram bot code">
-                {fallbackBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Log in with code
-              </Button>
-              <Button variant="ghost" className="h-11 px-2 text-[11px]" onClick={startPopupLogin} disabled={authBusy} title="Log in with Telegram popup">
-                {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Log in with Telegram
-              </Button>
-            </>
+            <Button variant="ghost" className="h-11 px-2 sm:px-3 text-xs" onClick={() => setLoginOpen(true)} disabled={authBusy || fallbackBusy}>
+              {authBusy || fallbackBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Log in
+            </Button>
           )}
 
           <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setDark((d) => !d)} title={dark ? "Switch to light mode" : "Switch to dark mode"}>
@@ -478,6 +473,19 @@ export function SiteHeader() {
           </div>
         </div>
       </div>
+
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Log in</DialogTitle>
+            <DialogDescription>Choose how to log in with Telegram.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Button onClick={() => { setLoginOpen(false); void startPopupLogin(); }} disabled={authBusy}>Log in with Telegram</Button>
+            <Button variant="outline" onClick={() => { setLoginOpen(false); void startFallbackLogin(); }} disabled={fallbackBusy}>Log in with bot code</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={fallbackOpen} onOpenChange={setFallbackOpen}>
         <DialogContent>
