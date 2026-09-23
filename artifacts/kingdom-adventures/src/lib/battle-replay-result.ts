@@ -234,6 +234,11 @@ export type BattleReplayResult = {
     finishPhaseEvents?: number | null;
     finishPhaseFirstTick?: number | null;
     endingCutReason?: string;
+    /** A browser session has simulated through windowStopTick and can still advance. */
+    windowed?: boolean;
+    windowStopTick?: number | null;
+    windowHorizonTick?: number | null;
+    windowRemainingTicks?: number | null;
   };
   catalog: {
     stateNames: Record<string, string>;

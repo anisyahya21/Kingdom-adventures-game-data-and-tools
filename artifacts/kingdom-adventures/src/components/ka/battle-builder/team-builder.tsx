@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Plus, Search, Trash2, UserPlus } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Plus, Save, Search, Trash2, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import {
   type BattleEncounterVariant,
 } from "@/lib/battle-setup";
 import type { SavedLoadout } from "@/lib/battle-legality";
+import { dropUnsupportedHumanEquipment } from "@/lib/battle-picker-rules";
 import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
 import {
   createDraftCharacter,
@@ -210,11 +211,11 @@ function PresetSection({
   return (
     <div className="space-y-1.5" data-builder-presets>
       <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-        Loadout presets <span className="normal-case font-normal">(copied into the team)</span>
+        Saved characters
       </span>
       {usable.length === 0 ? (
         <p className="text-[11px] text-muted-foreground/70">
-          No saved loadouts yet. Create a character below, or build presets in the Loadout Builder first.
+          No saved characters yet.
         </p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
@@ -223,9 +224,9 @@ function PresetSection({
               key={loadout.id ?? `${loadout.name ?? "loadout"}-${index}`}
               type="button"
               onClick={() => onCopy(loadout)}
-              className="flex items-center gap-1.5 rounded border bg-card px-2 py-1 text-xs hover:border-primary hover:bg-muted"
+              className="flex min-h-11 items-center gap-1.5 rounded border bg-card px-3 py-2 text-xs hover:border-primary hover:bg-muted"
               data-preset-option={loadout.id ?? index}
-              title="Copy this loadout into the team as a new character"
+              title="Add a copy of this character to the team"
             >
               <Copy className="h-3 w-3" />
               {loadout.name?.trim() || loadout.jobName?.trim() || `Loadout ${index + 1}`}
@@ -250,6 +251,7 @@ function CharacterCard({
   allSkills,
   onChange,
   onRemove,
+  onSave,
   onMove,
 }: {
   character: DraftCharacter;
@@ -259,6 +261,7 @@ function CharacterCard({
   allSkills: string[];
   onChange: (next: DraftCharacter) => void;
   onRemove: () => void;
+  onSave: () => void;
   onMove: (direction: -1 | 1) => void;
 }) {
   const job = JOB_BY_ID.get(character.jobName ?? "");
@@ -268,6 +271,7 @@ function CharacterCard({
     return keys.sort();
   }, [data, character.jobName, job]);
   const [open, setOpen] = useState(index === 0);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const weapon = gearInSlot(character, "weapon", data?.slotAssignments);
 
   return (
@@ -290,12 +294,12 @@ function CharacterCard({
           </span>
         </span>
         <PetSlotIconStrip pets={character.householdPets ?? []} />
-        <span className="ml-auto flex items-center gap-0.5">
+        <span className="ml-auto flex flex-wrap items-center gap-1">
           <button
             type="button"
             onClick={() => onMove(-1)}
             disabled={index === 0}
-            className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+            className="flex h-10 w-10 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
             title="Move earlier in the team order"
             aria-label="Move unit up"
             data-action="move-unit-up"
@@ -306,7 +310,7 @@ function CharacterCard({
             type="button"
             onClick={() => onMove(1)}
             disabled={index === count - 1}
-            className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+            className="flex h-10 w-10 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
             title="Move later in the team order"
             aria-label="Move unit down"
             data-action="move-unit-down"
@@ -316,15 +320,18 @@ function CharacterCard({
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+            className="min-h-10 rounded px-2 text-xs text-muted-foreground hover:text-foreground"
             data-action="toggle-unit"
           >
             {open ? "Close" : "Edit"}
           </button>
+          <button type="button" onClick={onSave} className="flex h-10 items-center justify-center gap-1 rounded px-2 text-xs text-primary hover:bg-primary/10" title="Save character" aria-label="Save character" data-action="save-character">
+            <Save className="h-4 w-4" /> Save
+          </button>
           <button
             type="button"
-            onClick={onRemove}
-            className="rounded p-1 text-muted-foreground hover:text-destructive"
+            onClick={() => setConfirmRemove(true)}
+            className="flex h-10 w-10 items-center justify-center rounded text-destructive hover:bg-destructive/10"
             title="Remove unit"
             aria-label="Remove unit"
             data-action="remove-unit"
@@ -333,6 +340,14 @@ function CharacterCard({
           </button>
         </span>
       </div>
+
+      {confirmRemove ? (
+        <div className="flex flex-wrap items-center justify-end gap-2 border-b px-3 py-2 text-xs" data-confirm-remove-unit>
+          <span className="mr-auto">Remove {character.name || "this character"}?</span>
+          <Button type="button" variant="outline" className="min-h-11" onClick={() => setConfirmRemove(false)}>Cancel</Button>
+          <Button type="button" variant="destructive" className="min-h-11" onClick={onRemove}>Remove</Button>
+        </div>
+      ) : null}
 
       {open ? (
         <div className="space-y-3 p-2.5">
@@ -350,11 +365,12 @@ function CharacterCard({
                   value={character.jobName ?? ""}
                   onChange={(jobName) => {
                     const nextJob = JOB_BY_ID.get(jobName);
-                    onChange({
+                    const updated = {
                       ...character,
                       jobName,
                       rank: nextJob && !nextJob.ranks.includes((character.rank ?? "D") as never) ? nextJob.ranks[0] ?? "D" : character.rank,
-                    });
+                    };
+                    onChange(data ? dropUnsupportedHumanEquipment(updated, data) : updated);
                   }}
                   options={JOB_CATALOG.map((entry) => ({ value: entry.id, label: entry.name }))}
                   placeholder="Job..."
@@ -419,13 +435,14 @@ function CharacterCard({
               skills={character.skills ?? []}
               invocations={(character.skills ?? []).map((_, i) => character.skillInvocations?.[i])}
               allSkills={allSkills}
-              onChange={(skills, invocations) =>
-                onChange({
+              onChange={(skills, invocations) => {
+                const updated = {
                   ...character,
                   skills,
                   skillInvocations: invocations.map((level) => (level === 0 || level === 1 || level === 2 ? level : undefined)) as number[],
-                })
-              }
+                };
+                onChange(data ? dropUnsupportedHumanEquipment(updated, data) : updated);
+              }}
               idPrefix={character.id}
               jobName={character.jobName}
             />
@@ -447,12 +464,14 @@ export function TeamSection({
   data,
   allSkills,
   savedLoadouts,
+  onSaveCharacter,
   onChange,
 }: {
   characters: DraftCharacter[];
   data: BuilderSharedData | null;
   allSkills: string[];
   savedLoadouts: SavedLoadout[];
+  onSaveCharacter: (character: DraftCharacter) => void;
   onChange: (next: DraftCharacter[]) => void;
 }) {
   const humans = characters.length;
@@ -461,8 +480,7 @@ export function TeamSection({
       <CardHeader>
         <CardTitle>2 - Your team, in order</CardTitle>
         <CardDescription>
-          Slot 1 is sent first. Copy a Loadout Builder preset or create a character; each unit carries its own job,
-          rank, stats, gear, skills and pets.
+          Slot 1 is sent first.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -471,8 +489,8 @@ export function TeamSection({
           <Button
             variant="outline"
             size="sm"
-            className="h-7 gap-1 text-xs"
-            onClick={() => onChange([...characters, createDraftCharacter(characters.length + 1)])}
+            className="min-h-11 gap-1 text-xs"
+            onClick={() => onChange([...characters, { ...createDraftCharacter(characters.length + 1), jobName: "", rank: "" }])}
             data-action="create-character"
           >
             <UserPlus className="h-3 w-3" /> Create character
@@ -485,11 +503,7 @@ export function TeamSection({
             Legendary Expedition Map for cave conquests). This site cannot read owned valuable
             effects, so the real formation cap is unknown here and a bigger roster is only flagged.
           */}
-          <span className="text-xs text-muted-foreground" data-team-count={humans}>
-            {humans} unit(s) · the native initial max is 2 (INIT_MAX_BOSS_BATTLE_MEMBERS_NUM); the runtime formation
-            cap is 2 + your own Military Training Manual / Legendary Expedition Map effect (ValuableSystem.GetSpEffect
-            4/5), which this site cannot read, so a bigger roster is sent with the unvalidated-cap warning.
-          </span>
+          <span className="text-xs text-muted-foreground" data-team-count={humans}>{humans} character(s)</span>
         </div>
 
         {characters.length === 0 ? (
@@ -508,6 +522,7 @@ export function TeamSection({
                 allSkills={allSkills}
                 onChange={(next) => onChange(characters.map((entry, i) => (i === index ? next : entry)))}
                 onRemove={() => onChange(removeAt(characters, index))}
+                onSave={() => onSaveCharacter(character)}
                 onMove={(direction) => onChange(moveInList(characters, index, index + direction))}
               />
             ))}

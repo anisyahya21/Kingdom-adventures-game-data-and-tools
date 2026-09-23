@@ -292,6 +292,7 @@ export function BattleVerdictPopup({
   verdict,
   tick,
   censored,
+  liveWindow = false,
   queued,
   awarded,
   awardedBasis,
@@ -302,6 +303,7 @@ export function BattleVerdictPopup({
   /** the runner's own verdict tick (`finalState.verdictTick`), not the playback cut */
   tick: number | null;
   censored: boolean;
+  liveWindow?: boolean;
   queued: number;
   awarded: number | null;
   awardedBasis?: string | null;
@@ -320,7 +322,9 @@ export function BattleVerdictPopup({
       <div className="ka-verdict__card">
         <p className="ka-verdict__word">{word}</p>
         <p className="ka-verdict__sub" data-verdict-summary>
-          {censored
+          {liveWindow && verdict !== null
+            ? `${queued} chest${queued === 1 ? "" : "s"} queued so far · rewards provisional`
+            : censored
             ? "incomplete simulation record"
             : `${queued} chest${queued === 1 ? "" : "s"} queued${eligible ? ` · ${eligible}` : ""}`}
           {tick === null ? "" : ` · verdict tick ${tick}`}

@@ -700,6 +700,9 @@ export function buildGeneratedFrames(replay: BattleReplayResult): GeneratedFrame
     minTick = Math.min(minTick, event.tick);
     maxTick = Math.max(maxTick, event.tick);
   }
+  if (replay.finalState.windowed && typeof replay.finalState.windowStopTick === "number") {
+    maxTick = Math.max(maxTick, replay.finalState.windowStopTick);
+  }
   const ticks: number[] = [];
   for (let tick = minTick; tick <= maxTick; tick += 1) ticks.push(tick);
 

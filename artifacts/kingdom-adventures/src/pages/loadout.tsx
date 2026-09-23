@@ -40,6 +40,7 @@ import {
   type ResidentStatItemCounts,
 } from "@/game-data/resident-stat-items";
 import { RESIDENT_STAT_ITEMS_KEY } from "@/lib/resident-valuable-settings";
+import { canPickHumanEquipment, canPickHumanSkill, dropUnsupportedHumanEquipment } from "@/lib/battle-picker-rules";
 import { KA_RANK_BADGE_CLASS } from "@/design-system/category-styles";
 import { MONSTER_CATALOG, MONSTER_PARAMETER_IDS } from "@/lib/battle-setup";
 
@@ -292,7 +293,7 @@ function CompactNumberInput({
           event.currentTarget.blur();
         }
       }}
-      className={`h-7 rounded-md px-2 text-right text-xs font-semibold tabular-nums ${className}`}
+      className={`min-h-10 rounded-md px-2 text-right text-xs font-semibold tabular-nums ${className}`}
     />
   );
 }
@@ -1616,7 +1617,7 @@ function BoxSetupCard({
                       {!openCell?.assignedToPet && !openCell?.assignedToFiller && <section className="rounded-md border border-border bg-muted/15 p-3">
                         <div className="mb-3">
                           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Section 2 - Example units</p>
-                          <p className="mt-1 text-xs text-muted-foreground">Add one or more of your Loadout Builder units as private examples for this slot.</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Add saved characters as private examples for this slot.</p>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                           <SearchableSelect
@@ -1624,7 +1625,7 @@ function BoxSetupCard({
                             clearOnSelect
                             onChange={(value) => setAttempt(addAttemptId(attempt, cellId, value))}
                             options={availableExampleOptions}
-                            placeholder="Add example from Loadout Builder"
+                            placeholder="Add saved character"
                             triggerClassName="h-8 text-xs"
                           />
                           <Button
@@ -2150,12 +2151,14 @@ function SkillSlotList({
   allSkills,
   onChange,
   idPrefix,
+  jobName,
 }: {
   skills: string[];
   invocations: Array<number | undefined>;
   allSkills: string[];
   onChange: (skills: string[], invocations: Array<number | undefined>) => void;
   idPrefix: string;
+  jobName?: string;
 }) {
   const move = (index: number, direction: -1 | 1) => {
     const target = index + direction;
@@ -2183,6 +2186,7 @@ function SkillSlotList({
   };
   const add = (name: string) => {
     if (!name || skills.includes(name) || skills.length >= 9) return;
+    if (jobName !== undefined && !canPickHumanSkill(jobName, name, skills)) return;
     onChange([...skills, name], [...skills.map((_, i) => invocations[i]), undefined]);
   };
   return (
@@ -2226,7 +2230,7 @@ function SkillSlotList({
           value=""
           clearOnSelect
           onChange={(v) => { if (v) add(v); }}
-          options={allSkills.filter((s) => !skills.includes(s)).map((s) => ({ value: s, label: s, icon: getSkillIcon(s) }))}
+          options={allSkills.filter((s) => !skills.includes(s) && (jobName === undefined || canPickHumanSkill(jobName, s, skills))).map((s) => ({ value: s, label: s, icon: getSkillIcon(s) }))}
           placeholder="+ Add skill..."
           triggerClassName="h-7 text-xs"
         />
@@ -2252,9 +2256,10 @@ function HouseholdPetRow({
 }) {
   const species = MONSTER_CATALOG.find((entry) => entry.id === pet.monsterId);
   const [showParameters, setShowParameters] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   return (
     <div className="space-y-2 rounded-md border border-border/60 bg-muted/15 p-2" data-household-pet={index}>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchableSelect
           value={species ? String(pet.monsterId) : ""}
           onChange={(v) => {
@@ -2264,18 +2269,23 @@ function HouseholdPetRow({
           }}
           options={MONSTER_CATALOG.map((entry) => ({ value: String(entry.id), label: entry.name, icon: entry.src }))}
           placeholder="Species..."
-          triggerClassName="h-7 flex-1 text-xs"
+          triggerClassName="min-h-10 min-w-36 flex-1 text-xs"
         />
         <Input
           value={pet.name ?? ""}
           onChange={(event) => onChange({ ...pet, name: event.target.value })}
           placeholder={species?.name ?? "Pet name"}
-          className="h-7 w-32 text-xs"
+          className="min-h-10 w-32 text-xs"
           aria-label="Pet name"
         />
-        <button type="button" onClick={onRemove} className="rounded p-1 text-muted-foreground hover:text-destructive" title="Remove pet">
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        {confirmRemove ? (
+          <><Button type="button" variant="outline" className="min-h-10" onClick={() => setConfirmRemove(false)}>Cancel</Button>
+            <Button type="button" variant="destructive" className="min-h-10" onClick={onRemove}>Remove pet</Button></>
+        ) : (
+          <button type="button" onClick={() => setConfirmRemove(true)} className="flex h-10 w-10 items-center justify-center rounded text-destructive hover:bg-destructive/10" title="Remove pet" aria-label="Remove pet">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -2396,6 +2406,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
 
   // Slot-aware equipment helpers
   const setSlotEquip = (slot: EquipSlot, name: string) => {
+    if (name && !canPickHumanEquipment(loadout, data, name)) return;
     const slotMap = data.slotAssignments ?? {};
     // Remove any existing item in this slot
     const withoutSlot = loadout.equipment.filter((e) => slotMap[e.name] !== slot);
@@ -2426,13 +2437,13 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   // level (native 0 = highest chance, 1 = ordinary default, 2 = lowest); `undefined` for a slot
   // means "not declared" and converts to the labelled native default.
   const setSkills = (nextSkills: string[], nextInvocations: Array<number | undefined>) => {
-    onChange({
+    onChange(dropUnsupportedHumanEquipment({
       ...loadout,
       skills: nextSkills,
       skillInvocations: nextInvocations.map((level) =>
         level === 0 || level === 1 || level === 2 ? level : undefined,
       ) as number[],
-    });
+    }, data));
   };
 
   const takeScreenshot = async () => {
@@ -2575,7 +2586,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Job</p>
             <SearchableSelect
               value={loadout.jobName}
-              onChange={(v) => onChange({ ...loadout, jobName: v })}
+              onChange={(v) => onChange(dropUnsupportedHumanEquipment({ ...loadout, jobName: v }, data))}
               options={Object.keys(jobs).sort().map((n) => ({ value: n, label: n }))}
               placeholder="Select job..."
               triggerClassName="h-8 text-sm"
@@ -2719,21 +2730,22 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
               const extra = loadout.equipment.filter((eq) => !slotMap[eq.name]);
               return (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                     {EQUIP_SLOTS.map(({ slot, Icon }) => {
                       const eq = slotToEquip[slot];
                       const icon = eq ? getPreferredEquipmentIcon(data.equipIcons, eq.name) : null;
                       const slotItems = Object.entries(slotMap)
                         .filter(([, s]) => s === slot)
                         .map(([n]) => n)
+                        .filter((name) => canPickHumanEquipment(loadout, data, name))
                         .sort();
                       return (
-                        <div key={slot} className={`flex flex-col rounded-lg border-2 transition-colors ${eq ? "border-primary/30 bg-primary/5" : "border-dashed border-border/60 bg-muted/20"}`}>
+                        <div key={slot} className={`flex min-w-0 flex-col rounded-lg border-2 transition-colors ${eq ? "border-primary/30 bg-primary/5" : "border-dashed border-border/60 bg-muted/20"}`}>
                           {/* Slot header */}
                           <div className="flex items-center justify-between px-2 pt-2 pb-0.5">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{slot}</span>
                             {eq && (
-                              <button onClick={() => setSlotEquip(slot as EquipSlot, "")} className="rounded p-1 text-muted-foreground/50 hover:bg-muted hover:text-destructive transition-colors">
+                              <button onClick={() => setSlotEquip(slot as EquipSlot, "")} className="flex h-10 w-10 items-center justify-center rounded text-destructive hover:bg-destructive/10 transition-colors" aria-label={`Remove ${slot} equipment`}>
                                 <X className="w-4 h-4" />
                               </button>
                             )}
@@ -2758,7 +2770,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                               <>
                                 <button
                                   onClick={() => setSlotPickerOpen((prev) => ({ ...prev, [slot as EquipSlot]: !prev[slot as EquipSlot] }))}
-                                  className="mx-auto flex items-center gap-1 rounded px-1 py-0.5 text-[11px] font-medium text-foreground/80 hover:bg-muted"
+                                  className="mx-auto flex min-h-10 max-w-full items-center gap-1 rounded px-1 text-[11px] font-medium text-foreground/80 hover:bg-muted"
                                   title={`Change ${slot} equipment`}
                                 >
                                   <span className="line-clamp-2 min-h-[30px] text-center leading-tight">{eq.name}</span>
@@ -2771,7 +2783,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                     onChange={(v) => { if (v) setSlotEquip(slot as EquipSlot, v); }}
                                     options={slotItems.map((n) => ({ value: n, label: n }))}
                                     placeholder="Change equipment..."
-                                    triggerClassName="h-7 text-[10px]"
+                                    triggerClassName="min-h-10 text-[10px]"
                                   />
                                 )}
                                 {/* Weapon proficiency badge */}
@@ -2817,7 +2829,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 onChange={(v) => { if (v) setSlotEquip(slot as EquipSlot, v); }}
                                 options={slotItems.map((n) => ({ value: n, label: n }))}
                                 placeholder="- empty -"
-                                triggerClassName="h-7 text-[10px]"
+                                triggerClassName="min-h-10 text-[10px]"
                               />
                             )}
                           </div>
@@ -2865,6 +2877,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
               allSkills={allSkills}
               onChange={setSkills}
               idPrefix={loadout.id}
+              jobName={loadout.jobName}
             />
             <p className="mt-1 text-[10px] leading-tight text-muted-foreground/70">
               Order is the slot priority sent to the simulator. Trigger is the native invocation index (0 high, 1 ordinary default, 2 low).
@@ -2994,6 +3007,7 @@ export default function LoadoutPage() {
   const { loadouts, save } = usePrivateLoadouts();
   const { setups, save: saveSetups } = useCommunityBoxSetups(data);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | "all" | null>(null);
   const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_loadout", "");
   const [showNote, setShowNote] = useState(false);
   // Universal "Water of ..." valuables: entered once for the whole page and
@@ -3008,7 +3022,7 @@ export default function LoadoutPage() {
 
   const addLoadout = () => {
     const id = generateId();
-    const newLoadout: Loadout = { id, name: "New Loadout", jobName: "", rank: "", statLevels: {}, equipment: [], skills: [] };
+    const newLoadout: Loadout = { id, name: "New Character", jobName: "", rank: "", statLevels: {}, equipment: [], skills: [] };
     save([...loadouts, newLoadout]);
     setExpandedId(id);
     return id;
@@ -3139,22 +3153,27 @@ export default function LoadoutPage() {
           onCancel={() => setPublishNameSetup(null)}
         />
       )}
+      <Dialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Delete {pendingDeleteId === "all" ? "all characters" : "character"}?</DialogTitle></DialogHeader>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => setPendingDeleteId(null)}>Cancel</Button>
+            <Button type="button" variant="destructive" className="min-h-11" onClick={() => { if (pendingDeleteId === "all") save([]); else if (pendingDeleteId) deleteLoadout(pendingDeleteId); setPendingDeleteId(null); }}>Delete</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Header */}
       <div className="border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <PageHeader
             icon={<Package className="w-5 h-5 text-orange-500" />}
-            title="Loadout Builder"
+            title="Characters"
             actions={(
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
                   <Info className="w-3.5 h-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => {
-                  if (confirm("Delete all your loadouts? This cannot be undone.")) {
-                    save([]);
-                  }
-                }} className="h-8 w-8 text-muted-foreground" title="Reset all loadouts">
+                <Button variant="ghost" size="icon" onClick={() => setPendingDeleteId("all")} className="h-11 w-11 text-destructive" title="Delete all characters">
                   <RotateCcw className="w-3.5 h-3.5" />
                 </Button>
                 <Link href="/battle" data-action="open-player-battle" className="inline-flex">
@@ -3162,8 +3181,8 @@ export default function LoadoutPage() {
                     <Sword className="w-3.5 h-3.5" />Player Battle
                   </Button>
                 </Link>
-                <Button size="sm" onClick={addLoadout} className="h-8 gap-1.5">
-                  <Plus className="w-3.5 h-3.5" />New Loadout
+                <Button size="sm" onClick={addLoadout} className="min-h-11 gap-1.5">
+                  <Plus className="w-3.5 h-3.5" />New Character
                 </Button>
               </div>
             )}
@@ -3172,23 +3191,6 @@ export default function LoadoutPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <Card className="mb-5 border-emerald-500/40 bg-emerald-500/5">
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <div className="min-w-0">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <Sword className="h-4 w-4 text-emerald-600" />Player Battle
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Pick saved loadouts, encounter and difficulty, preview the read-only formation, then run the authoritative simulator.
-              </p>
-            </div>
-            <Link href="/battle" className="inline-flex" data-action="open-player-battle-card">
-              <Button size="sm" className="h-8 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-600/90">
-                <Sword className="w-3.5 h-3.5" />Open Player Battle
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
         {showNote && (
           <div className="mb-4">
             <textarea
@@ -3211,7 +3213,7 @@ export default function LoadoutPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pb-4">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
               {RESIDENT_STAT_ITEMS.map((item) => {
                 const used = Math.max(0, Math.floor(residentItems[item.key] ?? 0));
                 const bonus = used * item.amount;
@@ -3243,9 +3245,8 @@ export default function LoadoutPage() {
         {!isLoading && loadouts.length === 0 && (
           <div className="text-center py-20">
             <Package className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">No loadouts yet.</p>
-            <p className="text-muted-foreground/60 text-xs mt-1 mb-5">Create a loadout to combine job stats, equipment, and skills.</p>
-            <Button onClick={addLoadout} className="gap-1.5"><Plus className="w-4 h-4" />Create First Loadout</Button>
+            <p className="text-muted-foreground text-sm">No characters yet.</p>
+            <Button onClick={addLoadout} className="min-h-11 gap-1.5"><Plus className="w-4 h-4" />Create Character</Button>
           </div>
         )}
 
@@ -3259,9 +3260,12 @@ export default function LoadoutPage() {
             return (
               <Card key={loadout.id} className={`shadow-sm overflow-hidden ${isOpen ? "xl:col-span-2" : ""}`}>
                 {/* Summary bar */}
-                <button
-                  className="w-full text-left"
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="w-full cursor-pointer text-left"
                   onClick={() => setExpandedId(isOpen ? null : loadout.id)}
+                  onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setExpandedId(isOpen ? null : loadout.id); } }}
                 >
                   <CardHeader className="py-3 px-4 hover:bg-muted/30 transition-colors">
                     {/* Row 1: chevron + name + job + rank + duplicate */}
@@ -3280,15 +3284,15 @@ export default function LoadoutPage() {
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); duplicateLoadout(loadout.id); }}
-                        className="text-muted-foreground hover:text-primary shrink-0 ml-1"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-primary"
                         title="Duplicate this loadout"
                       >
                         <Copy className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); deleteLoadout(loadout.id); }}
-                        className="text-destructive hover:text-destructive/70 shrink-0 ml-1"
-                        title="Delete this loadout"
+                        onClick={(e) => { e.stopPropagation(); setPendingDeleteId(loadout.id); }}
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-destructive hover:bg-destructive/10"
+                        title="Delete this character"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -3370,15 +3374,24 @@ export default function LoadoutPage() {
                               ))}
                             </div>
                           )}
-                          {!hasStats && loadout.equipment.length === 0 && loadout.skills.length === 0 && (
-                            <span className="text-xs text-muted-foreground/50">Empty loadout - click to configure</span>
+                          {(loadout.householdPets?.length ?? 0) > 0 && (
+                            <div className="flex flex-wrap gap-1" aria-label="Character pets">
+                              {loadout.householdPets?.map((pet, index) => (
+                                <span key={`${pet.monsterId}-${index}`} className="rounded border px-2 py-1 text-xs">
+                                  {pet.name || MONSTER_CATALOG.find((monster) => monster.id === pet.monsterId)?.name || `Pet ${index + 1}`}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {!hasStats && loadout.equipment.length === 0 && loadout.skills.length === 0 && !loadout.householdPets?.length && (
+                            <span className="text-xs text-muted-foreground/50">Empty character</span>
                           )}
                         </div>
                       </div>
                       );
                     })()}
                   </CardHeader>
-                </button>
+                </div>
 
                 {isOpen && (
                   <>
@@ -3389,7 +3402,7 @@ export default function LoadoutPage() {
                           loadout={loadout}
                           data={data}
                           onChange={updateLoadout}
-                          onDelete={() => deleteLoadout(loadout.id)}
+                          onDelete={() => setPendingDeleteId(loadout.id)}
                           onDuplicate={() => duplicateLoadout(loadout.id)}
                         />
                       ) : (
@@ -3406,7 +3419,7 @@ export default function LoadoutPage() {
         {loadouts.length > 0 && !isLoading && (
           <button onClick={addLoadout}
             className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-muted/30 transition-colors py-4 text-sm text-muted-foreground hover:text-foreground">
-            <Plus className="w-4 h-4" />Add another loadout
+            <Plus className="w-4 h-4" />Add another character
           </button>
         )}
 
@@ -3463,7 +3476,7 @@ export default function LoadoutPage() {
         )}
 
         <p className="text-xs text-muted-foreground mt-4 text-center">
-          Loadouts are saved to your browser - private to you
+          Characters are saved in this browser
         </p>
       </div>
     </div>

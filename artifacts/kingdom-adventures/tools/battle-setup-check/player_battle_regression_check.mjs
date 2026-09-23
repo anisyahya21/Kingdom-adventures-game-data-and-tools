@@ -23,6 +23,7 @@ const WORKSPACE = path.resolve(APP, "..", "..", "..");
 const SHARED_JSON = path.join(WORKSPACE, "KA-Website", "artifacts", "api-server", "data", "ka_shared.json");
 
 const { battleSetupFromLoadouts } = await import("@/lib/battle-legality");
+const { createDraft, normalizeDraft } = await import("@/lib/battle-team-draft");
 const { battleSetupToCombatScenario } = await import("@/lib/battle-setup-adapter");
 const { MONSTER_BY_ID } = await import("@/lib/battle-setup");
 const {
@@ -39,6 +40,7 @@ const check = (name, passed, detail) => checks.push({ name, passed: Boolean(pass
 const errorCodes = (conversion) => conversion.issues.filter((issue) => issue.category === "ERROR").map((issue) => issue.code);
 
 const petSpeciesId = MONSTER_BY_ID.has(116) ? 116 : MONSTER_BY_ID.keys().next().value;
+check("new teams start empty and remain empty after loading", normalizeDraft(createDraft(19))?.characters.length === 0, "default guard returned");
 
 /* 1. persisted skill invocation levels ------------------------------------------------- */
 
@@ -202,6 +204,18 @@ check(
   describeBattlePreviewFailure(500, JSON.stringify({ message: "ScenarioError: Missing inputs" })),
   "ScenarioError: Missing inputs (preview HTTP 500)",
 );
+
+const sameNames = battleSetupFromLoadouts(
+  ["Twin", "Twin", "Twin (2)"].map((name, index) => ({ ...base, id: `twin-${index}`, name, skills: [] })),
+  shared,
+  { encounterId: 19 },
+);
+check(
+  "duplicate names stay unique without taking another character's chosen name",
+  JSON.stringify(sameNames.units.map((unit) => unit.name)) === JSON.stringify(["Twin", "Twin (3)", "Twin (2)"]),
+  JSON.stringify(sameNames.units.map((unit) => unit.name)),
+);
+check("duplicate names do not create a warning", !sameNames.issues.some((issue) => issue.code === "UNIT_NAME_DERIVED"), JSON.stringify(sameNames.issues));
 
 const failed = checks.filter((entry) => !entry.passed);
 for (const entry of failed) console.log(`FAIL ${entry.name}: ${entry.detail}`);

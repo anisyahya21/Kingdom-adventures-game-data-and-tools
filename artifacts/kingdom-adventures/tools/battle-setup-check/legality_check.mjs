@@ -276,7 +276,7 @@ check("weak weapon affinity is 0", weak.units[0]?.equipmentSlots.weapon?.affinit
 
 const twoLoadouts = battleSetupFromLoadouts([validLoadout, validLoadout], shared);
 check("duplicate loadout names are made unique", twoLoadouts.units.map((entry) => entry.name), ["Knight Fixture", "Knight Fixture (2)"]);
-checkTruthy("duplicate names are reported", twoLoadouts.issues.some((issue) => issue.code === "UNIT_NAME_DERIVED"));
+check("duplicate names need no warning after disambiguation", twoLoadouts.issues.some((issue) => issue.code === "UNIT_NAME_DERIVED"), false);
 check("two converted humans keep both units", twoLoadouts.setup?.playerTeam.length, 2);
 check("two converted humans have no ERROR issues", twoLoadouts.issues.filter((issue) => issue.category === "ERROR"), []);
 
@@ -358,7 +358,7 @@ if (native.skipped) {
     native = { parseError: String(error), stdout: pyResult.stdout, stderr: pyResult.stderr };
   }
   check("authoritative loader accepts the converted setup", native.accepted, true);
-  check("native effective HP includes raw, extra and equipment", native.effectiveHp >= unit.parameters["10"].rawValue + 20, true);
+  check("native effective HP maximum includes valuable and equipment bonuses", native.effectiveHpMax >= unit.parameters["10"].rawValue + 20, true);
   check("native average training level follows the saved stat levels", native.averageTrainingLevel, Math.max(1, Math.trunc((25 + 20 + 20 + 9) / 12)));
   check("native rejects an unknown skill", native.rejectedUnknownSkill, "Unknown skill or invocation setting");
   check("native rejects a weapon outside the contribution list", native.rejectedWeaponNotInContributions, "Weapon must be included in equipment contributions");

@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "pnpm run icons:verify",
+    "predev": "pnpm run icons:verify && pnpm run browser-runtime:prepare",
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "prebuild": "pnpm run icons:verify",
+    "prebuild": "pnpm run icons:verify && pnpm run browser-runtime:prepare",
+    "browser-runtime:prepare": "node scripts/package-browser-battle-runtime.mjs && python scripts/zip-browser-battle-runtime.py",
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "api:serve": "python api/serve-local.py",

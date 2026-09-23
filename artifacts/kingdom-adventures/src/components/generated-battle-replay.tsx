@@ -92,7 +92,8 @@ import {
   viewProfileById,
   type BattleUnit,
 } from "@/lib/battle-replay";
-import { battlePlaybackEndTick, type BattleReplayEvent, type BattleReplayResult } from "@/lib/battle-replay-result";
+import { battlePlaybackEndTick, parseBattleReplayResult, type BattleReplayEvent, type BattleReplayResult } from "@/lib/battle-replay-result";
+import { advanceBrowserBattle, browserBattleActive, startBrowserBattle, useBrowserBattleItem } from "@/lib/browser-battle";
 import type { FighterVitals } from "@/lib/native-fighter-gauges";
 
 /**
@@ -472,6 +473,10 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
    * pending, so a window is never presented as a finished battle.
    */
   const [branch, setBranch] = useState<BranchView | null>(null);
+  const [localReplay, setLocalReplay] = useState<BattleReplayResult | null>(null);
+  const localSession = useRef(browserBattleActive() && !initialRecord);
+  const restoringRef = useRef(false);
+  const advancingRef = useRef(false);
   const [busyConsumable, setBusyConsumable] = useState<string | null>(null);
   const busyConsumableRef = useRef<string | null>(null);
   /** the playback state the user had before the click; restored once the branch is committed */
@@ -482,7 +487,24 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
   const windowEdgeStopRef = useRef(false);
   const commitCounterRef = useRef(0);
   const [interactionError, setInteractionError] = useState<string | null>(null);
-  const displayedReplay: BattleReplayResult | null = branch?.replay ?? record?.replay ?? null;
+  const displayedReplay: BattleReplayResult | null = branch?.replay ?? localReplay ?? record?.replay ?? null;
+
+  useEffect(() => {
+    if (initialRecord || localSession.current || restoringRef.current || !record?.replay.finalState.windowed || !record.scenarioJson) return;
+    restoringRef.current = true;
+    void startBrowserBattle(record.scenarioJson).then((payload) => {
+      const parsed = parseBattleReplayResult(JSON.parse(payload));
+      if (!parsed.result || parsed.issues.length) throw new Error(parsed.issues.join("; ") || "Invalid browser replay");
+      localSession.current = true;
+      setLocalReplay(parsed.result);
+      setStep(0);
+    }).catch((error) => {
+      setInteractionError(`Could not resume the browser battle: ${error instanceof Error ? error.message : String(error)}`);
+      setPlaying(false);
+    }).finally(() => {
+      restoringRef.current = false;
+    });
+  }, [initialRecord, record]);
 
   /**
    * The baked job/equipment rules, so a `/battle` fighter (job identity + equipment, no raw
@@ -516,6 +538,11 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
     () => {
       if (!displayedReplay) return -1;
       const cut = battlePlaybackEndTick(displayedReplay);
+      if (displayedReplay.finalState.windowed && typeof displayedReplay.finalState.verdictTick === "number") {
+        return typeof displayedReplay.finalState.endingCutTick === "number"
+          ? displayedReplay.finalState.endingCutTick
+          : cut;
+      }
       /*
        * A payload stored by the older packaged runtime carries no `endingCutTick`, so the helper falls
        * back to the last event tick - which can be the declared-Finish `chest_dispatch` parked at the
@@ -523,6 +550,9 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
        * battle time (SHIP-RUNTIME-CONTRACT.md sections 2-3), so a legacy payload is clamped to its last
        * non-diagnostic event. Nothing is derived here; only which tick is played last.
        */
+      if (displayedReplay.finalState.windowed && typeof displayedReplay.finalState.windowStopTick === "number") {
+        return displayedReplay.finalState.windowStopTick;
+      }
       if (typeof displayedReplay.finalState.endingCutTick === "number") return cut;
       let lastSimulated = -1;
       for (const event of displayedReplay.events as BattleReplayEvent[]) {
@@ -589,6 +619,35 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
     return () => window.clearInterval(timer);
   }, [playing, frames.length, speed, lastStep]);
 
+  useEffect(() => {
+    if (!localSession.current || !displayedReplay?.finalState.windowed || advancingRef.current || busyConsumableRef.current) return;
+    const edge = displayedReplay.finalState.windowStopTick;
+    if (typeof edge !== "number") return;
+    const shownTick = frames[Math.min(step, lastStep)]?.tick ?? 0;
+    const verdictTick = displayedReplay.finalState.verdictTick;
+    if (typeof verdictTick === "number") {
+      if (edge >= verdictTick + 120) return;
+    } else if (edge - shownTick > 60) return;
+    advancingRef.current = true;
+    void advanceBrowserBattle(100).then((payload) => {
+      const parsed = parseBattleReplayResult(JSON.parse(payload));
+      if (!parsed.result || parsed.issues.length) throw new Error(parsed.issues.join("; ") || "Invalid browser replay");
+      setLocalReplay(parsed.result);
+      if (windowEdgeStopRef.current && (
+        typeof parsed.result.finalState.verdictTick !== "number" ||
+        (parsed.result.finalState.endingCutTick ?? -1) > shownTick
+      )) {
+        windowEdgeStopRef.current = false;
+        setPlaying(true);
+      }
+    }).catch((error) => {
+      setPlaying(false);
+      setInteractionError(`Browser simulation stopped: ${error instanceof Error ? error.message : String(error)}`);
+    }).finally(() => {
+      advancingRef.current = false;
+    });
+  }, [displayedReplay, frames, step, lastStep]);
+
   // The clock stops on the final frame instead of silently restarting at frame 0.
   useEffect(() => {
     if (playing && frames.length > 0 && step >= lastStep) {
@@ -597,9 +656,9 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
        * Reaching the end of a WINDOW is not the end of the fight: remember that the clock stopped
        * because the branch is still resolving, so the next extension resumes playback by itself.
        */
-      windowEdgeStopRef.current = Boolean(branch && !branch.complete);
+      windowEdgeStopRef.current = Boolean((branch && !branch.complete) || (localSession.current && displayedReplay?.finalState.windowed));
     }
-  }, [playing, step, frames.length, lastStep, branch]);
+  }, [playing, step, frames.length, lastStep, branch, displayedReplay]);
 
   /**
    * After a branch COMMITS, keep watching the same tick instead of jumping: the branch preserves
@@ -645,6 +704,29 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
 
   const sendConsumable = async (row: GeneratedConsumableRow, tick: number, resumePlaying: boolean) => {
     if (!displayedReplay) return;
+    if (localSession.current) {
+      setPlaying(false);
+      busyConsumableRef.current = row.key;
+      setBusyConsumable(row.key);
+      setInteractionError(null);
+      try {
+        const payload = await useBrowserBattleItem(row.key, tick);
+        const parsed = parseBattleReplayResult(JSON.parse(payload));
+        if (!parsed.result || parsed.issues.length) {
+          throw new Error(parsed.issues.join("; ") || "Invalid browser replay");
+        }
+        setLocalReplay(parsed.result);
+        setStep(generatedFrameIndexForTick(buildGeneratedFrames(parsed.result), tick));
+        setPlaying(resumePlaying);
+      } catch (error) {
+        setInteractionError(`Item use failed: ${error instanceof Error ? error.message : String(error)}`);
+        setPlaying(resumePlaying);
+      } finally {
+        busyConsumableRef.current = null;
+        setBusyConsumable(null);
+      }
+      return;
+    }
     if (!activeScenario) {
       setInteractionError(scenarioSource.ok ? "no source scenario" : scenarioSource.reason);
       return;
@@ -1135,7 +1217,7 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
           <BattleTreasureStrip
             queued={chestsSoFar}
             drops={visibleChestDrops}
-            atEnd={atFinalTick}
+            atEnd={atFinalTick && !displayedReplay.finalState.windowed}
             awarded={chestSummary.awarded}
             awardedBasis={awardedBasis}
             pending={chestSummary.pending}
@@ -1293,6 +1375,7 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
                 verdict={outcome.verdict}
                 tick={verdictTick}
                 censored={outcome.censored}
+                liveWindow={Boolean(displayedReplay.finalState.windowed)}
                 queued={chestSummary.queued}
                 awarded={chestSummary.awarded}
                 awardedBasis={awardedBasis}

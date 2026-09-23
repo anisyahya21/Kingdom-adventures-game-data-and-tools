@@ -4,20 +4,12 @@
  *
  * The Loadout Builder stores "how many of each Water of ... you have used" once per device under
  * `ka_resident_stat_items` and mirrors the counts onto every saved loadout (`residentStatItems`).
- * A stored loadout can still arrive without that field - a row written before the mirror existed,
- * or a row restored from the shared document - and the conversion then reports
- * `RESIDENT_VALUABLES_NOT_CAPTURED` and adds nothing to the battle parameters (the honest
- * declared-input gap). The battle pages read the same device key so the player's declared counts
- * still reach the battle statistics.
+ * The battle pages read the same device key. The universal setting is authoritative even when
+ * a character carries an older mirrored value or the universal counts are all zero.
  *
- * Carryover rule (no double counting): a loadout's OWN `residentStatItems` always wins when the
- * field is present, including an explicit empty record (declared none). The device counts are
- * copied only onto a loadout that has no field at all, and only when at least one water is
- * declared device-wide. Counts are never summed or merged, so one water is worth its `amount`
- * exactly once.
+ * Counts are replaced, never summed, so one water is worth its `amount` exactly once.
  */
 import { RESIDENT_STAT_ITEMS, type ResidentStatItemCounts } from "@/game-data/resident-stat-items";
-import { residentValuablesDeclared } from "@/game-data/resident-valuable-effects";
 
 /** The device-wide storage key the Loadout Builder writes and the battle pages read. */
 export const RESIDENT_STAT_ITEMS_KEY = "ka_resident_stat_items";
@@ -42,16 +34,13 @@ export function withResidentValuables<T extends { residentStatItems?: ResidentSt
   loadout: T,
   device: ResidentStatItemCounts,
 ): T {
-  if (loadout.residentStatItems !== undefined) return loadout;
-  if (!residentValuablesDeclared(device)) return loadout;
   return { ...loadout, residentStatItems: { ...device } };
 }
 
-/** Apply the carryover to a batch of saved loadouts (a no-op when the device declares nothing). */
+/** Apply the universal setting to every character, including an explicit zero count. */
 export function loadoutsWithResidentValuables<T extends { residentStatItems?: ResidentStatItemCounts }>(
   loadouts: T[],
   device: ResidentStatItemCounts,
 ): T[] {
-  if (!residentValuablesDeclared(device)) return loadouts;
   return loadouts.map((loadout) => withResidentValuables(loadout, device));
 }

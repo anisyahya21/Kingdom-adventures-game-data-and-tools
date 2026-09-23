@@ -14,6 +14,7 @@ import {
 } from "@/lib/resident-valuable-settings";
 import { STAT_PARAMETER_IDS } from "@/game-data/stat-parameter-ids";
 import { battleSetupFromLoadouts, loadoutParameters } from "@/lib/battle-legality";
+import { canPickHumanEquipment, canPickHumanSkill, dropUnsupportedHumanEquipment } from "@/lib/battle-picker-rules";
 import { battleSetupToCombatScenario } from "@/lib/battle-setup-adapter";
 import { CANONICAL_RECOVERY_ITEMS, declaredItemRows, validateBattleSetup } from "@/lib/battle-setup";
 import {
@@ -51,14 +52,29 @@ const shared = localSharedData;
 
 /* Draft container */
 const empty = createDraft(19);
-check("draft starts with one character", empty.characters.length, 1);
+check("draft starts without an unwanted default character", empty.characters.length, 0);
 check("draft round-trips through normalizeDraft", normalizeDraft(JSON.parse(JSON.stringify(empty)))?.encounterId, 19);
 check("normalizeDraft rejects another schema", normalizeDraft({ schema: "nope", encounterId: 19, characters: [] }), null);
-check("normalizeDraft rejects an empty roster", normalizeDraft({ schema: "ka-battle-team-draft-1", encounterId: 19, characters: [] }), null);
+check("normalizeDraft keeps an editable empty roster", normalizeDraft({ schema: "ka-battle-team-draft-1", encounterId: 19, characters: [] })?.characters, []);
 
 /* Ordering */
 check("moveInList reorders forward", moveInList(["a", "b", "c"], 0, 2), ["b", "c", "a"]);
 check("moveInList ignores out-of-range moves", moveInList(["a", "b"], 0, 5), ["a", "b"]);
+
+/* Picker admission and dependent gear cleanup use the same rules as conversion. */
+const artisan = { jobName: "Artisan", skills: [], equipment: [] };
+const forbiddenSkill = Object.keys(shared.skills).find((name) => !canPickHumanSkill("Artisan", name, []));
+checkTruthy("the skill picker excludes at least one job-rejected skill", forbiddenSkill);
+const forbiddenWeapon = equipmentNamesForSlot(shared, "weapon").find((name) => !canPickHumanEquipment(artisan, shared, name));
+checkTruthy("the gear picker excludes a forbidden weapon without resistance", forbiddenWeapon);
+if (forbiddenWeapon) {
+  const resistance = Object.keys(shared.skills).find((name) => canPickHumanEquipment({ ...artisan, skills: [name] }, shared, forbiddenWeapon));
+  checkTruthy("a matching resistance skill admits the forbidden weapon", resistance);
+  if (resistance) {
+    const equipped = { ...artisan, skills: [resistance], equipment: [{ name: forbiddenWeapon, level: 1 }] };
+    check("removing resistance unequips its dependent weapon", dropUnsupportedHumanEquipment({ ...equipped, skills: [] }, shared).equipment, []);
+  }
+}
 
 /* Gear slot resolution against the shared catalogue */
 const weaponNames = equipmentNamesForSlot(shared, "weapon");
@@ -329,7 +345,7 @@ check(
   ["string", "Character 3", [], []],
 );
 
-/* Device-wide universal valuables: carried only where the loadout declares nothing. */
+/* Device-wide universal valuables override stale per-character mirrors. */
 check("the shared key is the Loadout Builder Universal Settings key", RESIDENT_STAT_ITEMS_KEY, "ka_resident_stat_items");
 check("a non-object stored device value reads as empty", deviceResidentValuables("nope"), {});
 check(
@@ -344,19 +360,19 @@ const carriedKnight = loadoutsWithResidentValuables([plainKnight], valuableDevic
 check("a loadout with no counts of its own receives the device counts", carriedKnight.residentStatItems, valuableDevice);
 check("the source loadout object is left untouched", plainKnight.residentStatItems, undefined);
 check(
-  "an explicit declaration is never topped up by the device counts",
+  "the universal setting replaces a stale character value",
   loadoutsWithResidentValuables([{ ...plainKnight, residentStatItems: { life: 1 } }], valuableDevice)[0].residentStatItems,
-  { life: 1 },
+  valuableDevice,
 );
 check(
-  "an explicit empty declaration stays declared-none",
+  "the universal setting also reaches an older empty character value",
   loadoutsWithResidentValuables([{ ...plainKnight, residentStatItems: {} }], valuableDevice)[0].residentStatItems,
-  {},
+  valuableDevice,
 );
 check(
-  "an empty device setting leaves the loadout field absent",
+  "an empty universal setting declares no bonus for every character",
   loadoutsWithResidentValuables([plainKnight], deviceResidentValuables({}))[0].residentStatItems,
-  undefined,
+  {},
 );
 
 const HP = STAT_PARAMETER_IDS.hp;

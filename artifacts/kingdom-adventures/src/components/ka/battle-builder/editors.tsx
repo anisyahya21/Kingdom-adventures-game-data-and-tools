@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, House, Plus, Search, Trash2, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { getSkillIcon } from "@/lib/skill-icons";
 import { getStatIcon } from "@/lib/stat-icons";
 import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
 import { canSetSkill } from "@/game-data/skill-job-admission";
+import { canPickHumanEquipment, canPickHumanSkill } from "@/lib/battle-picker-rules";
 import { STAT_COLUMNS } from "@/game-data/stat-parameter-ids";
 import { MONSTER_CATALOG, MONSTER_INNATE_SKILL_BY_ID, MONSTER_PARAMETER_IDS, SKILL_BY_ID } from "@/lib/battle-setup";
 import { SKILL_ID_BY_NAME, renderSkillName, type SavedLoadoutPet } from "@/lib/battle-legality";
@@ -57,22 +58,27 @@ export function NumberField({
   className?: string;
   ariaLabel: string;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const cancelCommit = useRef(false);
+  const commit = (raw: string) => {
+    const parsed = Number(raw);
+    if (raw.trim() !== "" && Number.isFinite(parsed)) {
+      onChange(Math.max(min, Math.min(max, Math.trunc(parsed))));
+    }
+    setDraft(null);
+  };
   return (
     <Input
       type="text"
       inputMode="numeric"
       aria-label={ariaLabel}
       className={className}
-      value={value === undefined ? "" : String(value)}
-      onChange={(event) => {
-        const raw = event.target.value.trim();
-        if (raw === "") {
-          onChange(min);
-          return;
-        }
-        const parsed = Number(raw);
-        if (!Number.isFinite(parsed)) return;
-        onChange(Math.max(min, Math.min(max, Math.trunc(parsed))));
+      value={draft ?? (value === undefined ? "" : String(value))}
+      onChange={(event) => setDraft(event.target.value.replace(/[^\d]/g, ""))}
+      onBlur={(event) => { if (cancelCommit.current) { cancelCommit.current = false; setDraft(null); } else commit(event.target.value); }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+        if (event.key === "Escape") { cancelCommit.current = true; setDraft(null); event.currentTarget.blur(); }
       }}
     />
   );
@@ -340,7 +346,7 @@ export function GearSlotEditors({
     <div className="space-y-1" data-builder-gear>
       {BUILDER_EQUIPMENT_SLOTS.map(({ slot, label }) => {
         const current = gearInSlot(character, slot, data?.slotAssignments);
-        const options = equipmentNamesForSlot(data, slot);
+        const options = equipmentNamesForSlot(data, slot).filter((name) => data && canPickHumanEquipment(character, data, name));
         const icon = current ? getEquipmentIcon(data?.equipIcons, current.name) : undefined;
         return (
           <div key={slot} className="flex items-center gap-1.5" data-builder-gear-slot={slot}>
@@ -350,16 +356,10 @@ export function GearSlotEditors({
             </span>
             <SearchableSelect
               value={current?.name ?? ""}
-              onChange={(name) =>
-                onChange(
-                  setGearInSlot(
-                    character,
-                    slot,
-                    name ? { name, level: current?.level ?? 1 } : null,
-                    data?.slotAssignments,
-                  ),
-                )
-              }
+              onChange={(name) => {
+                if (name && (!data || !canPickHumanEquipment(character, data, name))) return;
+                onChange(setGearInSlot(character, slot, name ? { name, level: current?.level ?? 1 } : null, data?.slotAssignments));
+              }}
               options={[
                 { value: "", label: "None" },
                 ...options.map((name) => ({ value: name, label: name, icon: getEquipmentIcon(data?.equipIcons, name) })),
@@ -409,7 +409,7 @@ function InvocationPicker({
           type="button"
           aria-pressed={active === option.value}
           onClick={() => onChange(option.value)}
-          className={`px-1.5 py-0.5 text-[10px] font-medium ${active === option.value ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+          className={`min-h-10 min-w-11 px-1.5 text-[10px] font-medium ${active === option.value ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
           title={`Trigger: ${option.label}`}
         >
           {option.label}
@@ -480,6 +480,7 @@ export function SkillSlotEditor({
   };
   const add = (name: string) => {
     if (!name || skills.includes(name) || skills.length >= maxSkills) return;
+    if (jobName !== undefined && !canPickHumanSkill(jobName, name, skills)) return;
     onChange([...skills, name], [...skills.map((_, i) => invocations[i]), 1]);
   };
 
@@ -493,10 +494,10 @@ export function SkillSlotEditor({
           return (
             <div
               key={`${skill}-${index}`}
-              className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 px-1.5 py-1"
+              className="flex flex-wrap items-center gap-1 rounded-md border border-border/60 bg-muted/20 px-1.5 py-1"
               data-skill-slot={index}
             >
-              <span className="flex min-w-0 flex-1 items-center gap-1.5">
+              <span className="flex min-w-full items-center gap-1.5 sm:min-w-0 sm:flex-1">
                 {icon ? (
                   <img src={icon} alt="" className="h-4 w-4 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} />
                 ) : null}
@@ -511,7 +512,7 @@ export function SkillSlotEditor({
                 <InvocationPicker value={invocations[index]} onChange={(level) => setInvocation(index, level)} name={skill} />
               ) : (
                 <span
-                  className="shrink-0 rounded border border-border/60 bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                  className="inline-flex min-h-10 items-center rounded border border-border/60 bg-muted/30 px-2 text-[10px] font-medium text-muted-foreground"
                   title={
                     trigger.status === "permanently_active"
                       ? "This skill is always active: SkillData.flags has no FLAG_FOR_BATTLE 0x8 bit, so no battle invocation applies and there is no High/Normal/Low trigger to choose (CanUseSkill 0x15df0e0; Entity.AddSkill 0x1472564 stores the native default level 1)."
@@ -522,11 +523,12 @@ export function SkillSlotEditor({
                   {trigger.label}
                 </span>
               )}
+              <div className="flex w-full justify-end gap-1" aria-label={`${skill} order and removal`}>
               <button
                 type="button"
                 onClick={() => move(index, -1)}
                 disabled={index === 0}
-                className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                className="flex h-10 w-10 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
                 title="Move up (higher priority)"
                 aria-label={`Move ${skill} up`}
               >
@@ -536,7 +538,7 @@ export function SkillSlotEditor({
                 type="button"
                 onClick={() => move(index, 1)}
                 disabled={index === skills.length - 1}
-                className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                className="flex h-10 w-10 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30"
                 title="Move down (lower priority)"
                 aria-label={`Move ${skill} down`}
               >
@@ -545,12 +547,13 @@ export function SkillSlotEditor({
               <button
                 type="button"
                 onClick={() => remove(index)}
-                className="rounded p-0.5 text-muted-foreground hover:text-destructive disabled:opacity-30"
+                className="flex h-10 w-10 items-center justify-center rounded text-destructive hover:bg-destructive/10 disabled:opacity-30"
                 title="Remove skill"
                 aria-label={`Remove ${skill}`}
               >
                 <X className="h-3 w-3" />
               </button>
+              </div>
             </div>
           );
         })}
@@ -566,7 +569,7 @@ export function SkillSlotEditor({
             if (value) add(value);
           }}
           options={allSkills
-            .filter((name) => !skills.includes(name))
+            .filter((name) => !skills.includes(name) && (jobName === undefined || canPickHumanSkill(jobName, name, skills)))
             .map((name) => ({ value: name, label: name, icon: getSkillIcon(name) }))}
           placeholder={skills.length === 0 ? "+ Add skill..." : "+ Add another skill..."}
           triggerClassName="h-7 text-xs"
@@ -931,6 +934,7 @@ function PetEditorDialog({
 }) {
   const [draft, setDraft] = useState<SavedLoadoutPet>(pet);
   const [blocked, setBlocked] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const species = MONSTER_CATALOG.find((entry) => entry.id === draft.monsterId);
   const freeSlots = Math.max(0, capacity.max - declaredCount);
 
@@ -968,15 +972,17 @@ function PetEditorDialog({
           </p>
         ) : null}
         <DialogFooter className="flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onCancel} data-action="cancel-pet">
+          <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={onCancel} data-action="cancel-pet">
             Cancel
           </Button>
-          {onRemove ? (
-            <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={onRemove} data-action="remove-pet">
+          {onRemove ? confirmRemove ? (
+            <Button variant="destructive" size="sm" className="min-h-11 text-xs" onClick={onRemove} data-action="confirm-remove-pet">Confirm remove</Button>
+          ) : (
+            <Button variant="outline" size="sm" className="min-h-11 gap-1 text-xs text-destructive" onClick={() => setConfirmRemove(true)} data-action="remove-pet">
               <Trash2 className="h-3 w-3" /> Remove pet
             </Button>
           ) : null}
-          <Button size="sm" className="h-7 text-xs" onClick={confirm} data-action="confirm-pet">
+          <Button size="sm" className="min-h-11 text-xs" onClick={confirm} data-action="confirm-pet">
             {mode === "add" ? "Attach pet" : "Save changes"}
           </Button>
         </DialogFooter>

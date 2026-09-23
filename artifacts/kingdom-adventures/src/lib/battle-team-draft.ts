@@ -40,6 +40,8 @@ export type BattleTeamDraft = {
   encounterId: number;
   /** ORDERED roster: index 0 is the first unit sent to the runner. */
   characters: DraftCharacter[];
+  /** Extra party slots supplied by the player's own valuable effects, when known. */
+  partyBonus?: number;
   /**
    * Provisioned battle consumables: `holyHerbStock` (the built-in herb) plus canonical Item.txt
    * rows with a finite count. This is the stock the replay's consumable clicks spend from, so a
@@ -556,7 +558,7 @@ export function createDraft(encounterId: number): BattleTeamDraft {
   return {
     schema: BATTLE_TEAM_DRAFT_SCHEMA,
     encounterId,
-    characters: [createDraftCharacter(1)],
+    characters: [],
     consumables: { ...DEFAULT_CONSUMABLES, itemStock: {} },
   };
 }
@@ -595,11 +597,13 @@ export function normalizeDraft(raw: unknown): BattleTeamDraft | null {
     if (typeof character.id !== "string" || !character.id) return;
     characters.push({ ...character, name: character.name?.trim() || `Character ${index + 1}` });
   });
-  if (characters.length === 0) return null;
   return {
     schema: BATTLE_TEAM_DRAFT_SCHEMA,
     encounterId: candidate.encounterId as number,
     characters,
+    ...(typeof candidate.partyBonus === "number" && Number.isInteger(candidate.partyBonus) && candidate.partyBonus >= 0
+      ? { partyBonus: candidate.partyBonus }
+      : {}),
     consumables: normalizeConsumables(candidate.consumables),
   };
 }

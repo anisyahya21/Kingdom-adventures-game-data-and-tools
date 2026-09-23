@@ -356,14 +356,6 @@ function findJobSkillRanks(jobName: string, skillName: string): string[] {
   return Object.keys(ranks).filter((rank) => (ranks[rank] ?? []).includes(skillName));
 }
 
-function findSkillForeignJobs(skillName: string): string[] {
-  const owners: string[] = [];
-  for (const [jobName, ranks] of Object.entries(JOB_SKILL_TABLE)) {
-    if (Object.values(ranks).some((list) => list.includes(skillName))) owners.push(jobName);
-  }
-  return owners;
-}
-
 /* ------------------------------------------------------------------ */
 /* Job stat curve -> native raw parameters                             */
 /* ------------------------------------------------------------------ */
@@ -747,17 +739,6 @@ export function loadoutSkills(
           ),
         );
       }
-    } else if (admission.status === "admitted") {
-      const foreign = findSkillForeignJobs(name);
-      issues.push(
-        warning(
-          foreign.length > 0 ? "SKILL_FOREIGN_JOB_ADMITTED" : "SKILL_UNIVERSAL_JOB_ADMITTED",
-          path,
-          foreign.length > 0
-            ? `Skill '${name}' is not taught by '${jobName}' (the job-skill table lists it for ${foreign.join(", ")}), but the recovered master-data gate admits it (job group mask ${admission.jobGroupMask}), so it transfers. Whether the character legitimately owns it stays a declared input.`
-            : `Skill '${name}' is in no job-skill table (universal/monster skill), but the recovered master-data gate admits it (job group mask ${admission.jobGroupMask}), so it transfers.`,
-        ),
-      );
     }
 
     // The loadout's own declared level wins over a caller default; both are optional and an absent
@@ -903,22 +884,14 @@ export type BattleSetupConversionResult = {
 function uniqueNames(loadouts: SavedLoadout[]): { names: string[]; issues: SetupIssue[] } {
   const issues: SetupIssue[] = [];
   const used = new Set<string>();
+  const requested = new Set(loadouts.map((loadout, index) => loadout.name?.trim() || loadout.jobName?.trim() || `Unit ${index + 1}`));
   const names = loadouts.map((loadout, index) => {
     const base = loadout.name?.trim() || loadout.jobName?.trim() || `Unit ${index + 1}`;
     let name = base;
     let counter = 2;
-    while (used.has(name)) {
+    while (used.has(name) || (name !== base && requested.has(name))) {
       name = `${base} (${counter})`;
       counter += 1;
-    }
-    if (name !== base) {
-      issues.push(
-        warning(
-          "UNIT_NAME_DERIVED",
-          `playerTeam[${index}].name`,
-          `Loadout name '${base}' was already used by another selected loadout; '${name}' was derived because the simulator requires unique unit names.`,
-        ),
-      );
     }
     used.add(name);
     return name;
@@ -1193,7 +1166,7 @@ export function setupProvenance(units: HumanUnit[], setup: BattleSetup): SetupPr
     {
       field: "playerTeam[].name",
       origin: "PLAYER_LOADOUT",
-      note: "Saved loadout name; derived suffixes are reported as UNIT_NAME_DERIVED.",
+      note: "Saved loadout name; duplicate names receive unique suffixes for the simulator.",
     },
     {
       field: "playerTeam[].gender",

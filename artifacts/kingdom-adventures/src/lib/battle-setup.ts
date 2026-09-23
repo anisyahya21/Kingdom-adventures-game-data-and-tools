@@ -719,6 +719,11 @@ export type SetupIssue = {
   message: string;
 };
 
+/** Problems the player can act on in the visual simulator. Other issues are audit diagnostics. */
+export function isPlayerFacingBattleIssue(issue: SetupIssue): boolean {
+  return issue.category === "ERROR" || ["PARTY_CAP_UNVALIDATED", "SKILL_REQUIRED_EQUIP_TYPE_MISMATCH", "PET_SLOT_CAPACITY_EXCEEDED"].includes(issue.code);
+}
+
 function isInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value);
 }
@@ -1352,8 +1357,7 @@ export function validateBattleSetup(
       category: "WARNING",
       code: "PARTY_CAP_UNVALIDATED",
       path: "partyLimit",
-      message:
-        "Native party cap cannot be fully validated without valuable-effect ownership; the larger roster is allowed.",
+      message: "Team size is above the base capacity of 2; extra slots from valuables have not been entered.",
     });
   }
 

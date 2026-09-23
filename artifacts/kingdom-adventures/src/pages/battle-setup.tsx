@@ -12,13 +12,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ka/page-header";
 import { BattleComparisonResult } from "@/components/ka/battle-comparison";
 import { BattleSetupAdapterError } from "@/lib/battle-setup-adapter";
-import { BattleReplayTransportError, runBattleSetup } from "@/lib/battle-setup-runner";
+import { runBattleSetup } from "@/lib/battle-setup-runner";
+import { startBrowserBattle } from "@/lib/browser-battle";
 import { apiUrl } from "@/lib/api";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import {
   battleSetupFromLoadouts,
-  describeNativeRunnerRejection,
   readLoadoutHandoff,
   type SavedLoadout,
   type SetupFieldOrigin,
@@ -94,6 +94,7 @@ import {
   encounterCoverage,
   equipmentForSlot,
   importBattleSetup,
+  isPlayerFacingBattleIssue,
   serializeBattleSetup,
   validateBattleSetup,
   type BattleSetup,
@@ -108,24 +109,7 @@ import {
   type StartProfile,
 } from "@/lib/battle-setup";
 
-/**
- * Transport with the native rejection text preserved. The shared runner transport reads only the
- * status, so a rejected skill or loadout would surface as a bare HTTP code; here the exact
- * `ScenarioError` line the Python loader raised is passed through instead.
- */
-const loadoutAwareTransport = async (scenarioJson: string) => {
-  const response = await fetch("/api/battle-run", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: scenarioJson,
-  });
-  if (!response.ok) {
-    throw new BattleReplayTransportError(
-      describeNativeRunnerRejection(response.status, await response.text()),
-    );
-  }
-  return response.text();
-};
+const loadoutAwareTransport = startBrowserBattle;
 
 /**
  * Shared job/equipment/skill data for the loadout import. Deliberately not react-query here: this
@@ -805,6 +789,8 @@ export default function BattleSetupPage() {
       encounterId: setup.encounter.encounterId,
     });
   }, [sharedData, selectedLoadouts, setup.encounter.encounterId]);
+  const loadoutVisibleIssues = loadoutConversion?.issues.filter(isPlayerFacingBattleIssue) ?? [];
+  const visibleIssues = issues.filter(isPlayerFacingBattleIssue);
 
   useEffect(() => {
     if (!handoffPending.current || !loadoutConversion) return;
@@ -999,6 +985,7 @@ export default function BattleSetupPage() {
         run.visualSetup,
         run.warnings.map((issue) => `${issue.category}:${issue.code}`),
         variant?.title ?? null,
+        run.scenarioJson,
       );
       navigate("/battle-replay?mode=generated");
     } catch (error) {
@@ -1040,7 +1027,7 @@ export default function BattleSetupPage() {
         <CardHeader>
           <CardTitle>Run battle</CardTitle>
           <CardDescription>
-            Sends this setup to <code>/api/battle-run</code>, stores the returned replay and opens it
+            Runs this setup in your browser, stores the first replay window and opens it
             in generated replay mode. Warnings and unknown native rules do not block a run. The runner
             is a native-checked conditional prediction: it executes the recovered engine behaviour
             under the exact declared inputs, seeds, start profile and item schedule. It is not the live
@@ -1078,7 +1065,7 @@ export default function BattleSetupPage() {
           ) : null}
           {runState.status === "running" ? (
             <p className="text-xs text-muted-foreground" data-run-progress>
-              The authoritative simulator is running this setup. Duplicate submissions are disabled.
+              Loading the combat engine in your browser and starting this fight. Duplicate submissions are disabled.
             </p>
           ) : null}
         </CardContent>
@@ -1748,7 +1735,7 @@ export default function BattleSetupPage() {
         <CardHeader>
           <CardTitle>Player team from saved loadouts</CardTitle>
           <CardDescription>
-            Imports loadouts saved by the <Link href="/loadout" className="underline">Loadout Builder</Link>.
+            Imports characters saved in <Link href="/loadout" className="underline">Characters</Link>.
             Job, rank, per-stat levels, equipment and skills are converted through the existing
             canonical owners; constraints that are not recovered are listed instead of guessed, and a
             conversion with errors is blocked rather than shortened.
@@ -1757,7 +1744,7 @@ export default function BattleSetupPage() {
         <CardContent className="space-y-3">
           {savedLoadouts.length === 0 ? (
             <p className="text-xs text-muted-foreground" data-loadout-empty>
-              No saved loadouts on this device yet. Create one in the Loadout Builder, then reopen this page.
+              No saved characters on this device yet.
             </p>
           ) : (
             <div className="flex flex-wrap gap-2" data-loadout-options>
@@ -1794,21 +1781,21 @@ export default function BattleSetupPage() {
             <div className="space-y-2" data-loadout-conversion>
               <div className="flex flex-wrap gap-2 text-xs" data-loadout-summary>
                 <Badge variant="destructive">
-                  ERROR {loadoutConversion.issues.filter((issue) => issue.category === "ERROR").length}
+                  ERROR {loadoutVisibleIssues.filter((issue) => issue.category === "ERROR").length}
                 </Badge>
                 <Badge variant="secondary">
-                  WARNING {loadoutConversion.issues.filter((issue) => issue.category === "WARNING").length}
+                  WARNING {loadoutVisibleIssues.filter((issue) => issue.category === "WARNING").length}
                 </Badge>
                 <Badge variant="outline">
-                  UNKNOWN_NATIVE_RULE {loadoutConversion.issues.filter((issue) => issue.category === "UNKNOWN_NATIVE_RULE").length}
+                  UNKNOWN_NATIVE_RULE {loadoutVisibleIssues.filter((issue) => issue.category === "UNKNOWN_NATIVE_RULE").length}
                 </Badge>
                 <span className="self-center text-muted-foreground">
                   {selectedLoadouts.length} of {savedLoadouts.length} saved loadout(s) selected
                 </span>
               </div>
-              {loadoutConversion.issues.length > 0 ? (
+              {loadoutVisibleIssues.length > 0 ? (
                 <div className="space-y-1">
-                  {loadoutConversion.issues.map((issue, index) => (
+                  {loadoutVisibleIssues.map((issue, index) => (
                     <div
                       key={`${issue.code}-${index}`}
                       className="rounded-md border p-2 text-xs"
@@ -2220,17 +2207,17 @@ export default function BattleSetupPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex flex-wrap gap-2 text-xs" data-validation-summary>
-            <Badge variant="destructive">ERROR {issues.filter((issue) => issue.category === "ERROR").length}</Badge>
-            <Badge variant="secondary">WARNING {issues.filter((issue) => issue.category === "WARNING").length}</Badge>
+            <Badge variant="destructive">ERROR {visibleIssues.filter((issue) => issue.category === "ERROR").length}</Badge>
+            <Badge variant="secondary">WARNING {visibleIssues.filter((issue) => issue.category === "WARNING").length}</Badge>
             <Badge variant="outline">
-              UNKNOWN_NATIVE_RULE {issues.filter((issue) => issue.category === "UNKNOWN_NATIVE_RULE").length}
+              UNKNOWN_NATIVE_RULE {visibleIssues.filter((issue) => issue.category === "UNKNOWN_NATIVE_RULE").length}
             </Badge>
           </div>
-          {issues.length === 0 ? (
+          {visibleIssues.length === 0 ? (
             <p className="text-xs text-muted-foreground">No issues.</p>
           ) : (
             <div className="space-y-1">
-              {issues.map((issue, index) => (
+              {visibleIssues.map((issue, index) => (
                 <div
                   key={`${issue.code}-${index}`}
                   className="rounded-md border p-2 text-xs"

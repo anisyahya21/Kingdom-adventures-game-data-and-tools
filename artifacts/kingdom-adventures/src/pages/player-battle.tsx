@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { AlertTriangle, Eye, Loader2, Play, RotateCcw, Sword } from "lucide-react";
+import { AlertTriangle, Eye, Loader2, Play, RotateCcw, Save, Sword, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import { apiUrl } from "@/lib/api";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import {
   battleSetupFromLoadouts,
-  describeNativeRunnerRejection,
   readLoadoutHandoff,
   type SavedLoadout,
   type SharedLoadoutData,
@@ -25,18 +24,17 @@ import {
   ENCOUNTER_VARIANTS,
   canonicalRecoveryItem,
   declaredItemRows,
+  isPlayerFacingBattleIssue,
   validateBattleSetup,
   type SetupIssue,
   type SetupIssueCategory,
 } from "@/lib/battle-setup";
 import { BattleSetupAdapterError, battleSetupToCombatScenario } from "@/lib/battle-setup-adapter";
 import {
-  BattleReplayTransportError,
   runBattleSetup,
   type BattleScenarioTransport,
 } from "@/lib/battle-setup-runner";
 import {
-  BATTLE_RUN_ENDPOINT,
   BattlePreviewError,
   isAbortedPreview,
   requestBattlePreview,
@@ -44,6 +42,7 @@ import {
   type BattlePreviewUnit,
 } from "@/lib/battle-preview";
 import { writeGeneratedBattle } from "@/lib/generated-battle-store";
+import { startBrowserBattle } from "@/lib/browser-battle";
 import { interactionCapabilities } from "@/lib/battle-interaction";
 import {
   BATTLE_TEAM_DRAFT_KEY,
@@ -76,8 +75,8 @@ import {
  *     the shared job curve, the equipment slots with levels, the ordered `skillInvocations` and the
  *     declared `households` exactly as the editor stored them;
  *   * `requestBattlePreview` (battle-preview) asks the backend for the read-only prepared formation;
- *   * `runBattleSetup` (battle-setup-runner) sends the adapter scenario to the authoritative Python
- *     runner and validates the returned `ka-battle-replay-1` payload;
+ *   * `runBattleSetup` starts the Python combat runner in a browser worker and validates its first
+ *     `ka-battle-replay-1` window;
  *   * `writeGeneratedBattle` stores that replay for the existing generated replay viewer.
  *
  * The draft is local (`ka_battle_team_draft`); presets are COPIED from `ka_loadouts` and never
@@ -85,20 +84,7 @@ import {
  * per-species first pet skill, reward settlement) is claimed as recovered.
  */
 
-/** Transport that keeps the runner's exact native rejection text instead of a bare HTTP status. */
-const transport: BattleScenarioTransport = async (scenarioJson) => {
-  const response = await fetch(BATTLE_RUN_ENDPOINT, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: scenarioJson,
-  });
-  if (!response.ok) {
-    throw new BattleReplayTransportError(
-      describeNativeRunnerRejection(response.status, await response.text()),
-    );
-  }
-  return response.text();
-};
+const transport: BattleScenarioTransport = startBrowserBattle;
 
 type PreviewState =
   | { status: "idle" }
@@ -110,6 +96,8 @@ type RunState =
   | { status: "idle" }
   | { status: "running" }
   | { status: "error"; message: string; details: string[] };
+
+type SavedRoster = { id: string; name: string; encounterId: number; characters: DraftCharacter[]; consumables: DraftConsumables; partyBonus?: number };
 
 /**
  * The built-in herb spends from `holyHerbStock`; every other canonical Item.txt recovery row is
@@ -174,8 +162,14 @@ export default function PlayerBattlePage() {
   const [teamMessage, setTeamMessage] = useState<string | null>(null);
   const [previewState, setPreviewState] = useState<PreviewState>({ status: "idle" });
   const [runState, setRunState] = useState<RunState>({ status: "idle" });
-  const [battleSeconds, setBattleSeconds] = useState(350);
-  const [storedLoadouts] = useLocalFeature<unknown>("ka_loadouts", []);
+  const [battleSeconds, setBattleSeconds] = useState(900);
+  const [secondsInput, setSecondsInput] = useState<string | null>(null);
+  const [partyBonusInput, setPartyBonusInput] = useState<string | null>(null);
+  const [storedLoadouts, setStoredLoadouts] = useLocalFeature<unknown>("ka_loadouts", []);
+  const [savedRosters, setSavedRosters] = useLocalFeature<SavedRoster[]>("ka_battle_rosters", []);
+  const [rosterName, setRosterName] = useState("");
+  const [pendingRosterDelete, setPendingRosterDelete] = useState<string | null>(null);
+  const [resetPending, setResetPending] = useState(false);
   const [deviceValuables] = useLocalFeature<unknown>(RESIDENT_STAT_ITEMS_KEY, {});
   /**
    * The Loadout Builder's saved presets, read defensively (a legacy/loose stored row still imports
@@ -248,14 +242,15 @@ export default function PlayerBattlePage() {
 
   const conversion = useMemo(() => {
     if (!sharedData) return null;
-    return battleSetupFromLoadouts(draft.characters as SavedLoadout[], sharedData, {
+    return battleSetupFromLoadouts(loadoutsWithResidentValuables(draft.characters, deviceResidentValuables(deviceValuables)) as SavedLoadout[], sharedData, {
       encounterId: draft.encounterId,
       tickLimit: battleSeconds * 20,
       holyHerbStock: consumables.holyHerbStock,
       items: CONSUMABLE_ITEM_ROWS,
       itemStock: consumables.itemStock,
+      partyMax: draft.partyBonus === undefined ? undefined : 2 + draft.partyBonus,
     });
-  }, [sharedData, draft.characters, draft.encounterId, consumables, battleSeconds]);
+  }, [sharedData, draft.characters, draft.encounterId, draft.partyBonus, deviceValuables, consumables, battleSeconds]);
 
   const issues = useMemo(() => {
     if (conversion) return conversion.issues;
@@ -265,7 +260,9 @@ export default function PlayerBattlePage() {
   }, [conversion, draft.characters.length]);
 
   const errors = issues.filter((issue) => issue.category === "ERROR");
-  const otherIssues = issues.filter((issue) => issue.category !== "ERROR");
+  // The conversion also reports provenance and accepted native defaults. Those are diagnostics,
+  // not problems a player can fix in this editor.
+  const otherIssues = issues.filter((issue) => issue.category !== "ERROR" && isPlayerFacingBattleIssue(issue));
   const setup = conversion?.setup ?? null;
 
   const setCharacters = (next: DraftCharacter[]) => {
@@ -288,6 +285,41 @@ export default function PlayerBattlePage() {
     setPreviewState({ status: "idle" });
     setRunState({ status: "idle" });
     setTeamMessage(null);
+    setResetPending(false);
+  };
+
+  const saveCharacter = (character: DraftCharacter) => {
+    const copy = draftCharacterFromLoadout(character, 1);
+    const current = normalizeSavedLoadouts(storedLoadouts);
+    setStoredLoadouts([...current, copy]);
+    setTeamMessage(`${character.name || "Character"} saved.`);
+  };
+
+  const saveRoster = () => {
+    const name = rosterName.trim();
+    if (!name || draft.characters.length === 0) return;
+    const saved: SavedRoster = {
+      id: `roster-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name,
+      encounterId: draft.encounterId,
+      ...(draft.partyBonus === undefined ? {} : { partyBonus: draft.partyBonus }),
+      characters: draft.characters.map((character, index) => draftCharacterFromLoadout(character, index + 1)),
+      consumables: { holyHerbStock: consumables.holyHerbStock, itemStock: { ...consumables.itemStock } },
+    };
+    setSavedRosters((current) => [...current, saved]);
+    setRosterName("");
+    setTeamMessage(`${name} saved.`);
+  };
+
+  const loadRoster = (roster: SavedRoster) => {
+    if (draft.characters.length > 0 && !window.confirm(`Replace the current team with ${roster.name}?`)) return;
+    setStored({
+      ...createDraft(roster.encounterId),
+      characters: roster.characters.map((character, index) => draftCharacterFromLoadout(character, index + 1)),
+      ...(roster.partyBonus === undefined ? {} : { partyBonus: roster.partyBonus }),
+      consumables: { holyHerbStock: roster.consumables.holyHerbStock, itemStock: { ...roster.consumables.itemStock } },
+    });
+    setTeamMessage(`${roster.name} loaded.`);
   };
 
   const previewFormation = async () => {
@@ -346,7 +378,7 @@ export default function PlayerBattlePage() {
       writeGeneratedBattle(
         run.result,
         run.visualSetup,
-        run.warnings.map((issue) => issue.category + ":" + issue.code),
+        run.warnings.filter(isPlayerFacingBattleIssue).map((issue) => issue.category + ":" + issue.code),
         variant.title,
         run.scenarioJson,
       );
@@ -378,18 +410,22 @@ export default function PlayerBattlePage() {
         icon={<Sword className="h-5 w-5" />}
         title="Player Battle"
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={resetDraft} data-action="reset-draft">
-              <RotateCcw className="h-3 w-3" /> Reset team
-            </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {resetPending ? (
+              <><Button variant="outline" size="sm" className="min-h-11" onClick={() => setResetPending(false)}>Cancel</Button>
+                <Button variant="destructive" size="sm" className="min-h-11" onClick={resetDraft}>Clear team</Button></>
+            ) : (
+              <Button variant="outline" size="sm" className="min-h-11 gap-1 text-xs text-destructive" onClick={() => setResetPending(true)} data-action="reset-draft">
+                <RotateCcw className="h-3 w-3" /> Reset team
+              </Button>
+            )}
             <Link href="/loadout" className="text-xs font-medium underline">
-              Loadout Builder
+              Characters
             </Link>
           </div>
         }
       >
-        Pick an encounter, build the ordered team, then preview the formation or run the fight. Presets are copied
-        from your Loadout Builder and are never modified.
+        Build a team and run the fight.
       </PageHeader>
 
       <EncounterSection
@@ -406,8 +442,40 @@ export default function PlayerBattlePage() {
         data={sharedData}
         allSkills={allSkills}
         savedLoadouts={savedLoadouts}
+        onSaveCharacter={saveCharacter}
         onChange={setCharacters}
       />
+
+      <label className="flex flex-wrap items-center gap-2 rounded border px-3 py-2 text-sm">
+        <span>Extra party slots from valuables</span>
+        <Input type="text" inputMode="numeric" className="min-h-11 w-20" aria-label="Extra party slots from valuables"
+          placeholder="Unknown" value={partyBonusInput ?? (draft.partyBonus === undefined ? "" : String(draft.partyBonus))}
+          onChange={(event) => setPartyBonusInput(event.target.value.replace(/[^\d]/g, ""))}
+          onBlur={() => { if (partyBonusInput !== null) setStored((current) => ({ ...(normalizeDraft(current) ?? draft), partyBonus: partyBonusInput === "" ? undefined : Math.min(999, Number(partyBonusInput)) })); setPartyBonusInput(null); }} />
+        <span className="text-xs text-muted-foreground">Base capacity: 2</span>
+      </label>
+
+      <Card data-saved-rosters>
+        <CardHeader><CardTitle className="text-base">Saved loadouts</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Input value={rosterName} onChange={(event) => setRosterName(event.target.value)} placeholder="Loadout name" aria-label="Loadout name" className="min-h-11 min-w-0 flex-1 basis-44" />
+            <Button type="button" onClick={saveRoster} disabled={!rosterName.trim() || draft.characters.length === 0} className="min-h-11 gap-2"><Save className="h-4 w-4" />Save team</Button>
+          </div>
+          {savedRosters.map((roster) => (
+            <div key={roster.id} className="flex flex-wrap items-center gap-2 rounded border p-2">
+              <span className="min-w-0 flex-1 text-sm font-medium">{roster.name} · {roster.characters.length} character(s)</span>
+              <Button type="button" variant="outline" className="min-h-11" onClick={() => loadRoster(roster)}>Load</Button>
+              {pendingRosterDelete === roster.id ? (
+                <><Button type="button" variant="outline" className="min-h-11" onClick={() => setPendingRosterDelete(null)}>Cancel</Button>
+                  <Button type="button" variant="destructive" className="min-h-11" onClick={() => { setSavedRosters((current) => current.filter((item) => item.id !== roster.id)); setPendingRosterDelete(null); }}>Delete</Button></>
+              ) : (
+                <Button type="button" variant="outline" className="min-h-11 text-destructive" aria-label={`Delete ${roster.name}`} onClick={() => setPendingRosterDelete(roster.id)}><Trash2 className="h-4 w-4" /></Button>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <Card data-builder-consumables>
         <CardHeader>
@@ -465,7 +533,7 @@ export default function PlayerBattlePage() {
           </CardTitle>
           <CardDescription>
             {setup ? `${setup.playerTeam.length} unit(s) ready` : "not runnable yet"} · {errors.length} error(s) ·{" "}
-            {otherIssues.length} warning/unknown for encounter #{draft.encounterId}
+            {otherIssues.length} item(s) to review
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -483,26 +551,30 @@ export default function PlayerBattlePage() {
           {otherIssues.length > 0 ? (
             <details className="rounded-md border border-border/60 bg-muted/10 px-2 py-1.5" data-issue-details>
               <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-                {otherIssues.length} warning / unknown native rule item(s) - not blocking
+                {otherIssues.length} item(s) to review
               </summary>
               <div className="mt-2">
-                <IssueList issues={otherIssues} marker="setup-info" />
+                <IssueList issues={otherIssues} marker="setup-info" limit={4} />
               </div>
             </details>
           ) : null}
 
-          {issues.length === 0 ? <p className="text-xs text-muted-foreground">No issues.</p> : null}
+          {errors.length === 0 && otherIssues.length === 0 ? <p className="text-xs text-muted-foreground">Ready.</p> : null}
 
           <details className="rounded-md border px-3 py-2 text-xs">
             <summary className="cursor-pointer">Battle time limit: {battleSeconds} seconds</summary>
             <label className="mt-3 flex items-center gap-3">
               Maximum simulated seconds
-              <Input type="number" aria-label="Maximum simulated seconds" min={1} max={500}
-                className="w-24" value={battleSeconds} disabled={runState.status === "running"}
-                onChange={(event) => setBattleSeconds(Math.max(1, Math.min(500, Math.trunc(Number(event.target.value) || 1))))} />
+              <Input type="text" inputMode="numeric" aria-label="Maximum simulated seconds"
+                className="w-24" value={secondsInput ?? String(battleSeconds)} disabled={runState.status === "running"}
+                onChange={(event) => setSecondsInput(event.target.value.replace(/[^\d]/g, ""))}
+                onBlur={() => { if (secondsInput && Number.isFinite(Number(secondsInput))) setBattleSeconds(Math.max(1, Math.min(3600, Math.trunc(Number(secondsInput))))); setSecondsInput(null); }} />
             </label>
             <p className="mt-2 text-muted-foreground">If neither team wins within this limit, the result remains unfinished. Increase the limit to simulate a longer fight.</p>
           </details>
+          <p className="text-xs text-muted-foreground">
+            Battle ticks run on this device as you watch. The first run downloads the browser combat engine.
+          </p>
 
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -565,7 +637,7 @@ export default function PlayerBattlePage() {
 
           {runState.status === "running" ? (
             <p className="text-xs text-muted-foreground" data-run-progress>
-              The authoritative simulator is running this setup. Duplicate submissions are disabled.
+              Loading the combat engine in your browser and starting this fight. Duplicate submissions are disabled.
             </p>
           ) : null}
 
@@ -615,23 +687,10 @@ export default function PlayerBattlePage() {
       <Card data-limitations-card>
         <details data-limitations-details>
           <summary className="cursor-pointer list-none px-6 py-4 text-base font-semibold">
-            What this does not claim
+            Simulator limits
           </summary>
           <div className="space-y-2 px-6 pb-6 text-xs text-muted-foreground">
-          <p>
-            The run is a native-checked conditional prediction of the recovered engine under the declared inputs, seeds,
-            start profile and item schedule - not the live game session. Native Ending to Finish is automatic but its
-            exact producer and timing are unresolved, so reward and chest settlement are not modelled and no
-            dispatched-chest figure is a trusted yield.
-          </p>
-          <p>
-            Pet slot capacity is your own instruction, not a recovered native rule: every job attaches 3 household pets and
-            Rancher 5, and the raw pet capacity the backend reports is displayed verbatim (including "unknown"). The
-            per-species native first pet skill is the copied canonical Monster-table value; it is
-            exported first, ahead of your declared skills, and never filled with one of your own skills.
-            Unrecovered enemy battle sprites, the Myriad Arrows bow feedback and monster additional skill slots stay
-            unmodelled and are labelled as such.
-          </p>
+          <p>Rewards and chest totals are provisional. Some enemy art and effects are still missing.</p>
           </div>
         </details>
       </Card>
