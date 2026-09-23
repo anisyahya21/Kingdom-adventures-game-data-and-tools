@@ -6,6 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/searchable-select";
 import { DifficultyBadge, RankBadge } from "@/components/ka/badges";
+import { getEquipmentIcon } from "@/lib/equipment-icons";
+import { getSkillIcon } from "@/lib/skill-icons";
+import { getStatIcon } from "@/lib/stat-icons";
 import {
   ENCOUNTER_FAMILIES,
   ENCOUNTER_VARIANTS,
@@ -19,11 +22,14 @@ import type { SavedLoadout } from "@/lib/battle-legality";
 import { dropUnsupportedHumanEquipment } from "@/lib/battle-picker-rules";
 import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
 import {
+  BUILDER_EQUIPMENT_SLOTS,
   createDraftCharacter,
+  draftStatRows,
   draftCharacterFromLoadout,
   gearInSlot,
   moveInList,
   removeAt,
+  statShortLabel,
   type BuilderSharedData,
   type DraftCharacter,
 } from "@/lib/battle-team-draft";
@@ -243,6 +249,64 @@ function PresetSection({
 /* Team member editor                                                  */
 /* ------------------------------------------------------------------ */
 
+function CharacterSummary({ character, data }: { character: DraftCharacter; data: BuilderSharedData | null }) {
+  const stats = useMemo(() => draftStatRows(character, data), [character, data]);
+  const equipment = BUILDER_EQUIPMENT_SLOTS.flatMap(({ slot }) => {
+    const item = gearInSlot(character, slot, data?.slotAssignments);
+    return item ? [{ ...item, slot }] : [];
+  });
+  const skills = character.skills ?? [];
+
+  return (
+    <div className="hidden min-w-0 flex-1 grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1.25fr)] gap-3 min-[1100px]:grid" data-character-summary>
+      <div className="min-w-0">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Stat levels</span>
+        <div className="grid grid-cols-4 gap-x-1 gap-y-1" aria-label="Stat levels">
+          {stats.map(({ stat, level }) => {
+            const icon = getStatIcon(data?.statIcons, stat);
+            const label = statShortLabel(stat);
+            return (
+              <span key={stat} className="flex min-w-0 items-center gap-0.5 text-xs tabular-nums" title={`${label} level ${level}`} aria-label={`${label} level ${level}`}>
+                {icon ? <img src={icon} alt="" className="h-4 w-4 shrink-0 object-contain" /> : <span className="text-muted-foreground">{label}</span>}
+                <span className="truncate">{level}</span>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Equipment</span>
+        <div className="flex flex-wrap gap-x-2 gap-y-0.5" aria-label="Equipped gear">
+          {equipment.length ? equipment.map((item) => {
+            const icon = getEquipmentIcon(data?.equipIcons, item.name);
+            return (
+              <span key={item.slot} className="flex min-w-0 max-w-full items-center gap-0.5 text-[11px]" title={`${item.name}, level ${item.level}`} aria-label={`${item.name}, level ${item.level}`}>
+                {icon ? <img src={icon} alt="" className="h-5 w-5 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} /> : null}
+                <span className="max-w-28 truncate">{item.name}</span>
+                <span className="shrink-0 tabular-nums text-muted-foreground">Lv{item.level}</span>
+              </span>
+            );
+          }) : <span className="text-[10px] text-muted-foreground">None</span>}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Skills</span>
+        <div className="flex flex-wrap gap-x-2 gap-y-0.5" aria-label="Equipped skills">
+          {skills.length ? skills.map((skill, index) => {
+            const icon = getSkillIcon(skill);
+            return (
+              <span key={`${skill}-${index}`} className="flex min-w-0 max-w-full items-center gap-0.5 text-[11px]" title={skill}>
+                {icon ? <img src={icon} alt="" className="h-5 w-5 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} /> : null}
+                <span className="max-w-28 truncate">{skill}</span>
+              </span>
+            );
+          }) : <span className="text-[10px] text-muted-foreground">None</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CharacterCard({
   character,
   index,
@@ -292,17 +356,18 @@ function CharacterCard({
         {/* Collapsed row identity: the equipped portrait plus the declared pets, both live from the
             same draft the expanded editor edits. */}
         <CharacterSpriteThumb character={character} data={data} />
-        <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex min-w-0 flex-1 flex-col min-[1100px]:w-44 min-[1100px]:flex-none">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="truncate text-sm font-semibold">{character.name?.trim() || `Character ${index + 1}`}</span>
             {character.rank ? <RankBadge rank={character.rank} /> : null}
           </span>
           <span className="truncate text-[11px] text-muted-foreground">
-            {character.jobName ?? "no job"}
-            {weapon ? ` · ${weapon.name}` : ""}
+            {character.jobName || "No job"}
+            {weapon ? <span className="min-[1100px]:hidden"> · {weapon.name}</span> : null}
           </span>
         </span>
         <PetSlotIconStrip pets={character.householdPets ?? []} />
+        <CharacterSummary character={character} data={data} />
         <span className="ml-auto flex flex-wrap items-center gap-1">
           <button
             type="button"
