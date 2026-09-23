@@ -25,10 +25,10 @@ import {
 import { EntityLink } from "@/components/ka/entity-link";
 import { PageHeader } from "@/components/ka/page-header";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { battleTypeLabel, typeFromJobCategory } from "@/game-data/job-normalization";
-import { MARRIAGE_RANKS, normJob, pairKey, type MarriageRank } from "@/game-data/job-marriage";
+import { MARRIAGE_RANKS, completeMarriagePairs, normJob, pairKey, type MarriageRank } from "@/game-data/job-marriage";
 import { getMarriagePair, getPossibleMarriageChildren } from "@/game-data/job-profile";
 import { KA_AFFINITY_BADGE_CLASS, KA_RANK_BADGE_CLASS, KA_RANK_BORDER_CLASS, KA_RANK_HEADER_CLASS } from "@/design-system/category-styles";
 
@@ -51,17 +51,20 @@ type JobData = {
 };
 
 type SharedPair = { id: string; jobA: string; jobB: string; children: string[]; affinityNum?: number };
+type MatcherSharedData = {
+  jobs: Record<string, JobData>;
+  pairs?: SharedPair[];
+  marriageMatcher?: {
+    rankSlots: Array<{ id: string; rank: string; jobName: string; males: number; females: number; unassigned: number }>;
+  } | null;
+};
 
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<{
-      jobs: Record<string, JobData>;
-      pairs?: SharedPair[];
-      marriageMatcher?: {
-        rankSlots: Array<{ id: string; rank: string; jobName: string; males: number; females: number; unassigned: number }>;
-      } | null;
-    }>(apiUrl("/shared")),
+    queryFn: () => fetchSharedWithFallback<MatcherSharedData>(apiUrl("/shared")),
+    // Render the bundled catalog immediately while the existing shared request runs.
+    placeholderData: () => localSharedData as unknown as MatcherSharedData,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
@@ -617,6 +620,9 @@ const DEFAULT_PAIRS: Pair[] = [
   makePair("Ninja", "Samurai"), makePair("Pirate", "Pirate"),
   makePair("Rancher", "Knight"), makePair("Trader", "Gunner"), makePair("Wizard", "Wizard"),
 ];
+
+const BUNDLED_PAIRS: Pair[] = ((localSharedData.pairs ?? []) as Pair[])
+  .map((pair) => ({ ...pair, children: pair.children ?? [] }));
 
 function normalizeStringList(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
@@ -2222,7 +2228,7 @@ type ActiveTab = "finder" | "simulator" | "data";
 
 export default function MarriageMatcher() {
   // -- API data --
-  const { data: sharedData, isLoading: jobsLoading } = useSharedData();
+  const { data: sharedData, isLoading: jobsLoading, isPlaceholderData } = useSharedData();
 
   // -- Tab state (read/write from URL: ?tab=finder|simulator|data) --
   const search = useSearch();
@@ -2262,8 +2268,10 @@ export default function MarriageMatcher() {
   }, [sharedData]);
 
   const apiPairs = useMemo(() => {
-    if (!sharedData?.pairs) return null;
-    return sharedData.pairs.map((p) => ({ ...p, children: p.children ?? [] }));
+    if (!sharedData) return null;
+    // A missing or severely truncated server list cannot replace the bundled catalog.
+    const source = completeMarriagePairs(sharedData.pairs, BUNDLED_PAIRS);
+    return source.map((p) => ({ ...p, children: p.children ?? [] }));
   }, [sharedData]);
 
   const jobTypeMap = useMemo(() => {
@@ -2343,10 +2351,10 @@ export default function MarriageMatcher() {
       const s = localStorage.getItem("ka_mf_pairs");
       if (s) {
         const loaded = JSON.parse(s) as Pair[];
-        return loaded.map((p) => ({ ...p, children: p.children ?? [] }));
+        return completeMarriagePairs(loaded.map((p) => ({ ...p, children: p.children ?? [] })), BUNDLED_PAIRS);
       }
     } catch { /* ignore */ }
-    return DEFAULT_PAIRS;
+    return BUNDLED_PAIRS.length ? BUNDLED_PAIRS : DEFAULT_PAIRS;
   });
 
   // ââ State: locked pairs ââ
@@ -2434,9 +2442,6 @@ export default function MarriageMatcher() {
   const [resultExcludeJobs, setResultExcludeJobs] = useState<string[]>([]);
 
   // ââ Sync pairs from API (one-time on first load) ââ
-  const pairsRef = useRef(pairs);
-  useEffect(() => { pairsRef.current = pairs; }, [pairs]);
-
   // Guard: prevents echoing API-loaded pairs straight back to the server.
   // Without this, loading pairs from the API immediately triggers a PUT which
   // writes to ka_shared.json, which Vite watches (via the static import in
@@ -2444,16 +2449,11 @@ export default function MarriageMatcher() {
   const skipNextPairsApiEchoRef = useRef(false);
 
   useEffect(() => {
-    if (!apiPairs || pairsLoadedFromApi) return;
+    if (!apiPairs || isPlaceholderData || pairsLoadedFromApi) return;
     setPairsLoadedFromApi(true);
-    if (apiPairs.length > 0) {
-      skipNextPairsApiEchoRef.current = true;
-      setPairs(apiPairs);
-    } else {
-      // API has no pairs yet — push our local pairs up to the backend
-      persistPairs(pairsRef.current, "community");
-    }
-  }, [apiPairs]); // eslint-disable-line react-hooks/exhaustive-deps
+    skipNextPairsApiEchoRef.current = true;
+    setPairs(apiPairs);
+  }, [apiPairs, isPlaceholderData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ââ Persist ââ
   // ka_mf_rankSlots is persisted by useLocalFeature AND synced to server for cross-device access.
@@ -3320,7 +3320,7 @@ export default function MarriageMatcher() {
         {/* ── Simulator tab ──────────────────────────────────────────── */}
         {activeTab === "simulator" && (
           <SimTab
-            pairs={apiPairs ?? pairs}
+            pairs={pairsLoadedFromApi ? pairs : apiPairs ?? pairs}
             jobs={sharedData?.jobs ?? {}}
             firstGenJobNames={sortedJobNames}
           />

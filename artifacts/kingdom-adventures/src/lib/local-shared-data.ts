@@ -1,5 +1,6 @@
 import fallbackSharedData from "../../../api-server/data/ka_shared.json";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
+import { completeMarriagePairs } from "@/game-data/job-marriage";
 
 export const localSharedData = fallbackSharedData as Record<string, unknown>;
 
@@ -9,6 +10,10 @@ function mergeSharedData<T>(base: unknown, overlay: unknown): T {
   return {
     ...baseRecord,
     ...overlayRecord,
+    pairs: completeMarriagePairs(
+      overlayRecord.pairs as unknown[] | undefined,
+      (baseRecord.pairs ?? []) as unknown[],
+    ),
     equipIcons: {
       ...(baseRecord.equipIcons as Record<string, string> | undefined),
       ...(overlayRecord.equipIcons as Record<string, string> | undefined),
