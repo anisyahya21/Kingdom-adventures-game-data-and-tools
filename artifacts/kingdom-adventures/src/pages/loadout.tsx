@@ -236,6 +236,19 @@ function statAtLevel(base: number, inc: number, level: number): number {
   return Math.round(base + (level - 1) * inc);
 }
 
+function closestStatLevel(base: number, inc: number, target: number): number {
+  let closest = 1;
+  let distance = Math.abs(statAtLevel(base, inc, closest) - target);
+  for (let level = 2; level <= 999; level++) {
+    const nextDistance = Math.abs(statAtLevel(base, inc, level) - target);
+    if (nextDistance < distance) {
+      closest = level;
+      distance = nextDistance;
+    }
+  }
+  return closest;
+}
+
 function commitOnEnter(e: React.KeyboardEvent<HTMLInputElement>, commit: () => void) {
   if (e.key === "Enter") {
     commit();
@@ -2475,6 +2488,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   const [allLv, setAllLv] = useState(1);
   const [allLvInput, setAllLvInput] = useState("1");
   const [statLevelInputs, setStatLevelInputs] = useState<Record<string, string>>({});
+  const [statValueInputs, setStatValueInputs] = useState<Record<string, string>>({});
   const [equipLevelInputs, setEquipLevelInputs] = useState<Record<string, string>>({});
   const [rememberedEquipLevels, setRememberedEquipLevels] = useState<Record<string, number>>({});
   const [slotPickerOpen, setSlotPickerOpen] = useState<Partial<Record<EquipSlot, boolean>>>({});
@@ -2515,6 +2529,28 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
     const next = Math.max(1, Math.min(999, isNaN(parsed) ? 1 : parsed));
     setStatLevel(k, next);
     setStatLevelInputs((prev) => ({ ...prev, [k]: String(next) }));
+  };
+
+  const setStatValueInput = (k: string, raw: string) => {
+    if (!/^\d*$/.test(raw)) return;
+    setStatValueInputs((prev) => ({ ...prev, [k]: raw }));
+  };
+
+  const commitStatValue = (k: string, raw: string, entry: JobStatEntry) => {
+    const target = Number(raw);
+    if (raw !== "" && Number.isFinite(target)) {
+      setStatLevel(k, closestStatLevel(entry.base, entry.inc, target));
+    }
+    setStatValueInputs((prev) => {
+      const next = { ...prev };
+      delete next[k];
+      return next;
+    });
+    setStatLevelInputs((prev) => {
+      const next = { ...prev };
+      delete next[k];
+      return next;
+    });
   };
 
   const setEquipLevelInput = (name: string, raw: string) => {
@@ -2666,7 +2702,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                   <thead>
                     <tr>
                       <th className="text-left pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium">Stat level</th>
-                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right">Job</th>
+                      <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right" title="Enter a job stat value to set the closest stat level">Job value</th>
                       <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right">Equip</th>
                       <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right" title="Water of ... items used">Items</th>
                       <th className="pb-1 text-[10px] text-muted-foreground/60 uppercase tracking-wide font-medium text-right">Total</th>
@@ -2675,6 +2711,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                   <tbody>
                     {allStatKeys.map((k) => {
                       const hasJob = jobStats[k] !== undefined;
+                      const entry = Object.entries(job?.ranks[loadout.rank]?.stats ?? {}).find(([stat]) => normStat(stat) === k)?.[1];
                       const lv = getStatLevel(loadout, k);
                       const eq = equipStats[k];
                       const item = itemBonuses[k];
@@ -2687,6 +2724,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                 <StatLabel stat={k} icons={statIcons} full />
                               </span>
                               <Input type="text" inputMode="numeric" value={statLevelInputs[k] ?? String(lv)}
+                                aria-label={`${k.toUpperCase()} stat level`}
                                 onChange={(e) => setStatLevelInput(k, e.target.value)}
                                 onKeyDown={(e) => commitOnEnter(e, () => commitStatLevel(k, e.currentTarget.value))}
                                 onBlur={(e) => commitStatLevel(k, e.target.value)}
@@ -2699,7 +2737,16 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                               <span className="opacity-80 text-[10px]">
                                 <StatLabel stat={k} icons={statIcons} iconClassName="h-3 w-3" />
                               </span>
-                              <span>{hasJob ? (jobStats[k] ?? 0).toLocaleString() : <span className="text-muted-foreground/30">-</span>}</span>
+                              {hasJob && entry ? (
+                                <Input type="text" inputMode="numeric" value={statValueInputs[k] ?? String(jobStats[k])}
+                                  aria-label={`${k.toUpperCase()} job stat value`}
+                                  title="Enter a target value to set the closest stat level"
+                                  onChange={(e) => setStatValueInput(k, e.target.value)}
+                                  onKeyDown={(e) => commitOnEnter(e, () => commitStatValue(k, e.currentTarget.value, entry))}
+                                  onBlur={(e) => commitStatValue(k, e.target.value, entry)}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  className="h-7 w-full min-w-16 rounded-md px-1 text-right text-xs tabular-nums" />
+                              ) : <span className="text-muted-foreground/30">-</span>}
                             </span>
                           </td>
                           <td className="py-0.5 text-right tabular-nums text-sky-600 dark:text-sky-400 group-hover:bg-muted/25">{eq ? `+${eq.toLocaleString()}` : <span className="text-muted-foreground/20">-</span>}</td>
