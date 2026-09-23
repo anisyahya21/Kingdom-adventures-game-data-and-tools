@@ -595,6 +595,19 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
       setInteractionError(error instanceof Error ? error.message : "Could not download this fight.");
     }
   };
+  const downloadFightScenario = () => {
+    if (!activeScenario || !displayedReplay || !record) return;
+    try {
+      if (activeScenario.schema !== "ka-special-combat-research-1" || !Array.isArray(activeScenario.inputs)) {
+        throw new Error("This fight has no valid scenario to export.");
+      }
+      const archive = optimizerFightExport(activeScenario as CombatScenario, displayedReplay, record);
+      downloadJson(optimizerScenarioFilename(record.summary.encounterTitle ?? `Encounter ${record.summary.encounterId}`), archive.scenario);
+      setInteractionError(null);
+    } catch (error) {
+      setInteractionError(error instanceof Error ? error.message : "Could not download this fight's scenario.");
+    }
+  };
   const transport = useMemo(() => createHttpBattleInteractionTransport(), []);
   const branchPollTransport = useMemo(() => createHttpBattleInteractionPollTransport(), []);
   const [step, setStep] = useState(0);
@@ -1187,7 +1200,10 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" className="min-h-11" onClick={downloadFight} disabled={!activeScenario || displayedReplay.finalState.windowed || Boolean(branch && !branch.complete)} title="Download the complete replay and consumable actions; the desktop optimizer can import its setup">
+          <Button size="sm" variant="outline" className="min-h-11" onClick={downloadFightScenario} disabled={!activeScenario || displayedReplay.finalState.windowed || Boolean(branch && !branch.complete)} title="Import this scenario with the desktop optimizer; it includes the consumables used">
+            Optimizer JSON
+          </Button>
+          <Button size="sm" variant="outline" className="min-h-11" onClick={downloadFight} disabled={!activeScenario || displayedReplay.finalState.windowed || Boolean(branch && !branch.complete)} title="Download the complete replay, setup, and consumable actions">
             Download fight JSON
           </Button>
           {/*
