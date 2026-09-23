@@ -307,23 +307,27 @@ export function SiteHeader() {
 
   return (
     <div className="fixed inset-x-0 top-0 z-[60] border-b border-border bg-background/90 backdrop-blur">
-      <div className="w-full min-w-0 px-2 sm:px-4 h-14 flex items-center justify-between gap-1 sm:gap-3">
+      <div className="w-full min-w-0 px-2 sm:px-4 h-14 flex items-center justify-between gap-0.5 sm:gap-3">
         <div className="flex shrink-0 items-center gap-0.5">
           {pathname !== "/" && (
-            <Button variant="ghost" size="icon" className="h-11 w-11" onClick={goBack} title="Go back">
-              <ArrowLeft className="w-[30px] h-[30px]" />
+            <Button variant="ghost" size="icon" className="h-11 w-8 min-[350px]:w-9 sm:w-11" onClick={goBack} title="Go back">
+              <ArrowLeft className="h-5 w-5 sm:h-[30px] sm:w-[30px]" />
             </Button>
           )}
 
           <div ref={menuRef}>
-            <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setMenuOpen(!menuOpen)}>
-              <Menu className="w-[30px] h-[30px]" />
+            <Button variant="ghost" size="icon" className="h-11 w-8 min-[350px]:w-9 sm:w-11" onClick={() => setMenuOpen(!menuOpen)}>
+              <Menu className="h-5 w-5 sm:h-[30px] sm:w-[30px]" />
             </Button>
 
             {menuOpen && (
               <div className="absolute left-4 top-full mt-2 z-50 w-72 max-h-[min(80vh,42rem)] overflow-y-auto">
                 <Card>
                   <CardContent className="p-3 space-y-3">
+                    <Button variant="ghost" className="w-full justify-start sm:hidden" onClick={() => setDark((d) => !d)}>
+                      {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                      {dark ? "Switch to light mode" : "Switch to dark mode"}
+                    </Button>
                     {NAV_SECTIONS.map((section) => (
                       <div key={section.title} className="space-y-1.5">
                         <div className="px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
@@ -382,25 +386,25 @@ export function SiteHeader() {
 
         <Link
           href="/"
-          className="min-w-0 text-base sm:text-2xl font-semibold truncate hover:opacity-80 transition-opacity"
+          className="shrink-0 whitespace-nowrap text-[clamp(11px,3.7vw,16px)] sm:text-2xl font-semibold hover:opacity-80 transition-opacity"
           title="Go to home page"
         >
-          <span className="sm:hidden">KA</span><span className="hidden sm:inline">Kingdom Adventurers</span>
+          Kingdom Adventurers
         </Link>
 
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-0.5 sm:flex-none">
           {authLoading ? (
-            <Button variant="ghost" className="h-11 px-3 text-xs" disabled>
+            <Button variant="ghost" className="h-11 min-w-0 px-1 sm:px-3 text-xs" disabled>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading
+              <span className="hidden sm:inline">Loading</span>
             </Button>
           ) : authSession.authenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-11 px-3 text-xs" title="Open account menu" disabled={authBusy}>
+                <Button variant="ghost" className="h-11 min-w-0 max-w-[4rem] flex-1 px-1 text-xs sm:max-w-none sm:flex-none sm:px-3" title={authSession.user?.displayName || "Open account menu"} disabled={authBusy}>
                   {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {authSession.user?.displayName || "Account"}
-                  {authSession.user?.isAdmin ? " (Admin)" : ""}
+                  <span className="min-w-0 truncate">{authSession.user?.displayName || "Account"}</span>
+                  {authSession.user?.isAdmin ? <span className="hidden sm:inline">(Admin)</span> : null}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
@@ -413,19 +417,19 @@ export function SiteHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button variant="ghost" className="h-11 px-2 sm:px-3 text-xs" onClick={() => setLoginOpen(true)} disabled={authBusy || fallbackBusy}>
+            <Button variant="ghost" className="h-11 shrink-0 px-1 min-[350px]:px-2 sm:px-3 text-xs" onClick={() => setLoginOpen(true)} disabled={authBusy || fallbackBusy}>
               {authBusy || fallbackBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Log in
             </Button>
           )}
 
-          <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setDark((d) => !d)} title={dark ? "Switch to light mode" : "Switch to dark mode"}>
-            {dark ? <Sun className="w-[30px] h-[30px]" /> : <Moon className="w-[30px] h-[30px]" />}
+          <Button variant="ghost" size="icon" className="hidden h-11 w-11 shrink-0 sm:inline-flex" onClick={() => setDark((d) => !d)} title={dark ? "Switch to light mode" : "Switch to dark mode"}>
+            {dark ? <Sun className="h-[30px] w-[30px]" /> : <Moon className="h-[30px] w-[30px]" />}
           </Button>
 
           <div ref={searchRef}>
-            <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setSearchOpen(!searchOpen)}>
-              <Search className="w-[30px] h-[30px]" />
+            <Button variant="ghost" size="icon" className="h-11 w-8 shrink-0 min-[350px]:w-9 sm:w-11" onClick={() => setSearchOpen(!searchOpen)}>
+              <Search className="h-5 w-5 sm:h-[30px] sm:w-[30px]" />
             </Button>
 
             {searchOpen && (
