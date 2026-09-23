@@ -95,16 +95,11 @@ function parseSurveyCsv(raw: string): Survey[] {
   const minAdditionTimeSecondsIndex = header.indexOf("minAdditionTimeSeconds");
   const maxAdditionTimeSecondsIndex = header.indexOf("maxAdditionTimeSeconds");
   const jobGroupIdIndex = header.indexOf("jobGroupId");
+  const flagIndex = header.indexOf("flag");
 
-  const statusIndex = 1;
   return rows
     .slice(1)
-    .filter((cols) => {
-      const status = (cols[statusIndex] ?? "").trim();
-      if (status !== "Not used") return true;
-      const rawName = (cols[nameIndex] ?? "").toLowerCase();
-      return rawName.includes("dragon taming") || rawName.includes("master instructor") || rawName.includes("cash register") || rawName.includes("chaos stone") || rawName.includes("bridge blueprints");
-    })
+    .filter((cols) => flagIndex < 0 || Number(cols[flagIndex]) !== 0)
     .map((cols) => {
       const maxEarnableRaw = Number(cols[maxEarnableRewardCountIndex] ?? "");
       const name = cols[nameIndex] ?? "Unknown Survey";
@@ -266,14 +261,7 @@ function buildJobFamilies(jobVariants: JobVariant[]): JobFamily[] {
   })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Restore Cash Register surveys: allow them through the filter
-const SURVEYS: Survey[] = parseSurveyCsv(surveyCsv).filter((survey) => {
-  if (!survey.name || survey.name === "" || survey.id < 0) return false;
-  // Allow Cash Register surveys
-  if (survey.name.toLowerCase().includes("cash register")) return true;
-  // Default filter
-  return true;
-});
+const SURVEYS: Survey[] = parseSurveyCsv(surveyCsv).filter((survey) => survey.name.trim() !== "" && survey.id >= 0);
 const JOB_GROUPS: Record<number, string> = parseJobGroupCsv(jobGroupCsv);
 const JOB_VARIANTS = parseJobCsv(jobCsv);
 const JOB_FAMILIES = buildJobFamilies(JOB_VARIANTS);
@@ -479,6 +467,7 @@ function getSurveyMaxLabel(max: number) {
 }
 
 function getSurveyTerrainLabel(survey: Survey) {
+  if (survey.terrain === 15) return "Wasteland / cave";
   return TERRAIN_NAMES[survey.terrain] ?? `Unmapped terrain (${survey.terrain})`;
 }
 
@@ -926,7 +915,7 @@ export default function SurveyPlanner() {
             </CardHeader>
             <CardContent>
               <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
-                Terrain is the map area's type used by the survey: grass, sand, rock, and so on. Sand is the sandy terrain often called desert; “Desert soil” is a separate terrain state. The old “Mountains” label was incorrect. Terrain code 15 has no confirmed name. Bridge Blueprint rows are marked “Not used” in the source data, so their in-game availability is unverified.
+                Terrain is the selected map tile's type. Sand is the sandy terrain often called desert; “Desert soil” is a separate tile state. The old “Mountains” label was incorrect. Wasteland / cave is type 15: the game uses it for Wasteland tiles and cave or dungeon tiles.
               </p>
               <div className={`${SURVEY_LIST_GRID_CLASS} mb-2 text-sm font-semibold`}>
                 <div>Name</div>
