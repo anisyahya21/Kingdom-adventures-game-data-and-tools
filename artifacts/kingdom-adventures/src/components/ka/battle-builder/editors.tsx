@@ -483,6 +483,9 @@ export function SkillSlotEditor({
     if (jobName !== undefined && !canPickHumanSkill(jobName, name, skills)) return;
     onChange([...skills, name], [...skills.map((_, i) => invocations[i]), 1]);
   };
+  const availableSkills = allSkills.filter(
+    (name) => !skills.includes(name) && (jobName === undefined || canPickHumanSkill(jobName, name, skills)),
+  );
 
   return (
     <div className="space-y-1.5">
@@ -561,19 +564,20 @@ export function SkillSlotEditor({
           <span className="text-xs text-muted-foreground/60">No skills selected</span>
         ) : null}
       </div>
-      {skills.length < maxSkills && allSkills.length > 0 ? (
+      {skills.length < maxSkills && availableSkills.length > 0 ? (
         <SearchableSelect
           value=""
           clearOnSelect
           onChange={(value) => {
             if (value) add(value);
           }}
-          options={allSkills
-            .filter((name) => !skills.includes(name) && (jobName === undefined || canPickHumanSkill(jobName, name, skills)))
-            .map((name) => ({ value: name, label: name, icon: getSkillIcon(name) }))}
+          options={availableSkills.map((name) => ({ value: name, label: name, icon: getSkillIcon(name) }))}
           placeholder={skills.length === 0 ? "+ Add skill..." : "+ Add another skill..."}
-          triggerClassName="h-7 text-xs"
+          triggerClassName="min-h-11 text-sm"
         />
+      ) : null}
+      {skills.length < maxSkills && jobName && allSkills.length > 0 && availableSkills.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No more skills available for this job.</p>
       ) : null}
       <p className="text-[10px] leading-tight text-muted-foreground/70">
         {skills.length}/{maxSkills} slots · order is the priority sent to the simulator · trigger is how often an

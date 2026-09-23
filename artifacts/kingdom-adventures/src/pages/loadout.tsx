@@ -2189,6 +2189,7 @@ function SkillSlotList({
     if (jobName !== undefined && !canPickHumanSkill(jobName, name, skills)) return;
     onChange([...skills, name], [...skills.map((_, i) => invocations[i]), undefined]);
   };
+  const availableSkills = allSkills.filter((name) => !skills.includes(name) && (jobName === undefined || canPickHumanSkill(jobName, name, skills)));
   return (
     <div className="space-y-2">
       <div className="space-y-1" data-skill-slots={idPrefix}>
@@ -2225,16 +2226,18 @@ function SkillSlotList({
         })}
         {skills.length === 0 && <span className="text-xs text-muted-foreground/60">No skills selected</span>}
       </div>
-      {skills.length < 9 && allSkills.length > 0 && (
+      {skills.length < 9 && availableSkills.length > 0 && (
         <SearchableSelect
           value=""
           clearOnSelect
           onChange={(v) => { if (v) add(v); }}
-          options={allSkills.filter((s) => !skills.includes(s) && (jobName === undefined || canPickHumanSkill(jobName, s, skills))).map((s) => ({ value: s, label: s, icon: getSkillIcon(s) }))}
+          options={availableSkills.map((s) => ({ value: s, label: s, icon: getSkillIcon(s) }))}
           placeholder="+ Add skill..."
-          triggerClassName="h-7 text-xs"
+          triggerClassName="min-h-11 text-sm"
         />
       )}
+      {skills.length < 9 && jobName === "" && <p className="text-xs text-muted-foreground">Choose a job above to add skills.</p>}
+      {skills.length < 9 && jobName && allSkills.length > 0 && availableSkills.length === 0 && <p className="text-xs text-muted-foreground">No more skills available for this job.</p>}
       {allSkills.length === 0 && <p className="text-xs text-muted-foreground/60">No skills in database yet.</p>}
     </div>
   );

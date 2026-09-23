@@ -273,6 +273,15 @@ function CharacterCard({
   const [open, setOpen] = useState(index === 0);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const weapon = gearInSlot(character, "weapon", data?.slotAssignments);
+  const changeJob = (jobName: string) => {
+    const nextJob = JOB_BY_ID.get(jobName);
+    const updated = {
+      ...character,
+      jobName,
+      rank: nextJob && !nextJob.ranks.includes((character.rank ?? "D") as never) ? nextJob.ranks[0] ?? "D" : character.rank,
+    };
+    onChange(data ? dropUnsupportedHumanEquipment(updated, data) : updated);
+  };
 
   return (
     <div className="rounded-lg border bg-card" data-builder-character={index} data-character-id={character.id}>
@@ -363,15 +372,7 @@ function CharacterCard({
                 />
                 <SearchableSelect
                   value={character.jobName ?? ""}
-                  onChange={(jobName) => {
-                    const nextJob = JOB_BY_ID.get(jobName);
-                    const updated = {
-                      ...character,
-                      jobName,
-                      rank: nextJob && !nextJob.ranks.includes((character.rank ?? "D") as never) ? nextJob.ranks[0] ?? "D" : character.rank,
-                    };
-                    onChange(data ? dropUnsupportedHumanEquipment(updated, data) : updated);
-                  }}
+                  onChange={changeJob}
                   options={JOB_CATALOG.map((entry) => ({ value: entry.id, label: entry.name }))}
                   placeholder="Job..."
                   triggerClassName="h-7 w-40 text-xs"
@@ -431,6 +432,15 @@ function CharacterCard({
 
           <div>
             <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Skills</span>
+            {!character.jobName ? (
+              <SearchableSelect
+                value=""
+                onChange={changeJob}
+                options={JOB_CATALOG.map((entry) => ({ value: entry.id, label: entry.name }))}
+                placeholder="Choose a job to add skills"
+                triggerClassName="min-h-11 text-sm"
+              />
+            ) : null}
             <SkillSlotEditor
               skills={character.skills ?? []}
               invocations={(character.skills ?? []).map((_, i) => character.skillInvocations?.[i])}
