@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { AlertTriangle, Eye, Loader2, Play, RotateCcw, Save, Sword, Trash2 } from "lucide-react";
 
@@ -43,6 +43,7 @@ import {
 } from "@/lib/battle-preview";
 import { writeGeneratedBattle } from "@/lib/generated-battle-store";
 import { startBrowserBattle } from "@/lib/browser-battle";
+import { deleteAccountRoster, fetchAccountRosters, saveAccountRoster, type SavedRoster } from "@/lib/account-rosters";
 import { interactionCapabilities } from "@/lib/battle-interaction";
 import {
   BATTLE_TEAM_DRAFT_KEY,
@@ -96,8 +97,6 @@ type RunState =
   | { status: "idle" }
   | { status: "running" }
   | { status: "error"; message: string; details: string[] };
-
-type SavedRoster = { id: string; name: string; encounterId: number; characters: DraftCharacter[]; consumables: DraftConsumables; partyBonus?: number };
 
 /**
  * The built-in herb spends from `holyHerbStock`; every other canonical Item.txt recovery row is
@@ -167,15 +166,18 @@ export default function PlayerBattlePage() {
   const [partyBonusInput, setPartyBonusInput] = useState<string | null>(null);
   const [storedLoadouts, setStoredLoadouts] = useLocalFeature<unknown>("ka_loadouts", []);
   const [savedRosters, setSavedRosters] = useLocalFeature<SavedRoster[]>("ka_battle_rosters", []);
+  const [accountRosters, setAccountRosters] = useState<SavedRoster[]>([]);
+  const [accountStatus, setAccountStatus] = useState<"loading" | "ready" | "guest" | "error">("loading");
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountMessage, setAccountMessage] = useState<string | null>(null);
   const [rosterName, setRosterName] = useState("");
   const [pendingRosterDelete, setPendingRosterDelete] = useState<string | null>(null);
+  const [pendingAccountDelete, setPendingAccountDelete] = useState<string | null>(null);
   const [resetPending, setResetPending] = useState(false);
-  const [deviceValuables] = useLocalFeature<unknown>(RESIDENT_STAT_ITEMS_KEY, {});
+  const [deviceValuables, setDeviceValuables] = useLocalFeature<unknown>(RESIDENT_STAT_ITEMS_KEY, {});
   /**
    * The Loadout Builder's saved presets, read defensively (a legacy/loose stored row still imports
-   * instead of throwing) and completed with the device-wide universal valuable counts for a loadout
-   * that has no `residentStatItems` of its own. The loadout's own field, when present, always wins,
-   * so a water is counted exactly once.
+   * instead of throwing). Universal Water counts replace older per-character copies.
    */
   const savedLoadouts: SavedLoadout[] = useMemo(
     () => loadoutsWithResidentValuables(normalizeSavedLoadouts(storedLoadouts), deviceResidentValuables(deviceValuables)),
@@ -183,6 +185,41 @@ export default function PlayerBattlePage() {
   );
   const handoffRead = useRef(false);
   const previewAbort = useRef<AbortController | null>(null);
+  const accountRequestVersion = useRef(0);
+
+  const refreshAccountRosters = useCallback(async () => {
+    const version = ++accountRequestVersion.current;
+    setAccountStatus("loading");
+    try {
+      const rosters = await fetchAccountRosters();
+      if (version !== accountRequestVersion.current) return;
+      setAccountRosters(rosters);
+      setAccountStatus("ready");
+      setAccountMessage(null);
+    } catch (error) {
+      if (version !== accountRequestVersion.current) return;
+      setAccountRosters([]);
+      if (error instanceof Error && error.message === "ACCOUNT_LOGIN_REQUIRED") {
+        setAccountStatus("guest");
+      } else {
+        setAccountStatus("error");
+        setAccountMessage(error instanceof Error ? error.message : "Could not load account loadouts.");
+      }
+    }
+  }, []);
+
+  useEffect(() => { void refreshAccountRosters(); }, [refreshAccountRosters]);
+  useEffect(() => {
+    const onAuthChanged = (event: Event) => {
+      const authenticated = (event as CustomEvent<{ authenticated: boolean }>).detail?.authenticated;
+      setAccountRosters([]);
+      setAccountMessage(null);
+      if (authenticated) void refreshAccountRosters();
+      else { accountRequestVersion.current += 1; setAccountStatus("guest"); }
+    };
+    window.addEventListener("ka-auth-changed", onAuthChanged);
+    return () => window.removeEventListener("ka-auth-changed", onAuthChanged);
+  }, [refreshAccountRosters]);
 
   const allSkills = useMemo(() => builderSkillNames(sharedData?.skills), [sharedData]);
   const variant = ENCOUNTER_BY_ID.get(draft.encounterId) ?? ENCOUNTER_VARIANTS[0];
@@ -295,20 +332,70 @@ export default function PlayerBattlePage() {
     setTeamMessage(`${character.name || "Character"} saved.`);
   };
 
-  const saveRoster = () => {
-    const name = rosterName.trim();
-    if (!name || draft.characters.length === 0) return;
-    const saved: SavedRoster = {
+  const makeRoster = (name: string): SavedRoster => ({
       id: `roster-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       name,
       encounterId: draft.encounterId,
       ...(draft.partyBonus === undefined ? {} : { partyBonus: draft.partyBonus }),
+      residentStatItems: deviceResidentValuables(deviceValuables),
       characters: draft.characters.map((character, index) => draftCharacterFromLoadout(character, index + 1)),
       consumables: { holyHerbStock: consumables.holyHerbStock, itemStock: { ...consumables.itemStock } },
-    };
+  });
+
+  const saveRoster = () => {
+    const name = rosterName.trim();
+    if (!name || draft.characters.length === 0) return;
+    const saved = makeRoster(name);
     setSavedRosters((current) => [...current, saved]);
     setRosterName("");
-    setTeamMessage(`${name} saved.`);
+    setTeamMessage(`${name} saved on this device.`);
+  };
+
+  const saveToAccount = async (roster?: SavedRoster) => {
+    const name = roster?.name ?? rosterName.trim();
+    if (!name || (!roster && draft.characters.length === 0) || accountBusy) return;
+    setAccountBusy(true);
+    setAccountMessage(null);
+    const version = accountRequestVersion.current;
+    try {
+      const saved = await saveAccountRoster(roster
+        ? { ...roster, residentStatItems: roster.residentStatItems ?? deviceResidentValuables(deviceValuables) }
+        : makeRoster(name));
+      if (version !== accountRequestVersion.current) return;
+      setAccountRosters((current) => [saved, ...current]);
+      if (!roster) setRosterName("");
+      setAccountStatus("ready");
+      setAccountMessage(`${name} saved to your account.`);
+    } catch (error) {
+      if (version !== accountRequestVersion.current) return;
+      if (error instanceof Error && error.message === "ACCOUNT_LOGIN_REQUIRED") {
+        setAccountStatus("guest");
+        setAccountMessage("Log in with the account button above, then refresh account loadouts.");
+      } else {
+        setAccountMessage(error instanceof Error ? error.message : "Could not save to your account.");
+      }
+    } finally {
+      setAccountBusy(false);
+    }
+  };
+
+  const removeAccountRoster = async (roster: SavedRoster) => {
+    if (accountBusy) return;
+    setAccountBusy(true);
+    setAccountMessage(null);
+    const version = accountRequestVersion.current;
+    try {
+      await deleteAccountRoster(roster.id);
+      if (version !== accountRequestVersion.current) return;
+      setAccountRosters((current) => current.filter((item) => item.id !== roster.id));
+      setPendingAccountDelete(null);
+      setAccountMessage(`${roster.name} deleted from your account.`);
+    } catch (error) {
+      if (version !== accountRequestVersion.current) return;
+      setAccountMessage(error instanceof Error ? error.message : "Could not delete the account loadout.");
+    } finally {
+      setAccountBusy(false);
+    }
   };
 
   const loadRoster = (roster: SavedRoster) => {
@@ -319,6 +406,7 @@ export default function PlayerBattlePage() {
       ...(roster.partyBonus === undefined ? {} : { partyBonus: roster.partyBonus }),
       consumables: { holyHerbStock: roster.consumables.holyHerbStock, itemStock: { ...roster.consumables.itemStock } },
     });
+    if (roster.residentStatItems !== undefined) setDeviceValuables(roster.residentStatItems);
     setTeamMessage(`${roster.name} loaded.`);
   };
 
@@ -459,13 +547,16 @@ export default function PlayerBattlePage() {
         <CardHeader><CardTitle className="text-base">Saved loadouts</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            <Input value={rosterName} onChange={(event) => setRosterName(event.target.value)} placeholder="Loadout name" aria-label="Loadout name" className="min-h-11 min-w-0 flex-1 basis-44" />
-            <Button type="button" onClick={saveRoster} disabled={!rosterName.trim() || draft.characters.length === 0} className="min-h-11 gap-2"><Save className="h-4 w-4" />Save team</Button>
+            <Input value={rosterName} onChange={(event) => setRosterName(event.target.value)} maxLength={80} placeholder="Loadout name" aria-label="Loadout name" className="min-h-11 min-w-0 flex-1 basis-44" />
+            <Button type="button" onClick={saveRoster} disabled={!rosterName.trim() || draft.characters.length === 0} className="min-h-11 gap-2"><Save className="h-4 w-4" />Save on device</Button>
+            <Button type="button" variant="outline" onClick={() => void saveToAccount()} disabled={accountStatus !== "ready" || accountBusy || accountRosters.length >= 20 || !rosterName.trim() || draft.characters.length === 0} className="min-h-11 gap-2"><Save className="h-4 w-4" />Save to account</Button>
           </div>
+          <p className="text-xs font-medium text-muted-foreground">On this device</p>
           {savedRosters.map((roster) => (
             <div key={roster.id} className="flex flex-wrap items-center gap-2 rounded border p-2">
               <span className="min-w-0 flex-1 text-sm font-medium">{roster.name} · {roster.characters.length} character(s)</span>
               <Button type="button" variant="outline" className="min-h-11" onClick={() => loadRoster(roster)}>Load</Button>
+              {accountStatus === "ready" ? <Button type="button" variant="outline" className="min-h-11" disabled={accountBusy || accountRosters.length >= 20} onClick={() => void saveToAccount(roster)}>Copy to account</Button> : null}
               {pendingRosterDelete === roster.id ? (
                 <><Button type="button" variant="outline" className="min-h-11" onClick={() => setPendingRosterDelete(null)}>Cancel</Button>
                   <Button type="button" variant="destructive" className="min-h-11" onClick={() => { setSavedRosters((current) => current.filter((item) => item.id !== roster.id)); setPendingRosterDelete(null); }}>Delete</Button></>
@@ -474,6 +565,27 @@ export default function PlayerBattlePage() {
               )}
             </div>
           ))}
+          <div className="border-t pt-3" data-account-rosters>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground">Your account · {accountRosters.length}/20</p>
+              <Button type="button" variant="outline" className="min-h-11" onClick={() => void refreshAccountRosters()} disabled={accountStatus === "loading" || accountBusy}>Refresh</Button>
+            </div>
+            {accountStatus === "loading" ? <p className="text-xs text-muted-foreground">Loading account loadouts...</p> : null}
+            {accountStatus === "guest" ? <p className="text-xs text-muted-foreground">Log in with the account button above, then tap Refresh.</p> : null}
+            {accountMessage ? <p className="mb-2 text-xs" role="status">{accountMessage}</p> : null}
+            {accountRosters.map((roster) => (
+              <div key={roster.id} className="mb-2 flex flex-wrap items-center gap-2 rounded border p-2">
+                <span className="min-w-0 flex-1 text-sm font-medium">{roster.name} · {roster.characters.length} character(s)</span>
+                <Button type="button" variant="outline" className="min-h-11" onClick={() => loadRoster(roster)}>Load</Button>
+                {pendingAccountDelete === roster.id ? (
+                  <><Button type="button" variant="outline" className="min-h-11" onClick={() => setPendingAccountDelete(null)}>Cancel</Button>
+                    <Button type="button" variant="destructive" className="min-h-11" disabled={accountBusy} onClick={() => void removeAccountRoster(roster)}>Delete</Button></>
+                ) : (
+                  <Button type="button" variant="destructive" className="min-h-11" aria-label={`Delete ${roster.name} from account`} onClick={() => setPendingAccountDelete(roster.id)}><Trash2 className="h-4 w-4" /></Button>
+                )}
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 

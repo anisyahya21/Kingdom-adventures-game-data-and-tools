@@ -89,7 +89,10 @@ export function SiteHeader() {
   const refreshAuthSession = () => {
     setAuthLoading(true);
     return fetchAuthSession()
-      .then((session) => setAuthSession(session))
+      .then((session) => {
+        setAuthSession(session);
+        window.dispatchEvent(new CustomEvent("ka-auth-changed", { detail: { authenticated: session.authenticated } }));
+      })
       .finally(() => setAuthLoading(false));
   };
 
@@ -131,6 +134,7 @@ export function SiteHeader() {
         .then((session) => {
           if (!session.authenticated) return;
           setAuthSession(session);
+          window.dispatchEvent(new CustomEvent("ka-auth-changed", { detail: { authenticated: true } }));
           setAuthBusy(false);
           if (authPopupRef.current && !authPopupRef.current.closed) {
             authPopupRef.current.close();
@@ -269,6 +273,7 @@ export function SiteHeader() {
     try {
       await logoutAuthSession();
       setAuthSession({ authenticated: false, guest: true });
+      window.dispatchEvent(new CustomEvent("ka-auth-changed", { detail: { authenticated: false } }));
     } finally {
       setAuthBusy(false);
     }

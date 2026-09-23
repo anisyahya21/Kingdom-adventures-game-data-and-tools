@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import { and, eq, gt, gte, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, gte, isNull, like, sql } from "drizzle-orm";
 import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached, refreshStaticSourceIfStale } from "../lib/google-cache";
 import { renderJobPreview, renderJobPreviewByName } from "../lib/character-preview";
 import multer from "multer";
@@ -29,6 +29,14 @@ type UploadedImageRequest = Request & { file?: { filename: string } };
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const STATE_FILE = path.join(DATA_DIR, "ka_shared.json");
 const DB_STATE_KEY = "ka_shared_state_v1";
+const ACCOUNT_ROSTER_PREFIX = "ka_account_roster_v1:";
+const ACCOUNT_ROSTER_LIMIT = 20;
+const ACCOUNT_ROSTER_MAX_BYTES = 32 * 1024;
+
+function accountRequestFromWebsite(req: Request): boolean {
+  const site = req.get("sec-fetch-site");
+  return !site || site === "same-origin";
+}
 
 export interface HistoryEntry {
   id: string;
@@ -1550,6 +1558,93 @@ router.put("/ka/loadouts", (req, res) => {
   state.loadoutsUpdatedAt = Date.now();
   writeState(state);
   res.json({ ok: true });
+});
+
+// Private, explicit saves. Each roster is one small row; battles and replay events never reach this API.
+router.get("/ka/account-rosters", async (req, res) => {
+  try {
+    if (!accountRequestFromWebsite(req)) { res.status(403).json({ error: "Account saves require the website." }); return; }
+    const session = await resolveAuthenticatedSession(req);
+    if (!session) { res.status(401).json({ error: "Log in to access account loadouts." }); return; }
+    if (!dbModule) { res.status(503).json({ error: "Account saves are unavailable." }); return; }
+    const prefix = `${ACCOUNT_ROSTER_PREFIX}${session.userId}:`;
+    const rows = await dbModule.db
+      .select({ value: dbModule.appStateTable.value, updatedAt: dbModule.appStateTable.updatedAt })
+      .from(dbModule.appStateTable)
+      .where(like(dbModule.appStateTable.key, `${prefix}%`));
+    res.json({ rosters: rows.map((row) => ({ ...row.value, updatedAt: row.updatedAt })).sort((a, b) =>
+      new Date(String(b.updatedAt)).getTime() - new Date(String(a.updatedAt)).getTime()) });
+  } catch (error) {
+    console.error("account-rosters: read failed", error);
+    res.status(503).json({ error: "Could not load account loadouts." });
+  }
+});
+
+router.post("/ka/account-rosters", async (req, res) => {
+  try {
+    if (!accountRequestFromWebsite(req)) { res.status(403).json({ error: "Account saves require the website." }); return; }
+    const session = await resolveAuthenticatedSession(req);
+    if (!session) { res.status(401).json({ error: "Log in to save to your account." }); return; }
+    if (!dbModule) { res.status(503).json({ error: "Account saves are unavailable." }); return; }
+    const input = req.body as Record<string, unknown> | undefined;
+    const name = typeof input?.name === "string" ? input.name.trim() : "";
+    const encounterId = input?.encounterId;
+    const characters = input?.characters;
+    const consumables = input?.consumables;
+    const itemStock = consumables && typeof consumables === "object" && !Array.isArray(consumables)
+      ? (consumables as Record<string, unknown>).itemStock : undefined;
+    const partyBonus = input?.partyBonus;
+    const residentStatItems = input?.residentStatItems;
+    if (!name || name.length > 80 || !Number.isInteger(encounterId) || Number(encounterId) < 0 || Number(encounterId) > 19 ||
+        !Array.isArray(characters) || characters.length < 1 || characters.length > 40 ||
+        !characters.every((character) => character && typeof character === "object" && !Array.isArray(character) &&
+          Array.isArray(character.skills) && Array.isArray(character.equipment)) ||
+        !consumables || typeof consumables !== "object" || Array.isArray(consumables) ||
+        !Number.isInteger((consumables as Record<string, unknown>).holyHerbStock) ||
+        Number((consumables as Record<string, unknown>).holyHerbStock) < 0 ||
+        !itemStock || typeof itemStock !== "object" || Array.isArray(itemStock) ||
+        (residentStatItems !== undefined && (!residentStatItems || typeof residentStatItems !== "object" || Array.isArray(residentStatItems))) ||
+        (partyBonus !== undefined && (!Number.isInteger(partyBonus) || Number(partyBonus) < 0 || Number(partyBonus) > 999))) {
+      res.status(400).json({ error: "This loadout is incomplete or invalid." }); return;
+    }
+    const roster = { id: crypto.randomUUID(), name, encounterId, characters, consumables,
+      ...(partyBonus === undefined ? {} : { partyBonus }),
+      ...(residentStatItems === undefined ? {} : { residentStatItems }) };
+    if (Buffer.byteLength(JSON.stringify(roster), "utf8") > ACCOUNT_ROSTER_MAX_BYTES) {
+      res.status(413).json({ error: "This loadout is too large to save to the account." }); return;
+    }
+    const prefix = `${ACCOUNT_ROSTER_PREFIX}${session.userId}:`;
+    const existing = await dbModule.db.select({ key: dbModule.appStateTable.key })
+      .from(dbModule.appStateTable).where(like(dbModule.appStateTable.key, `${prefix}%`));
+    if (existing.length >= ACCOUNT_ROSTER_LIMIT) {
+      res.status(409).json({ error: `An account can hold up to ${ACCOUNT_ROSTER_LIMIT} loadouts. Delete one to save another.` }); return;
+    }
+    const updatedAt = new Date();
+    await dbModule.db.insert(dbModule.appStateTable).values({
+      key: `${prefix}${roster.id}`, value: roster as Record<string, unknown>, updatedAt,
+    });
+    res.status(201).json({ roster: { ...roster, updatedAt } });
+  } catch (error) {
+    console.error("account-rosters: save failed", error);
+    res.status(503).json({ error: "Could not save the loadout to your account." });
+  }
+});
+
+router.delete("/ka/account-rosters/:id", async (req, res) => {
+  try {
+    if (!accountRequestFromWebsite(req)) { res.status(403).json({ error: "Account saves require the website." }); return; }
+    const session = await resolveAuthenticatedSession(req);
+    if (!session) { res.status(401).json({ error: "Log in to delete an account loadout." }); return; }
+    if (!dbModule) { res.status(503).json({ error: "Account saves are unavailable." }); return; }
+    const id = String(req.params.id || "");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) { res.status(400).json({ error: "Invalid loadout ID." }); return; }
+    await dbModule.db.delete(dbModule.appStateTable)
+      .where(eq(dbModule.appStateTable.key, `${ACCOUNT_ROSTER_PREFIX}${session.userId}:${id}`));
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("account-rosters: delete failed", error);
+    res.status(503).json({ error: "Could not delete the account loadout." });
+  }
 });
 
 router.put("/ka/loadout-box-setups", (req, res) => {
