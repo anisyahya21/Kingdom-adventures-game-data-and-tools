@@ -247,6 +247,7 @@ export type BattleReplayResult = {
   };
   metrics: Record<string, number>;
   holyHerbRemaining: number;
+  holyHerbUses?: Array<{ item?: string; tick?: number; phase?: string; used?: boolean; remaining?: number }>;
   /** Engine item uses (one record per spent input) and the finite budget left after the run. */
   itemUses?: Array<{ item?: string; tick?: number; phase?: string; used?: boolean; remaining?: number }>;
   itemRemaining?: Record<string, number>;

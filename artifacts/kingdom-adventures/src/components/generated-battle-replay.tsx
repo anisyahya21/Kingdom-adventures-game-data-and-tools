@@ -95,6 +95,9 @@ import {
 import { battlePlaybackEndTick, parseBattleReplayResult, type BattleReplayEvent, type BattleReplayResult } from "@/lib/battle-replay-result";
 import { advanceBrowserBattle, browserBattleActive, startBrowserBattle, useBrowserBattleItem } from "@/lib/browser-battle";
 import type { FighterVitals } from "@/lib/native-fighter-gauges";
+import { downloadJson } from "@/lib/download-json";
+import { optimizerFightExport, optimizerScenarioFilename } from "@/lib/strategy-optimizer-export";
+import type { CombatScenario } from "@/lib/battle-setup-adapter";
 
 /**
  * GENERATED REPLAY - product/visual pass, 2026-09-20.
@@ -579,6 +582,19 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
   const chestSummary = useMemo(() => (outcome ? generatedChestSummary(outcome, chestDrops) : null), [outcome, chestDrops]);
   const scenarioSource = useMemo(() => interactionScenarioFromRecord(record), [record]);
   const activeScenario = branch?.result.scenario ?? (scenarioSource.ok ? scenarioSource.scenario : undefined);
+  const downloadFight = () => {
+    if (!activeScenario || !displayedReplay || !record) return;
+    try {
+      if (activeScenario.schema !== "ka-special-combat-research-1" || !Array.isArray(activeScenario.inputs)) {
+        throw new Error("This fight has no valid scenario to export.");
+      }
+      const archive = optimizerFightExport(activeScenario as CombatScenario, displayedReplay, record);
+      downloadJson(optimizerScenarioFilename(record.summary.encounterTitle ?? `Encounter ${record.summary.encounterId}`).replace(/\.scenario\.json$/, ".fight.json"), archive);
+      setInteractionError(null);
+    } catch (error) {
+      setInteractionError(error instanceof Error ? error.message : "Could not download this fight.");
+    }
+  };
   const transport = useMemo(() => createHttpBattleInteractionTransport(), []);
   const branchPollTransport = useMemo(() => createHttpBattleInteractionPollTransport(), []);
   const [step, setStep] = useState(0);
@@ -1171,6 +1187,9 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" className="min-h-11" onClick={downloadFight} disabled={!activeScenario || displayedReplay.finalState.windowed || Boolean(branch && !branch.complete)} title="Download the complete replay and consumable actions; the desktop optimizer can import its setup">
+            Download fight JSON
+          </Button>
           {/*
            * The primary "back" returns to the surface this fight was built on; a fight built in
            * the visual builder goes back there, and the raw setup editor is a separate diagnostic.

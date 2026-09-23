@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { AlertTriangle, Eye, Loader2, Play, RotateCcw, Save, Sword, Trash2 } from "lucide-react";
+import { AlertTriangle, Download, Eye, Loader2, Play, RotateCcw, Save, Sword, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,8 @@ import {
 } from "@/lib/battle-preview";
 import { writeGeneratedBattle } from "@/lib/generated-battle-store";
 import { startBrowserBattle } from "@/lib/browser-battle";
+import { downloadJson } from "@/lib/download-json";
+import { optimizerScenarioFilename, optimizerScenarioFromSetup } from "@/lib/strategy-optimizer-export";
 import { deleteAccountRoster, fetchAccountRosters, saveAccountRoster, type SavedRoster } from "@/lib/account-rosters";
 import { interactionCapabilities } from "@/lib/battle-interaction";
 import {
@@ -351,6 +353,30 @@ export default function PlayerBattlePage() {
     setTeamMessage(`${name} saved on this device.`);
   };
 
+  const downloadForOptimizer = (name: string, roster?: SavedRoster) => {
+    try {
+      const source = roster && sharedData
+        ? battleSetupFromLoadouts(
+            loadoutsWithResidentValuables(roster.characters, deviceResidentValuables(roster.residentStatItems ?? deviceValuables)) as SavedLoadout[],
+            sharedData,
+            {
+              encounterId: roster.encounterId,
+              tickLimit: battleSeconds * 20,
+              holyHerbStock: roster.consumables.holyHerbStock,
+              items: CONSUMABLE_ITEM_ROWS,
+              itemStock: roster.consumables.itemStock,
+              partyMax: roster.partyBonus === undefined ? undefined : 2 + roster.partyBonus,
+            },
+          ).setup
+        : setup;
+      if (!source) throw new Error("Fix this loadout's battle errors before exporting it.");
+      downloadJson(optimizerScenarioFilename(name), optimizerScenarioFromSetup(source));
+      setTeamMessage(`${name} downloaded for the desktop optimizer.`);
+    } catch (error) {
+      setTeamMessage(error instanceof Error ? error.message : "Could not export this loadout.");
+    }
+  };
+
   const saveToAccount = async (roster?: SavedRoster) => {
     const name = roster?.name ?? rosterName.trim();
     if (!name || (!roster && draft.characters.length === 0) || accountBusy) return;
@@ -550,12 +576,14 @@ export default function PlayerBattlePage() {
             <Input value={rosterName} onChange={(event) => setRosterName(event.target.value)} maxLength={80} placeholder="Loadout name" aria-label="Loadout name" className="min-h-11 min-w-0 flex-1 basis-44" />
             <Button type="button" onClick={saveRoster} disabled={!rosterName.trim() || draft.characters.length === 0} className="min-h-11 gap-2"><Save className="h-4 w-4" />Save on device</Button>
             <Button type="button" variant="outline" onClick={() => void saveToAccount()} disabled={accountStatus !== "ready" || accountBusy || accountRosters.length >= 20 || !rosterName.trim() || draft.characters.length === 0} className="min-h-11 gap-2"><Save className="h-4 w-4" />Save to account</Button>
+            <Button type="button" variant="outline" onClick={() => downloadForOptimizer(rosterName.trim() || "Current team")} disabled={!setup} className="min-h-11 gap-2" title="Import this JSON with the desktop optimizer's Import Build button"><Download className="h-4 w-4" />Download team JSON</Button>
           </div>
           <p className="text-xs font-medium text-muted-foreground">On this device</p>
           {savedRosters.map((roster) => (
             <div key={roster.id} className="flex flex-wrap items-center gap-2 rounded border p-2">
               <span className="min-w-0 flex-1 text-sm font-medium">{roster.name} · {roster.characters.length} character(s)</span>
               <Button type="button" variant="outline" className="min-h-11" onClick={() => loadRoster(roster)}>Load</Button>
+              <Button type="button" variant="outline" className="min-h-11 gap-1" onClick={() => downloadForOptimizer(roster.name, roster)} disabled={!sharedData} title="Import this JSON with the desktop optimizer's Import Build button"><Download className="h-4 w-4" />JSON</Button>
               {accountStatus === "ready" ? <Button type="button" variant="outline" className="min-h-11" disabled={accountBusy || accountRosters.length >= 20} onClick={() => void saveToAccount(roster)}>Copy to account</Button> : null}
               {pendingRosterDelete === roster.id ? (
                 <><Button type="button" variant="outline" className="min-h-11" onClick={() => setPendingRosterDelete(null)}>Cancel</Button>
@@ -577,6 +605,7 @@ export default function PlayerBattlePage() {
               <div key={roster.id} className="mb-2 flex flex-wrap items-center gap-2 rounded border p-2">
                 <span className="min-w-0 flex-1 text-sm font-medium">{roster.name} · {roster.characters.length} character(s)</span>
                 <Button type="button" variant="outline" className="min-h-11" onClick={() => loadRoster(roster)}>Load</Button>
+                <Button type="button" variant="outline" className="min-h-11 gap-1" onClick={() => downloadForOptimizer(roster.name, roster)} disabled={!sharedData} title="Import this JSON with the desktop optimizer's Import Build button"><Download className="h-4 w-4" />JSON</Button>
                 {pendingAccountDelete === roster.id ? (
                   <><Button type="button" variant="outline" className="min-h-11" onClick={() => setPendingAccountDelete(null)}>Cancel</Button>
                     <Button type="button" variant="destructive" className="min-h-11" disabled={accountBusy} onClick={() => void removeAccountRoster(roster)}>Delete</Button></>

@@ -14,6 +14,7 @@
 
 import { parseBattleReplayResult, type BattleReplayResult } from "@/lib/battle-replay-result";
 import { writeGeneratedBattle } from "@/lib/generated-battle-store";
+export { downloadJson } from "@/lib/download-json";
 
 export const STRATEGY_SEARCH_ENDPOINT = "/api/strategy-search";
 export const STRATEGY_SEARCH_SCHEMA = "ka-strategy-search-1";
@@ -441,17 +442,6 @@ export async function fetchStrategySearchJob(jobId: string): Promise<StrategyJob
 export async function cancelStrategySearchJob(jobId: string): Promise<StrategyJobSnapshot> {
   const { payload } = await requestJson(`/jobs/${encodeURIComponent(jobId)}`, { method: "DELETE" });
   return parseJobSnapshot(payload);
-}
-
-/** Deterministic download helper (no server round-trip for the JSON already in hand). */
-export function downloadJson(filename: string, value: unknown): void {
-  const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 /**
