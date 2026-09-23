@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ka/page-header";
 import { EncounterSection, TeamSection } from "@/components/ka/battle-builder/team-builder";
+import { TeamFormation } from "@/components/ka/battle-builder/team-formation";
 import { NumberField } from "@/components/ka/battle-builder/editors";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { apiUrl } from "@/lib/api";
@@ -551,6 +552,8 @@ export default function PlayerBattlePage() {
         }}
       />
 
+      <TeamFormation characters={draft.characters} setup={setup} data={sharedData} />
+
       <TeamSection
         characters={draft.characters}
         data={sharedData}
@@ -620,7 +623,7 @@ export default function PlayerBattlePage() {
 
       <Card data-builder-consumables>
         <CardHeader>
-          <CardTitle className="text-base">3 - Provision consumables (optional)</CardTitle>
+          <CardTitle className="text-base">4 - Provision consumables (optional)</CardTitle>
           <CardDescription>Stock the items the fight's action bar spends from. A row at 0 has nothing to click.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5">
@@ -670,7 +673,7 @@ export default function PlayerBattlePage() {
       <Card data-builder-issues>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Eye className="h-4 w-4" /> 4 - Check the team
+            <Eye className="h-4 w-4" /> 5 - Check the team
           </CardTitle>
           <CardDescription>
             {setup ? `${setup.playerTeam.length} unit(s) ready` : "not runnable yet"} · {errors.length} error(s) ·{" "}

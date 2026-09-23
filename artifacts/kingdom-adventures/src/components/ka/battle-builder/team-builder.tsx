@@ -531,7 +531,7 @@ function CharacterCard({
 }
 
 /* ------------------------------------------------------------------ */
-/* 2 - Ordered team                                                    */
+/* 3 - Ordered team                                                    */
 /* ------------------------------------------------------------------ */
 
 export function TeamSection({
@@ -553,7 +553,7 @@ export function TeamSection({
   return (
     <Card data-builder-team>
       <CardHeader>
-        <CardTitle>2 - Your team, in order</CardTitle>
+        <CardTitle>3 - Your team, in order</CardTitle>
         <CardDescription>
           Slot 1 is sent first.
         </CardDescription>
