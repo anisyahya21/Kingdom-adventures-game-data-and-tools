@@ -11,7 +11,7 @@ import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { getJobProfiles, getJobsThatOpenBuilding, type SharedJobProfileData } from "@/game-data/job-profile";
-import { TERRAIN_NAMES } from "@/game-data/terrain-labels";
+import { SURVEY_TERRAIN_PREVIEW_IMAGES, TERRAIN_NAMES } from "@/game-data/terrain-labels";
 import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon } from "@/lib/equipment-icons";
 import surveyCsv from "../../../../data/Sheet csv/KA GameData - Survey.csv?raw";
 import jobCsv from "../../../../data/Sheet csv/KA GameData - Job.csv?raw";
@@ -466,9 +466,24 @@ function getSurveyMaxLabel(max: number) {
   return max === -1 ? "Unlimited" : String(max);
 }
 
-function getSurveyTerrainLabel(survey: Survey) {
-  if (survey.terrain === 15) return "Wasteland / cave";
-  return TERRAIN_NAMES[survey.terrain] ?? `Unmapped terrain (${survey.terrain})`;
+function getSurveyTerrainLabel(terrain: number) {
+  if (terrain === 15) return "Wasteland / cave";
+  return TERRAIN_NAMES[terrain] ?? `Unmapped terrain (${terrain})`;
+}
+
+function SurveyTerrainPreview({ terrain, className = "" }: { terrain: number; className?: string }) {
+  const image = SURVEY_TERRAIN_PREVIEW_IMAGES[terrain];
+  const label = getSurveyTerrainLabel(terrain);
+  return (
+    <span className={`inline-flex min-w-0 items-center gap-1.5 ${className}`} title={terrain === 15 ? "Example wasteland tile; caves use the same terrain type" : label}>
+      {image && (
+        <span className="flex h-8 w-12 shrink-0 items-center justify-center rounded border border-border bg-background/60">
+          <img src={image} alt="" loading="lazy" className="w-11 object-contain [image-rendering:pixelated]" />
+        </span>
+      )}
+      <span className="min-w-0 leading-tight">{label}</span>
+    </span>
+  );
 }
 
 type GuideSection = {
@@ -651,7 +666,7 @@ const EQUIP_SLOTS = [
   { key: "accessory", label: "Accessory", icon: Gem, slotType: "Accessory" as const },
 ] as const;
 
-const SURVEY_LIST_GRID_CLASS = "grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:grid-cols-[minmax(0,1.35fr)_64px_96px_64px_minmax(0,0.8fr)] md:gap-3";
+const SURVEY_LIST_GRID_CLASS = "grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:grid-cols-[minmax(0,1.35fr)_64px_132px_64px_minmax(0,0.8fr)] md:gap-3";
 
 type EquipSlotKey = typeof EQUIP_SLOTS[number]["key"];
 
@@ -915,8 +930,13 @@ export default function SurveyPlanner() {
             </CardHeader>
             <CardContent>
               <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
-                Terrain is the selected map tile's type. Sand is the sandy terrain often called desert; “Desert soil” is a separate tile state. The old “Mountains” label was incorrect. Wasteland / cave is type 15: the game uses it for Wasteland tiles and cave or dungeon tiles.
+                Terrain is the selected map tile's type. Sand is the sandy terrain often called desert; “Desert soil” is a separate tile state. The old “Mountains” label was incorrect. Wasteland / cave is type 15: the game uses it for Wasteland tiles and cave or dungeon tiles. The PNGs show example tiles, not every surrounding biome.
               </p>
+              <div className="mb-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 lg:grid-cols-5" aria-label="Survey terrain examples">
+                {Object.keys(SURVEY_TERRAIN_PREVIEW_IMAGES).map((terrain) => (
+                  <SurveyTerrainPreview key={terrain} terrain={Number(terrain)} className="rounded border border-border/70 bg-muted/20 p-1.5" />
+                ))}
+              </div>
               <div className={`${SURVEY_LIST_GRID_CLASS} mb-2 text-sm font-semibold`}>
                 <div>Name</div>
                 <div className="text-right md:text-center">Max</div>
@@ -1006,7 +1026,7 @@ export default function SurveyPlanner() {
                             })()}
                           </div>
                           <div className="text-right md:text-center">{getSurveyMaxLabel(s.maxEarnableRewardCount)}</div>
-                          <div className="hidden text-center md:block">{getSurveyTerrainLabel(s)}</div>
+                          <div className="hidden text-xs md:block"><SurveyTerrainPreview terrain={s.terrain} /></div>
                           <div className="hidden text-center md:block">{s.minAreaLevel}</div>
                           <div className="hidden md:block">
                             {(() => {
@@ -1037,7 +1057,7 @@ export default function SurveyPlanner() {
                           <div className="col-span-2 mt-1 grid grid-cols-3 gap-2 text-xs text-muted-foreground md:hidden">
                             <div>
                               <div className="uppercase tracking-wide">Terrain</div>
-                              <div className="text-foreground">{getSurveyTerrainLabel(s)}</div>
+                              <div className="text-foreground"><SurveyTerrainPreview terrain={s.terrain} className="flex-wrap" /></div>
                             </div>
                             <div>
                               <div className="uppercase tracking-wide">Min Lv</div>
@@ -1084,7 +1104,7 @@ export default function SurveyPlanner() {
                     onChange={(value) => setSelectedSurveyId(value ? Number(value) : null)}
                     options={ORDERED_SURVEYS.map((s) => ({
                       value: String(s.id),
-                      label: `${stripSurveyPrefix(formatSurveyName(s))} (${getSurveyTerrainLabel(s)})`,
+                      label: `${stripSurveyPrefix(formatSurveyName(s))} (${getSurveyTerrainLabel(s.terrain)})`,
                     }))}
                     placeholder="Choose a survey..."
                     className="w-full"
@@ -1295,7 +1315,7 @@ export default function SurveyPlanner() {
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Survey</div>
                   <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
                     <div className="font-medium">{stripSurveyPrefix(formatSurveyName(survey))}</div>
-                    <div className="text-xs text-muted-foreground">{getSurveyTerrainLabel(survey)} • Min Lv {survey.minAreaLevel}</div>
+                    <div className="text-xs text-muted-foreground"><SurveyTerrainPreview terrain={survey.terrain} /> • Min Lv {survey.minAreaLevel}</div>
                   </div>
                 </div>
 
