@@ -1,4 +1,5 @@
 import { requireBuilding, type Building } from "@/game-data/buildings";
+import type { CollectionCategory } from "@/game-data/collections";
 
 export type ShopBuilding = Building;
 
@@ -27,6 +28,9 @@ export type ShopSlug =
   | "furniture-shop"
   | "restaurant"
   | "skill-shop"
+  | "insectarium"
+  | "aquarium"
+  | "museum"
   | "orchard";
 
 export type ShopCategory = "shop" | "facility";
@@ -38,6 +42,7 @@ export type ShopRecord = {
   shortTitle: string;
   description: string;
   owner: string;
+  collectionCategory?: CollectionCategory;
   /** Building stats from House.csv — present for all shop-type buildings */
   building?: ShopBuilding;
   /** Primary crafting workbench placed inside this shop */
@@ -124,6 +129,36 @@ export const SHOP_RECORDS: ShopRecord[] = [
     workbench: { id: 117, name: "Skill Workbench", size: "2×2", upgGrass: 0, upgWood: 8, upgFood: 0, upgOre: 0, upgMystic: 5, maxUpgGrass: 15, maxUpgWood: 110, maxUpgFood: 12, maxUpgOre: 10, maxUpgMystic: 70 },
   },
   {
+    slug: "insectarium",
+    category: "shop",
+    title: "Insectarium",
+    shortTitle: "Insectarium",
+    description: "Insect collections sold for silver coins.",
+    owner: "Entertainer",
+    collectionCategory: 0,
+    building: requireBuilding("Insectarium"),
+  },
+  {
+    slug: "aquarium",
+    category: "shop",
+    title: "Aquarium",
+    shortTitle: "Aquarium",
+    description: "Fish collections sold for silver coins.",
+    owner: "Entertainer",
+    collectionCategory: 1,
+    building: requireBuilding("Aquarium"),
+  },
+  {
+    slug: "museum",
+    category: "shop",
+    title: "Museum",
+    shortTitle: "Museum",
+    description: "Art pieces sold for silver coins.",
+    owner: "Entertainer",
+    collectionCategory: 2,
+    building: requireBuilding("Museum"),
+  },
+  {
     slug: "orchard",
     category: "facility",
     title: "Orchard",
@@ -142,6 +177,9 @@ export const SHOP_NAME_TO_SLUG: Record<string, ShopSlug> = {
   "Furniture Shop": "furniture-shop",
   Restaurant: "restaurant",
   "Skill Shop": "skill-shop",
+  Insectarium: "insectarium",
+  Aquarium: "aquarium",
+  Museum: "museum",
   Orchard: "orchard",
 };
 

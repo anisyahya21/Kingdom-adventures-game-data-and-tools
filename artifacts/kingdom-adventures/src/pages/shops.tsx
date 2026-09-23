@@ -37,6 +37,8 @@ import {
 import { SHOP_RECORDS, type ShopRecord, type ShopSlug, type ShopBuilding, type ShopFacility } from "@/lib/shop-utils";
 import { PLOT_SIZES, PLOT_TILES } from "@/game-data/buildings";
 import { FACILITIES } from "@/game-data/facilities";
+import { COLLECTION_ITEMS, type CollectionCategory } from "@/game-data/collections";
+import { TERRAIN_NAMES } from "@/game-data/terrain-labels";
 import { FacilityCard } from "./houses";
 import facilityLookupCsv from "../../../../data/Sheet csv/KA GameData - Facility_lookup.csv?raw";
 import expCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Exp.csv?raw";
@@ -333,6 +335,9 @@ const SHOP_ICONS: Record<ShopSlug, ReactNode> = {
   "furniture-shop": <Sofa className="w-5 h-5 text-orange-500" />,
   restaurant: <UtensilsCrossed className="w-5 h-5 text-rose-500" />,
   "skill-shop": <WandSparkles className="w-5 h-5 text-cyan-500" />,
+  insectarium: <Store className="w-5 h-5 text-amber-500" />,
+  aquarium: <Store className="w-5 h-5 text-sky-500" />,
+  museum: <Store className="w-5 h-5 text-violet-500" />,
   orchard: <Leaf className="w-5 h-5 text-lime-600" />,
 };
 
@@ -379,6 +384,8 @@ function resolveItemReferenceFacilityIcon(facilityName: string, facilityId: numb
 
 const ITEMS_REFERENCE_SHOPS = SHOP_RECORDS.filter((shop) => shop.slug === "items-reference");
 const PRIMARY_SHOPS = SHOP_RECORDS.filter((shop) => shop.category === "shop" && shop.slug !== "items-reference");
+const COPPER_SHOPS = PRIMARY_SHOPS.filter((shop) => shop.collectionCategory === undefined);
+const SILVER_SHOPS = PRIMARY_SHOPS.filter((shop) => shop.collectionCategory !== undefined);
 const SECONDARY_FACILITIES = SHOP_RECORDS.filter((shop) => shop.category === "facility");
 
 function getRank(name: string): string {
@@ -891,7 +898,7 @@ function ShopTabs({ currentSlug }: { currentSlug?: ShopSlug }) {
   return (
     <div className="space-y-2 mb-6">
       <div className="flex flex-wrap gap-2">
-        {PRIMARY_SHOPS.map((shop) => (
+        {[...COPPER_SHOPS, ...SILVER_SHOPS].map((shop) => (
           <Link key={shop.slug} href={`/shops/${shop.slug}`}>
             <button
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -1048,6 +1055,74 @@ function ShopOwnerLink({ owner }: { owner: string }) {
       </EntityLink>
       {ownerSuffix && <span className="font-medium text-foreground">{ownerSuffix}</span>}
     </span>
+  );
+}
+
+function ShopIndexCard({ shop, onOpen }: { shop: ShopRecord; onOpen: () => void }) {
+  const plot = shop.building
+    ? `${import.meta.env.BASE_URL}world-assets/plots/house-${shop.building.id}-M.png`
+    : undefined;
+  return (
+    <Card onClick={onOpen} className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all group h-full cursor-pointer">
+      <CardHeader className="pb-2">
+        {plot ? (
+          <img src={plot} alt={`${shop.title}, M sized land plot`} className="h-28 w-40 max-w-full object-contain object-left" style={{ imageRendering: "pixelated" }} loading="lazy" />
+        ) : SHOP_ICONS[shop.slug]}
+        <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <CardDescription className="text-xs leading-relaxed">{shop.description}</CardDescription>
+        <ShopOwnerLink owner={shop.owner} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function CoinShopHeading({ coin, title }: { coin: "Copper" | "Silver"; title: string }) {
+  return (
+    <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+      <img src={getItemIcon(`${coin} Coin`)} alt="" className="h-7 w-7 object-contain" style={{ imageRendering: "pixelated" }} />
+      {title}
+    </h2>
+  );
+}
+
+function CollectionShopPanel({ category }: { category: CollectionCategory }) {
+  const [query, setQuery] = useState("");
+  const items = COLLECTION_ITEMS.filter((item) => item.category === category && matchesQuery(item.name, query));
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Collectables</CardTitle>
+        <CardDescription>Silver coin prices and collection requirements.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="relative mb-4 max-w-sm">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search collectables..." className="pl-9 h-9" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {items.map((item) => (
+            <div key={item.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
+              <img src={item.icon} alt="" className="h-12 w-12 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} loading="lazy" />
+              <div className="min-w-0 space-y-1">
+                <div className="font-medium">{item.name}</div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <img src={getItemIcon("Silver Coin")} alt="" className="h-4 w-4 object-contain" style={{ imageRendering: "pixelated" }} />
+                    {item.silverPrice} silver coins
+                  </span>
+                  {item.studioLevel !== null && <span>Studio level {item.studioLevel}</span>}
+                  {item.intelligence !== null && <span>Intelligence {item.intelligence}</span>}
+                  {item.terrain !== null && <span>{TERRAIN_NAMES[item.terrain] ?? `Terrain ${item.terrain}`} · Area level {item.areaLevel}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {items.length === 0 && <p className="text-sm text-muted-foreground">No collectables match your search.</p>}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -2035,7 +2110,9 @@ export default function ShopsPage() {
       case "furniture-shop":
         return filteredFurnitureRows.length;
       default:
-        return null;
+        return selectedShop?.collectionCategory !== undefined
+          ? COLLECTION_ITEMS.filter((item) => item.category === selectedShop.collectionCategory).length
+          : null;
     }
   }, [
     accessoryRows.length,
@@ -2057,43 +2134,18 @@ export default function ShopsPage() {
         <div className="max-w-6xl mx-auto px-4 py-8">
           <ShopHeader />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {PRIMARY_SHOPS.map((shop) => (
-              (() => {
-                const cardIcon = resolveShopCardIcon(shop);
-                return (
-              <Card
-                key={shop.slug}
-                onClick={() => navigate(`/shops/${shop.slug}`)}
-                className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all group h-full cursor-pointer"
-              >
-                <CardHeader className="pb-2">
-                  <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors w-fit">
-                    {cardIcon ? (
-                      <img
-                        src={cardIcon}
-                        alt=""
-                        className={`${isFurnitureIconPath(cardIcon) ? "h-8 w-8" : "h-6 w-6"} object-contain`}
-                        style={{ imageRendering: "pixelated" }}
-                      />
-                    ) : (
-                      SHOP_ICONS[shop.slug]
-                    )}
-                  </div>
-                  <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <CardDescription className="text-xs leading-relaxed">{shop.description}</CardDescription>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <ShopOwnerLink owner={shop.owner} />
-
-                  </div>
-                </CardContent>
-              </Card>
-                );
-              })()
-            ))}
-          </div>
+          <section>
+            <CoinShopHeading coin="Copper" title="Copper coin shops" />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {COPPER_SHOPS.map((shop) => <ShopIndexCard key={shop.slug} shop={shop} onOpen={() => navigate(`/shops/${shop.slug}`)} />)}
+            </div>
+          </section>
+          <section className="mt-8">
+            <CoinShopHeading coin="Silver" title="Silver coin shops" />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {SILVER_SHOPS.map((shop) => <ShopIndexCard key={shop.slug} shop={shop} onOpen={() => navigate(`/shops/${shop.slug}`)} />)}
+            </div>
+          </section>
           {SECONDARY_FACILITIES.length > 0 && (
             <div className="mt-6">
               <h2 className="text-sm font-semibold text-muted-foreground mb-3">Other Facilities</h2>
@@ -2230,6 +2282,10 @@ export default function ShopsPage() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {selectedShop.collectionCategory !== undefined && (
+          <CollectionShopPanel category={selectedShop.collectionCategory} />
         )}
 
         {selectedShop.slug === "weapon-shop" && (
