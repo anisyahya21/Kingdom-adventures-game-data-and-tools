@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Plus, Save, Search, Trash2, UserPlus } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Plus, Search, Trash2, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -399,8 +399,8 @@ function CharacterCard({
           >
             {open ? "Close" : "Edit"}
           </button>
-          <button type="button" onClick={onSave} className="flex h-10 items-center justify-center gap-1 rounded px-2 text-xs text-primary hover:bg-primary/10" title="Save character" aria-label="Save character" data-action="save-character">
-            <Save className="h-4 w-4" /> Save
+          <button type="button" onClick={onSave} className="flex min-h-11 items-center justify-center gap-1 rounded px-2 text-xs text-primary hover:bg-primary/10" title="Add a copy to Saved characters" aria-label="Copy to Characters" data-action="save-character">
+            <Copy className="h-4 w-4" /> Copy to Characters
           </button>
           <button
             type="button"
@@ -555,7 +555,7 @@ export function TeamSection({
       <CardHeader>
         <CardTitle>3 - Your team, in order</CardTitle>
         <CardDescription>
-          Slot 1 is sent first.
+          Team edits are kept on this device. Copy to Characters adds a reusable copy to Saved characters.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -607,7 +607,7 @@ export function TeamSection({
         {humans > 0 ? (
           <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
             <Plus className="h-3 w-3" />
-            Ordered team: the runner receives this exact order.
+            Team list order is preserved; battle starting cells are shown above.
           </p>
         ) : null}
       </CardContent>

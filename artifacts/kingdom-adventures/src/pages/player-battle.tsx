@@ -363,7 +363,7 @@ export default function PlayerBattlePage() {
     const copy = draftCharacterFromLoadout(character, 1);
     const current = normalizeSavedLoadouts(storedLoadouts);
     setStoredLoadouts([...current, copy]);
-    setTeamMessage(`${character.name || "Character"} saved.`);
+    setTeamMessage(`${character.name || "Character"} copied to Saved characters.`);
   };
 
   const makeRoster = (name: string): SavedRoster => ({
