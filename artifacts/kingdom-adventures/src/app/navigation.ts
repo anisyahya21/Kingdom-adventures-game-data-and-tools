@@ -28,6 +28,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/survey", label: "Survey Calculator" },
       { href: "/eggs", label: "Egg Planner" },
       { href: "/chaos-setup-lab", label: "Chaos Stone Setup" },
+      { href: "/world-builder", label: "World Builder" },
     ],
   },
   {
