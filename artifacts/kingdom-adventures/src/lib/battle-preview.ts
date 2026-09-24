@@ -4,7 +4,9 @@
  *
  * The preview NEVER simulates combat and NEVER places anything itself. It hands the existing
  * adapter scenario (`battleSetupToCombatScenario`) to the backend, which runs the authoritative
- * load/prepare pass (`api/_battle_preview.py`) and returns the formation it computed. Errors keep
+ * load/prepare pass (`api/_battle_preview.py`) and returns the formation it computed. The preview
+ * envelope caps only tickLimit at the API transport maximum; preparation never runs those ticks.
+ * Errors keep
  * the existing `message` field used by the battle-run endpoint.
  *
  * The contract mirrors the backend projection exactly:
@@ -22,6 +24,8 @@ export const BATTLE_PREVIEW_SCHEMA = "ka-battle-preview-1";
 
 /** Existing endpoint shared with the authoritative runner; the schema discriminates the envelope. */
 export const BATTLE_RUN_ENDPOINT = "/api/battle-run";
+/** Transport limit for preview envelopes. The preview does not simulate this many ticks. */
+export const BATTLE_PREVIEW_MAX_TICK_LIMIT = 10_000;
 
 /** One prepared parameter pair exactly as the backend preview exposes it. */
 export type BattlePreviewParameter = {
@@ -81,7 +85,11 @@ export class BattlePreviewError extends Error {
 
 /** Build the exact request body for the preview envelope. */
 export function buildBattlePreviewRequest(scenario: unknown): BattlePreviewRequest {
-  return { schema: BATTLE_PREVIEW_SCHEMA, scenario };
+  const previewScenario = isRecord(scenario) && typeof scenario.tickLimit === "number" &&
+    scenario.tickLimit > BATTLE_PREVIEW_MAX_TICK_LIMIT
+    ? { ...scenario, tickLimit: BATTLE_PREVIEW_MAX_TICK_LIMIT }
+    : scenario;
+  return { schema: BATTLE_PREVIEW_SCHEMA, scenario: previewScenario };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

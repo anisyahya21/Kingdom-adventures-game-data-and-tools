@@ -28,6 +28,7 @@ const { battleSetupToCombatScenario } = await import("@/lib/battle-setup-adapter
 const { MONSTER_BY_ID } = await import("@/lib/battle-setup");
 const {
   BATTLE_PREVIEW_SCHEMA,
+  BATTLE_PREVIEW_MAX_TICK_LIMIT,
   battlePreviewParameterNumbers,
   buildBattlePreviewRequest,
   describeBattlePreviewFailure,
@@ -150,6 +151,13 @@ check(
 const request = buildBattlePreviewRequest(declaredScenario);
 check("the preview request uses the preview schema", request.schema === BATTLE_PREVIEW_SCHEMA, request.schema);
 check("the preview request carries the adapter scenario", request.scenario === declaredScenario, "scenario mismatch");
+const longFightScenario = { ...declaredScenario, tickLimit: 900 * 20 };
+const longFightPreview = buildBattlePreviewRequest(longFightScenario);
+check("a 900-second fight stays within the preview transport limit",
+  longFightPreview.scenario.tickLimit === BATTLE_PREVIEW_MAX_TICK_LIMIT,
+  longFightPreview.scenario.tickLimit);
+check("preview does not change the fight duration", longFightScenario.tickLimit === 900 * 20,
+  longFightScenario.tickLimit);
 
 const good = parseBattlePreview({
   schema: BATTLE_PREVIEW_SCHEMA,
