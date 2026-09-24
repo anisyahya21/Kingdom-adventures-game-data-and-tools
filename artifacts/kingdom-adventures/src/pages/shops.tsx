@@ -37,8 +37,9 @@ import {
 import { SHOP_RECORDS, type ShopRecord, type ShopSlug, type ShopBuilding, type ShopFacility } from "@/lib/shop-utils";
 import { PLOT_SIZES, PLOT_TILES } from "@/game-data/buildings";
 import { FACILITIES } from "@/game-data/facilities";
-import { COLLECTION_ITEMS, type CollectionCategory } from "@/game-data/collections";
+import { COLLECTION_ITEMS } from "@/game-data/collections";
 import { TERRAIN_NAMES } from "@/game-data/terrain-labels";
+import { ANIMAL_MONSTER_CARDS } from "@/lib/monster-cards";
 import { FacilityCard } from "./houses";
 import facilityLookupCsv from "../../../../data/Sheet csv/KA GameData - Facility_lookup.csv?raw";
 import expCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Exp.csv?raw";
@@ -338,6 +339,7 @@ const SHOP_ICONS: Record<ShopSlug, ReactNode> = {
   insectarium: <Store className="w-5 h-5 text-amber-500" />,
   aquarium: <Store className="w-5 h-5 text-sky-500" />,
   museum: <Store className="w-5 h-5 text-violet-500" />,
+  zoo: <Store className="w-5 h-5 text-lime-500" />,
   orchard: <Leaf className="w-5 h-5 text-lime-600" />,
 };
 
@@ -384,8 +386,9 @@ function resolveItemReferenceFacilityIcon(facilityName: string, facilityId: numb
 
 const ITEMS_REFERENCE_SHOPS = SHOP_RECORDS.filter((shop) => shop.slug === "items-reference");
 const PRIMARY_SHOPS = SHOP_RECORDS.filter((shop) => shop.category === "shop" && shop.slug !== "items-reference");
-const COPPER_SHOPS = PRIMARY_SHOPS.filter((shop) => shop.collectionCategory === undefined);
-const SILVER_SHOPS = PRIMARY_SHOPS.filter((shop) => shop.collectionCategory !== undefined);
+const COPPER_SHOPS = PRIMARY_SHOPS.filter((shop) => shop.currency !== "silver");
+const SILVER_SHOPS = PRIMARY_SHOPS.filter((shop) => shop.currency === "silver");
+const ZOO_ANIMALS = ANIMAL_MONSTER_CARDS.filter((animal) => animal.silverPrice > 0);
 const SECONDARY_FACILITIES = SHOP_RECORDS.filter((shop) => shop.category === "facility");
 
 function getRank(name: string): string {
@@ -1087,24 +1090,61 @@ function CoinShopHeading({ coin, title }: { coin: "Copper" | "Silver"; title: st
   );
 }
 
-function CollectionShopPanel({ category }: { category: CollectionCategory }) {
+type SilverShopItem = {
+  id: number;
+  name: string;
+  icon?: string;
+  silverPrice: number;
+  studioLevel: number | null;
+  intelligence: number | null;
+  terrainName?: string;
+  areaLevel: number | null;
+  minimumAreaLevel?: boolean;
+};
+
+function SilverShopPanel({ shop }: { shop: ShopRecord }) {
   const [query, setQuery] = useState("");
-  const items = COLLECTION_ITEMS.filter((item) => item.category === category && matchesQuery(item.name, query));
+  const isZoo = shop.slug === "zoo";
+  const sourceItems: SilverShopItem[] = isZoo
+    ? ZOO_ANIMALS.map((animal) => ({
+        id: animal.id,
+        name: animal.name,
+        icon: `${import.meta.env.BASE_URL}zoo-icons/${animal.id}.png`,
+        silverPrice: animal.silverPrice,
+        studioLevel: null,
+        intelligence: null,
+        terrainName: animal.terrainName,
+        areaLevel: animal.minLevel,
+        minimumAreaLevel: true,
+      }))
+    : COLLECTION_ITEMS.filter((item) => item.category === shop.collectionCategory).map((item) => ({
+        id: item.id,
+        name: item.name,
+        icon: item.icon,
+        silverPrice: item.silverPrice,
+        studioLevel: item.studioLevel,
+        intelligence: item.intelligence,
+        terrainName: item.terrain === null ? undefined : TERRAIN_NAMES[item.terrain] ?? `Terrain ${item.terrain}`,
+        areaLevel: item.areaLevel,
+      }));
+  const items = sourceItems.filter((item) => matchesQuery(item.name, query));
   return (
     <Card className="shadow-sm">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Collectables</CardTitle>
-        <CardDescription>Silver coin prices and collection requirements.</CardDescription>
+        <CardTitle className="text-base">{isZoo ? "Animals" : "Collectables"}</CardTitle>
+        <CardDescription>
+          {isZoo ? <>Silver coin prices and habitat requirements. These animals also appear in <Link href="/monsters" className="text-primary underline underline-offset-2">Monsters</Link>.</> : "Silver coin prices and collection requirements."}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="relative mb-4 max-w-sm">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search collectables..." className="pl-9 h-9" />
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={isZoo ? "Search animals..." : "Search collectables..."} className="pl-9 h-9" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {items.map((item) => (
             <div key={item.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
-              <img src={item.icon} alt="" className="h-12 w-12 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} loading="lazy" />
+              {item.icon && <img src={item.icon} alt="" className={`${isZoo ? "h-16 w-16" : "h-12 w-12"} shrink-0 object-contain`} style={{ imageRendering: "pixelated" }} loading="lazy" />}
               <div className="min-w-0 space-y-1">
                 <div className="font-medium">{item.name}</div>
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -1114,13 +1154,13 @@ function CollectionShopPanel({ category }: { category: CollectionCategory }) {
                   </span>
                   {item.studioLevel !== null && <span>Studio level {item.studioLevel}</span>}
                   {item.intelligence !== null && <span>Intelligence {item.intelligence}</span>}
-                  {item.terrain !== null && <span>{TERRAIN_NAMES[item.terrain] ?? `Terrain ${item.terrain}`} · Area level {item.areaLevel}</span>}
+                  {item.terrainName && item.areaLevel !== null && <span>{item.terrainName} · Area level {item.areaLevel}{item.minimumAreaLevel ? "+" : ""}</span>}
                 </div>
               </div>
             </div>
           ))}
         </div>
-        {items.length === 0 && <p className="text-sm text-muted-foreground">No collectables match your search.</p>}
+        {items.length === 0 && <p className="text-sm text-muted-foreground">No {isZoo ? "animals" : "collectables"} match your search.</p>}
       </CardContent>
     </Card>
   );
@@ -2109,6 +2149,8 @@ export default function ShopsPage() {
         return filteredOrchardRows.length;
       case "furniture-shop":
         return filteredFurnitureRows.length;
+      case "zoo":
+        return ZOO_ANIMALS.length;
       default:
         return selectedShop?.collectionCategory !== undefined
           ? COLLECTION_ITEMS.filter((item) => item.category === selectedShop.collectionCategory).length
@@ -2150,41 +2192,7 @@ export default function ShopsPage() {
             <div className="mt-6">
               <h2 className="text-sm font-semibold text-muted-foreground mb-3">Other Facilities</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {SECONDARY_FACILITIES.map((shop) => (
-                  (() => {
-                    const cardIcon = resolveShopCardIcon(shop);
-                    return (
-                  <Card
-                    key={shop.slug}
-                    onClick={() => navigate(`/shops/${shop.slug}`)}
-                    className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all group h-full cursor-pointer"
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors w-fit">
-                        {cardIcon ? (
-                          <img
-                            src={cardIcon}
-                            alt=""
-                            className={`${isFurnitureIconPath(cardIcon) ? "h-8 w-8" : "h-6 w-6"} object-contain`}
-                            style={{ imageRendering: "pixelated" }}
-                          />
-                        ) : (
-                          SHOP_ICONS[shop.slug]
-                        )}
-                      </div>
-                      <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm">
-                      <CardDescription className="text-xs leading-relaxed">{shop.description}</CardDescription>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <ShopOwnerLink owner={shop.owner} />
-
-                      </div>
-                    </CardContent>
-                  </Card>
-                    );
-                  })()
-                ))}
+                {SECONDARY_FACILITIES.map((shop) => <ShopIndexCard key={shop.slug} shop={shop} onOpen={() => navigate(`/shops/${shop.slug}`)} />)}
               </div>
             </div>
           )}
@@ -2284,8 +2292,8 @@ export default function ShopsPage() {
           </Card>
         )}
 
-        {selectedShop.collectionCategory !== undefined && (
-          <CollectionShopPanel category={selectedShop.collectionCategory} />
+        {selectedShop.currency === "silver" && (
+          <SilverShopPanel shop={selectedShop} />
         )}
 
         {selectedShop.slug === "weapon-shop" && (

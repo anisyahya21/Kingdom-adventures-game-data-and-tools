@@ -129,6 +129,7 @@ export type MonsterCard = {
   terrainClass: string;
   minLevel: number;
   maxLevel: number;
+  silverPrice: number;
   sprite?: string;
   cave?: CaveAppearance;
   box?: MonsterCardBox;
@@ -147,6 +148,7 @@ const column = {
   terrain: index("terrain"),
   minLevel: index("areaLevelMin"),
   maxLevel: index("areaLevelMax"),
+  silverPrice: index("silverPrice"),
   dropDataType: index("dropDataType"),
   dropDataId: index("dropDataId"),
   dropRate: index("dropRate"),
@@ -197,6 +199,7 @@ function buildCard(row: string[]): MonsterCard | null {
     terrainClass: TERRAIN_CLASSES[terrainCode] ?? "soil",
     minLevel,
     maxLevel,
+    silverPrice: Number(row[column.silverPrice]) || 0,
     sprite: SPRITE_BY_ID.get(Number(row[column.id])),
     cave,
     box,

@@ -31,6 +31,7 @@ export type ShopSlug =
   | "insectarium"
   | "aquarium"
   | "museum"
+  | "zoo"
   | "orchard";
 
 export type ShopCategory = "shop" | "facility";
@@ -43,6 +44,7 @@ export type ShopRecord = {
   description: string;
   owner: string;
   collectionCategory?: CollectionCategory;
+  currency?: "silver";
   /** Building stats from House.csv — present for all shop-type buildings */
   building?: ShopBuilding;
   /** Primary crafting workbench placed inside this shop */
@@ -136,6 +138,7 @@ export const SHOP_RECORDS: ShopRecord[] = [
     description: "Insect collections sold for silver coins.",
     owner: "Entertainer",
     collectionCategory: 0,
+    currency: "silver",
     building: requireBuilding("Insectarium"),
   },
   {
@@ -146,6 +149,7 @@ export const SHOP_RECORDS: ShopRecord[] = [
     description: "Fish collections sold for silver coins.",
     owner: "Entertainer",
     collectionCategory: 1,
+    currency: "silver",
     building: requireBuilding("Aquarium"),
   },
   {
@@ -156,7 +160,18 @@ export const SHOP_RECORDS: ShopRecord[] = [
     description: "Art pieces sold for silver coins.",
     owner: "Entertainer",
     collectionCategory: 2,
+    currency: "silver",
     building: requireBuilding("Museum"),
+  },
+  {
+    slug: "zoo",
+    category: "shop",
+    title: "Zoo",
+    shortTitle: "Zoo",
+    description: "Animals sold for silver coins.",
+    owner: "Beast Tamer",
+    currency: "silver",
+    building: requireBuilding("Zoo"),
   },
   {
     slug: "orchard",
@@ -180,6 +195,7 @@ export const SHOP_NAME_TO_SLUG: Record<string, ShopSlug> = {
   Insectarium: "insectarium",
   Aquarium: "aquarium",
   Museum: "museum",
+  Zoo: "zoo",
   Orchard: "orchard",
 };
 
