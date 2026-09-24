@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, Loader2, Menu, Moon, Search, Sun, X } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -321,67 +321,54 @@ export function SiteHeader() {
           )}
 
           <div ref={menuRef}>
-            <Button variant="ghost" size="icon" className="h-11 w-8 min-[350px]:w-9 sm:w-11" onClick={() => setMenuOpen(!menuOpen)}>
+            <Button variant="ghost" size="icon" className="h-11 w-8 min-[350px]:w-9 sm:w-11" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen}>
               <Menu className="h-5 w-5 sm:h-[30px] sm:w-[30px]" />
             </Button>
 
             {menuOpen && (
-              <div className="absolute left-4 top-full mt-2 z-50 w-72 max-h-[min(80vh,42rem)] overflow-y-auto">
+              <div className="absolute left-2 top-full z-50 mt-2 max-h-[calc(100dvh-4.5rem)] w-80 max-w-[calc(100vw-1rem)] overflow-y-auto sm:left-4">
                 <Card>
-                  <CardContent className="p-3 space-y-3">
+                  <CardContent className="space-y-3 p-3">
                     <Button variant="ghost" className="w-full justify-start sm:hidden" onClick={() => setDark((d) => !d)}>
                       {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                       {dark ? "Switch to light mode" : "Switch to dark mode"}
                     </Button>
-                    {NAV_SECTIONS.map((section) => (
-                      <div key={section.title} className="space-y-1.5">
-                        <div className="px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-                          {section.title}
-                        </div>
-                        {section.primary && (
-                          <button
-                            onClick={() => {
-                              navigate(section.primary!.href);
-                              setMenuOpen(false);
-                            }}
-                            className="w-full text-left rounded-md border px-3 py-2 text-sm hover:bg-muted/40"
-                          >
-                            <span className="flex items-center gap-1.5">
-                              {section.primary.label}
-                              {section.primary.beta && (
-                                <span className="text-[10px] font-semibold text-orange-400">BETA</span>
-                              )}
-                            </span>
-                          </button>
-                        )}
-                        {section.note && (
-                          <div className="px-1 text-[11px] leading-relaxed text-muted-foreground/75">
-                            {section.note}
+                    <nav aria-label="Main menu" className="space-y-4">
+                      {NAV_SECTIONS.map((section) => (
+                        <div key={section.title} className="space-y-1">
+                          <div className="px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            {section.title}
                           </div>
-                        )}
-                        {section.children && (
-                          <div className="flex flex-wrap gap-1.5 px-0.5">
-                            {section.children.map((link) => (
+                          <div className="space-y-0.5">
+                            {section.children.map((link) => link.external ? (
+                              <a
+                                key={link.href}
+                                href={link.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => setMenuOpen(false)}
+                                className="flex min-h-11 items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              >
+                                {link.label}<ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+                              </a>
+                            ) : (
                               <button
-                                key={`${section.title}-${link.href}-${link.label}`}
+                                key={link.href}
+                                type="button"
                                 onClick={() => {
                                   navigate(link.href);
                                   setMenuOpen(false);
                                 }}
-                                className="rounded-md border px-2.5 py-1.5 text-[11px] hover:bg-muted/40"
+                                aria-current={pathname === link.href ? "page" : undefined}
+                                className="flex min-h-11 w-full items-center rounded-md px-3 py-2 text-left text-sm hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-muted"
                               >
-                                <span className="flex items-center gap-1">
-                                  {link.label}
-                                  {link.beta && (
-                                    <span className="text-[9px] font-semibold text-orange-400">BETA</span>
-                                  )}
-                                </span>
+                                {link.label}
                               </button>
                             ))}
                           </div>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      ))}
+                    </nav>
                   </CardContent>
                 </Card>
               </div>

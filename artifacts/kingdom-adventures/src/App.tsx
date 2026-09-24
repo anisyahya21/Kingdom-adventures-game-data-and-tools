@@ -170,21 +170,25 @@ function Router() {
         <Route path="/equipment-stats">{() => <EquipmentPage />}</Route>
         <Route path="/equipment-exchange">{() => <EquipmentExchangePage />}</Route>
         <Route path="/equipment-leveling-optimizer">{() => <EquipmentLevelingOptimizerPage />}</Route>
+        <Route path="/equipment-level-optimizer">{() => <EquipmentLevelingOptimizerPage />}</Route>
         <Route path="/monsters">{() => <MonstersPage />}</Route>
         <Route path="/weekly-conquest">{() => <WeeklyConquestPage />}</Route>
         <Route path="/jobs">{() => <JobsPage />}</Route>
         <Route path="/jobs/:name">{() => <JobsPage />}</Route>
         <Route path="/skills">{() => <SkillsPage />}</Route>
+        <Route path="/skill">{() => <SkillsPage />}</Route>
         <Route path="/loadout">{() => <LoadoutPage />}</Route>
         <Route path="/eggs-pets-monsters">{() => <EggsPetsMonstersPage />}</Route>
         <Route path="/eggs">{() => <EggsPage />}</Route>
         <Route path="/monsters-pets">{() => <MonstersPetsPage />}</Route>
         <Route path="/monster-spawns">{() => <MonstersPage />}</Route>
+        <Route path="/monster-spawn">{() => <MonstersPage />}</Route>
         <Route path="/monster-pet-stats">{() => <MonsterPetStatsPage />}</Route>
         <Route path="/monster-xp">{() => <MonsterXpPage />}</Route>
         {/* The old item-first Monster Loot page is merged into the card page. */}
         <Route path="/monster-loot">{() => <MonstersPage />}</Route>
         <Route path="/item-sources">{() => <ItemSourcesPage />}</Route>
+        <Route path="/items-reference">{() => <ItemSourcesPage />}</Route>
         <Route path="/shops">{() => <ShopsPage />}</Route>
         <Route path="/shops/:slug">{() => <ShopsPage />}</Route>
         <Route path="/research">{() => <ResearchPage />}</Route>
