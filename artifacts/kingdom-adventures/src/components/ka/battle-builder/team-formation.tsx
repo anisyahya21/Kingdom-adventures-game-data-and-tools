@@ -3,6 +3,7 @@ import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { MONSTER_BY_ID, type BattleSetup } from "@/lib/battle-setup";
 import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
 import { gearInSlot, type BuilderSharedData, type DraftCharacter } from "@/lib/battle-team-draft";
+import type { BattlePreview } from "@/lib/battle-preview";
 
 const COLUMNS = 5;
 
@@ -60,40 +61,58 @@ function FormationSprite({ entry, data }: { entry: FormationEntry; data: Builder
   );
 }
 
-export function TeamFormation({ characters, setup, data }: {
+export function TeamFormation({ characters, setup, data, preview, previewStatus }: {
   characters: DraftCharacter[];
   setup: BattleSetup | null;
   data: BuilderSharedData | null;
+  preview: BattlePreview | null;
+  previewStatus: "idle" | "loading" | "ok" | "error";
 }) {
   const entries = formationEntries(characters, setup);
-  const slotCount = Math.max(COLUMNS, Math.ceil(entries.length / COLUMNS) * COLUMNS);
+  const allies = preview?.units.filter((unit) => unit.side === "ally" && unit.cell && unit.rosterIndex !== null) ?? [];
+  const rows = [...new Set(allies.map((unit) => unit.cell![1]))].sort((a, b) => a - b);
+  const cells = new Map(allies.map((unit) => [`${unit.cell![0]},${unit.cell![1]}`, unit]));
   return (
-    <Card data-team-formation data-formation-units={entries.length} data-formation-rows={slotCount / COLUMNS}>
+    <Card data-team-formation data-formation-units={entries.length} data-formation-rows={rows.length}>
       <CardHeader>
         <CardTitle>2 - Team formation</CardTitle>
-        <CardDescription>Starting order</CardDescription>
+        <CardDescription>Battle starting cells · front row first. Positions follow formation priority and defense.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-5 gap-1.5 sm:gap-2" aria-label="Team formation">
-          {Array.from({ length: slotCount }, (_, index) => {
-            const entry = entries[index];
-            return (
-              <div
-                key={index}
-                className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border/70 bg-muted/10 px-0.5 py-2 text-center sm:px-2"
-                data-formation-slot={index + 1}
-                data-formation-kind={entry?.kind ?? "empty"}
-                title={entry?.kind === "pet" ? `${entry.name} · ${entry.owner}'s pet` : entry?.name}
-              >
-                <span className="text-[10px] tabular-nums text-muted-foreground">{index + 1}</span>
-                <span className="flex h-14 w-full items-center justify-center sm:h-16">
-                  {entry ? <FormationSprite entry={entry} data={data} /> : null}
-                </span>
-                <span className="w-full truncate text-[10px] font-medium sm:text-xs">{entry?.name ?? ""}</span>
+        {rows.length ? (
+          <div className="space-y-2" aria-label="Team formation">
+            {rows.map((row, rowIndex) => (
+              <div key={row}>
+                <div className="mb-1 text-xs text-muted-foreground">{rowIndex === 0 ? "Front row" : `Back row ${rowIndex}`} · cell row {row}</div>
+                <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                  {Array.from({ length: COLUMNS }, (_, column) => {
+                    const unit = cells.get(`${column},${row}`);
+                    const entry = unit?.rosterIndex === null || unit?.rosterIndex === undefined ? undefined : entries[unit.rosterIndex];
+                    return (
+                      <div
+                        key={column}
+                        className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border/70 bg-muted/10 px-0.5 py-2 text-center sm:px-2"
+                        data-formation-cell={`${column},${row}`}
+                        data-formation-kind={entry?.kind ?? "empty"}
+                        title={entry?.kind === "pet" ? `${entry.name} · ${entry.owner}'s pet` : entry?.name}
+                      >
+                        <span className="text-[10px] tabular-nums text-muted-foreground">{column},{row}</span>
+                        <span className="flex h-14 w-full items-center justify-center sm:h-16">
+                          {entry ? <FormationSprite entry={entry} data={data} /> : null}
+                        </span>
+                        <span className="w-full truncate text-[10px] font-medium sm:text-xs">{entry?.name ?? unit?.name ?? ""}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground" data-formation-status={previewStatus}>
+            {previewStatus === "loading" ? "Calculating starting cells…" : previewStatus === "error" ? "Starting cells are unavailable. See the preview error below." : previewStatus === "ok" ? "No starting cells were returned." : setup ? "Calculating starting cells…" : "Add a valid team to see its starting cells."}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

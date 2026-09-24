@@ -305,6 +305,37 @@ export default function PlayerBattlePage() {
   const otherIssues = issues.filter((issue) => issue.category !== "ERROR" && isPlayerFacingBattleIssue(issue));
   const setup = conversion?.setup ?? null;
 
+  // The formation card uses the preparation pass because placement depends on effective defense
+  // and formation skills. Debounce editor changes and discard any response for an older setup.
+  useEffect(() => {
+    previewAbort.current?.abort();
+    if (!setup || errors.length > 0) {
+      setPreviewState({ status: "idle" });
+      return;
+    }
+    const controller = new AbortController();
+    previewAbort.current = controller;
+    setPreviewState({ status: "loading" });
+    const timer = window.setTimeout(async () => {
+      try {
+        const { scenario } = battleSetupToCombatScenario(setup);
+        const preview = await requestBattlePreview(scenario, controller.signal);
+        if (!controller.signal.aborted) setPreviewState({ status: "ok", preview });
+      } catch (error) {
+        if (controller.signal.aborted || isAbortedPreview(error)) return;
+        setPreviewState({
+          status: "error",
+          message: error instanceof BattlePreviewError ? error.message : "The preview request failed: " + (error instanceof Error ? error.message : String(error)),
+          details: [],
+        });
+      }
+    }, 300);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [setup, errors.length]);
+
   const setCharacters = (next: DraftCharacter[]) => {
     setStored((current) => ({ ...(normalizeDraft(current) ?? draft), characters: next }));
     setPreviewState({ status: "idle" });
@@ -552,7 +583,7 @@ export default function PlayerBattlePage() {
         }}
       />
 
-      <TeamFormation characters={draft.characters} setup={setup} data={sharedData} />
+      <TeamFormation characters={draft.characters} setup={errors.length === 0 ? setup : null} data={sharedData} preview={preview} previewStatus={previewState.status} />
 
       <TeamSection
         characters={draft.characters}
