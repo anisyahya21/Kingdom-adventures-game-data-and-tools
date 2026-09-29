@@ -1,9 +1,7 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BriefcaseBusiness, Heart } from "lucide-react";
 import { Link } from "wouter";
-import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
-import { apiUrl } from "@/lib/api";
+import { localSharedData } from "@/lib/local-shared-data";
 
 type SharedJob = {
   category?: string;
@@ -24,12 +22,7 @@ function getGroupFromCategory(job: SharedJob): "battle" | "trader" | "worker" | 
 }
 
 export default function JobsMarriagePage() {
-  const { data } = useQuery({
-    queryKey: ["jobs-hub-shared"],
-    queryFn: async () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
-    initialData: () => JSON.parse(JSON.stringify(localSharedData)) as SharedData,
-    staleTime: 5 * 60 * 1000,
-  });
+  const data = localSharedData as SharedData;
 
   const groupedJobs = useMemo(() => {
     const grouped: Record<"battle" | "trader" | "worker", string[]> = {

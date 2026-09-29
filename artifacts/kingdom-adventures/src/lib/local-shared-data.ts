@@ -10,6 +10,7 @@ function mergeSharedData<T>(base: unknown, overlay: unknown): T {
   return {
     ...baseRecord,
     ...overlayRecord,
+    jobs: baseRecord.jobs ?? overlayRecord.jobs,
     pairs: completeMarriagePairs(
       overlayRecord.pairs as unknown[] | undefined,
       (baseRecord.pairs ?? []) as unknown[],

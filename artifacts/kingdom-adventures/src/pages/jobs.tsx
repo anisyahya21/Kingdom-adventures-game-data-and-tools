@@ -228,7 +228,7 @@ function useFavorites() {
 
 function useSharedData() {
   return useQuery({
-    queryKey: ["ka-shared"],
+    queryKey: ["ka-jobs-reference"],
     queryFn: async () => withCategoryBattleTypes(await fetchSharedWithFallback<SharedData>(apiUrl("/shared"))),
     initialData: () => withCategoryBattleTypes(JSON.parse(JSON.stringify(localSharedData)) as SharedData),
     staleTime: Infinity,
@@ -3088,15 +3088,15 @@ export default function JobsPage() {
 
   const handleSaveJobs = useCallback((updated: Record<string,Job>, desc: string) => {
     withName(() => {
-      qc.setQueryData(["ka-shared"], (old: SharedData|undefined) => old ? { ...old, jobs: updated } : old);
-      persistJobs(updated, userName, desc).then(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }));
+      qc.setQueryData(["ka-jobs-reference"], (old: SharedData|undefined) => old ? { ...old, jobs: updated } : old);
+      persistJobs(updated, userName, desc).then(() => qc.invalidateQueries({ queryKey: ["ka-jobs-reference"] }));
     });
   }, [qc, userName, withName]);
 
   const handleSavePairs = useCallback((updated: SharedPair[]) => {
     withName(() => {
-      qc.setQueryData(["ka-shared"], (old: SharedData|undefined) => old ? { ...old, pairs: updated } : old);
-      persistPairs(updated, userName).then(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }));
+      qc.setQueryData(["ka-jobs-reference"], (old: SharedData|undefined) => old ? { ...old, pairs: updated } : old);
+      persistPairs(updated, userName).then(() => qc.invalidateQueries({ queryKey: ["ka-jobs-reference"] }));
     });
   }, [qc, userName, withName]);
 

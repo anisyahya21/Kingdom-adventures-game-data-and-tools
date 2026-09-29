@@ -25,7 +25,7 @@ import {
 import { EntityLink } from "@/components/ka/entity-link";
 import { PageHeader } from "@/components/ka/page-header";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
-import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
+import { localSharedData } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { battleTypeLabel, typeFromJobCategory } from "@/game-data/job-normalization";
 import { MARRIAGE_RANKS, completeMarriagePairs, normJob, pairKey, type MarriageRank } from "@/game-data/job-marriage";
@@ -61,10 +61,10 @@ type MatcherSharedData = {
 
 function useSharedData() {
   return useQuery({
-    queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<MatcherSharedData>(apiUrl("/shared")),
-    // Render the bundled catalog immediately while the existing shared request runs.
-    placeholderData: () => localSharedData as unknown as MatcherSharedData,
+    queryKey: ["ka-marriage-reference"],
+    // Jobs and compatibility are static reference data bundled with the Vercel app.
+    queryFn: async () => localSharedData as unknown as MatcherSharedData,
+    initialData: () => localSharedData as unknown as MatcherSharedData,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
@@ -2269,9 +2269,7 @@ export default function MarriageMatcher() {
 
   const apiPairs = useMemo(() => {
     if (!sharedData) return null;
-    // A missing or severely truncated server list cannot replace the bundled catalog.
-    const source = completeMarriagePairs(sharedData.pairs, BUNDLED_PAIRS);
-    return source.map((p) => ({ ...p, children: p.children ?? [] }));
+    return BUNDLED_PAIRS.map((p) => ({ ...p, children: p.children ?? [] }));
   }, [sharedData]);
 
   const jobTypeMap = useMemo(() => {
