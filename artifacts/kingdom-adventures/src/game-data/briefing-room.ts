@@ -155,13 +155,13 @@ export function getBriefingMissionsForDate(date: BriefingCalendarDate, progressi
   return getBriefingMissionTemplatesForDate(date).map((mission) => presentBriefingMission(mission, progression));
 }
 
-export function getMonthlySpecificMonsterMissions(year: number, month: number, progression: number | null) {
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+export function getMonthlySpecificMonsterMissions(_year: number, _month: number, progression: number | null) {
+  const missionCycleDays = 31;
   return BRIEFING_MISSION_TEMPLATES
     .filter(isSpecificMonsterMission)
     .flatMap((mission) => {
       const targetDay = mission.challengeTerms.find((term) => term[0] === 2 && term[2] === 4)?.[1];
-      return targetDay !== undefined && targetDay >= 1 && targetDay <= daysInMonth
+      return targetDay !== undefined && targetDay >= 1 && targetDay <= missionCycleDays
         ? [{ day: targetDay, mission: presentBriefingMission(mission, progression) }]
         : [];
     })

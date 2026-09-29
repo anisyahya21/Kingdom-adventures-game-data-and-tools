@@ -399,3 +399,17 @@ export function buildLocalAutomaticWeeklyConquestTimeline(
     entries,
   };
 }
+
+/** Re-select the active event from an already-loaded timeline as local time advances. */
+export function resolveAutomaticWeeklyConquestTimelineForNow(
+  timeline: AutomaticWeeklyConquestTimeline | undefined,
+  now = new Date(),
+  radius = 4,
+): AutomaticWeeklyConquestTimeline {
+  const nowMs = now.getTime();
+  const active = timeline?.entries.find((entry) => entry.startedAt <= nowMs && nowMs < entry.endsAt);
+  if (timeline && active) return { ...timeline, currentId: active.id };
+
+  // If the loaded window has expired, roll forward from the bundled repeating schedule.
+  return buildLocalAutomaticWeeklyConquestTimeline(now, radius);
+}

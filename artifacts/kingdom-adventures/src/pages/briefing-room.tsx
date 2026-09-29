@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronDown, ClipboardList, MapPin, Sparkles } from "lucide-react";
+import { CalendarDays, ChevronDown, ClipboardList, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,81 +20,26 @@ function clampProgression(value: number) {
 function MissionReward({ mission }: { mission: BriefingMission }) {
   const icon = getItemIcon(mission.rewardName);
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      {icon ? <img src={icon} alt="" className="h-7 w-7 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} /> : null}
-      <div className="min-w-0">
-        <div className="text-[11px] text-muted-foreground">Reward</div>
-        <div className="truncate text-sm font-medium">
-          {mission.rewardAmount === null ? "—" : `${NUMBER_FORMAT.format(mission.rewardAmount)} ${mission.rewardName}`}
-        </div>
-        <div className="text-[10px] text-muted-foreground">
-          Range {NUMBER_FORMAT.format(mission.rewardMin)}–{NUMBER_FORMAT.format(mission.rewardMax)}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MonsterSpawnDetails({ monsterName }: { monsterName: string }) {
-  const spawn = getMonsterSpawnReference(monsterName);
-  if (!spawn) {
-    return <div className="text-xs text-muted-foreground">No matching monster data is available for this target.</div>;
-  }
-
-  return (
-    <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-      <div className="min-w-0 space-y-1">
-        <div className="flex items-center gap-1.5 text-xs font-semibold">
-          <MapPin className="h-3.5 w-3.5 text-primary" />
-          Monster spawn profile
-        </div>
-        <div className="text-xs">
-          Listed biome: <span className="font-medium">{spawn.terrainName}</span>
-          {" · "}Area Lv. <span className="font-medium">{NUMBER_FORMAT.format(spawn.minLevel)}–{NUMBER_FORMAT.format(spawn.maxLevel)}</span>
-        </div>
-        <div className="break-words text-[11px] text-muted-foreground">
-          The listed biome is the monster row’s terrain; game spawns can also place monsters outside that biome.
-        </div>
-        <Link
-          href={`/monsters?monster=${encodeURIComponent(monsterName)}`}
-          className="inline-block text-xs font-medium text-primary hover:underline"
-        >
-          View full monster data
-        </Link>
-      </div>
+    <div className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
+      {icon ? <img src={icon} alt="" className="h-6 w-6 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} /> : null}
+      <span className="text-muted-foreground">Reward</span>
+      <span className="min-w-0 truncate">
+        {mission.rewardAmount === null ? "—" : `${NUMBER_FORMAT.format(mission.rewardAmount)} ${mission.rewardName}`}
+      </span>
     </div>
   );
 }
 
 function MissionCard({ mission }: { mission: BriefingMission }) {
-  const goal = mission.goal === null ? "—" : NUMBER_FORMAT.format(mission.goal);
   const sprite = getMonsterSpawnReference(mission.monsterName)?.sprite;
 
   return (
-    <article className="space-y-3 rounded-xl border border-border/70 bg-background/70 p-3 sm:p-4">
-      <div className="flex items-start gap-3">
-        {sprite ? <img src={sprite} alt="" className="h-12 w-12 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} loading="lazy" /> : null}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold leading-snug">{mission.displayName}</h3>
-            {mission.monsterName ? <Badge variant="outline" className="text-[10px]">Monster target</Badge> : null}
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Mission {mission.id}</p>
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
-          <div className="text-[11px] text-muted-foreground">Goal</div>
-          <div className="text-sm font-semibold tabular-nums">{goal}</div>
-          <div className="text-[10px] text-muted-foreground">
-            Range {NUMBER_FORMAT.format(mission.goalMin)}–{NUMBER_FORMAT.format(mission.goalMax)}
-          </div>
-        </div>
+    <article className="flex min-w-0 items-center gap-3 rounded-lg border border-border/70 bg-background/70 p-3">
+      {sprite ? <img src={sprite} alt="" className="h-10 w-10 shrink-0 object-contain" style={{ imageRendering: "pixelated" }} loading="lazy" /> : null}
+      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+        <h3 className="min-w-0 flex-1 text-sm font-semibold leading-snug">{mission.displayName}</h3>
         <MissionReward mission={mission} />
       </div>
-
-      {mission.monsterName ? <MonsterSpawnDetails monsterName={mission.monsterName} /> : null}
     </article>
   );
 }
@@ -134,7 +79,6 @@ function MonthMissionCard({ day, mission }: { day: number; mission: BriefingMiss
           <Link href={`/monsters?monster=${encodeURIComponent(mission.monsterName ?? "")}`} className="block truncate text-sm font-medium hover:underline">
             {mission.displayName}
           </Link>
-          <div className="text-[11px] text-muted-foreground">Goal {mission.goal === null ? "—" : NUMBER_FORMAT.format(mission.goal)} · range {NUMBER_FORMAT.format(mission.goalMin)}–{NUMBER_FORMAT.format(mission.goalMax)}</div>
         </div>
       </div>
       <div className="min-w-0">
@@ -190,7 +134,7 @@ export default function BriefingRoomPage() {
           <Badge variant="outline">Events offset {eventOffset >= 0 ? "+" : ""}{eventOffset}h</Badge>
         </div>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          Today’s and tomorrow’s Briefing Room missions, their progression-scaled goals and rewards, and the spawn reference for specific monster targets.
+          Today’s and tomorrow’s Briefing Room missions with progression-scaled goals and rewards.
           The Events offset is applied to the Japan-time calendar.
         </p>
       </header>
@@ -236,7 +180,7 @@ export default function BriefingRoomPage() {
             />
           </div>
           <p id="briefing-progression-help" className="text-xs text-muted-foreground">
-            Enter the value you want to model. The displayed goal and reward include their sheet ranges for comparison.
+            Enter the value you want to model. Mission goals update in the name, and each reward shows its value at this progression.
           </p>
         </CardContent>
       </Card>
@@ -250,22 +194,19 @@ export default function BriefingRoomPage() {
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold marker:hidden">
           <span>See more data</span>
           <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
-            This month’s specific-monster missions · {monthMissions.length} dates
+            This month’s specific-monster missions · {monthMissions.length} entries
             <ChevronDown className="h-4 w-4" />
           </span>
         </summary>
         <div className="mt-4 space-y-3">
           <div>
             <h2 className="text-base font-semibold">{new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Tokyo", month: "long", year: "numeric" }).format(new Date(Date.UTC(dates.today.year, dates.today.month - 1, 15, 12)))} target schedule</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Each row shows the dated target from Mission.csv, its goal and reward, plus the monster’s biome, level range, and sprite from the same data used by the Monsters page.</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">The native rule for hiding or substituting targets based on map unlocks is not confirmed yet. Use the listed terrain and area-level range as a reference for your map progress.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Each row shows the target day and monster from Mission.csv, its reward, and the monster’s biome, level range, and sprite from the same data used by the Monsters page.</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">The listed dates are the Mission.csv schedule. The target shown can differ by account; whether map unlocks, progression, or another rule selects it is not confirmed. Use the listed terrain and area-level range as a reference for your map progress.</p>
           </div>
           <div className="space-y-2">
             {monthMissions.map(({ day, mission }) => <MonthMissionCard key={mission.id} day={day} mission={mission} />)}
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            The listed terrain is the monster row’s terrain; generated spawns can occur in other biomes when the area level is valid.
-          </p>
         </div>
       </details>
     </div>
