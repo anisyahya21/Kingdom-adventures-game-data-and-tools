@@ -21,7 +21,7 @@ const EVENT_CARDS = [
     title: "Briefing Room",
     description: "Today’s and tomorrow’s mission goals and rewards, with monster spawn details and this month’s target schedule.",
     icon: ClipboardList,
-    facilityIconId: 227,
+    facilityIconId: 167,
     status: "live" as EventStatus,
   },
   {
