@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import QRCode from "qrcode";
-import { Bell, BriefcaseBusiness, CalendarDays, Clock3, Trophy, Wand2, Award, AlertTriangle, Plus, Minus, ExternalLink, Smartphone } from "lucide-react";
+import { Bell, BriefcaseBusiness, CalendarDays, ClipboardList, Clock3, Trophy, Wand2, Award, AlertTriangle, Plus, Minus, ExternalLink, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,14 @@ const GACHA_BUTTON_X4_ICON = "/website_icons/requested/gacha_button_x4.png";
 const WAIRO_DUNGEON_ICON = "/website_icons/facilities_confirmed/mapchip_223_wairo_dungeon.png";
 
 const EVENT_CARDS = [
+  {
+    href: "/briefing-room",
+    title: "Briefing Room",
+    description: "Today’s and tomorrow’s mission goals and rewards, with monster spawn details and this month’s target schedule.",
+    icon: ClipboardList,
+    facilityIconId: 227,
+    status: "live" as EventStatus,
+  },
   {
     href: "/gacha-events",
     title: "Gacha Events",
@@ -161,7 +169,7 @@ export default function TimedEventsPage() {
           <h1 className="text-xl font-bold tracking-tight">Events</h1>
         </div>
         <p className="text-sm text-muted-foreground max-w-3xl">
-          Kingdom Adventurers event hub for weekly conquest, gacha windows, Wairo Dungeon,
+          Kingdom Adventurers event hub for briefing room missions, weekly conquest, gacha windows, Wairo Dungeon,
           daily rank rewards, Kairo Room, and Job Center schedules.
         </p>
       </div>
@@ -174,7 +182,7 @@ export default function TimedEventsPage() {
           <div className="text-sm mt-1">
             Some event times may be affected by DST or timezone differences. If event times look off, use the offset control below to adjust.<br />
             <span className="font-medium">Kairo Room, Job Center, Wairo Dungeon, and Gacha Events</span> follow your local time <span className="font-medium">plus any offset you set here</span>.<br />
-            <span className="font-medium">Daily Rank Rewards & Weekly Conquest</span> always follow Japan time, converted to your local time.
+            <span className="font-medium">Daily Rank Rewards & Weekly Conquest</span> follow Japan time. Briefing Room uses the Japan calendar with the Events offset applied.
           </div>
         </div>
       </div>
@@ -199,7 +207,7 @@ export default function TimedEventsPage() {
         >
           <Plus className="w-4 h-4" />
         </button>
-        <span className="text-xs text-muted-foreground">(applies to Kairo Room, Job Center, Wairo Dungeon, Gacha Events)</span>
+        <span className="text-xs text-muted-foreground">(applies to Briefing Room’s calendar and home timer, Kairo Room, Job Center, Wairo Dungeon, and Gacha Events)</span>
       </div>
 
       <EventReminderInstallPanel />

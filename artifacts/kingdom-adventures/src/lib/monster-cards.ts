@@ -14,9 +14,7 @@
  * in. Caves are part of the same generator list, and the enemy-base path only ever requests
  * type 0, so farmable animals (type 1) never come from a cave and have no battle XP.
  */
-import monsterCsv from "../../../../data/Sheet csv/KA GameData - Monster.csv?raw";
-import sprites from "@/game-data/monster-sprites.json";
-import { parseCsv } from "@/lib/monster-truth";
+import { getMonsterSpawnDataById, MONSTER_CSV_ROWS } from "@/game-data/monster-spawn-data";
 import { ALL_AREA_LEVELS } from "@/lib/monster-xp";
 import { TREASURE_BY_ID, treasureDisplayName } from "@/lib/treasure-lookup";
 import { caveForTerrain, type CaveAppearance } from "@/lib/cave-lookup";
@@ -25,19 +23,6 @@ import { localSharedData } from "@/lib/local-shared-data";
 
 export const TYPE_MONSTER = 0;
 export const TYPE_ANIMAL = 1;
-
-const TERRAIN_NAMES: Record<number, string> = {
-  0: "Water",
-  1: "Ground",
-  2: "Grass",
-  3: "Sand",
-  4: "Rock",
-  5: "Volcano",
-  6: "Snow",
-  7: "Swamp",
-  15: "Ground",
-  [-1]: "Special",
-};
 
 /** Terrain chip classes used for the biome chip colour, matching the world map palette. */
 const TERRAIN_CLASSES: Record<number, string> = {
@@ -138,16 +123,11 @@ export type MonsterCard = {
   searchText: string;
 };
 
-const rows = parseCsv(monsterCsv);
+const rows = MONSTER_CSV_ROWS;
 const header = rows[2] ?? [];
 const index = (name: string) => header.indexOf(name);
 const column = {
   id: index("id"),
-  name: index("name"),
-  type: index("type"),
-  terrain: index("terrain"),
-  minLevel: index("areaLevelMin"),
-  maxLevel: index("areaLevelMax"),
   silverPrice: index("silverPrice"),
   dropDataType: index("dropDataType"),
   dropDataId: index("dropDataId"),
@@ -155,15 +135,10 @@ const column = {
   stats: EXP_STAT_COLUMNS.map((stat) => index(stat)),
 };
 
-const SPRITE_BY_ID = new Map(sprites.map((sprite) => [sprite.id, sprite.src]));
-
 function buildCard(row: string[]): MonsterCard | null {
-  const name = row[column.name]?.trim();
-  const terrainCode = Number(row[column.terrain]);
-  if (!name || !TERRAIN_NAMES[terrainCode]) return null;
-  const type = Number(row[column.type]);
-  const minLevel = Number(row[column.minLevel]);
-  const maxLevel = Number(row[column.maxLevel]);
+  const monster = getMonsterSpawnDataById(Number(row[column.id]));
+  if (!monster) return null;
+  const { id, name, type, terrainCode, terrainName, minLevel, maxLevel, sprite } = monster;
   const stats = Object.fromEntries(
     EXP_STAT_COLUMNS.map((stat, position) => {
       const value = Number(row[column.stats[position]]);
@@ -191,23 +166,23 @@ function buildCard(row: string[]): MonsterCard | null {
     : undefined;
   const cave = type === TYPE_MONSTER ? caveForTerrain(terrainCode) : undefined;
   return {
-    id: Number(row[column.id]),
+    id,
     name,
     type,
     terrainCode,
-    terrainName: TERRAIN_NAMES[terrainCode],
+    terrainName,
     terrainClass: TERRAIN_CLASSES[terrainCode] ?? "soil",
     minLevel,
     maxLevel,
     silverPrice: Number(row[column.silverPrice]) || 0,
-    sprite: SPRITE_BY_ID.get(Number(row[column.id])),
+    sprite,
     cave,
     box,
     stats,
     averageMultiplier: nonZeroStats.length ? nonZeroStats.reduce((sum, value) => sum + value, 0) / nonZeroStats.length : 0,
     searchText: [
       name,
-      TERRAIN_NAMES[terrainCode],
+      terrainName,
       cave?.name ?? "",
       box?.name ?? "",
       ...(box?.rewards.map((reward) => reward.name) ?? []),

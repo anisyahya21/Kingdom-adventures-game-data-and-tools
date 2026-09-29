@@ -12,8 +12,10 @@ import { CategoryBadge } from "@/components/ka/category-badge";
 import type { KaCategory } from "@/design-system/category-styles";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { FACILITY_GACHA_EVENTS } from "@/game-data/facility-gacha-events";
+import { getMonsterSpawnReference, presentBriefingMission } from "@/game-data/briefing-room";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventStatus } from "@/lib/event-status";
+import { formatBriefingDate, getCurrentOrUpcomingSpecificMonsterTarget } from "@/lib/briefing-room-schedule";
 import { getNextWarioDungeonSpawn, isWarioDungeonLive } from "@/pages/wario-dungeon";
 
 const CREDIT_SOURCES = [
@@ -289,6 +291,35 @@ function resolveFacilityWindow(now: Date, offset: number) {
     .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())[0] ?? null;
 }
 
+type EventTimerCard = {
+  href: string;
+  title: string;
+  subtitle: string;
+  countdown: string;
+  status: EventStatus;
+  spriteSrc?: string;
+  detail?: string;
+  rotationDelayMs?: number;
+};
+
+function EventTimerDescription({ card }: { card: EventTimerCard }) {
+  if (!card.spriteSrc) {
+    return <div className="text-xs text-muted-foreground leading-relaxed">{card.subtitle}</div>;
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-border/60 bg-muted/30 p-1">
+        <img src={card.spriteSrc} alt="" className="h-full w-full object-contain" style={{ imageRendering: "pixelated" }} />
+      </div>
+      <div className="min-w-0 space-y-0.5">
+        <div className="text-xs leading-snug text-muted-foreground">{card.subtitle}</div>
+        {card.detail ? <div className="line-clamp-2 break-words text-[10px] leading-snug text-muted-foreground/80">{card.detail}</div> : null}
+      </div>
+    </div>
+  );
+}
+
 function HomeCountdownBanner() {
   const [now, setNow] = useState(() => new Date());
   const [activeIndex, setActiveIndex] = useState(0);
@@ -297,13 +328,6 @@ function HomeCountdownBanner() {
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const rotate = window.setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % 3);
-    }, 4500);
-    return () => window.clearInterval(rotate);
   }, []);
 
   const weeklyQuery = useQuery({
@@ -321,14 +345,33 @@ function HomeCountdownBanner() {
   const warioLive = isWarioDungeonLive(now, eventOffset);
   const facilityWindow = useMemo(() => resolveFacilityWindow(now, eventOffset), [eventOffset, now]);
   const facilityActive = facilityWindow ? (facilityWindow.startAt <= now && now <= facilityWindow.endAt) : false;
+  const briefingTarget = useMemo(
+    () => getCurrentOrUpcomingSpecificMonsterTarget(now, eventOffset),
+    [eventOffset, now],
+  );
+  const briefingMission = briefingTarget ? presentBriefingMission(briefingTarget.mission, null) : undefined;
+  const briefingMonsterName = briefingMission?.monsterName;
+  const briefingSpawn = getMonsterSpawnReference(briefingMonsterName);
 
-  const cards: Array<{
-    href: string;
-    title: string;
-    subtitle: string;
-    countdown: string;
-    status: EventStatus;
-  }> = [
+  const cards: EventTimerCard[] = [
+    {
+      href: "/briefing-room",
+      title: briefingMonsterName ? `Briefing Room: ${briefingMonsterName}` : "Briefing Room monster target",
+      subtitle: briefingTarget?.active
+        ? "Scheduled today (JST) · target changes at the next Japan day"
+        : briefingTarget
+        ? `Next scheduled target: ${formatBriefingDate(briefingTarget.date)} (JST)`
+        : "No upcoming specific-monster mission found",
+      detail: briefingSpawn
+        ? briefingSpawn.terrainName + " · Area Lv. " + briefingSpawn.minLevel + "–" + briefingSpawn.maxLevel
+        : "Spawn reference unavailable",
+      spriteSrc: briefingSpawn?.sprite,
+      countdown: briefingTarget
+        ? formatCountdown(briefingTarget.countdownAt.getTime() - now.getTime())
+        : "Unavailable",
+      status: briefingTarget?.active ? "live" : "inactive",
+      rotationDelayMs: 12_000,
+    },
     {
       href: "/wario-dungeon",
       title: "Wairo Dungeon",
@@ -339,6 +382,7 @@ function HomeCountdownBanner() {
         : "No upcoming spawn found",
       countdown: warioLive ? "Live now" : nextWario ? formatCountdown(nextWario.getTime() - now.getTime()) : "Unavailable",
       status: warioLive ? "live" : "inactive",
+      rotationDelayMs: 4_500,
     },
     {
       href: "/gacha-events",
@@ -352,6 +396,7 @@ function HomeCountdownBanner() {
         ? formatCountdown((facilityActive ? facilityWindow.endAt : facilityWindow.startAt).getTime() - now.getTime())
         : "-",
       status: facilityActive ? "live" : "inactive",
+      rotationDelayMs: 4_500,
     },
     {
       href: "/weekly-conquest",
@@ -371,10 +416,19 @@ function HomeCountdownBanner() {
         ? "Unavailable"
         : "Loading",
       status: weeklyCurrent ? "live" : "inactive",
+      rotationDelayMs: 4_500,
     },
   ];
 
   const activeCard = cards[activeIndex] ?? cards[0];
+  const rotationDelayMs = activeCard.rotationDelayMs ?? 4_500;
+
+  useEffect(() => {
+    const rotate = window.setTimeout(() => {
+      setActiveIndex((previous) => (previous + 1) % cards.length);
+    }, rotationDelayMs);
+    return () => window.clearTimeout(rotate);
+  }, [activeIndex, cards.length, rotationDelayMs]);
 
   return (
     <div className="rounded-2xl border p-4 sm:p-5 bg-muted/20">
@@ -397,7 +451,7 @@ function HomeCountdownBanner() {
                 </Badge>
               </div>
               <div className="text-2xl font-semibold tabular-nums leading-none">{activeCard.countdown}</div>
-              <div className="text-xs text-muted-foreground leading-relaxed">{activeCard.subtitle}</div>
+              <EventTimerDescription card={activeCard} />
               <div className="flex items-center gap-2 pt-1">
                 {cards.map((card, index) => (
                   <button
@@ -429,7 +483,7 @@ function HomeCountdownBanner() {
                 </Badge>
               </div>
               <div className="text-3xl font-semibold tabular-nums leading-tight">{activeCard.countdown}</div>
-              <div className="text-sm text-muted-foreground leading-relaxed">{activeCard.subtitle}</div>
+              <EventTimerDescription card={activeCard} />
               <div className="flex items-center gap-2 pt-1">
                 {cards.map((card, index) => (
                   <button

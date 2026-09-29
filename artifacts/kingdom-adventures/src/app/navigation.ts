@@ -35,6 +35,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Events",
     children: [
       { href: "/timed-events", label: "Overview" },
+      { href: "/briefing-room", label: "Briefing Room" },
       { href: "/gacha-events", label: "Gacha Events" },
       { href: "/weekly-conquest", label: "Weekly Conquest" },
       { href: "/wario-dungeon", label: "Wairo Dungeon" },

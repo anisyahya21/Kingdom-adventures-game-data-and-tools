@@ -119,6 +119,10 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventurers Timed Events",
     description: "Track Kingdom Adventurers timed events, weekly activities, gacha events, dungeons, and reward planning.",
   },
+  "/briefing-room": {
+    title: "Kingdom Adventurers Briefing Room Missions",
+    description: "See today’s and tomorrow’s Briefing Room missions, progression-scaled goals and rewards, monster spawn data, and the monthly specific-monster schedule.",
+  },
   "/weekly-conquest": {
     title: "Kingdom Adventurers Weekly Conquest",
     description: "Plan Kingdom Adventurers weekly conquest fights, rewards, timing, and event progress.",

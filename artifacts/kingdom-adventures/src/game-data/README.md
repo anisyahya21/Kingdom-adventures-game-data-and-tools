@@ -6,6 +6,8 @@ Pages should import game facts from here instead of defining page-local copies. 
 
 Current modules:
 
+- `briefing-room.ts`: Mission.csv mission templates and personalized goal/reward interpolation; monster spawn profiles come from the shared Monster.csv data used by the Monsters page.
+- `monster-spawn-data.ts`: shared Monster.csv biome/area-level records and monster sprites used by the Monsters page and Briefing Room.
 - `buildings.ts`: House.csv-derived building plot data, plot sizes, building groups, and building lookup helpers.
 - `job-buildings.ts`: job to building/shop relationships, building owner lookups, and Survey Corps HQ-derived survey-capable jobs.
 - `job-equipment.ts`: weapon and shield access helpers and fallbacks.

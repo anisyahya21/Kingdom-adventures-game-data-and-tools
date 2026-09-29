@@ -1,5 +1,8 @@
 import monsterCsv from "../../../../data/Sheet csv/KA GameData - Monster.csv?raw";
 import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
+import { parseCsv } from "@/lib/csv";
+
+export { parseCsv };
 
 export type MonsterSpawn = { area: string; level: number };
 
@@ -127,51 +130,6 @@ export const TERRAIN_CODE_TO_NAME: Record<number, string> = {
 };
 
 const COMMUNITY_SIGHTINGS_KEY = "ka_monster_community_sightings";
-
-export function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let inQuotes = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    if (inQuotes) {
-      if (char === '"') {
-        if (text[index + 1] === '"') {
-          field += '"';
-          index += 1;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        field += char;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      inQuotes = true;
-    } else if (char === ",") {
-      row.push(field);
-      field = "";
-    } else if (char === "\n") {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = "";
-    } else if (char !== "\r") {
-      field += char;
-    }
-  }
-
-  if (field.length > 0 || row.length > 0) {
-    row.push(field);
-    rows.push(row);
-  }
-
-  return rows;
-}
 
 export function parseTerrainMapCsv(text: string, headerRows = 0): number[][] {
   return parseCsv(text)
