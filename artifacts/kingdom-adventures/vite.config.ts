@@ -15,6 +15,10 @@ const basePath = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
   base: basePath,
+  // Worktrees may share installed dependencies, but each dev server needs its
+  // own optimized React bundles to avoid mixing module instances across builds.
+  cacheDir: path.resolve(import.meta.dirname, ".cache/vite"),
+  optimizeDeps: { entries: ["index.html"] },
   plugins: await (async () => {
     const plugins = [react(), tailwindcss()];
 
