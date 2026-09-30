@@ -43,6 +43,8 @@ This site is a Kingdom Adventures reference database. Game facts should have one
 
 ## Relationship Domains
 
+Player collection: `artifacts/kingdom-adventures/src/lib/player-profile.ts` owns the device-local equipment ownership/levels, character job/rank/stat levels and valuable counts. Profile, Loadout and Houses use the same reactive store. `src/game-data/player-valuables.ts` lists valuables from the canonical Valuable CSV; resident water effects remain in `resident-stat-items.ts`. Account display name/game ID continue to use the authenticated profile API.
+
 Jobs are central. A job can affect:
 
 - buildings and shops it can open

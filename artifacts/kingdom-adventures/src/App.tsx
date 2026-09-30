@@ -61,6 +61,7 @@ const WorldMapV2Page = lazy(() => import("@/pages/world-map-v2"));
 const WorldBuilderPage = lazy(() => import("@/pages/world-builder"));
 const TerrainCompositionLabPage = lazy(() => import("@/pages/terrain-composition-lab"));
 const AdminPage = lazy(() => import("@/pages/admin"));
+const PlayerProfilePage = lazy(() => import("@/pages/player-profile"));
 
 function RouteLoading() {
   return (
@@ -226,6 +227,7 @@ function Router() {
         <Route path="/updates">{() => <UpdatesPage />}</Route>
         <Route path="/add-guide">{() => <AddGuidePage />}</Route>
         <Route path="/admin">{() => <AdminPage />}</Route>
+        <Route path="/player-profile">{() => <PlayerProfilePage />}</Route>
         <Route path="/playthrough-guide">{() => <PlaythroughGuidePage />}</Route>
         <Route path="/test">{() => <TestPage />}</Route>
         <Route>{() => <NotFound />}</Route>

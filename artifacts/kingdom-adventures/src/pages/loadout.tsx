@@ -30,6 +30,7 @@ import { toPng } from "html-to-image";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { getEquipmentIcon } from "@/lib/equipment-icons";
+import { EquipmentSprite as CollapsedEquipmentIcon } from "@/components/ka/equipment-sprite";
 import { getSkillIcon } from "@/lib/skill-icons";
 import { planGear, type GoalMode, type StatGoal } from "@/lib/loadout-goal-planner";
 import { simulateBatch, simulateDuel, type Combatant, type BattleResult, type BatchResult } from "@/lib/combat-simulator";
@@ -39,10 +40,10 @@ import {
   residentStatItemBonuses,
   type ResidentStatItemCounts,
 } from "@/game-data/resident-stat-items";
-import { RESIDENT_STAT_ITEMS_KEY } from "@/lib/resident-valuable-settings";
 import { canPickHumanEquipment, canPickHumanSkill, dropUnsupportedHumanEquipment } from "@/lib/battle-picker-rules";
 import { KA_RANK_BADGE_CLASS } from "@/design-system/category-styles";
 import { MONSTER_CATALOG, MONSTER_PARAMETER_IDS } from "@/lib/battle-setup";
+import { usePlayerProfile, useResidentProfileValuables, useProfileStorageError } from "@/lib/player-profile";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,8 @@ type Job = {
 type EquipEntry = { name: string; level: number };
 type Loadout = {
   id: string;
+  profileCharacterId?: string;
+  useProfileInventory?: boolean;
   name: string;
   jobName: string;
   rank: string;
@@ -166,15 +169,17 @@ const RANK_COLORS: Record<string, string> = {
 function LoadoutMiniSummary({
   loadout,
   data,
+  profileEquipment,
   onRemove,
 }: {
   loadout: Loadout;
   data: SharedData;
+  profileEquipment?: Record<string, number>;
   onRemove?: () => void;
 }) {
-  const stats = calcStats(loadout, data);
+  const stats = calcStats(loadout, data, profileEquipment);
   const topStats = STAT_KEYS.filter((key) => stats[key]).slice(0, 5);
-  const equipment = loadout.equipment.slice(0, 5);
+  const equipment = withProfileInventory(loadout, profileEquipment).equipment.slice(0, 5);
 
   return (
     <span className="block rounded-md border border-border/70 bg-background/75 px-2 py-1.5 text-left">
@@ -267,6 +272,7 @@ function CompactNumberInput({
   max,
   ariaLabel,
   onValueChange,
+  disabled = false,
   className = "",
 }: {
   value: number;
@@ -274,6 +280,7 @@ function CompactNumberInput({
   max?: number;
   ariaLabel?: string;
   onValueChange: (value: number) => void;
+  disabled?: boolean;
   className?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -288,6 +295,7 @@ function CompactNumberInput({
       type="text"
       inputMode="numeric"
       aria-label={ariaLabel}
+      disabled={disabled}
       value={draft ?? String(value)}
       onFocus={(event) => event.currentTarget.select()}
       onChange={(event) => setDraft(event.target.value.replace(/[^\d]/g, ""))}
@@ -315,120 +323,8 @@ function getPreferredEquipmentIcon(icons: Record<string, string> | undefined, na
   return getEquipmentIcon(null, name) ?? getEquipmentIcon(icons, name);
 }
 
-function residentItemsSome(counts: ResidentStatItemCounts | undefined): boolean {
-  return RESIDENT_STAT_ITEMS.some((item) => (counts?.[item.key] ?? 0) > 0);
-}
-
 function residentItemsEqual(a: ResidentStatItemCounts | undefined, b: ResidentStatItemCounts | undefined): boolean {
   return RESIDENT_STAT_ITEMS.every((item) => (a?.[item.key] ?? 0) === (b?.[item.key] ?? 0));
-}
-
-const COLLAPSED_ICON_TRIM_CACHE = new Map<string, string>();
-
-function CollapsedEquipmentIcon({ src, alt }: { src: string; alt: string }) {
-  const [trimmedSrc, setTrimmedSrc] = useState<string>(src);
-
-  useEffect(() => {
-    if (!src) {
-      setTrimmedSrc(src);
-      return;
-    }
-
-    const cached = COLLAPSED_ICON_TRIM_CACHE.get(src);
-    if (cached) {
-      setTrimmedSrc(cached);
-      return;
-    }
-
-    let cancelled = false;
-    const image = new Image();
-    image.decoding = "async";
-
-    image.onload = () => {
-      if (cancelled) return;
-      const w = image.naturalWidth;
-      const h = image.naturalHeight;
-      if (!w || !h) {
-        setTrimmedSrc(src);
-        return;
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) {
-        setTrimmedSrc(src);
-        return;
-      }
-
-      ctx.drawImage(image, 0, 0);
-      const data = ctx.getImageData(0, 0, w, h).data;
-
-      let minX = w;
-      let minY = h;
-      let maxX = -1;
-      let maxY = -1;
-
-      for (let y = 0; y < h; y += 1) {
-        for (let x = 0; x < w; x += 1) {
-          const alpha = data[(y * w + x) * 4 + 3];
-          if (alpha === 0) continue;
-          if (x < minX) minX = x;
-          if (y < minY) minY = y;
-          if (x > maxX) maxX = x;
-          if (y > maxY) maxY = y;
-        }
-      }
-
-      if (maxX < minX || maxY < minY) {
-        COLLAPSED_ICON_TRIM_CACHE.set(src, src);
-        setTrimmedSrc(src);
-        return;
-      }
-
-      const trimPadding = 1;
-      const sx = Math.max(0, minX - trimPadding);
-      const sy = Math.max(0, minY - trimPadding);
-      const ex = Math.min(w - 1, maxX + trimPadding);
-      const ey = Math.min(h - 1, maxY + trimPadding);
-      const tw = ex - sx + 1;
-      const th = ey - sy + 1;
-
-      const out = document.createElement("canvas");
-      out.width = tw;
-      out.height = th;
-      const outCtx = out.getContext("2d");
-      if (!outCtx) {
-        setTrimmedSrc(src);
-        return;
-      }
-
-      outCtx.drawImage(image, sx, sy, tw, th, 0, 0, tw, th);
-      const url = out.toDataURL("image/png");
-      COLLAPSED_ICON_TRIM_CACHE.set(src, url);
-      if (!cancelled) setTrimmedSrc(url);
-    };
-
-    image.onerror = () => {
-      if (!cancelled) setTrimmedSrc(src);
-    };
-
-    image.src = src;
-
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
-
-  return (
-    <img
-      src={trimmedSrc}
-      alt={alt}
-      className="h-[80px] w-[80px] shrink-0 object-contain"
-      style={{ imageRendering: "pixelated" }}
-    />
-  );
 }
 
 // ─── Weapon proficiency helpers ───────────────────────────────────────────────
@@ -656,10 +552,17 @@ function calcJobStats(loadout: Loadout, data: SharedData): Record<string, number
   return out;
 }
 
-function calcEquipStats(loadout: Loadout, data: SharedData): Record<string, number> {
+function withProfileInventory(loadout: Loadout, profileEquipment: Record<string, number> = {}): Loadout {
+  if (!loadout.useProfileInventory) return loadout;
+  return { ...loadout, equipment: loadout.equipment
+    .filter((item) => profileEquipment[item.name] != null)
+    .map((item) => ({ ...item, level: profileEquipment[item.name] ?? item.level })) };
+}
+
+function calcEquipStats(loadout: Loadout, data: SharedData, profileEquipment?: Record<string, number>): Record<string, number> {
   const out: Record<string, number> = {};
   const overrides = data.overrides ?? {};
-  for (const { name, level } of loadout.equipment) {
+  for (const { name, level } of withProfileInventory(loadout, profileEquipment).equipment) {
     const rule = getEquipRuleState(loadout, data, name);
     if (rule.blocked) continue;
     const multiplier = rule.appliesPenalty ? 0.5 : 1;
@@ -677,9 +580,9 @@ function calcEquipStats(loadout: Loadout, data: SharedData): Record<string, numb
   return out;
 }
 
-function calcStats(loadout: Loadout, data: SharedData): Record<string, number> {
+function calcStats(loadout: Loadout, data: SharedData, profileEquipment?: Record<string, number>): Record<string, number> {
   const job = calcJobStats(loadout, data);
-  const equip = calcEquipStats(loadout, data);
+  const equip = calcEquipStats(loadout, data, profileEquipment);
   const items = residentStatItemBonuses(loadout.residentStatItems);
   const total = { ...job };
   for (const [k, v] of Object.entries(equip)) total[k] = (total[k] ?? 0) + v;
@@ -736,8 +639,8 @@ function baseManualCombatant(name: string): Combatant {
   };
 }
 
-function loadoutToCombatant(loadout: Loadout, data: SharedData): Combatant {
-  const stats = calcStats(loadout, data);
+function loadoutToCombatant(loadout: Loadout, data: SharedData, profileEquipment?: Record<string, number>): Combatant {
+  const stats = calcStats(loadout, data, profileEquipment);
   return {
     name: loadout.name || "Loadout",
     maxHp: Math.max(1, stats.hp ?? 1),
@@ -752,7 +655,7 @@ function loadoutToCombatant(loadout: Loadout, data: SharedData): Combatant {
   };
 }
 
-function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: SharedData }) {
+function LoadoutCombatTool({ loadouts, data, profileEquipment }: { loadouts: Loadout[]; data: SharedData; profileEquipment: Record<string, number> }) {
   const [, navigate] = useLocation();
   const [aName, setAName] = useState("Attacker A");
   const [bName, setBName] = useState("Attacker B");
@@ -774,16 +677,16 @@ function LoadoutCombatTool({ loadouts, data }: { loadouts: Loadout[]; data: Shar
       return { ...aManual, name: aName.trim() || aManual.name || "Attacker A" };
     }
     if (!aImported) return null;
-    return { ...loadoutToCombatant(aImported, data), name: aName.trim() || aImported.name || "Attacker A" };
-  }, [aMode, aManual, aImported, data, aName]);
+    return { ...loadoutToCombatant(aImported, data, profileEquipment), name: aName.trim() || aImported.name || "Attacker A" };
+  }, [aMode, aManual, aImported, data, aName, profileEquipment]);
 
   const resolvedB = useMemo(() => {
     if (bMode === "manual") {
       return { ...bManual, name: bName.trim() || bManual.name || "Attacker B" };
     }
     if (!bImported) return null;
-    return { ...loadoutToCombatant(bImported, data), name: bName.trim() || bImported.name || "Attacker B" };
-  }, [bMode, bManual, bImported, data, bName]);
+    return { ...loadoutToCombatant(bImported, data, profileEquipment), name: bName.trim() || bImported.name || "Attacker B" };
+  }, [bMode, bManual, bImported, data, bName, profileEquipment]);
 
   const run = () => {
     if (!resolvedA || !resolvedB) return;
@@ -1081,10 +984,10 @@ function statRulePasses(loadout: Loadout, stats: Record<string, number>, stat: s
   return true;
 }
 
-function unitMatchesRule(loadout: Loadout | null, rule: BoxUnitRule | undefined, data: SharedData) {
+function unitMatchesRule(loadout: Loadout | null, rule: BoxUnitRule | undefined, data: SharedData, profileEquipment?: Record<string, number>) {
   if (!rule) return "empty";
   if (!loadout) return "missing";
-  const stats = calcStats(loadout, data);
+  const stats = calcStats(loadout, data, profileEquipment);
   if (!rule.anyJob && rule.jobOptions.length > 0 && !rule.jobOptions.includes(loadout.jobName)) return "fail";
   for (const stat of STAT_KEYS) {
     if (!statRulePasses(loadout, stats, stat, rule.stats[stat])) return "fail";
@@ -1321,6 +1224,7 @@ function BoxSetupCard({
   setup,
   loadouts,
   data,
+  profileEquipment,
   onChange,
   onPublish,
   publishStatus,
@@ -1330,6 +1234,7 @@ function BoxSetupCard({
   setup: BoxSetup;
   loadouts: Loadout[];
   data: SharedData;
+  profileEquipment: Record<string, number>;
   onChange: (next: BoxSetup) => void;
   onPublish: (setup: BoxSetup) => void;
   publishStatus?: "working" | "ok" | "error";
@@ -1385,7 +1290,7 @@ function BoxSetupCard({
     const examples = getAttemptIds(attempt, cell.id)
       .map((id) => loadouts.find((loadout) => loadout.id === id) ?? null)
       .filter(Boolean) as Loadout[];
-    return examples.some((loadout) => unitMatchesRule(loadout, cell.rule, data) === "pass");
+    return examples.some((loadout) => unitMatchesRule(loadout, cell.rule, data, profileEquipment) === "pass");
   }).length;
   const shareSetup = async () => {
     setShareStatus("working");
@@ -1477,7 +1382,7 @@ function BoxSetupCard({
               setAttempt(removeAttemptId(attempt, cell.id, id));
               setExampleViewIndex((prev) => ({ ...prev, [cell.id]: Math.max(0, activeExampleIndex - 1) }));
             };
-            const match = cell.rule && examples.some((loadout) => unitMatchesRule(loadout, cell.rule, data) === "pass") ? "pass" : examples.length > 0 ? "fail" : "missing";
+            const match = cell.rule && examples.some((loadout) => unitMatchesRule(loadout, cell.rule, data, profileEquipment) === "pass") ? "pass" : examples.length > 0 ? "fail" : "missing";
             const stateClass = cell.assignedToPet
               ? "border-amber-400/70 bg-amber-50/40 dark:bg-amber-950/10"
               : cell.assignedToFiller
@@ -1517,7 +1422,7 @@ function BoxSetupCard({
                     {cell.rule.skillRules.length > 0 && <div className="text-[10px] text-muted-foreground">{cell.rule.skillRules.length} skill rule{cell.rule.skillRules.length === 1 ? "" : "s"}</div>}
                     {activeExample && (
                       <div className="space-y-1">
-                        <LoadoutMiniSummary loadout={activeExample} data={data} onRemove={() => removeExample(activeExample.id)} />
+                        <LoadoutMiniSummary loadout={activeExample} data={data} profileEquipment={profileEquipment} onRemove={() => removeExample(activeExample.id)} />
                       </div>
                     )}
                     <div className="mt-auto flex items-center gap-1.5">
@@ -1540,7 +1445,7 @@ function BoxSetupCard({
                   <div className="flex min-h-28 flex-col justify-center gap-2 text-xs text-muted-foreground">
                     {activeExample ? (
                       <div className="space-y-1">
-                        <LoadoutMiniSummary loadout={activeExample} data={data} onRemove={() => removeExample(activeExample.id)} />
+                        <LoadoutMiniSummary loadout={activeExample} data={data} profileEquipment={profileEquipment} onRemove={() => removeExample(activeExample.id)} />
                       </div>
                     ) : <span className="text-center">Empty</span>}
                     <div className="flex items-center justify-center gap-1.5">
@@ -1657,7 +1562,7 @@ function BoxSetupCard({
                         </div>
                         <div className="mt-3 flex min-h-6 flex-wrap gap-1.5">
                           {exampleLoadouts.map((loadout) => {
-                            const match = unitMatchesRule(loadout, openCell?.rule, data);
+                            const match = unitMatchesRule(loadout, openCell?.rule, data, profileEquipment);
                             return (
                               <ToneBadge key={loadout.id} category="job" className="gap-1 px-2 py-0.5 text-xs">
                                 {loadout.name || "Unnamed Loadout"}{loadout.jobName ? ` - ${loadout.jobName}` : ""}
@@ -1880,6 +1785,7 @@ function GoalPlannerPanel({
   baseStats,
   onApply,
   onChange,
+  profileEquipment,
 }: {
   loadout: Loadout;
   data: SharedData;
@@ -1887,12 +1793,15 @@ function GoalPlannerPanel({
   baseStats: Record<string, number>;
   onApply: (picks: Array<{ name: string; level: number }>) => void;
   onChange: (next: Loadout) => void;
+  profileEquipment: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
   const planner = loadout.goalPlanner ?? {};
   const goals = planner.goals ?? {};
   const unavailable = useMemo(() => planner.unavailable ?? [], [planner.unavailable]);
   const ownedLevels = planner.ownedLevels ?? {};
+  const useProfileInventory = loadout.useProfileInventory ?? false;
+  const mergedOwnedLevels = useProfileInventory ? profileEquipment : ownedLevels;
 
   const setPlanner = (patch: Partial<NonNullable<Loadout["goalPlanner"]>>) =>
     onChange({ ...loadout, goalPlanner: { ...planner, ...patch } });
@@ -1914,7 +1823,7 @@ function GoalPlannerPanel({
     const contributions = new Map<string, Record<string, number>>();
 
     for (const [name, slot] of Object.entries(slotMap)) {
-      if (unavailable.includes(name)) continue;
+      if ((!useProfileInventory && unavailable.includes(name)) || (useProfileInventory && profileEquipment[name] == null)) continue;
       if (!overrides[name]) continue;
       const weaponType = slot === "Shield" ? "Shield" : data.weaponTypes?.[name] ?? null;
       const prof = slot === "Shield"
@@ -1952,13 +1861,13 @@ function GoalPlannerPanel({
         .filter((entry) => entry.items.length > 0),
       contribution: contributionOf,
     };
-  }, [data, loadout.jobName, loadout.skills, unavailable]);
+  }, [data, loadout.jobName, loadout.skills, unavailable, useProfileInventory, profileEquipment]);
 
   const result = useMemo(() => {
     if (!open) return null;
     if (Object.keys(goals).length === 0) return null;
-    return planGear({ baseStats, goals, slots, contribution, pinnedLevels: ownedLevels });
-  }, [open, baseStats, goals, slots, contribution, ownedLevels]);
+    return planGear({ baseStats, goals, slots, contribution, pinnedLevels: mergedOwnedLevels });
+  }, [open, baseStats, goals, slots, contribution, mergedOwnedLevels]);
 
   const goalKeys = Object.keys(goals);
 
@@ -1988,6 +1897,10 @@ function GoalPlannerPanel({
 
       {open && (
         <div className="space-y-3 border-t border-border/50 px-3 py-3">
+          <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <input type="checkbox" checked={useProfileInventory} onChange={(event) => onChange({ ...loadout, useProfileInventory: event.target.checked })} />
+            Use saved profile inventory ({Object.keys(profileEquipment).length} owned items; unlisted items locked)
+          </label>
           {/* Targets */}
           <div>
             <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Targets</p>
@@ -2069,7 +1982,7 @@ function GoalPlannerPanel({
                 <div className="space-y-1">
                   {result.picks.map((pick) => {
                     const icon = getPreferredEquipmentIcon(data.equipIcons, pick.item);
-                    const pinned = ownedLevels[pick.item];
+                    const pinned = mergedOwnedLevels[pick.item];
                     return (
                       <div key={`${pick.slot}-${pick.item}`} className="flex flex-wrap items-center gap-2 rounded-md border border-border/50 bg-background/50 px-2 py-1.5">
                         <span className="w-16 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{pick.slot}</span>
@@ -2081,6 +1994,7 @@ function GoalPlannerPanel({
                           Lv
                           <CompactNumberInput value={pinned ?? pick.level} min={1} max={99} ariaLabel={`${pick.item} owned level`}
                             className="w-14"
+                            disabled={useProfileInventory && profileEquipment[pick.item] != null}
                             onValueChange={(value) => setPlanner({ ownedLevels: { ...ownedLevels, [pick.item]: value } })} />
                         </label>
                         <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]"
@@ -2368,12 +2282,13 @@ function HouseholdPetRow({
   );
 }
 
-function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
+function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate, profileEquipment }: {
   loadout: Loadout;
   data: SharedData;
   onChange: (updated: Loadout) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  profileEquipment: Record<string, number>;
 }) {
   const [renamingName, setRenamingName] = useState(false);
   const [nameVal, setNameVal] = useState(loadout.name);
@@ -2391,7 +2306,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
   const job = jobs[loadout.jobName];
   const ranks = job ? Object.keys(job.ranks).sort() : ["S","A","B","C","D"];
   const jobStats = useMemo(() => calcJobStats(loadout, data), [loadout, data]);
-  const equipStats = useMemo(() => calcEquipStats(loadout, data), [loadout, data]);
+  const equipStats = useMemo(() => calcEquipStats(loadout, data, profileEquipment), [loadout, data, profileEquipment]);
   const itemBonuses = useMemo(() => residentStatItemBonuses(loadout.residentStatItems), [loadout.residentStatItems]);
   // Job curve + valuables only: what the goal planner starts from.
   const plannerBase = useMemo(() => {
@@ -2433,7 +2348,8 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
     }
     const existingLevel = loadout.equipment.find((item) => item.name === name)?.level;
     const rememberedLevel = rememberedEquipLevels[name];
-    const nextLevel = Math.max(1, Math.min(99, existingLevel ?? rememberedLevel ?? 1));
+    const profileLevel = loadout.useProfileInventory ? profileEquipment[name] : undefined;
+    const nextLevel = Math.max(1, Math.min(99, profileLevel ?? existingLevel ?? rememberedLevel ?? 1));
     upd("equipment", [...withoutSlot, { name, level: nextLevel }]);
     setEquipLevelInputs((prev) => ({ ...prev, [name]: String(nextLevel) }));
     setSlotPickerOpen((prev) => ({ ...prev, [slot]: false }));
@@ -2573,7 +2489,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
       {/* Hidden screenshot node */}
       <div style={{ position: "absolute", top: -9999, left: -9999, pointerEvents: "none" }}>
         <div ref={hiddenRef}>
-          <ScreenshotCard loadout={loadout} stats={stats} />
+          <ScreenshotCard loadout={withProfileInventory(loadout, profileEquipment)} stats={stats} />
         </div>
       </div>
 
@@ -2767,7 +2683,13 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
         <div className="space-y-3">
           {/* Equipment — 5-slot card grid */}
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Equipment</p>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Equipment</p>
+              <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <input type="checkbox" checked={loadout.useProfileInventory ?? false} onChange={(event) => upd("useProfileInventory", event.target.checked)} />
+                Restrict to saved profile inventory
+              </label>
+            </div>
             {(() => {
               const slotMap = data.slotAssignments ?? {};
               // Items grouped by slot
@@ -2787,7 +2709,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                       const slotItems = Object.entries(slotMap)
                         .filter(([, s]) => s === slot)
                         .map(([n]) => n)
-                        .filter((name) => canPickHumanEquipment(loadout, data, name))
+                        .filter((name) => canPickHumanEquipment(loadout, data, name) && (!loadout.useProfileInventory || profileEquipment[name] != null))
                         .sort();
                       return (
                         <div key={slot} className={`flex min-w-0 flex-col rounded-lg border-2 transition-colors ${eq ? "border-primary/30 bg-primary/5" : "border-dashed border-border/60 bg-muted/20"}`}>
@@ -2862,13 +2784,15 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
                                     </div>
                                   );
                                 })()}
+                                {loadout.useProfileInventory && profileEquipment[eq.name] == null && <p className="text-center text-[9px] text-destructive">Not owned in profile; excluded from totals</p>}
                                 <div className="flex items-center gap-1 justify-center">
                                   <span className="text-xs text-muted-foreground">Lv</span>
-                                  <Input type="text" inputMode="numeric" value={equipLevelInputs[eq.name] ?? String(eq.level)}
+                                  <Input aria-label={`${eq.name} equipment level`} type="text" inputMode="numeric" value={loadout.useProfileInventory && profileEquipment[eq.name] != null ? String(profileEquipment[eq.name]) : equipLevelInputs[eq.name] ?? String(eq.level)}
                                     onChange={(e) => setEquipLevelInput(eq.name, e.target.value)}
                                     onKeyDown={(e) => commitOnEnter(e, () => commitEquipLevel(eq.name, e.currentTarget.value))}
                                     onBlur={(e) => commitEquipLevel(eq.name, e.target.value)}
                                     onFocus={(e) => e.currentTarget.select()}
+                                    disabled={loadout.useProfileInventory && profileEquipment[eq.name] != null}
                                     className="h-7 w-16 rounded-md px-2 text-right text-xs font-semibold tabular-nums" />
                                 </div>
                               </>
@@ -2999,6 +2923,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate }: {
           data={data}
           baseStats={plannerBase}
           onChange={onChange}
+          profileEquipment={profileEquipment}
           onApply={(picks) => {
             // Replace only the suggested slots so gear in other slots is kept.
             const slotMap = data.slotAssignments ?? {};
@@ -3055,15 +2980,17 @@ export default function LoadoutPage() {
   const { data, isLoading } = useSharedData();
   const queryClient = useQueryClient();
   const { loadouts, save } = usePrivateLoadouts();
+  const [playerProfile] = usePlayerProfile();
+  const [residentItems, setResidentItems] = useResidentProfileValuables();
+  const profileStorageError = useProfileStorageError();
   const { setups, save: saveSetups } = useCommunityBoxSetups(data);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | "all" | null>(null);
+  const [profileImportNotice, setProfileImportNotice] = useState("");
   const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_loadout", "");
   const [showNote, setShowNote] = useState(false);
   // Universal "Water of ..." valuables: entered once for the whole page and
   // mirrored onto every loadout so all stat totals pick them up.
-  const [residentItems, setResidentItems] = useLocalFeature<ResidentStatItemCounts>(RESIDENT_STAT_ITEMS_KEY, {});
-  const residentMigrationRef = useRef(false);
   const [activeToolTab, setActiveToolTab] = useState<BoxSetupKind | "combat">("kairo");
   const [sharedSetup, setSharedSetup] = useState<BoxSetupShare | null>(null);
   const [shareLoadError, setShareLoadError] = useState<string | null>(null);
@@ -3076,6 +3003,36 @@ export default function LoadoutPage() {
     save([...loadouts, newLoadout]);
     setExpandedId(id);
     return id;
+  };
+
+  const importProfileCharacters = () => {
+    let added = 0;
+    let updated = 0;
+    const byProfileId = new Map(loadouts.filter((item) => item.profileCharacterId).map((item) => [item.profileCharacterId!, item]));
+    const next = [...loadouts];
+    for (const character of playerProfile.characters ?? []) {
+      const existing = byProfileId.get(character.id);
+      const synced: Loadout = {
+        ...(existing ?? { id: `profile:${character.id}`, equipment: [], skills: [] }),
+        profileCharacterId: character.id,
+        useProfileInventory: existing?.useProfileInventory ?? true,
+        name: character.jobName,
+        jobName: character.jobName,
+        rank: character.rank,
+        statLevels: { ...character.statLevels },
+        equipment: existing?.equipment ?? [],
+        skills: existing?.skills ?? [],
+      };
+      if (existing) {
+        next[next.findIndex((item) => item.id === existing.id)] = synced;
+        updated += 1;
+      } else {
+        next.push(synced);
+        added += 1;
+      }
+    }
+    if (added || updated) save(next);
+    setProfileImportNotice(`${added} added, ${updated} updated`);
   };
 
   const updateLoadout = useCallback((updated: Loadout) => {
@@ -3091,20 +3048,10 @@ export default function LoadoutPage() {
     const source = loadouts.find((l) => l.id === id);
     if (!source) return;
     const newId = generateId();
-    const duplicate: Loadout = { ...source, id: newId, name: `Copy of ${source.name}` };
+    const duplicate: Loadout = { ...source, id: newId, profileCharacterId: undefined, name: `Copy of ${source.name}` };
     save([...loadouts, duplicate]);
     setExpandedId(newId);
   }, [loadouts, save]);
-
-  // One-time: adopt counts an older loadout may already carry.
-  useEffect(() => {
-    if (residentMigrationRef.current) return;
-    if (loadouts.length === 0 && !data) return;
-    residentMigrationRef.current = true;
-    if (residentItemsSome(residentItems)) return;
-    const carried = loadouts.map((l) => l.residentStatItems).find((counts) => residentItemsSome(counts));
-    if (carried) setResidentItems({ ...carried });
-  }, [loadouts, data, residentItems, setResidentItems]);
 
   // Keep every loadout in step with the universal setting.
   useEffect(() => {
@@ -3220,6 +3167,9 @@ export default function LoadoutPage() {
             title="Characters"
             actions={(
               <div className="flex flex-wrap items-center gap-2">
+                {(playerProfile.characters?.length ?? 0) > 0 && <Button variant="outline" size="sm" onClick={importProfileCharacters} className="min-h-11">Add/update profile characters</Button>}
+                <Link href="/player-profile" className="inline-flex min-h-11 items-center text-xs text-primary underline-offset-2 hover:underline">Edit profile</Link>
+                {profileImportNotice && <span className="text-[10px] text-muted-foreground">Profile sync: {profileImportNotice}</span>}
                 <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
                   <Info className="w-3.5 h-3.5" />
                 </Button>
@@ -3275,12 +3225,13 @@ export default function LoadoutPage() {
                     <span className="w-10 shrink-0 text-right text-[11px] tabular-nums text-amber-600 dark:text-amber-400">
                       {bonus ? `+${bonus}` : ""}
                     </span>
-                    <CompactNumberInput value={used} min={0} max={99} ariaLabel={`${item.name} used`} className="w-14 shrink-0"
-                      onValueChange={(value) => setResidentItems({ ...residentItems, [item.key]: value })} />
+                    <CompactNumberInput value={used} min={0} max={Number.MAX_SAFE_INTEGER} ariaLabel={`${item.name} used`} className="w-14 shrink-0"
+                      onValueChange={(value) => setResidentItems((previous) => ({ ...previous, [item.key]: value }))} />
                   </label>
                 );
               })}
             </div>
+            {profileStorageError && <p role="alert" className="mt-2 text-sm text-destructive">{profileStorageError}</p>}
             <p className="mt-2 text-[11px] leading-tight text-muted-foreground">
               Each one raises that stat by {RESIDENT_STAT_ITEMS[0].amount} for all residents (original Valuable table). There is no equivalent item for
               Speed, Luck, Intelligence, Dexterity, Gather, Move or Heart. These values are copied onto every loadout below.
@@ -3303,8 +3254,9 @@ export default function LoadoutPage() {
         <div className="grid gap-3 xl:grid-cols-2">
           {loadouts.map((loadout) => {
             const isOpen = expandedId === loadout.id;
+            const displayedLoadout = withProfileInventory(loadout, playerProfile.equipment);
             const job = data?.jobs?.[loadout.jobName];
-            const stats = data ? calcStats(loadout, data) : {};
+            const stats = data ? calcStats(loadout, data, playerProfile.equipment) : {};
             const hasStats = STAT_KEYS.some((k) => stats[k]);
 
             return (
@@ -3351,7 +3303,7 @@ export default function LoadoutPage() {
                     {/* Collapsed detail rows */}
                     {!isOpen && (() => {
                       const slotMap = data?.slotAssignments ?? {};
-                      const weaponEntry = loadout.equipment.find((e) => slotMap[e.name] === "Weapon");
+                      const weaponEntry = displayedLoadout.equipment.find((e) => slotMap[e.name] === "Weapon");
                       const shieldEntry = loadout.equipment.find((e) => slotMap[e.name] === "Shield");
                       return (
                       <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(150px,205px)_minmax(0,1fr)] sm:items-start">
@@ -3388,9 +3340,9 @@ export default function LoadoutPage() {
                           )}
                         </div>
                         <div className="min-w-0 space-y-2">
-                          {loadout.equipment.length > 0 && (
+                          {displayedLoadout.equipment.length > 0 && (
                             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 lg:gap-3">
-                              {loadout.equipment.map((eq) => {
+                              {displayedLoadout.equipment.map((eq) => {
                                 const icon = getPreferredEquipmentIcon(data?.equipIcons, eq.name);
                                 const slot = data?.slotAssignments?.[eq.name];
                                 const rule = data ? getEquipRuleState(loadout, data, eq.name) : null;
@@ -3454,6 +3406,7 @@ export default function LoadoutPage() {
                           onChange={updateLoadout}
                           onDelete={() => setPendingDeleteId(loadout.id)}
                           onDuplicate={() => duplicateLoadout(loadout.id)}
+                          profileEquipment={playerProfile.equipment ?? {}}
                         />
                       ) : (
                         <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
@@ -3510,6 +3463,7 @@ export default function LoadoutPage() {
                   setup={sharedSetup?.setup.id === setup.id ? sharedSetup.setup : setup}
                   loadouts={loadouts}
                   data={data}
+                  profileEquipment={playerProfile.equipment}
                   onChange={sharedSetup?.setup.id === setup.id ? () => {} : updateSetup}
                   onPublish={publishSetup}
                   publishStatus={publishStatus[setup.id]}
@@ -3520,7 +3474,7 @@ export default function LoadoutPage() {
             ))}
 
             {activeToolTab === "combat" && (
-              <LoadoutCombatTool loadouts={loadouts} data={data} />
+              <LoadoutCombatTool loadouts={loadouts} data={data} profileEquipment={playerProfile.equipment} />
             )}
           </div>
         )}

@@ -55,6 +55,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Community",
     children: [
+      { href: "/player-profile", label: "Player Profile" },
       { href: "https://discord.gg/5suHUXQ9p", label: "Kairosoft Community Discord", external: true },
     ],
   },

@@ -248,7 +248,7 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/add-friends",
     title: "Add Friends",
-    description: "Join the active player pool with your profile display name and game ID. Entries expire after 2 weeks and can be refreshed to move to the top.",
+    description: "Join the active player pool with your profile display name and game ID. Entries expire after 30 days and can be refreshed to move to the top.",
     icon: <UserPlus className="w-6 h-6 text-emerald-500" />,
     badge: "Community",
     badgeCategory: "service" satisfies KaCategory,

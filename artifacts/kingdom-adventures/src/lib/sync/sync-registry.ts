@@ -25,6 +25,17 @@ import type { SyncFeature } from "./sync-types";
 
 export const SYNC_REGISTRY: readonly SyncFeature[] = [
 
+  {
+    id: "player-profile",
+    route: "/player-profile",
+    mode: "local-only",
+    scope: "personal",
+    localKeys: ["ka_player_profile_v1", "ka_resident_stat_items", "houses-facilities-know-how", "houses-facilities-craftsman"],
+    statusLabel: "Player Inventory and Valuables",
+    enabled: true,
+    notes: "Device-local player inventory shared with Loadout and Facilities. Legacy keys are compatibility mirrors; device linking currently carries identity only, not personal saves.",
+  },
+
   // ── Home ────────────────────────────────────────────────────────────────────
 
   {
