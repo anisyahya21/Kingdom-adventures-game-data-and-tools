@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { apiUrl, googleSheetUrl } from "@/lib/api";
 import { getEquipmentIcon, getEquipmentIconKeys } from "@/lib/equipment-icons";
+import { compareEquipmentOriginalOrder } from "@/lib/equipment-order";
 import { parseCsv } from "@/lib/monster-truth";
 import { matchesLooseSearch } from "@/lib/search-normalize";
 import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
@@ -1372,6 +1373,8 @@ export default function EquipmentPage() {
         if (typeof av === "string" && typeof bv === "string") return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
         return sortDir === "asc" ? Number(av) - Number(bv) : Number(bv) - Number(av);
       });
+    } else {
+      list = [...list].sort(compareEquipmentOriginalOrder);
     }
     return list;
   }, [items, compareMode, selectedUids, search, slotFilters, rankFilters, excludeStatFilters, studioFilters, intFilters, craftFilter, favsOnly, favs, sortCol, sortDir, sortByInc, overrides, getItemStatVal, getItemIncStatVal, getItemSlot, elementSortFirst]);
@@ -1563,6 +1566,16 @@ export default function EquipmentPage() {
           >
             <Star className={`w-3.5 h-3.5 ${favsOnly ? "fill-yellow-400 text-yellow-400" : ""}`} />
             Favorites{favsOnly && favs.size > 0 ? ` (${favs.size})` : ""}
+          </Button>
+          <Button
+            size="sm"
+            variant={!sortCol ? "outline" : "ghost"}
+            className={`h-8 ${!sortCol ? "border-primary text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            onClick={() => setSortCol(null)}
+            aria-pressed={!sortCol}
+            title="Show equipment in its original selection order"
+          >
+            Game order
           </Button>
           <SearchableSelect
             value={rowsToShow}

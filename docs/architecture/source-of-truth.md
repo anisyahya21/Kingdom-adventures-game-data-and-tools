@@ -10,7 +10,7 @@ This site is a Kingdom Adventures reference database. Game facts should have one
 | Job to building/shop relationships | `artifacts/kingdom-adventures/src/game-data/job-buildings.ts` | Used by Jobs, Guides, Houses, and Survey. Do not duplicate `KNOWN_JOB_SHOPS`. |
 | Job range data | `artifacts/kingdom-adventures/src/lib/generated-job-range-data.ts` | Generated data. Do not hand-edit unless regenerating is unavailable. |
 | Job learned skills by rank | `artifacts/kingdom-adventures/src/lib/generated-job-skill-data.ts` | Generated from `KA GameData - Job.csv` skill ids and `KA GameData - Skill.csv` names. Do not hand-edit unless regenerating is unavailable. |
-| Equipment data | `artifacts/kingdom-adventures/src/lib/generated-equipment-data.ts` | Generated equipment catalog and exchange data. |
+| Equipment data and selection order | `artifacts/kingdom-adventures/src/lib/generated-equipment-data.ts`; `artifacts/kingdom-adventures/src/lib/equipment-order.ts` | Generated equipment catalog and exchange data; the ordering helper derives the original equipment selection-list order from raw Equip.csv row positions. This order applies to the equipment selection list and does not claim to match every game screen. |
 | Character asset composition | `docs/reverse-engineering/claims.json` | Legacy composition notes are quarantined pending claim-level revalidation. Existing previews are not native-rule certification. |
 | Local shared data fallback | `artifacts/kingdom-adventures/src/lib/local-shared-data.ts` | App-wide fallback data used when API/shared data is unavailable. |
 | Monster truth/parsing helpers | `artifacts/kingdom-adventures/src/lib/monster-truth.ts` | CSV parsing and monster data helpers. |
