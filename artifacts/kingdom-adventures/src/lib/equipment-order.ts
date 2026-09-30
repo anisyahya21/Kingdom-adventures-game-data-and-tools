@@ -62,3 +62,20 @@ export function createEquipmentOrderComparator(csvText: string): EquipmentOrderC
 }
 
 export const compareEquipmentOriginalOrder = createEquipmentOrderComparator(equipmentCsv);
+
+export function compareEquipmentNamesOriginalOrder(a: string, b: string): number {
+  return compareEquipmentOriginalOrder(
+    { sourceId: null, name: a },
+    { sourceId: null, name: b },
+  );
+}
+
+export function compareEquipmentCatalogOriginalOrder<T extends { id: number; name: string }>(
+  a: T,
+  b: T,
+): number {
+  return compareEquipmentOriginalOrder(
+    { sourceId: a.id, name: a.name },
+    { sourceId: b.id, name: b.name },
+  );
+}

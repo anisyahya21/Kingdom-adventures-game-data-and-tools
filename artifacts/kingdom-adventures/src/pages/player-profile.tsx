@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EQUIPMENT_CATALOG } from "@/lib/generated-equipment-data";
+import { compareEquipmentCatalogOriginalOrder } from "@/lib/equipment-order";
 import { getEquipmentIcon } from "@/lib/equipment-icons";
 import { localSharedData } from "@/lib/local-shared-data";
 import {
@@ -27,7 +28,6 @@ import { RESIDENT_STAT_ITEMS } from "@/game-data/resident-stat-items";
 import { EquipmentSprite } from "@/components/ka/equipment-sprite";
 
 type EquipmentEntry = (typeof EQUIPMENT_CATALOG)[number];
-const rankSort = ["F", "E", "D", "C", "B", "A", "S"];
 const jobsData = localSharedData as unknown as SharedJobProfileData;
 const JOBS = Object.keys(jobsData.jobs ?? {})
   .sort((a, b) => a.localeCompare(b))
@@ -171,11 +171,7 @@ export default function PlayerProfilePage() {
           .toLowerCase()
           .includes(query)
       );
-    }).sort(
-      (a, b) =>
-        rankSort.indexOf(a.rankLabel) - rankSort.indexOf(b.rankLabel) ||
-        a.name.localeCompare(b.name),
-    );
+    }).sort(compareEquipmentCatalogOriginalOrder);
   }, [profile.equipment, category, search, ownedOnly]);
 
   const saveAccount = async () => {

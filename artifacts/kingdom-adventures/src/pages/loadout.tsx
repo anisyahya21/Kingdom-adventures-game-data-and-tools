@@ -44,6 +44,7 @@ import { canPickHumanEquipment, canPickHumanSkill, dropUnsupportedHumanEquipment
 import { KA_RANK_BADGE_CLASS } from "@/design-system/category-styles";
 import { MONSTER_CATALOG, MONSTER_PARAMETER_IDS } from "@/lib/battle-setup";
 import { usePlayerProfile, useResidentProfileValuables, useProfileStorageError } from "@/lib/player-profile";
+import { compareEquipmentNamesOriginalOrder } from "@/lib/equipment-order";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1058,7 +1059,7 @@ function BoxUnitRuleEditor({ rule, data, onChange }: { rule: BoxUnitRule; data: 
     const slotMap = data.slotAssignments ?? {};
     const out: Record<string, string[]> = {};
     for (const { slot } of EQUIP_SLOTS) {
-      out[slot] = Object.entries(slotMap).filter(([, itemSlot]) => itemSlot === slot).map(([name]) => name).sort();
+      out[slot] = Object.entries(slotMap).filter(([, itemSlot]) => itemSlot === slot).map(([name]) => name).sort(compareEquipmentNamesOriginalOrder);
     }
     return out;
   }, [data.slotAssignments]);
@@ -1857,7 +1858,7 @@ function GoalPlannerPanel({
 
     return {
       slots: EQUIP_SLOTS
-        .map(({ slot }) => ({ slot, items: (bySlot.get(slot) ?? []).sort() }))
+        .map(({ slot }) => ({ slot, items: (bySlot.get(slot) ?? []).sort(compareEquipmentNamesOriginalOrder) }))
         .filter((entry) => entry.items.length > 0),
       contribution: contributionOf,
     };
@@ -2710,7 +2711,7 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate, profile
                         .filter(([, s]) => s === slot)
                         .map(([n]) => n)
                         .filter((name) => canPickHumanEquipment(loadout, data, name) && (!loadout.useProfileInventory || profileEquipment[name] != null))
-                        .sort();
+                        .sort(compareEquipmentNamesOriginalOrder);
                       return (
                         <div key={slot} className={`flex min-w-0 flex-col rounded-lg border-2 transition-colors ${eq ? "border-primary/30 bg-primary/5" : "border-dashed border-border/60 bg-muted/20"}`}>
                           {/* Slot header */}
