@@ -184,6 +184,10 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventurers Add Friends",
     description: "Join the active Kingdom Adventurers friends pool with your profile display name and game ID.",
   },
+  "/player-profile": {
+    title: "Player Profile",
+    description: "Manage your Kingdom Adventurers profile, equipment collection, characters, and valuables.",
+  },
   "/playthrough-guide": {
     title: "Kingdom Adventurers Playthrough Guide",
     description: "Follow a Kingdom Adventurers playthrough guide with progression advice, planning tips, and strategy notes.",

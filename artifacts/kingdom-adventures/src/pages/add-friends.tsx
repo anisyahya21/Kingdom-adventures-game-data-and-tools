@@ -376,7 +376,7 @@ export default function AddFriendsPage() {
                     {" from the list."}
                   </>
                 )
-                : "Click + to add yourself to the list."}
+                : "Click + to add yourself to the list for 30 days."}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -406,7 +406,7 @@ export default function AddFriendsPage() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Player List</CardTitle>
-          <CardDescription>Most recent players are on top.</CardDescription>
+          <CardDescription>Most recent players are on top. Adding yourself or resetting your timer keeps your entry here for 30 days.</CardDescription>
         </CardHeader>
         <CardContent>
           {poolLoading && entries.length === 0 ? (

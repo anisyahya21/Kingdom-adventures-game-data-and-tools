@@ -9,7 +9,6 @@ import {
   logoutAuthSession,
   startTelegramAuth,
   startTelegramFallbackAuth,
-  updateAuthProfile,
   verifyTelegramFallbackAuth,
   type AuthSessionResponse,
   type TelegramFallbackStartResponse,
@@ -45,11 +44,6 @@ export function SiteHeader() {
   const [fallbackData, setFallbackData] = useState<TelegramFallbackStartResponse | null>(null);
   const [fallbackBusy, setFallbackBusy] = useState(false);
   const [fallbackError, setFallbackError] = useState<string | null>(null);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [profileName, setProfileName] = useState("");
-  const [profileGameId, setProfileGameId] = useState("");
-  const [profileBusy, setProfileBusy] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -279,37 +273,6 @@ export function SiteHeader() {
     }
   };
 
-  const openProfileDialog = () => {
-    setProfileName(authSession.user?.displayName || "");
-    setProfileGameId(authSession.user?.gameId || "");
-    setProfileError(null);
-    setProfileOpen(true);
-  };
-
-  const saveProfile = async () => {
-    const normalizedName = profileName.trim();
-    const normalizedGameId = profileGameId.trim();
-    if (normalizedGameId && !/^\d{3},\d{3},\d{3}$/.test(normalizedGameId)) {
-      setProfileError("Game ID must match 123,456,789 format.");
-      return;
-    }
-
-    setProfileBusy(true);
-    setProfileError(null);
-    try {
-      await updateAuthProfile({
-        displayName: normalizedName,
-        gameId: normalizedGameId,
-      });
-      await refreshAuthSession();
-      setProfileOpen(false);
-    } catch (error) {
-      setProfileError(error instanceof Error ? error.message : "Could not save profile.");
-    } finally {
-      setProfileBusy(false);
-    }
-  };
-
   return (
     <div className="fixed inset-x-0 top-0 z-[60] border-b border-border bg-background/90 backdrop-blur">
       <div className="w-full min-w-0 px-2 sm:px-4 h-14 flex items-center justify-between gap-0.5 sm:gap-3">
@@ -404,7 +367,7 @@ export function SiteHeader() {
                   {authSession.user?.telegramUsername ? `@${authSession.user.telegramUsername}` : "Signed in"}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={openProfileDialog}>Edit profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/player-profile")}>Edit profile</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => void logout()}>Log out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -535,52 +498,6 @@ export function SiteHeader() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit profile</DialogTitle>
-            <DialogDescription>
-              Set how your name appears and optionally add your game ID.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">Displayed Name</div>
-              <Input
-                value={profileName}
-                onChange={(event) => setProfileName(event.target.value)}
-                maxLength={64}
-                placeholder="Your name"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">Game ID</div>
-              <Input
-                value={profileGameId}
-                onChange={(event) => setProfileGameId(event.target.value)}
-                placeholder="123,456,789"
-              />
-              <div className="text-[11px] text-muted-foreground">Format: 3 digits, comma, 3 digits, comma, 3 digits.</div>
-            </div>
-
-            {profileError ? (
-              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
-                {profileError}
-              </div>
-            ) : null}
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setProfileOpen(false)} disabled={profileBusy}>Cancel</Button>
-              <Button onClick={saveProfile} disabled={profileBusy}>
-                {profileBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Save
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

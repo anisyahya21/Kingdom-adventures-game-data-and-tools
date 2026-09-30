@@ -7,7 +7,8 @@
     "dev": "cross-env NODE_ENV=development pnpm run build && cross-env PORT=3001 pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:friend-expiry": "node tools/friend-expiry-check.mjs"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",

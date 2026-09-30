@@ -277,7 +277,7 @@ const DEFAULT_STATE: SharedState = {
   friendPool: [],
 };
 
-const FRIEND_ENTRY_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const FRIEND_ENTRY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_FRIEND_POOL_ENTRIES = 500;
 const GAME_ID_DIGITS_PATTERN = /^\d{9}$/;
 
@@ -316,10 +316,12 @@ function sanitizeFriendPoolEntries(value: unknown, now = Date.now()): FriendPool
       const gameId = normalizeProfileGameId(item.gameId);
       const createdAt = Number(item.createdAt);
       const updatedAt = Number(item.updatedAt);
-      const expiresAt = Number(item.expiresAt);
+      const storedExpiresAt = Number(item.expiresAt);
+      // Existing entries get the same 30-day window from their last reset.
+      const expiresAt = Math.max(storedExpiresAt, updatedAt + FRIEND_ENTRY_TTL_MS);
       const id = String(item.id || "").trim() || crypto.randomUUID();
       if (!userId || !displayName || !gameId) return null;
-      if (!Number.isFinite(createdAt) || !Number.isFinite(updatedAt) || !Number.isFinite(expiresAt)) return null;
+      if (!Number.isFinite(createdAt) || !Number.isFinite(updatedAt) || !Number.isFinite(storedExpiresAt) || !Number.isFinite(expiresAt)) return null;
       if (expiresAt <= now) return null;
 
       return {

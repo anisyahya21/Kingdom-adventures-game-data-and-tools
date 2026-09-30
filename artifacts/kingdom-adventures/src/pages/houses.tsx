@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { useLocalFeature } from "@/hooks/sync/use-local-feature";
+import { useProfileValuables, useProfileStorageError } from "@/lib/player-profile";
 import { Home } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { Link, useSearch } from "wouter";
@@ -922,14 +922,16 @@ export default function HousesPage() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<PageTab>("houses");
   const [facilityTab, setFacilityTab] = useState<FacilityTab>("env");
-  const [storedKnowHow, setStoredKnowHow] = useLocalFeature<number>("houses-facilities-know-how", 0);
-  const [storedCraftsman, setStoredCraftsman] = useLocalFeature<number>("houses-facilities-craftsman", 0);
-  const knowHow = Math.max(0, Math.min(6, Number(storedKnowHow) || 0));
-  const craftsman = Math.max(0, Math.min(6, Number(storedCraftsman) || 0));
-  const setKnowHow = (n: number) => setStoredKnowHow(Math.max(0, Math.min(6, n)));
-  const setCraftsman = (n: number) => setStoredCraftsman(Math.max(0, Math.min(6, n)));
-  const timeDiscount = knowHow * 0.05;
-  const resourceDiscount = craftsman * 0.05;
+  const [valuables, setValuables] = useProfileValuables();
+  const profileStorageError = useProfileStorageError();
+  const storedKnowHow = valuables["know-how"] ?? 0;
+  const storedCraftsman = valuables.craftsman ?? 0;
+  const knowHow = storedKnowHow;
+  const craftsman = storedCraftsman;
+  const setKnowHow = (n: number) => setValuables((previous) => ({ ...previous, "know-how": Math.max(0, Math.floor(n)) }));
+  const setCraftsman = (n: number) => setValuables((previous) => ({ ...previous, craftsman: Math.max(0, Math.floor(n)) }));
+  const timeDiscount = Math.min(6, knowHow) * 0.05;
+  const resourceDiscount = Math.min(6, craftsman) * 0.05;
 
   useEffect(() => {
     const params = new URLSearchParams(search);
@@ -1028,25 +1030,28 @@ export default function HousesPage() {
                 <span className="text-xs text-muted-foreground sm:hidden">{label.split("'")[0].trim()}</span>
                 <div className="flex items-center gap-1">
                   <button
+                    aria-label={`Decrease ${label} count`}
                     onClick={() => set(Math.max(0, value - 1))}
                     disabled={value === 0}
-                    className="w-5 h-5 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    className="min-w-11 min-h-11 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                   >-</button>
                   <span className="text-xs tabular-nums w-4 text-center font-medium">{value}</span>
                   <button
-                    onClick={() => set(Math.min(6, value + 1))}
-                    disabled={value === 6}
-                    className="w-5 h-5 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    aria-label={`Increase ${label} count`}
+                    onClick={() => set(value + 1)}
+                    className="min-w-11 min-h-11 rounded text-xs font-bold border border-border bg-background hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                   >+</button>
                 </div>
                 {value > 0 ? (
-                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">-{value * 5}%</span>
+                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">-{Math.min(6, value) * 5}%</span>
                 ) : (
                   <span className="text-[11px] text-muted-foreground/40">{suffix}</span>
                 )}
               </div>
             ))}
           </div>
+          {(knowHow > 6 || craftsman > 6) && <p className="text-xs text-muted-foreground">This planner supports modifiers up to 30%. Your full valuable counts remain saved in the profile.</p>}
+          {profileStorageError && <p role="alert" className="text-sm text-destructive">{profileStorageError}</p>}
           <div className="flex flex-wrap gap-1">
             {FACILITY_TABS.map(ft => (
               <button

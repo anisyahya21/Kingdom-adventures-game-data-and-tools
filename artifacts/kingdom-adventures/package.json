@@ -14,6 +14,7 @@
     "icons:verify": "node scripts/verify-website-icons.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "architecture:check": "node scripts/architecture-checks.mjs",
+    "check:player-profile": "node --import ./tools/battle-setup-check/register.mjs tools/player-profile-check/run_check.mjs && node --import ./tools/battle-setup-check/register.mjs tools/player-profile-check/loadout_check.mjs",
     "check:battle-legality": "node --import ./tools/battle-setup-check/register.mjs tools/battle-setup-check/legality_check.mjs",
     "check:legality-matrix": "node --import ./tools/battle-setup-check/register.mjs tools/battle-setup-check/legality_matrix_check.mjs",
     "check:player-battle": "node --import ./tools/battle-setup-check/register.mjs tools/battle-setup-check/player_battle_regression_check.mjs",
