@@ -14,6 +14,8 @@
  * - remote-readonly          → reads from the server, never writes
  * - remote-commit            → reads from the server, writes on explicit
  *                              commit actions (never auto-saves)
+ * - account-auto             → authenticated personal state; local edits
+ *                              autosave to the active account with revisions
  * - local-with-manual-backup → primary state is localStorage; server is an
  *                              optional explicit backup/restore target
  */
@@ -21,6 +23,7 @@ export type SyncMode =
   | "local-only"
   | "remote-readonly"
   | "remote-commit"
+  | "account-auto"
   | "local-with-manual-backup";
 
 /**

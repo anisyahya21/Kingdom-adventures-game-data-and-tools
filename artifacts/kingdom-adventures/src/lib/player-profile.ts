@@ -29,12 +29,13 @@ export type PlayerProfile = {
   valuables: Record<string, number>;
 };
 type Update<T> = T | ((previous: T) => T);
-const EMPTY: PlayerProfile = {
+export const EMPTY_PLAYER_PROFILE: PlayerProfile = {
   version: 1,
   equipment: {},
   characters: [],
   valuables: {},
 };
+const EMPTY = EMPTY_PLAYER_PROFILE;
 const equipmentNames = new Set<string>(
   EQUIPMENT_CATALOG.map((item) => item.name),
 );
@@ -121,12 +122,28 @@ let cachedRaw: string | null | undefined;
 let cached = EMPTY;
 let memoryOnly = false;
 let storageError: string | null = null;
+let activeAccountId: string | null = null;
 
+/** Each tab follows its authenticated account without replacing another account's device copy. */
+export function playerProfileStorageKey(): string {
+  return activeAccountId === null
+    ? PLAYER_PROFILE_KEY
+    : `ka_player_profile_account_data_v1:${encodeURIComponent(activeAccountId)}`;
+}
+
+export function setPlayerProfileAccountScope(accountId: string | null): void {
+  if (activeAccountId === accountId) return;
+  activeAccountId = accountId;
+  cachedRaw = undefined;
+  cached = EMPTY;
+  memoryOnly = false;
+  storageError = null;
+}
 export function readPlayerProfile(): PlayerProfile {
   if (typeof window === "undefined") return EMPTY;
   if (memoryOnly) return cached;
   try {
-    const raw = window.localStorage.getItem(PLAYER_PROFILE_KEY);
+    const raw = window.localStorage.getItem(playerProfileStorageKey());
     if (raw === cachedRaw) return cached;
     cachedRaw = raw;
     if (raw !== null) {
@@ -135,12 +152,14 @@ export function readPlayerProfile(): PlayerProfile {
       } catch {
         cached = EMPTY;
       }
-    } else {
+    } else if (activeAccountId === null) {
       cached = migratePlayerProfile(
         readJson(RESIDENT_STAT_ITEMS_KEY),
         readJson("houses-facilities-know-how"),
         readJson("houses-facilities-craftsman"),
       );
+    } else {
+      cached = EMPTY;
     }
     return cached;
   } catch {
@@ -168,7 +187,7 @@ export function writePlayerProfile(next: Update<PlayerProfile>): void {
   cached = profile;
   cachedRaw = JSON.stringify(profile);
   try {
-    window.localStorage.setItem(PLAYER_PROFILE_KEY, cachedRaw);
+    window.localStorage.setItem(playerProfileStorageKey(), cachedRaw);
     memoryOnly = false;
     storageError = null;
     window.localStorage.setItem(
@@ -193,7 +212,7 @@ export function writePlayerProfile(next: Update<PlayerProfile>): void {
 
 function subscribe(listener: () => void) {
   const onStorage = (event: StorageEvent) => {
-    if (event.key === PLAYER_PROFILE_KEY || event.key === null) {
+    if (event.key === playerProfileStorageKey() || event.key === null) {
       memoryOnly = false;
       cachedRaw = undefined;
       listener();

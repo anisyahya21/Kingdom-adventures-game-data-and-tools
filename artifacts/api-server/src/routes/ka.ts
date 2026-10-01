@@ -32,6 +32,42 @@ const DB_STATE_KEY = "ka_shared_state_v1";
 const ACCOUNT_ROSTER_PREFIX = "ka_account_roster_v1:";
 const ACCOUNT_ROSTER_LIMIT = 20;
 const ACCOUNT_ROSTER_MAX_BYTES = 32 * 1024;
+const ACCOUNT_PLAYER_PROFILE_PREFIX = "ka_account_player_profile_v1:";
+const ACCOUNT_PLAYER_PROFILE_MAX_BYTES = 256 * 1024;
+
+type AccountPlayerProfile = {
+  version: 1;
+  equipment: Record<string, number>;
+  characters: Array<{ id: string; jobName: string; rank: string; statLevels: Record<string, number> }>;
+  valuables: Record<string, number>;
+};
+
+type AccountPlayerProfileEnvelope = { revision: string; profile: AccountPlayerProfile };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function isAccountPlayerProfile(value: unknown): value is AccountPlayerProfile {
+  if (!isRecord(value) || value.version !== 1 || !isRecord(value.equipment) || !isRecord(value.valuables) || !Array.isArray(value.characters)) return false;
+  if (Object.values(value.equipment).some((level) => typeof level !== "number" || !Number.isInteger(level) || level < 1 || level > 99)) return false;
+  if (Object.values(value.valuables).some((count) => typeof count !== "number" || !Number.isSafeInteger(count) || count < 0)) return false;
+  if (value.characters.length > 1000) return false;
+  const seenIds = new Set<string>();
+  return value.characters.every((rawCharacter) => {
+    if (!isRecord(rawCharacter) || typeof rawCharacter.id !== "string" || rawCharacter.id.length < 1 || rawCharacter.id.length > 128 || seenIds.has(rawCharacter.id) ||
+        typeof rawCharacter.jobName !== "string" || !rawCharacter.jobName.trim() || rawCharacter.jobName.length > 128 ||
+        typeof rawCharacter.rank !== "string" || !["S", "A", "B", "C", "D", "E", "F"].includes(rawCharacter.rank) ||
+        !isRecord(rawCharacter.statLevels)) return false;
+    seenIds.add(rawCharacter.id);
+    return Object.values(rawCharacter.statLevels).every((level) => typeof level === "number" && Number.isInteger(level) && level >= 1 && level <= 999);
+  });
+}
+
+function readAccountPlayerProfileEnvelope(value: unknown): AccountPlayerProfileEnvelope | null {
+  if (!isRecord(value) || typeof value.revision !== "string" || !value.revision || !isAccountPlayerProfile(value.profile)) return null;
+  return { revision: value.revision, profile: value.profile };
+}
 
 function accountRequestFromWebsite(req: Request): boolean {
   const site = req.get("sec-fetch-site");
@@ -1563,6 +1599,66 @@ router.put("/ka/loadouts", (req, res) => {
 });
 
 // Private, explicit saves. Each roster is one small row; battles and replay events never reach this API.
+router.get("/ka/account-player-profile", async (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    const session = await resolveAuthenticatedSession(req);
+    if (!session) { res.status(401).json({ error: "Log in to access your player profile." }); return; }
+    if (!dbModule) { res.status(503).json({ error: "Account profile saves are unavailable." }); return; }
+    const key = `${ACCOUNT_PLAYER_PROFILE_PREFIX}${session.userId}`;
+    const rows = await dbModule.db.select({ value: dbModule.appStateTable.value })
+      .from(dbModule.appStateTable).where(eq(dbModule.appStateTable.key, key)).limit(1);
+    const envelope = rows.length ? readAccountPlayerProfileEnvelope(rows[0].value) : null;
+    res.json({ profile: envelope?.profile ?? null, revision: envelope?.revision ?? null, accountId: session.userId });
+  } catch (error) {
+    console.error("account-player-profile: read failed", error);
+    res.status(503).json({ error: "Could not load your account player profile." });
+  }
+});
+
+router.put("/ka/account-player-profile", async (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "private, no-store");
+    if (!accountRequestFromWebsite(req)) { res.status(403).json({ error: "Account saves require the website." }); return; }
+    const session = await resolveAuthenticatedSession(req);
+    if (!session) { res.status(401).json({ error: "Log in to save your player profile." }); return; }
+    if (!dbModule) { res.status(503).json({ error: "Account profile saves are unavailable." }); return; }
+    const input = req.body as Record<string, unknown> | undefined;
+    if (!isRecord(input) || input.expectedAccountId !== session.userId) {
+      res.status(403).json({ error: "Your login changed. Refresh account sync before saving." }); return;
+    }
+    if (!isRecord(input) || (input.revision !== null && typeof input.revision !== "string") || !isAccountPlayerProfile(input.profile)) {
+      res.status(400).json({ error: "The player profile or revision is invalid." }); return;
+    }
+    if (Buffer.byteLength(JSON.stringify(input), "utf8") > ACCOUNT_PLAYER_PROFILE_MAX_BYTES) {
+      res.status(413).json({ error: "The player profile is too large to save." }); return;
+    }
+    const key = `${ACCOUNT_PLAYER_PROFILE_PREFIX}${session.userId}`;
+    const revision = crypto.randomUUID();
+    const envelope: AccountPlayerProfileEnvelope = { revision, profile: input.profile };
+    const updatedAt = new Date();
+    if (input.revision === null) {
+      const inserted = await dbModule.db.insert(dbModule.appStateTable).values({
+        key, value: envelope as unknown as Record<string, unknown>, updatedAt,
+      }).onConflictDoNothing({ target: dbModule.appStateTable.key }).returning({ key: dbModule.appStateTable.key });
+      if (inserted.length) { res.json({ profile: envelope.profile, revision, accountId: session.userId }); return; }
+    } else {
+      const updated = await dbModule.db.update(dbModule.appStateTable).set({
+        value: envelope as unknown as Record<string, unknown>, updatedAt,
+      }).where(and(eq(dbModule.appStateTable.key, key), sql`${dbModule.appStateTable.value}->>'revision' = ${input.revision}`))
+        .returning({ key: dbModule.appStateTable.key });
+      if (updated.length) { res.json({ profile: envelope.profile, revision, accountId: session.userId }); return; }
+    }
+    const currentRows = await dbModule.db.select({ value: dbModule.appStateTable.value })
+      .from(dbModule.appStateTable).where(eq(dbModule.appStateTable.key, key)).limit(1);
+    const current = currentRows.length ? readAccountPlayerProfileEnvelope(currentRows[0].value) : null;
+    res.status(409).json({ profile: current?.profile ?? null, revision: current?.revision ?? null, accountId: session.userId });
+  } catch (error) {
+    console.error("account-player-profile: save failed", error);
+    res.status(503).json({ error: "Could not save your account player profile." });
+  }
+});
+
 router.get("/ka/account-rosters", async (req, res) => {
   try {
     if (!accountRequestFromWebsite(req)) { res.status(403).json({ error: "Account saves require the website." }); return; }

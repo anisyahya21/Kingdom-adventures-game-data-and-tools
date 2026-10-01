@@ -28,12 +28,15 @@ export const SYNC_REGISTRY: readonly SyncFeature[] = [
   {
     id: "player-profile",
     route: "/player-profile",
-    mode: "local-only",
+    mode: "account-auto",
     scope: "personal",
     localKeys: ["ka_player_profile_v1", "ka_resident_stat_items", "houses-facilities-know-how", "houses-facilities-craftsman"],
+    readEndpoint: "/ka-api/ka/account-player-profile",
+    writeEndpoint: "/ka-api/ka/account-player-profile",
+    backupActions: ["restoreLegacyProfile"],
     statusLabel: "Player Inventory and Valuables",
     enabled: true,
-    notes: "Device-local player inventory shared with Loadout and Facilities. Legacy keys are compatibility mirrors; device linking currently carries identity only, not personal saves.",
+    notes: "Authenticated profiles autosave to the active account with revision checks. Anonymous profiles remain device-local. The original device profile is retained for explicit import if the account already had a different profile.",
   },
 
   // ── Home ────────────────────────────────────────────────────────────────────

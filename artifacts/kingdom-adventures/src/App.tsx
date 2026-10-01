@@ -6,6 +6,7 @@ import { AppShell } from "@/app/app-shell";
 import { GlobalJobPreview } from "@/components/ka/global-job-preview";
 import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL, encodeCanonicalPath, getSeoMeta } from "@/app/seo";
 import { trackPageView } from "@/lib/analytics";
+import { startProfileAccountSync } from "@/lib/account-player-profile/sync";
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Home = lazy(() => import("@/pages/home"));
 const JobsMarriagePage = lazy(() => import("@/pages/jobs-marriage"));
@@ -280,9 +281,15 @@ function ScrollToTopOnRouteChange() {
   return null;
 }
 
+function ProfileAccountSyncBoot() {
+  useEffect(() => startProfileAccountSync(), []);
+  return null;
+}
+
 const App = memo(function App() {
   return (
     <TooltipProvider>
+      <ProfileAccountSyncBoot />
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <SeoManager />
         <ScrollToTopOnRouteChange />

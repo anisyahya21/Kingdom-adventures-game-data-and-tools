@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   PLAYER_PROFILE_KEY, PLAYER_PROFILE_EVENT, PLAYER_VALUABLES,
   readPlayerProfile, writePlayerProfile, sanitizePlayerProfile, migratePlayerProfile, profileResidentStatItems, readProfileStorageError,
+  setPlayerProfileAccountScope, playerProfileStorageKey,
 } from "../../src/lib/player-profile.ts";
 import { EQUIPMENT_CATALOG } from "../../src/lib/generated-equipment-data.ts";
 import { STAT_KEYS } from "../../src/game-data/stat-parameter-ids.ts";
@@ -82,4 +83,18 @@ const ids = csv.trim().split(/\r?\n/).slice(1).map((row) => Number(row.match(/^"
 assert.deepEqual(PLAYER_VALUABLES.flatMap((item) => [...item.sourceIds]).sort((a, b) => a - b), ids.sort((a, b) => a - b));
 assert.equal(PLAYER_VALUABLES.length, 15);
 assert.equal(new Set(PLAYER_VALUABLES.map((item) => item.key)).size, PLAYER_VALUABLES.length);
+// Account activation cannot consume another account's profile or legacy water mirrors.
+const anonymousProfile = readPlayerProfile();
+setPlayerProfileAccountScope("account-a");
+assert.deepEqual(readPlayerProfile().valuables, {});
+writePlayerProfile({ version: 1, equipment: {}, characters: [], valuables: { life: 17 } });
+const accountAKey = playerProfileStorageKey();
+setPlayerProfileAccountScope("account-b");
+assert.deepEqual(readPlayerProfile().valuables, {});
+writePlayerProfile({ version: 1, equipment: {}, characters: [], valuables: { life: 28 } });
+assert.notEqual(playerProfileStorageKey(), accountAKey);
+setPlayerProfileAccountScope("account-a");
+assert.equal(readPlayerProfile().valuables.life, 17);
+setPlayerProfileAccountScope(null);
+assert.deepEqual(readPlayerProfile(), anonymousProfile);
 console.log(JSON.stringify({ outcome: "PASS", valuableGroups: PLAYER_VALUABLES.length, nativeRows: ids.length, checks: "defaults, migration, schema, updates, mirrors, storage changes, catalog completeness" }));

@@ -26,6 +26,7 @@ import { canonicalStatKey, STAT_KEYS } from "@/game-data/stat-parameter-ids";
 import { gearSlotForName } from "@/lib/battle-team-draft";
 import { RESIDENT_STAT_ITEMS } from "@/game-data/resident-stat-items";
 import { EquipmentSprite } from "@/components/ka/equipment-sprite";
+import { useProfileAccountSync } from "@/lib/account-player-profile/sync";
 
 type EquipmentEntry = (typeof EQUIPMENT_CATALOG)[number];
 const jobsData = localSharedData as unknown as SharedJobProfileData;
@@ -107,6 +108,7 @@ function equipmentSlot(item: EquipmentEntry) {
 export default function PlayerProfilePage() {
   const [profile, setProfile] = usePlayerProfile();
   const storageError = useProfileStorageError();
+  const accountSync = useProfileAccountSync();
   const [valuableCounts, setValuableCounts] = useProfileValuables();
   const [auth, setAuth] = useState<AuthSessionResponse>({
     authenticated: false,
@@ -249,8 +251,8 @@ export default function PlayerProfilePage() {
         <div className="text-sm text-muted-foreground">Account</div>
         <h1 className="text-3xl font-bold tracking-tight">Player Profile</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Account details sync with your login. Collection edits save
-          automatically on this device and are shared with Loadout and Houses.
+          Characters, gear levels and valuables save automatically to your
+          account when logged in. Your collection is shared with Loadout and Houses.
         </p>
       </div>
       <Card>
@@ -297,21 +299,49 @@ export default function PlayerProfilePage() {
                 Saved
               </>
             ) : auth.authenticated ? (
-              "Save account"
+              "Save account details"
             ) : (
               "Log in to edit account"
             )}
           </Button>
           {!auth.authenticated && (
             <div className="text-sm text-muted-foreground sm:col-span-3">
-              You can manage the device saved data below. Log in to change
-              account details using the account menu in the header.
+              Collection edits stay on this device while logged out. Log in
+              using the account menu to save them across devices.
             </div>
           )}
           {accountError && (
             <div className="text-sm text-destructive sm:col-span-3">
               {accountError}
             </div>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <div role={accountSync.status === "error" || accountSync.status === "conflict" ? "alert" : "status"} className="text-sm" aria-live="polite">
+            {accountSync.status === "syncing" && <Loader2 className="mr-2 inline h-4 w-4 animate-spin" aria-hidden="true" />}
+            {accountSync.status === "saved" && <Check className="mr-2 inline h-4 w-4" aria-hidden="true" />}
+            {accountSync.message}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {accountSync.accountId && accountSync.status !== "syncing" && accountSync.status !== "conflict" && (
+              <Button variant="outline" onClick={() => void accountSync.retry()}>
+                {accountSync.status === "error" ? "Retry account sync" : "Refresh account data"}
+              </Button>
+            )}
+            {accountSync.status === "conflict" && (
+              <>
+                <Button onClick={accountSync.useAccountCopy}>Use account copy</Button>
+                <Button variant="outline" onClick={accountSync.keepLocalCopy}>Save this device's copy to account</Button>
+              </>
+            )}
+            {accountSync.legacyImportAvailable && accountSync.status !== "syncing" && accountSync.status !== "conflict" && (
+              <Button variant="outline" onClick={() => void accountSync.restoreLegacyBackup()}>Import previous device profile</Button>
+            )}
+          </div>
+          {accountSync.legacyImportAvailable && (
+            <p className="text-xs text-muted-foreground">Your previous device profile is preserved. Importing it replaces your account collection with that device's saved collection.</p>
           )}
         </CardContent>
       </Card>
@@ -737,7 +767,7 @@ export default function PlayerProfilePage() {
           </Card>
           <p className="mt-3 text-xs text-muted-foreground">
             Valuable counts are shared with the Loadout Builder and Houses
-            planner on this device.
+            planner using your saved profile.
           </p>
         </TabsContent>
       </Tabs>
