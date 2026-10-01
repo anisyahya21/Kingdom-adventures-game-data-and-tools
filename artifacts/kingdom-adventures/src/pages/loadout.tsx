@@ -34,6 +34,7 @@ import { EquipmentSprite as CollapsedEquipmentIcon } from "@/components/ka/equip
 import { getSkillIcon } from "@/lib/skill-icons";
 import { planGear, type GoalMode, type StatGoal } from "@/lib/loadout-goal-planner";
 import { simulateBatch, simulateDuel, type Combatant, type BattleResult, type BatchResult } from "@/lib/combat-simulator";
+import { COMBAT_SPEED_BRACKETS } from "@/lib/combat-speed-brackets";
 import { getJobProfile } from "@/game-data/job-profile";
 import {
   RESIDENT_STAT_ITEMS,
@@ -2069,6 +2070,7 @@ function ProfileGoalSearchPanel({
 }) {
   const [goals, setGoals] = useState<Record<string, StatGoal | undefined>>({});
   const [editing, setEditing] = useState<Record<string, { mode: GoalMode; min: string; max: string }>>({});
+  const [speedBracket, setSpeedBracket] = useState("");
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
   const [searchComplete, setSearchComplete] = useState(false);
@@ -2122,6 +2124,25 @@ function ProfileGoalSearchPanel({
           ? undefined
           : { mode: "range", min: lo, max: hi };
     setGoals((all) => ({ ...all, [stat]: parsed }));
+  };
+
+  const setSpeedGoalBracket = (value: string) => {
+    resetSearch();
+    setError("");
+    setSpeedBracket(value);
+    const bracket = COMBAT_SPEED_BRACKETS.find((candidate) => candidate.value === value);
+    setGoals((all) => {
+      const next = { ...all };
+      if (!bracket) {
+        delete next.spd;
+      } else if (bracket.max === null) {
+        // The last bracket is open ended: the combat formula keeps its floored interval at 0.
+        next.spd = { mode: "min", min: bracket.min };
+      } else {
+        next.spd = { mode: "range", min: bracket.min, max: bracket.max };
+      }
+      return next;
+    });
   };
 
   const describePage = (page: ProfileGoalSearchPage) => {
@@ -2313,6 +2334,26 @@ function ProfileGoalSearchPanel({
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {goalKeys.map((stat) => {
             const value = editing[stat] ?? { mode: "min" as GoalMode, min: "", max: "" };
+            if (stat === "spd") {
+              return (
+                <div key={stat} className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-md border p-2">
+                  <StatLabel stat={stat} icons={data.statIcons} />
+                  <select
+                    aria-label="Speed target bracket"
+                    className="h-9 min-w-0 flex-1 rounded border bg-background px-2 text-xs"
+                    value={speedBracket}
+                    onChange={(event) => setSpeedGoalBracket(event.target.value)}
+                  >
+                    <option value="">Any speed</option>
+                    {COMBAT_SPEED_BRACKETS.map((bracket) => (
+                      <option key={bracket.value} value={bracket.value}>
+                        {bracket.label} · {bracket.attackFrames} frame{bracket.attackFrames === 1 ? "" : "s"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            }
             return (
               <div key={stat} className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-md border p-2">
                 <StatLabel stat={stat} icons={data.statIcons} />

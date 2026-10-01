@@ -29,6 +29,7 @@ This site is a Kingdom Adventures reference database. Game facts should have one
 | Assembled facility icons | `website_icons/facilities_assembled/manifest.json` | Website sprites built from recovered parts by `tools/recovery/export_assembled_facility_icons.py`; served from matching public copies through `src/lib/equipment-icons.ts`. Static display states, not saved-game renders. |
 | Job equipment access | `artifacts/kingdom-adventures/src/game-data/job-equipment.ts` | Weapon and shield access helpers used by Jobs. |
 | Job skill access | `artifacts/kingdom-adventures/src/game-data/job-skills.ts` | Attack, attack magic, recovery, and casting fallback helpers used by Jobs. |
+| Combat speed brackets | `artifacts/kingdom-adventures/src/lib/combat-speed-brackets.ts` | Derives integer speed ranges that share one round-down attack interval from `combat-simulator.ts`'s formula helper. Formula reference: `data/sheet-research/raw-copies/KA GameData - Formula - FAQ.csv`. |
 | Job name/category normalization | `artifacts/kingdom-adventures/src/game-data/job-normalization.ts` | Shared job name keys and battle/non-battle category helpers. |
 | Job profile queries | `artifacts/kingdom-adventures/src/game-data/job-profile.ts` | Composes job stats, ranks, ranges, shops/buildings, equipment, skills, survey capability, and marriage links for page consumers. |
 | Marriage relationship helpers | `artifacts/kingdom-adventures/src/game-data/job-marriage.ts` plus shared data | Marriage page should import shared rank/name/pair helpers from here. |
