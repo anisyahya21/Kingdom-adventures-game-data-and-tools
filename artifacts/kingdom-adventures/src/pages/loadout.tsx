@@ -2070,6 +2070,7 @@ function ProfileGoalSearchPanel({
 }) {
   const [goals, setGoals] = useState<Record<string, StatGoal | undefined>>({});
   const [editing, setEditing] = useState<Record<string, { mode: GoalMode; min: string; max: string }>>({});
+  const [speedTargetMode, setSpeedTargetMode] = useState<GoalMode | "bracket">("min");
   const [speedBracket, setSpeedBracket] = useState("");
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
@@ -2145,6 +2146,25 @@ function ProfileGoalSearchPanel({
     });
   };
 
+  const setSpeedTargetType = (value: GoalMode | "bracket") => {
+    if (value === "bracket") {
+      resetSearch();
+      setError("");
+      setSpeedTargetMode("bracket");
+      const bracket = COMBAT_SPEED_BRACKETS.find((candidate) => candidate.value === speedBracket);
+      setGoals((all) => {
+        const next = { ...all };
+        if (!bracket) delete next.spd;
+        else if (bracket.max === null) next.spd = { mode: "min", min: bracket.min };
+        else next.spd = { mode: "range", min: bracket.min, max: bracket.max };
+        return next;
+      });
+    } else {
+      setSpeedTargetMode(value);
+      setGoalValue("spd", "mode", value);
+    }
+  };
+
   const describePage = (page: ProfileGoalSearchPage) => {
     setMatchCount(page.matchingBuilds);
     setSearchComplete(page.complete);
@@ -2184,6 +2204,7 @@ function ProfileGoalSearchPanel({
     }
     const activeGoals = Object.fromEntries(Object.entries(goals).filter(([, goal]) => goal)) as Record<string, StatGoal>;
     for (const [stat, value] of Object.entries(editing)) {
+      if (stat === "spd" && speedTargetMode === "bracket") continue;
       const rawValues = value.mode === "min" ? [value.min] : value.mode === "max" ? [value.max] : [value.min, value.max];
       if (rawValues.every((raw) => raw.trim() === "")) continue;
       if (rawValues.some((raw) => raw.trim() === "" || !Number.isSafeInteger(Number(raw)) || Number(raw) < 0)) {
@@ -2334,10 +2355,23 @@ function ProfileGoalSearchPanel({
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {goalKeys.map((stat) => {
             const value = editing[stat] ?? { mode: "min" as GoalMode, min: "", max: "" };
-            if (stat === "spd") {
-              return (
-                <div key={stat} className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-md border p-2">
-                  <StatLabel stat={stat} icons={data.statIcons} />
+            return (
+              <div key={stat} className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-md border p-2">
+                <StatLabel stat={stat} icons={data.statIcons} />
+                <select
+                  aria-label={`${stat} target type`}
+                  className="h-9 rounded border bg-background px-2 text-xs"
+                  value={stat === "spd" ? speedTargetMode : value.mode}
+                  onChange={(event) => stat === "spd"
+                    ? setSpeedTargetType(event.target.value as GoalMode | "bracket")
+                    : setGoalValue(stat, "mode", event.target.value)}
+                >
+                  <option value="min">At least</option>
+                  <option value="max">At most</option>
+                  <option value="range">Between</option>
+                  {stat === "spd" && <option value="bracket">Speed bracket</option>}
+                </select>
+                {stat === "spd" && speedTargetMode === "bracket" ? (
                   <select
                     aria-label="Speed target bracket"
                     className="h-9 min-w-0 flex-1 rounded border bg-background px-2 text-xs"
@@ -2351,41 +2385,29 @@ function ProfileGoalSearchPanel({
                       </option>
                     ))}
                   </select>
-                </div>
-              );
-            }
-            return (
-              <div key={stat} className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-md border p-2">
-                <StatLabel stat={stat} icons={data.statIcons} />
-                <select
-                  aria-label={`${stat} target type`}
-                  className="h-9 rounded border bg-background px-2 text-xs"
-                  value={value.mode}
-                  onChange={(event) => setGoalValue(stat, "mode", event.target.value)}
-                >
-                  <option value="min">At least</option>
-                  <option value="max">At most</option>
-                  <option value="range">Between</option>
-                </select>
-                <Input
-                  aria-label={`${stat} target ${value.mode === "max" ? "maximum" : "minimum"}`}
-                  className="h-9 min-w-16 flex-1"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder={value.mode === "max" ? "Max" : "Min"}
-                  value={value.mode === "max" ? value.max : value.min}
-                  onChange={(event) => setGoalValue(stat, value.mode === "max" ? "max" : "min", event.target.value)}
-                />
-                {value.mode === "range" && (
-                  <Input
-                    aria-label={`${stat} target maximum`}
-                    className="h-9 min-w-16 flex-1"
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Max"
-                    value={value.max}
-                    onChange={(event) => setGoalValue(stat, "max", event.target.value)}
-                  />
+                ) : (
+                  <>
+                    <Input
+                      aria-label={`${stat} target ${value.mode === "max" ? "maximum" : "minimum"}`}
+                      className="h-9 min-w-16 flex-1"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder={value.mode === "max" ? "Max" : "Min"}
+                      value={value.mode === "max" ? value.max : value.min}
+                      onChange={(event) => setGoalValue(stat, value.mode === "max" ? "max" : "min", event.target.value)}
+                    />
+                    {value.mode === "range" && (
+                      <Input
+                        aria-label={`${stat} target maximum`}
+                        className="h-9 min-w-16 flex-1"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Max"
+                        value={value.max}
+                        onChange={(event) => setGoalValue(stat, "max", event.target.value)}
+                      />
+                    )}
+                  </>
                 )}
               </div>
             );
