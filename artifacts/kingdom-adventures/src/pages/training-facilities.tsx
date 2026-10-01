@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PLOT_SIZES } from "@/game-data/buildings";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getFacilityIcon, getFacilityIconByName, getFurnitureIcon } from "@/lib/equipment-icons";
 import { localSharedData } from "@/lib/local-shared-data";
@@ -86,6 +87,20 @@ export default function TrainingFacilitiesPage() {
     () => activeFacility ? trainingRoomOptions(activeFacility) : [],
     [activeFacility],
   );
+  const roomGroups = useMemo(() => {
+    const groups = new Map<string, Array<{ key: string; size?: string }>>();
+    for (const room of activeRoomOptions) {
+      const name = room.name.replace(/ (S|M|L|XL)(?= ·|$)/, "");
+      const size = /^\d+-(S|M|L|XL)(?::\d+)?$/.exec(room.key)?.[1];
+      const options = groups.get(name) ?? [];
+      options.push({ key: room.key, size });
+      groups.set(name, options);
+    }
+    return [...groups].map(([name, options]) => ({ name, options }));
+  }, [activeRoomOptions]);
+  const selectedRoomKey = activeLayout?.roomKey ?? activeRoomOptions[0]?.key;
+  const selectedRoomGroup = roomGroups.find((group) => group.options.some((room) => room.key === selectedRoomKey));
+  const selectedRoomSize = selectedRoomGroup?.options.find((room) => room.key === selectedRoomKey)?.size;
 
   function toggleDesiredStat(stat: TrainingStatName, checked: boolean) {
     setDesiredStats((current) => {
@@ -508,13 +523,13 @@ export default function TrainingFacilitiesPage() {
         }}
       >
         {activeFacility && activeLayout && (
-          <DialogContent className="flex max-h-[calc(100dvh-1rem)] max-w-5xl flex-col gap-4 overflow-hidden p-4 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+          <DialogContent className="flex h-[calc(100dvh-1.5rem)] max-w-5xl flex-col gap-4 overflow-hidden p-4 sm:h-[calc(100dvh-2rem)] sm:p-6">
             <DialogHeader className="shrink-0 pr-8 text-left">
               <DialogTitle>XP surround · {activeFacility.name}</DialogTitle>
               <DialogDescription>Place XP emitters around the training facility. Room fixtures and built-in sources are shown as fixed; added emitters use their full footprint.</DialogDescription>
             </DialogHeader>
 
-            <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1">
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.85fr)]">
                   <section className="min-w-0 space-y-2" aria-label="Surround layout editor">
                     <div className="flex flex-wrap items-end justify-between gap-2">
@@ -527,17 +542,39 @@ export default function TrainingFacilitiesPage() {
                     </div>
                     {activeRoomOptions.length > 0 && (
                       <div className="max-w-md space-y-1">
-                        <label className="text-sm font-medium" htmlFor="training-room-select">Surround location</label>
-                        <Select value={activeLayout.roomKey ?? activeRoomOptions[0]?.key} onValueChange={requestRoomChange}>
-                          <SelectTrigger id="training-room-select" className="min-h-11">
-                            <SelectValue placeholder="Choose a room or host" />
-                          </SelectTrigger>
-                          <SelectContent className="z-[80]">
-                            {activeRoomOptions.map((room) => (
-                              <SelectItem key={room.key} value={room.key}>{room.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2">
+                          <div className="min-w-0 space-y-1">
+                            <label className="text-sm font-medium" htmlFor="training-room-select">Surround location</label>
+                            <Select value={selectedRoomGroup?.name} onValueChange={(name) => {
+                              const group = roomGroups.find((room) => room.name === name);
+                              const room = group?.options.find((option) => option.size === selectedRoomSize) ?? group?.options[0];
+                              if (room) requestRoomChange(room.key);
+                            }}>
+                              <SelectTrigger id="training-room-select" className="min-h-11 [&>span]:truncate">
+                                <SelectValue placeholder="Choose a room or host" />
+                              </SelectTrigger>
+                              <SelectContent className="z-[80] max-h-[min(20rem,var(--radix-select-content-available-height))]">
+                                {roomGroups.map((room) => (
+                                  <SelectItem key={room.name} value={room.name}>{room.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium" htmlFor="training-room-size-select">Size</label>
+                            <Select value={selectedRoomSize ?? "none"} disabled={!selectedRoomSize} onValueChange={(size) => {
+                              const room = selectedRoomGroup?.options.find((option) => option.size === size);
+                              if (room) requestRoomChange(room.key);
+                            }}>
+                              <SelectTrigger id="training-room-size-select" className="min-h-11"><SelectValue /></SelectTrigger>
+                              <SelectContent className="z-[80] max-h-[min(20rem,var(--radix-select-content-available-height))]">
+                                {selectedRoomSize ? PLOT_SIZES.flatMap((size) => selectedRoomGroup?.options.some((room) => room.size === size)
+                                  ? [<SelectItem key={size} value={size}>Plot {size}</SelectItem>] : [])
+                                  : <SelectItem value="none">N/A</SelectItem>}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
                         {roomChangeConfirmation && pendingRoomKey !== null && (
                           <div role="alert" className="space-y-2 rounded-md border border-destructive/50 bg-destructive/5 p-3">
                             <p className="text-sm">Changing location clears the emitters you added. Continue?</p>
@@ -589,7 +626,7 @@ export default function TrainingFacilitiesPage() {
                           <SelectTrigger id="xp-emitter-select" className="min-h-11 [&>span]:truncate">
                             <SelectValue placeholder="Choose a compatible facility" />
                           </SelectTrigger>
-                          <SelectContent className="z-[80]">
+                          <SelectContent className="z-[80] max-h-[min(20rem,var(--radix-select-content-available-height))]">
                             {activeEmitters.map((emitter) => (
                               <SelectItem key={emitter.id} value={String(emitter.id)} className="whitespace-normal break-words">
                                 {emitter.name} · {trainingFootprint(emitter.id).width} × {trainingFootprint(emitter.id).height} · {Object.entries(emitterXpEffects(activeLayout, emitter.id, effectiveLevels)).map(([stat, xp]) => `${stat} XP +${xp}%`).join(', ')}
