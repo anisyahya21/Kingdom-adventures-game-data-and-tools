@@ -2,14 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Calculator, Clock3, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { WAIRO_DUNGEON_LOOT_GROUP, type EncounterLoot } from "@/lib/special-boss-loot";
+import { WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { WairoFarmingCalculator } from "@/components/wairo-farming-calculator";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
 import { getSkillIcon } from "@/lib/skill-icons";
-import { LootDifficultySwitches, LootBossTag, lootDifficultyClasses, LOOT_DIFFICULTIES } from "@/components/ka/special-boss-loot-ui";
+import { LootDifficultySwitches, LootBossTag, lootDifficultyClasses } from "@/components/ka/special-boss-loot-ui";
+import { useLootDifficulties } from "@/hooks/use-loot-difficulties";
 
 export type WarioDungeonEntry = { day: number; hour: number };
 export type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
@@ -98,7 +99,8 @@ export default function WarioDungeonPage() {
   const blessedRainIcon = getItemIcon("Blessed Rain") ?? "/website_icons/items/item_058.png";
   const [now, setNow] = useState(() => new Date());
   const [eventOffset] = useEventHourOffset();
-  const [selectedDifficulties, setSelectedDifficulties] = useState<Set<EncounterLoot["difficulty"]>>(() => new Set(LOOT_DIFFICULTIES));
+  const { selectedDifficulties, setDifficulty } = useLootDifficulties("ka:wairo-loot-difficulties:v1");
+  const visibleDifficulties = selectedDifficulties("wairo");
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -157,10 +159,10 @@ export default function WarioDungeonPage() {
               </div>
             </div>
 
-            <div className="flex justify-end"><LootDifficultySwitches selected={selectedDifficulties} onChange={(difficulty, checked) => setSelectedDifficulties((current) => { const next = new Set(current); if (checked) next.add(difficulty); else next.delete(difficulty); return next; })} /></div>
+            <div className="flex justify-end"><LootDifficultySwitches selected={visibleDifficulties} onChange={(difficulty, checked) => setDifficulty("wairo", difficulty, checked)} /></div>
 
             <div className="grid gap-3">
-              {WAIRO_DUNGEON_LOOT_GROUP.encounters.filter((encounter) => selectedDifficulties.has(encounter.difficulty)).map((encounter) => (
+              {WAIRO_DUNGEON_LOOT_GROUP.encounters.filter((encounter) => visibleDifficulties.has(encounter.difficulty)).map((encounter) => (
                 <div key={encounter.difficulty} id={`wairo-loot-${encounter.difficulty.toLowerCase()}`} className={`scroll-mt-24 rounded-lg border p-3 space-y-3 ${lootDifficultyClasses(encounter.difficulty)}`}>
                   <div>
                     <div className="flex flex-wrap items-center gap-2 font-medium text-sm">

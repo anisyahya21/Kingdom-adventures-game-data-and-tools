@@ -28,6 +28,21 @@ export function LootBossTag({ encounter }: { encounter: EncounterLoot }) {
   );
 }
 
+export function LootBossIcon({ encounter, size = 60 }: { encounter: EncounterLoot; size?: number }) {
+  const boss = canonicalLootBoss(encounter);
+  if (!boss) return null;
+  const sprite = getMonsterSpriteById(boss.id);
+  if (!sprite) return null;
+  return (
+    <img
+      src={sprite}
+      alt={`${boss.name} boss`}
+      className="shrink-0 object-contain"
+      style={{ width: size, height: size, imageRendering: "pixelated" }}
+    />
+  );
+}
+
 export function lootDifficultyClasses(difficulty: EncounterLoot["difficulty"]) {
   switch (difficulty) {
     case "Easy": return "border-green-500/25 bg-green-500/[0.07]";
