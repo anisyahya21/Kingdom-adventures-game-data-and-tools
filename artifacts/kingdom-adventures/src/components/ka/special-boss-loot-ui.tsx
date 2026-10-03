@@ -75,8 +75,6 @@ export function LootDifficultySwitches({
       <PopoverContent
         align="end"
         className="w-44 p-3"
-        onEscapeKeyDown={(event) => event.preventDefault()}
-        onInteractOutside={(event) => event.preventDefault()}
       >
         <div className="mb-2 text-sm font-semibold">Show difficulties</div>
         <div className="space-y-1">
