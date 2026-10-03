@@ -92,12 +92,12 @@ export default defineConfig({
         target: `http://127.0.0.1:${process.env.BATTLE_RUNNER_PORT || 8787}`,
         changeOrigin: true,
       },
-      "/ka": {
+      "^/ka(?:/|$)": {
         target: `http://localhost:${process.env.API_PORT || 3001}`,
         changeOrigin: true,
         // No rewrite: keep /ka for backend
       },
-      "/ka-api": {
+      "^/ka-api(?:/|$)": {
         target: `http://localhost:${process.env.API_PORT || 3001}`,
         rewrite: (p) => p.replace(/^\/ka-api/, "/api"),
       },

@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Calculator, ShieldAlert, Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { KAIRO_ROOM_DRAFTS } from "@/lib/en-event-drafts";
-import { KAIRO_ROOM_LOOT_GROUPS } from "@/lib/special-boss-loot";
+import { KAIRO_ROOM_LOOT_GROUPS, type EncounterLoot } from "@/lib/special-boss-loot";
 import { getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel } from "@/lib/event-status";
 import { KairoFarmingCalculator } from "@/components/kairo-farming-calculator";
@@ -11,6 +11,7 @@ import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
 import { getSkillIcon } from "@/lib/skill-icons";
+import { DifficultyDayLinks, LOOT_DIFFICULTIES, LootDifficultySwitches, LootBossTag, LootDayFilter, lootDifficultyClasses } from "@/components/ka/special-boss-loot-ui";
 
 const FACILITY_ITEM_ICONS: Record<string, string> = {
   "Kairo King Statue": "/website_icons/facilities_confirmed/facility_186_kairo_king_statue.png",
@@ -22,10 +23,11 @@ function kairoDayAnchor(day: string): string {
   return `kairo-room-${day.toLowerCase()}`;
 }
 
-function scrollToKairoDay(day: string): void {
-  const target = document.getElementById(kairoDayAnchor(day));
+function scrollToKairoDifficulty(day: string, difficulty: string): void {
+  const id = `${kairoDayAnchor(day)}-${difficulty.toLowerCase()}`;
+  const target = document.getElementById(id);
   if (!target) return;
-  window.history.replaceState(null, "", `#${kairoDayAnchor(day)}`);
+  window.history.replaceState(null, "", `#${id}`);
   target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -33,6 +35,8 @@ export default function KairoRoomPage() {
   const equipIcons = useEquipmentIcons();
   const [now, setNow] = useState(() => new Date());
   const [eventOffset] = useEventHourOffset();
+  const [dayFilter, setDayFilter] = useState("all");
+  const [difficultySelections, setDifficultySelections] = useState<Record<string, Set<EncounterLoot["difficulty"]>>>({});
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
@@ -45,6 +49,26 @@ export default function KairoRoomPage() {
       entry.day,
     ]),
   );
+  const activeDays = KAIRO_ROOM_DRAFTS.filter((entry) => entry.active && entry.questName);
+  const visibleGroups = useMemo(
+    () => KAIRO_ROOM_LOOT_GROUPS.filter((group) => dayFilter === "all" || weekdayByTitle.get(group.title) === (dayFilter === "today" ? currentEventDay : dayFilter)),
+    [dayFilter, currentEventDay],
+  );
+  const selectedDifficulties = (title: string) => difficultySelections[title] ?? new Set(LOOT_DIFFICULTIES);
+  const toggleDifficulty = (title: string, difficulty: EncounterLoot["difficulty"], checked: boolean) => {
+    setDifficultySelections((current) => {
+      const next = new Set(current[title] ?? LOOT_DIFFICULTIES);
+      if (checked) next.add(difficulty);
+      else next.delete(difficulty);
+      return { ...current, [title]: next };
+    });
+  };
+  const jumpToDifficulty = (day: string, difficulty: EncounterLoot["difficulty"]) => {
+    const title = [...weekdayByTitle.entries()].find(([, groupDay]) => groupDay === day)?.[0];
+    if (title && !selectedDifficulties(title).has(difficulty)) toggleDifficulty(title, difficulty, true);
+    setDayFilter("all");
+    window.requestAnimationFrame(() => scrollToKairoDifficulty(day, difficulty));
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
@@ -70,24 +94,16 @@ export default function KairoRoomPage() {
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {KAIRO_ROOM_DRAFTS.map((entry) => {
+      <div className="space-y-3">
+        <LootDayFilter value={dayFilter} onChange={setDayFilter} days={activeDays.map((entry) => entry.day)} />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {activeDays.filter((entry) => dayFilter === "all" || entry.day === (dayFilter === "today" ? currentEventDay : dayFilter)).map((entry) => {
           const isCurrentDay = entry.day === currentEventDay;
           const isLive = isCurrentDay && entry.active;
-          const canOpenDay = entry.active && !!entry.questName;
           return (
           <Card
             key={entry.day}
-            role={canOpenDay ? "button" : undefined}
-            tabIndex={canOpenDay ? 0 : undefined}
-            aria-label={canOpenDay ? `View ${entry.day} Kairo Room loot tables` : undefined}
-            onClick={canOpenDay ? () => scrollToKairoDay(entry.day) : undefined}
-            onKeyDown={canOpenDay ? (event) => {
-              if (event.key !== "Enter" && event.key !== " ") return;
-              event.preventDefault();
-              scrollToKairoDay(entry.day);
-            } : undefined}
-            className={`shadow-sm ${eventStatusCardClass(isLive ? "live" : "inactive")} ${canOpenDay ? "cursor-pointer transition-transform hover:-translate-y-0.5 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" : ""}`}
+            className={`shadow-sm ${eventStatusCardClass(isLive ? "live" : "inactive")}`}
           >
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-3">
@@ -96,9 +112,7 @@ export default function KairoRoomPage() {
                     <CalendarDays className="w-4 h-4 text-primary" />
                     {entry.day}
                   </CardTitle>
-                  <CardDescription>
-                    {entry.active ? entry.questName : "No Kairo Room challenge listed."}
-                  </CardDescription>
+                  <CardDescription>{entry.questName}</CardDescription>
                 </div>
                 <Badge variant="outline" className={eventStatusClass(isLive ? "live" : "inactive")}>
                   {eventStatusLabel(isLive ? "live" : "inactive")}
@@ -108,33 +122,17 @@ export default function KairoRoomPage() {
             <CardContent className="space-y-3">
               {entry.active ? (
                 <>
-                  <div>
-                    <div className="text-xs text-muted-foreground mb-1">Quest name</div>
-                    <div className="text-sm font-medium text-foreground">{entry.questName}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground mb-2">Main equipment from box</div>
-                    <div className="flex flex-wrap gap-2">
-                      {entry.equipmentFromBox.map((item) => (
-                        <Badge key={item} variant="secondary" className="text-xs">
-                          {getEquipmentIcon(equipIcons, item) && (
-                            <img src={getEquipmentIcon(equipIcons, item)} alt="" className="mr-1 inline h-4 w-4 rounded object-contain align-[-3px]" />
-                          )}
-                          {item}
-                        </Badge>
-                      ))}
-                    </div>
+                  <div className="space-y-1.5">
+                    <div className="text-xs text-muted-foreground">Jump to loot</div>
+                    <DifficultyDayLinks day={entry.day} onSelect={jumpToDifficulty} />
                   </div>
                 </>
-              ) : (
-                <div className="text-sm text-muted-foreground">
-                  The EN sheet does not list a Kairo Room challenge for this day.
-                </div>
-              )}
+              ) : null}
             </CardContent>
           </Card>
           );
         })}
+      </div>
       </div>
 
       <Card className="shadow-sm">
@@ -148,19 +146,30 @@ export default function KairoRoomPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {KAIRO_ROOM_LOOT_GROUPS.map((group) => {
+          {visibleGroups.length ? visibleGroups.map((group) => {
             const day = weekdayByTitle.get(group.title);
+            const selected = selectedDifficulties(group.title);
+            const isActiveDay = day === currentEventDay;
+            const visibleEncounters = group.encounters.filter((encounter) => selected.has(encounter.difficulty));
             return (
-            <div key={group.title} id={day ? kairoDayAnchor(day) : undefined} className="scroll-mt-24 space-y-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm font-semibold">{group.title}</h2>
-                <Badge variant="outline">{day ?? "Event day"}</Badge>
+            <div key={group.title} id={day ? kairoDayAnchor(day) : undefined} className={`scroll-mt-24 space-y-3 rounded-xl border p-3 ${isActiveDay ? "border-green-500 ring-2 ring-green-500/50" : "border-border"}`}>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm font-semibold">{group.title}</h2>
+                  {group.encounters[0] && <LootBossTag encounter={group.encounters[0]} />}
+                  <Badge variant="outline">{day ?? "Event day"}</Badge>
+                  {isActiveDay && <Badge className="border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300">Today</Badge>}
+                </div>
+                <LootDifficultySwitches selected={selected} onChange={(difficulty, checked) => toggleDifficulty(group.title, difficulty, checked)} />
               </div>
               <div className="grid gap-3 lg:grid-cols-2">
-                {group.encounters.map((encounter) => (
-                  <div key={`${group.title}-${encounter.difficulty}`} className="rounded-lg border p-3 space-y-3">
+                {visibleEncounters.map((encounter) => (
+                  <div key={`${group.title}-${encounter.difficulty}`} id={day ? `${kairoDayAnchor(day)}-${encounter.difficulty.toLowerCase()}` : undefined} className={`scroll-mt-24 rounded-lg border p-3 space-y-3 ${lootDifficultyClasses(encounter.difficulty)}`}>
                     <div>
-                      <div className="font-medium text-sm">{encounter.difficulty}</div>
+                      <div className="flex flex-wrap items-center gap-2 font-medium text-sm">
+                        <span>{encounter.difficulty}</span>
+                        <LootBossTag encounter={encounter} />
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         Lv {encounter.level} encounter • Boss Lv {encounter.bossLevel}
                       </div>
@@ -220,7 +229,7 @@ export default function KairoRoomPage() {
               </div>
             </div>
           );
-          })}
+          }) : <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">No Kairo Room challenge is listed for {dayFilter === "today" ? currentEventDay : dayFilter}.</div>}
         </CardContent>
       </Card>
 

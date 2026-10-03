@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Calculator, Clock3, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
+import { WAIRO_DUNGEON_LOOT_GROUP, type EncounterLoot } from "@/lib/special-boss-loot";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { WairoFarmingCalculator } from "@/components/wairo-farming-calculator";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { useEquipmentIcons } from "@/hooks/use-equipment-icons";
 import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
 import { getSkillIcon } from "@/lib/skill-icons";
+import { LootDifficultySwitches, LootBossTag, lootDifficultyClasses, LOOT_DIFFICULTIES } from "@/components/ka/special-boss-loot-ui";
 
 export type WarioDungeonEntry = { day: number; hour: number };
 export type WarioDungeonSpawn = WarioDungeonEntry & { startsAt: Date; endsAt: Date };
@@ -97,6 +98,7 @@ export default function WarioDungeonPage() {
   const blessedRainIcon = getItemIcon("Blessed Rain") ?? "/website_icons/items/item_058.png";
   const [now, setNow] = useState(() => new Date());
   const [eventOffset] = useEventHourOffset();
+  const [selectedDifficulties, setSelectedDifficulties] = useState<Set<EncounterLoot["difficulty"]>>(() => new Set(LOOT_DIFFICULTIES));
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -105,7 +107,7 @@ export default function WarioDungeonPage() {
 
   const schedule = useMemo(() => buildMonthlyWarioSchedule(now, eventOffset), [eventOffset, now]);
   const nextSpawn = useMemo(() => getNextWarioDungeonSpawn(now, eventOffset), [eventOffset, now]);
-
+  const today = getOffsetAdjustedNow(now, eventOffset).getDate();
   const scheduleByDay = useMemo(() => {
     const grouped = new Map<number, WarioDungeonSpawn[]>();
     for (const entry of schedule) {
@@ -114,7 +116,6 @@ export default function WarioDungeonPage() {
     }
     return Array.from(grouped.entries()).sort((a, b) => a[0] - b[0]).map(([day, entries]) => ({ day, entries }));
   }, [schedule]);
-
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="space-y-3">
@@ -139,8 +140,8 @@ export default function WarioDungeonPage() {
         </button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <Card>
+      <div className="space-y-6">
+        <Card className={isWarioDungeonLive(now, eventOffset) ? "border-2 border-green-500 ring-2 ring-green-500/50" : undefined}>
           <CardContent className="p-4 space-y-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2 font-semibold">
@@ -156,18 +157,23 @@ export default function WarioDungeonPage() {
               </div>
             </div>
 
-            <div className="grid gap-3 lg:grid-cols-2">
-              {WAIRO_DUNGEON_LOOT_GROUP.encounters.map((encounter) => (
-                <div key={encounter.difficulty} className="rounded-lg border p-3 space-y-3">
+            <div className="flex justify-end"><LootDifficultySwitches selected={selectedDifficulties} onChange={(difficulty, checked) => setSelectedDifficulties((current) => { const next = new Set(current); if (checked) next.add(difficulty); else next.delete(difficulty); return next; })} /></div>
+
+            <div className="grid gap-3">
+              {WAIRO_DUNGEON_LOOT_GROUP.encounters.filter((encounter) => selectedDifficulties.has(encounter.difficulty)).map((encounter) => (
+                <div key={encounter.difficulty} id={`wairo-loot-${encounter.difficulty.toLowerCase()}`} className={`scroll-mt-24 rounded-lg border p-3 space-y-3 ${lootDifficultyClasses(encounter.difficulty)}`}>
                   <div>
-                    <div className="font-medium text-sm">{encounter.difficulty}</div>
+                    <div className="flex flex-wrap items-center gap-2 font-medium text-sm">
+                      <span>{encounter.difficulty}</span>
+                      <LootBossTag encounter={encounter} />
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       Lv {encounter.level} encounter • Boss Lv {encounter.bossLevel}
                     </div>
                   </div>
-                  <div className="space-y-3">
+                  <div className="grid min-w-0 gap-3 md:grid-cols-2">
                     {encounter.tables.map((table, index) => (
-                      <div key={index} className="overflow-hidden rounded-md border">
+                      <div key={index} className="min-w-0 overflow-hidden rounded-md border">
                         <div className="bg-muted/40 px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground">
                           Loot table {index + 1}
                         </div>
@@ -218,11 +224,12 @@ export default function WarioDungeonPage() {
                 </div>
               ))}
             </div>
+
           </CardContent>
         </Card>
+      </div>
 
-        <div className="space-y-6">
-          <Card>
+      <Card>
             <CardContent className="p-4 space-y-3">
               <div className="font-semibold">Next spawn</div>
               {nextSpawn ? (
@@ -240,8 +247,6 @@ export default function WarioDungeonPage() {
               )}
             </CardContent>
           </Card>
-        </div>
-      </div>
 
       <Card>
         <CardContent className="p-4 space-y-4">
@@ -256,8 +261,9 @@ export default function WarioDungeonPage() {
               const firstEntry = entries[0];
               const isPast = entries.every((entry) => entry.endsAt.getTime() <= now.getTime());
               const isActive = entries.some((entry) => entry.startsAt.getTime() <= now.getTime() && now.getTime() < entry.endsAt.getTime());
+              const isToday = day === today;
               return (
-                <div key={day} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${isActive ? "border-green-500/40 bg-green-500/5" : ""}`}>
+                <div key={day} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${isToday ? "border-2 border-green-500 bg-green-500/[0.06] ring-2 ring-green-500/35" : ""}`}>
                   <div>
                     <div className="font-medium">Day {day} - {firstEntry.startsAt.toLocaleString([], { weekday: "short" })}</div>
                     <div className="text-xs text-muted-foreground">
@@ -265,6 +271,7 @@ export default function WarioDungeonPage() {
                     </div>
                   </div>
                   <div className={`text-right text-xs ${isPast ? "text-muted-foreground" : ""}`}>
+                    {isToday && <div className="font-medium text-green-600 dark:text-green-400">Today</div>}
                     {isActive ? <div className="font-medium text-green-600 dark:text-green-400">Live now</div> : isPast ? <div>Ended</div> : <div className="font-medium">Upcoming</div>}
                   </div>
                 </div>

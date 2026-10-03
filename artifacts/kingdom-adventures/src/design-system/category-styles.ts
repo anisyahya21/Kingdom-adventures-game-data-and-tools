@@ -48,7 +48,7 @@ export const KA_CATEGORY_BADGE_CLASS: Record<KaCategory, string> = {
 
 export const KA_DIFFICULTY_BADGE_CLASS: Record<KaDifficulty, string> = {
   Easy: "bg-green-500/10 text-green-700 border-green-500/30 dark:text-green-300",
-  Normal: "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-300",
+  Normal: "bg-yellow-500/10 text-yellow-700 border-yellow-500/30 dark:text-yellow-300",
   Hard: "bg-orange-500/10 text-orange-700 border-orange-500/30 dark:text-orange-300",
   Extreme: "bg-red-500/10 text-red-700 border-red-500/30 dark:text-red-300",
 };
