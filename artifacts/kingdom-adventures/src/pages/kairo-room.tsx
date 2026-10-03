@@ -88,7 +88,7 @@ export default function KairoRoomPage() {
 
       <div className="space-y-3">
         <LootDayFilter value={dayFilter} onChange={setDayFilter} days={activeDays.map((entry) => entry.day)} />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
         {activeDays.filter((entry) => dayFilter === "all" || entry.day === (dayFilter === "today" ? currentEventDay : dayFilter)).map((entry) => {
           const isCurrentDay = entry.day === currentEventDay;
           const isLive = isCurrentDay && entry.active;
@@ -161,9 +161,9 @@ export default function KairoRoomPage() {
                 </div>
                 <LootDifficultySwitches selected={selected} onChange={(difficulty, checked) => toggleDifficulty(group.title, difficulty, checked)} />
               </div>
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-3">
                 {visibleEncounters.map((encounter) => (
-                  <div key={`${group.title}-${encounter.difficulty}`} id={day ? `${kairoDayAnchor(day)}-${encounter.difficulty.toLowerCase()}` : undefined} className={`scroll-mt-24 rounded-lg border p-3 space-y-3 ${lootDifficultyClasses(encounter.difficulty)}`}>
+                  <div key={`${group.title}-${encounter.difficulty}`} id={day ? `${kairoDayAnchor(day)}-${encounter.difficulty.toLowerCase()}` : undefined} className={`min-w-0 scroll-mt-24 rounded-lg border p-3 space-y-3 ${lootDifficultyClasses(encounter.difficulty)}`}>
                     <div>
                       <div className="flex flex-wrap items-center gap-2 font-medium text-sm">
                         <span>{encounter.difficulty}</span>
@@ -173,13 +173,13 @@ export default function KairoRoomPage() {
                         Lv {encounter.level} encounter • Boss Lv {encounter.bossLevel}
                       </div>
                     </div>
-                    <div className="space-y-3">
+                    <div className="grid min-w-0 gap-3 md:grid-cols-2">
                       {encounter.tables.map((table, index) => (
-                        <div key={index} className="overflow-hidden rounded-md border">
+                        <div key={index} className="min-w-0 overflow-hidden rounded-md border">
                           <div className="bg-muted/40 px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground">
                             Loot table {index + 1}
                           </div>
-                          <div className="overflow-x-auto">
+                          <div className="min-w-0 overflow-x-auto">
                             <table className="w-full text-xs">
                               <thead className="bg-muted/20 text-muted-foreground">
                                 <tr>

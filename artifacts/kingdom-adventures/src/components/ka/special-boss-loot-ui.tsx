@@ -2,8 +2,11 @@ import type { EncounterLoot } from "@/lib/special-boss-loot";
 import { TREASURE_MONSTERS, TREASURE_SPECIAL_BOSSES } from "@/lib/treasure-lookup";
 import { getMonsterSpriteById } from "@/lib/monster-sprites";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SlidersHorizontal } from "lucide-react";
+import { useId, useState } from "react";
 
 export const LOOT_DIFFICULTIES: EncounterLoot["difficulty"][] = ["Easy", "Normal", "Hard", "Extreme"];
 
@@ -59,23 +62,42 @@ export function LootDifficultySwitches({
   selected: Set<EncounterLoot["difficulty"]>;
   onChange: (difficulty: EncounterLoot["difficulty"], checked: boolean) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const idPrefix = useId();
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="sm" aria-label="Choose visible difficulties">
           <SlidersHorizontal className="mr-1.5 h-4 w-4" /> Difficulties
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuLabel>Show difficulties</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {LOOT_DIFFICULTIES.map((difficulty) => (
-          <DropdownMenuCheckboxItem key={difficulty} checked={selected.has(difficulty)} onCheckedChange={(checked) => onChange(difficulty, checked)}>
-            {difficulty}
-          </DropdownMenuCheckboxItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-44 p-3"
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+      >
+        <div className="mb-2 text-sm font-semibold">Show difficulties</div>
+        <div className="space-y-1">
+          {LOOT_DIFFICULTIES.map((difficulty) => {
+            const id = `${idPrefix}-loot-difficulty-${difficulty.toLowerCase()}`;
+            return (
+              <div key={difficulty} className="flex items-center gap-2 rounded-sm px-1 py-1.5">
+                <Checkbox
+                  id={id}
+                  checked={selected.has(difficulty)}
+                  onCheckedChange={(checked) => onChange(difficulty, checked === true)}
+                />
+                <Label htmlFor={id} className="flex-1 cursor-pointer text-sm font-normal">
+                  {difficulty}
+                </Label>
+              </div>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
