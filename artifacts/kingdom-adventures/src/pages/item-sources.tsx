@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ka/page-header";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
-import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon, getItemIcon } from "@/lib/equipment-icons";
+import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon, getItemIcon, getSurveyIconByName, getValuableIcon } from "@/lib/equipment-icons";
 import { getMonsterSprite } from "@/lib/monster-sprites";
 import { getSkillIcon } from "@/lib/skill-icons";
 import { TREASURE_MONSTERS, treasureDisplayName } from "@/lib/treasure-lookup";
@@ -82,9 +82,10 @@ function RewardIcon({ type, name, className = "h-8 w-8" }: { type: RewardType; n
   }
   const src =
     type === "skill" ? getSkillIcon(name)
-      : type === "item" ? getItemIcon(name)
+      : type === "item" ? getItemIcon(name) ?? getFacilityIconByName(name)
         : type === "equipment" ? getEquipmentIcon(undefined, name)
-          : type === "furniture" ? getFurnitureIcon(name)
+          : type === "furniture" ? getFurnitureIcon(name) ?? getFacilityIconByName(name)
+            : type === "valuable" ? getValuableIcon(name) ?? getItemIcon(name)
             : undefined;
   if (!src) return <PackageSearch className={`${className} shrink-0 text-muted-foreground`} />;
   return <img src={src} alt={treasureDisplayName(name)} className={`${className} shrink-0 object-contain [image-rendering:pixelated]`} />;
@@ -94,7 +95,9 @@ function SourceGlyph({ sourceId, large = false }: { sourceId: string; large?: bo
   const node = sourceNode(sourceId);
   const monsterId = node?.key.startsWith("monster:") ? Number(node.key.slice("monster:".length)) : undefined;
   const monster = monsterId !== undefined ? MONSTERS_BY_ID.get(monsterId) : undefined;
-  const image = (node && SOURCE_IMAGES[node.kind]) ?? getMonsterSprite(monster?.name)?.src;
+  const image = (node && SOURCE_IMAGES[node.kind])
+    ?? (node?.kind === "survey" ? getSurveyIconByName(node.label) : undefined)
+    ?? getMonsterSprite(monster?.name)?.src;
   // Neutral placeholder rather than an empty cell when a family has no shipped sprite.
   if (!image) {
     return (

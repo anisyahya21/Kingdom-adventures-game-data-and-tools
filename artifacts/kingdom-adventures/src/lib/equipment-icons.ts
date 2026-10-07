@@ -1,6 +1,7 @@
 ﻿import iconManifest from "../../../../website_icons/manifest.json";
 import facilityIconManifest from "../../../../website_icons/facilities_confirmed/manifest.json";
 import assembledFacilityIconManifest from "../../../../website_icons/facilities_assembled/manifest.json";
+import { PLAYER_VALUABLES } from "@/game-data/player-valuables";
 
 type ManifestVariant = { index?: number; filename?: string };
 type ManifestFurnitureEntry = {
@@ -229,6 +230,16 @@ if (iconManifest && iconManifest.items) {
   }
 }
 
+const valuableIconLookup = new Map<string, string>();
+for (const valuable of PLAYER_VALUABLES) {
+  valuableIconLookup.set(normalizeIconName(valuable.name), valuable.iconSrc);
+}
+
+function findValuableIcon(name: string): string | undefined {
+  const canonicalName = name.replace(/\s+#\d+$/i, "");
+  return valuableIconLookup.get(normalizeIconName(canonicalName));
+}
+
 // Build egg color name to icon path lookup from manifest
 const eggIconLookup = new Map<string, string>();
 if (iconManifest && iconManifest.eggs) {
@@ -251,11 +262,25 @@ export function getItemIcon(name: string | undefined | null): string | undefined
   if (normalized === "blessed rain") {
     return `/website_icons/items/item_058.png?v=${ICON_CACHE_VERSION}`;
   }
-  return (
+  const direct = (
     itemIconLookup.get(clean)
     ?? itemIconLookup.get(clean.toLowerCase())
     ?? itemIconLookup.get(normalized)
   );
+  if (direct) return direct;
+
+  // Treasure rows label numbered copies separately, while the shipped artwork is shared by
+  // every copy of the same valuable (for example, "Military Training Manual #1").
+  return findValuableIcon(clean)
+    ?? getFacilityIconByName(clean)
+    ?? getFurnitureIcon(clean);
+}
+
+export function getValuableIcon(name: string | undefined | null): string | undefined {
+  if (!name) return undefined;
+  const clean = name.trim();
+  if (!clean) return undefined;
+  return findValuableIcon(clean);
 }
 
 export function getEggIconByColor(colorName: string | undefined | null): string | undefined {
@@ -319,7 +344,44 @@ export function getFacilityIcon(id: number | undefined | null): string | undefin
 export function getFacilityIconByName(name: string | undefined | null): string | undefined {
   if (!name) return undefined;
   const normalizedName = normalizeIconName(name);
-  return facilityNameIconLookup.get(normalizedName);
+  const aliases = [normalizedName];
+  if (/^high grade storehouse items$/.test(normalizedName)) {
+    aliases.push("high grade storehouse item");
+  }
+  for (const alias of aliases) {
+    const icon = facilityNameIconLookup.get(alias);
+    if (icon) return icon;
+  }
+  return undefined;
+}
+
+const BUILD_MENU_ICON = `/website_icons/menu/menu_build.png?v=${ICON_CACHE_VERSION}`;
+
+/** Resolve the facility represented by a survey label, including blueprint and game-name aliases. */
+export function getSurveyIconByName(name: string | undefined | null): string | undefined {
+  if (!name) return undefined;
+  const clean = name.trim()
+    .replace(/^Survey:\s*/i, "")
+    .replace(/\s+Blueprints?$/i, "")
+    .trim();
+  if (/^bridge$/i.test(clean)) return BUILD_MENU_ICON;
+
+  const picTag = /<pic=([^>]+)>/i.exec(clean)?.[1]?.toLowerCase();
+  const surveyMaterialNames: Record<string, string> = {
+    grass: "Grass",
+    wood: "Wood",
+    food: "Food",
+    iron: "Ore",
+    magic: "Mystic Ore",
+    stamina: "Energy",
+  };
+  const material = picTag ? surveyMaterialNames[picTag] : undefined;
+  const facilityName = clean
+    .replace(/<pic=[^>]+>/i, material ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/\(Items\)/i, "(Item)")
+    .trim();
+  return getFacilityIconByName(facilityName);
 }
 
 // Build furniture name to icon path lookup from manifest
@@ -350,6 +412,7 @@ for (const icon of assembledFacilityIconManifest.icons) {
 export function getFurnitureIcon(name: string | undefined | null): string | undefined {
   if (!name) return undefined;
   const clean = name.trim();
+  if (/^land\s*\(l\)$/i.test(clean)) return BUILD_MENU_ICON;
   return (
     furnitureIconLookup.get(clean) ??
     furnitureIconLookup.get(clean.toLowerCase()) ??

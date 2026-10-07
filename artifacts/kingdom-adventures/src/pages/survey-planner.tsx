@@ -12,7 +12,7 @@ import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-dat
 import { apiUrl } from "@/lib/api";
 import { getJobProfiles, getJobsThatOpenBuilding, type SharedJobProfileData } from "@/game-data/job-profile";
 import { SURVEY_TERRAIN_PREVIEW_IMAGES, TERRAIN_NAMES } from "@/game-data/terrain-labels";
-import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon } from "@/lib/equipment-icons";
+import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon, getSurveyIconByName } from "@/lib/equipment-icons";
 import surveyCsv from "../../../../data/Sheet csv/KA GameData - Survey.csv?raw";
 import jobCsv from "../../../../data/Sheet csv/KA GameData - Job.csv?raw";
 import jobGroupCsv from "../../../../data/Sheet csv/KA GameData - JobGroup.csv?raw";
@@ -305,11 +305,7 @@ function getSurveyGroupSortKey(group: SurveyGroup & { order: number }) {
 }
 
 function getFacilityIconFromSurveyGroup(groupName: string) {
-  if (!groupName.startsWith("Survey:")) return null;
-  const rawName = groupName.replace(/^Survey:\s*/i, "").replace(/\s+Blueprints?$/i, "").trim();
-  if (!rawName || rawName.toLowerCase() === "other") return null;
-  const withoutVariant = rawName.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
-  return getFacilityIconByName(rawName) ?? getFacilityIconByName(withoutVariant) ?? null;
+  return getSurveyIconByName(groupName) ?? null;
 }
 
 function getSurveyNameSectionFacilityIcon(displayName: string) {
@@ -323,7 +319,7 @@ function getSurveyNameSectionFacilityIcon(displayName: string) {
   if (key.includes("cash register")) {
     return getFurnitureIcon("Cash Register") ?? getFurnitureIcon("Register") ?? getFacilityIconByName("Cash Register") ?? null;
   }
-  return null;
+  return getSurveyIconByName(displayName) ?? null;
 }
 
 function isMasterInstructorSurveyName(displayName: string) {
