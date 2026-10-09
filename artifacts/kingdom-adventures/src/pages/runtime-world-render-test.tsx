@@ -1,3 +1,4 @@
+import { createResourceCache } from "@/lib/resource-cache";
 import { zoomAt, wheelZoomFactor } from '@/lib/map-camera';
 import nativeMapFacilities from "@/game-data/native-map-facilities.json";
 import nativeMapGround from "@/game-data/native-map-ground.json";
@@ -4898,7 +4899,12 @@ function getParsedCellAt(parsed: NativeMapBinary, x: number, y: number): NativeM
   return parsed.cells[index] ?? null;
 }
 
-async function fetchText(path: string): Promise<string> {
+const fetchTextCache = createResourceCache<string>(64);
+function fetchText(path: string): Promise<string> {
+  return fetchTextCache(path, () => fetchTextUncached(path));
+}
+
+async function fetchTextUncached(path: string): Promise<string> {
   const response = await fetch(path);
   console.log("[runtime-world-render-test] fetchText", path, response.status, response.headers.get("Content-Type"));
   if (!response.ok) {
@@ -4907,7 +4913,12 @@ async function fetchText(path: string): Promise<string> {
   return response.text();
 }
 
-async function fetchArrayBuffer(path: string): Promise<ArrayBuffer> {
+const fetchArrayBufferCache = createResourceCache<ArrayBuffer>(96);
+function fetchArrayBuffer(path: string): Promise<ArrayBuffer> {
+  return fetchArrayBufferCache(path, () => fetchArrayBufferUncached(path));
+}
+
+async function fetchArrayBufferUncached(path: string): Promise<ArrayBuffer> {
   const response = await fetch(path);
   console.log("[runtime-world-render-test] fetchArrayBuffer", path, response.status, response.headers.get("Content-Type"));
   if (!response.ok) {
@@ -4916,16 +4927,28 @@ async function fetchArrayBuffer(path: string): Promise<ArrayBuffer> {
   return response.arrayBuffer();
 }
 
+const optionalBufferCache = createResourceCache<{ bytes: ArrayBuffer | null; status: number }>(192,
+  value => value.status === 404 || (value.status >= 200 && value.status < 300));
 async function fetchArrayBufferOptional(path: string): Promise<ArrayBuffer | null> {
+  const result = await optionalBufferCache(path, () => fetchArrayBufferOptionalUncached(path));
+  return result.bytes;
+}
+
+async function fetchArrayBufferOptionalUncached(path: string): Promise<{ bytes: ArrayBuffer | null; status: number }> {
   const response = await fetch(path);
   console.log("[runtime-world-render-test] fetchArrayBufferOptional", path, response.status, response.headers.get("Content-Type"));
   if (!response.ok) {
-    return null;
+    return { bytes: null, status: response.status };
   }
-  return response.arrayBuffer();
+  return { bytes: await response.arrayBuffer(), status: response.status };
 }
 
+const loadImageCache = createResourceCache<HTMLImageElement>(192);
 function loadImage(path: string): Promise<HTMLImageElement> {
+  return loadImageCache(path, () => loadImageUncached(path));
+}
+
+function loadImageUncached(path: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);

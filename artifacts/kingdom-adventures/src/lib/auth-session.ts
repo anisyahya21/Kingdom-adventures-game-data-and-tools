@@ -1,3 +1,4 @@
+import { requestSession } from "@/lib/session-request";
 import { configuredApiBase } from "@/lib/api";
 
 export type AuthUser = {
@@ -42,9 +43,7 @@ function authUrl(path: string) {
 }
 
 export async function fetchAuthSession(): Promise<AuthSessionResponse> {
-  const response = await fetch(authUrl("/session"), {
-    credentials: "include",
-  });
+  const response = await requestSession(authUrl("/session"));
   if (!response.ok) {
     return { authenticated: false, guest: true };
   }

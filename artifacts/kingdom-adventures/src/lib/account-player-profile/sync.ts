@@ -1,3 +1,4 @@
+import { requestSession } from "@/lib/session-request";
 import { useSyncExternalStore } from "react";
 import { apiUrl, configuredApiBase } from "@/lib/api";
 import {
@@ -29,10 +30,7 @@ type ApiEnvelope = {
 };
 
 async function loadAccountId(): Promise<{ accountId: string } | null> {
-  const response = await fetch(`${configuredApiBase()}/ka-api/auth/session`, {
-    credentials: "include",
-    cache: "no-store",
-  });
+  const response = await requestSession(`${configuredApiBase()}/ka-api/auth/session`);
   const payload = response.ok ? await response.json() as AuthSessionPayload : null;
   return parseAccountSessionResponse(response.status, payload);
 }

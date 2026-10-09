@@ -9,7 +9,7 @@ import { useEventRefresh } from "@/lib/event-refresh";
 import { useEventHourOffset } from "@/lib/event-time";
 import { KAIRO_ROOM_DRAFTS } from "@/lib/en-event-drafts";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventStatus } from "@/lib/event-status";
-import { isWarioDungeonLive } from "@/pages/wario-dungeon";
+import { isWarioDungeonLive } from "@/lib/wairo-schedule";
 import { getFacilityIcon } from "@/lib/equipment-icons";
 
 const GACHA_BUTTON_X4_ICON = "/website_icons/requested/gacha_button_x4.png";

@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import { versionStaticAssets } from "./scripts/version-static-assets.mjs";
 
 const rawPort = process.env.PORT ?? "5173";
 
@@ -20,7 +21,7 @@ export default defineConfig({
   cacheDir: path.resolve(import.meta.dirname, ".cache/vite"),
   optimizeDeps: { entries: ["index.html"] },
   plugins: await (async () => {
-    const plugins = [react(), tailwindcss()];
+    const plugins = [react(), tailwindcss(), versionStaticAssets()];
 
     try {
       const { default: runtimeErrorOverlay } = await import(

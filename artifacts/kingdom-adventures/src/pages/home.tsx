@@ -16,7 +16,7 @@ import { getMonsterSpawnReference, presentBriefingMission } from "@/game-data/br
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
 import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventStatus } from "@/lib/event-status";
 import { formatBriefingDate, getCurrentOrUpcomingSpecificMonsterTarget } from "@/lib/briefing-room-schedule";
-import { getNextWarioDungeonSpawn, isWarioDungeonLive } from "@/pages/wario-dungeon";
+import { getNextWarioDungeonSpawn, isWarioDungeonLive } from "@/lib/wairo-schedule";
 
 const CREDIT_SOURCES = [
   {

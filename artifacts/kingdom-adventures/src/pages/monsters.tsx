@@ -50,7 +50,7 @@ function Chips({ card }: { card: MonsterCard }) {
       </span>
       {card.cave && (
         <span className="ml-auto flex flex-1 items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1">
-          <img
+          <img loading="lazy" decoding="async"
             src={card.cave.icon}
             alt=""
             className="h-10 w-10 shrink-0 object-contain [image-rendering:pixelated]"
@@ -68,7 +68,7 @@ function BoxBlock({ card, animal }: { card: MonsterCard; animal: boolean }) {
   return (
     <div className="mt-2 border-t border-border/60 px-2.5 pt-2">
       <div className="flex items-center gap-2">
-        <img src={card.box.icon} alt="" className="h-9 w-9 object-contain [image-rendering:pixelated]" />
+        <img loading="lazy" decoding="async" src={card.box.icon} alt="" className="h-9 w-9 object-contain [image-rendering:pixelated]" />
         <span className="min-w-0">
           <span className="block truncate text-sm font-semibold">{card.box.name}</span>
           <span className="block text-[11px] text-muted-foreground">
@@ -89,7 +89,7 @@ function BoxBlock({ card, animal }: { card: MonsterCard; animal: boolean }) {
             className="flex items-center gap-2 rounded bg-muted/50 px-2 py-0"
           >
             {reward.icon ? (
-              <img src={reward.icon} alt="" className="h-6 w-6 object-contain [image-rendering:pixelated]" />
+              <img loading="lazy" decoding="async" src={reward.icon} alt="" className="h-6 w-6 object-contain [image-rendering:pixelated]" />
             ) : (
               <span className="h-6 w-6" />
             )}
@@ -189,7 +189,7 @@ function XpBlock({ card }: { card: MonsterCard }) {
                   title={entry.label}
                 >
                   {entry.icon ? (
-                    <img src={entry.icon} alt={entry.label} className="h-4 w-4 object-contain [image-rendering:pixelated]" />
+                    <img loading="lazy" decoding="async" src={entry.icon} alt={entry.label} className="h-4 w-4 object-contain [image-rendering:pixelated]" />
                   ) : (
                     <span className="text-[10px] text-muted-foreground">{entry.label}</span>
                   )}

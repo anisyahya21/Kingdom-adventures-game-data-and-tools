@@ -16,6 +16,7 @@ let response;
 let request;
 const adapter = runInNewContext(`${code}\n({ loadAccountId, readAccountProfile, writeAccountProfile })`, {
   fetch: async (url, options) => { request = { url, options }; return response; },
+  requestSession: async (url) => { request = { url, options: { credentials: "include", cache: "no-store" } }; return response; },
   configuredApiBase: () => "",
   apiUrl: (path) => `/ka-api/ka${path}`,
   sanitizePlayerProfile: (profile) => profile,

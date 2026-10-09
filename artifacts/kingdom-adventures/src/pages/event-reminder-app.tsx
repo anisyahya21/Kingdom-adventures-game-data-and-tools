@@ -14,7 +14,7 @@ import {
 } from "@/lib/web-push";
 import { buildLocalAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { ALL_GACHA_EVENTS, buildGachaEventWindow, type GachaEvent } from "@/pages/gacha-events";
-import { getNextWarioDungeonSpawn } from "@/pages/wario-dungeon";
+import { getNextWarioDungeonSpawn } from "@/lib/wairo-schedule";
 
 type ReminderMode = "start" | "one-hour-and-start";
 type ReminderDefinition =
