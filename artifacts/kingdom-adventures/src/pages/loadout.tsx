@@ -48,6 +48,9 @@ import { readPlayerProfile, profileResidentStatItems, usePlayerProfile, useResid
 import { searchProfileGoalBuildPages, type ProfileStatGoal, type ProfileGoalMode, type ProfileGoalBuild, type ProfileGoalSearchCharacter, type ProfileGoalSearchInput, type ProfileGoalSearchPage } from "@/lib/profile-loadout-goal-planner";
 import { compareEquipmentNamesOriginalOrder } from "@/lib/equipment-order";
 
+import { ENCOUNTER_FAMILIES, ENCOUNTER_VARIANTS, difficultyName } from "@/lib/battle-setup";
+import { CHEST_STRATEGY_OPTIONS, chestStrategyGoals, type ChestStrategyOption } from "@/lib/chest-strategy-targets";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type WeaponValue = "can" | "weak" | "cannot";
@@ -2074,6 +2077,10 @@ function ProfileGoalSearchPanel({
   const [speedTargetMode, setSpeedTargetMode] = useState<ProfileGoalMode | "bracket">("min");
   const [speedBracket, setSpeedBracket] = useState("");
   const [allowEquipmentLevelUp, setAllowEquipmentLevelUp] = useState(false);
+  const [strategyFamily, setStrategyFamily] = useState(ENCOUNTER_FAMILIES[0].id);
+  const [strategyDifficulty, setStrategyDifficulty] = useState(0);
+  const [strategyTolerance, setStrategyTolerance] = useState({ atk: "0", spd: "0", lck: "15" });
+  const [appliedStrategy, setAppliedStrategy] = useState<ChestStrategyOption | null>(null);
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
   const [searchComplete, setSearchComplete] = useState(false);
@@ -2111,7 +2118,25 @@ function ProfileGoalSearchPanel({
     setStatus(`Profile loaded: ${next.characters.length} characters and ${ownedCount} owned gear types.`);
   };
 
+  const strategyEncounter = ENCOUNTER_VARIANTS.find((entry) => entry.familyId === strategyFamily && entry.difficulty === strategyDifficulty);
+  const strategyOptions = CHEST_STRATEGY_OPTIONS.filter((entry) => entry.encounter === strategyEncounter?.id);
+  const applyStrategy = (option: ChestStrategyOption, exact = false) => {
+    const margins = { atk: Number(strategyTolerance.atk), spd: Number(strategyTolerance.spd), lck: Number(strategyTolerance.lck) };
+    if (!exact && Object.values(strategyTolerance).some((raw) => raw.trim() === "" || !Number.isInteger(Number(raw)) || Number(raw) < 0)) {
+      setError("Enter non-negative whole numbers for each search tolerance."); return;
+    }
+    resetSearch(); setError("");
+    const nextGoals = chestStrategyGoals(option, exact ? { atk: 0, spd: 0, lck: 0 } : margins);
+    // The preset searches only the DPS stats; old unrelated targets must not constrain it.
+    setSpeedTargetMode("range");
+    setSpeedBracket("");
+    setGoals(nextGoals);
+    setEditing(Object.fromEntries(Object.entries(nextGoals).map(([stat, goal]) => [stat, { mode: "range" as ProfileGoalMode, min: String(goal.min), max: String(goal.max) }])));
+    setAppliedStrategy(option);
+    setStatus(`DPS targets filled for ${strategyEncounter?.title ?? "selected encounter"}. Review the ranges, then start profile search.`);
+  };
   const setGoalValue = (stat: string, field: "mode" | "min" | "max", value: string) => {
+    setAppliedStrategy(null);
     resetSearch();
     setError("");
     const current = editing[stat] ?? { mode: "min" as ProfileGoalMode, min: "", max: "" };
@@ -2359,6 +2384,23 @@ function ProfileGoalSearchPanel({
           </Button>
           <span className="text-xs text-muted-foreground">{allowEquipmentLevelUp ? "Current levels and upgrades up to Lv99." : "Current equipment levels only."}</span>
         </div>
+      <section aria-label="Measured chest strategies" className="space-y-3 rounded-md border p-3">
+        <div className="font-medium text-sm">Chest strategy targets · DPS only</div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="grid gap-1 text-xs">Encounter<select aria-label="Strategy encounter" className="min-h-11 min-w-0 rounded border bg-background px-2" value={strategyFamily} onChange={(event) => { setStrategyFamily(event.target.value); setAppliedStrategy(null); }}>{ENCOUNTER_FAMILIES.map((family) => <option key={family.id} value={family.id}>{family.name}</option>)}</select></label>
+          <label className="grid gap-1 text-xs">Difficulty<select aria-label="Strategy difficulty" className="min-h-11 rounded border bg-background px-2" value={strategyDifficulty} onChange={(event) => { setStrategyDifficulty(Number(event.target.value)); setAppliedStrategy(null); }}>{[0, 1, 2, 3].map((difficulty) => <option key={difficulty} value={difficulty}>{difficultyName(difficulty)}</option>)}</select></label>
+        </div>
+        <p className="text-xs font-medium">{strategyEncounter?.title}</p>
+        <p className="text-xs text-muted-foreground">Rewards were measured at the exact DPS stats below with the research team's fixed skills, healer and formation. They include unsuccessful runs and are not guaranteed for a different team. Highest is the best observed run, not a ceiling.</p>
+        <div className="grid gap-2 sm:grid-cols-3">{(["atk", "spd", "lck"] as const).map((stat) => <label key={stat} className="grid gap-1 text-xs">{stat === "atk" ? "Attack" : stat === "spd" ? "Speed" : "Luck"} search tolerance ±<Input aria-label={`${stat} strategy tolerance`} type="text" inputMode="numeric" value={strategyTolerance[stat]} onChange={(event) => setStrategyTolerance((old) => ({ ...old, [stat]: event.target.value }))} /></label>)}</div>
+        <p className="text-xs text-muted-foreground">A wider window helps find achievable gear. Its rewards have not been validated across the whole range; use exact targets to match the measured point.</p>
+        <div className="space-y-2">{strategyOptions.map((option) => <div key={option.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3">
+          <div className="min-w-0 text-sm"><div className="font-medium tabular-nums">ATT {option.atk} · Speed {option.spd} · Luck {option.lck}</div><div className="text-xs text-muted-foreground">Avg earned {option.mean.toFixed(2)} · Highest {option.highest} · {option.n} seeds</div></div>
+          <div className="flex flex-wrap gap-2"><Button variant="outline" className="min-h-11" onClick={() => applyStrategy(option, true)}>Use exact stats</Button><Button className="min-h-11" onClick={() => applyStrategy(option)}>Use search window</Button></div>
+        </div>)}</div>
+        {strategyOptions.length === 0 && <p className="text-sm text-muted-foreground">No measured options are available for this encounter yet.</p>}
+        {appliedStrategy && <p role="status" className="text-xs text-muted-foreground">Targets filled below. The reported average applies to ATT {appliedStrategy.atk}, Speed {appliedStrategy.spd}, Luck {appliedStrategy.lck}; nearby gear results may differ.</p>}
+      </section>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {goalKeys.map((stat) => {
             const value = editing[stat] ?? { mode: "min" as ProfileGoalMode, min: "", max: "" };
