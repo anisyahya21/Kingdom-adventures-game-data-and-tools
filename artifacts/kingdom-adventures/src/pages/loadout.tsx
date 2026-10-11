@@ -2242,7 +2242,7 @@ function ProfileGoalSearchPanel({
         ownership: "owned" as const,
         currentLevel,
       }));
-      const characters: ProfileGoalSearchCharacter[] = profile.characters.map((character) => {
+      const characters: ProfileGoalSearchCharacter[] = profile.characters.flatMap((character) => {
         const candidate: Loadout = {
           id: `profile-goal:${character.id}`,
           name: `${character.jobName} (Profile ${character.id})`,
@@ -2260,10 +2260,26 @@ function ProfileGoalSearchPanel({
         for (const [stat, bonus] of Object.entries(residentStatItemBonuses(residentItems))) {
           baseStats[stat] = (baseStats[stat] ?? 0) + bonus;
         }
+        const usefulSkills = new Map<string, string>();
+        for (const item of Object.keys(profile.equipment)) {
+          const rule = getEquipRuleState(candidate, data, item);
+          if ((rule.blocked || rule.appliesPenalty) && rule.resistanceSkill && rule.weaponType &&
+              canPickHumanSkill(candidate.jobName, rule.resistanceSkill.name, [])) usefulSkills.set(rule.weaponType, rule.resistanceSkill.name);
+        }
+        // One weapon and one shield: retain weak, removed-weakness and unlocked variants.
+        const shieldSkill = usefulSkills.get("Shield");
+        const weaponSkills = [...usefulSkills.entries()].filter(([type]) => type !== "Shield").map(([, name]) => name);
+        const skillSets: string[][] = [[], ...weaponSkills.map((name) => [name])];
+        if (shieldSkill) {
+          skillSets.push([shieldSkill]);
+          for (const name of weaponSkills) if (canPickHumanSkill(candidate.jobName, shieldSkill, [name])) skillSets.push([name, shieldSkill]);
+        }
+        return skillSets.map((skills) => {
+        const configured = { ...candidate, skills };
         const slotsByName = new Map<string, string[]>();
         if (jobProfile) {
           for (const [name, slot] of Object.entries(data.slotAssignments ?? {})) {
-            if (!data.overrides?.[name] || !canPickHumanEquipment(candidate, data, name)) continue;
+            if (!data.overrides?.[name] || !canPickHumanEquipment(configured, data, name)) continue;
             const names = slotsByName.get(slot) ?? [];
             names.push(name);
             slotsByName.set(slot, names);
@@ -2273,12 +2289,13 @@ function ProfileGoalSearchPanel({
           .map(({ slot }) => ({ slot, items: (slotsByName.get(slot) ?? []).sort(compareEquipmentNamesOriginalOrder) }))
           .filter((slot) => slot.items.length > 0);
         const contribution = (item: string, level: number) => calcEquipStats({
-          ...candidate,
+          ...configured,
           useProfileInventory: false,
           equipment: [{ name: item, level }],
         }, data);
         return {
           id: character.id,
+          skills,
           name: candidate.name,
           jobName: character.jobName,
           rank: character.rank,
@@ -2286,6 +2303,7 @@ function ProfileGoalSearchPanel({
           eligible: !!jobProfile && rankExists && Object.keys(activeGoals).every((stat) => Number.isFinite(curve[stat])),
           input: { baseStats, goals: activeGoals, slots, contribution },
         };
+        });
       });
 
       searchInputRef.current = { characters, inventory };
@@ -2447,6 +2465,7 @@ function ProfileGoalSearchPanel({
                     })}
                     {build.picks.length === 0 && <span className="text-xs text-muted-foreground">No gear needed</span>}
                   </div>
+                  {!!build.skills?.length && <div className="mt-2 text-xs text-muted-foreground">Required skills: {build.skills.join(" · ")} (ownership not recorded)</div>}
                   <div className="mt-1 flex flex-wrap gap-2 text-[11px] tabular-nums text-muted-foreground">
                     {Object.entries(goals).filter(([, goal]) => goal).map(([stat, goal]) => (
                       <span key={stat}><StatLabel stat={stat} icons={data.statIcons} /> {build.stats[stat]?.toLocaleString()} ({goalLabelText(goal)})</span>
@@ -3430,7 +3449,7 @@ export default function LoadoutPage() {
       rank,
       statLevels: { ...character.statLevels },
       equipment: build.picks.map(({ item, level }) => ({ name: item, level })),
-      skills: [],
+      skills: [...(build.skills ?? [])],
       residentStatItems: profileResidentStatItems(profile),
     };
     save([...loadouts, newLoadout]);

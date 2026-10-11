@@ -71,3 +71,31 @@ const cancelled = await iterator.next();
 assert.equal(cancelled.value.cancelled, true);
 assert.equal(cancelled.value.complete, false);
 console.log(JSON.stringify({ status: "passed", exhaustiveComparisons: cases, regression: ["hard constraints", "multiple-stat tradeoffs", "ownership", "unavailable residents", "upgrade opt-in", "legacy upgrade-only pass", "pagination", "cancellation"] }));
+
+// Skill-bearing character variants must retain the legal skill requirement in results.
+const skillVariant = input({ hp: { mode: "min", min: 1 } });
+skillVariant.characters = [skillVariant.characters[0]];
+skillVariant.characters[0].skills = ["Example equipment skill"];
+const skillPages = await collect(skillVariant);
+assert(skillPages.flatMap(page => page.builds).every(build => build.skills.includes("Example equipment skill")));
+
+// Distinct affinity contexts: upper limits can prefer weak gear; a high minimum
+// can require the skill-bearing full-strength context. Same resident identity.
+const affinitySearch = {
+ inventory: [{ item: "Test weapon", ownership: "owned", currentLevel: 1 }],
+ characters: [false, true].map(full => ({
+   id: "same-resident", name: "Test resident", skills: full ? ["Test mastery"] : [],
+   eligible: true, available: true,
+   input: { baseStats: { atk: 0 }, goals: { atk: { mode: "min", min: 8 } },
+     slots: [{ slot: "Weapon", items: ["Test weapon"] }],
+     contribution: () => ({ atk: full ? 10 : 5 }) }
+ }))
+};
+const fullPages = await collect(affinitySearch);
+assert(fullPages.flatMap(page => page.builds).every(build => build.skills.includes("Test mastery")));
+assert(fullPages.flatMap(page => page.builds).length > 0);
+for (const character of affinitySearch.characters) character.input.goals = { atk: { mode: "range", min: 4, max: 6 } };
+const weakPages = await collect(affinitySearch);
+assert(weakPages.flatMap(page => page.builds).length > 0);
+assert(weakPages.flatMap(page => page.builds).every(build => build.skills.length === 0));
+console.log("Weak/full-strength variants and required-skill retention passed");

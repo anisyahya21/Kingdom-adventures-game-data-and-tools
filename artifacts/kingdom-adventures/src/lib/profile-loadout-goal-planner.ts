@@ -11,6 +11,7 @@ export type ProfileGoalMode = ProfileStatGoal["mode"];
 export type ProfileGoalSearchCharacter = {
   id: string;
   name: string;
+  skills?: string[];
   /** The candidate job/rank, when the caller is searching more than the saved one. */
   jobName?: string;
   rank?: string;
@@ -36,6 +37,7 @@ export type ProfileGoalSearchInput = {
 export type ProfileGoalBuild = {
   characterId: string;
   characterName: string;
+  skills?: string[];
   jobName?: string;
   rank?: string;
   /** Empty slots are omitted. Item levels are recorded current levels or requested upgrades. */
@@ -238,6 +240,7 @@ function* enumerateCharacter(
           build: {
             characterId: character.id,
             characterName: character.name,
+            skills: [...(character.skills ?? [])],
             ...(character.jobName ? { jobName: character.jobName } : {}),
             ...(character.rank ? { rank: character.rank } : {}),
             picks: picks.map((pick) => ({ ...pick })),
@@ -299,7 +302,7 @@ export async function* searchProfileGoalBuildPages(
   // Keep nondominated stat tradeoffs. Equal stat vectors prefer fewer added levels, then fewer items.
   const dominates = (a: Record<string, number>, b: Record<string, number>) => objectives.every((stat) => (a[stat] ?? 0) >= (b[stat] ?? 0)) && objectives.some((stat) => (a[stat] ?? 0) > (b[stat] ?? 0));
   const sameVector = (a: ProfileGoalBuild, b: ProfileGoalBuild) => objectives.every((stat) => (a.stats[stat] ?? 0) === (b.stats[stat] ?? 0));
-  const cheaper = (a: ProfileGoalBuild, b: ProfileGoalBuild) => a.addedLevels < b.addedLevels || (a.addedLevels === b.addedLevels && a.picks.length <= b.picks.length);
+  const cheaper = (a: ProfileGoalBuild, b: ProfileGoalBuild) => a.addedLevels < b.addedLevels || (a.addedLevels === b.addedLevels && (a.picks.length < b.picks.length || (a.picks.length === b.picks.length && (a.skills?.length ?? 0) <= (b.skills?.length ?? 0))));
   const consider = (build: ProfileGoalBuild) => {
     if (frontier.some((entry) => dominates(entry.stats, build.stats) || (sameVector(entry, build) && cheaper(entry, build)))) return;
     for (let index = frontier.length - 1; index >= 0; index -= 1) {
