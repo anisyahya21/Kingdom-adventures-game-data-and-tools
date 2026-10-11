@@ -2085,6 +2085,7 @@ function ProfileGoalSearchPanel({
   const [appliedStrategy, setAppliedStrategy] = useState<ChestStrategyOption | null>(null);
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
+  const [searchLimited, setSearchLimited] = useState(false);
   const [searchComplete, setSearchComplete] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
   const [passPolicy, setPassPolicy] = useState<"owned-current" | "owned-upgrades">("owned-current");
@@ -2110,6 +2111,7 @@ function ProfileGoalSearchPanel({
     setBusy(false);
     setPageBuilds([]);
     setSearchComplete(false);
+    setSearchLimited(false);
     setMatchCount(0);
     if (clearStatus) setStatus("");
   };
@@ -2202,6 +2204,7 @@ function ProfileGoalSearchPanel({
   const describePage = (page: ProfileGoalSearchPage) => {
     setMatchCount(page.matchingBuilds);
     setSearchComplete(page.complete);
+    setSearchLimited(!!page.limited);
     setStatus(page.cancelled
       ? "Search cancelled."
       : page.limited
@@ -2223,7 +2226,7 @@ function ProfileGoalSearchPanel({
       setError("Click Use profile data to load your saved characters and gear first.");
       return;
     }
-    const activeGoals = Object.fromEntries(Object.entries(goals).filter(([stat, goal]) => goal && (!nearestStrategy || (!["atk", "spd", "lck"].includes(stat) && goal.mode !== "maximize")))) as Record<string, ProfileStatGoal>;
+    const activeGoals = Object.fromEntries(Object.entries(goals).filter(([stat, goal]) => goal && (!nearestStrategy || (!["atk", "spd", "lck"].includes(stat))))) as Record<string, ProfileStatGoal>;
     for (const [stat, value] of Object.entries(editing)) {
       if (value.mode === "maximize" || (stat === "spd" && speedTargetMode === "bracket")) continue;
       const rawValues = value.mode === "min" ? [value.min] : value.mode === "max" ? [value.max] : [value.min, value.max];
@@ -2251,6 +2254,7 @@ function ProfileGoalSearchPanel({
     setPageBuilds([]);
     setMatchCount(0);
     setSearchComplete(false);
+    setSearchLimited(false);
     setPassPolicy(allowEquipmentLevelUp ? "owned-upgrades" : "owned-current");
     setStatus("Preparing profile characters…");
 
@@ -2315,6 +2319,7 @@ function ProfileGoalSearchPanel({
         return {
           id: character.id,
           skills,
+          skillItems: Object.fromEntries(skills.map((skill) => [skill, Object.keys(profile.equipment).filter((item) => getEquipRuleState(candidate, data, item).resistanceSkill?.name === skill)])),
           name: candidate.name,
           jobName: character.jobName,
           rank: character.rank,
@@ -2404,7 +2409,7 @@ function ProfileGoalSearchPanel({
           <div className="flex flex-wrap gap-2"><Button className="min-h-11" onClick={() => applyStrategy(option, false, true)}>Use closest achievable</Button><Button variant="outline" className="min-h-11" onClick={() => applyStrategy(option, true)}>Use exact stats</Button><Button className="min-h-11" onClick={() => applyStrategy(option)}>Use search window</Button></div>
         </div>)}</div>
         {strategyOptions.length === 0 && <p className="text-sm text-muted-foreground">No measured options are available for this encounter yet.</p>}
-        {nearestStrategy && <p className="text-xs text-muted-foreground">Automatic closeness mode: no ± values needed. Search ranks up to 40 builds by total relative ATT/Speed/Luck deviation. Other maximization goals are ignored; other explicit limits still apply. Stat closeness does not guarantee similar rewards or the same Speed bracket. Large searches stop after 1 million steps and label results provisional.</p>}
+        {nearestStrategy && <p className="text-xs text-muted-foreground">Automatic closeness mode: no ± values needed. Search ranks up to 40 builds by total relative ATT/Speed/Luck deviation. At equal DPS closeness, your maximized stats are improved; explicit limits still apply. Equivalent stat outcomes are grouped. Stat closeness does not guarantee similar rewards or the same Speed bracket. Large searches pause after each million steps. Continue refining resumes the same search; results are provisional until complete.</p>}
         {appliedStrategy && <p role="status" className="text-xs text-muted-foreground">Targets filled below. The reported average applies to ATT {appliedStrategy.atk}, Speed {appliedStrategy.spd}, Luck {appliedStrategy.lck}; nearby gear results may differ.</p>}
       </section>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -2474,6 +2479,7 @@ function ProfileGoalSearchPanel({
           <Button className="min-h-11" disabled={busy} onClick={runSearch}>
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{busy ? "Searching all options…" : "Start profile search"}
           </Button>
+          {searchLimited && <Button variant="outline" className="min-h-11" onClick={() => { setSearchLimited(false); setBusy(true); setStatus("Refining candidate builds…"); workerRef.current?.postMessage({ type: "refine" }); }}>Continue refining</Button>}
           {busy && <Button variant="ghost" className="min-h-11" onClick={cancelSearch}>Cancel</Button>}
           <span role="status" className="text-xs text-muted-foreground">{status}</span>
         </div>
@@ -2481,8 +2487,9 @@ function ProfileGoalSearchPanel({
         {profile && profile.characters.length === 0 && <p className="text-sm text-muted-foreground">The profile has no characters yet.</p>}
         {pageBuilds.length > 0 && (
           <div className="space-y-2">
+            {nearestStrategy && !searchComplete && <p role="status" className="text-sm font-medium text-amber-700 dark:text-amber-300">Provisional candidates — the closest build has not been proven. Continue refining to explore further.</p>}
             <p className="text-xs text-muted-foreground">
-              Showing {resultPage * 40 + 1}–{resultPage * 40 + pageBuilds.length} of {matchCount} {nearestStrategy ? "closest builds" : "matching builds"}{busy ? " found so far" : ""}
+              Showing {resultPage * 40 + 1}–{resultPage * 40 + pageBuilds.length} of {matchCount} {nearestStrategy ? (searchComplete ? "closest builds" : "candidate builds") : "matching builds"}{busy ? " found so far" : ""}
               {passPolicy === "owned-upgrades" ? " · upgrades allowed" : " · current levels"}.
             </p>
             <div className="flex items-center gap-2">

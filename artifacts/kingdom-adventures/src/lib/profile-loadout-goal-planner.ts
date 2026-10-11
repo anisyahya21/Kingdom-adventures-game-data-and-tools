@@ -12,6 +12,7 @@ export type ProfileGoalSearchCharacter = {
   id: string;
   name: string;
   skills?: string[];
+  skillItems?: Record<string, string[]>;
   /** The candidate job/rank, when the caller is searching more than the saved one. */
   jobName?: string;
   rank?: string;
@@ -248,7 +249,7 @@ function* enumerateCharacter(
           build: {
             characterId: character.id,
             characterName: character.name,
-            skills: [...(character.skills ?? [])],
+            skills: (character.skills ?? []).filter((skill) => !character.skillItems?.[skill] || picks.some((pick) => character.skillItems![skill].includes(pick.item))),
             ...(character.jobName ? { jobName: character.jobName } : {}),
             ...(character.rank ? { rank: character.rank } : {}),
             picks: picks.map((pick) => ({ ...pick })),
@@ -279,6 +280,43 @@ function* enumerateCharacter(
     if (objectives.length) yield* visit(index + 1);
   }
 
+  // Seed the frontier with legal coordinate-improved builds before deep DFS.
+  // This quickly considers weapons/head/shield instead of returning only the
+  // empty-first branches when a large search hits its provisional budget.
+  if (Object.keys(nearestTargets).length) {
+    const selected: Array<Candidate | undefined> = slots.map(() => undefined);
+    const score = (stats: Record<string, number>) => Object.entries(nearestTargets).reduce((sum, [stat, target]) => sum + Math.abs((stats[stat] ?? 0) - target) / Math.max(1, target), 0)
+      + keys.reduce((sum, stat) => {
+        const goal = input.goals[stat], value = stats[stat] ?? 0;
+        if (!goal || goal.mode === "maximize") return sum;
+        const lo = goal.mode === "max" ? -Infinity : goal.min ?? -Infinity;
+        const hi = goal.mode === "min" ? Infinity : goal.max ?? Infinity;
+        return sum + 1000 * Math.max(0, lo - value, value - hi);
+      }, 0);
+    for (let pass = 0; pass < 2; pass++) {
+      for (let index = 0; index < slots.length; index++) {
+        if (selected[index]) addValues(runningStats, selected[index]!.contribution, -1);
+        const occupied = new Set(selected.filter((entry, at) => at !== index && entry).map((entry) => entry!.item));
+        let best: Candidate | undefined;
+        let bestStats = { ...runningStats }, bestScore = score(runningStats);
+        for (const candidate of slots[index].candidates) {
+          yield { kind: "node" };
+          if (occupied.has(candidate.item)) continue;
+          const stats = { ...runningStats }; addValues(stats, candidate.contribution);
+          const value = score(stats);
+          const improvesObjectives = objectives.every((stat) => (stats[stat] ?? 0) >= (bestStats[stat] ?? 0)) && objectives.some((stat) => (stats[stat] ?? 0) > (bestStats[stat] ?? 0));
+          if (value < bestScore || (value === bestScore && improvesObjectives)) { best = candidate; bestStats = stats; bestScore = value; }
+        }
+        selected[index] = best;
+        if (best) addValues(runningStats, best.contribution);
+      }
+      picks.splice(0, picks.length, ...selected.flatMap((candidate, index) => candidate ? [{ slot: slots[index].slot, item: candidate.item, level: candidate.level }] : []));
+      yield* visit(slots.length);
+    }
+    for (const key of Object.keys(runningStats)) delete runningStats[key];
+    Object.assign(runningStats, input.baseStats);
+    picks.length = 0;
+  }
   yield* visit(0);
 }
 
@@ -317,8 +355,19 @@ export async function* searchProfileGoalBuildPages(
   const consider = (build: ProfileGoalBuild) => {
     if (nearest) {
       build.targetDistance = distance(build.stats);
-      const identity = (entry: ProfileGoalBuild) => `${entry.characterId}|${entry.jobName}|${entry.rank}|${JSON.stringify(entry.skills)}|${JSON.stringify(entry.picks)}`;
-      if (frontier.some((entry) => identity(entry) === identity(build))) return;
+      const relevantStats = [...new Set([...Object.keys(nearestTargets), ...objectives, ...goalKeys(search.characters[0]?.input.goals ?? {})])].sort();
+      const identity = (entry: ProfileGoalBuild) => `${entry.characterId}|${entry.jobName}|${entry.rank}|${relevantStats.map((stat) => `${stat}:${entry.stats[stat] ?? 0}`).join("|")}`;
+      const equivalent = frontier.findIndex((entry) => identity(entry) === identity(build));
+      if (equivalent >= 0) {
+        if (!cheaper(build, frontier[equivalent])) return;
+        frontier.splice(equivalent, 1);
+      }
+      // Closeness has priority. At equal distance, honor every requested maximize
+      // stat using Pareto dominance rather than silently preferring empty slots.
+      if (frontier.some((entry) => entry.targetDistance === build.targetDistance && dominates(entry.stats, build.stats))) return;
+      for (let index = frontier.length - 1; index >= 0; index--) {
+        if (frontier[index].targetDistance === build.targetDistance && dominates(build.stats, frontier[index].stats)) frontier.splice(index, 1);
+      }
       frontier.push(build);
       frontier.sort((a, b) => a.targetDistance! - b.targetDistance! || a.addedLevels - b.addedLevels || a.picks.length - b.picks.length || (a.skills?.length ?? 0) - (b.skills?.length ?? 0));
       if (frontier.length > 40) frontier.pop();
@@ -368,7 +417,7 @@ export async function* searchProfileGoalBuildPages(
 
     if (nearest && options.maxSearchNodes && searchNodes >= options.maxSearchNodes) {
       yield { builds: [...frontier], matchingBuilds: frontier.length, searchNodes, inventoryPolicy, completedCharacters, totalCharacters: search.characters.length, complete: false, limited: true, optimizing: true };
-      return;
+      continue;
     }
     const state = states[nextStateIndex];
     nextStateIndex = (nextStateIndex + 1) % states.length;
