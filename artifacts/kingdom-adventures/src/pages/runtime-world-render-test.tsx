@@ -1,3 +1,4 @@
+import { placementAtViewportCenter } from '@/lib/map-placement';
 import { createResourceCache } from "@/lib/resource-cache";
 import { zoomAt, wheelZoomFactor } from '@/lib/map-camera';
 import nativeMapFacilities from "@/game-data/native-map-facilities.json";
@@ -7,7 +8,7 @@ import { drawWaterSurface } from "@/lib/water-surface";
 import { NativeOceanBackground } from "@/components/ka/native-ocean-background";
 import { getOptDrawCommands, getSebOptDrawCommands, parseOptSprite, type OptSprite } from "@/lib/opt-sprite";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Skull } from "lucide-react";
+import { Check, X, Skull } from "lucide-react";
 import { parseNativeMapBinary, type NativeMapBinary, type NativeMapCell } from "@/runtime/world-builder/native-map";
 import type { ParsedMapCell } from "@/runtime/world-builder/types";
 import {
@@ -227,6 +228,8 @@ export type RuntimeExternalOverlay = {
   widthTiles?: number;
   spriteUrl?: string;
   spriteScale?: number;
+  /** Cropped native art bounds, relative to the entity origin at the tile center. */
+  spriteLayout?: {width:number;height:number;offsetX:number;offsetY:number};
   anchorOffsetTilesY?: number;
   anchorMode?: "south" | "center";
   markerText?: string;
@@ -248,6 +251,12 @@ type RuntimeWorldRenderTestPageProps = {
   drawEditorLayer?: (context: CanvasRenderingContext2D, camera: CameraState, width: number, height: number) => void;
   onTerrainReady?: (land: Set<string>) => void;
   editorCellPicking?: boolean;
+  mapPlacement?: {
+    width: number; height: number; valid: boolean; label: string; token?: string;
+    onChange: (cell: {x:number;y:number}) => void;
+    onConfirm: (cell: {x:number;y:number}) => void;
+    onCancel: () => void;
+  };
   editorCellElevation?: (cell:{x:number;y:number})=>number;
   onEditorLine?: (start:{x:number;y:number},end:{x:number;y:number},phase:'preview'|'commit'|'cancel')=>void;
   /** Optional gate: a line drag only starts when this accepts the pressed cell. */
@@ -817,6 +826,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
   drawEditorLayer,
   onTerrainReady,
   editorCellPicking = false,
+  mapPlacement,
   editorCellElevation,
   onEditorLine,
   editorLineAllowed,
@@ -845,6 +855,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
 }: RuntimeWorldRenderTestPageProps = {}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const initialCameraReadyRef=useRef(false);
   const suppressNextCanvasClickRef = useRef(false);
   const editorLineRef=useRef<{id:number;start:{x:number;y:number};end:{x:number;y:number}}|null>(null);
   const pointerStartRef = useRef<{x:number;y:number}|null>(null);
@@ -869,6 +880,20 @@ function UnverifiedRuntimeWorldRenderTestPage({
     });
     observer.observe(containerRef.current);return()=>observer.disconnect();
   },[editorCellPicking]);
+  // Use the same tile centers as rendering and editor hit testing. The footprint
+  // center stays at the viewport center, with at most half a tile of snap drift.
+  const placementSize = containerRef.current;
+  const placementPoint = {x:(placementSize?.clientWidth??0)/2,y:(placementSize?.clientHeight??0)/2};
+  const placementCell = placementAtViewportCenter(camera,{width:placementSize?.clientWidth??0,height:placementSize?.clientHeight??0},{width:mapPlacement?.width??1,height:mapPlacement?.height??1});
+  const placementChange = useRef(mapPlacement?.onChange);
+  placementChange.current=mapPlacement?.onChange;
+  useEffect(()=>{
+    if(mapPlacement&&placementSize)placementChange.current?.(placementCell);
+  },[!!mapPlacement,mapPlacement?.token,mapPlacement?.label,mapPlacement?.width,mapPlacement?.height,placementCell.x,placementCell.y,resizeVersion]);
+  // Placement needs readable tiles; this UI limit is not a claimed game zoom limit.
+  useEffect(()=>{
+    if(mapPlacement&&camera.zoom<0.65&&placementSize)setCamera(c=>zoomAt(c,0.65,placementPoint.x,placementPoint.y));
+  },[!!mapPlacement,camera.zoom]);
   const [dragging, setDragging] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null);
@@ -923,15 +948,9 @@ function UnverifiedRuntimeWorldRenderTestPage({
     if (typeof controlledZoom !== "number" || !Number.isFinite(controlledZoom)) {
       return;
     }
-    const nextZoom = Math.max(0.08, Math.min(3.5, controlledZoom));
-    setCamera((previous) =>
-      Math.abs(previous.zoom - nextZoom) < 0.0001
-        ? previous
-        : {
-            ...previous,
-            zoom: nextZoom,
-          },
-    );
+    const nextZoom = Math.max(mapPlacement?0.65:0.08, Math.min(3.5, controlledZoom));
+    const container=containerRef.current;
+    setCamera(previous=>Math.abs(previous.zoom-nextZoom)<0.0001?previous:zoomAt(previous,nextZoom,(container?.clientWidth??0)/2,(container?.clientHeight??0)/2));
   }, [controlledZoom]);
 
   useEffect(() => {
@@ -1348,9 +1367,9 @@ function UnverifiedRuntimeWorldRenderTestPage({
       canvas.height = height;
     }
 
-    if (camera.zoom === 1 && camera.offsetX === 0 && camera.offsetY === 0) {
-      const reset = computeInitialCamera(pipeline.parsedMap.width, pipeline.parsedMap.height, width, height, initialZoom);
-      setCamera(reset);
+    if (!initialCameraReadyRef.current) {
+      initialCameraReadyRef.current=true;
+      if(!focusCell)setCamera(computeInitialCamera(pipeline.parsedMap.width,pipeline.parsedMap.height,width,height,camera.zoom));
     }
   }, [camera.offsetX, camera.offsetY, camera.zoom, initialZoom, pipeline]);
 
@@ -2285,7 +2304,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
   function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
     pointerStartRef.current = {x:event.clientX,y:event.clientY};
     suppressNextCanvasClickRef.current = false;
-    if(onEditorLine&&event.pointerType==='mouse'&&event.button===0&&!event.shiftKey) {
+    if(!mapPlacement&&onEditorLine&&event.pointerType==='mouse'&&event.button===0&&!event.shiftKey) {
       const cell=pointerToWorldFromClient(event.clientX,event.clientY,event.currentTarget,camera,true);
       if(cell&&(!editorLineAllowed||editorLineAllowed(cell))){editorLineRef.current={id:event.pointerId,start:cell,end:cell};event.currentTarget.setPointerCapture(event.pointerId);onEditorLine(cell,cell,'preview');return;}
     }
@@ -2389,7 +2408,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
     }
     setDragging(false);
     setHoveredCell(null);
-    onCellHover?.(null);
+    if(!mapPlacement)onCellHover?.(null);
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -2443,7 +2462,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
           }));
         }
         setHoveredCell(null);
-        onCellHover?.(null);
+        if(!mapPlacement)onCellHover?.(null);
         return;
       }
     }
@@ -2488,10 +2507,11 @@ function UnverifiedRuntimeWorldRenderTestPage({
 
     const nextHover = pickEditorCell(event.clientX,event.clientY);
     setHoveredCell(nextHover);
-    onCellHover?.(nextHover);
+    if(!mapPlacement)onCellHover?.(nextHover);
   }
 
   function onCanvasClick(event: React.MouseEvent<HTMLCanvasElement>) {
+    if(mapPlacement)return;
     if (!allowMapInteraction) {
       return;
     }
@@ -2788,6 +2808,10 @@ function UnverifiedRuntimeWorldRenderTestPage({
             This fixed overlay is independent of the time-of-day lighting. */}
         {pipeline && <img src={pipeline.viewportLighting.src} alt="" aria-hidden="true"
           className="pointer-events-none absolute inset-0 h-full w-full select-none" />}
+        {mapPlacement && <div role="toolbar" aria-label="Confirm placement" className="absolute z-30 flex gap-2 rounded-xl bg-card/95 p-2 shadow-lg" style={{left:placementPoint.x,top:Math.min((placementSize?.clientHeight??0)-64,placementPoint.y+12*camera.zoom*(mapPlacement.width+mapPlacement.height)/2+12),transform:'translateX(-50%)'}}>
+          <button type="button" aria-label="Cancel placement" title="Cancel placement" className="flex h-11 w-11 items-center justify-center rounded-full bg-red-600 text-white" onClick={mapPlacement.onCancel}><X/></button>
+          <button type="button" aria-label={`Confirm ${mapPlacement.label} placement`} title={mapPlacement.valid?'Confirm placement':'Choose a valid tile'} disabled={!mapPlacement.valid} className="flex h-11 w-11 items-center justify-center rounded-full bg-green-600 text-white disabled:opacity-40" onClick={()=>mapPlacement.onConfirm(placementCell)}><Check/></button>
+        </div>}
         {externalOverlays.length > 0 && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
             {externalOverlays.map((overlay) => {
@@ -2798,8 +2822,8 @@ function UnverifiedRuntimeWorldRenderTestPage({
               const centerY = baseIso.y + TILE_HEIGHT * camera.zoom * (overlay.anchorOffsetTilesY ?? 0);
               const centerX = baseIso.x;
               const spriteScale = Math.max(0.2, overlay.spriteScale ?? 1);
-              const drawW = TILE_WIDTH * camera.zoom * (widthTiles + (overlay.spriteUrl ? 0.9 : 0.2)) * spriteScale;
-              const drawH = TILE_HEIGHT * camera.zoom * (widthTiles + (overlay.spriteUrl ? 2.4 : 1.1)) * spriteScale;
+              const drawW = overlay.spriteLayout ? overlay.spriteLayout.width*camera.zoom : TILE_WIDTH * camera.zoom * (widthTiles + (overlay.spriteUrl ? 0.9 : 0.2)) * spriteScale;
+              const drawH = overlay.spriteLayout ? overlay.spriteLayout.height*camera.zoom : TILE_HEIGHT * camera.zoom * (widthTiles + (overlay.spriteUrl ? 2.4 : 1.1)) * spriteScale;
               const markerClass = overlay.markerKind === "monster"
                 ? "border-red-900/45 bg-red-500/85"
                 : "border-emerald-900/45 bg-emerald-500/85";
@@ -2808,11 +2832,11 @@ function UnverifiedRuntimeWorldRenderTestPage({
                   key={overlay.id}
                   className="absolute"
                   style={{
-                    left: centerX,
-                    top: anchorMode === "center" ? centerY : southY,
+                    left: centerX+(overlay.spriteLayout?.offsetX??0)*camera.zoom,
+                    top: overlay.spriteLayout?baseIso.y+overlay.spriteLayout.offsetY*camera.zoom:anchorMode === "center" ? centerY : southY,
                     width: drawW,
                     height: drawH,
-                    transform: anchorMode === "center" ? "translate(-50%, -50%)" : "translate(-50%, -100%)",
+                    transform: overlay.spriteLayout?undefined:anchorMode === "center" ? "translate(-50%, -50%)" : "translate(-50%, -100%)",
                     opacity: Math.max(0.2, Math.min(1, overlay.opacity ?? 1)),
                   }}
                 >

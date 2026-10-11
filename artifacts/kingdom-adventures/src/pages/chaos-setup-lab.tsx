@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { builderDraws, drawBuilder } from '@/lib/world-builder-render';
+import { BUILDER_ASSETS, initialWorld, placementIndex, makeItem, type BuilderState } from '@/lib/world-builder';
+import { BuilderSpriteCache } from '@/lib/builder-sprite-cache';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Check, ChevronDown, Eraser, Shield, Skull } from "lucide-react";
 import RuntimeWorldRenderTestPage, { type RuntimeCellHighlightOverlay, type RuntimeExternalOverlay } from "./runtime-world-render-test";
 import { NATIVE_MAP, mapTerrainCodeToType, parseTerrainMapCsv, type TerrainType } from "@/lib/monster-truth";
-import { renderCharacterPreview } from "@/lib/character-renderer";
+import { getCharacterPreviewEnvelope, renderCharacterPreview } from "@/lib/character-renderer";
 import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
 import chaosStoneSpriteUrl from "../../../../website_icons/facilities_confirmed/facility_191_chaos_stone.png";
 import signboardSpriteUrl from "../../../../website_icons/facilities_confirmed/facility_068_info_board.png";
@@ -174,6 +177,10 @@ export default function ChaosSetupLabPage() {
   const mapGridRef = useRef<HTMLDivElement | null>(null);
   const previousMapZoomRef = useRef<number>(1);
   const [tool, setTool] = useState<Tool>("none");
+  const [placementMethod,setPlacementMethod]=useState<'direct'|'map'>(()=>{
+    try{return localStorage.getItem('ka-chaos-placement-method-v1')==='direct'?'direct':'map';}catch{return 'map';}
+  });
+  useEffect(()=>{try{localStorage.setItem('ka-chaos-placement-method-v1',placementMethod);}catch{/* Placement still works without browser storage. */}},[placementMethod]);
   const [reclaimMode, setReclaimMode] = useState<ReclaimMode>("claim");
   const [showCoverageCheck, setShowCoverageCheck] = useState<boolean>(false);
   const [demoStoneCount, setDemoStoneCount] = useState<number>(1);
@@ -184,6 +191,7 @@ export default function ChaosSetupLabPage() {
   const [mapZoom, setMapZoom] = useState<number>(1);
   const [pickSetupAreaFromMap, setPickSetupAreaFromMap] = useState<boolean>(false);
   const [selectedSetupArea, setSelectedSetupArea] = useState<Point | null>(null);
+  const [nativeLand,setNativeLand]=useState<Set<string>|null>(null);
   const [hoverTile, setHoverTile] = useState<Point | null>(null);
   const [locationInput, setLocationInput] = useState<string>("");
   const locationInputRef = useRef<HTMLInputElement | null>(null);
@@ -194,6 +202,7 @@ export default function ChaosSetupLabPage() {
   const [pieces, setPieces] = useState<Map<string, Piece>>(() => new Map());
   const [openMonsterTile, setOpenMonsterTile] = useState<Point | null>(null);
   const [openUnitTile, setOpenUnitTile] = useState<Point | null>(null);
+  const [unitMarkerLayout,setUnitMarkerLayout]=useState<{width:number;height:number;offsetX:number;offsetY:number}|undefined>();
   const [unitMarkerSpriteUrl, setUnitMarkerSpriteUrl] = useState<string | null>(null);
   const [generatorError, setGeneratorError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
@@ -225,17 +234,13 @@ export default function ChaosSetupLabPage() {
   useEffect(() => {
     let cancelled = false;
     const previewCanvas = document.createElement("canvas");
-    renderCharacterPreview(previewCanvas, {
-      jobName: "Archer",
-      rank: "A",
-      variant: 1,
-      equipState: "right",
-      scale: 2,
-      poseFrame: 1,
-    })
-      .then((ok) => {
-        if (cancelled || !ok) return;
-        setUnitMarkerSpriteUrl(previewCanvas.toDataURL("image/png"));
+    const params={jobName:'Archer',rank:'A',variant:1,equipState:'right',scale:2,poseFrame:1} as const;
+    Promise.all([renderCharacterPreview(previewCanvas,params),getCharacterPreviewEnvelope(params)])
+      .then(([ok,envelope])=>{
+        if(cancelled||!ok||!envelope)return;
+        const pose=envelope.poseReferences[params.poseFrame]??{x:0,y:0};
+        setUnitMarkerLayout({width:envelope.cropW,height:envelope.cropH,offsetX:envelope.cropX-envelope.originX+pose.x,offsetY:envelope.cropY-envelope.originY+pose.y});
+        setUnitMarkerSpriteUrl(previewCanvas.toDataURL('image/png'));
       })
       .catch(() => {
         if (!cancelled) setUnitMarkerSpriteUrl(null);
@@ -276,13 +281,13 @@ export default function ChaosSetupLabPage() {
     for (let y = 0; y < ROWS; y += 1) {
       for (let x = 0; x < COLS; x += 1) {
         // Real map mask: non-terrain cells are outside playable shape.
-        if (!terrainAt(x, y)) {
+        if (nativeLand ? !nativeLand.has(keyOf(x,y)) : !terrainAt(x, y)) {
           out.add(keyOf(x, y));
         }
       }
     }
     return out;
-  }, []);
+  }, [nativeLand]);
 
   const seaTiles = useMemo(() => {
     const out = new Set<string>();
@@ -454,33 +459,13 @@ export default function ChaosSetupLabPage() {
   }, [stoneAnchors]);
 
   const blockedFacilityTiles = useMemo(() => {
-    const blocked = new Set<string>();
-    const addRect = (x0: number, y0: number, width: number, height: number) => {
-      for (let y = y0; y < y0 + height; y += 1) {
-        for (let x = x0; x < x0 + width; x += 1) {
-          if (inside(x, y)) blocked.add(keyOf(x, y));
-        }
-      }
-    };
-
-    // One-piece facilities use a 2x2 footprint rooted at (cellX - 2, cellY - 2).
-    addRect(88 - 2, 24 - 2, 2, 2); // Legendary Cave
-
-    // Port footprints mirror runtime-world-render-test port foundation and bridge coverage.
-    const ports = [
-      { cellX: 152, cellY: 104 },
-      { cellX: 152, cellY: 40 },
-    ];
-    ports.forEach((port) => {
-      const baseX = port.cellX - 2;
-      const baseY = port.cellY - 2;
-      addRect(baseX, baseY - 2, 6, 4); // foundation + rear strip
-      addRect(baseX + 6, baseY - 1, 4, 2); // bridge deck
-    });
-
-    return blocked;
+    const native=initialWorld();
+    const fixed={...native,items:native.items.filter(i=>i.fixed)};
+    return new Set(placementIndex(fixed,new Set()).occupied.keys());
   }, []);
 
+  const mapPlacing=placementMethod==='map'&&['stone','board','monster','unit'].includes(tool)&&!pickSetupAreaFromMap;
+  useEffect(()=>{const handle=(e:KeyboardEvent)=>{if(e.key==='Escape')setTool('none');};window.addEventListener('keydown',handle);return()=>window.removeEventListener('keydown',handle);},[]);
   const placementPreview = useMemo(() => {
     const cells = new Set<string>();
     if (!hoverTile || (tool !== "stone" && tool !== "board" && tool !== "monster" && tool !== "unit")) {
@@ -490,14 +475,14 @@ export default function ChaosSetupLabPage() {
     if (tool === "monster" || tool === "unit") {
       const k = keyOf(hoverTile.x, hoverTile.y);
       cells.add(k);
-      const valid = !seaTiles.has(k) && !occupiedByStones.has(k) && !blockedFacilityTiles.has(k);
+      const valid = inside(hoverTile.x,hoverTile.y) && !seaTiles.has(k) && !occupiedByStones.has(k) && !blockedFacilityTiles.has(k);
       return { kind: tool, valid, cells };
     }
 
     if (tool === "board") {
       const k = keyOf(hoverTile.x, hoverTile.y);
       cells.add(k);
-      const valid = !seaTiles.has(k) && !occupiedByStones.has(k) && !blockedFacilityTiles.has(k);
+      const valid = inside(hoverTile.x,hoverTile.y) && !seaTiles.has(k) && !occupiedByStones.has(k) && !blockedFacilityTiles.has(k);
       return { kind: "board" as const, valid, cells };
     }
 
@@ -507,6 +492,17 @@ export default function ChaosSetupLabPage() {
     });
     return { kind: "stone" as const, valid, cells };
   }, [blockedFacilityTiles, hoverTile, tool, seaTiles, occupiedByStones, pieces]);
+
+  const [spriteCache]=useState(()=>new BuilderSpriteCache());
+  const [spriteVersion,setSpriteVersion]=useState(0);
+  const plannedWorld=useMemo<BuilderState>(()=>({version:1,reclaimed:[],items:[...pieces].map(([id,piece])=>({...makeItem('facility',piece==='stone'?191:68),id,...parseKey(id)}))}),[pieces]);
+  const placementGhost=hoverTile&&(tool==='stone'||tool==='board')?{...makeItem('facility',tool==='stone'?191:68),id:'placement-preview',...hoverTile}:null;
+  const facilityDraws=useMemo(()=>builderDraws(plannedWorld,placementGhost,true),[plannedWorld,tool,hoverTile?.x,hoverTile?.y]);
+  useEffect(()=>spriteCache.subscribe(()=>setSpriteVersion(v=>v+1)),[spriteCache]);
+  useEffect(()=>{
+    for(const id of new Set(facilityDraws.map(d=>d.sprite))){const sprite=BUILDER_ASSETS.sprites[id];if(sprite)spriteCache.load(id,`${import.meta.env.BASE_URL}${sprite.url.replace(/^\//,'')}`);}
+  },[facilityDraws,spriteCache]);
+  const drawFacilities=useCallback((ctx:CanvasRenderingContext2D,camera:{offsetX:number;offsetY:number;zoom:number},width:number,height:number)=>drawBuilder(ctx,camera,width,height,facilityDraws,spriteCache.images),[facilityDraws,spriteCache,spriteVersion]);
 
   const runtimeMapZoom = useMemo(() => {
     return Math.max(0.14, Math.min(3.2, mapZoom * 0.2));
@@ -523,36 +519,11 @@ export default function ChaosSetupLabPage() {
   const runtimeOverlays = useMemo<RuntimeExternalOverlay[]>(() => {
     const out: RuntimeExternalOverlay[] = [];
 
-    stoneAnchors.forEach((anchor, idx) => {
-      out.push({
-        id: `stone-${idx + 1}`,
-        cellX: anchor.x + 0.5,
-        cellY: anchor.y + 0.5,
-        widthTiles: 2,
-        spriteUrl: CHAOS_STONE_SPRITE,
-        spriteScale: 1.02,
-        anchorOffsetTilesY: 0.28,
-      });
-    });
-
-    boardIdByKey.forEach((_id, key) => {
-      const p = parseKey(key);
-      out.push({
-        id: `board-${key}`,
-        cellX: p.x + 0.5,
-        cellY: p.y + 0.5,
-        widthTiles: 1,
-        spriteUrl: SIGNBOARD_SPRITE,
-        spriteScale: 0.437,
-        anchorOffsetTilesY: 0.24,
-      });
-    });
-
     if (openMonsterTile) {
       out.push({
         id: "open-monster",
-        cellX: openMonsterTile.x + 0.5,
-        cellY: openMonsterTile.y + 0.5,
+        cellX: openMonsterTile.x,
+        cellY: openMonsterTile.y,
         markerKind: "monster",
         anchorMode: "center",
       });
@@ -561,55 +532,27 @@ export default function ChaosSetupLabPage() {
     if (openUnitTile) {
       out.push({
         id: "open-unit",
-        cellX: openUnitTile.x + 0.5,
-        cellY: openUnitTile.y + 0.5,
+        cellX: openUnitTile.x,
+        cellY: openUnitTile.y,
         ...(unitMarkerSpriteUrl
           ? {
               widthTiles: 1,
               spriteUrl: unitMarkerSpriteUrl,
-              spriteScale: 0.403,
-              anchorOffsetTilesY: 0.22,
+              spriteLayout: unitMarkerLayout,
             }
           : {
               markerText: "U",
               markerKind: "unit" as const,
+              anchorMode: "center" as const,
             }),
-      });
-    }
-
-    if (hoverTile && placementPreview.kind === "stone") {
-      out.push({
-        id: "preview-stone",
-        cellX: hoverTile.x + 0.5,
-        cellY: hoverTile.y + 0.5,
-        widthTiles: 2,
-        spriteUrl: CHAOS_STONE_SPRITE,
-        spriteScale: 1.02,
-        anchorOffsetTilesY: 0.28,
-        invalid: !placementPreview.valid,
-        opacity: 0.62,
-      });
-    }
-
-    if (hoverTile && placementPreview.kind === "board") {
-      out.push({
-        id: "preview-board",
-        cellX: hoverTile.x + 0.5,
-        cellY: hoverTile.y + 0.5,
-        widthTiles: 1,
-        spriteUrl: SIGNBOARD_SPRITE,
-        spriteScale: 0.437,
-        anchorOffsetTilesY: 0.24,
-        invalid: !placementPreview.valid,
-        opacity: 0.62,
       });
     }
 
     if (hoverTile && placementPreview.kind === "monster") {
       out.push({
         id: "preview-monster",
-        cellX: hoverTile.x + 0.5,
-        cellY: hoverTile.y + 0.5,
+        cellX: hoverTile.x,
+        cellY: hoverTile.y,
         markerKind: "monster",
         anchorMode: "center",
         invalid: !placementPreview.valid,
@@ -620,18 +563,18 @@ export default function ChaosSetupLabPage() {
     if (hoverTile && placementPreview.kind === "unit") {
       out.push({
         id: "preview-unit",
-        cellX: hoverTile.x + 0.5,
-        cellY: hoverTile.y + 0.5,
+        cellX: hoverTile.x,
+        cellY: hoverTile.y,
         ...(unitMarkerSpriteUrl
           ? {
               widthTiles: 1,
               spriteUrl: unitMarkerSpriteUrl,
-              spriteScale: 0.403,
-              anchorOffsetTilesY: 0.22,
+              spriteLayout: unitMarkerLayout,
             }
           : {
               markerText: "U",
               markerKind: "unit" as const,
+              anchorMode: "center" as const,
             }),
         invalid: !placementPreview.valid,
         opacity: 0.62,
@@ -639,7 +582,7 @@ export default function ChaosSetupLabPage() {
     }
 
     return out;
-  }, [boardIdByKey, hoverTile, openMonsterTile, openUnitTile, placementPreview.kind, placementPreview.valid, stoneAnchors, unitMarkerSpriteUrl]);
+  }, [hoverTile, openMonsterTile, openUnitTile, placementPreview.kind, placementPreview.valid, unitMarkerSpriteUrl, unitMarkerLayout]);
 
   const combinedEnvelope = useMemo(() => {
     const all = new Set<string>();
@@ -705,9 +648,9 @@ export default function ChaosSetupLabPage() {
   }, [blockedFacilityTiles, stoneAnchors, stoneIdByAnchorKey, seaTiles, occupiedByStones, pieces, openMonsterTile, openUnitTile]);
 
   const runtimeCoverageOverlays = useMemo<RuntimeCellHighlightOverlay[]>(() => {
-    if (!showCoverageCheck) return [];
-
     const overlays: RuntimeCellHighlightOverlay[] = [];
+    placementPreview.cells.forEach(k=>overlays.push({...parseKey(k),fillColor:placementPreview.valid?'rgba(34,197,94,0.35)':'rgba(239,68,68,0.4)',strokeColor:placementPreview.valid?'#22c55e':'#ef4444',lineWidth:2}));
+    if (!showCoverageCheck) return overlays;
 
     combinedEnvelope.forEach((k) => {
       if (leakTiles.has(k)) return;
@@ -741,7 +684,7 @@ export default function ChaosSetupLabPage() {
     });
 
     return overlays;
-  }, [showCoverageCheck, combinedEnvelope, leakTiles, seaTiles, occupiedByStones, pieces, openMonsterTile, openUnitTile]);
+  }, [placementPreview, showCoverageCheck, combinedEnvelope, leakTiles, seaTiles, occupiedByStones, pieces, openMonsterTile, openUnitTile]);
 
   function clearAll() {
     setPieces(new Map());
@@ -1948,7 +1891,7 @@ export default function ChaosSetupLabPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
-            Lightweight sandbox for chaos stones + sign boards on the real map mask and terrain colors. Stone/board now use mapped facility sprites from the confirmed icon set.
+            Plan chaos stones and sign boards on the world map. Choose direct tile clicks or drag-map placement in the sidebar.
           </p>
           <p className="font-medium text-amber-600 dark:text-amber-400">
             Experimental tool: generated setups may not always match live game behavior. Please verify generated setups with the community on Discord before relying on them.
@@ -2004,7 +1947,7 @@ export default function ChaosSetupLabPage() {
           <div className="space-y-2 rounded-md border border-border/60 p-2">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Manual Tool</div>
             <div className="text-xs text-muted-foreground">
-              Use the floating bubble toolbar on the right side of the map for Stone, Board, Monster, Unit, Erase, and Coverage.
+              Choose Click or Drag in the map sidebar. {placementMethod==='direct'?'Click tiles to place immediately; the selected tool stays active for repeated placement.':'Drag the map under the preview, then press the green tick to place or the red X to cancel.'} Erase and Claim use tile clicks.
             </div>
             <div className="text-xs text-muted-foreground">
               Active tool: <span className="font-semibold text-foreground">{tool === "none" ? "none" : tool}</span>
@@ -2194,6 +2137,9 @@ export default function ChaosSetupLabPage() {
         <CardContent className="p-2">
           <RuntimeWorldRenderTestPage
             publicMode
+            editorCellPicking
+            onTerrainReady={land=>setNativeLand(previous=>previous?.size===land.size&&[...land].every(k=>previous.has(k))?previous:land)}
+            mapPlacement={mapPlacing?{width:tool==='stone'?2:1,height:tool==='stone'?2:1,label:tool,valid:!!nativeLand&&placementPreview.valid,onChange:cell=>setHoverTile(previous=>previous?.x===cell.x&&previous.y===cell.y?previous:cell),onConfirm:cell=>onCellClick(cell.x,cell.y),onCancel:()=>{setTool('none');setHoverTile(null);}}:undefined}
             controlledZoom={runtimeMapZoom}
             showCellGrid
             visibleOnePieceFacilityIds={[LEGENDARY_CAVE_FACILITY_ID]}
@@ -2208,15 +2154,19 @@ export default function ChaosSetupLabPage() {
               humans: false,
               special: false,
             }}
+            drawEditorLayer={drawFacilities}
             externalOverlays={runtimeOverlays}
             cellHighlightOverlays={runtimeCoverageOverlays}
-            onCellHover={(cell) => setHoverTile(cell)}
-            onCellClick={(cell) => onCellClick(cell.x, cell.y)}
+            onCellHover={mapPlacing?undefined:(cell) => setHoverTile(cell)}
+            onCellClick={mapPlacing?undefined:(cell) => onCellClick(cell.x, cell.y)}
           />
         </CardContent>
         <div className="pointer-events-none absolute right-3 top-1/2 z-20 -translate-y-1/2">
           <div className="pointer-events-auto rounded-full border border-cyan-300/35 bg-slate-950/75 p-2 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-2">
+              <div role="group" aria-label="Placement method" className="flex flex-col gap-1 border-b border-cyan-300/25 pb-2">
+                {([{value:'direct',label:'Click',title:'Click tiles to place immediately'},{value:'map',label:'Drag',title:'Drag map, then confirm placement'}] as const).map(method=><button key={method.value} type="button" aria-label={method.title} aria-pressed={placementMethod===method.value} title={method.title} className={`${TOOL_BUTTON_BASE_CLASS} text-xs font-semibold ${placementMethod===method.value?TOOL_BUTTON_ACTIVE_CLASS:TOOL_BUTTON_IDLE_CLASS}`} onClick={()=>{setPlacementMethod(method.value);setHoverTile(null);}}>{method.label}</button>)}
+              </div>
               <button
                 type="button"
                 aria-label="Place stone"

@@ -74,6 +74,7 @@ export default function WorldBuilderPage() {
   const [saved,setSaved]=useState(false);
   const [land,setLand]=useState<Set<string>>(new Set());
   const [tool,setTool]=useState<Tool>('select');
+  const [placementMode,setPlacementMode]=useState<'direct'|'map'>('direct');
   const [draft,setDraft]=useState<BuilderItem|null>(null);
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [linePreview,setLinePreview]=useState<Cell[]>([]);
@@ -163,7 +164,7 @@ export default function WorldBuilderPage() {
   };
   const cancel=useCallback(()=>{setTool('select');setDraft(null);setSelectedId(null);setLinePreview([]);},[]);
   useEffect(()=>{const handle=(e:KeyboardEvent)=>{if(e.key==='Escape')cancel();};window.addEventListener('keydown',handle);return()=>window.removeEventListener('keydown',handle);},[cancel]);
-  const choose=(item:BuilderItem)=>{setDraft(item);setTool('place');setSelectedId(null);setBuildOpen(false);announce(`Place ${itemName(item)}. Every square must fit in a highlighted area.${supportsLinePlacement(item)?' Hold and drag to build a line; Shift-drag to pan.':''}`);};
+  const choose=(item:BuilderItem)=>{setDraft(item);setTool('place');setSelectedId(null);setBuildOpen(false);announce(`Place ${itemName(item)}. ${placementMode==='map'?'Drag the map under the preview, then press the green tick.':'Every square must fit in a highlighted area.'}${placementMode==='direct'&&supportsLinePlacement(item)?' Hold and drag to build a line; Shift-drag to pan.':''}`);};
   const chooseTerrain=(value:'reclaim'|'unclaim')=>{setDraft(null);setTool(value);setSelectedId(null);setBuildOpen(false);announce(value==='reclaim'?'Tap water within town coverage to reclaim it.':'Tap empty reclaimed land to return it to water. Default land is protected.');};
   const remove=(item:BuilderItem)=>{
     const result=removeItem(world,item.id);
@@ -224,7 +225,7 @@ export default function WorldBuilderPage() {
   const ghostError=ghost?validatePlacement(ghost,world,index).error:undefined;
   const effectSource=ghost??selected;
   const effectCells=useMemo(()=>new Set(surround&&effectSource?surroundCoverage(effectSource).map(key):[]),[surround,effectSource]);
-  const draws=useMemo(()=>builderDraws(world,ghost,!ghostError),[world,ghost?.x,ghost?.y,draft,ghostError]);
+  const draws=useMemo(()=>builderDraws(world,ghost,true),[world,ghost?.x,ghost?.y,draft,ghostError]);
   useEffect(()=>spriteCache.subscribe(()=>setImageVersion(v=>v+1)),[spriteCache]);
   useEffect(()=>{
     for(const id of new Set(draws.map(d=>d.sprite))) {
@@ -315,6 +316,7 @@ export default function WorldBuilderPage() {
       <span className={`text-xs ${saveError?'text-destructive':'text-muted-foreground'}`} role="status">{saveError|| (saved?'Saved in this browser':'Saving…')}</span>
     </div>}
     <div className="mb-2 flex flex-wrap gap-2" aria-label="World builder tools">
+      <label className="flex items-center gap-2 text-sm">Placement<select aria-label="Placement mode" className="rounded border bg-background p-2" value={placementMode} onChange={e=>{setPlacementMode(e.target.value as 'direct'|'map');setHover(null);setLinePreview([]);}}><option value="direct">Tap a tile</option><option value="map">Drag map + confirm</option></select></label>
       <Button variant={levels?'secondary':'outline'} aria-pressed={levels} onClick={()=>setLevels(!levels)}><Layers className="mr-2 h-4 w-4"/>Levels</Button>
       <Button variant={surround?'secondary':'outline'} aria-pressed={surround} onClick={()=>setSurround(!surround)}><Layers className="mr-2 h-4 w-4"/>Surround</Button>
       <Button variant="outline" aria-pressed={grid} onClick={()=>setGrid(!grid)}>Grid</Button>
@@ -335,21 +337,21 @@ export default function WorldBuilderPage() {
     {!!spriteCache.errors.size&&<p role="alert">Some building sprites failed to load. <button className="underline" onClick={()=>spriteCache.retry()}>Retry sprites</button></p>}
     <div className={isFullscreen?'relative min-h-0 flex-1':'relative'}>
       {flash&&<div role="alert" className="pointer-events-none absolute left-1/2 top-2 z-30 max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-lg border border-red-400 bg-red-950/95 px-3 py-2 text-center text-sm font-medium text-red-100 shadow-lg">{flash.text}</div>}
-      <RuntimeWorldRenderTestPage publicMode initialZoom={.65} zoomRequest={zoomRequest} focusCell={focus} showLevelOverlay={levels} showCellGrid={grid} editorCellPicking interactiveInPublicMode hideNatureToggleButtons initialNatureVisibility={natureVisibility} visibleOnePieceFacilityIds={fixedIds} landOverrideCells={ground} reclaimedTintCells={world.reclaimed} onTerrainReady={onTerrainReady} onEditorLine={tool==='place'&&draft&&!moving&&supportsLinePlacement(draft)?(start,end,phase)=>{
+      <RuntimeWorldRenderTestPage mapPlacement={placementMode==='map'&&tool==='place'&&draft?{token:draft.id,width:dimensions(draft)[0],height:dimensions(draft)[1],label:itemName(draft),valid:ready&&!!ghost&&!ghostError,onChange:cell=>setHover(previous=>previous?.x===cell.x&&previous.y===cell.y?previous:cell),onConfirm:tap,onCancel:cancel}:undefined} publicMode initialZoom={.65} zoomRequest={zoomRequest} focusCell={focus} showLevelOverlay={levels} showCellGrid={grid} editorCellPicking interactiveInPublicMode hideNatureToggleButtons initialNatureVisibility={natureVisibility} visibleOnePieceFacilityIds={fixedIds} landOverrideCells={ground} reclaimedTintCells={world.reclaimed} onTerrainReady={onTerrainReady} onEditorLine={placementMode==='direct'&&tool==='place'&&draft&&!moving&&supportsLinePlacement(draft)?(start,end,phase)=>{
         if(phase==='preview'){setLinePreview(buildLine(start,end));return;}
         setLinePreview([]);
         if(phase==='cancel')return;
         const result=placeLine(world,land,draft,start,end);
         if(result.added)commit(result.state,`${result.added} ${itemName(draft)} tiles placed.${result.skipped?` ${result.skipped} blocked tiles skipped.`:''}`);
         else complain('No tiles placed: every tile is blocked or fails this facility placement rules.');
-      }:tool==='remove'&&ready?stripLine:undefined} editorLineAllowed={tool==='remove'?cell=>world.items.some(i=>!i.fixed&&supportsLinePlacement(i)&&contains(i,cell)):undefined} fillHeight={isFullscreen} editorCellElevation={cell=>{const plot=containingPlot({id:'surface-probe',kind:'road',direction:0,level:1,fullness:0,...cell},world);return supportHeight(plot);}} onCellClick={tap} onCellHover={setHover} drawEditorLayer={drawLayer} onEditorObjectClick={(point,camera)=>{
+      }:tool==='remove'&&ready?stripLine:undefined} editorLineAllowed={tool==='remove'?cell=>world.items.some(i=>!i.fixed&&supportsLinePlacement(i)&&contains(i,cell)):undefined} fillHeight={isFullscreen} editorCellElevation={cell=>{const plot=containingPlot({id:'surface-probe',kind:'road',direction:0,level:1,fullness:0,...cell},world);return supportHeight(plot);}} onCellClick={tap} onCellHover={placementMode==='map'&&tool==='place'?undefined:setHover} drawEditorLayer={drawLayer} onEditorObjectClick={(point,camera)=>{
         if(tool!=='select'&&tool!=='remove')return false;
         const id=hitBuilder(point,camera,draws,spriteCache.alpha);const item=world.items.find(i=>i.id===id);
         if(!item)return false;
         if(tool==='remove')remove(item);else setSelectedId(item.id);
         return true;
       }}/>
-      {ghost&&<div role="status" aria-label="Placement preview" className={`pointer-events-none absolute left-2 top-5 z-20 max-w-[calc(100%-110px)] rounded-lg border px-3 py-2 text-sm shadow-lg ${ghostError?'border-red-400 bg-red-950 text-red-100':'border-emerald-400 bg-emerald-950 text-emerald-100'}`}>{ghostError?`Cannot place: ${ghostError}`:`Preview: ${itemName(ghost)} · tap to place`}</div>}
+      {ghost&&<div role="status" aria-label="Placement preview" className={`pointer-events-none absolute left-2 top-5 z-20 max-w-[calc(100%-110px)] rounded-lg border px-3 py-2 text-sm shadow-lg ${ghostError?'border-red-400 bg-red-950 text-red-100':'border-emerald-400 bg-emerald-950 text-emerald-100'}`}>{ghostError?`Cannot place: ${ghostError}`:`Preview: ${itemName(ghost)} · ${placementMode==='map'?'drag map, then confirm':'tap to place'}`}</div>}
       <div role="toolbar" aria-label="Map building tools" className="absolute right-2 top-3 z-20 flex flex-col gap-2 rounded-xl border bg-card/95 p-1.5 shadow-lg">
       <Button aria-label="Build" title="Build" className="h-14 w-14 p-1 sm:h-16 sm:w-16 sm:p-2" disabled={!ready} onClick={()=>{setBuildOpen(true);setSelectedId(null);}}><BuildIcon large/></Button>
       <Button aria-label="Remove" title="Remove" className="h-14 w-14 p-1 sm:h-16 sm:w-16 sm:p-2" variant={tool==='remove'?'destructive':'outline'} aria-pressed={tool==='remove'} onClick={()=>{setTool(tool==='remove'?'select':'remove');setDraft(null);setSelectedId(null);announce('Remove mode: tap a removable object, or drag along walls, fences and paths to clear a line. Shift-drag or drag empty ground to pan.');}}><BuildIcon remove large/></Button>
@@ -374,10 +376,10 @@ export default function WorldBuilderPage() {
         </select></label>}
       </div>}
     </div>
-    {!isFullscreen&&<p className="mt-2 text-xs text-muted-foreground">Tap to select or place. Drag to pan; when building or removing walls, fences and paths, drag along the map to fill or clear a line and Shift-drag to pan. Touch dragging always pans. Yellow edges show the town build boundary (Boundary hides it while you are not placing, and it follows a Town Hall you are moving). Reclaimed land has a green tint.</p>}
+    {!isFullscreen&&<p className="mt-2 text-xs text-muted-foreground">{placementMode==='map'?'Choose a building, drag the map beneath it, then confirm with the green tick or cancel with the red X.':'Tap to select or place.'} Drag to pan; when building or removing walls, fences and paths, drag along the map to fill or clear a line and Shift-drag to pan. Touch dragging always pans. Yellow edges show the town build boundary (Boundary hides it while you are not placing, and it follows a Town Hall you are moving). Reclaimed land has a green tint.</p>}
 
     <Dialog open={buildOpen} onOpenChange={setBuildOpen}><DialogContent container={isFullscreen?fullscreenRoot:null} className="flex max-h-[85dvh] max-w-3xl flex-col overflow-hidden">
-      <DialogHeader><DialogTitle>Build your kingdom</DialogTitle><DialogDescription>Choose a sprite, then tap a valid space on the map.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>Build your kingdom</DialogTitle><DialogDescription>Choose a sprite, then {placementMode==='map'?'drag the map and confirm placement.':'tap a valid space on the map.'}</DialogDescription></DialogHeader>
       <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Build categories">{[...FACILITY_TABS.filter(t=>t.key!=='map'),{key:'dungeons',label:'Dungeons'}].map(t=><button key={t.key} role="tab" aria-selected={tab===t.key} className={`min-w-fit flex-1 rounded px-2 py-3 text-sm font-medium ${tab===t.key?'bg-primary text-primary-foreground':'bg-muted'}`} onClick={()=>{setTab(t.key);setQuery('');}}>{t.label}</button>)}</div>
       {tab==='dungeons'&&<p className="text-xs text-muted-foreground">Plan dungeons on clear land, including outside town coverage. Cave numbers distinguish appearance variants.</p>}
       <label className="flex items-center gap-2 rounded border px-3"><Search className="h-4 w-4"/><input className="w-full bg-transparent py-2 text-sm outline-none" placeholder="Find a building or facility…" aria-label="Search build menu" value={query} onChange={e=>setQuery(e.target.value)}/></label>
