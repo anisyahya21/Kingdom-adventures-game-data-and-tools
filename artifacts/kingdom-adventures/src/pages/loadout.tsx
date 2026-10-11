@@ -45,7 +45,8 @@ import { canPickHumanEquipment, canPickHumanSkill, dropUnsupportedHumanEquipment
 import { KA_RANK_BADGE_CLASS } from "@/design-system/category-styles";
 import { MONSTER_CATALOG, MONSTER_PARAMETER_IDS } from "@/lib/battle-setup";
 import { readPlayerProfile, profileResidentStatItems, usePlayerProfile, useResidentProfileValuables, useProfileStorageError, type PlayerProfile } from "@/lib/player-profile";
-import { searchProfileGoalBuildPages, type ProfileStatGoal, type ProfileGoalMode, type ProfileGoalBuild, type ProfileGoalSearchCharacter, type ProfileGoalSearchInput, type ProfileGoalSearchPage } from "@/lib/profile-loadout-goal-planner";
+import { type ProfileStatGoal, type ProfileGoalMode, type ProfileGoalBuild, type ProfileGoalSearchCharacter, type ProfileGoalSearchPage } from "@/lib/profile-loadout-goal-planner";
+import { prepareProfileWorkerInput, type ProfileWorkerMessage } from "@/lib/profile-goal-worker-protocol";
 import { compareEquipmentNamesOriginalOrder } from "@/lib/equipment-order";
 
 import { ENCOUNTER_FAMILIES, ENCOUNTER_VARIANTS, difficultyName } from "@/lib/battle-setup";
@@ -2090,18 +2091,21 @@ function ProfileGoalSearchPanel({
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
-  const iteratorRef = useRef<AsyncGenerator<ProfileGoalSearchPage> | null>(null);
-  const searchInputRef = useRef<ProfileGoalSearchInput | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const [resultPage, setResultPage] = useState(0);
+  const resultPageRef = useRef(0);
   const generationRef = useRef(0);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => { abortRef.current?.abort(); workerRef.current?.terminate(); }, []);
 
   const resetSearch = (clearStatus = true) => {
     generationRef.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
-    iteratorRef.current = null;
-    searchInputRef.current = null;
+    workerRef.current?.terminate();
+    workerRef.current = null;
+    resultPageRef.current = 0;
+    setResultPage(0);
     setBusy(false);
     setPageBuilds([]);
     setSearchComplete(false);
@@ -2199,29 +2203,14 @@ function ProfileGoalSearchPanel({
       ? "Search cancelled."
       : page.complete
         ? `Search complete · ${page.matchingBuilds} ${page.optimizing ? "best tradeoffs" : "matching builds"} · ${page.searchNodes.toLocaleString()} search steps explored.`
-        : `${page.completedCharacters}/${page.totalCharacters} profile characters · ${page.matchingBuilds} ${page.optimizing ? "best tradeoffs so far" : "matches found"} · ${page.searchNodes.toLocaleString()} search steps explored. Continue for more.`);
+        : `${page.completedCharacters}/${page.totalCharacters} profile characters · ${page.matchingBuilds} ${page.optimizing ? "best tradeoffs so far" : "matches found"} · ${page.searchNodes.toLocaleString()} search steps explored. Searching all options…`);
   };
 
-  const continueSearch = async () => {
-    const iterator = iteratorRef.current;
-    if (!iterator || busy) return;
-    const generation = generationRef.current;
-    setBusy(true);
-    try {
-      const next = await iterator.next();
-      if (generation !== generationRef.current) return;
-      if (next.done) {
-        setSearchComplete(true);
-        setStatus("Search complete.");
-        return;
-      }
-      if (next.value.optimizing || next.value.builds.length > 0) setPageBuilds(next.value.builds);
-      describePage(next.value);
-    } catch (cause) {
-      if (generation === generationRef.current) setError(cause instanceof Error ? cause.message : "Profile search failed.");
-    } finally {
-      if (generation === generationRef.current) setBusy(false);
-    }
+  const browseResults = (page: number) => {
+    if (!workerRef.current || page < 0 || page * 40 >= matchCount) return;
+    resultPageRef.current = page;
+    setResultPage(page);
+    workerRef.current.postMessage({ type: "page", page });
   };
 
   const runSearch = async () => {
@@ -2331,27 +2320,35 @@ function ProfileGoalSearchPanel({
         });
       });
 
-      searchInputRef.current = { characters, inventory };
-      iteratorRef.current = searchProfileGoalBuildPages(searchInputRef.current, {
-        signal: controller.signal,
-        pageSize: 40,
-        nodeSliceSize: 1500,
-        inventoryPolicy: allowEquipmentLevelUp ? "owned-upgrades" : "owned-current",
-        includeCurrentBuilds: allowEquipmentLevelUp,
-      });
-      const first = await iteratorRef.current.next();
-      if (generation !== generationRef.current) return;
-      if (first.done) {
-        setSearchComplete(true);
-        setStatus("Search complete.");
-      } else {
-        setPageBuilds(first.value.builds);
-        describePage(first.value);
-      }
+      const input = await prepareProfileWorkerInput({ characters, inventory }, allowEquipmentLevelUp, controller.signal,
+        (completed, total) => { if (generation === generationRef.current) setStatus(`Preparing equipment stats · ${completed}/${total} character contexts…`); });
+      if (generation !== generationRef.current || controller.signal.aborted) return;
+      const worker = new Worker(new URL("../workers/profile-goal-search.worker.ts", import.meta.url), { type: "module" });
+      workerRef.current = worker;
+      worker.onmessage = (event: MessageEvent<ProfileWorkerMessage>) => {
+        if (generation !== generationRef.current) return;
+        const message = event.data;
+        if (message.type === "error") {
+          setError(message.error); setBusy(false); worker.terminate(); workerRef.current = null;
+        } else if (message.type === "progress") {
+          describePage(message.progress);
+          if (message.progress.complete) setBusy(false);
+          if (resultPageRef.current * 40 >= message.progress.matchingBuilds) {
+            resultPageRef.current = 0; setResultPage(0);
+          }
+          worker.postMessage({ type: "page", page: resultPageRef.current });
+        } else if (message.type === "page" && message.page === resultPageRef.current) {
+          setPageBuilds(message.builds);
+        }
+      };
+      worker.onerror = (event) => {
+        if (generation !== generationRef.current) return;
+        setError(event.message || "Profile search worker failed."); setBusy(false);
+        worker.terminate(); workerRef.current = null;
+      };
+      worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp });
     } catch (cause) {
-      if (generation === generationRef.current) setError(cause instanceof Error ? cause.message : "Profile search failed.");
-    } finally {
-      if (generation === generationRef.current) setBusy(false);
+      if (generation === generationRef.current) { setError(cause instanceof Error ? cause.message : "Profile search failed."); setBusy(false); }
     }
   };
 
@@ -2359,9 +2356,12 @@ function ProfileGoalSearchPanel({
     generationRef.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
-    iteratorRef.current = null;
+    workerRef.current?.terminate();
+    workerRef.current = null;
     setBusy(false);
     setSearchComplete(true);
+    setPageBuilds([]);
+    setMatchCount(0);
     setStatus("Search cancelled.");
   };
 
@@ -2466,24 +2466,24 @@ function ProfileGoalSearchPanel({
         {Object.values(goals).some((goal) => goal?.mode === "maximize") && <p className="text-xs text-muted-foreground">Maximized stats keep their best tradeoffs while meeting other targets. Results are provisional until the search completes.</p>}
         <div className="flex flex-wrap items-center gap-2">
           <Button className="min-h-11" disabled={busy} onClick={runSearch}>
-            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Start profile search
+            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{busy ? "Searching all options…" : "Start profile search"}
           </Button>
-          {iteratorRef.current && !searchComplete && (
-            <Button variant="outline" className="min-h-11" disabled={busy} onClick={continueSearch}>Continue search</Button>
-          )}
-          {iteratorRef.current && !searchComplete && (
-            <Button variant="ghost" className="min-h-11" disabled={busy} onClick={cancelSearch}>Cancel</Button>
-          )}
-          <span className="text-xs text-muted-foreground">{status}</span>
+          {busy && <Button variant="ghost" className="min-h-11" onClick={cancelSearch}>Cancel</Button>}
+          <span role="status" className="text-xs text-muted-foreground">{status}</span>
         </div>
         {error && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">{error}</p>}
         {profile && profile.characters.length === 0 && <p className="text-sm text-muted-foreground">The profile has no characters yet.</p>}
         {pageBuilds.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
-              This batch contains {pageBuilds.length} matching build{pageBuilds.length === 1 ? "" : "s"} · {matchCount} found in this pass
+              Showing {resultPage * 40 + 1}–{resultPage * 40 + pageBuilds.length} of {matchCount} matching builds{busy ? " found so far" : ""}
               {passPolicy === "owned-upgrades" ? " · upgrades allowed" : " · current levels"}.
             </p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" className="min-h-11 min-w-11" aria-label="Previous results" disabled={resultPage === 0} onClick={() => browseResults(resultPage - 1)}>&lt;</Button>
+              <span className="text-xs">Page {resultPage + 1} of {Math.max(1, Math.ceil(matchCount / 40))}{busy ? " · searching" : ""}</span>
+              <Button variant="outline" className="min-h-11 min-w-11" aria-label="Next results" disabled={(resultPage + 1) * 40 >= matchCount} onClick={() => browseResults(resultPage + 1)}>&gt;</Button>
+            </div>
             {pageBuilds.map((build, index) => (
               <div key={`${build.characterId}|${build.jobName}|${build.rank}|${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2">
                 <div className="min-w-0">
