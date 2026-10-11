@@ -45,6 +45,8 @@ export type ProfileGoalBuild = {
   stats: Record<string, number>;
   /** Sum of levels added across selected items; always 0 in the owned-current pass. */
   addedLevels: number;
+  /** Sum of relative deviations from the selected measured DPS point. */
+  targetDistance?: number;
   requiredUpgrades: Array<{ item: string; currentLevel: number; requiredLevel: number; addedLevels: number }>;
 };
 
@@ -59,6 +61,7 @@ export type ProfileGoalSearchPage = {
   totalCharacters: number;
   complete: boolean;
   cancelled?: boolean;
+  limited?: boolean;
   /** Maximization pages are provisional until the search has been exhausted. */
   optimizing?: boolean;
 };
@@ -73,6 +76,8 @@ export type ProfileGoalSearchOptions = {
   /** Maximum DFS nodes processed before yielding to the event loop. Default: 1,000. */
   nodeSliceSize?: number;
   signal?: AbortSignal;
+  nearestTargets?: Record<string, number>;
+  maxSearchNodes?: number;
 };
 
 type OwnedLevel = { level: number; quantity: number };
@@ -150,9 +155,11 @@ function* enumerateCharacter(
   inventoryPolicy: "owned-current" | "owned-upgrades",
   includeCurrentBuilds: boolean,
   dominatedUpperBound: (stats: Record<string, number>) => boolean,
+  nearestTargets: Record<string, number> = {},
+  distanceBound: (stats: Record<string, number>, low: Record<string, number>, high: Record<string, number>) => boolean = () => false,
 ): Generator<SearchEvent> {
   const input = character.input;
-  const keys = goalKeys(input.goals);
+  const keys = [...new Set([...goalKeys(input.goals), ...Object.keys(nearestTargets)])];
   if (keys.length === 0) return;
   const objectives = keys.filter((stat) => input.goals[stat]?.mode === "maximize");
 
@@ -223,6 +230,7 @@ function* enumerateCharacter(
   function* visit(index: number): Generator<SearchEvent> {
     yield { kind: "node" };
     if (!canStillSatisfy(input.goals, keys, runningStats, minimumRemaining[index], maximumRemaining[index])) return;
+    if (distanceBound(runningStats, minimumRemaining[index], maximumRemaining[index])) return;
     if (objectives.length && dominatedUpperBound(Object.fromEntries(objectives.map((stat) => [stat, (runningStats[stat] ?? 0) + (maximumRemaining[index][stat] ?? 0)])))) return;
 
     if (index === slots.length) {
@@ -297,13 +305,25 @@ export async function* searchProfileGoalBuildPages(
   const ownedLevels = ownedCurrentLevels(search.inventory);
   const builds: ProfileGoalBuild[] = [];
   const objectives = [...new Set(search.characters.flatMap((character) => Object.entries(character.input.goals).filter(([, goal]) => goal?.mode === "maximize").map(([stat]) => stat)))];
-  const optimizing = objectives.length > 0;
+  const nearestTargets = options.nearestTargets ?? {};
+  const nearest = Object.keys(nearestTargets).length > 0;
+  const optimizing = objectives.length > 0 || nearest;
+  const distance = (stats: Record<string, number>) => Object.entries(nearestTargets).reduce((sum, [stat, target]) => sum + Math.abs((stats[stat] ?? 0) - target) / Math.max(1, target), 0);
   const frontier: ProfileGoalBuild[] = [];
   // Keep nondominated stat tradeoffs. Equal stat vectors prefer fewer added levels, then fewer items.
   const dominates = (a: Record<string, number>, b: Record<string, number>) => objectives.every((stat) => (a[stat] ?? 0) >= (b[stat] ?? 0)) && objectives.some((stat) => (a[stat] ?? 0) > (b[stat] ?? 0));
   const sameVector = (a: ProfileGoalBuild, b: ProfileGoalBuild) => objectives.every((stat) => (a.stats[stat] ?? 0) === (b.stats[stat] ?? 0));
   const cheaper = (a: ProfileGoalBuild, b: ProfileGoalBuild) => a.addedLevels < b.addedLevels || (a.addedLevels === b.addedLevels && (a.picks.length < b.picks.length || (a.picks.length === b.picks.length && (a.skills?.length ?? 0) <= (b.skills?.length ?? 0))));
   const consider = (build: ProfileGoalBuild) => {
+    if (nearest) {
+      build.targetDistance = distance(build.stats);
+      const identity = (entry: ProfileGoalBuild) => `${entry.characterId}|${entry.jobName}|${entry.rank}|${JSON.stringify(entry.skills)}|${JSON.stringify(entry.picks)}`;
+      if (frontier.some((entry) => identity(entry) === identity(build))) return;
+      frontier.push(build);
+      frontier.sort((a, b) => a.targetDistance! - b.targetDistance! || a.addedLevels - b.addedLevels || a.picks.length - b.picks.length || (a.skills?.length ?? 0) - (b.skills?.length ?? 0));
+      if (frontier.length > 40) frontier.pop();
+      return;
+    }
     if (frontier.some((entry) => dominates(entry.stats, build.stats) || (sameVector(entry, build) && cheaper(entry, build)))) return;
     for (let index = frontier.length - 1; index >= 0; index -= 1) {
       if (dominates(build.stats, frontier[index].stats) || sameVector(build, frontier[index])) frontier.splice(index, 1);
@@ -328,7 +348,14 @@ export async function* searchProfileGoalBuildPages(
       completedCharacters += 1;
       return { iterator: null as Generator<SearchEvent> | null, done: true };
     }
-    return { iterator: enumerateCharacter(character, ownedLevels, inventoryPolicy, options.includeCurrentBuilds ?? false, (upper) => frontier.some((entry) => dominates(entry.stats, upper))), done: false };
+    return { iterator: enumerateCharacter(character, ownedLevels, inventoryPolicy, options.includeCurrentBuilds ?? false, (upper) => !nearest && frontier.some((entry) => dominates(entry.stats, upper)), nearestTargets, (stats, low, high) => {
+      if (!nearest || frontier.length < 40) return false;
+      const bound = Object.entries(nearestTargets).reduce((sum, [stat, target]) => {
+        const lo = (stats[stat] ?? 0) + (low[stat] ?? 0), hi = (stats[stat] ?? 0) + (high[stat] ?? 0);
+        return sum + Math.max(0, lo - target, target - hi) / Math.max(1, target);
+      }, 0);
+      return bound > frontier[frontier.length - 1].targetDistance!;
+    }), done: false };
   });
   let nextStateIndex = 0;
   let unfinished = states.filter((state) => !state.done).length;
@@ -339,6 +366,10 @@ export async function* searchProfileGoalBuildPages(
       return;
     }
 
+    if (nearest && options.maxSearchNodes && searchNodes >= options.maxSearchNodes) {
+      yield { builds: [...frontier], matchingBuilds: frontier.length, searchNodes, inventoryPolicy, completedCharacters, totalCharacters: search.characters.length, complete: false, limited: true, optimizing: true };
+      return;
+    }
     const state = states[nextStateIndex];
     nextStateIndex = (nextStateIndex + 1) % states.length;
     if (state.done || !state.iterator) continue;

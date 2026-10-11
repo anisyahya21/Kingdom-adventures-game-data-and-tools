@@ -2081,6 +2081,7 @@ function ProfileGoalSearchPanel({
   const [strategyFamily, setStrategyFamily] = useState(ENCOUNTER_FAMILIES[0].id);
   const [strategyDifficulty, setStrategyDifficulty] = useState(0);
   const [strategyTolerance, setStrategyTolerance] = useState({ atk: "0", spd: "0", lck: "15" });
+  const [nearestStrategy, setNearestStrategy] = useState<ChestStrategyOption | null>(null);
   const [appliedStrategy, setAppliedStrategy] = useState<ChestStrategyOption | null>(null);
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
@@ -2124,23 +2125,25 @@ function ProfileGoalSearchPanel({
 
   const strategyEncounter = ENCOUNTER_VARIANTS.find((entry) => entry.familyId === strategyFamily && entry.difficulty === strategyDifficulty);
   const strategyOptions = CHEST_STRATEGY_OPTIONS.filter((entry) => entry.encounter === strategyEncounter?.id);
-  const applyStrategy = (option: ChestStrategyOption, exact = false) => {
+  const applyStrategy = (option: ChestStrategyOption, exact = false, nearest = false) => {
     const margins = { atk: Number(strategyTolerance.atk), spd: Number(strategyTolerance.spd), lck: Number(strategyTolerance.lck) };
-    if (!exact && Object.values(strategyTolerance).some((raw) => raw.trim() === "" || !Number.isInteger(Number(raw)) || Number(raw) < 0)) {
+    if (!exact && !nearest && Object.values(strategyTolerance).some((raw) => raw.trim() === "" || !Number.isInteger(Number(raw)) || Number(raw) < 0)) {
       setError("Enter non-negative whole numbers for each search tolerance."); return;
     }
     resetSearch(); setError("");
-    const nextGoals = chestStrategyGoals(option, exact ? { atk: 0, spd: 0, lck: 0 } : margins);
+    const nextGoals = chestStrategyGoals(option, exact || nearest ? { atk: 0, spd: 0, lck: 0 } : margins);
     // The preset searches only the DPS stats; old unrelated targets must not constrain it.
     setSpeedTargetMode("range");
     setSpeedBracket("");
     setGoals(nextGoals);
     setEditing(Object.fromEntries(Object.entries(nextGoals).map(([stat, goal]) => [stat, { mode: "range" as ProfileGoalMode, min: String(goal.min), max: String(goal.max) }])));
     setAppliedStrategy(option);
+    setNearestStrategy(nearest ? option : null);
     setStatus(`DPS targets filled for ${strategyEncounter?.title ?? "selected encounter"}. Review the ranges, then start profile search.`);
   };
   const setGoalValue = (stat: string, field: "mode" | "min" | "max", value: string) => {
     setAppliedStrategy(null);
+    if (["atk", "spd", "lck"].includes(stat)) setNearestStrategy(null);
     resetSearch();
     setError("");
     const current = editing[stat] ?? { mode: "min" as ProfileGoalMode, min: "", max: "" };
@@ -2201,9 +2204,11 @@ function ProfileGoalSearchPanel({
     setSearchComplete(page.complete);
     setStatus(page.cancelled
       ? "Search cancelled."
+      : page.limited
+        ? `Closest-build search paused at ${page.searchNodes.toLocaleString()} steps · showing the best ${page.matchingBuilds} found. Global closest is not proven.`
       : page.complete
-        ? `Search complete · ${page.matchingBuilds} ${page.optimizing ? "best tradeoffs" : "matching builds"} · ${page.searchNodes.toLocaleString()} search steps explored.`
-        : `${page.completedCharacters}/${page.totalCharacters} profile characters · ${page.matchingBuilds} ${page.optimizing ? "best tradeoffs so far" : "matches found"} · ${page.searchNodes.toLocaleString()} search steps explored. Searching all options…`);
+        ? `Search complete · ${page.matchingBuilds} ${nearestStrategy ? "closest builds" : page.optimizing ? "best tradeoffs" : "matching builds"} · ${page.searchNodes.toLocaleString()} search steps explored.`
+        : `${page.completedCharacters}/${page.totalCharacters} profile characters · ${page.matchingBuilds} ${nearestStrategy ? "closest builds so far" : page.optimizing ? "best tradeoffs so far" : "matches found"} · ${page.searchNodes.toLocaleString()} search steps explored. Searching all options…`);
   };
 
   const browseResults = (page: number) => {
@@ -2218,7 +2223,7 @@ function ProfileGoalSearchPanel({
       setError("Click Use profile data to load your saved characters and gear first.");
       return;
     }
-    const activeGoals = Object.fromEntries(Object.entries(goals).filter(([, goal]) => goal)) as Record<string, ProfileStatGoal>;
+    const activeGoals = Object.fromEntries(Object.entries(goals).filter(([stat, goal]) => goal && (!nearestStrategy || (!["atk", "spd", "lck"].includes(stat) && goal.mode !== "maximize")))) as Record<string, ProfileStatGoal>;
     for (const [stat, value] of Object.entries(editing)) {
       if (value.mode === "maximize" || (stat === "spd" && speedTargetMode === "bracket")) continue;
       const rawValues = value.mode === "min" ? [value.min] : value.mode === "max" ? [value.max] : [value.min, value.max];
@@ -2232,7 +2237,7 @@ function ProfileGoalSearchPanel({
         return;
       }
     }
-    if (Object.keys(activeGoals).length === 0) {
+    if (!nearestStrategy && Object.keys(activeGoals).length === 0) {
       setError("Set at least one complete target first.");
       return;
     }
@@ -2314,7 +2319,7 @@ function ProfileGoalSearchPanel({
           jobName: character.jobName,
           rank: character.rank,
           available: true,
-          eligible: !!jobProfile && rankExists && Object.keys(activeGoals).every((stat) => Number.isFinite(curve[stat])),
+          eligible: !!jobProfile && rankExists && [...Object.keys(activeGoals), ...(nearestStrategy ? ["atk", "spd", "lck"] : [])].every((stat) => Number.isFinite(curve[stat])),
           input: { baseStats, goals: activeGoals, slots, contribution },
         };
         });
@@ -2332,7 +2337,7 @@ function ProfileGoalSearchPanel({
           setError(message.error); setBusy(false); worker.terminate(); workerRef.current = null;
         } else if (message.type === "progress") {
           describePage(message.progress);
-          if (message.progress.complete) setBusy(false);
+          if (message.progress.complete || message.progress.limited) setBusy(false);
           if (resultPageRef.current * 40 >= message.progress.matchingBuilds) {
             resultPageRef.current = 0; setResultPage(0);
           }
@@ -2346,7 +2351,7 @@ function ProfileGoalSearchPanel({
         setError(event.message || "Profile search worker failed."); setBusy(false);
         worker.terminate(); workerRef.current = null;
       };
-      worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp });
+      worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp, nearestTargets: nearestStrategy ? { atk: nearestStrategy.atk, spd: nearestStrategy.spd, lck: nearestStrategy.lck } : undefined });
     } catch (cause) {
       if (generation === generationRef.current) { setError(cause instanceof Error ? cause.message : "Profile search failed."); setBusy(false); }
     }
@@ -2396,9 +2401,10 @@ function ProfileGoalSearchPanel({
         <p className="text-xs text-muted-foreground">A wider window helps find achievable gear. Its rewards have not been validated across the whole range; use exact targets to match the measured point.</p>
         <div className="space-y-2">{strategyOptions.map((option) => <div key={option.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3">
           <div className="min-w-0 text-sm"><div className="font-medium tabular-nums">ATT {option.atk} · Speed {option.spd} · Luck {option.lck}</div><div className="text-xs text-muted-foreground">Avg earned {option.mean.toFixed(2)} · Highest {option.highest} · {option.n} seeds</div></div>
-          <div className="flex flex-wrap gap-2"><Button variant="outline" className="min-h-11" onClick={() => applyStrategy(option, true)}>Use exact stats</Button><Button className="min-h-11" onClick={() => applyStrategy(option)}>Use search window</Button></div>
+          <div className="flex flex-wrap gap-2"><Button className="min-h-11" onClick={() => applyStrategy(option, false, true)}>Use closest achievable</Button><Button variant="outline" className="min-h-11" onClick={() => applyStrategy(option, true)}>Use exact stats</Button><Button className="min-h-11" onClick={() => applyStrategy(option)}>Use search window</Button></div>
         </div>)}</div>
         {strategyOptions.length === 0 && <p className="text-sm text-muted-foreground">No measured options are available for this encounter yet.</p>}
+        {nearestStrategy && <p className="text-xs text-muted-foreground">Automatic closeness mode: no ± values needed. Search ranks up to 40 builds by total relative ATT/Speed/Luck deviation. Other maximization goals are ignored; other explicit limits still apply. Stat closeness does not guarantee similar rewards or the same Speed bracket. Large searches stop after 1 million steps and label results provisional.</p>}
         {appliedStrategy && <p role="status" className="text-xs text-muted-foreground">Targets filled below. The reported average applies to ATT {appliedStrategy.atk}, Speed {appliedStrategy.spd}, Luck {appliedStrategy.lck}; nearby gear results may differ.</p>}
       </section>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -2463,7 +2469,7 @@ function ProfileGoalSearchPanel({
             );
           })}
         </div>
-        {Object.values(goals).some((goal) => goal?.mode === "maximize") && <p className="text-xs text-muted-foreground">Maximized stats keep their best tradeoffs while meeting other targets. Results are provisional until the search completes.</p>}
+        {!nearestStrategy && Object.values(goals).some((goal) => goal?.mode === "maximize") && <p className="text-xs text-muted-foreground">Maximized stats keep their best tradeoffs while meeting other targets. Results are provisional until the search completes.</p>}
         <div className="flex flex-wrap items-center gap-2">
           <Button className="min-h-11" disabled={busy} onClick={runSearch}>
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{busy ? "Searching all options…" : "Start profile search"}
@@ -2476,7 +2482,7 @@ function ProfileGoalSearchPanel({
         {pageBuilds.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
-              Showing {resultPage * 40 + 1}–{resultPage * 40 + pageBuilds.length} of {matchCount} matching builds{busy ? " found so far" : ""}
+              Showing {resultPage * 40 + 1}–{resultPage * 40 + pageBuilds.length} of {matchCount} {nearestStrategy ? "closest builds" : "matching builds"}{busy ? " found so far" : ""}
               {passPolicy === "owned-upgrades" ? " · upgrades allowed" : " · current levels"}.
             </p>
             <div className="flex items-center gap-2">
@@ -2508,9 +2514,10 @@ function ProfileGoalSearchPanel({
                     {build.picks.length === 0 && <span className="text-xs text-muted-foreground">No gear needed</span>}
                   </div>
                   {!!build.skills?.length && <div className="mt-2 text-xs text-muted-foreground">Required skills: {build.skills.join(" · ")} (ownership not recorded)</div>}
+                  {nearestStrategy && <div className="mt-2 text-xs tabular-nums">{(["atk", "spd", "lck"] as const).map((stat) => { const delta = (build.stats[stat] ?? 0) - nearestStrategy[stat]; return <span key={stat} className="mr-3">{stat.toUpperCase()} {build.stats[stat]} ({delta >= 0 ? "+" : ""}{delta} vs target)</span>; })}<div className="text-muted-foreground">Reward average is unmeasured for this build.</div></div>}
                   <div className="mt-1 flex flex-wrap gap-2 text-[11px] tabular-nums text-muted-foreground">
                     {Object.entries(goals).filter(([, goal]) => goal).map(([stat, goal]) => (
-                      <span key={stat}><StatLabel stat={stat} icons={data.statIcons} /> {build.stats[stat]?.toLocaleString()} ({goalLabelText(goal)})</span>
+                      <span key={stat}><StatLabel stat={stat} icons={data.statIcons} /> {build.stats[stat]?.toLocaleString()} ({nearestStrategy && ["atk", "spd", "lck"].includes(stat) ? "comparison target" : goalLabelText(goal)})</span>
                     ))}
                   </div>
                 </div>

@@ -13,6 +13,7 @@ const inventory = [{ item: "owned", ownership: "owned", currentLevel: 1 }];
 const cases = [
   { name: "multiple-pages", characters: Array.from({ length: 45 }, (_, i) => character(String(i))), upgrades: false },
   { name: "upgrades", characters: [character("upgrade")], upgrades: true },
+  { name: "nearest-upgrades", characters: [character("closest", {})], upgrades: true, nearestTargets: { atk: 51, lck: 2 } },
   { name: "no-matches", characters: [character("none", { atk: { mode: "min", min: 1000 } })], upgrades: false },
   { name: "multi-page-frontier", characters: Array.from({ length: 45 }, (_, i) => ({ ...character(String(i), { atk: { mode: "maximize" }, lck: { mode: "maximize" } }, { atk: i, lck: 45 - i }), input: { ...character(String(i)).input, slots: [], baseStats: { atk: i, lck: 45 - i }, goals: { atk: { mode: "maximize" }, lck: { mode: "maximize" } } } })), upgrades: false },
 ];
@@ -24,13 +25,13 @@ for (const test of cases.filter((entry) => entry.name === process.argv[2])) {
   const input = { characters: test.characters, inventory };
   const prepared = structuredClone(await prepareProfileWorkerInput(input, test.upgrades, new AbortController().signal, () => {}));
   const expected = [];
-  for await (const page of searchProfileGoalBuildPages(input, { pageSize: 40, nodeSliceSize: 1500, inventoryPolicy: test.upgrades ? "owned-upgrades" : "owned-current", includeCurrentBuilds: test.upgrades })) {
+  for await (const page of searchProfileGoalBuildPages(input, { nearestTargets: test.nearestTargets, pageSize: 40, nodeSliceSize: 1500, inventoryPolicy: test.upgrades ? "owned-upgrades" : "owned-current", includeCurrentBuilds: test.upgrades })) {
     if (!page.optimizing || page.completedCharacters === page.totalCharacters) expected.push(...page.builds);
   }
   const messages = [];
   globalThis.self = { postMessage: (message) => messages.push(structuredClone(message)) };
   await import("../../src/workers/profile-goal-search.worker.ts");
-  await self.onmessage({ data: { type: "start", input: prepared, upgrades: test.upgrades } });
+  await self.onmessage({ data: { type: "start", input: prepared, upgrades: test.upgrades, nearestTargets: test.nearestTargets } });
   assert.equal(messages.find((message) => message.type === "error"), undefined);
   assert.equal(messages.at(-1).progress.complete, true);
   assert.equal(messages.at(-1).progress.matchingBuilds, expected.length);

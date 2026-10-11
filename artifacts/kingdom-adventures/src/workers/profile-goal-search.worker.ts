@@ -5,7 +5,7 @@ const send = (message: ProfileWorkerMessage) => self.postMessage(message);
 let builds: ProfileGoalBuild[] = [];
 let started = false;
 self.onmessage = async (event: MessageEvent<
-  { type: "start"; input: ProfileWorkerInput; upgrades: boolean } | { type: "page"; page: number }
+  { type: "start"; input: ProfileWorkerInput; upgrades: boolean; nearestTargets?: Record<string, number> } | { type: "page"; page: number }
 >) => {
   const message = event.data;
   if (message.type === "page") {
@@ -22,16 +22,19 @@ self.onmessage = async (event: MessageEvent<
       pageSize: 40, nodeSliceSize: 20_000,
       inventoryPolicy: message.upgrades ? "owned-upgrades" : "owned-current",
       includeCurrentBuilds: message.upgrades,
+      nearestTargets: message.nearestTargets,
+      maxSearchNodes: message.nearestTargets ? 1_000_000 : undefined,
     })) {
       // Ordinary pages are disjoint. Optimization pages are provisional frontier
       // snapshots until all contexts finish; final pages expose the full frontier.
-      if (!page.optimizing) builds.push(...page.builds);
+      if (page.limited) builds = page.builds;
+      else if (!page.optimizing) builds.push(...page.builds);
       else if (page.completedCharacters === page.totalCharacters) {
         if (!finalFrontier) { builds = []; finalFrontier = true; }
         builds.push(...page.builds);
       } else builds = page.builds;
       const now = performance.now();
-      if (page.complete || now - lastProgress >= 100) {
+      if (page.complete || page.limited || now - lastProgress >= 100) {
         send({ type: "progress", progress: { ...page, builds: [], matchingBuilds: page.optimizing && !page.complete ? builds.length : page.matchingBuilds } });
         lastProgress = now;
       }
