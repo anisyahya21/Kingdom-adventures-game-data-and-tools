@@ -2427,10 +2427,25 @@ function ProfileGoalSearchPanel({
             {pageBuilds.map((build, index) => (
               <div key={`${build.characterId}|${build.jobName}|${build.rank}|${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2">
                 <div className="min-w-0">
-                  <div className="font-medium">{build.characterName} · Rank {build.rank} · ID {build.characterId}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {build.picks.length ? build.picks.map((pick) => `${pick.item} Lv${pick.level}`).join(" · ") : "No gear needed"}
-                    {build.requiredUpgrades.length > 0 ? ` · Upgrade ${build.requiredUpgrades.map((upgrade) => `${upgrade.item} ${upgrade.currentLevel}→${upgrade.requiredLevel}`).join(", ")}` : ""}
+                  <div className="flex items-center gap-3">
+                    {build.jobName && <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/20">
+                      <CharacterPreviewCanvas jobName={build.jobName} rank={build.rank} variant={1} equipState="right" scale={3} poseFrame={0}
+                        weaponName={build.picks.find((pick) => pick.slot === "Weapon")?.item}
+                        shieldName={build.picks.find((pick) => pick.slot === "Shield")?.item}
+                        label={`${build.characterName} character`} className="max-h-full max-w-full object-contain" />
+                    </div>}
+                    <div><div className="font-medium">{build.characterName}</div><div className="text-xs text-muted-foreground">Rank {build.rank} · ID {build.characterId}</div></div>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                    {build.picks.map((pick) => {
+                      const sprite = getPreferredEquipmentIcon(data.equipIcons, pick.item);
+                      const upgrade = build.requiredUpgrades.find((entry) => entry.item === pick.item);
+                      return <div key={pick.slot} className="flex min-w-0 items-center gap-2 rounded-md border bg-muted/10 p-2">
+                        {sprite ? <CollapsedEquipmentIcon src={sprite} alt={pick.item} className="h-10 w-10 shrink-0 object-contain" /> : <Package aria-hidden="true" className="h-10 w-10 shrink-0 text-muted-foreground" />}
+                        <div className="min-w-0 text-xs"><div className="text-[10px] text-muted-foreground">{pick.slot}</div><div className="break-words font-medium">{pick.item}</div><div className={upgrade ? "font-medium text-primary" : "text-muted-foreground"}>{upgrade ? `Lv${upgrade.currentLevel} → ${pick.level}` : `Lv${pick.level}`}</div></div>
+                      </div>;
+                    })}
+                    {build.picks.length === 0 && <span className="text-xs text-muted-foreground">No gear needed</span>}
                   </div>
                   <div className="mt-1 flex flex-wrap gap-2 text-[11px] tabular-nums text-muted-foreground">
                     {Object.entries(goals).filter(([, goal]) => goal).map(([stat, goal]) => (
