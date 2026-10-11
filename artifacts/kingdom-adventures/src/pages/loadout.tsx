@@ -45,7 +45,7 @@ import { canPickHumanEquipment, canPickHumanSkill, dropUnsupportedHumanEquipment
 import { KA_RANK_BADGE_CLASS } from "@/design-system/category-styles";
 import { MONSTER_CATALOG, MONSTER_PARAMETER_IDS } from "@/lib/battle-setup";
 import { readPlayerProfile, profileResidentStatItems, usePlayerProfile, useResidentProfileValuables, useProfileStorageError, type PlayerProfile } from "@/lib/player-profile";
-import { searchProfileGoalBuildPages, type ProfileGoalBuild, type ProfileGoalSearchCharacter, type ProfileGoalSearchInput, type ProfileGoalSearchPage } from "@/lib/profile-loadout-goal-planner";
+import { searchProfileGoalBuildPages, type ProfileStatGoal, type ProfileGoalMode, type ProfileGoalBuild, type ProfileGoalSearchCharacter, type ProfileGoalSearchInput, type ProfileGoalSearchPage } from "@/lib/profile-loadout-goal-planner";
 import { compareEquipmentNamesOriginalOrder } from "@/lib/equipment-order";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2054,8 +2054,9 @@ function GoalPlannerPanel({
   );
 }
 
-function goalLabelText(goal: StatGoal | undefined): string {
+function goalLabelText(goal: ProfileStatGoal | undefined): string {
   if (!goal) return "";
+  if (goal.mode === "maximize") return "maximize";
   if (goal.mode === "min") return `>= ${goal.min ?? 0}`;
   if (goal.mode === "max") return `<= ${goal.max ?? 0}`;
   return `${goal.min ?? 0}-${goal.max ?? 0}`;
@@ -2068,10 +2069,11 @@ function ProfileGoalSearchPanel({
   data: SharedData;
   onCreate: (build: ProfileGoalBuild, profile: PlayerProfile) => void;
 }) {
-  const [goals, setGoals] = useState<Record<string, StatGoal | undefined>>({});
-  const [editing, setEditing] = useState<Record<string, { mode: GoalMode; min: string; max: string }>>({});
-  const [speedTargetMode, setSpeedTargetMode] = useState<GoalMode | "bracket">("min");
+  const [goals, setGoals] = useState<Record<string, ProfileStatGoal | undefined>>({});
+  const [editing, setEditing] = useState<Record<string, { mode: ProfileGoalMode; min: string; max: string }>>({});
+  const [speedTargetMode, setSpeedTargetMode] = useState<ProfileGoalMode | "bracket">("min");
   const [speedBracket, setSpeedBracket] = useState("");
+  const [allowEquipmentLevelUp, setAllowEquipmentLevelUp] = useState(false);
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
   const [searchComplete, setSearchComplete] = useState(false);
@@ -2112,12 +2114,12 @@ function ProfileGoalSearchPanel({
   const setGoalValue = (stat: string, field: "mode" | "min" | "max", value: string) => {
     resetSearch();
     setError("");
-    const current = editing[stat] ?? { mode: "min" as GoalMode, min: "", max: "" };
-    const next = { ...current, [field]: value };
+    const current = editing[stat] ?? { mode: "min" as ProfileGoalMode, min: "", max: "" };
+    const next = { ...current, [field]: value } as { mode: ProfileGoalMode; min: string; max: string };
     setEditing((previous) => ({ ...previous, [stat]: next }));
     const lo = next.min.trim() === "" ? undefined : Number(next.min);
     const hi = next.max.trim() === "" ? undefined : Number(next.max);
-    const parsed: StatGoal | undefined = next.mode === "min"
+    const parsed: ProfileStatGoal | undefined = next.mode === "maximize" ? { mode: "maximize" } : next.mode === "min"
       ? (lo === undefined ? undefined : { mode: "min", min: lo })
       : next.mode === "max"
         ? (hi === undefined ? undefined : { mode: "max", max: hi })
@@ -2146,7 +2148,7 @@ function ProfileGoalSearchPanel({
     });
   };
 
-  const setSpeedTargetType = (value: GoalMode | "bracket") => {
+  const setSpeedTargetType = (value: ProfileGoalMode | "bracket") => {
     if (value === "bracket") {
       resetSearch();
       setError("");
@@ -2171,8 +2173,8 @@ function ProfileGoalSearchPanel({
     setStatus(page.cancelled
       ? "Search cancelled."
       : page.complete
-        ? `Search complete · ${page.matchingBuilds} matching builds · ${page.searchNodes.toLocaleString()} search steps explored.`
-        : `${page.completedCharacters}/${page.totalCharacters} profile characters · ${page.matchingBuilds} matches found · ${page.searchNodes.toLocaleString()} search steps explored. Continue for more.`);
+        ? `Search complete · ${page.matchingBuilds} ${page.optimizing ? "best tradeoffs" : "matching builds"} · ${page.searchNodes.toLocaleString()} search steps explored.`
+        : `${page.completedCharacters}/${page.totalCharacters} profile characters · ${page.matchingBuilds} ${page.optimizing ? "best tradeoffs so far" : "matches found"} · ${page.searchNodes.toLocaleString()} search steps explored. Continue for more.`);
   };
 
   const continueSearch = async () => {
@@ -2188,7 +2190,7 @@ function ProfileGoalSearchPanel({
         setStatus("Search complete.");
         return;
       }
-      if (next.value.builds.length > 0) setPageBuilds(next.value.builds);
+      if (next.value.optimizing || next.value.builds.length > 0) setPageBuilds(next.value.builds);
       describePage(next.value);
     } catch (cause) {
       if (generation === generationRef.current) setError(cause instanceof Error ? cause.message : "Profile search failed.");
@@ -2202,9 +2204,9 @@ function ProfileGoalSearchPanel({
       setError("Click Use profile data to load your saved characters and gear first.");
       return;
     }
-    const activeGoals = Object.fromEntries(Object.entries(goals).filter(([, goal]) => goal)) as Record<string, StatGoal>;
+    const activeGoals = Object.fromEntries(Object.entries(goals).filter(([, goal]) => goal)) as Record<string, ProfileStatGoal>;
     for (const [stat, value] of Object.entries(editing)) {
-      if (stat === "spd" && speedTargetMode === "bracket") continue;
+      if (value.mode === "maximize" || (stat === "spd" && speedTargetMode === "bracket")) continue;
       const rawValues = value.mode === "min" ? [value.min] : value.mode === "max" ? [value.max] : [value.min, value.max];
       if (rawValues.every((raw) => raw.trim() === "")) continue;
       if (rawValues.some((raw) => raw.trim() === "" || !Number.isSafeInteger(Number(raw)) || Number(raw) < 0)) {
@@ -2230,7 +2232,7 @@ function ProfileGoalSearchPanel({
     setPageBuilds([]);
     setMatchCount(0);
     setSearchComplete(false);
-    setPassPolicy("owned-current");
+    setPassPolicy(allowEquipmentLevelUp ? "owned-upgrades" : "owned-current");
     setStatus("Preparing profile characters…");
 
     try {
@@ -2291,7 +2293,8 @@ function ProfileGoalSearchPanel({
         signal: controller.signal,
         pageSize: 40,
         nodeSliceSize: 1500,
-        inventoryPolicy: "owned-current",
+        inventoryPolicy: allowEquipmentLevelUp ? "owned-upgrades" : "owned-current",
+        includeCurrentBuilds: allowEquipmentLevelUp,
       });
       const first = await iteratorRef.current.next();
       if (generation !== generationRef.current) return;
@@ -2307,26 +2310,6 @@ function ProfileGoalSearchPanel({
     } finally {
       if (generation === generationRef.current) setBusy(false);
     }
-  };
-
-  const startUpgradeSearch = () => {
-    if (!searchInputRef.current || busy) return;
-    generationRef.current += 1;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    iteratorRef.current = searchProfileGoalBuildPages(searchInputRef.current, {
-      signal: controller.signal,
-      pageSize: 40,
-      nodeSliceSize: 1500,
-      inventoryPolicy: "owned-upgrades",
-    });
-    setPageBuilds([]);
-    setMatchCount(0);
-    setSearchComplete(false);
-    setPassPolicy("owned-upgrades");
-    setStatus("Searching separately for builds that require equipment upgrades.");
-    void continueSearch();
   };
 
   const cancelSearch = () => {
@@ -2346,15 +2329,21 @@ function ProfileGoalSearchPanel({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <CardTitle className="text-base">Find builds for target stats</CardTitle>
-            <CardDescription>Set targets before adding characters. Current profile gear is searched first; gear upgrade options are a separate pass.</CardDescription>
+            <CardDescription>Match targets or maximize stats using your profile characters and owned gear.</CardDescription>
           </div>
           <Button variant="outline" className="min-h-11" onClick={useProfileData}>Use profile data</Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant={allowEquipmentLevelUp ? "default" : "outline"} className="min-h-11" aria-pressed={allowEquipmentLevelUp} onClick={() => { resetSearch(); setAllowEquipmentLevelUp((value) => !value); }}>
+            <ArrowUp className="mr-2 h-4 w-4" />Allow equipment level up{allowEquipmentLevelUp && <Check className="ml-2 h-4 w-4" />}
+          </Button>
+          <span className="text-xs text-muted-foreground">{allowEquipmentLevelUp ? "Current levels and upgrades up to Lv99." : "Current equipment levels only."}</span>
+        </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {goalKeys.map((stat) => {
-            const value = editing[stat] ?? { mode: "min" as GoalMode, min: "", max: "" };
+            const value = editing[stat] ?? { mode: "min" as ProfileGoalMode, min: "", max: "" };
             return (
               <div key={stat} className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-md border p-2">
                 <StatLabel stat={stat} icons={data.statIcons} />
@@ -2363,12 +2352,13 @@ function ProfileGoalSearchPanel({
                   className="h-9 rounded border bg-background px-2 text-xs"
                   value={stat === "spd" ? speedTargetMode : value.mode}
                   onChange={(event) => stat === "spd"
-                    ? setSpeedTargetType(event.target.value as GoalMode | "bracket")
+                    ? setSpeedTargetType(event.target.value as ProfileGoalMode | "bracket")
                     : setGoalValue(stat, "mode", event.target.value)}
                 >
                   <option value="min">At least</option>
                   <option value="max">At most</option>
                   <option value="range">Between</option>
+                  <option value="maximize">Maximize</option>
                   {stat === "spd" && <option value="bracket">Speed bracket</option>}
                 </select>
                 {stat === "spd" && speedTargetMode === "bracket" ? (
@@ -2385,7 +2375,7 @@ function ProfileGoalSearchPanel({
                       </option>
                     ))}
                   </select>
-                ) : (
+                ) : value.mode === "maximize" ? null : (
                   <>
                     <Input
                       aria-label={`${stat} target ${value.mode === "max" ? "maximum" : "minimum"}`}
@@ -2413,6 +2403,7 @@ function ProfileGoalSearchPanel({
             );
           })}
         </div>
+        {Object.values(goals).some((goal) => goal?.mode === "maximize") && <p className="text-xs text-muted-foreground">Maximized stats keep their best tradeoffs while meeting other targets. Results are provisional until the search completes.</p>}
         <div className="flex flex-wrap items-center gap-2">
           <Button className="min-h-11" disabled={busy} onClick={runSearch}>
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Start profile search
@@ -2431,7 +2422,7 @@ function ProfileGoalSearchPanel({
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
               This batch contains {pageBuilds.length} matching build{pageBuilds.length === 1 ? "" : "s"} · {matchCount} found in this pass
-              {passPolicy === "owned-upgrades" ? " · requires upgrades" : " · current levels"}.
+              {passPolicy === "owned-upgrades" ? " · upgrades allowed" : " · current levels"}.
             </p>
             {pageBuilds.map((build, index) => (
               <div key={`${build.characterId}|${build.jobName}|${build.rank}|${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2">
@@ -2452,11 +2443,8 @@ function ProfileGoalSearchPanel({
             ))}
           </div>
         )}
-        {searchComplete && passPolicy === "owned-current" && status.startsWith("Search complete") && (
-          <Button variant="outline" className="min-h-11" onClick={startUpgradeSearch} disabled={busy}>Search separately for builds needing gear upgrades</Button>
-        )}
         {searchComplete && matchCount === 0 && status.startsWith("Search complete") && (
-          <p className="text-sm text-muted-foreground">Search complete. No {passPolicy === "owned-current" ? "current-level owned-gear" : "gear-upgrade"} builds reach all selected targets.</p>
+          <p className="text-sm text-muted-foreground">Search complete. No {passPolicy === "owned-current" ? "current-level owned-gear" : "owned-gear (including upgrades)"} builds reach all selected targets.</p>
         )}
       </CardContent>
     </Card>

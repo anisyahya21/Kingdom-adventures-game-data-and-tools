@@ -4,6 +4,9 @@ import type {
   StatGoal,
 } from "@/lib/loadout-goal-planner";
 
+export type ProfileStatGoal = StatGoal | { mode: "maximize" };
+export type ProfileGoalMode = ProfileStatGoal["mode"];
+
 /** One profile character/build context prepared with the ordinary builder rules. */
 export type ProfileGoalSearchCharacter = {
   id: string;
@@ -12,7 +15,7 @@ export type ProfileGoalSearchCharacter = {
   jobName?: string;
   rank?: string;
   /** Caller preflights availability, job/rank access, valuables, and builder gear access here. */
-  input: PlannerInput;
+  input: Omit<PlannerInput, "goals"> & { goals: Record<string, ProfileStatGoal | undefined> };
   available: boolean;
   eligible: boolean;
 };
@@ -54,11 +57,15 @@ export type ProfileGoalSearchPage = {
   totalCharacters: number;
   complete: boolean;
   cancelled?: boolean;
+  /** Maximization pages are provisional until the search has been exhausted. */
+  optimizing?: boolean;
 };
 
 export type ProfileGoalSearchOptions = {
   /** `owned-upgrades` explores every integer level from the recorded level through the builder cap. */
   inventoryPolicy?: "owned-current" | "owned-upgrades";
+  /** Include current-only builds in the upgrade search. Legacy upgrade-only callers keep false. */
+  includeCurrentBuilds?: boolean;
   /** Maximum matching builds retained in one yielded page. Default: 50. */
   pageSize?: number;
   /** Maximum DFS nodes processed before yielding to the event loop. Default: 1,000. */
@@ -98,12 +105,13 @@ function ownedCurrentLevels(inventory: ProfileGoalInventoryItem[]): Map<string, 
   return items;
 }
 
-function goalKeys(goals: Record<string, StatGoal | undefined>): string[] {
+function goalKeys(goals: Record<string, ProfileStatGoal | undefined>): string[] {
   return Object.keys(goals).filter((stat) => goals[stat] !== undefined);
 }
 
-function isSatisfied(goal: StatGoal | undefined, value: number): boolean {
+function isSatisfied(goal: ProfileStatGoal | undefined, value: number): boolean {
   if (!goal) return true;
+  if (goal.mode === "maximize") return true;
   if (goal.mode === "min") return value >= (goal.min ?? 0);
   if (goal.mode === "max") return value <= (goal.max ?? 0);
   return value >= (goal.min ?? -Infinity) && value <= (goal.max ?? Infinity);
@@ -116,7 +124,7 @@ function addValues(target: Record<string, number>, values: Record<string, number
 }
 
 function canStillSatisfy(
-  goals: Record<string, StatGoal | undefined>,
+  goals: Record<string, ProfileStatGoal | undefined>,
   keys: string[],
   stats: Record<string, number>,
   minimumRemaining: Record<string, number>,
@@ -138,10 +146,13 @@ function* enumerateCharacter(
   character: ProfileGoalSearchCharacter,
   ownedLevels: Map<string, OwnedLevel>,
   inventoryPolicy: "owned-current" | "owned-upgrades",
+  includeCurrentBuilds: boolean,
+  dominatedUpperBound: (stats: Record<string, number>) => boolean,
 ): Generator<SearchEvent> {
   const input = character.input;
   const keys = goalKeys(input.goals);
   if (keys.length === 0) return;
+  const objectives = keys.filter((stat) => input.goals[stat]?.mode === "maximize");
 
   const contributionCache = new Map<string, Record<string, number>>();
   const contributionOf = (item: string, level: number) => {
@@ -166,7 +177,10 @@ function* enumerateCharacter(
         candidates.push({ item, currentLevel: owned.level, level, contribution: contributionOf(item, level) });
       }
     }
-    candidates.sort((a, b) => a.item < b.item ? -1 : a.item > b.item ? 1 : a.level - b.level);
+    candidates.sort((a, b) => {
+      const gain = objectives.reduce((sum, stat) => sum + (b.contribution[stat] ?? 0) - (a.contribution[stat] ?? 0), 0);
+      return gain || (a.item < b.item ? -1 : a.item > b.item ? 1 : a.level - b.level);
+    });
     return { slot, candidates };
   });
 
@@ -207,6 +221,7 @@ function* enumerateCharacter(
   function* visit(index: number): Generator<SearchEvent> {
     yield { kind: "node" };
     if (!canStillSatisfy(input.goals, keys, runningStats, minimumRemaining[index], maximumRemaining[index])) return;
+    if (objectives.length && dominatedUpperBound(Object.fromEntries(objectives.map((stat) => [stat, (runningStats[stat] ?? 0) + (maximumRemaining[index][stat] ?? 0)])))) return;
 
     if (index === slots.length) {
       const requiredUpgrades = picks.flatMap((pick) => {
@@ -217,7 +232,7 @@ function* enumerateCharacter(
       });
       const addedLevels = requiredUpgrades.reduce((sum, upgrade) => sum + upgrade.addedLevels, 0);
       const upgradePass = inventoryPolicy === "owned-upgrades";
-      if (keys.every((stat) => isSatisfied(input.goals[stat], runningStats[stat] ?? 0)) && (!upgradePass || addedLevels > 0)) {
+      if (keys.every((stat) => isSatisfied(input.goals[stat], runningStats[stat] ?? 0)) && (!upgradePass || includeCurrentBuilds || addedLevels > 0)) {
         yield {
           kind: "build",
           build: {
@@ -239,7 +254,7 @@ function* enumerateCharacter(
     // Empty slots come first, so a character already meeting the target appears before gear-heavy
     // alternatives. All branches are still visited unless their remaining stat bounds prove them
     // impossible.
-    yield* visit(index + 1);
+    if (!objectives.length) yield* visit(index + 1);
     for (const candidate of candidates) {
       if (usedItems.has(candidate.item)) continue;
       usedItems.add(candidate.item);
@@ -250,6 +265,7 @@ function* enumerateCharacter(
       picks.pop();
       usedItems.delete(candidate.item);
     }
+    if (objectives.length) yield* visit(index + 1);
   }
 
   yield* visit(0);
@@ -277,6 +293,20 @@ export async function* searchProfileGoalBuildPages(
   const inventoryPolicy = options.inventoryPolicy ?? "owned-current";
   const ownedLevels = ownedCurrentLevels(search.inventory);
   const builds: ProfileGoalBuild[] = [];
+  const objectives = [...new Set(search.characters.flatMap((character) => Object.entries(character.input.goals).filter(([, goal]) => goal?.mode === "maximize").map(([stat]) => stat)))];
+  const optimizing = objectives.length > 0;
+  const frontier: ProfileGoalBuild[] = [];
+  // Keep nondominated stat tradeoffs. Equal stat vectors prefer fewer added levels, then fewer items.
+  const dominates = (a: Record<string, number>, b: Record<string, number>) => objectives.every((stat) => (a[stat] ?? 0) >= (b[stat] ?? 0)) && objectives.some((stat) => (a[stat] ?? 0) > (b[stat] ?? 0));
+  const sameVector = (a: ProfileGoalBuild, b: ProfileGoalBuild) => objectives.every((stat) => (a.stats[stat] ?? 0) === (b.stats[stat] ?? 0));
+  const cheaper = (a: ProfileGoalBuild, b: ProfileGoalBuild) => a.addedLevels < b.addedLevels || (a.addedLevels === b.addedLevels && a.picks.length <= b.picks.length);
+  const consider = (build: ProfileGoalBuild) => {
+    if (frontier.some((entry) => dominates(entry.stats, build.stats) || (sameVector(entry, build) && cheaper(entry, build)))) return;
+    for (let index = frontier.length - 1; index >= 0; index -= 1) {
+      if (dominates(build.stats, frontier[index].stats) || sameVector(build, frontier[index])) frontier.splice(index, 1);
+    }
+    frontier.push(build);
+  };
   let searchNodes = 0;
   let completedCharacters = 0;
   let matchingBuilds = 0;
@@ -295,14 +325,14 @@ export async function* searchProfileGoalBuildPages(
       completedCharacters += 1;
       return { iterator: null as Generator<SearchEvent> | null, done: true };
     }
-    return { iterator: enumerateCharacter(character, ownedLevels, inventoryPolicy), done: false };
+    return { iterator: enumerateCharacter(character, ownedLevels, inventoryPolicy, options.includeCurrentBuilds ?? false, (upper) => frontier.some((entry) => dominates(entry.stats, upper))), done: false };
   });
   let nextStateIndex = 0;
   let unfinished = states.filter((state) => !state.done).length;
 
   while (unfinished > 0) {
     if (options.signal?.aborted) {
-      yield { builds, matchingBuilds, searchNodes, inventoryPolicy, completedCharacters, totalCharacters: search.characters.length, complete: false, cancelled: true };
+      yield { builds: optimizing ? frontier.slice(0, pageSize) : builds, matchingBuilds: optimizing ? frontier.length : matchingBuilds, searchNodes, inventoryPolicy, completedCharacters, totalCharacters: search.characters.length, complete: false, cancelled: true, optimizing };
       return;
     }
 
@@ -321,16 +351,22 @@ export async function* searchProfileGoalBuildPages(
       searchNodes += 1;
       sliceNodes += 1;
     } else {
-      builds.push(next.value.build);
+      if (optimizing) consider(next.value.build);
+      else builds.push(next.value.build);
       matchingBuilds += 1;
     }
 
     if (builds.length >= pageSize || sliceNodes >= nodeSliceSize) {
-      yield { builds: builds.splice(0), matchingBuilds, searchNodes, inventoryPolicy, completedCharacters, totalCharacters: search.characters.length, complete: false };
+      yield { builds: optimizing ? frontier.slice(0, pageSize) : builds.splice(0), matchingBuilds: optimizing ? frontier.length : matchingBuilds, searchNodes, inventoryPolicy, completedCharacters, totalCharacters: search.characters.length, complete: false, optimizing };
       sliceNodes = 0;
       await yieldToEventLoop();
     }
   }
 
-  yield { builds, matchingBuilds, searchNodes, inventoryPolicy, completedCharacters, totalCharacters: search.characters.length, complete: true };
+  if (optimizing) {
+    // Final pages expose the entire frontier, without a hidden result cap.
+    for (let offset = 0; offset < Math.max(1, frontier.length); offset += pageSize) {
+      yield { builds: frontier.slice(offset, offset + pageSize), matchingBuilds: frontier.length, searchNodes, inventoryPolicy, completedCharacters, totalCharacters: search.characters.length, complete: offset + pageSize >= frontier.length, optimizing };
+    }
+  } else yield { builds, matchingBuilds, searchNodes, inventoryPolicy, completedCharacters, totalCharacters: search.characters.length, complete: true };
 }
