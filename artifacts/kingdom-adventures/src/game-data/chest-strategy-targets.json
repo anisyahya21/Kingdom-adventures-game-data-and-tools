@@ -35,6 +35,10 @@
       {
         "path": "runtime\\extreme-average-20261012-round2\\review-validation.json",
         "sha256": "fcec5e643c8a781cd518d4984a4e0ead7069c9ed0422c3c57892fed50c98366a"
+      },
+      {
+        "path": "runtime\\extreme-average-20261013-all5\\review-validation.json",
+        "sha256": "92df56bfda3e432f4de19e7e13e8a58c537825cabec57bc37e8af8e99f74b2f0"
       }
     ]
   },
@@ -155,10 +159,30 @@
       "atk": 994,
       "spd": 656,
       "lck": 126,
-      "mean": 9.55,
-      "highest": 59.0,
-      "n": 60,
-      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+      "mean": 9.925,
+      "highest": 40.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 11,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 11/80; defeats: 0/80. Different seed groups are not matched comparisons.",
+      "previousMeasurements": [
+        {
+          "id": "e3-atk994-spd656-lck126",
+          "encounter": 3,
+          "atk": 994,
+          "spd": 656,
+          "lck": 126,
+          "mean": 9.55,
+          "highest": 59.0,
+          "n": 60,
+          "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+        }
+      ]
     },
     {
       "id": "e3-atk1084-spd637-lck47",
@@ -287,10 +311,30 @@
       "atk": 1550,
       "spd": 538,
       "lck": 12,
-      "mean": 9.05,
-      "highest": 31.0,
-      "n": 60,
-      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+      "mean": 9.65,
+      "highest": 38.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 13,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 13/80; defeats: 0/80. Different seed groups are not matched comparisons.",
+      "previousMeasurements": [
+        {
+          "id": "e7-atk1550-spd538-lck12",
+          "encounter": 7,
+          "atk": 1550,
+          "spd": 538,
+          "lck": 12,
+          "mean": 9.05,
+          "highest": 31.0,
+          "n": 60,
+          "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+        }
+      ]
     },
     {
       "id": "e7-atk1112-spd516-lck281",
@@ -800,7 +844,115 @@
       "source": "Independent validation; seeds 1348–1467; failures included; different seed groups are not matched comparisons",
       "lowAtMost1": 0,
       "defeats": 0
+    },
+    {
+      "id": "e3-atk1270-spd490-lck5",
+      "encounter": 3,
+      "atk": 1270,
+      "spd": 490,
+      "lck": 5,
+      "mean": 8.2125,
+      "highest": 46.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 5,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 5/80; defeats: 0/80. Different seed groups are not matched comparisons."
+    },
+    {
+      "id": "e7-atk1620-spd615-lck5",
+      "encounter": 7,
+      "atk": 1620,
+      "spd": 615,
+      "lck": 5,
+      "mean": 9.3,
+      "highest": 36.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 11,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 11/80; defeats: 0/80. Different seed groups are not matched comparisons."
+    },
+    {
+      "id": "e15-atk1062-spd725-lck450",
+      "encounter": 15,
+      "atk": 1062,
+      "spd": 725,
+      "lck": 450,
+      "mean": 12.3125,
+      "highest": 41.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 12,
+      "defeats": 2,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 12/80; defeats: 2/80. Different seed groups are not matched comparisons."
+    },
+    {
+      "id": "e15-atk1062-spd725-lck800",
+      "encounter": 15,
+      "atk": 1062,
+      "spd": 725,
+      "lck": 800,
+      "mean": 14.325,
+      "highest": 47.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 13,
+      "defeats": 5,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 13/80; defeats: 5/80. Different seed groups are not matched comparisons."
+    },
+    {
+      "id": "e19-atk280-spd389-lck336",
+      "encounter": 19,
+      "atk": 280,
+      "spd": 389,
+      "lck": 336,
+      "mean": 36.2625,
+      "highest": 68.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 0,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 0/80; defeats: 0/80. Different seed groups are not matched comparisons."
+    },
+    {
+      "id": "e19-atk300-spd389-lck280",
+      "encounter": 19,
+      "atk": 300,
+      "spd": 389,
+      "lck": 280,
+      "mean": 37.7625,
+      "highest": 76.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 0,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 0/80; defeats: 0/80. Different seed groups are not matched comparisons."
     }
   ],
-  "updatedUtc": "2026-10-12T23:14:26.347427+00:00"
+  "updatedUtc": "2026-10-13"
 }
