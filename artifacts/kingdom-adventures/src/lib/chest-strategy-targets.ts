@@ -11,6 +11,10 @@ export type ChestStrategyOption = {
   highest: number;
   n: number;
   source: string;
+  status?: string;
+  seedRange?: number[];
+  lowAtMost1?: number;
+  defeats?: number;
 };
 
 export const CHEST_STRATEGY_OPTIONS = catalog.options as ChestStrategyOption[];

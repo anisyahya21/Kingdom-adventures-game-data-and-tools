@@ -26,7 +26,17 @@
     ],
     "configsPerEncounter": 3,
     "verification": "review.py asserts unique (seed, encounter, atk, spd, lck) observations and 3600 saved trials; each retained fixed tuple has n=60. Failures are included in its reward mean and highest.",
-    "excludedReservedTargetCount": 0
+    "excludedReservedTargetCount": 0,
+    "additionalReviews": [
+      {
+        "path": "runtime\\extreme-average-20261012\\review-validation.json",
+        "sha256": "ecf10883e7204045d4219eb952f61dd57db2ca6bcadfe488c824d0c2341718f1"
+      },
+      {
+        "path": "runtime\\extreme-average-20261012-round2\\review-validation.json",
+        "sha256": "fcec5e643c8a781cd518d4984a4e0ead7069c9ed0422c3c57892fed50c98366a"
+      }
+    ]
   },
   "options": [
     {
@@ -688,6 +698,109 @@
       "highest": 85.0,
       "n": 60,
       "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e3-atk1089-spd491-lck57",
+      "encounter": 3,
+      "atk": 1089,
+      "spd": 491,
+      "lck": 57,
+      "mean": 8.925,
+      "highest": 45.0,
+      "n": 80,
+      "seedRange": [
+        1208,
+        1287
+      ],
+      "status": "Measured alternative; higher average not established",
+      "source": "Independent validation; seeds 1208–1287; failures included; different seed groups are not matched comparisons",
+      "lowAtMost1": 6,
+      "defeats": 0,
+      "pairedMean95CI": [
+        -1.6625,
+        3.55
+      ]
+    },
+    {
+      "id": "e7-atk1500-spd1160-lck21",
+      "encounter": 7,
+      "atk": 1500,
+      "spd": 1160,
+      "lck": 21,
+      "mean": 9.025,
+      "highest": 32.0,
+      "n": 80,
+      "seedRange": [
+        1208,
+        1287
+      ],
+      "status": "Measured alternative; higher average not established",
+      "source": "Independent validation; seeds 1208–1287; failures included; different seed groups are not matched comparisons",
+      "lowAtMost1": 14,
+      "defeats": 0,
+      "pairedMean95CI": [
+        -2.55,
+        1.05
+      ]
+    },
+    {
+      "id": "e11-atk2250-spd483-lck50",
+      "encounter": 11,
+      "atk": 2250,
+      "spd": 483,
+      "lck": 50,
+      "mean": 7.225,
+      "highest": 29.0,
+      "n": 80,
+      "seedRange": [
+        1208,
+        1287
+      ],
+      "status": "Measured alternative; higher average not established",
+      "source": "Independent validation; seeds 1208–1287; failures included; different seed groups are not matched comparisons",
+      "lowAtMost1": 17,
+      "defeats": 0,
+      "pairedMean95CI": [
+        -1.475,
+        2.225
+      ]
+    },
+    {
+      "id": "e19-atk300-spd389-lck336",
+      "encounter": 19,
+      "atk": 300,
+      "spd": 389,
+      "lck": 336,
+      "mean": 35.15,
+      "highest": 79.0,
+      "n": 120,
+      "seedRange": [
+        1348,
+        1467
+      ],
+      "status": "Measured alternative; higher average not established",
+      "source": "Independent validation; seeds 1348–1467; failures included; different seed groups are not matched comparisons",
+      "lowAtMost1": 0,
+      "defeats": 0
+    },
+    {
+      "id": "e19-atk318-spd474-lck199",
+      "encounter": 19,
+      "atk": 318,
+      "spd": 474,
+      "lck": 199,
+      "mean": 30.8,
+      "highest": 79.0,
+      "n": 120,
+      "seedRange": [
+        1348,
+        1467
+      ],
+      "status": "Measured alternative; higher average not established",
+      "source": "Independent validation; seeds 1348–1467; failures included; different seed groups are not matched comparisons",
+      "lowAtMost1": 0,
+      "defeats": 0
     }
-  ]
+  ],
+  "updatedUtc": "2026-10-12T23:14:26.347427+00:00"
 }
