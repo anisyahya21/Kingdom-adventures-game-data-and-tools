@@ -1,5 +1,6 @@
 import { searchProfileGoalBuildPages, type ProfileGoalBuild, type ProfileGoalSearchOptions } from "../lib/profile-loadout-goal-planner";
 import { restoreProfileWorkerInput, type ProfileWorkerInput, type ProfileWorkerMessage } from "../lib/profile-goal-worker-protocol";
+import { compareProfileStrategies, type StrategyMatchTarget } from "../lib/profile-strategy-matches";
 
 const send = (message: ProfileWorkerMessage) => self.postMessage(message);
 let builds: ProfileGoalBuild[] = [];
@@ -7,7 +8,7 @@ let started = false;
 let resume: (() => void) | null = null;
 let budgetOptions: { maxSearchNodes?: number } | null = null;
 self.onmessage = async (event: MessageEvent<
-  { type: "start"; input: ProfileWorkerInput; upgrades: boolean; nearestTargets?: Record<string, number> } | { type: "page"; page: number } | { type: "refine" }
+  { type: "start"; input: ProfileWorkerInput; upgrades: boolean; nearestTargets?: Record<string, number> } | { type: "compare"; input: ProfileWorkerInput; upgrades: boolean; targets: StrategyMatchTarget[] } | { type: "page"; page: number } | { type: "refine" }
 >) => {
   const message = event.data;
   if (message.type === "refine") {
@@ -22,6 +23,14 @@ self.onmessage = async (event: MessageEvent<
   if (started) return;
   started = true;
   try {
+    if (message.type === "compare") {
+      let lastSent = 0;
+      for await (const progress of compareProfileStrategies(restoreProfileWorkerInput(message.input), message.targets, message.upgrades)) {
+        const now = performance.now();
+        if (progress.complete || now - lastSent >= 100) { send({ type: "comparison", ...progress }); lastSent = now; }
+      }
+      return;
+    }
     let lastProgress = 0;
     let finalFrontier = false;
     const options: ProfileGoalSearchOptions = {

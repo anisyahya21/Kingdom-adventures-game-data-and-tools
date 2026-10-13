@@ -51,6 +51,7 @@ import { compareEquipmentNamesOriginalOrder } from "@/lib/equipment-order";
 
 import { ENCOUNTER_FAMILIES, ENCOUNTER_VARIANTS, difficultyName } from "@/lib/battle-setup";
 import { CHEST_STRATEGY_OPTIONS, chestStrategyGoals, type ChestStrategyOption } from "@/lib/chest-strategy-targets";
+import { strategyMatchDeviation, type ProfileStrategyMatch } from "@/lib/profile-strategy-matches";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2090,6 +2091,10 @@ function ProfileGoalSearchPanel({
   const [nearestStrategy, setNearestStrategy] = useState<ChestStrategyOption | null>(null);
   const [appliedStrategy, setAppliedStrategy] = useState<ChestStrategyOption | null>(null);
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
+  const [liveProfile] = usePlayerProfile();
+  const [profileMatches, setProfileMatches] = useState<ProfileStrategyMatch[] | null>(null);
+  const [showDistantOptions, setShowDistantOptions] = useState(false);
+  useEffect(() => { setProfileMatches(null); resetSearch(); }, [liveProfile, strategyFamily, strategyDifficulty, allowEquipmentLevelUp]);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
   const [searchLimited, setSearchLimited] = useState(false);
   const [searchComplete, setSearchComplete] = useState(false);
@@ -2127,12 +2132,19 @@ function ProfileGoalSearchPanel({
     setError("");
     const next = readPlayerProfile();
     setProfile(next);
+    setProfileMatches(null);
     const ownedCount = Object.keys(next.equipment).length;
     setStatus(`Profile loaded: ${next.characters.length} characters and ${ownedCount} owned gear types.`);
   };
 
   const strategyEncounter = ENCOUNTER_VARIANTS.find((entry) => entry.familyId === strategyFamily && entry.difficulty === strategyDifficulty);
   const strategyOptions = CHEST_STRATEGY_OPTIONS.filter((entry) => entry.encounter === strategyEncounter?.id);
+  const displayedStrategyOptions = profileMatches === null ? strategyOptions : strategyOptions
+    .filter((option) => showDistantOptions || strategyMatchDeviation(profileMatches.find((match) => match.id === option.id) ?? { id: option.id, build: null, complete: false, searchNodes: 0 }, option) <= 0.1)
+    .sort((a, b) => {
+      const deviation = (option: ChestStrategyOption) => strategyMatchDeviation(profileMatches.find((match) => match.id === option.id) ?? { id: option.id, build: null, complete: false, searchNodes: 0 }, option);
+      return deviation(a) - deviation(b) || b.mean - a.mean;
+    });
   const applyStrategy = (option: ChestStrategyOption, exact = false, nearest = false) => {
     const margins = { atk: Number(strategyTolerance.atk), spd: Number(strategyTolerance.spd), lck: Number(strategyTolerance.lck) };
     if (!exact && !nearest && Object.values(strategyTolerance).some((raw) => raw.trim() === "" || !Number.isInteger(Number(raw)) || Number(raw) < 0)) {
@@ -2227,13 +2239,15 @@ function ProfileGoalSearchPanel({
     workerRef.current.postMessage({ type: "page", page });
   };
 
-  const runSearch = async () => {
-    if (!profile) {
+  const runSearch = async (compareOptions = false) => {
+    if (!profile && !compareOptions) {
       setError("Click Use profile data to load your saved characters and gear first.");
       return;
     }
-    const activeGoals = Object.fromEntries(Object.entries(goals).filter(([stat, goal]) => goal && (!nearestStrategy || (!["atk", "spd", "lck"].includes(stat))))) as Record<string, ProfileStatGoal>;
-    for (const [stat, value] of Object.entries(editing)) {
+    const currentProfile = readPlayerProfile();
+    setProfile(currentProfile);
+    const activeGoals = (compareOptions ? {} : Object.fromEntries(Object.entries(goals).filter(([stat, goal]) => goal && (!nearestStrategy || (!["atk", "spd", "lck"].includes(stat)))))) as Record<string, ProfileStatGoal>;
+    for (const [stat, value] of Object.entries(compareOptions ? {} : editing)) {
       if (value.mode === "maximize" || (stat === "spd" && speedTargetMode === "bracket")) continue;
       const rawValues = value.mode === "min" ? [value.min] : value.mode === "max" ? [value.max] : [value.min, value.max];
       if (rawValues.every((raw) => raw.trim() === "")) continue;
@@ -2246,7 +2260,7 @@ function ProfileGoalSearchPanel({
         return;
       }
     }
-    if (!nearestStrategy && Object.keys(activeGoals).length === 0) {
+    if (!compareOptions && !nearestStrategy && Object.keys(activeGoals).length === 0) {
       setError("Set at least one complete target first.");
       return;
     }
@@ -2265,13 +2279,13 @@ function ProfileGoalSearchPanel({
     setStatus("Preparing profile characters…");
 
     try {
-      const residentItems = profileResidentStatItems(profile);
-      const inventory = Object.entries(profile.equipment).map(([item, currentLevel]) => ({
+      const residentItems = profileResidentStatItems(currentProfile);
+      const inventory = Object.entries(currentProfile.equipment).map(([item, currentLevel]) => ({
         item,
         ownership: "owned" as const,
         currentLevel,
       }));
-      const characters: ProfileGoalSearchCharacter[] = profile.characters.flatMap((character) => {
+      const characters: ProfileGoalSearchCharacter[] = currentProfile.characters.flatMap((character) => {
         const candidate: Loadout = {
           id: `profile-goal:${character.id}`,
           gender: character.gender,
@@ -2291,7 +2305,7 @@ function ProfileGoalSearchPanel({
           baseStats[stat] = (baseStats[stat] ?? 0) + bonus;
         }
         const usefulSkills = new Map<string, string>();
-        for (const item of Object.keys(profile.equipment)) {
+        for (const item of Object.keys(currentProfile.equipment)) {
           const rule = getEquipRuleState(candidate, data, item);
           if ((rule.blocked || rule.appliesPenalty) && rule.resistanceSkill && rule.weaponType &&
               canPickHumanSkill(candidate.jobName, rule.resistanceSkill.name, [])) usefulSkills.set(rule.weaponType, rule.resistanceSkill.name);
@@ -2326,12 +2340,12 @@ function ProfileGoalSearchPanel({
         return {
           id: character.id,
           skills,
-          skillItems: Object.fromEntries(skills.map((skill) => [skill, Object.keys(profile.equipment).filter((item) => getEquipRuleState(candidate, data, item).resistanceSkill?.name === skill)])),
+          skillItems: Object.fromEntries(skills.map((skill) => [skill, Object.keys(currentProfile.equipment).filter((item) => getEquipRuleState(candidate, data, item).resistanceSkill?.name === skill)])),
           name: candidate.name,
           jobName: character.jobName,
           rank: character.rank,
           available: true,
-          eligible: !!jobProfile && rankExists && [...Object.keys(activeGoals), ...(nearestStrategy ? ["atk", "spd", "lck"] : [])].every((stat) => Number.isFinite(curve[stat])),
+          eligible: !!jobProfile && rankExists && [...Object.keys(activeGoals), ...(nearestStrategy || compareOptions ? ["atk", "spd", "lck"] : [])].every((stat) => Number.isFinite(curve[stat])),
           input: { baseStats, goals: activeGoals, slots, contribution },
         };
         });
@@ -2345,7 +2359,11 @@ function ProfileGoalSearchPanel({
       worker.onmessage = (event: MessageEvent<ProfileWorkerMessage>) => {
         if (generation !== generationRef.current) return;
         const message = event.data;
-        if (message.type === "error") {
+        if (message.type === "comparison") {
+          setProfileMatches(message.matches);
+          setStatus(`Checked ${message.completed}/${message.total} strategy targets against your profile${message.complete ? " · comparison complete" : "…"}`);
+          if (message.complete) { setBusy(false); worker.terminate(); workerRef.current = null; }
+        } else if (message.type === "error") {
           setError(message.error); setBusy(false); worker.terminate(); workerRef.current = null;
         } else if (message.type === "progress") {
           describePage(message.progress);
@@ -2363,7 +2381,8 @@ function ProfileGoalSearchPanel({
         setError(event.message || "Profile search worker failed."); setBusy(false);
         worker.terminate(); workerRef.current = null;
       };
-      worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp, nearestTargets: nearestStrategy ? { atk: nearestStrategy.atk, spd: nearestStrategy.spd, lck: nearestStrategy.lck } : undefined });
+      if (compareOptions) worker.postMessage({ type: "compare", input, upgrades: allowEquipmentLevelUp, targets: strategyOptions.map(({ id, atk, spd, lck }) => ({ id, atk, spd, lck })) });
+      else worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp, nearestTargets: nearestStrategy ? { atk: nearestStrategy.atk, spd: nearestStrategy.spd, lck: nearestStrategy.lck } : undefined });
     } catch (cause) {
       if (generation === generationRef.current) { setError(cause instanceof Error ? cause.message : "Profile search failed."); setBusy(false); }
     }
@@ -2410,11 +2429,29 @@ function ProfileGoalSearchPanel({
         <p className="text-xs font-medium">{strategyEncounter?.title}</p>
         <p className="text-xs text-muted-foreground">Rewards were measured at the exact DPS stats below with the research team's fixed skills, healer and formation. They include unsuccessful runs and are not guaranteed for a different team. Highest is the best observed run, not a ceiling.</p>
         <div className="grid gap-2 sm:grid-cols-3">{(["atk", "spd", "lck"] as const).map((stat) => <label key={stat} className="grid gap-1 text-xs">{stat === "atk" ? "Attack" : stat === "spd" ? "Speed" : "Luck"} search tolerance ±<Input aria-label={`${stat} strategy tolerance`} type="text" inputMode="numeric" value={strategyTolerance[stat]} onChange={(event) => setStrategyTolerance((old) => ({ ...old, [stat]: event.target.value }))} /></label>)}</div>
-        <p className="text-xs text-muted-foreground">A wider window helps find achievable gear. Its rewards have not been validated across the whole range; use exact targets to match the measured point.</p>
-        <div className="space-y-2">{strategyOptions.map((option) => <div key={option.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button className="min-h-11" disabled={liveProfile.characters.length === 0 || busy} onClick={() => void runSearch(true)}>Check strategies with my profile</Button>
+          {profileMatches !== null && <label className="flex min-h-11 items-center gap-2 text-xs"><input type="checkbox" checked={showDistantOptions} onChange={(event) => setShowDistantOptions(event.target.checked)} />Show distant or unresolved targets</label>}
+        </div>
+        <p className="text-xs text-muted-foreground">Check all targets using your characters, gender and owned equipment. Exact and nearby options (within 10% on each DPS stat) are shown first; larger deviations are hidden by default. Nearby rewards are unmeasured.</p>
+        {profileMatches === null && <p className="text-xs font-medium">These targets have not been checked against your profile yet.</p>}
+        <div className="space-y-2">{displayedStrategyOptions.map((option) => {
+          const match = profileMatches?.find((entry) => entry.id === option.id);
+          const deviation = match ? strategyMatchDeviation(match, option) : Infinity;
+          const interval = (speed: number) => COMBAT_SPEED_BRACKETS.find((bracket) => speed >= bracket.min && (bracket.max === null || speed <= bracket.max))?.attackFrames;
+          return <div key={option.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3">
           <div className="min-w-0 text-sm"><div className="font-medium tabular-nums">ATT {option.atk} · Speed {option.spd} · Luck {option.lck}</div><div className="text-xs text-muted-foreground">Avg earned {option.mean.toFixed(2)} · Highest {option.highest} · {option.n} seeds</div>{option.status && <div className="text-xs text-muted-foreground">{option.status}</div>}<div className="text-xs text-muted-foreground">{option.source}</div></div>
+          {match && <div className="w-full space-y-1 text-xs">
+            <div className="font-medium">{deviation === 0 ? "Exact ATT/Speed/Luck achievable" : deviation <= 0.1 ? "Nearby profile option" : match.build ? "Large stat mismatch" : match.complete ? "No eligible build" : "Unresolved: no build found within the search budget"}{match.build && ` · ${match.build.characterName}`}</div>
+            {match.build && <div>Your build: ATT {match.build.stats.atk} ({match.build.stats.atk - option.atk >= 0 ? "+" : ""}{match.build.stats.atk - option.atk}) · Speed {match.build.stats.spd} ({match.build.stats.spd - option.spd >= 0 ? "+" : ""}{match.build.stats.spd - option.spd}) · Luck {match.build.stats.lck} ({match.build.stats.lck - option.lck >= 0 ? "+" : ""}{match.build.stats.lck - option.lck}){Number.isFinite(match.build.stats.dex) && ` · DEX ${match.build.stats.dex}`}{deviation !== 0 && ` · largest deviation ${(deviation * 100).toFixed(1)}%`}</div>}
+            {match.build && match.build.addedLevels > 0 && <div>Requires {match.build.addedLevels} equipment levels in upgrades.</div>}
+            {match.build && interval(match.build.stats.spd) !== interval(option.spd) && <div className="font-medium text-amber-700 dark:text-amber-300">Different Speed bracket: {interval(match.build.stats.spd)}-frame interval versus the target's {interval(option.spd)}.</div>}
+            {match.build && deviation !== 0 && <div>Target average is not measured for this build.{!match.complete && " Closest found so far; a closer option may exist."}</div>}
+            {match.build && profile && <Button variant="outline" className="min-h-11" onClick={() => onCreate(match.build!, profile)}>Use this profile build</Button>}
+          </div>}
           <div className="flex flex-wrap gap-2"><Button className="min-h-11" onClick={() => applyStrategy(option, false, true)}>Use closest achievable</Button><Button variant="outline" className="min-h-11" onClick={() => applyStrategy(option, true)}>Use exact stats</Button><Button className="min-h-11" onClick={() => applyStrategy(option)}>Use search window</Button></div>
-        </div>)}</div>
+        </div>; })}</div>
+        {profileMatches !== null && displayedStrategyOptions.length === 0 && <p className="text-sm">No exact or nearby option found. Show distant or unresolved targets to inspect the gaps; an unfinished search does not prove a target is impossible.</p>}
         {strategyOptions.length === 0 && <p className="text-sm text-muted-foreground">No measured options are available for this encounter yet.</p>}
         {nearestStrategy && <p className="text-xs text-muted-foreground">Automatic closeness mode: no ± values needed. Search ranks up to 40 builds by total relative ATT/Speed/Luck deviation. At equal DPS closeness, your maximized stats are improved; explicit limits still apply. Equivalent stat outcomes are grouped. Stat closeness does not guarantee similar rewards or the same Speed bracket. Large searches pause after each million steps. Continue refining resumes the same search; results are provisional until complete.</p>}
         {appliedStrategy && <p role="status" className="text-xs text-muted-foreground">Targets filled below. The reported average applies to ATT {appliedStrategy.atk}, Speed {appliedStrategy.spd}, Luck {appliedStrategy.lck}; nearby gear results may differ.</p>}
@@ -2483,7 +2520,7 @@ function ProfileGoalSearchPanel({
         </div>
         {!nearestStrategy && Object.values(goals).some((goal) => goal?.mode === "maximize") && <p className="text-xs text-muted-foreground">Maximized stats keep their best tradeoffs while meeting other targets. Results are provisional until the search completes.</p>}
         <div className="flex flex-wrap items-center gap-2">
-          <Button className="min-h-11" disabled={busy} onClick={runSearch}>
+          <Button className="min-h-11" disabled={busy} onClick={() => void runSearch()}>
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{busy ? "Searching all options…" : "Start profile search"}
           </Button>
           {searchLimited && <Button variant="outline" className="min-h-11" onClick={() => { setSearchLimited(false); setBusy(true); setStatus("Refining candidate builds…"); workerRef.current?.postMessage({ type: "refine" }); }}>Continue refining</Button>}

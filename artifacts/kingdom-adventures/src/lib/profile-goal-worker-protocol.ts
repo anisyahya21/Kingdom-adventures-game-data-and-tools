@@ -1,4 +1,5 @@
 import type { ProfileGoalBuild, ProfileGoalSearchCharacter, ProfileGoalSearchInput, ProfileGoalSearchPage } from "./profile-loadout-goal-planner";
+import type { ProfileStrategyMatch } from "./profile-strategy-matches";
 
 type PreparedCharacter = Omit<ProfileGoalSearchCharacter, "input"> & {
   input: Omit<ProfileGoalSearchCharacter["input"], "contribution">;
@@ -6,6 +7,7 @@ type PreparedCharacter = Omit<ProfileGoalSearchCharacter, "input"> & {
 };
 export type ProfileWorkerInput = { characters: PreparedCharacter[]; inventory: ProfileGoalSearchInput["inventory"] };
 export type ProfileWorkerMessage =
+  | { type: "comparison"; matches: ProfileStrategyMatch[]; completed: number; total: number; complete: boolean }
   | { type: "progress"; progress: ProfileGoalSearchPage }
   | { type: "page"; page: number; builds: ProfileGoalBuild[] }
   | { type: "error"; error: string };
