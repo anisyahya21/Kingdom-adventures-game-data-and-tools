@@ -24,8 +24,10 @@ export function chestStrategyGoals(
   option: Pick<ChestStrategyOption, "atk" | "spd" | "lck">,
   tolerance: Record<"atk" | "spd" | "lck", number>,
 ): Record<string, StatGoal> {
-  return Object.fromEntries((["atk", "spd", "lck"] as const).map((stat) => {
+  const goals = Object.fromEntries((["atk", "spd", "lck"] as const).map((stat) => {
     const margin = Math.max(0, Math.trunc(Number.isFinite(tolerance[stat]) ? tolerance[stat] : 0));
     return [stat, { mode: "range", min: Math.max(0, option[stat] - margin), max: option[stat] + margin }];
   }));
+  // Catalog rewards were measured at DEX18. A search margin is not a combat tolerance.
+  return { ...goals, dex: { mode: "range", min: 18, max: 18 } };
 }

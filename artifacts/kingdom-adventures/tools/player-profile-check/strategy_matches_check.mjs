@@ -3,7 +3,7 @@ import { compareProfileStrategies, strategyMatchDeviation } from "../../src/lib/
 
 const input = {
   characters: [{ id: "owned-resident", name: "Resident", available: true, eligible: true, input: {
-    baseStats: { atk: 100, spd: 50, lck: 20 }, goals: {},
+    baseStats: { atk: 100, spd: 50, lck: 20, dex: 18 }, goals: {},
     slots: [{ slot: "Weapon", items: ["Owned Sword"] }],
     contribution: (_item, level) => ({ atk: level * 10, spd: 0, lck: 0 }),
   }}],
@@ -25,3 +25,5 @@ assert.equal(strategyMatchDeviation(result.matches[0],upgradeTarget),0);
 assert.equal(result.matches[0].build.addedLevels,9);
 assert.equal(result.matches[0].build.requiredUpgrades[0].requiredLevel,10);
 console.log("PASS profile comparison: exact owned gear, nearby stats, double-Luck mismatch and required upgrades.");
+
+assert.ok(strategyMatchDeviation({ ...result.matches[0], build: { ...result.matches[0].build, stats: { atk: 200, spd: 50, lck: 20, dex: 49 } } }, upgradeTarget) > 1, 'DEX mismatch must prevent exact performance matching');

@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { measuredStrategyBoundary, measuredStrategyBuild } from "../../src/lib/chest-strategy-boundaries.ts";
+const anchor = measuredStrategyBoundary("e19-atk238-spd389-lck336");
+assert.equal(anchor.n,120);
+assert.ok(anchor.mean > 34 && anchor.mean < 35);
+assert.equal(measuredStrategyBuild(19,{atk:238,spd:389,lck:336,dex:18}).mean,anchor.mean);
+assert.ok(measuredStrategyBuild(19,{atk:238,spd:389,lck:336,dex:49}).mean < anchor.mean);
+assert.equal(measuredStrategyBuild(19,{atk:238,spd:390,lck:336,dex:18}),null,"untested adjacent point cannot inherit average");
+assert.equal(measuredStrategyBuild(7,{atk:238,spd:389,lck:336,dex:18}),null,"encounters cannot share reward evidence");
+assert.equal(measuredStrategyBoundary("e0-atk67-spd88-lck34"),undefined,"uncovered catalog option remains unknown");
+console.log("PASS exact four-stat evidence: DEX, encounter and unknown adjacent tuples stay distinct.");

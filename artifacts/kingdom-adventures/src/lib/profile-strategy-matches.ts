@@ -1,10 +1,14 @@
 import { searchProfileGoalBuildPages, type ProfileGoalBuild, type ProfileGoalSearchInput } from "./profile-loadout-goal-planner";
 
-export type StrategyMatchTarget = { id: string; atk: number; spd: number; lck: number };
+export type StrategyMatchTarget = { id: string; atk: number; spd: number; lck: number; dex?: number };
 export type ProfileStrategyMatch = { id: string; build: ProfileGoalBuild | null; complete: boolean; searchNodes: number };
 export function strategyMatchDeviation(match: ProfileStrategyMatch, target: StrategyMatchTarget): number {
   if (!match.build) return Infinity;
-  return Math.max(...(["atk", "spd", "lck"] as const).map((stat) => Math.abs(match.build!.stats[stat] - target[stat]) / Math.max(1, target[stat])));
+  return Math.max(...(["atk", "spd", "lck", "dex"] as const).map((stat) => {
+    const expected = stat === "dex" ? target.dex ?? 18 : target[stat];
+    const actual = match.build!.stats[stat];
+    return Number.isFinite(actual) ? Math.abs(actual - expected) / Math.max(1, expected) : Infinity;
+  }));
 }
 
 /** Reuse the legal owned-gear planner; a bounded search never proves that a target is impossible. */
@@ -14,7 +18,7 @@ export async function* compareProfileStrategies(input: ProfileGoalSearchInput, t
   for (const target of targets) {
     let match: ProfileStrategyMatch = { id: target.id, build: null, complete: false, searchNodes: 0 };
     for await (const page of searchProfileGoalBuildPages(search, {
-      nearestTargets: { atk: target.atk, spd: target.spd, lck: target.lck },
+      nearestTargets: { atk: target.atk, spd: target.spd, lck: target.lck, dex: target.dex ?? 18 },
       inventoryPolicy: upgrades ? "owned-upgrades" : "owned-current", includeCurrentBuilds: upgrades,
       maxSearchNodes, pageSize: 40, nodeSliceSize: 20_000,
     })) {

@@ -52,6 +52,7 @@ import { compareEquipmentNamesOriginalOrder } from "@/lib/equipment-order";
 import { ENCOUNTER_FAMILIES, ENCOUNTER_VARIANTS, difficultyName } from "@/lib/battle-setup";
 import { CHEST_STRATEGY_OPTIONS, chestStrategyGoals, type ChestStrategyOption } from "@/lib/chest-strategy-targets";
 import { strategyMatchDeviation, type ProfileStrategyMatch } from "@/lib/profile-strategy-matches";
+import { measuredStrategyBoundary, measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2163,7 +2164,7 @@ function ProfileGoalSearchPanel({
   };
   const setGoalValue = (stat: string, field: "mode" | "min" | "max", value: string) => {
     setAppliedStrategy(null);
-    if (["atk", "spd", "lck"].includes(stat)) setNearestStrategy(null);
+    if (["atk", "spd", "lck", "dex"].includes(stat)) setNearestStrategy(null);
     resetSearch();
     setError("");
     const current = editing[stat] ?? { mode: "min" as ProfileGoalMode, min: "", max: "" };
@@ -2382,7 +2383,7 @@ function ProfileGoalSearchPanel({
         worker.terminate(); workerRef.current = null;
       };
       if (compareOptions) worker.postMessage({ type: "compare", input, upgrades: allowEquipmentLevelUp, targets: strategyOptions.map(({ id, atk, spd, lck }) => ({ id, atk, spd, lck })) });
-      else worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp, nearestTargets: nearestStrategy ? { atk: nearestStrategy.atk, spd: nearestStrategy.spd, lck: nearestStrategy.lck } : undefined });
+      else worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp, nearestTargets: nearestStrategy ? { atk: nearestStrategy.atk, spd: nearestStrategy.spd, lck: nearestStrategy.lck, dex: 18 } : undefined });
     } catch (cause) {
       if (generation === generationRef.current) { setError(cause instanceof Error ? cause.message : "Profile search failed."); setBusy(false); }
     }
@@ -2433,28 +2434,32 @@ function ProfileGoalSearchPanel({
           <Button className="min-h-11" disabled={liveProfile.characters.length === 0 || busy} onClick={() => void runSearch(true)}>Check strategies with my profile</Button>
           {profileMatches !== null && <label className="flex min-h-11 items-center gap-2 text-xs"><input type="checkbox" checked={showDistantOptions} onChange={(event) => setShowDistantOptions(event.target.checked)} />Show distant or unresolved targets</label>}
         </div>
-        <p className="text-xs text-muted-foreground">Check all targets using your characters, gender and owned equipment. Exact and nearby options (within 10% on each DPS stat) are shown first; larger deviations are hidden by default. Nearby rewards are unmeasured.</p>
+        <p className="text-xs text-muted-foreground">Check all targets using your characters, gender and owned equipment. Exact and nearby options (within 10% on ATT, Speed, Luck and DEX) are shown first; larger deviations are hidden by default. Nearby rewards are unmeasured.</p>
         {profileMatches === null && <p className="text-xs font-medium">These targets have not been checked against your profile yet.</p>}
         <div className="space-y-2">{displayedStrategyOptions.map((option) => {
           const match = profileMatches?.find((entry) => entry.id === option.id);
           const deviation = match ? strategyMatchDeviation(match, option) : Infinity;
+          const measured = match?.build ? measuredStrategyBuild(option.encounter, match.build.stats) : null;
+          const boundary = measuredStrategyBoundary(option.id);
           const interval = (speed: number) => COMBAT_SPEED_BRACKETS.find((bracket) => speed >= bracket.min && (bracket.max === null || speed <= bracket.max))?.attackFrames;
           return <div key={option.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3">
-          <div className="min-w-0 text-sm"><div className="font-medium tabular-nums">ATT {option.atk} · Speed {option.spd} · Luck {option.lck}</div><div className="text-xs text-muted-foreground">Avg earned {option.mean.toFixed(2)} · Highest {option.highest} · {option.n} seeds</div>{option.status && <div className="text-xs text-muted-foreground">{option.status}</div>}<div className="text-xs text-muted-foreground">{option.source}</div></div>
+          <div className="min-w-0 text-sm"><div className="font-medium tabular-nums">ATT {option.atk} · Speed {option.spd} · Luck {option.lck} · DEX 18</div><div className="text-xs text-muted-foreground">Avg earned {option.mean.toFixed(2)} · Highest {option.highest} · {option.n} seeds</div>{option.status && <div className="text-xs text-muted-foreground">{option.status}</div>}<div className="text-xs text-muted-foreground">{option.source}</div></div>
           {match && <div className="w-full space-y-1 text-xs">
-            <div className="font-medium">{deviation === 0 ? "Exact ATT/Speed/Luck achievable" : deviation <= 0.1 ? "Nearby profile option" : match.build ? "Large stat mismatch" : match.complete ? "No eligible build" : "Unresolved: no build found within the search budget"}{match.build && ` · ${match.build.characterName}`}</div>
+            <div className="font-medium">{deviation === 0 ? "Exact ATT/Speed/Luck/DEX achievable" : deviation <= 0.1 ? "Nearby profile option" : match.build ? "Large stat mismatch" : match.complete ? "No eligible build" : "Unresolved: no build found within the search budget"}{match.build && ` · ${match.build.characterName}`}</div>
             {match.build && <div>Your build: ATT {match.build.stats.atk} ({match.build.stats.atk - option.atk >= 0 ? "+" : ""}{match.build.stats.atk - option.atk}) · Speed {match.build.stats.spd} ({match.build.stats.spd - option.spd >= 0 ? "+" : ""}{match.build.stats.spd - option.spd}) · Luck {match.build.stats.lck} ({match.build.stats.lck - option.lck >= 0 ? "+" : ""}{match.build.stats.lck - option.lck}){Number.isFinite(match.build.stats.dex) && ` · DEX ${match.build.stats.dex}`}{deviation !== 0 && ` · largest deviation ${(deviation * 100).toFixed(1)}%`}</div>}
             {match.build && match.build.addedLevels > 0 && <div>Requires {match.build.addedLevels} equipment levels in upgrades.</div>}
             {match.build && interval(match.build.stats.spd) !== interval(option.spd) && <div className="font-medium text-amber-700 dark:text-amber-300">Different Speed bracket: {interval(match.build.stats.spd)}-frame interval versus the target's {interval(option.spd)}.</div>}
-            {match.build && deviation !== 0 && <div>Target average is not measured for this build.{!match.complete && " Closest found so far; a closer option may exist."}</div>}
+            {match.build && measured && <div>These exact four stats: avg {measured.mean.toFixed(2)} · median {measured.median} · 0–1 chest {measured.low}/{measured.n} · defeats {measured.defeats}/{measured.n}, on 120 independent seeds with the fixed research team. A different team remains unmeasured.</div>}
+            {match.build && !measured && deviation !== 0 && <div>Target average is not measured for this build.{!match.complete && " Closest found so far; a closer option may exist."}</div>}
             {match.build && profile && <Button variant="outline" className="min-h-11" onClick={() => onCreate(match.build!, profile)}>Use this profile build</Button>}
           </div>}
+          {boundary && <details className="w-full text-xs"><summary className="cursor-pointer py-2">Tested stat changes and reward drops</summary><p className="mb-2 text-muted-foreground">Same 120 seeds and fixed research team; ATT / Speed / Luck / DEX. Values between tested points are unknown. Separate changes do not establish joint safety.</p><div className="overflow-x-auto"><table className="w-full tabular-nums"><thead><tr><th className="text-left">Exact stats</th><th>Avg</th><th>Change</th><th>0–1 chest</th><th>Defeats</th></tr></thead><tbody><tr><td>{boundary.stats.join(" / ")} (reference)</td><td className="text-center">{boundary.mean.toFixed(2)}</td><td className="text-center">—</td><td className="text-center">{boundary.low}/{boundary.n}</td><td className="text-center">{boundary.defeats}/{boundary.n}</td></tr>{boundary.variants.map((point) => <tr key={point.stats.join(",")}><td className="py-1">{point.stats.join(" / ")}</td><td className="text-center">{point.mean.toFixed(2)}</td><td className="text-center">{point.delta >= 0 ? "+" : ""}{point.delta.toFixed(2)}</td><td className="text-center">{point.low}/{point.n}</td><td className="text-center">{point.defeats}/{point.n}</td></tr>)}</tbody></table></div><p className="mt-2 text-muted-foreground">Differences shown are observed averages, not all confirmed effects. Most comparisons remain uncertain.</p></details>}
           <div className="flex flex-wrap gap-2"><Button className="min-h-11" onClick={() => applyStrategy(option, false, true)}>Use closest achievable</Button><Button variant="outline" className="min-h-11" onClick={() => applyStrategy(option, true)}>Use exact stats</Button><Button className="min-h-11" onClick={() => applyStrategy(option)}>Use search window</Button></div>
         </div>; })}</div>
         {profileMatches !== null && displayedStrategyOptions.length === 0 && <p className="text-sm">No exact or nearby option found. Show distant or unresolved targets to inspect the gaps; an unfinished search does not prove a target is impossible.</p>}
         {strategyOptions.length === 0 && <p className="text-sm text-muted-foreground">No measured options are available for this encounter yet.</p>}
         {nearestStrategy && <p className="text-xs text-muted-foreground">Automatic closeness mode: no ± values needed. Search ranks up to 40 builds by total relative ATT/Speed/Luck deviation. At equal DPS closeness, your maximized stats are improved; explicit limits still apply. Equivalent stat outcomes are grouped. Stat closeness does not guarantee similar rewards or the same Speed bracket. Large searches pause after each million steps. Continue refining resumes the same search; results are provisional until complete.</p>}
-        {appliedStrategy && <p role="status" className="text-xs text-muted-foreground">Targets filled below. The reported average applies to ATT {appliedStrategy.atk}, Speed {appliedStrategy.spd}, Luck {appliedStrategy.lck}; nearby gear results may differ.</p>}
+        {appliedStrategy && <p role="status" className="text-xs text-muted-foreground">Targets filled below. The reported average applies to ATT {appliedStrategy.atk}, Speed {appliedStrategy.spd}, Luck {appliedStrategy.lck}; DEX 18; nearby gear results may differ.</p>}
       </section>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {goalKeys.map((stat) => {
