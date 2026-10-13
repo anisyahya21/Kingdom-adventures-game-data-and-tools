@@ -17,3 +17,10 @@ assert.equal(slower.mean,cohorts.find(panel => panel.seedRange[0] === slower.see
 const oldE3 = measuredStrategyBoundaries("e3-atk994-spd656-lck126").find(panel => panel.seedRange[0] === 2266);
 assert.ok(oldE3.variants.find(point => point.stats[0] === 894).low > oldE3.low,"similar averages must retain distinct same-cohort low-reward evidence");
 console.log("PASS exact four-stat evidence: DEX, encounter and unknown adjacent tuples stay distinct.");
+const personalDex = measuredStrategyBuild(19,{atk:280,spd:389,lck:336,dex:13});
+assert.equal(personalDex.n,80);
+assert.deepEqual(personalDex.seedRange,[2506,2585]);
+assert.ok(personalDex.mean > 39.58 && personalDex.mean < 39.60);
+const largerBaseline = measuredStrategyBuild(19,{atk:280,spd:389,lck:336,dex:18});
+assert.equal(largerBaseline.n,120,"a subset cohort must not replace the larger baseline sample");
+assert.deepEqual(largerBaseline.seedRange,[2386,2505]);

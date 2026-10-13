@@ -53,6 +53,7 @@ import { ENCOUNTER_FAMILIES, ENCOUNTER_VARIANTS, difficultyName } from "@/lib/ba
 import { CHEST_STRATEGY_OPTIONS, chestStrategyGoals, type ChestStrategyOption } from "@/lib/chest-strategy-targets";
 import { strategyMatchDeviation, type ProfileStrategyMatch } from "@/lib/profile-strategy-matches";
 import { measuredStrategyBoundaries, measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
+import { bestMeasuredPanel } from "@/lib/chest-strategy-boundary-access";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2141,7 +2142,7 @@ function ProfileGoalSearchPanel({
   const strategyEncounter = ENCOUNTER_VARIANTS.find((entry) => entry.familyId === strategyFamily && entry.difficulty === strategyDifficulty);
   const strategyOptions = CHEST_STRATEGY_OPTIONS.filter((entry) => entry.encounter === strategyEncounter?.id)
     .map((entry) => {
-      const latest = measuredStrategyBoundaries(entry.id).at(-1);
+      const latest = bestMeasuredPanel(measuredStrategyBoundaries(entry.id));
       return latest ? { ...entry, dex: latest.stats[3] ?? entry.dex ?? 18, mean: latest.mean, highest: latest.highest, n: latest.n,
         seedRange: latest.seedRange, source: `Fixed research team · seeds ${latest.seedRange?.join("–") ?? "unknown"}` } : entry;
     }).sort((a, b) => b.mean - a.mean);

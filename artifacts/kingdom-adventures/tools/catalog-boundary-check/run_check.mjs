@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { measuredPanelsFor, measuredPointFor } from "../../src/lib/chest-strategy-boundary-access.ts";
+import { bestMeasuredPanel, measuredPanelsFor, measuredPointFor } from "../../src/lib/chest-strategy-boundary-access.ts";
 import { exactStrategyGoals } from "../../src/lib/chest-strategy-goals.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -125,6 +125,24 @@ const nearby = [...anchor.stats];
 do { nearby[0] += 1; } while (used.has(nearby.join(",")));
 assert.equal(measuredPointFor(evidence, anchor.encounter, nearby), null,
   "unmeasured nearby tuple must not inherit an exact-point result");
+
+// An appended smaller DEX cohort must not replace a shared 120-seed headline,
+// while exact lookups still expose its new, measured alternatives.
+const sharedBaseline = { id: "shared", encounter: 3, stats: [100, 200, 5, 18], mean: 40, n: 120,
+  seedRange: [2386, 2505], variants: [] };
+const freshDex11 = { stats: [100, 200, 5, 11], mean: 43, n: 80, seedRange: [2506, 2585] };
+const smallerAppended = { ...sharedBaseline, mean: 39, n: 80, seedRange: [2506, 2585], variants: [freshDex11] };
+const twoCohorts = { panels: [sharedBaseline, smallerAppended] };
+assert.equal(bestMeasuredPanel([sharedBaseline, smallerAppended]), sharedBaseline,
+  "headline baseline must prefer the largest common cohort over an appended smaller cohort");
+const selectedBaseline = measuredPointFor(twoCohorts, 3, sharedBaseline.stats);
+assert.equal(selectedBaseline.n, 120, "exact baseline lookup must preserve the largest compatible cohort");
+assert.deepEqual(selectedBaseline.seedRange, [2386, 2505], "baseline provenance must remain on the common 120-seed cohort");
+const selectedDex11 = measuredPointFor(twoCohorts, 3, freshDex11.stats);
+assert.equal(selectedDex11.n, 80, "new exact DEX11 variant must remain discoverable in its 80-seed cohort");
+assert.deepEqual(selectedDex11.seedRange, [2506, 2585], "new variant lookup must retain its actual cohort");
+assert.equal(measuredPointFor(twoCohorts, 3, [101, 200, 5, 11]), null,
+  "an adjacent unmeasured tuple must remain unknown");
 
 const goalsFor = (stats) => exactStrategyGoals(
   { atk: stats[0], spd: stats[1], lck: stats[2], dex: stats[3] },
