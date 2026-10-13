@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { measuredPanelsFor, measuredPointFor } from "../../src/lib/chest-strategy-boundary-access.ts";
+import { exactStrategyGoals } from "../../src/lib/chest-strategy-goals.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(here, "../..");
@@ -124,6 +125,28 @@ const nearby = [...anchor.stats];
 do { nearby[0] += 1; } while (used.has(nearby.join(",")));
 assert.equal(measuredPointFor(evidence, anchor.encounter, nearby), null,
   "unmeasured nearby tuple must not inherit an exact-point result");
+
+const goalsFor = (stats) => exactStrategyGoals(
+  { atk: stats[0], spd: stats[1], lck: stats[2], dex: stats[3] },
+  { atk: 0, spd: 0, lck: 0 },
+);
+assert.equal(goalsFor([170, 500, 120, 13]).dex.min, 13, "DEX13 measured tuple must target DEX13");
+assert.equal(goalsFor([170, 500, 120, 49]).dex.max, 49, "DEX49 measured tuple must target DEX49");
+assert.equal(exactStrategyGoals({ atk: 170, spd: 500, lck: 120 }, { atk: 0, spd: 0, lck: 0 }).dex.min, 18,
+  "catalog baselines without explicit DEX must keep DEX18");
+for (const panel of testedPanels) {
+  for (const point of panel.variants) {
+    const goals = goalsFor(point.stats);
+    for (const [index, stat] of ["atk", "spd", "lck", "dex"].entries()) {
+      assert.equal(goals[stat].min, point.stats[index], `${panel.id} exact alternative must preserve ${stat}`);
+      assert.equal(goals[stat].max, point.stats[index], `${panel.id} exact alternative must preserve ${stat}`);
+    }
+    const provenance = measuredPointFor(evidence, panel.encounter, point.stats);
+    assert.equal(provenance.n, point.n, `${panel.id} alternative must keep its own sample size`);
+    assert.equal(provenance.mean, point.mean, `${panel.id} alternative must keep its own mean`);
+    assert.deepEqual(provenance.seedRange, panel.seedRange, `${panel.id} alternative must keep its measured cohort`);
+  }
+}
 
 console.log(JSON.stringify({
   valid: true,
