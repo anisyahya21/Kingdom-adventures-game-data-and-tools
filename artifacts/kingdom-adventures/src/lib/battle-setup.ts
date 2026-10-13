@@ -1,4 +1,5 @@
 import encounterJson from "@/game-data/battle-encounter-variants.json";
+import { equipmentAllowedForGender } from "@/game-data/equipment-gender";
 import equipmentJson from "@/game-data/battle-equipment-catalog.json";
 import nativeRecoveryItems from "@/game-data/native-recovery-items.json";
 import skillJson from "@/game-data/battle-skill-catalog.json";
@@ -944,6 +945,9 @@ function validateHumanEquipment(unit: HumanUnit, issues: SetupIssue[]): void {
         message: `Unknown equipment id ${selection.id}.`,
       });
       continue;
+    }
+    if (!equipmentAllowedForGender(entry.flags, unit.gender)) {
+      issues.push({ category: "ERROR", code: "EQUIPMENT_GENDER_RESTRICTED", path: `${unit.name}.equipmentSlots.${slot}`, message: `${entry.name} can only be equipped by female characters.` });
     }
     if (equipmentSlotForEntry(entry) !== slot) {
       issues.push({

@@ -221,6 +221,7 @@ export default function PlayerProfilePage() {
     const next: PlayerCharacter = {
       id: crypto.randomUUID(),
       jobName: job.name,
+      gender: 0,
       rank,
       statLevels: normalizeStatLevels(stats),
     };
@@ -636,6 +637,18 @@ export default function PlayerProfilePage() {
                             {entry.name}
                           </option>
                         ))}
+                      </select>
+                    </label>
+                    <label className="w-28 space-y-1 text-xs">
+                      <span>Gender</span>
+                      <select
+                        value={character.gender ?? ""}
+                        onChange={(event) => updateCharacter(character.id, { gender: event.target.value === "" ? undefined : Number(event.target.value) as 0 | 1 })}
+                        className="h-11 w-full rounded-md border border-input bg-background px-3"
+                      >
+                        <option value="">Choose…</option>
+                        <option value="0">Male</option>
+                        <option value="1">Female</option>
                       </select>
                     </label>
                     <label className="w-28 space-y-1 text-xs">

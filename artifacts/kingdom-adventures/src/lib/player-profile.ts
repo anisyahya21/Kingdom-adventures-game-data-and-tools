@@ -18,6 +18,8 @@ export type PlayerCharacter = {
   id: string;
   jobName: string;
   rank: string;
+  /** Native gender index: 0 male, 1 female. Older profiles remain unspecified. */
+  gender?: 0 | 1;
   statLevels: Record<string, number>;
 };
 export type PlayerProfile = {
@@ -84,6 +86,7 @@ export function sanitizePlayerProfile(raw: unknown): PlayerProfile {
       id: character.id,
       jobName: character.jobName.trim(),
       rank: String(character.rank),
+      ...(character.gender === 0 || character.gender === 1 ? { gender: character.gender } : {}),
       statLevels: Object.fromEntries(
         STAT_KEYS.map((stat) => [
           stat,

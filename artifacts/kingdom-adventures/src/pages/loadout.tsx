@@ -66,6 +66,7 @@ type Job = {
 type EquipEntry = { name: string; level: number };
 type Loadout = {
   id: string;
+  gender?: 0 | 1;
   profileCharacterId?: string;
   useProfileInventory?: boolean;
   name: string;
@@ -1728,13 +1729,18 @@ function CharacterPreview({
   rank,
   weaponName,
   shieldName,
+  declaredGender,
+  onGenderChange,
 }: {
   jobName: string;
   rank?: string;
   weaponName: string | null;
   shieldName: string | null;
+  declaredGender?: 0 | 1;
+  onGenderChange?: (gender: 0 | 1) => void;
 }) {
-  const [gender, setGender] = useState<1 | 2>(1);
+  const [previewGender, setGender] = useState<1 | 2>(1);
+  const gender: 1 | 2 = declaredGender === undefined ? previewGender : declaredGender === 1 ? 2 : 1;
   const [equipState, setEquipState] = useState<"right" | "up">("right");
   const poseFrame = useIdlePreviewPose();
 
@@ -1754,11 +1760,11 @@ function CharacterPreview({
       />
       <div className="flex items-center gap-1.5">
         <button
-          onClick={() => setGender(1)}
+          onClick={() => { setGender(1); onGenderChange?.(0); }}
           className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors flex items-center gap-1 ${gender === 1 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
         ><img src="/website_icons/gender/gender_0_male.png" alt="Male" className="w-4 h-5" style={{imageRendering: "pixelated"}} /> Male</button>
         <button
-          onClick={() => setGender(2)}
+          onClick={() => { setGender(2); onGenderChange?.(1); }}
           className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors flex items-center gap-1 ${gender === 2 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
         ><img src="/website_icons/gender/gender_1_female.png" alt="Female" className="w-4 h-5" style={{imageRendering: "pixelated"}} /> Female</button>
         <span className="w-px h-3 bg-border mx-0.5" />
@@ -2268,6 +2274,7 @@ function ProfileGoalSearchPanel({
       const characters: ProfileGoalSearchCharacter[] = profile.characters.flatMap((character) => {
         const candidate: Loadout = {
           id: `profile-goal:${character.id}`,
+          gender: character.gender,
           name: `${character.jobName} (Profile ${character.id})`,
           jobName: character.jobName,
           rank: character.rank,
@@ -2502,7 +2509,7 @@ function ProfileGoalSearchPanel({
                 <div className="min-w-0">
                   <div className="flex items-center gap-3">
                     {build.jobName && <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/20">
-                      <CharacterPreviewCanvas jobName={build.jobName} rank={build.rank} variant={1} equipState="right" scale={3} poseFrame={0}
+                      <CharacterPreviewCanvas jobName={build.jobName} rank={build.rank} variant={profile?.characters.find((character) => character.id === build.characterId)?.gender === 1 ? 2 : 1} equipState="right" scale={3} poseFrame={0}
                         weaponName={build.picks.find((pick) => pick.slot === "Weapon")?.item}
                         shieldName={build.picks.find((pick) => pick.slot === "Shield")?.item}
                         label={`${build.characterName} character`} className="max-h-full max-w-full object-contain" />
@@ -3067,6 +3074,8 @@ function LoadoutEditor({ loadout, data, onChange, onDelete, onDuplicate, profile
               return (
                 <CharacterPreview
                   jobName={loadout.jobName}
+                  declaredGender={loadout.gender}
+                  onGenderChange={(gender) => onChange(dropUnsupportedHumanEquipment({ ...loadout, gender }, data))}
                   rank={loadout.rank || undefined}
                   weaponName={weaponEntry?.name ?? null}
                   shieldName={shieldEntry?.name ?? null}
@@ -3497,6 +3506,7 @@ export default function LoadoutPage() {
     const newLoadout: Loadout = {
       id: generateId(),
       profileCharacterId: character.id,
+      gender: character.gender,
       // Current-level suggestions stay tied to the account inventory. Upgrade suggestions keep
       // the planner's requested levels editable in the builder.
       useProfileInventory: !requiresUpgrades,
@@ -3522,6 +3532,7 @@ export default function LoadoutPage() {
       const synced: Loadout = {
         ...(existing ?? { id: `profile:${character.id}`, equipment: [], skills: [] }),
         profileCharacterId: character.id,
+        gender: character.gender,
         useProfileInventory: existing?.useProfileInventory ?? true,
         name: character.jobName,
         jobName: character.jobName,

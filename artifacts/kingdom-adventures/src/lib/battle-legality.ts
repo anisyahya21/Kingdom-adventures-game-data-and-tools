@@ -23,6 +23,7 @@
 import { getJobProfile, type SharedJobProfileData } from "@/game-data/job-profile";
 import nativeJobIdentities from "@/game-data/native-job-identity.json";
 import { residentValuableParameterDeltas } from "@/game-data/resident-valuable-effects";
+import { equipmentAllowedForGender } from "@/game-data/equipment-gender";
 import {
   EQUIP_AFFINITY_WEAK,
   resolveEquipmentAffinity,
@@ -544,6 +545,10 @@ export function loadoutEquipment(
       );
     }
     const derivedSlot = equipmentSlotForEntry(catalogEntry);
+    if (!equipmentAllowedForGender(catalogEntry.flags, loadout.gender)) {
+      issues.push(error("EQUIPMENT_GENDER_RESTRICTED", path, `Equipment '${name}' requires a female character. Set the character's gender before using it.`));
+      return;
+    }
     const siteSlotRaw = shared.slotAssignments?.[name];
     const siteSlot = siteSlotRaw ? SLOT_KEY_BY_SITE_SLOT[siteSlotRaw.toLowerCase()] : undefined;
     if (siteSlot && siteSlot !== derivedSlot) {
