@@ -22,6 +22,26 @@ export type ChestStrategyOption = {
 
 export const CHEST_STRATEGY_OPTIONS = catalog.options as ChestStrategyOption[];
 
+/** Keep a legal profile build separate from measured rewards unless its exact tuple exists. */
+export function strategyOptionForProfileBuild(
+  option: ChestStrategyOption,
+  stats: Record<string, number>,
+  evidence?: Pick<ChestStrategyOption, "mean" | "highest" | "n" | "lowAtMost1" | "defeats" | "seedRange"> | null,
+): ChestStrategyOption {
+  return {
+    ...option,
+    atk: stats.atk, spd: stats.spd, lck: stats.lck, dex: stats.dex,
+    mean: evidence?.mean ?? 0,
+    highest: evidence?.highest ?? 0,
+    n: evidence?.n ?? 0,
+    lowAtMost1: evidence?.lowAtMost1,
+    defeats: evidence?.defeats,
+    seedRange: evidence?.seedRange,
+    source: evidence ? `Fixed research team · seeds ${evidence.seedRange?.join("–") ?? "unknown"}` : "Legal profile build; reward not measured",
+    status: evidence ? "Exact profile build tuple has measured reward evidence" : "Profile build tuple; reward unmeasured",
+  };
+}
+
 /** Search flexibility is a player choice, not a measured combat tolerance. */
 export function chestStrategyGoals(
   option: Pick<ChestStrategyOption, "atk" | "spd" | "lck" | "dex">,

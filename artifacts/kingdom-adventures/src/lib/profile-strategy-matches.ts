@@ -2,6 +2,15 @@ import { searchProfileGoalBuildPages, type ProfileGoalBuild, type ProfileGoalSea
 
 export type StrategyMatchTarget = { id: string; atk: number; spd: number; lck: number; dex?: number };
 export type ProfileStrategyMatch = { id: string; build: ProfileGoalBuild | null; complete: boolean; searchNodes: number };
+export function measuredStrategyTargetId(encounter: string | number, stats: readonly number[]): string {
+  if (stats.length !== 4 || stats.some((value) => !Number.isSafeInteger(value))) throw new Error("Measured strategy targets require four integer stats.");
+  return `measured:${encounter}:${stats.join(":")}`;
+}
+
+export function isExactStrategyBuild(build: ProfileGoalBuild | null, target: StrategyMatchTarget): boolean {
+  return !!build && build.stats.atk === target.atk && build.stats.spd === target.spd && build.stats.lck === target.lck && build.stats.dex === (target.dex ?? 18);
+}
+
 export function strategyMatchDeviation(match: ProfileStrategyMatch, target: StrategyMatchTarget): number {
   if (!match.build) return Infinity;
   return Math.max(...(["atk", "spd", "lck", "dex"] as const).map((stat) => {

@@ -1,5 +1,5 @@
 import { searchProfileGoalBuildPages, type ProfileGoalBuild, type ProfileGoalSearchOptions } from "../lib/profile-loadout-goal-planner";
-import { restoreProfileWorkerInput, type ProfileWorkerInput, type ProfileWorkerMessage } from "../lib/profile-goal-worker-protocol";
+import { restoreProfileWorkerInput, type ProfileWorkerMessage, type ProfileWorkerRequest } from "../lib/profile-goal-worker-protocol";
 import { compareProfileStrategies, type StrategyMatchTarget } from "../lib/profile-strategy-matches";
 
 const send = (message: ProfileWorkerMessage) => self.postMessage(message);
@@ -7,9 +7,7 @@ let builds: ProfileGoalBuild[] = [];
 let started = false;
 let resume: (() => void) | null = null;
 let budgetOptions: { maxSearchNodes?: number } | null = null;
-self.onmessage = async (event: MessageEvent<
-  { type: "start"; input: ProfileWorkerInput; upgrades: boolean; nearestTargets?: Record<string, number> } | { type: "compare"; input: ProfileWorkerInput; upgrades: boolean; targets: StrategyMatchTarget[] } | { type: "page"; page: number } | { type: "refine" }
->) => {
+self.onmessage = async (event: MessageEvent<ProfileWorkerRequest>) => {
   const message = event.data;
   if (message.type === "refine") {
     if (resume && budgetOptions) { budgetOptions.maxSearchNodes = (budgetOptions.maxSearchNodes ?? 0) + 1_000_000; const proceed = resume; resume = null; proceed(); }
@@ -25,7 +23,7 @@ self.onmessage = async (event: MessageEvent<
   try {
     if (message.type === "compare") {
       let lastSent = 0;
-      for await (const progress of compareProfileStrategies(restoreProfileWorkerInput(message.input), message.targets, message.upgrades)) {
+      for await (const progress of compareProfileStrategies(restoreProfileWorkerInput(message.input), message.targets, message.upgrades, message.maxSearchNodes)) {
         const now = performance.now();
         if (progress.complete || now - lastSent >= 100) { send({ type: "comparison", ...progress }); lastSent = now; }
       }

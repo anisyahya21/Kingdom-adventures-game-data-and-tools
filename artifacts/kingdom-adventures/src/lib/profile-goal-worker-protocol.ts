@@ -12,6 +12,12 @@ export type ProfileWorkerMessage =
   | { type: "page"; page: number; builds: ProfileGoalBuild[] }
   | { type: "error"; error: string };
 
+export type ProfileWorkerRequest =
+  | { type: "start"; input: ProfileWorkerInput; upgrades: boolean; nearestTargets?: Record<string, number> }
+  | { type: "compare"; input: ProfileWorkerInput; upgrades: boolean; targets: import("./profile-strategy-matches").StrategyMatchTarget[]; maxSearchNodes?: number }
+  | { type: "page"; page: number }
+  | { type: "refine" };
+
 /** Functions cannot cross the worker boundary. Cache the existing builder's exact
  * contributions, yielding during preparation so controls remain responsive. */
 export async function prepareProfileWorkerInput(
