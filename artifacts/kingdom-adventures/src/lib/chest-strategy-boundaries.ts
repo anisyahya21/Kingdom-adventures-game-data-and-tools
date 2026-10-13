@@ -1,17 +1,38 @@
 import evidence from "@/game-data/chest-strategy-boundaries.json";
+import { measuredPanelsFor, measuredPointFor } from "@/lib/chest-strategy-boundary-access";
+
+type BoundaryPoint = {
+  stats: number[];
+  mean: number;
+  median: number;
+  n: number;
+  low: number;
+  defeats: number;
+  highest: number;
+  role?: string;
+  delta?: number;
+  ci?: number[];
+  lowCI95Wilson?: number[];
+  defeatCI95Wilson?: number[];
+  retention90?: string;
+  retention80?: string;
+  seedRange?: number[];
+};
+
+type BoundaryPanel = BoundaryPoint & {
+  id: string;
+  encounter: number;
+  variants: BoundaryPoint[];
+};
+
+const boundaryEvidence = evidence as { panels: BoundaryPanel[] };
 
 /** Finite exact measurements, never an interpolated tolerance window. */
 export function measuredStrategyBoundaries(id: string) {
-  return evidence.panels.filter((panel) => panel.id === id);
+  return measuredPanelsFor(boundaryEvidence, id);
 }
 
 export function measuredStrategyBuild(encounter: number, stats: Record<string, number>) {
   const tuple = [stats.atk, stats.spd, stats.lck, stats.dex];
-  for (const panel of [...evidence.panels].reverse()) {
-    if (panel.encounter !== encounter) continue;
-    if (panel.stats.every((value, i) => value === tuple[i])) return panel;
-    const variant = panel.variants.find((point) => point.stats.every((value, i) => value === tuple[i]));
-    if (variant) return variant;
-  }
-  return null;
+  return measuredPointFor<BoundaryPoint, BoundaryPanel>(boundaryEvidence, encounter, tuple) as (BoundaryPoint & { panelId: string }) | null;
 }

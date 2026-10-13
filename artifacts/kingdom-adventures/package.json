@@ -13,6 +13,7 @@
     "api:serve": "python api/serve-local.py",
     "icons:verify": "node scripts/verify-website-icons.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:catalog-boundaries": "node --experimental-transform-types tools/catalog-boundary-check/run_check.mjs",
     "architecture:check": "node scripts/architecture-checks.mjs",
     "check:player-profile": "node --import ./tools/battle-setup-check/register.mjs tools/player-profile-check/run_check.mjs && node --import ./tools/battle-setup-check/register.mjs tools/player-profile-check/loadout_check.mjs",
     "check:account-player-profile": "node --experimental-transform-types tools/account-player-profile-check/review_races.mjs && node --experimental-transform-types tools/account-player-profile-check/adapter_check.mjs",
