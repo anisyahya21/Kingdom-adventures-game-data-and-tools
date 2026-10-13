@@ -52,7 +52,7 @@ import { compareEquipmentNamesOriginalOrder } from "@/lib/equipment-order";
 import { ENCOUNTER_FAMILIES, ENCOUNTER_VARIANTS, difficultyName } from "@/lib/battle-setup";
 import { CHEST_STRATEGY_OPTIONS, chestStrategyGoals, type ChestStrategyOption } from "@/lib/chest-strategy-targets";
 import { strategyMatchDeviation, type ProfileStrategyMatch } from "@/lib/profile-strategy-matches";
-import { measuredStrategyBoundary, measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
+import { measuredStrategyBoundaries, measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2140,10 +2140,18 @@ function ProfileGoalSearchPanel({
 
   const strategyEncounter = ENCOUNTER_VARIANTS.find((entry) => entry.familyId === strategyFamily && entry.difficulty === strategyDifficulty);
   const strategyOptions = CHEST_STRATEGY_OPTIONS.filter((entry) => entry.encounter === strategyEncounter?.id);
+  const profileEvidence = (option: ChestStrategyOption) => {
+    const match = profileMatches?.find((entry) => entry.id === option.id);
+    return match?.build ? measuredStrategyBuild(option.encounter, match.build.stats) : null;
+  };
   const displayedStrategyOptions = profileMatches === null ? strategyOptions : strategyOptions
-    .filter((option) => showDistantOptions || strategyMatchDeviation(profileMatches.find((match) => match.id === option.id) ?? { id: option.id, build: null, complete: false, searchNodes: 0 }, option) <= 0.1)
+    .filter((option) => showDistantOptions || profileEvidence(option) !== null || strategyMatchDeviation(profileMatches.find((match) => match.id === option.id) ?? { id: option.id, build: null, complete: false, searchNodes: 0 }, option) <= 0.1)
     .sort((a, b) => {
       const deviation = (option: ChestStrategyOption) => strategyMatchDeviation(profileMatches.find((match) => match.id === option.id) ?? { id: option.id, build: null, complete: false, searchNodes: 0 }, option);
+      const reward = (option: ChestStrategyOption) => profileEvidence(option)?.mean ?? (deviation(option) === 0 ? option.mean : null);
+      const ar = reward(a), br = reward(b);
+      if ((ar === null) !== (br === null)) return ar === null ? 1 : -1;
+      if (ar !== null && br !== null && ar !== br) return br - ar;
       return deviation(a) - deviation(b) || b.mean - a.mean;
     });
   const applyStrategy = (option: ChestStrategyOption, exact = false, nearest = false) => {
@@ -2440,12 +2448,12 @@ function ProfileGoalSearchPanel({
           const match = profileMatches?.find((entry) => entry.id === option.id);
           const deviation = match ? strategyMatchDeviation(match, option) : Infinity;
           const measured = match?.build ? measuredStrategyBuild(option.encounter, match.build.stats) : null;
-          const boundary = measuredStrategyBoundary(option.id);
+          const boundaries = measuredStrategyBoundaries(option.id);
           const interval = (speed: number) => COMBAT_SPEED_BRACKETS.find((bracket) => speed >= bracket.min && (bracket.max === null || speed <= bracket.max))?.attackFrames;
           return <div key={option.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3">
           <div className="min-w-0 text-sm"><div className="font-medium tabular-nums">ATT {option.atk} · Speed {option.spd} · Luck {option.lck} · DEX 18</div><div className="text-xs text-muted-foreground">Avg earned {option.mean.toFixed(2)} · Highest {option.highest} · {option.n} seeds</div>{option.status && <div className="text-xs text-muted-foreground">{option.status}</div>}<div className="text-xs text-muted-foreground">{option.source}</div></div>
           {match && <div className="w-full space-y-1 text-xs">
-            <div className="font-medium">{deviation === 0 ? "Exact ATT/Speed/Luck/DEX achievable" : deviation <= 0.1 ? "Nearby profile option" : match.build ? "Large stat mismatch" : match.complete ? "No eligible build" : "Unresolved: no build found within the search budget"}{match.build && ` · ${match.build.characterName}`}</div>
+            <div className="font-medium">{deviation === 0 ? "Exact ATT/Speed/Luck/DEX achievable" : measured ? "Measured profile alternative" : deviation <= 0.1 ? "Nearby profile option — reward unmeasured" : match.build ? "Large stat mismatch" : match.complete ? "No eligible build" : "Unresolved: no build found within the search budget"}{match.build && ` · ${match.build.characterName}`}</div>
             {match.build && <div>Your build: ATT {match.build.stats.atk} ({match.build.stats.atk - option.atk >= 0 ? "+" : ""}{match.build.stats.atk - option.atk}) · Speed {match.build.stats.spd} ({match.build.stats.spd - option.spd >= 0 ? "+" : ""}{match.build.stats.spd - option.spd}) · Luck {match.build.stats.lck} ({match.build.stats.lck - option.lck >= 0 ? "+" : ""}{match.build.stats.lck - option.lck}){Number.isFinite(match.build.stats.dex) && ` · DEX ${match.build.stats.dex}`}{deviation !== 0 && ` · largest deviation ${(deviation * 100).toFixed(1)}%`}</div>}
             {match.build && match.build.addedLevels > 0 && <div>Requires {match.build.addedLevels} equipment levels in upgrades.</div>}
             {match.build && interval(match.build.stats.spd) !== interval(option.spd) && <div className="font-medium text-amber-700 dark:text-amber-300">Different Speed bracket: {interval(match.build.stats.spd)}-frame interval versus the target's {interval(option.spd)}.</div>}
@@ -2453,7 +2461,7 @@ function ProfileGoalSearchPanel({
             {match.build && !measured && deviation !== 0 && <div>Target average is not measured for this build.{!match.complete && " Closest found so far; a closer option may exist."}</div>}
             {match.build && profile && <Button variant="outline" className="min-h-11" onClick={() => onCreate(match.build!, profile)}>Use this profile build</Button>}
           </div>}
-          {boundary && <details className="w-full text-xs"><summary className="cursor-pointer py-2">Tested stat changes and reward drops</summary><p className="mb-2 text-muted-foreground">Same 120 seeds and fixed research team; ATT / Speed / Luck / DEX. Values between tested points are unknown. Separate changes do not establish joint safety.</p><div className="overflow-x-auto"><table className="w-full tabular-nums"><thead><tr><th className="text-left">Exact stats</th><th>Avg</th><th>Change</th><th>0–1 chest</th><th>Defeats</th></tr></thead><tbody><tr><td>{boundary.stats.join(" / ")} (reference)</td><td className="text-center">{boundary.mean.toFixed(2)}</td><td className="text-center">—</td><td className="text-center">{boundary.low}/{boundary.n}</td><td className="text-center">{boundary.defeats}/{boundary.n}</td></tr>{boundary.variants.map((point) => <tr key={point.stats.join(",")}><td className="py-1">{point.stats.join(" / ")}</td><td className="text-center">{point.mean.toFixed(2)}</td><td className="text-center">{point.delta >= 0 ? "+" : ""}{point.delta.toFixed(2)}</td><td className="text-center">{point.low}/{point.n}</td><td className="text-center">{point.defeats}/{point.n}</td></tr>)}</tbody></table></div><p className="mt-2 text-muted-foreground">Differences shown are observed averages, not all confirmed effects. Most comparisons remain uncertain.</p></details>}
+          {boundaries.map((boundary) => <details key={boundary.seedRange.join("-")} className="w-full text-xs"><summary className="cursor-pointer py-2">Tested stat changes and reward drops · seeds {boundary.seedRange.join("–")}</summary><p className="mb-2 text-muted-foreground">Same 120 seeds and fixed research team; ATT / Speed / Luck / DEX. Values between tested points are unknown. Separate changes do not establish joint safety.</p><div className="overflow-x-auto"><table className="w-full tabular-nums"><thead><tr><th className="text-left">Exact stats</th><th>Avg</th><th>Change</th><th>0–1 chest</th><th>Defeats</th></tr></thead><tbody><tr><td>{boundary.stats.join(" / ")} (reference)</td><td className="text-center">{boundary.mean.toFixed(2)}</td><td className="text-center">—</td><td className="text-center">{boundary.low}/{boundary.n}</td><td className="text-center">{boundary.defeats}/{boundary.n}</td></tr>{boundary.variants.map((point) => <tr key={point.stats.join(",")}><td className="py-1">{point.stats.join(" / ")}</td><td className="text-center">{point.mean.toFixed(2)}</td><td className="text-center">{point.delta >= 0 ? "+" : ""}{point.delta.toFixed(2)}</td><td className="text-center">{point.low}/{point.n}</td><td className="text-center">{point.defeats}/{point.n}</td></tr>)}</tbody></table></div><p className="mt-2 text-muted-foreground">Differences shown are observed averages, not all confirmed effects. Most comparisons remain uncertain.</p></details>)}
           <div className="flex flex-wrap gap-2"><Button className="min-h-11" onClick={() => applyStrategy(option, false, true)}>Use closest achievable</Button><Button variant="outline" className="min-h-11" onClick={() => applyStrategy(option, true)}>Use exact stats</Button><Button className="min-h-11" onClick={() => applyStrategy(option)}>Use search window</Button></div>
         </div>; })}</div>
         {profileMatches !== null && displayedStrategyOptions.length === 0 && <p className="text-sm">No exact or nearby option found. Show distant or unresolved targets to inspect the gaps; an unfinished search does not prove a target is impossible.</p>}
