@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CombatSoundPlayer, combatSoundRequests } from "@/lib/combat-sounds";
+import { combatTrailsAt } from "@/lib/combat-trails";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,7 +82,6 @@ import {
   BATTLE_DIRECTIONS,
   DEFAULT_VIEW_PROFILE_ID,
   EFFECT_SPRITES,
-  INDICATOR_SPRITES,
   MONSTER_DIRECTION_VARIANTS,
   SHARED_ARENA_ID,
   SKILL_BALLOON_FRAMES,
@@ -88,6 +89,7 @@ import {
   backgroundXForViewWidth,
   monsterSpriteById,
   nativeInitialFormation,
+  nativeWorldViewPos,
   verticalPresentationRatio,
   viewProfileById,
   type BattleUnit,
@@ -96,6 +98,8 @@ import { battlePlaybackEndTick, parseBattleReplayResult, type BattleReplayEvent,
 import { advanceBrowserBattle, browserBattleActive, startBrowserBattle, useBrowserBattleItem } from "@/lib/browser-battle";
 import type { FighterVitals } from "@/lib/native-fighter-gauges";
 import { downloadJson } from "@/lib/download-json";
+import { COMBAT_FEEDBACK, feedbackDraw, monsterHitOffset } from "@/lib/combat-feedback";
+import { combatProjectilesAt } from "@/lib/combat-projectiles";
 import { optimizerFightExport, optimizerScenarioFilename } from "@/lib/strategy-optimizer-export";
 import type { CombatScenario } from "@/lib/battle-setup-adapter";
 
@@ -110,7 +114,7 @@ import type { CombatScenario } from "@/lib/battle-setup-adapter";
  *  * the runner's own events are painted on the stage as they happen: attacker-to-target arrow, hit
  *    impact, recovered damage number (white/critical/red rows), Missed / Critical Hit text, healing
  *    numbers, and the skill balloon with the canonical skill icon and name when a `release` record
- *    with `used = true` fires (the recovered pay-MP + CreateSkillBalloon path);
+ *    with `used = true` and `index = 0` fires (the recovered pay-MP + CreateSkillBalloon path);
  *  * the chest counter ticks up while the fight plays, from the runner's own `prize` events, and the
  *    chest list shows each drop's real treasure sprite;
  *  * consumables are clickable: a click branches the SAME scenario at the displayed tick through the
@@ -129,9 +133,9 @@ import type { CombatScenario } from "@/lib/battle-setup-adapter";
  * Everything numeric stays the replay's own: this module re-simulates nothing and derives no verdict.
  */
 
-/** Param.GetRate 0x165E91C: floor(current*100/max) clamped 0..100, 1 while alive with a positive value. */
+/** Param.GetRate 0x165E91C: nonpositive max -> 0; otherwise floor(current*100/max), clamped 0..100. */
 function nativeGaugePercent(current: number, maximum: number): number {
-  if (maximum <= 0) return current > 0 ? 1 : 0;
+  if (maximum <= 0) return 0;
   const rate = Math.trunc((current * 100) / maximum);
   if (rate <= 0) return current > 0 ? 1 : 0;
   return Math.min(100, rate);
@@ -179,7 +183,7 @@ function UnitRow({ unit, frame }: { unit: GeneratedUnitView; frame: GeneratedUni
       data-generated-unit-kind={unit.kind}
       data-generated-unit-cell={(frame?.cell ?? unit.initialCell).join(",")}
       data-generated-unit-hp={hp}
-      data-generated-unit-max-hp={maximumHp}
+      data-generated-unit-max-hp={maximumHp ?? "unknown"}
       data-generated-unit-state={frame?.state ?? 0}
       data-generated-unit-visual={visual}
       data-generated-unit-dead={dead ? "1" : "0"}
@@ -206,8 +210,8 @@ function UnitRow({ unit, frame }: { unit: GeneratedUnitView; frame: GeneratedUni
         </Badge>
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-3">
-        <NativeGauge label="HP" current={hp} maximum={maximumHp} />
-        <NativeGauge label="MP" current={mp} maximum={maximumMp} />
+        {maximumHp === null ? <span data-gauge="HP">HP {hp}/?</span> : <NativeGauge label="HP" current={hp} maximum={maximumHp} />}
+        {maximumMp === null ? <span data-gauge="MP">MP {mp}/?</span> : <NativeGauge label="MP" current={mp} maximum={maximumMp} />}
         <span className="font-mono text-[10px] text-muted-foreground" data-unit-visual-state>
           state {frame?.state ?? 0}/{frame?.stateName ?? "-"} → {visual}
           {dead ? " · DEAD (event HP 0)" : ""}
@@ -239,7 +243,7 @@ function UnitRow({ unit, frame }: { unit: GeneratedUnitView; frame: GeneratedUni
 }
 
 /** the recovered balloon art is drawn at 1.35x in the native-sized scene (80x24 -> 108x32) */
-const SKILL_BALLOON_SCALE = 1.35;
+const SKILL_BALLOON_SCALE = 1;
 
 /** `skill_balloon.png` is two stacked 80x24 frames (ally orange at y=0, enemy blue at y=24) */
 const SKILL_BALLOON_FRAME_COUNT = 2;
@@ -270,25 +274,6 @@ function StageOverlayLayer({
   return (
     <>
       {items.map((item) => {
-        if (item.kind === "arrow") {
-          const left = (anchorNumber(item.from.left) + anchorNumber(item.to.left)) / 2;
-          const top = (anchorNumber(item.from.top) + anchorNumber(item.to.top)) / 2;
-          return (
-            <img
-              key={item.key}
-              src={INDICATOR_SPRITES.arrow}
-              alt=""
-              className="pointer-events-none absolute"
-              style={{
-                left: `${left}px`,
-                top: `${top}px`,
-                transform: `translate(-50%, -50%)${item.flipped ? " scaleX(-1)" : ""}`,
-                imageRendering: "pixelated",
-                opacity: 0.8,
-              }}
-            />
-          );
-        }
         if (item.kind === "impact") {
           /*
            * One recovered animation frame, not the whole 114x35 optimizer pack: the crop is clipped
@@ -302,8 +287,8 @@ function StageOverlayLayer({
               role="presentation"
               className="pointer-events-none absolute"
               style={{
-                left: `calc(${item.anchor.left} + ${frame.centerX}px)`,
-                top: `calc(${item.anchor.top} + ${frame.centerY}px)`,
+                left: `calc(${item.anchor.left} + ${frame.centerX * item.scale}px)`,
+                top: `calc(${item.anchor.top} + ${frame.centerY * item.scale - COMBAT_FEEDBACK.impactHeight}px)`,
                 width: frame.width,
                 height: frame.height,
                 backgroundImage: `url(${EFFECT_SPRITES.impact.file})`,
@@ -315,13 +300,16 @@ function StageOverlayLayer({
           );
         }
         if (item.kind === "combat-text") {
+          const motion = item.textCode !== undefined && item.textCode >= 1 && item.textCode <= 4
+            ? "status" : item.textCode !== undefined && item.textCode > 4
+              ? "stationary" : item.label === "Missed" ? "miss" : "critical";
           return (
             <div
               key={item.key}
               className="pointer-events-none absolute"
-              style={{ left: item.anchor.left, top: `calc(${item.anchor.top} - 18px)`, transform: "translate(-50%, -100%)" }}
+              style={{ left: item.anchor.left, top: `calc(${item.anchor.top} + ${feedbackDraw(motion, item.age).offsetY}px)`, transform: "translate(-50%, -50%)" }}
             >
-              <span style={{ display: "inline-block", transform: "scale(1.8)", transformOrigin: "bottom center" }}>
+              <span style={{ display: "inline-block" }}>
                 <CombatText label={item.label} />
               </span>
             </div>
@@ -332,9 +320,9 @@ function StageOverlayLayer({
             <div
               key={item.key}
               className="pointer-events-none absolute"
-              style={{ left: item.anchor.left, top: `calc(${item.anchor.top} - 18px)`, transform: "translate(-50%, -100%)" }}
+              style={{ left: item.anchor.left, top: `calc(${item.anchor.top} + ${feedbackDraw("damage", item.age, item.critical).offsetY}px)`, transform: "translate(-50%, 0)", opacity: feedbackDraw("damage", item.age).alpha }}
             >
-              <span style={{ display: "inline-block", transform: "scale(1.8)", transformOrigin: "bottom center" }}>
+              <span style={{ display: "inline-block", transform: `scale(${feedbackDraw("damage", item.age, item.critical).scale})`, transformOrigin: "top center" }}>
                 <DamageNumber amount={item.amount} style={item.style} />
               </span>
             </div>
@@ -345,10 +333,10 @@ function StageOverlayLayer({
             <div
               key={item.key}
               className="pointer-events-none absolute"
-              style={{ left: item.anchor.left, top: `calc(${item.anchor.top} - 30px)`, transform: "translate(-50%, 0)" }}
+              style={{ left: item.anchor.left, top: `calc(${item.anchor.top} + ${feedbackDraw("heal", item.age).offsetY}px)`, transform: "translate(-50%, 0)", opacity: feedbackDraw("heal", item.age).alpha }}
             >
-              <span style={{ display: "inline-block", transform: "scale(1.6)" }}>
-                <DamageNumber amount={item.amount} style="ally" />
+              <span style={{ display: "inline-block", transform: `scale(${feedbackDraw("heal", item.age).scale})`, transformOrigin: "top center" }}>
+                <DamageNumber amount={item.amount} style="heal" />
               </span>
             </div>
           );
@@ -360,15 +348,11 @@ function StageOverlayLayer({
          * duplicate, not part of the recovered art.
          */
         const balloonFrame = item.side === "enemy" ? SKILL_BALLOON_FRAMES.enemy : SKILL_BALLOON_FRAMES.ally;
-        const invocation = generatedReleaseInvocation(
-          { invocationLevel: item.invocationLevel, casterUnitId: item.casterUnitId, skillId: item.skillId, slot: item.slot },
-          units,
-        );
         return (
           <div
             key={item.key}
             className="pointer-events-none absolute"
-            style={{ left: item.anchor.left, top: `calc(${item.anchor.top} - 40px)`, transform: "translate(-50%, -100%) scale(0.3)", transformOrigin: "bottom center" }}
+            style={{ left: item.anchor.left, top: `calc(${item.anchor.top} + ${feedbackDraw("skill", item.age).offsetY}px)`, transform: "translate(-50%, 0)", opacity: feedbackDraw("skill", item.age).alpha }}
             data-skill-trigger={item.skillId}
           >
             {/*
@@ -393,15 +377,11 @@ function StageOverlayLayer({
             >
               <div
                 data-skill-balloon-label
-                className="absolute inset-0 flex items-center justify-center gap-1 px-2.5 text-[9px] leading-none text-white"
+                className="absolute inset-0 flex items-center justify-center text-[9px] leading-none text-white"
                 style={{ textShadow: "0 1px 1px rgba(0, 0, 0, 0.85)" }}
               >
-                {item.icon ? (
-                  <img src={item.icon} alt="" style={{ width: 12, height: 12, flexShrink: 0, imageRendering: "pixelated" }} />
-                ) : null}
                 <span className="min-w-0 text-center leading-tight">
                   <span className="block">{item.name ?? `skill ${item.skillId}`}</span>
-                  {invocation === null ? null : <span className="block text-[7px] opacity-70">{invocationLabel(invocation)}</span>}
                 </span>
               </div>
             </div>
@@ -461,7 +441,7 @@ function ChestSprite({ icon, name }: { icon: string | null; name: string | null 
   );
 }
 
-export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: GeneratedBattleRecord } = {}) {
+export function GeneratedBattleReplay({ initialRecord, embedded = false }: { initialRecord?: GeneratedBattleRecord; embedded?: boolean } = {}) {
   // Desktop traces stay in memory, avoiding Web Storage's small per-origin quota.
   const read = useMemo(() => initialRecord ? { status: "ok" as const, record: initialRecord } : readGeneratedBattle(), [initialRecord]);
   const [record] = useState<GeneratedBattleRecord | null>(read.status === "ok" ? read.record : null);
@@ -580,6 +560,24 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
   const rewardSummary = useMemo(() => (outcome ? generatedRewardSummary(outcome) : null), [outcome]);
   const chestDrops = useMemo(() => (displayedReplay ? generatedChestDrops(displayedReplay) : []), [displayedReplay]);
   const chestSummary = useMemo(() => (outcome ? generatedChestSummary(outcome, chestDrops) : null), [outcome, chestDrops]);
+  const totals = useMemo(() => {
+    const damage = new Map<string, number>();
+    const healing = new Map<string, number>();
+    if (!displayedReplay) return { damage, healing };
+    for (const event of displayedReplay.events as BattleReplayEvent[]) {
+      const value =
+        typeof event.damage === "number"
+          ? event.damage
+          : typeof event.amount === "number"
+            ? event.amount
+            : null;
+      if (value === null || !event.targetUnitId) continue;
+      const group = generatedEventGroup(event.kind);
+      if (group === "damage") damage.set(event.targetUnitId, (damage.get(event.targetUnitId) ?? 0) + value);
+      if (group === "heal") healing.set(event.targetUnitId, (healing.get(event.targetUnitId) ?? 0) + value);
+    }
+    return { damage, healing };
+  }, [displayedReplay]);
   const scenarioSource = useMemo(() => interactionScenarioFromRecord(record), [record]);
   const activeScenario = branch?.result.scenario ?? (scenarioSource.ok ? scenarioSource.scenario : undefined);
   const downloadFight = () => {
@@ -626,6 +624,50 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
   const backgroundX = backgroundXForViewWidth(viewProfile.logicalViewWidth);
   const presentationRatio = verticalPresentationRatio(viewProfile);
   const lastStep = Math.max(0, frames.length - 1);
+  const soundPlayerRef = useRef<CombatSoundPlayer | null>(null);
+  const soundTickRef = useRef<number | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [soundLoading, setSoundLoading] = useState(false);
+  const [soundError, setSoundError] = useState(false);
+  const soundTick = frames[Math.min(step, lastStep)]?.tick ?? 0;
+  const toggleSound = async () => {
+    if (soundEnabled) {
+      soundPlayerRef.current?.stop();
+      setSoundEnabled(false);
+      return;
+    }
+    setSoundLoading(true);
+    setSoundError(false);
+    try {
+      soundPlayerRef.current ??= new CombatSoundPlayer();
+      await soundPlayerRef.current.prepare();
+      soundTickRef.current = soundTick;
+      setSoundEnabled(true);
+    } catch { setSoundError(true); }
+    finally { setSoundLoading(false); }
+  };
+  useEffect(() => () => { soundPlayerRef.current?.close(); soundPlayerRef.current = null; }, []);
+  useEffect(() => {
+    const previous = soundTickRef.current;
+    soundTickRef.current = soundTick;
+    if (!soundEnabled || !playing || previous === null || soundTick < previous || busyConsumable !== null) {
+      soundPlayerRef.current?.stop();
+      return;
+    }
+    soundPlayerRef.current?.play(combatSoundRequests(displayedReplay?.events ?? [], previous, soundTick, (event) => {
+      const viewport = stageHostRef.current;
+      if (!viewport || !event.targetUnitId) return false;
+      const unit = Array.from(viewport.querySelectorAll<HTMLElement>("[data-unit-root]"))
+        .find((element) => element.dataset.generatedUnitId === event.targetUnitId);
+      if (!unit) return false;
+      const view = viewport.getBoundingClientRect();
+      // Use the mounted fighter art, including partially visible sprites at a window edge.
+      return [unit, ...Array.from(unit.querySelectorAll<HTMLElement>("*"))].some((element) => {
+        const box = element.getBoundingClientRect();
+        return box.right >= view.left && box.left <= view.right && box.bottom >= view.top && box.top <= view.bottom;
+      });
+    }));
+  }, [soundTick, soundEnabled, playing, displayedReplay, busyConsumable]);
   useEffect(() => {
     const host = stageHostRef.current;
     if (!host) return;
@@ -968,7 +1010,6 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
       dead: live?.dead ?? false,
     };
   });
-  const replayEvents = displayedReplay.events as BattleReplayEvent[];
   const nameOfUnit = (unitId?: string | null) =>
     units.find((unit) => unit.unitId === unitId)?.name ?? unitId ?? "-";
   const sideOfUnit = (unitId?: string | null): "ally" | "enemy" | null =>
@@ -977,23 +1018,6 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
    * Totals are tallies of the runner's own event values and final state. This view never
    * re-simulates and never derives a verdict of its own.
    */
-  const totals = (() => {
-    const damage = new Map<string, number>();
-    const healing = new Map<string, number>();
-    for (const event of replayEvents) {
-      const value =
-        typeof event.damage === "number"
-          ? event.damage
-          : typeof event.amount === "number"
-            ? event.amount
-            : null;
-      if (value === null || !event.targetUnitId) continue;
-      const group = generatedEventGroup(event.kind);
-      if (group === "damage") damage.set(event.targetUnitId, (damage.get(event.targetUnitId) ?? 0) + value);
-      if (group === "heal") healing.set(event.targetUnitId, (healing.get(event.targetUnitId) ?? 0) + value);
-    }
-    return { damage, healing };
-  })();
   /* the generated arena is not recovered yet (coverage: ARENA PARTIAL), so the shared backdrop is used */
   const arena = ARENAS.find((entry) => entry.id === SHARED_ARENA_ID) ?? ARENAS[0];
   /*
@@ -1092,33 +1116,50 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
     Math.max(0, impactEndStep - (GENERATED_IMPACT_LIFETIME_TICKS - 1)),
     impactEndStep + 1,
   );
-  // Presentation timing only: retain successful skill labels for two seconds of playback.
-  // Keep the latest release per caster so repeated casts do not pile up on the same sprite.
-  const skillLabels = new Map<string, BattleReplayEvent>();
-  for (const recentFrame of frames.slice(Math.max(0, impactEndStep - Math.ceil(40 * speed) + 1), impactEndStep + 1)) {
-    for (const event of recentFrame.events) {
-      if (event.kind.toLowerCase() === "release" && event.used === true) {
-        skillLabels.set(event.casterUnitId ?? event.actorUnitId ?? String(event.seq), event);
-      }
-    }
-  }
+  const feedbackWindow = frames.slice(Math.max(0, impactEndStep - COMBAT_FEEDBACK.textLifetime + 1), impactEndStep + 1);
   const overlays = buildGeneratedStageOverlays({
-    events: [...(frame?.events ?? []).filter((event) => event.kind.toLowerCase() !== "release"), ...skillLabels.values()],
-    anchorOf: (unitId) => (unitId ? anchors.get(unitId) ?? null : null),
+    events: feedbackWindow.flatMap((recentFrame) => recentFrame.events),
+    authoritativeSkillBirths: displayedReplay.events.some((event) => event.kind === "effect_birth" && event.type === 15 && typeof event.skillId === "number" && Boolean(event.casterUnitId)),
+    skillBirthAnchorOf: (event) => {
+      const position = event.position;
+      if (!Array.isArray(position) || position.length !== 3 || !position.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
+      const pos = nativeWorldViewPos(position[0], position[1] - COMBAT_FEEDBACK.skillHeight, position[2], rowOffset);
+      return { left: `${pos.x - viewPanX}px`, top: `${pos.y}px` };
+    },
+    anchorOf: (unitId, tick) => {
+      if (!unitId) return null;
+      const historical = frames[generatedFrameIndexForTick(frames, tick ?? currentTick)];
+      const unit = units.find((candidate) => candidate.unitId === unitId);
+      if (!unit) return null;
+      const snapshot = historical?.units[unitId];
+      return generatedScenePlacement({ cell: snapshot?.cell ?? unit.initialCell,
+        unitFrame: snapshot, tick: tick ?? currentTick, rowOffset, viewPanX });
+    },
     sideOf: sideOfUnit,
     impactEvents: impactWindow.flatMap((impactFrame) => impactFrame.events),
     impactTick: currentTick,
   });
+  const projectiles = combatProjectilesAt(displayedReplay.events, currentTick, rowOffset, viewPanX);
+  const trails = combatTrailsAt(displayedReplay.events, currentTick, rowOffset, viewPanX);
+  const monsterHits = new Map<string, number>();
+  for (const recentFrame of feedbackWindow) {
+    for (const event of recentFrame.events) {
+      if (event.kind === "attack" && event.hit !== false && event.targetUnitId && currentTick - event.tick < 6) {
+        monsterHits.set(event.targetUnitId, event.tick);
+      }
+    }
+  }
   const hpTotals = (roster: GeneratedUnitView[]) =>
     roster.reduce(
       (sum, unit) => {
         const live = frame?.units[unit.unitId];
         return {
           current: sum.current + (live?.hp ?? unit.startHp),
-          maximum: sum.maximum + (live?.maxHp ?? unit.maxHp),
+          maximum: sum.maximum === null || (live?.maxHp ?? unit.maxHp) === null
+            ? null : sum.maximum + ((live?.maxHp ?? unit.maxHp) as number),
         };
       },
-      { current: 0, maximum: 0 },
+      { current: 0, maximum: 0 as number | null },
     );
   const aliveCount = (roster: GeneratedUnitView[]) =>
     roster.filter((unit) => !(frame?.units[unit.unitId]?.dead ?? false)).length;
@@ -1199,7 +1240,7 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
             {frames.length ? frames[frames.length - 1].tick : 0}
           </span>
         </div>
-        <div className="flex flex-wrap gap-2">
+        {!embedded ? <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" className="min-h-11" onClick={downloadFightScenario} disabled={!activeScenario || displayedReplay.finalState.windowed || Boolean(branch && !branch.complete)} title="Import this scenario with the desktop optimizer; it includes the consumables used">
             Optimizer JSON
           </Button>
@@ -1223,7 +1264,7 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
           <Button asChild size="sm" variant="outline">
             <Link href="/battle-replay">Reference replay</Link>
           </Button>
-        </div>
+        </div> : null}
       </div>
 
       {branchNotice ? (
@@ -1241,7 +1282,7 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
       ) : null}
 
       {/*
-       * The arena frame: the battle stage, a compact HUD along its top edge (treasure strip, team
+       * The arena frame: earned boxes inside the stage viewport, a compact HUD (team
        * status, readable ally HP/MP, the current tick) and the action bar with the playback controls
        * and the consumable buttons inside the same frame, so battlefield and items share one screen.
        * `src/index.css` caps the arena from the viewport height, so a short desktop window shrinks the
@@ -1249,20 +1290,12 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
        */}
       <div className="ka-frame" data-battle-frame>
         <div className="ka-frame__hud">
-          <BattleTreasureStrip
-            queued={chestsSoFar}
-            drops={visibleChestDrops}
-            atEnd={atFinalTick && !displayedReplay.finalState.windowed}
-            awarded={chestSummary.awarded}
-            awardedBasis={awardedBasis}
-            pending={chestSummary.pending}
-          />
           <div className="ka-hud-status" data-generated-live-summary>
             <span>
               Allies {aliveCount(allies)}/{allies.length} · Enemies {aliveCount(enemies)}/{enemies.length}
             </span>
             <span className="text-muted-foreground">
-              Ally HP {allyHp.current}/{allyHp.maximum} · Enemy HP {enemyHp.current}/{enemyHp.maximum}
+              Ally HP {allyHp.current}/{allyHp.maximum ?? "?"} · Enemy HP {enemyHp.current}/{enemyHp.maximum ?? "?"}
             </span>
           </div>
           <BattleAllyVitals rows={allyVitals} />
@@ -1291,6 +1324,18 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
             backgroundX={backgroundX - viewPanX}
             arenaFile={arena.file}
             rowOffset={rowOffset}
+            viewportOverlay={
+              <BattleTreasureStrip
+                inViewport
+                displayScale={sceneScale}
+                queued={chestsSoFar}
+                drops={visibleChestDrops}
+                atEnd={atFinalTick && !displayedReplay.finalState.windowed}
+                awarded={chestSummary.awarded}
+                awardedBasis={awardedBasis}
+                pending={chestSummary.pending}
+              />
+            }
           >
             {stageEntries.map(({ placement, unit, unitFrame, cell, depth }) => {
               const side = unit.side;
@@ -1371,7 +1416,8 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
                     slot: { column: cell[0], row: cell[1] },
                     cell: { column: cell[0], row: cell[1] },
                     dead: (unitFrame?.dead ?? false) && !(unitFrame?.leaving ?? false),
-                    left: placement.left,
+                    left: `${anchorNumber(placement.left) + (mode === "monster" && monsterHits.has(unit.unitId)
+                      ? monsterHitOffset(currentTick - monsterHits.get(unit.unitId)!) : 0)}px`,
                     top: placement.top,
                   }}
                   side={side}
@@ -1382,7 +1428,7 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
                   nativeSize={{ width: 40, height: 30 }}
                   sebClip={monsterClip?.clip ?? null}
                   sebFrame={monsterClip?.update ?? 0}
-                  sebMirror={MONSTER_DIRECTION_VARIANTS[direction].mirror}
+                  sebMirror={monsterClip?.mirror ?? MONSTER_DIRECTION_VARIANTS[direction].mirror}
                   humanCharacter={character}
                   humanLines={lines}
                   fighterGauge={gauge}
@@ -1396,6 +1442,26 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
                 />
               );
             })}
+            {trails.length > 0 ? (
+              <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width={viewProfile.logicalViewWidth} height={viewProfile.sourceHeight} aria-hidden="true">
+                {trails.map((trail) => <line key={trail.key} data-combat-trail x1={trail.x1} y1={trail.y1}
+                  x2={trail.x2} y2={trail.y2} stroke="white" strokeWidth={trail.width} opacity={trail.alpha} />)}
+              </svg>
+            ) : null}
+            {projectiles.map((projectile) => (
+              <span key={projectile.key} data-combat-projectile className="pointer-events-none absolute"
+                style={{ left: projectile.left, top: projectile.top, width: 0, height: 0,
+                  transform: `rotate(${projectile.angle}deg)`, opacity: projectile.alpha }}>
+                {projectile.parts.map((part, index) => (
+                  <span key={index} className="absolute" style={{
+                    left: projectile.transX + part.x, top: projectile.transY + part.y,
+                    width: part.width, height: part.height, imageRendering: "pixelated",
+                    backgroundImage: `url(${projectile.file})`,
+                    backgroundPosition: `-${part.sourceX}px -${part.sourceY}px`,
+                  }} />
+                ))}
+              </span>
+            ))}
             <StageOverlayLayer items={overlays} units={units} />
           </BattleStage>
           {/*
@@ -1437,6 +1503,7 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
            * Items first: the shelf sits directly under the battlefield it acts on, and the playback
            * transport closes the frame underneath it.
            */}
+          {!embedded ? <>
           <div className="ka-hud-actionlabel">
             <span className="ka-hud-strip__label">Items</span>
             <span className="ka-hud-actionlabel__hint">tap to use one now</span>
@@ -1448,12 +1515,20 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
             blockedReason={consumableBlockedReason}
             onUse={useConsumable}
           />
+          </> : null}
           {branch && !branch.complete ? (
             <p className="ka-hud-resolving" data-generated-branch-pending={branch.jobId ?? "unavailable"}>
               {branch.note ?? "the rest of this branch is still resolving"}
             </p>
           ) : null}
           <div className="ka-hud-controls" data-generated-controls>
+            <Button size="sm" variant="outline" onClick={() => void toggleSound()} disabled={soundLoading}
+              aria-pressed={soundEnabled} data-action="toggle-sound">
+              {soundLoading ? "Loading sound…" : soundError ? "Retry sound" : soundEnabled ? "Sound on" : "Sound off"}
+            </Button>
+            {soundError ? <span role="status" className="text-xs">Sound could not be loaded.</span> : null}
+            {soundEnabled && !displayedReplay.events.some((event) => event.kind === "sound_request")
+              ? <span className="text-xs">Run this battle again to hear attack and skill sounds.</span> : null}
             <Button size="sm" disabled={busyConsumable !== null} onClick={() => { setVerdictDismissed(false); setPlaying((value) => !value); }} data-action="toggle-play" data-playing={playing}>
               {busyConsumable !== null ? "Applying…" : playing ? "Pause" : "Play"}
             </Button>
@@ -1734,8 +1809,8 @@ export function GeneratedBattleReplay({ initialRecord }: { initialRecord?: Gener
                   const live = frame?.units[unit.unitId];
                   return (
                     <p key={unit.unitId} data-generated-final-unit={unit.unitId}>
-                      {unit.side}:{unit.rosterIndex} {unit.name} · final HP {final?.hp ?? "-"}/{live?.maxHp ?? unit.maxHp} ·
-                      MP {final?.mp ?? "-"}/{live?.maxMp ?? unit.maxMp} · state{" "}
+                      {unit.side}:{unit.rosterIndex} {unit.name} · final HP {final?.hp ?? "-"}/{live?.maxHp ?? unit.maxHp ?? "?"} ·
+                      MP {final?.mp ?? "-"}/{live?.maxMp ?? unit.maxMp ?? "?"} · state{" "}
                       {final?.stateName ?? final?.state ?? "-"} · damage taken{" "}
                       {totals.damage.get(unit.unitId) ?? 0} · healed {totals.healing.get(unit.unitId) ?? 0}
                     </p>

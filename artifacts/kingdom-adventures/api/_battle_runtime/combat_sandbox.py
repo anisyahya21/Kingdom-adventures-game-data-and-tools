@@ -166,7 +166,7 @@ def run_scenario(data,include_trace=False,checkpoints=None,resume=None,stop_tick
     receipts=ReceiptLedger()
     engine=SharedControllers(roster,scenario['mathSeed'],scenario['libSeed'],row_offset=max(3,len(enemy['fighters'])//5+1),
         movement=True,initialization_orders=[setup['ownFormationOrder'],enemy['formationOrder']],
-        prize_candidates=special_prize_candidates(scenario['encounterId']),receipts=receipts)
+        prize_candidates=special_prize_candidates(scenario['encounterId']),receipts=receipts,trace_observations=include_trace)
     for _ in range(enemy['followerSelectionDraws']):engine.next_lib('follower_selection_deferred')
     stock=scenario['holyHerbStock'];uses=[]
     items=scenario.get('items',{});item_counts=dict(scenario.get('itemStock',{}));item_uses=[]

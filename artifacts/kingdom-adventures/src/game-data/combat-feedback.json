@@ -1,0 +1,752 @@
+{
+  "source": {
+    "binarySha256": "fb834373cb3bd1dc7dac941fcf94113f3b5123e033cf0a41d5e00c0656e30208",
+    "methods": [
+      "0x155e4f0",
+      "0x155f960",
+      "0x155fc8c"
+    ],
+    "limitations": [
+      "Graphics, component getters and screen projection supplied.",
+      "FastMath.Sin and System.Math.Pow use host libm; Android libm not certified.",
+      "Draw tables use Effect.frame; lifecycle update precedes rendering."
+    ]
+  },
+  "tables": {
+    "damage": [
+      {
+        "alpha": 1,
+        "y": -12,
+        "scale": 0.5
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "scale": 1.41
+      },
+      {
+        "alpha": 1,
+        "y": -8,
+        "scale": 1.91
+      },
+      {
+        "alpha": 1,
+        "y": 6,
+        "scale": 2.0
+      },
+      {
+        "alpha": 1,
+        "y": -4,
+        "scale": 1.65
+      },
+      {
+        "alpha": 1,
+        "y": 2,
+        "scale": 1.35
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.15
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.05
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 0.8,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 0.611764705882353,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 0.4392156862745098,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 0.29411764705882354,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 0.1803921568627451,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 0.09411764705882353,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 0.0392156862745098,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 0.011764705882352941,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 0.0,
+        "y": 0,
+        "scale": 1.0
+      },
+      {
+        "alpha": 0.0,
+        "y": 0,
+        "scale": 1.0
+      }
+    ],
+    "miss": [
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 8,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 13,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 11,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 8,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 9,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 9,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 9,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 9,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 9,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 9,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      }
+    ],
+    "critical": [
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 1,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": -3,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": -1,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 1,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      }
+    ],
+    "status": [
+      {
+        "alpha": 1,
+        "y": 10,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 1,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": -3,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": -1,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 1,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      },
+      {
+        "alpha": 1,
+        "y": 0,
+        "anchor": 34
+      }
+    ],
+    "skill": [
+      {
+        "alpha": 0.0,
+        "y": 0,
+        "anchor": 2
+      },
+      {
+        "alpha": 0.34901960784313724,
+        "y": -1,
+        "anchor": 2
+      },
+      {
+        "alpha": 0.6392156862745098,
+        "y": -3,
+        "anchor": 2
+      },
+      {
+        "alpha": 0.8392156862745098,
+        "y": -4,
+        "anchor": 2
+      },
+      {
+        "alpha": 0.9490196078431372,
+        "y": -4,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      },
+      {
+        "alpha": 1.0,
+        "y": -5,
+        "anchor": 2
+      }
+    ]
+  }
+}

@@ -32,7 +32,7 @@ const REPLAYS = path.join(WORKSPACE, "RE-evidence", "20260919-configurable-battl
 const CLOCK_FREEZE = `(() => {
   const nativeSetInterval = window.setInterval.bind(window);
   window.setInterval = function (fn, ms, ...rest) {
-    if (ms === 50) return 0;
+    if (ms === 50) { window.__kaBattleTick = fn; return 0; }
     return nativeSetInterval(fn, ms, ...rest);
   };
 })()`;
@@ -128,7 +128,7 @@ const MEASURE = `(() => {
       side: root.dataset.side || null,
       visual: root.dataset.generatedVisual || null,
       placeholder: root.dataset.genericAvatar === undefined ? null : root.dataset.genericAvatar,
-      art: Boolean(root.querySelector('img')),
+      art: root.dataset.genericAvatar === undefined && Boolean(root.querySelector('img')),
       box: box
         ? { left: round(box.left), right: round(box.right), top: round(box.top), bottom: round(box.bottom),
             width: round(box.right - box.left), height: round(box.bottom - box.top) }
@@ -264,8 +264,8 @@ async function run() {
   const { targetId } = await cdp.send("Target.createTarget", { url: "about:blank" });
   const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
   const send = (method, params) => cdp.send(method, params, sessionId);
-  const evaluate = async (expression) => {
-    const result = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+  const evaluate = async (expression, userGesture = false) => {
+    const result = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, userGesture });
     if (result.exceptionDetails) {
       throw new Error(`evaluate failed: ${result.exceptionDetails.exception?.description ?? result.exceptionDetails.text}`);
     }
@@ -281,8 +281,16 @@ async function run() {
   })()`);
   const goto = async (url, selector) => {
     await send("Page.navigate", { url });
-    await sleep(600);
-    await waitFor(selector);
+    const deadline = Date.now() + 30000;
+    let ready = false;
+    while (Date.now() < deadline && !ready) {
+      await sleep(250);
+      try { ready = await evaluate(`Boolean(document.querySelector(${JSON.stringify(selector)}))`); }
+      catch (error) {
+        if (!/navigated or closed|context was destroyed|Cannot find context/.test(String(error))) throw error;
+      }
+    }
+    if (!ready) throw new Error(`navigation did not reach ${selector}`);
     await sleep(250);
   };
   const seed = async (record) => {
@@ -294,7 +302,7 @@ async function run() {
     if (!el) return false;
     el.click();
     return true;
-  })()`);
+  })()`, true);
   const scrub = (index) => evaluate(`(() => {
     const el = document.querySelector('[data-action="timeline"]');
     if (!el) return false;
@@ -377,6 +385,30 @@ async function run() {
   /* clock: exact step / scrub */
   await click("toggle-play"); // pause
   await click("restart");
+  check("combat sound is opt-in", await evaluate(`document.querySelector('[data-action="toggle-sound"]').getAttribute('aria-pressed')`), "false");
+  await click("toggle-sound");
+  checkTrue("original combat WAVs decode in the browser", await waitFor('[data-action="toggle-sound"][aria-pressed="true"]'), "sound loading failed");
+  await evaluate(`(() => {
+    window.__kaSoundStarts = 0;
+    const original = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function(...args) { window.__kaSoundStarts++; return original.apply(this,args); };
+  })()`);
+  const soundEvent = rJson.events.find((event) => event.kind === "state_sound" && event.passed);
+  if (soundEvent) {
+    await scrub(soundEvent.tick - rMin - 1);
+    await sleep(50);
+    check("scrubbing plays no sounds", await evaluate(`window.__kaSoundStarts`), 0);
+    await click("toggle-play");
+    await sleep(50);
+    await evaluate(`window.__kaBattleTick()`);
+    await sleep(50);
+    check("forward playback starts the recorded original sound", await evaluate(`window.__kaSoundStarts`), 1);
+    await click("toggle-play");
+  }
+  await click("toggle-sound");
+  await sleep(50);
+  check("sound can be muted", await evaluate(`document.querySelector('[data-action="toggle-sound"]').getAttribute('aria-pressed')`), "false");
+  await click("restart");
   /*
    * Visual check 1/3 - the initial frame. Measured from real client rects, so it fails for the
    * defect it is there to catch: fighters placed outside the mounted window on a stage that reads
@@ -447,6 +479,14 @@ async function run() {
     Boolean(targetBox) && targetBox.intersects,
     targetBox ? `${targetBox.id} ${JSON.stringify(targetBox.box)}` : "target not drawn");
   await shootStage("generated-replay-battle.png");
+  const firstProjectile = rJson.events.find((event) => event.kind === "projectile_launch" && Array.isArray(event.start));
+  if (firstProjectile) {
+    await scrub(firstProjectile.tick - rMin + 2);
+    const projectilesDrawn = await evaluate(`document.querySelectorAll('[data-combat-projectile]').length`);
+    checkTrue("a real launch draws its recovered projectile after two updates", projectilesDrawn > 0, String(projectilesDrawn));
+    await shootStage("generated-replay-projectiles.png");
+    await scrub(attackIndex);
+  }
 
   /* the runner's own clip selection shows on the unit row */
   const clipRow = (await read()).units.find((row) => row.clip);
@@ -529,6 +569,69 @@ async function run() {
   await sleep(600);
   const rlAfter = await read();
   check("the leaving fixture also stops on the final frame", rlAfter.frameIndex, rlFrames - 1);
+
+  /* Diagnostic prize events verify display timing/layout; they are not battle evidence. */
+  const prizeFixture = structuredClone(rJson);
+  const treasureId = rJson.events.find((event) => event.kind === "prize" && Number.isInteger(event.treasureId))?.treasureId ?? 1;
+  const firstSeq = Math.max(...prizeFixture.events.map((event) => event.seq)) + 1;
+  prizeFixture.events = prizeFixture.events.filter((event) => !["prize","sound_request","state_sound"].includes(event.kind));
+  prizeFixture.events.push(...Array.from({ length: 70 }, (_, index) => ({
+    kind: "prize", seq: firstSeq + index, tick: index + 2, treasureId,
+  })));
+  prizeFixture.events.push(
+    {kind:"sound_request",seq:firstSeq+70,tick:72,sound:30,passed:true,requiresScreen:true,targetUnitId:"enemy:0"},
+    {kind:"sound_request",seq:firstSeq+71,tick:73,sound:30,passed:true,requiresScreen:true,targetUnitId:"missing-unit"},
+    {kind:"effect_birth",seq:firstSeq+72,tick:72,type:17,lifetime:10,position:[24,15,72],screen:[-40,38]},
+  );
+  await goto(`${args.base}/battle-replay`, "[data-battle-sprite-layer], [data-generated-replay]");
+  await seed(buildRecord(prizeFixture));
+  await goto(`${args.base}/battle-replay?mode=generated`, '[data-generated-replay="loaded"]');
+  await click("toggle-play");
+  await scrub(71 - rMin);
+  const prizeRead = () => evaluate(`(() => {
+    const bar = document.querySelector('[data-battle-prize-bar]');
+    const viewport = document.querySelector('[data-view-window="profile"]');
+    const b = bar.getBoundingClientRect(), v = viewport.getBoundingClientRect();
+    return { count: Number(bar.dataset.generatedLiveChests),
+      icons: bar.querySelectorAll('[data-generated-chest]').length,
+      overflow: bar.querySelector('[data-chest-overflow]')?.textContent,
+      inside: viewport.contains(bar) && b.left >= v.left - 1 && b.right <= v.right + 1 && b.top >= v.top - 1 && b.bottom <= v.bottom + 1,
+      atTop: Math.abs(b.top - v.top) <= 1,
+      outside: document.querySelectorAll('.ka-frame__hud [data-generated-chest-summary]').length,
+      pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
+    };
+  })()`);
+  const prizes = await prizeRead();
+  check("earned boxes display the queued event count", prizes.count, 70);
+  check("native prize bar caps icons at ten", prizes.icons, 10);
+  check("native prize overflow shows additional entries", prizes.overflow, "+60");
+  checkTrue("prize bar is inside the top of the battle viewport", prizes.inside && prizes.atTop && prizes.outside === 0, JSON.stringify(prizes));
+  await shootStage("generated-replay-prize-bar.png");
+  await click("toggle-sound");
+  await waitFor('[data-action="toggle-sound"][aria-pressed="true"]');
+  await evaluate(`(() => {
+    window.__kaSoundStarts = 0;
+    const original = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function(...args) { window.__kaSoundStarts++; return original.apply(this,args); };
+  })()`);
+  await click("toggle-play"); await evaluate(`window.__kaBattleTick()`); await sleep(50);
+  check("visible defender reaction starts the original guard sound", await evaluate(`window.__kaSoundStarts`),1);
+  check("a recorded trail birth draws its native line",await evaluate(`document.querySelectorAll('[data-combat-trail]').length`),1);
+  await click("toggle-play");
+  await evaluate(`window.__kaSoundStarts = 0`);
+  await click("toggle-play"); await evaluate(`window.__kaBattleTick()`); await sleep(50);
+  check("offscreen defender sound request stays silent",await evaluate(`window.__kaSoundStarts`),0);
+  await click("toggle-play"); await click("toggle-sound");
+  await scrub(81-rMin);
+  check("native trail disappears on its garbage expiry tick",await evaluate(`document.querySelectorAll('[data-combat-trail]').length`),0);
+  await scrub(1 - rMin);
+  check("scrubbing before prize births clears the box bar", (await prizeRead()).count, 0);
+  await scrub(71 - rMin);
+  await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
+  await sleep(150);
+  const phonePrizes = await prizeRead();
+  checkTrue("phone prize bar stays in the viewport without page overflow", phonePrizes.inside && phonePrizes.atTop && !phonePrizes.pageOverflow, JSON.stringify(phonePrizes));
+  await shootStage("generated-replay-prize-bar-phone.png");
 
   /* ---------------- report ---------------- */
   const failed = checks.filter((entry) => !entry.ok);

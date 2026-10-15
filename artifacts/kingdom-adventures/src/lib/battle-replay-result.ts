@@ -20,8 +20,8 @@ export type ReplayParameter = {
     extraMax: number;
     trainingLevel: number;
   };
-  effectiveValue: number;
-  effectiveMaximum: number;
+  effectiveValue: number | null;
+  effectiveMaximum: number | null;
 };
 
 /** One fighter. `unitId` is the stable replay identity; `entityId` is the simulator's own id. */

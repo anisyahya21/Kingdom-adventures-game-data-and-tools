@@ -22,6 +22,8 @@
  *     invocation check (`invocation.passed === false`) is never drawn as a skill.
  */
 import type { CombatTextLabel, NumberStyle } from "@/lib/battle-replay";
+import { COMBAT_FEEDBACK, feedbackAlive } from "@/lib/combat-feedback";
+import { COMBAT_TEXT_ROWS } from "@/lib/battle-replay";
 import type { BattleReplayEvent, BattleReplayResult } from "@/lib/battle-replay-result";
 import { EQUIPMENT_BY_ID, SKILL_BY_ID, canonicalRecoveryItem } from "@/lib/battle-setup";
 import {
@@ -44,8 +46,7 @@ import { TREASURE_BY_ID } from "@/lib/treasure-lookup";
 /** A point on the shared 481x197 scene; the same string form `generatedScenePlacement` returns. */
 export type GeneratedStageAnchor = { left: string; top: string };
 
-export type GeneratedStageOverlay =
-  | { key: string; kind: "arrow"; from: GeneratedStageAnchor; to: GeneratedStageAnchor; flipped: boolean }
+export type GeneratedStageOverlay = { age: number; critical?: boolean; textCode?: number } & (
   | {
       key: string;
       kind: "impact";
@@ -70,7 +71,7 @@ export type GeneratedStageOverlay =
       casterUnitId: string | null;
       invocationLevel: number | null;
       slot: number | null;
-    };
+    });
 
 /** The recovered display name and canonical icon for one skill id, or null when unmapped. */
 export function generatedSkillIdentity(
@@ -140,8 +141,8 @@ export const GENERATED_IMPACT_TRANS_Y = -30;
 /** SEB frames per OPT cell: frames 0,1 -> cell 0, 2,3 -> cell 1, ... 8,9 -> cell 4. */
 export const GENERATED_IMPACT_FRAMES_PER_CELL = 2;
 
-/** `effect_00.seb` `maxFrame`: the burst plays ten frames (one per tick) and then stops. */
-export const GENERATED_IMPACT_LIFETIME_TICKS = 10;
+/** SEB maxFrame 10 -> default Garbage lifetime 9; birth+8 is removed before draw. */
+export const GENERATED_IMPACT_LIFETIME_TICKS = COMBAT_FEEDBACK.impactLifetime;
 
 /**
  * The one crop to draw for an impact animation frame, plus where its centre lands on the target's own
@@ -171,9 +172,9 @@ export function generatedImpactFrame(frame: number): {
   };
 }
 
-/** The recovered damage-number style: critical row wins, otherwise the attacker's own side. */
+/** Enemy numbers stay red; allied critical numbers use the yellow row. */
 export function generatedNumberStyle(critical: boolean, attackerSide: "ally" | "enemy" | null): NumberStyle {
-  if (critical) return "critical";
+  if (critical && attackerSide !== "enemy") return "critical";
   return attackerSide === "enemy" ? "enemy" : "ally";
 }
 
@@ -182,14 +183,14 @@ export function generatedNumberStyle(critical: boolean, attackerSide: "ally" | "
  * (seq order) and each produces at most one readable effect:
  *
  *  * `attack` (the runner's real hit record, not the `attack_batch` bookkeeping) ->
- *    attacker-to-target arrow, target impact, damage number, "Missed" when `hit === false`, and the
- *    recovered critical text on a critical hit;
+ *    target impact, damage number, "Missed" when `hit === false`, and the
+ *    the existing critical label on a critical hit;
  *  * `heal` -> the target's healing number;
- *  * `release` with `used === true` -> the skill balloon for that caster and skill (icon + name).
+ *  * successful `release` with `index === 0` -> the skill balloon for that caster and skill name.
  */
 export function buildGeneratedStageOverlays(input: {
   events: BattleReplayEvent[];
-  anchorOf: (unitId: string | null | undefined) => GeneratedStageAnchor | null;
+  anchorOf: (unitId: string | null | undefined, tick?: number) => GeneratedStageAnchor | null;
   sideOf: (unitId: string | null | undefined) => "ally" | "enemy" | null;
   /**
    * Impact-only window: the displayed tick's events plus the preceding ticks' events, with
@@ -199,32 +200,37 @@ export function buildGeneratedStageOverlays(input: {
    */
   impactEvents?: BattleReplayEvent[];
   impactTick?: number | null;
+  authoritativeSkillBirths?: boolean;
+  skillBirthAnchorOf?: (event: BattleReplayEvent) => GeneratedStageAnchor | null;
 }): GeneratedStageOverlay[] {
   const { events, anchorOf, sideOf } = input;
   const impactEvents = input.impactEvents ?? events;
   const impactTick = input.impactTick ?? null;
+  const skillBirths = input.authoritativeSkillBirths ?? events.some((event) =>
+    event.kind === "effect_birth" && event.type === 15 && typeof event.skillId === "number" && Boolean(event.casterUnitId));
   const overlays: GeneratedStageOverlay[] = [];
   for (const event of events) {
     const kind = event.kind.toLowerCase();
+    const skillBirth = kind === "effect_birth" && event.type === 15;
+    const age = impactTick === null ? 0 : impactTick - event.tick;
+    if (!feedbackAlive(age, kind === "release" || skillBirth ? COMBAT_FEEDBACK.skillLifetime : COMBAT_FEEDBACK.textLifetime)) continue;
     const attackerId = event.attackerUnitId ?? event.casterUnitId ?? event.actorUnitId ?? null;
     const targetId = event.targetUnitId ?? null;
+    if (kind === "status_text") {
+      const code = numberField(event, "textCode");
+      const row = code === null ? null : COMBAT_TEXT_ROWS[code];
+      const target = anchorOf(targetId, event.tick);
+      if (row && target) overlays.push({ key: `status-${event.seq}`, kind: "combat-text", age,
+        anchor: target, label: row.label, textCode: code ?? undefined });
+      continue;
+    }
     if (kind === "attack") {
-      const target = anchorOf(targetId);
+      const target = anchorOf(targetId, event.tick);
       if (!target) continue;
-      const attacker = anchorOf(attackerId);
       const attackerSide = sideOf(attackerId);
-      if (attacker) {
-        overlays.push({
-          key: `arrow-${event.seq}`,
-          kind: "arrow",
-          from: attacker,
-          to: target,
-          flipped: attackerSide === "enemy",
-        });
-      }
       const critical = boolField(event, "critical") === true;
       if (boolField(event, "hit") === false) {
-        overlays.push({ key: `text-${event.seq}`, kind: "combat-text", anchor: target, label: "Missed" });
+        overlays.push({ key: `text-${event.seq}`, kind: "combat-text", age, anchor: target, label: "Missed" });
         continue;
       }
       const damage = numberField(event, "damage");
@@ -232,33 +238,40 @@ export function buildGeneratedStageOverlays(input: {
         overlays.push({
           key: `damage-${event.seq}`,
           kind: "damage",
+          age,
+          critical,
           anchor: target,
           amount: damage,
           style: generatedNumberStyle(critical, attackerSide),
         });
       }
       if (critical) {
-        overlays.push({ key: `crit-${event.seq}`, kind: "combat-text", anchor: target, label: "Critical Hit" });
+        overlays.push({ key: `crit-${event.seq}`, kind: "combat-text", age, anchor: target, label: "Critical Hit", textCode: 4 });
       }
       continue;
     }
     if (kind === "heal") {
-      const target = anchorOf(targetId);
+      const target = anchorOf(targetId, event.tick);
       const amount = numberField(event, "amount");
       if (target && amount !== null) {
-        overlays.push({ key: `heal-${event.seq}`, kind: "heal", anchor: target, amount });
+        overlays.push({ key: `heal-${event.seq}`, kind: "heal", age, anchor: target, amount });
       }
       continue;
     }
-    if (kind === "release") {
-      const used = boolField(event, "used") === true;
+    if (kind === "release" || skillBirth) {
+      if (kind === "release" && skillBirths) continue;
+      const used = skillBirth || boolField(event, "used") === true;
+      // UseSkill 0x15e0c2c creates the balloon only on an eligible first use.
+      // Subsequent hits neither create a balloon nor refresh a preceding one.
+      const firstUse = skillBirth || numberField(event, "index") === 0;
       const skillId = numberField(event, "skillId");
-      const caster = anchorOf(attackerId);
-      if (!used || skillId === null || !caster) continue;
+      const caster = (skillBirth ? input.skillBirthAnchorOf?.(event) : null) ?? anchorOf(attackerId, event.tick);
+      if (!used || !firstUse || skillId === null || !caster) continue;
       const identity = generatedSkillIdentity(skillId);
       overlays.push({
         key: `skill-${event.seq}`,
         kind: "skill",
+        age,
         anchor: caster,
         side: sideOf(attackerId),
         skillId,
@@ -278,13 +291,14 @@ export function buildGeneratedStageOverlays(input: {
   for (const event of impactEvents) {
     if (event.kind.toLowerCase() !== "attack") continue;
     if (boolField(event, "hit") === false) continue;
-    const target = anchorOf(event.targetUnitId ?? null);
+    const target = anchorOf(event.targetUnitId ?? null, event.tick);
     if (!target) continue;
     const elapsed = impactTick === null ? 0 : impactTick - event.tick;
-    if (elapsed < 0 || elapsed >= GENERATED_IMPACT_LIFETIME_TICKS) continue;
+    if (!feedbackAlive(elapsed, GENERATED_IMPACT_LIFETIME_TICKS)) continue;
     overlays.push({
       key: `impact-${event.seq}`,
       kind: "impact",
+      age: elapsed,
       anchor: target,
       scale: generatedImpactScale(boolField(event, "critical") === true),
       frame: elapsed,
@@ -448,12 +462,19 @@ export function generatedChestSummary(
       drops,
     };
   }
+  // Some native reports omit eligibility fields even though older TypeScript-facing adapters
+  // described them as nullable. Treat absent or malformed counts as unknown, never as a UI number.
+  const awarded = typeof entitlement.awardedChestCount === "number"
+    && Number.isSafeInteger(entitlement.awardedChestCount)
+    && entitlement.awardedChestCount >= 0
+    ? entitlement.awardedChestCount
+    : null;
   let note: string;
-  if (entitlement.awardedChestCount !== null) {
+  if (awarded !== null) {
     note =
-      entitlement.awardedChestCount === queued
+      awarded === queued
         ? "The simulation marks every queued chest eligible. Actual reward settlement and collection are not yet validated."
-        : `The simulation marks ${entitlement.awardedChestCount} of ${queued} queued chests eligible. Actual reward settlement and collection are not yet validated.`;
+        : `The simulation marks ${awarded} of ${queued} queued chests eligible. Actual reward settlement and collection are not yet validated.`;
   } else if (entitlement.battleVerdict === null) {
     note = "The battle did not resolve, so the queued chest count remains provisional.";
   } else {
@@ -463,7 +484,7 @@ export function generatedChestSummary(
   }
   return {
     queued,
-    awarded: entitlement.awardedChestCount,
+    awarded,
     pending: entitlement.pendingChestCount,
     victoryRequired: entitlement.victoryRequired,
     note,
@@ -536,7 +557,7 @@ export const CONSUMABLE_UNSUPPORTED_TEXT = "Not usable in battle";
  */
 function recoveryUsableCondition(
   row: { supported: boolean; parameter: number | null; stock: number },
-  frameUnits: Record<string, { hp: number; mp: number; maxHp: number; maxMp: number; state: number }> | null,
+  frameUnits: Record<string, { hp: number; mp: number; maxHp: number | null; maxMp: number | null; state: number }> | null,
 ): { usable: boolean; reason: string } {
   if (!row.supported) return { usable: false, reason: CONSUMABLE_UNSUPPORTED_TEXT };
   if (row.stock <= 0) return { usable: false, reason: "no stock left at this tick" };
@@ -547,7 +568,12 @@ function recoveryUsableCondition(
   if (eligible.length === 0) return { usable: false, reason: "no own-team fighter can receive it" };
   const parameter = row.parameter;
   if (parameter === 10 || parameter === 11) {
-    const below = eligible.some(([, unit]) => (parameter === 10 ? unit.hp < unit.maxHp : unit.mp < unit.maxMp));
+    const maximumKey = parameter === 10 ? "maxHp" : "maxMp";
+    if (eligible.some(([, unit]) => unit[maximumKey] === null)) {
+      return { usable: false, reason: "native parameter maximum unavailable in this replay" };
+    }
+    const below = eligible.some(([, unit]) => parameter === 10
+      ? unit.hp < (unit.maxHp as number) : unit.mp < (unit.maxMp as number));
     const name = PARAMETER_NATIVE_NAMES[parameter] ?? `parameter ${parameter}`;
     if (!below) return { usable: false, reason: `every fighter is already at full ${name}` };
     return { usable: true, reason: `a fighter is below full ${name}` };
@@ -569,7 +595,7 @@ export function generatedConsumableRows(input: {
   tick: number;
   /** the stored source scenario; without it the rows are shown but cannot be branched */
   scenario?: unknown;
-  frameUnits?: Record<string, { hp: number; mp: number; maxHp: number; maxMp: number; state: number }> | null;
+  frameUnits?: Record<string, { hp: number; mp: number; maxHp: number | null; maxMp: number | null; state: number }> | null;
 }): GeneratedConsumableRow[] {
   const { replay, tick, scenario, frameUnits } = input;
   return interactionCapabilities({ scenario, replay }).map((capability) => {

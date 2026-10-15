@@ -16,6 +16,7 @@ import {
   nativeViewPos,
   nativeWorldViewPos,
   monsterClipForDirection,
+  MONSTER_DIRECTION_VARIANTS,
   type DecodedClip,
   type MonsterDirectionId,
 } from "@/lib/battle-replay";
@@ -23,6 +24,7 @@ import {
   HUMAN_CLIPS,
   HUMAN_DAMAGE_WINDOW,
   HUMAN_KNOCKDOWN,
+  HUMAN_REACTIONS,
   HUMAN_LEAVING,
   humanClipFrame,
   humanLineRecordsAt,
@@ -84,9 +86,9 @@ export type GeneratedUnitView = {
   initialGrid: number;
   startHp: number;
   startMp: number;
-  /** Exported effective maximum, including equipment and extra stats; start value if absent. */
-  maxHp: number;
-  maxMp: number;
+  /** Exact native effective maximum; null when the selected engine did not report it. */
+  maxHp: number | null;
+  maxMp: number | null;
   /** every motion the runner supports and that has a decoded sprite family today */
   animationCoverage: "FULL" | "PARTIAL";
   coverageNotes: string[];
@@ -128,8 +130,8 @@ export type GeneratedBodyFlight = {
 export type GeneratedUnitFrame = {
   hp: number;
   mp: number;
-  maxHp: number;
-  maxMp: number;
+  maxHp: number | null;
+  maxMp: number | null;
   state: number;
   stateName: string | null;
   visual: GeneratedVisualState;
@@ -144,6 +146,15 @@ export type GeneratedUnitFrame = {
   clipId: HumanClipId | null;
   /** frame inside that clip at this tick (native loop), 0 when no clip is selected */
   clipFrame: number;
+  /** elapsed updates since the current state began, kept separate from SebComponent.frame */
+  stateFrame: number;
+  /** Native SebComponent snapshot when the replay includes animation_frame events. */
+  animationFrame: number | null;
+  animationRate: number | null;
+  /** Raw SebComponent id (SEB base plus direction), retained for monster clip selection. */
+  animationClip: number | null;
+  /** Most recent animation_request tick, used by the legacy synthesized-frame fallback. */
+  animationStartTick: number;
   /** the raw behaviour the runner requested (kept for the DOM contract even when unsupported) */
   clipBehavior: number | null;
   /** the tick the current state began (for the reaction clip frame) */
@@ -170,10 +181,8 @@ const RUNNER_WEAPON_MOTIONS = new Set([4, 9, 10, 11, 12, 16, 37]);
 const DIRECTION_INDEX: Record<MonsterDirectionId, number> = { up: 0, right: 1, down: 2, left: 3 };
 
 /**
- * The recovered human clip table keyed by the SEB base `AnimationSet` writes. It is derived from
- * `HUMAN_CLIPS` itself rather than written out by hand, so a newly decoded clip (an exported
- * `attack_sword_up` for behaviour 4, for example) is picked up without a second list to keep in
- * step - the previous hand-written map named three bases and would silently ignore a fourth.
+ * The recovered human clip table keyed by the exact `AnimationSet` SEB id, including direction.
+ * It is derived from the exported clips so adding a decoded variant needs no second mapping.
  */
 const CLIP_BY_HUMAN_BASE: Record<number, HumanClipId> = Object.fromEntries(
   (Object.keys(HUMAN_CLIPS) as HumanClipId[]).map((id) => [HUMAN_CLIPS[id].humanBase, id]),
@@ -188,6 +197,7 @@ const ATTACK_BASE_BY_WEAPON_MOTION: Record<number, number> = {
   9: 72,
   10: 56,
   11: 68,
+  16: 96,
   // Behaviour 31 is the magic-attack behaviour a skill record carries at `+0x4C`
   // (`EnterUsingSkill 0x1585AC0`); the healer's Heal Maddy (skill 37) requests it.
   31: 48,
@@ -224,7 +234,7 @@ export function generatedAttackClipId(weaponMotion: number | null): HumanClipId 
 export function generatedClipForBase(base: number | null | undefined, direction = 0): HumanClipId | null {
   if (typeof base !== "number") return null;
   const d = ((Math.floor(direction) % 4) + 4) % 4;
-  return CLIP_BY_HUMAN_BASE[base - d] ?? CLIP_BY_HUMAN_BASE[base] ?? null;
+  return CLIP_BY_HUMAN_BASE[base] ?? CLIP_BY_HUMAN_BASE[base - d] ?? CLIP_BY_HUMAN_BASE[base & ~3] ?? null;
 }
 
 /**
@@ -236,12 +246,19 @@ export function generatedFrameClipId(
   unit: GeneratedUnitView,
   unitFrame: GeneratedUnitFrame,
 ): HumanClipId | null {
-  // `EnterAttacking 0x15854C0` picks the attack clip from the equipped weapon's `EquipData.motion`,
-  // so while the fighter is attacking that weapon's own decoded clip outranks whatever clip the
-  // runner requested: a sweep/skill behaviour whose SEB is not exported must not shadow a weapon
-  // pose that is decoded.
+  // A component snapshot records the native selection, including skill motions. Prefer its decoded
+  // clip while attacking; older traces and unsupported clips retain the weapon-motion fallback.
   if (unitFrame.visual === "attacking") {
-    return generatedAttackClipId(unit.weaponMotion) ?? unitFrame.clipId;
+    const actualClip = unitFrame.animationFrame !== null && unitFrame.animationClip !== null
+      ? generatedClipForBase(unitFrame.animationClip)
+      : null;
+    const requestedAttack = unitFrame.clipBehavior !== null && (
+      unitFrame.clipBehavior === 31 || unitFrame.clipBehavior === unit.weaponMotion
+    );
+    const currentRequest = requestedAttack && unitFrame.animationClip !== null && unitFrame.animationStartTick >= unitFrame.stateTick
+      ? generatedClipForBase(unitFrame.animationClip)
+      : null;
+    return actualClip ?? currentRequest ?? generatedAttackClipId(unit.weaponMotion) ?? unitFrame.clipId;
   }
   return unitFrame.clipId;
 }
@@ -281,10 +298,10 @@ function visualStateFor(
   }
 }
 
-/** The true HP/MP maximum the Python exporter carries, falling back to the run-start value. */
-function parameterMaximum(unit: BattleReplayUnit | undefined, key: "10" | "11", fallback: number): number {
+/** The exact native HP/MP maximum, or null when the replay payload did not report one. */
+function parameterMaximum(unit: BattleReplayUnit | undefined, key: "10" | "11"): number | null {
   const maximum = unit?.parameters?.[key]?.effectiveMaximum;
-  return typeof maximum === "number" && Number.isFinite(maximum) && maximum >= 0 ? maximum : fallback;
+  return typeof maximum === "number" && Number.isFinite(maximum) && maximum >= 0 ? maximum : null;
 }
 
 export function buildGeneratedUnits(
@@ -336,8 +353,8 @@ export function buildGeneratedUnits(
         initialGrid: unit.grid,
         startHp: unit.startHp,
         startMp: unit.startMp,
-        maxHp: parameterMaximum(unit, "10", unit.startHp),
-        maxMp: parameterMaximum(unit, "11", unit.startMp),
+        maxHp: parameterMaximum(unit, "10"),
+        maxMp: parameterMaximum(unit, "11"),
         animationCoverage: notes.length === 0 ? "FULL" : "PARTIAL",
         coverageNotes: notes,
       };
@@ -523,7 +540,23 @@ export function generatedHumanLinesForFrame(
    */
   attackClipId: HumanClipId | null = null,
 ): HumanIdleLine[] | null {
-  const reactionFrame = Math.max(0, unitFrame.clipFrame);
+  const hasNativeSnapshot = typeof unitFrame.animationFrame === "number" && Number.isFinite(unitFrame.animationFrame);
+  const reactionFrame = Math.max(0, hasNativeSnapshot ? unitFrame.stateFrame : unitFrame.clipFrame);
+  const nativeFrame = hasNativeSnapshot ? unitFrame.animationFrame as number : reactionFrame;
+  const rawDirection = unitFrame.animationClip === null ? null : unitFrame.animationClip & 3;
+  const nativeReactionFrame = (reactionId: "damage" | "knockDownSit" | "knockDownDown"): number | null => {
+    if (!hasNativeSnapshot || unitFrame.animationClip === null) return null;
+    const base = unitFrame.animationClip & ~3;
+    return base === HUMAN_REACTIONS[reactionId].humanBase ? nativeFrame : null;
+  };
+  const actualReactionDirection = (reactionId: "damage" | "knockDownSit" | "knockDownDown"): number | null => {
+    // Direction low bits are authoritative only while the current state keeps that SEB id. Leaving
+    // changes the entity direction every update without calling ChangeAnimation, so its spin still
+    // comes from the recovered state timer below.
+    if (!hasNativeSnapshot || unitFrame.visual === "leaving") return null;
+    const base = unitFrame.animationClip === null ? null : unitFrame.animationClip & ~3;
+    return base === HUMAN_REACTIONS[reactionId].humanBase ? rawDirection : null;
+  };
   // `ChangeAnimation` is only called once per lifecycle, so every frame below is the state-relative
   // timer wrapped at its clip's own `maxFrame` - the same rules the shared recovered lifecycle
   // (`humanAnimationState`) applies. Without the wrap a reaction frame runs past the clip's last key
@@ -532,7 +565,11 @@ export function generatedHumanLinesForFrame(
   switch (unitFrame.visual) {
     case "damaging":
       // State 6 lasts HUMAN_DAMAGE_WINDOW.updates; `UpdateDamaging 0x1585F04` loops the 6-frame clip.
-      return humanReactionLinesAt("damage", direction, reactionFrame % HUMAN_DAMAGE_WINDOW.maxFrame);
+      return humanReactionLinesAt(
+        "damage",
+        actualReactionDirection("damage") ?? direction,
+        (nativeReactionFrame("damage") ?? reactionFrame) % HUMAN_DAMAGE_WINDOW.maxFrame,
+      );
     case "knocking_down": {
       /*
        * State 7 is entered the update the damage state exits, so the first knock-down update carries
@@ -542,18 +579,20 @@ export function generatedHumanLinesForFrame(
       const knockdownUpdate = reactionFrame + 1;
       if (knockdownUpdate < HUMAN_KNOCKDOWN.downFrom) {
         const spin = Math.min(knockdownUpdate, HUMAN_KNOCKDOWN.spinThrough);
-        const spinDirection = (((direction + spin) % 4) + 4) % 4;
+        const spinDirection = actualReactionDirection("knockDownSit") ?? (((direction + spin) % 4) + 4) % 4;
         const variant = humanReactionDirection("knockDownSit", spinDirection);
         return humanReactionLinesAt(
           "knockDownSit",
           spinDirection,
-          (knockdownUpdate - 1) % Math.max(1, variant.maxFrame),
+          actualReactionDirection("knockDownSit") !== null
+            ? (nativeReactionFrame("knockDownSit") ?? nativeFrame) % Math.max(1, variant.maxFrame)
+            : (knockdownUpdate - 1) % Math.max(1, variant.maxFrame),
         );
       }
-      return humanReactionLinesAt("knockDownDown", settledDirection, 0);
+      return humanReactionLinesAt("knockDownDown", actualReactionDirection("knockDownDown") ?? settledDirection, 0);
     }
     case "down":
-      return humanReactionLinesAt("knockDownDown", settledDirection, 0);
+      return humanReactionLinesAt("knockDownDown", actualReactionDirection("knockDownDown") ?? settledDirection, 0);
     case "leaving": {
       /*
        * `EnterLeaving` makes no ChangeAnimation call and the projectile is fired with its animation
@@ -563,7 +602,7 @@ export function generatedHumanLinesForFrame(
        * exactly at `leavingAt`.
        */
       const leavingFrame = Math.max(0, reactionFrame - HUMAN_KNOCKDOWN.leavingAt);
-      const leavingDirection = (((settledDirection + 2 * leavingFrame) % 4) + 4) % 4;
+      const leavingDirection = actualReactionDirection("knockDownDown") ?? (((settledDirection + 2 * leavingFrame) % 4) + 4) % 4;
       return humanReactionLinesAt("knockDownDown", leavingDirection, 0);
     }
     /*
@@ -573,17 +612,25 @@ export function generatedHumanLinesForFrame(
      */
     case "walking":
     case "revival_moving": {
-      const walk = humanWalkDirection(direction);
-      return humanWalkLinesAt(direction, wrapClipFrame(reactionFrame, walk.maxFrame));
+      const walkDirection = unitFrame.animationClip !== null && (unitFrame.animationClip & ~3) === 8
+        ? unitFrame.animationClip & 3
+        : direction;
+      const walk = humanWalkDirection(walkDirection);
+      const frame = unitFrame.animationFrame ?? reactionFrame * 2;
+      return humanWalkLinesAt(walkDirection, wrapClipFrame(frame, walk.maxFrame));
     }
     case "attacking": {
       // `EnterAttacking 0x15854C0` picks the clip from the weapon's own `EquipData.motion`, so the
       // caller-resolved attack clip wins over a requested clip that could not be decoded.
       const clipId = attackClipId ?? unitFrame.clipId;
-      return clipId ? humanLineRecordsAt(HUMAN_CLIPS[clipId], unitFrame.clipFrame) : null;
+      return clipId
+        ? humanLineRecordsAt(HUMAN_CLIPS[clipId], unitFrame.animationFrame ?? unitFrame.clipFrame)
+        : null;
     }
     case "waiting":
-      return unitFrame.clipId ? humanLineRecordsAt(HUMAN_CLIPS[unitFrame.clipId], unitFrame.clipFrame) : HUMAN_IDLE_LINES;
+      return unitFrame.clipId
+        ? humanLineRecordsAt(HUMAN_CLIPS[unitFrame.clipId], unitFrame.animationFrame ?? unitFrame.clipFrame)
+        : HUMAN_IDLE_LINES;
     default:
       return null;
   }
@@ -623,11 +670,12 @@ export function generatedFighterVitals(
   rowOffset: number,
 ): FighterVitals | null {
   if (!unitFrame) return null;
+  if (unitFrame.maxHp === null || unitFrame.maxMp === null) return null;
   if (side === "enemy" && !isMostFrontUnit(side, unitFrame.cell[1], rowOffset)) return null;
   const tier = generatedFighterBarTier(side, unitFrame, rowOffset);
   return {
-    hp: { current: unitFrame.hp, max: Math.max(1, unitFrame.maxHp), source: barTierSource(tier) },
-    mp: { current: unitFrame.mp, max: Math.max(1, unitFrame.maxMp), source: barTierSource(tier) },
+    hp: { current: unitFrame.hp, max: unitFrame.maxHp, source: barTierSource(tier) },
+    mp: { current: unitFrame.mp, max: unitFrame.maxMp, source: barTierSource(tier) },
   };
 }
 
@@ -712,6 +760,7 @@ export function buildGeneratedFrames(replay: BattleReplayResult): GeneratedFrame
   const previous: Record<string, GeneratedVisualState> = {};
   const stateTick: Record<string, number> = {};
   const lastClip: Record<string, { clipId: HumanClipId | null; behavior: number | null; startTick: number }> = {};
+  const animation: Record<string, { frame: number | null; rate: number | null; clip: number | null; startTick: number }> = {};
   const statuses: Record<string, Set<string>> = {};
   const flights: Record<string, GeneratedBodyFlight | null> = {};
   /** units the runner has revived and that have not left moving 2 since (revival walk vs movement) */
@@ -721,6 +770,7 @@ export function buildGeneratedFrames(replay: BattleReplayResult): GeneratedFrame
     previous[unitId] = "waiting";
     stateTick[unitId] = 0;
     lastClip[unitId] = { clipId: null, behavior: null, startTick: 0 };
+    animation[unitId] = { frame: null, rate: null, clip: null, startTick: 0 };
     statuses[unitId] = new Set();
     flights[unitId] = null;
     revived[unitId] = false;
@@ -770,18 +820,35 @@ export function buildGeneratedFrames(replay: BattleReplayResult): GeneratedFrame
       previous[unitId] = visualStateFor(point.state, previous[unitId], revived[unitId]);
 
       for (const event of applied) {
-        if (event.kind !== "animation_request" || event.targetUnitId !== unitId) continue;
-        const behavior = typeof event.behavior === "number" ? event.behavior : null;
-        const clip = typeof event.clip === "number" ? event.clip : null;
-        const sideOfUnit = replayUnit.get(unitId)?.side ?? "ally";
-        const resolved = generatedClipForBase(clip, DIRECTION_INDEX[BATTLE_DIRECTIONS[sideOfUnit]]);
-        if (resolved) {
-          lastClip[unitId] = { clipId: resolved, behavior, startTick: tick };
-        } else {
-          // The runner asked for a SEB whose clip is not exported yet (a sword attack base 16, for
-          // example). Keep the last resolved clip running so the fighter keeps animating; only the
-          // requested behaviour is recorded, and nothing is substituted for the missing pose.
-          lastClip[unitId] = { ...lastClip[unitId], behavior };
+        if (event.targetUnitId !== unitId) continue;
+        if (event.kind === "animation_request") {
+          const behavior = typeof event.behavior === "number" ? event.behavior : null;
+          const requestedClip = typeof event.clip === "number" ? event.clip : null;
+          const sideOfUnit = replayUnit.get(unitId)?.side ?? "ally";
+          const resolved = generatedClipForBase(requestedClip, DIRECTION_INDEX[BATTLE_DIRECTIONS[sideOfUnit]]);
+          // ChangeAnimation resets SebComponent.frame even when this build has no decoded clip.
+          // Restart the retained fallback as well, so repeated multi-hit requests visibly retrigger.
+          lastClip[unitId] = {
+            ...lastClip[unitId],
+            ...(resolved ? { clipId: resolved } : {}),
+            behavior,
+            startTick: tick,
+          };
+          animation[unitId] = { frame: null, rate: null, clip: requestedClip, startTick: tick };
+        } else if (event.kind === "animation_frame") {
+          const fields = event as Record<string, unknown>;
+          const frame = typeof fields.frame === "number" && Number.isFinite(fields.frame) ? Math.max(0, Math.floor(fields.frame)) : null;
+          const rate = typeof fields.rate === "number" && Number.isFinite(fields.rate) ? Math.max(0, Math.floor(fields.rate)) : null;
+          const clip = typeof fields.clip === "number" && Number.isFinite(fields.clip) ? fields.clip : null;
+          animation[unitId] = {
+            frame,
+            rate,
+            clip: clip ?? animation[unitId].clip,
+            startTick: animation[unitId].startTick,
+          };
+          const sideOfUnit = replayUnit.get(unitId)?.side ?? "ally";
+          const resolved = generatedClipForBase(clip, DIRECTION_INDEX[BATTLE_DIRECTIONS[sideOfUnit]]);
+          if (resolved) lastClip[unitId] = { ...lastClip[unitId], clipId: resolved };
         }
       }
       for (const event of applied) {
@@ -806,18 +873,21 @@ export function buildGeneratedFrames(replay: BattleReplayResult): GeneratedFrame
         visual === "knocking_down" ||
         visual === "down" ||
         visual === "leaving" ||
+        visual === "walking" ||
         visual === "revival_moving";
-      const clipFrame = reactionPhase
-        ? Math.max(0, tick - stateTick[unitId])
-        : clip.clipId
-          ? humanClipFrame(HUMAN_CLIPS[clip.clipId], Math.max(0, tick - clip.startTick))
-          : 0;
+      const clipFrame = animation[unitId].frame !== null
+        ? animation[unitId].frame
+        : reactionPhase
+          ? Math.max(0, tick - stateTick[unitId])
+          : clip.clipId
+            ? humanClipFrame(HUMAN_CLIPS[clip.clipId], Math.max(0, tick - clip.startTick))
+            : 0;
 
       units[unitId] = {
         hp: point.hp,
         mp: point.mp,
-        maxHp: parameterMaximum(unit, "10", unit ? unit.startHp : point.hp),
-        maxMp: parameterMaximum(unit, "11", unit ? unit.startMp : point.mp),
+        maxHp: parameterMaximum(unit, "10"),
+        maxMp: parameterMaximum(unit, "11"),
         state: point.state,
         stateName: point.stateName,
         visual,
@@ -827,6 +897,11 @@ export function buildGeneratedFrames(replay: BattleReplayResult): GeneratedFrame
         status: [...statuses[unitId]].sort(),
         clipId: clip.clipId,
         clipFrame,
+        stateFrame: Math.max(0, tick - stateTick[unitId]),
+        animationFrame: animation[unitId].frame,
+        animationRate: animation[unitId].rate,
+        animationClip: animation[unitId].clip,
+        animationStartTick: animation[unitId].startTick,
         clipBehavior: clip.behavior,
         stateTick: stateTick[unitId],
         flight: flights[unitId],
@@ -1115,20 +1190,29 @@ export function generatedViewPanX(
 }
 
 /**
- * The monster SEB clip and its update count for one generated frame: the wait/attack group of the
- * unit's native direction, advanced from the tick its current state began. The clip changes restart
- * the count, which is the recovered `ChangeAnimation` / `AnimationSystem.Update` pair; the frame
- * itself is selected inside the SEB record (`Seb.GetSprite`), never here.
+ * The monster SEB clip and frame for one generated frame. New traces supply the component's raw
+ * SEB id and frame; older traces use the latest request tick, then the state tick as a fallback.
+ * The SEB record itself is selected by the renderer (`Seb.GetSprite`), never here.
  */
 export function generatedMonsterClip(
   unitFrame: GeneratedUnitFrame,
   tick: number,
   direction: MonsterDirectionId,
-): { clip: DecodedClip; update: number } {
-  const attacking = unitFrame.visual === "attacking";
-  const clip = monsterClipForDirection(attacking ? "attack" : "wait", direction);
-  const update = Math.max(0, tick - (attacking ? unitFrame.stateTick : 0));
-  return { clip, update };
+): { clip: DecodedClip; update: number; mirror: { u: boolean; v: boolean } } {
+  const rawClip = typeof unitFrame.animationClip === "number" && Number.isFinite(unitFrame.animationClip)
+    ? unitFrame.animationClip : null;
+  const base = rawClip === null ? null : rawClip & ~3;
+  const attacking = base === null ? unitFrame.visual === "attacking" : base >= 16 && base <= 28;
+  // Native monster animation base adds four for monster_size=3: 4 wait / 20 attack.
+  // Older traces without a component snapshot keep the historical small-clip fallback.
+  const large = base === 4 || base === 20;
+  const resolvedDirection: MonsterDirectionId = rawClip === null
+    ? direction
+    : (rawClip & 3) === 0 ? "up" : (rawClip & 3) === 1 ? "right" : (rawClip & 3) === 2 ? "down" : "left";
+  const clip = monsterClipForDirection(attacking ? "attack" : "wait", resolvedDirection, large);
+  const fallbackStart = rawClip !== null ? unitFrame.animationStartTick : unitFrame.stateTick;
+  const update = unitFrame.animationFrame ?? Math.max(0, tick - fallbackStart);
+  return { clip, update, mirror: MONSTER_DIRECTION_VARIANTS[resolvedDirection].mirror };
 }
 
 /* ------------------------------------------------------------------ */
@@ -1171,8 +1255,13 @@ export function generatedRewardSummary(outcome: GeneratedFinishOutcome): Generat
   }
   let rewardEntitlement: string;
   let note: string | null = null;
-  if (entitlement.awardedChestCount !== null) {
-    rewardEntitlement = String(entitlement.awardedChestCount);
+  const awarded = typeof entitlement.awardedChestCount === "number"
+    && Number.isSafeInteger(entitlement.awardedChestCount)
+    && entitlement.awardedChestCount >= 0
+    ? entitlement.awardedChestCount
+    : null;
+  if (awarded !== null) {
+    rewardEntitlement = String(awarded);
   } else if (entitlement.battleVerdict === null) {
     rewardEntitlement = "unknown (battle unresolved)";
     note = "The battle did not resolve, so no reward entitlement can be certified.";

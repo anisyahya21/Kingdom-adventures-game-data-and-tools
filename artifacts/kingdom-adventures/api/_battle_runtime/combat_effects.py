@@ -39,7 +39,7 @@ def attack_effect_specs(result, position, attacker_ally):
     if not result['hit']:return [spec(12,0,6,126,15.)]
     critical=result['critical'];scale=150 if critical else 100
     effects=[spec(0,0,28,0,10.,scale,1 if critical else 2,True,0)]
-    if critical:effects.append(spec(12,9,6,126,15.))
+    if critical:effects.append(spec(12,4,6,126,15.))
     effects.append(spec(1,result['damage'],4,(237 if critical else 78) if attacker_ally else 112,20.,scale))
     return effects
 
