@@ -55,8 +55,10 @@ async function execute(request: BattleRequest): Promise<string> {
   if (request.action === "start") {
     if (!request.scenarioJson) throw new Error("A battle scenario is required.");
     python.globals.set("_browser_scenario_json", request.scenarioJson);
+    python.globals.set("_browser_start_ticks", Math.max(1, Math.min(200, Math.trunc(request.ticks ?? 160))));
     return String(python.runPython(`
-_browser_session = BrowserBattleSession(json.loads(_browser_scenario_json), window_ticks=80, checkpoint_limit=16)
+# Keep rollback points across the largest 4x playback buffer (480 + one 200-tick batch).
+_browser_session = BrowserBattleSession(json.loads(_browser_scenario_json), window_ticks=_browser_start_ticks, checkpoint_limit=40)
 json.dumps(_browser_session.start(), separators=(',', ':'))
 `));
   }

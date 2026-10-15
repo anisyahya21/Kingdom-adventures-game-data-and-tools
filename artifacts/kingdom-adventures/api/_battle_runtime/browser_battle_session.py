@@ -262,7 +262,10 @@ class BrowserBattleSession:
         """Precompute the ticks this run captures; the newest edge is always included."""
         self._pending = []
         span = stop_tick - start_tick
-        stride = 1 if span <= 0 else max(1, (span + self.checkpoint_limit - 1) // self.checkpoint_limit)
+        # One checkpoint per native second, plus the edge and explicit item boundary. Cloning the
+        # complete engine every five ticks consumed substantial simulation time without affecting
+        # replay output. A consumable still resumes below its exact tick and replays the short gap.
+        stride = max(20, (span + self.checkpoint_limit - 1) // self.checkpoint_limit)
         wanted = set()
         tick = start_tick + stride
         while tick < stop_tick:

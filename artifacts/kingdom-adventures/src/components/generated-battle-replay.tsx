@@ -704,11 +704,14 @@ export function GeneratedBattleReplay({ initialRecord, embedded = false }: { ini
     if (typeof edge !== "number") return;
     const shownTick = frames[Math.min(step, lastStep)]?.tick ?? 0;
     const verdictTick = displayedReplay.finalState.verdictTick;
+    // Six playback seconds ready at the selected speed. A fixed 60-tick buffer was only 750 ms
+    // at 4x, so one worker round trip could exhaust it.
+    const bufferTarget = Math.max(120, Math.ceil(speed * 20 * 6));
     if (typeof verdictTick === "number") {
       if (edge >= verdictTick + 120) return;
-    } else if (edge - shownTick > 60) return;
+    } else if (edge - shownTick > bufferTarget) return;
     advancingRef.current = true;
-    void advanceBrowserBattle(100).then((payload) => {
+    void advanceBrowserBattle(200).then((payload) => {
       const parsed = parseBattleReplayResult(JSON.parse(payload));
       if (!parsed.result || parsed.issues.length) throw new Error(parsed.issues.join("; ") || "Invalid browser replay");
       setLocalReplay(parsed.result);
@@ -725,7 +728,7 @@ export function GeneratedBattleReplay({ initialRecord, embedded = false }: { ini
     }).finally(() => {
       advancingRef.current = false;
     });
-  }, [displayedReplay, frames, step, lastStep]);
+  }, [displayedReplay, frames, step, lastStep, speed]);
 
   // The clock stops on the final frame instead of silently restarting at frame 0.
   useEffect(() => {

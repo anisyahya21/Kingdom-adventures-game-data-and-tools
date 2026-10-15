@@ -292,7 +292,10 @@ class SharedControllers:
             state,destination=decide_next_state(u['board'][5],u['board'][6],u['cell'],
                 is_most_front(u['board'][7]),self.specs[u['id']]['weapon']['shootingRange']>1,next(self.candidates(u['id']),None) is not None,
                 same_grid=same_grid(u,team),advanceable=advance,
-                queue_position=queue_position(u,team,lambda other:self.value(other['id'],10),self.row_offset))
+                # decide_next_state reads this only for active fighters outside the five columns.
+                # HP/formation reads are pure; avoid the five team scans on every ordinary decision.
+                queue_position=(queue_position(u,team,lambda other:self.value(other['id'],10),self.row_offset)
+                    if u['board'][5] not in (2,7,8) and not 0 <= x < 5 else None))
             if destination is not None:u['board'][13],u['board'][14]=destination
             return state
         return 3 if is_most_front(u['board'][7]) or self.specs[u['id']]['weapon']['shootingRange']>1 or next(self.candidates(u['id']),None) is not None else 1
