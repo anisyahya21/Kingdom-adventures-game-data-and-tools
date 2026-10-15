@@ -34,13 +34,16 @@ try{
  if(process.argv[5]==='--playback') {
    const bootstrap=JSON.parse(readFileSync(process.argv[6],'utf8'));
    const evaluate=async expression=>{const reply=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true},sessionId);if(reply.exceptionDetails)throw Error(JSON.stringify(reply.exceptionDetails));return reply.result.value;};
+   await send('Page.enable',{},sessionId);
+   await send('Page.addScriptToEvaluateOnNewDocument',{source:`window.__battleWindows=[]; const NativeWorker=window.Worker; window.Worker=class extends NativeWorker { constructor(...args){super(...args);this.addEventListener('message',({data})=>{if(!data.replay)return;try{const r=JSON.parse(data.replay);window.__battleWindows.push(r.finalState);}catch{}});}};`},sessionId);
    await evaluate(`sessionStorage.setItem('ka-generated-battle-1',${JSON.stringify(JSON.stringify({storeVersion:1,replay:bootstrap,scenarioJson:JSON.stringify(scenario),warnings:[]}))})`);
    await send('Page.navigate',{url:base+'/battle-replay?mode=generated'},sessionId);
    let ready=false;for(let n=0;n<150;n++){await sleep(200);if(await evaluate(`Number(document.querySelector('[data-generated-replay="loaded"]')?.dataset.generatedMaxTick)>=160`)){ready=true;break;}}
    if(!ready)throw Error('Live session did not initialize');
-   const playback=await evaluate(`(async()=>{document.querySelector('[data-action="speed-4"]').click();await new Promise(r=>setTimeout(r,100));if(document.querySelector('[data-action="toggle-play"]').dataset.playing!=='true')document.querySelector('[data-action="toggle-play"]').click();const begin=performance.now();const samples=[];for(let n=0;n<80;n++){await new Promise(r=>setTimeout(r,100));const d=document.querySelector('[data-generated-replay="loaded"]').dataset;samples.push({ms:performance.now()-begin,tick:Number(d.generatedTick),edge:Number(d.generatedMaxTick),playing:d.generatedPlaying});}return samples;})()`);
-   const stalls=playback.filter(s=>s.tick>=s.edge && s.tick<scenario.tickLimit-1 && s.playing==='0');
-   const result={base,playback,speed:4,bufferEdgeStops:stalls.length};writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({speed:4,first:playback[0],last:playback.at(-1),bufferEdgeStops:stalls.length}));
+   const playback=await evaluate(`(async()=>{document.querySelector('[data-action="speed-4"]').click();await new Promise(r=>setTimeout(r,100));if(document.querySelector('[data-action="toggle-play"]').dataset.playing!=='true')document.querySelector('[data-action="toggle-play"]').click();const begin=performance.now();const samples=[];for(let n=0;n<80;n++){await new Promise(r=>setTimeout(r,100));const d=document.querySelector('[data-generated-replay="loaded"]').dataset;const last=window.__battleWindows.at(-1);const finalWindow=last && (!last.windowed || (typeof last.verdictTick==='number' && last.windowStopTick>=last.verdictTick+120));samples.push({ms:performance.now()-begin,tick:Number(d.generatedTick),edge:Number(d.generatedMaxTick),playing:d.generatedPlaying,finalWindow:Boolean(finalWindow)});}return samples;})()`);
+   const stalls=playback.filter(s=>s.tick>=s.edge && !s.finalWindow && s.tick<scenario.tickLimit-1 && s.playing==='0');
+   const windows=await evaluate(`window.__battleWindows.map(s=>({edge:s.windowStopTick,verdictTick:s.verdictTick,cut:s.endingCutTick,windowed:s.windowed}))`);
+   const result={base,playback,windows,speed:4,bufferEdgeStops:stalls.length};writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({speed:4,first:playback[0],last:playback.at(-1),windows,bufferEdgeStops:stalls.length}));
    if(stalls.length)throw Error('4x playback exhausted its simulation buffer');
    process.exitCode=0;
  } else {
