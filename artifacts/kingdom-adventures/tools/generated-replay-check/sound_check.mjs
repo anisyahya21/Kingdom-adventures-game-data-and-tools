@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { combatSoundRequests, CombatSoundPlayer, COMBAT_SOUND_DEFAULT_VOLUME } from "@/lib/combat-sounds";
+import { combatSoundRequests, CombatSoundPlayer, COMBAT_SOUND_DEFAULT_VOLUME, combatSoundGain, combatSoundOnscreen } from "@/lib/combat-sounds";
+import rules from "@/game-data/combat-sound-rules.json";
 let started = 0, stopped = 0, closed = 0, requests = 0;
 let lastVolume = null;
 globalThis.fetch = async () => ({ok:true,arrayBuffer:async () => new ArrayBuffer(4)});
@@ -30,7 +31,29 @@ assert.deepEqual(combatSoundRequests([{kind:"release",seq:8,tick:1,used:true,ind
 const player = new CombatSoundPlayer();
 await player.prepare();
 player.play(combatSoundRequests(events,0,1));
-assert.equal(lastVolume,127/255); assert.equal(lastVolume,COMBAT_SOUND_DEFAULT_VOLUME); requests++;
+assert.ok(Math.abs(lastVolume-127/255)<1e-7); assert.equal(lastVolume,COMBAT_SOUND_DEFAULT_VOLUME); requests++;
+for (const platform of ["android","steam"]) for (let volume=0;volume<256;volume++) {
+  assert.ok(Math.abs(combatSoundGain(volume,{platform})-rules.gains[platform][volume])<1e-7); requests++;
+  assert.equal(combatSoundGain(volume,{platform,muted:true}),0); requests++;
+  assert.equal(combatSoundGain(volume,{platform,master:false}),0); requests++;
+}
+player.setVolume(0); assert.equal(lastVolume,0); requests++;
+player.setVolume(255); assert.equal(lastVolume,1); requests++;
+player.setVolume(64); assert.equal(lastVolume,combatSoundGain(64)); requests++;
+assert.equal(combatSoundGain(-1),0); assert.equal(combatSoundGain(300),1); requests+=2;
+for (const [humanClip,record] of Object.entries(rules.humanBounds)) {
+  for (const u of [false,true]) for (const v of [false,true]) {
+    const [left,top,width,height]=record.rect;
+    const x=(record.flip!==u) ? -2*Math.trunc(width/2)-left : left;
+    const y=v ? -2*Math.trunc(height/2)-top : top;
+    const input={humanClip:Number(humanClip),mirror:{u,v},width:240,height:192};
+    assert.equal(combatSoundOnscreen({...input,x:-x-width,y:-y}),true); requests++;
+    assert.equal(combatSoundOnscreen({...input,x:-x-width-1,y:-y}),false); requests++;
+    assert.equal(combatSoundOnscreen({...input,x:240-x,y:192-y}),true); requests++;
+    assert.equal(combatSoundOnscreen({...input,x:241-x,y:192-y}),false); requests++;
+  }
+}
+assert.equal(combatSoundOnscreen({humanClip:9999,x:0,y:0,width:240,height:192}),false); requests++;
 player.context.currentTime = 0.25;
 player.play(combatSoundRequests(events,1,6));
 player.context.currentTime = 0.5;

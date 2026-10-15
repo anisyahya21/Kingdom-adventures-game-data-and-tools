@@ -386,6 +386,12 @@ async function run() {
   await click("toggle-play"); // pause
   await click("restart");
   check("combat sound is opt-in", await evaluate(`document.querySelector('[data-action="toggle-sound"]').getAttribute('aria-pressed')`), "false");
+  check("sound volume starts at the native default", await evaluate(`document.querySelector('[data-action="sound-volume"]').value`), "127");
+  for (const volume of [255, 0, 127]) {
+    await evaluate(`(() => { const input=document.querySelector('[data-action="sound-volume"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${volume}); input.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+    await sleep(50);
+    check(`sound volume control updates to ${volume}`, await evaluate(`document.querySelector('[data-action="sound-volume"]').parentElement.querySelector('output').textContent`), `${Math.round(volume*100/255)}%`);
+  }
   await click("toggle-sound");
   checkTrue("original combat WAVs decode in the browser", await waitFor('[data-action="toggle-sound"][aria-pressed="true"]'), "sound loading failed");
   await evaluate(`(() => {

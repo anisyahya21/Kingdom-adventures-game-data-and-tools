@@ -363,7 +363,9 @@ class SharedControllers:
             passed=random_below(self.next_lib('defender_sound',100),100)<100
             if self.trace_observations:
                 self.emit('sound_request',sound=30,passed=passed,source='defender_reaction',
-                          target=i,attacker=attacker,requiresScreen=True)
+                          target=i,attacker=attacker,requiresScreen=True,
+                          position=list(self.world.objects[i]['components'][0][:3]),
+                          soundClip=self.world.objects[i]['components'][2][1])
             return passed
         return defender_attack_phase(hit,critical,damage,self.units[i]['board'],[s for s,l in defensive],
             lambda s:self.eligible(i,s,attacker),lambda s:self.invoke(i,s,levels[s['id']]),

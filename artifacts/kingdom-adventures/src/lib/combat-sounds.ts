@@ -1,7 +1,30 @@
 import manifest from "@/game-data/combat-sounds.json";
+import rules from "@/game-data/combat-sound-rules.json";
 import type { BattleReplayEvent } from "@/lib/battle-replay-result";
 
-export const COMBAT_SOUND_DEFAULT_VOLUME = 127 / 255;
+export const COMBAT_SOUND_DEFAULT_VOLUME = rules.gains.android[127];
+
+/** Native integer settings, with original ARM64 gain curves for Android/iPhone and Steam. */
+export function combatSoundGain(volume: number, options: { baseVolume?: number; muted?: boolean; master?: boolean; platform?: "android" | "steam" } = {}): number {
+  if (options.muted || options.master === false) return 0;
+  const integer = (value: number) => Math.max(0, Math.min(255, Math.trunc(Number.isFinite(value) ? value : 127)));
+  const curve = rules.gains[options.platform ?? "android"][integer(volume)];
+  return Math.max(0, Math.min(1, Math.fround(Math.fround(curve * integer(options.baseVolume ?? 255)) / 255)));
+}
+
+type SoundRect = { rect: number[]; flip: boolean };
+/** Seb._load's all-frame rectangle; GetBRect applies the native even-pixel mirror pivot. */
+export function combatSoundOnscreen(input: { humanClip?: number | null; monsterClip?: string; mirror?: { u: boolean; v: boolean }; x: number; y: number; width: number; height: number }): boolean {
+  const record: SoundRect | undefined = input.monsterClip
+    ? (rules.monsterBounds as Record<string, SoundRect>)[input.monsterClip]
+    : (rules.humanBounds as Record<string, SoundRect>)[String(input.humanClip)];
+  if (!record || ![input.x, input.y, input.width, input.height].every(Number.isFinite)) return false;
+  const [left, top, width, height] = record.rect;
+  const x = Math.trunc(input.x) + ((record.flip !== Boolean(input.mirror?.u)) ? -2 * Math.trunc(width / 2) - left : left);
+  const y = Math.trunc(input.y) + (input.mirror?.v ? -2 * Math.trunc(height / 2) - top : top);
+  // KairoMath.CheckHitRect 0x242b9ac includes edge contact, including zero-sized rectangles.
+  return x + width >= 0 && x <= input.width && y + height >= 0 && y <= input.height;
+}
 
 export function combatSoundRequests(events: BattleReplayEvent[], afterTick: number, tick: number,
   isOnscreen?: (event: BattleReplayEvent) => boolean): number[] {
@@ -26,9 +49,16 @@ export class CombatSoundPlayer {
   private context: AudioContext | null = null;
   private buffers = new Map<number, AudioBuffer>();
   private active = new Map<number, AudioBufferSourceNode>();
+  private gains = new Map<number, GainNode>();
+  private volume = 127;
   private loading: Promise<void> | null = null;
   private closed = false;
   private lastPlayed = new Map<number, number>();
+
+  setVolume(volume: number): void {
+    this.volume = Math.max(0, Math.min(255, Math.trunc(Number.isFinite(volume) ? volume : 127)));
+    for (const gain of this.gains.values()) gain.gain.value = combatSoundGain(this.volume);
+  }
 
   async prepare(): Promise<void> {
     if (this.closed) throw new Error("Sound player closed");
@@ -60,10 +90,11 @@ export class CombatSoundPlayer {
       const source = this.context.createBufferSource();
       source.buffer = buffer;
       const gain = this.context.createGain();
-      gain.gain.value = COMBAT_SOUND_DEFAULT_VOLUME;
+      gain.gain.value = combatSoundGain(this.volume);
       source.connect(gain).connect(this.context.destination);
-      source.onended = () => { if (this.active.get(id) === source) this.active.delete(id); source.disconnect(); gain.disconnect(); };
+      source.onended = () => { if (this.active.get(id) === source) { this.active.delete(id); this.gains.delete(id); } source.disconnect(); gain.disconnect(); };
       this.active.set(id, source);
+      this.gains.set(id, gain);
       source.start();
     }
   }
@@ -71,6 +102,7 @@ export class CombatSoundPlayer {
   stop(): void {
     for (const source of this.active.values()) source.stop();
     this.active.clear();
+    this.gains.clear();
     this.lastPlayed.clear();
   }
 

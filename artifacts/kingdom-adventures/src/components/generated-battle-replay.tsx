@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CombatSoundPlayer, combatSoundRequests } from "@/lib/combat-sounds";
+import { CombatSoundPlayer, combatSoundRequests, combatSoundOnscreen } from "@/lib/combat-sounds";
+import { HUMAN_CLIPS } from "@/lib/human-battle-animation";
 import { combatTrailsAt } from "@/lib/combat-trails";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
@@ -627,6 +628,7 @@ export function GeneratedBattleReplay({ initialRecord, embedded = false }: { ini
   const soundPlayerRef = useRef<CombatSoundPlayer | null>(null);
   const soundTickRef = useRef<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const [soundVolume, setSoundVolume] = useState(127);
   const [soundLoading, setSoundLoading] = useState(false);
   const [soundError, setSoundError] = useState(false);
   const soundTick = frames[Math.min(step, lastStep)]?.tick ?? 0;
@@ -640,6 +642,7 @@ export function GeneratedBattleReplay({ initialRecord, embedded = false }: { ini
     setSoundError(false);
     try {
       soundPlayerRef.current ??= new CombatSoundPlayer();
+      soundPlayerRef.current.setVolume(soundVolume);
       await soundPlayerRef.current.prepare();
       soundTickRef.current = soundTick;
       setSoundEnabled(true);
@@ -655,19 +658,24 @@ export function GeneratedBattleReplay({ initialRecord, embedded = false }: { ini
       return;
     }
     soundPlayerRef.current?.play(combatSoundRequests(displayedReplay?.events ?? [], previous, soundTick, (event) => {
-      const viewport = stageHostRef.current;
-      if (!viewport || !event.targetUnitId) return false;
-      const unit = Array.from(viewport.querySelectorAll<HTMLElement>("[data-unit-root]"))
-        .find((element) => element.dataset.generatedUnitId === event.targetUnitId);
-      if (!unit) return false;
-      const view = viewport.getBoundingClientRect();
-      // Use the mounted fighter art, including partially visible sprites at a window edge.
-      return [unit, ...Array.from(unit.querySelectorAll<HTMLElement>("*"))].some((element) => {
-        const box = element.getBoundingClientRect();
-        return box.right >= view.left && box.left <= view.right && box.bottom >= view.top && box.top <= view.bottom;
-      });
+      const unit = units.find((candidate) => candidate.unitId === event.targetUnitId);
+      const snapshot = frames[generatedFrameIndexForTick(frames, event.tick)]?.units[unit?.unitId ?? ""];
+      if (!unit || !snapshot) return false;
+      const offset = nativeInitialFormation(units.filter((u) => u.side === "ally").length, units.filter((u) => u.side === "enemy").length).rowOffset;
+      const pan = generatedViewPanX(units.map((u) => u.initialCell), offset, viewProfile.logicalViewWidth);
+      const capturedClip = typeof event.soundClip === "number" ? event.soundClip : null;
+      const soundFrame = capturedClip === null ? snapshot : {...snapshot, animationClip: capturedClip};
+      const capturedPosition = Array.isArray(event.position) && event.position.length === 3 && event.position.every((n) => typeof n === "number" && Number.isFinite(n))
+        ? nativeWorldViewPos(event.position[0], event.position[1], event.position[2], offset) : null;
+      const position = generatedScenePlacement({cell: snapshot.cell, unitFrame: snapshot, tick: event.tick, rowOffset: offset, viewPanX: pan});
+      const monster = unit.kind === "monster" ? generatedMonsterClip(soundFrame, event.tick, BATTLE_DIRECTIONS[unit.side]) : null;
+      const humanId = generatedFrameClipId(unit, snapshot);
+      return combatSoundOnscreen({ humanClip: capturedClip ?? snapshot.animationClip ?? (humanId ? HUMAN_CLIPS[humanId].humanBase : null),
+        monsterClip: monster?.clip.id, mirror: monster?.mirror,
+        x: capturedPosition ? capturedPosition.x - pan : parseFloat(position.left), y: capturedPosition?.y ?? parseFloat(position.top),
+        width: viewProfile.logicalViewWidth, height: viewProfile.sourceHeight });
     }));
-  }, [soundTick, soundEnabled, playing, displayedReplay, busyConsumable]);
+  }, [soundTick, soundEnabled, playing, displayedReplay, busyConsumable, frames, units, viewProfile.logicalViewWidth, viewProfile.sourceHeight]);
   useEffect(() => {
     const host = stageHostRef.current;
     if (!host) return;
@@ -1526,6 +1534,15 @@ export function GeneratedBattleReplay({ initialRecord, embedded = false }: { ini
               aria-pressed={soundEnabled} data-action="toggle-sound">
               {soundLoading ? "Loading sound…" : soundError ? "Retry sound" : soundEnabled ? "Sound on" : "Sound off"}
             </Button>
+            <label className="flex items-center gap-2 text-xs">
+              Volume
+              <input aria-label="Battle sound volume" data-action="sound-volume" type="range" min={0} max={255} step={1}
+                className="h-11 w-24" value={soundVolume} onChange={(event) => {
+                  const volume = Number(event.currentTarget.value);
+                  setSoundVolume(volume); soundPlayerRef.current?.setVolume(volume);
+                }} />
+              <output className="w-8">{Math.round(soundVolume * 100 / 255)}%</output>
+            </label>
             {soundError ? <span role="status" className="text-xs">Sound could not be loaded.</span> : null}
             {soundEnabled && !displayedReplay.events.some((event) => event.kind === "sound_request")
               ? <span className="text-xs">Run this battle again to hear attack and skill sounds.</span> : null}
