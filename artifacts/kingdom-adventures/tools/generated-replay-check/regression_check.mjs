@@ -228,7 +228,7 @@ const damageOverlay = overlays.find((item) => item.kind === "damage");
 check("the damage number carries the runner's own amount", damageOverlay?.amount, 160);
 checkTrue("the damage number uses the recovered non-critical attacker-side style", typeof damageOverlay?.style === "string" && damageOverlay.style.length > 0, JSON.stringify(damageOverlay));
 check("the damage number is anchored on the hit unit's own scene position", damageOverlay?.anchor, F.placement(mpFrame, "enemy:15"));
-checkTrue("a hit also draws the attacker's arrow and the impact marker", overlays.some((item) => item.kind === "arrow") && overlays.some((item) => item.kind === "impact"), JSON.stringify(overlays.map((item) => item.kind)));
+checkTrue("a hit draws its native impact without a decorative arrow", !overlays.some((item) => item.kind === "arrow") && overlays.some((item) => item.kind === "impact"), JSON.stringify(overlays.map((item) => item.kind)));
 
 const balloon = overlays.find((item) => item.kind === "skill");
 check("the skill balloon carries the released skill id", balloon?.skillId, 25);
@@ -240,7 +240,8 @@ const usedReleases = FIXTURE_EVENTS.filter((event) => event.kind === "release" &
 const allReleases = FIXTURE_EVENTS.filter((event) => event.kind === "release").length;
 check("every release in this fixture is a real one (used:true)", [usedReleases, allReleases], [329, 329]);
 const totalBalloons = F.frames.reduce((total, frame) => total + F.overlaysAt(frame).filter((item) => item.kind === "skill").length, 0);
-check("one balloon per actually-released skill, over the whole fight", totalBalloons, usedReleases);
+const firstUses = FIXTURE_EVENTS.filter((event) => event.kind === "release" && event.used === true && event.index === 0).length;
+check("one balloon per successful first use, over the whole fight", totalBalloons, firstUses);
 const unusedRelease = { ...releaseEvent, seq: releaseEvent.seq + 100000, used: false };
 const unusedOverlays = buildGeneratedStageOverlays({ events: [unusedRelease], anchorOf: () => F.placement(mpFrame, "enemy:15"), sideOf: () => "ally" });
 check("a release the runner did NOT use draws no balloon", unusedOverlays.filter((item) => item.kind === "skill").length, 0);
@@ -308,9 +309,14 @@ check(
   ["attackSwordUp", "attackGunUp"],
 );
 check(
-  "a weapon motion whose SEB is still not exported claims no clip",
-  [generatedAttackClipId(12), generatedAttackClipId(16), generatedAttackClipId(37)],
-  [null, null, null],
+  "the scoop/shovel weapon motion resolves the newly exported attack clip",
+  generatedAttackClipId(16),
+  "attackScoopUp",
+);
+check(
+  "weapon motions with unresolved SEB resource rows claim no clip",
+  [generatedAttackClipId(12), generatedAttackClipId(37)],
+  [null, null],
 );
 
 const pikeAttackFrame = P.frames.find((frame) => frame.units["ally:0"].visual === "attacking");

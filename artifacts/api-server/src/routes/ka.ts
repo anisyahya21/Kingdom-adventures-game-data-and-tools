@@ -38,7 +38,7 @@ const ACCOUNT_PLAYER_PROFILE_MAX_BYTES = 256 * 1024;
 type AccountPlayerProfile = {
   version: 1;
   equipment: Record<string, number>;
-  characters: Array<{ id: string; jobName: string; rank: string; statLevels: Record<string, number> }>;
+  characters: Array<{ id: string; jobName: string; rank: string; gender?: 0 | 1; statLevels: Record<string, number> }>;
   valuables: Record<string, number>;
 };
 
@@ -58,7 +58,8 @@ function isAccountPlayerProfile(value: unknown): value is AccountPlayerProfile {
     if (!isRecord(rawCharacter) || typeof rawCharacter.id !== "string" || rawCharacter.id.length < 1 || rawCharacter.id.length > 128 || seenIds.has(rawCharacter.id) ||
         typeof rawCharacter.jobName !== "string" || !rawCharacter.jobName.trim() || rawCharacter.jobName.length > 128 ||
         typeof rawCharacter.rank !== "string" || !["S", "A", "B", "C", "D", "E", "F"].includes(rawCharacter.rank) ||
-        !isRecord(rawCharacter.statLevels)) return false;
+        !isRecord(rawCharacter.statLevels) ||
+        (rawCharacter.gender !== undefined && rawCharacter.gender !== 0 && rawCharacter.gender !== 1)) return false;
     seenIds.add(rawCharacter.id);
     return Object.values(rawCharacter.statLevels).every((level) => typeof level === "number" && Number.isInteger(level) && level >= 1 && level <= 999);
   });

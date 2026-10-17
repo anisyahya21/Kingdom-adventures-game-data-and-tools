@@ -229,8 +229,8 @@ check("a critical hit draws the recovered Critical Hit text",
   critOverlays.filter((item) => item.kind === "combat-text").map((item) => item.label), ["Critical Hit"]);
 check("a critical hit scales the recovered impact to 1.5 (CONFIRMED CreateEffect note: 150)",
   critOverlays.filter((item) => item.kind === "impact").map((item) => item.scale), [1.5]);
-checkTrue("a critical hit also draws the attacker-to-target arrow",
-  critOverlays.some((item) => item.kind === "arrow"), JSON.stringify(critOverlays));
+checkTrue("an attack does not create an invented decorative projectile",
+  !critOverlays.some((item) => item.kind === "arrow"), JSON.stringify(critOverlays));
 
 const missed = F14.events.find((event) => event.kind === "attack" && event.hit === false);
 checkTrue("the F14 fixture has a real miss", Boolean(missed), "no miss in F14");
@@ -423,9 +423,9 @@ const impactsAt = (events, tick) =>
 
 check("a landed hit draws its impact on the tick it lands, at the effect's first frame",
   impactsAt([hitEvent], 40).map((item) => item.frame), [0]);
-check("the impact keeps playing through the recovered ten frames",
+check("Garbage removes the impact at birth+8, before drawing that tick",
   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((elapsed) => impactsAt([hitEvent], 40 + elapsed).map((item) => item.frame)),
-  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((frame) => [frame]));
+  [[0], [1], [2], [3], [4], [5], [6], [7], [], []]);
 check("the impact stops after its ten-frame lifetime",
   impactsAt([hitEvent], 50), []);
 check("a hit that has not landed yet draws nothing",
@@ -433,7 +433,7 @@ check("a hit that has not landed yet draws nothing",
 check("a miss never draws an impact, inside the window or out",
   [40, 45].map((tick) => impactsAt([missHitEvent], tick).length), [0, 0]);
 check("a critical hit keeps the recovered 1.5 scale through its whole life",
-  [40, 45, 49].map((tick) => impactsAt([critHitEvent], tick).map((item) => item.scale)), [[1.5], [1.5], [1.5]]);
+  [40, 45, 47].map((tick) => impactsAt([critHitEvent], tick).map((item) => item.scale)), [[1.5], [1.5], [1.5]]);
 check("a plain hit keeps the recovered 1.0 scale",
   generatedImpactScale(false), 1);
 check("without a window a caller keeps the single-tick behaviour",
@@ -446,7 +446,7 @@ check("the impact window still draws every other overlay kind of its own tick",
     impactEvents: [hitEvent, { ...usedRelease, tick: 45 }],
     impactTick: 45,
   }).map((item) => item.kind).sort(),
-  ["arrow", "damage", "impact", "skill"]);
+  ["damage", "impact", "skill"]);
 
 /* the drawn cell: a growing crop of the real sheet, never the whole 114x35 pack */
 const impactSheet = pngSize("/battle-assets/effects/impact-effect_00.png");

@@ -17,6 +17,7 @@ import {
   NUMBER_GLYPH,
   NUMBER_ROW_IMAGES,
   NUMBER_ROW_Y,
+  NUMBER_ROW_X,
   nativeInitialFormation,
   nativeScreenPos,
   monsterSpriteById,
@@ -794,6 +795,7 @@ export function BattleStage({
   leavingFixtures,
   revivalFixtures,
   children,
+  viewportOverlay,
 }: {
   hostRef?: Ref<HTMLDivElement>;
   viewProfileId: string;
@@ -809,6 +811,8 @@ export function BattleStage({
   leavingFixtures?: unknown;
   revivalFixtures?: unknown;
   children?: ReactNode;
+  /** Screen HUD remains fixed while the world scene pans. */
+  viewportOverlay?: ReactNode;
 }) {
   const displayScale = sceneScale * presentationScale;
   const displayScaleY = displayScale * presentationRatio;
@@ -851,6 +855,7 @@ export function BattleStage({
       >
         {children}
       </div>
+      {viewportOverlay}
     </div>
   );
 }
@@ -897,7 +902,7 @@ export function DamageNumber({ amount, style }: { amount: number; style: NumberS
               width: NUMBER_GLYPH.width,
               height: NUMBER_GLYPH.height,
               backgroundImage: `url(${sheet})`,
-              backgroundPosition: `-${value * NUMBER_GLYPH.width}px -${rowY}px`,
+              backgroundPosition: `-${NUMBER_ROW_X[style] + value * NUMBER_GLYPH.width}px -${rowY}px`,
               imageRendering: "pixelated",
             }}
           />
@@ -915,6 +920,7 @@ export function CombatText({ label }: { label: CombatTextLabel }) {
     <span
       style={{
         width: COMBAT_TEXT_SIZE.width,
+        display: "inline-block",
         height: COMBAT_TEXT_SIZE.height,
         backgroundImage: `url(${COMBAT_TEXT_SHEET.file})`,
         backgroundPosition: `0px -${row.y}px`,

@@ -81,7 +81,7 @@ def skill_unsupported_reason(skill):
 
 class SharedControllers:
     def __init__(self, specs, math_seed, lib_seed, front_targets=None, row_offset=3, movement_cells=None, movement=False,
-                 initialization_orders=None, prize_candidates=None, receipts=None):
+                 initialization_orders=None, prize_candidates=None, receipts=None, trace_observations=True):
         self.projectiles=ComponentSubset((39,0,1));self.moving=ComponentSubset((0,1));self.cells=ComponentSubset((0,5))
         self.modifiers=ComponentSubset((19,));self.garbage=ComponentSubset((32,));self.cell_members=ComponentSubset((5,))
         self.effects=ComponentSubset((38,),(4,))
@@ -112,6 +112,7 @@ class SharedControllers:
         self.trace=[];self.tick=-1;self.phase='initial';self.next_command=0
         self.latest_hit={};self.prizes=[];self.battle_state=2;self.battle_frame=0;self.verdict=None
         self.prize_candidates=prize_candidates
+        self.trace_observations=bool(trace_observations)
         self.receipts=receipts
         self.math_rng=SystemRandomState(math_seed);self.lib_rng=SystemRandomState(lib_seed)
         self.math_draws=0;self.lib_draws=0
@@ -291,7 +292,10 @@ class SharedControllers:
             state,destination=decide_next_state(u['board'][5],u['board'][6],u['cell'],
                 is_most_front(u['board'][7]),self.specs[u['id']]['weapon']['shootingRange']>1,next(self.candidates(u['id']),None) is not None,
                 same_grid=same_grid(u,team),advanceable=advance,
-                queue_position=queue_position(u,team,lambda other:self.value(other['id'],10),self.row_offset))
+                # decide_next_state reads this only for active fighters outside the five columns.
+                # HP/formation reads are pure; avoid the five team scans on every ordinary decision.
+                queue_position=(queue_position(u,team,lambda other:self.value(other['id'],10),self.row_offset)
+                    if u['board'][5] not in (2,7,8) and not 0 <= x < 5 else None))
             if destination is not None:u['board'][13],u['board'][14]=destination
             return state
         return 3 if is_most_front(u['board'][7]) or self.specs[u['id']]['weapon']['shootingRange']>1 or next(self.candidates(u['id']),None) is not None else 1
@@ -343,15 +347,33 @@ class SharedControllers:
         before=self.value(i,11);amount=self.cost(i,s)
         self.param(i,11)['rawValue']=max(0,self.param(i,11)['rawValue']-amount)
         self.emit('mp',caster=i,skill=s['id'],before=before,after=self.value(i,11),amount=amount)
-    def sound(self,s):
-        play_skill_sound(s,100,lambda n:random_below(self.next_lib('skill_sound',100),100)<n,lambda s:None)
+    def sound(self,s,caster=None,target=None):
+        passed=False;sound_id=None
+        def hits(rate):
+            nonlocal passed
+            passed=random_below(self.next_lib('skill_sound',100),100)<rate
+            return passed
+        def play(requested):
+            nonlocal sound_id
+            sound_id=requested
+        play_skill_sound(s,100,hits,play)
+        if self.trace_observations:
+            self.emit('sound_request',sound=sound_id,passed=passed,source='skill',caster=caster,target=target,skill=s['id'])
     def reaction(self,i,attacker,hit,critical,damage):
         defensive=[(ROWS[s],level) for s,level in zip(self.specs[i]['skills'],self.specs[i]['levels']) if ROWS[s]['flags']&32]
         levels={s['id']:level for s,level in defensive}
+        def reaction_sound_roll():
+            passed=random_below(self.next_lib('defender_sound',100),100)<100
+            if self.trace_observations:
+                self.emit('sound_request',sound=30,passed=passed,source='defender_reaction',
+                          target=i,attacker=attacker,requiresScreen=True,
+                          position=list(self.world.objects[i]['components'][0][:3]),
+                          soundClip=self.world.objects[i]['components'][2][1])
+            return passed
         return defender_attack_phase(hit,critical,damage,self.units[i]['board'],[s for s,l in defensive],
             lambda s:self.eligible(i,s,attacker),lambda s:self.invoke(i,s,levels[s['id']]),
             lambda s,d:self.reflect(i,attacker,s,d),lambda s:self.enqueue(i,s['id'],attacker,'counter'),
-            lambda s:self.pay(i,s),lambda s:self.balloon(i,s),lambda:random_below(self.next_lib('defender_sound',100),100)<100)
+            lambda s:self.pay(i,s),lambda s:self.balloon(i,s),reaction_sound_roll)
     def reflect(self,i,t,s,damage):
         def result():
             r=reflected_attack_result(i,t,s,damage)
@@ -359,7 +381,7 @@ class SharedControllers:
                 commandId=None,hitIndex=None,hit=True,critical=False,damage=r['damage'],hpBefore=self.value(t,10))
             return r
         use_fighter_skill(s,0,dict(can_use=lambda first:self.eligible(i,s,t,first),pay_mp=lambda:self.pay(i,s),
-            balloon=lambda:None,reflect=result,send=lambda event,results:self.deliver(results),sound=lambda:self.sound(s)))
+            balloon=lambda:None,reflect=result,send=lambda event,results:self.deliver(results),sound=lambda:self.sound(s,i,t)))
     def attack_result(self,i,t,s,c=None,index=None):
         result=resolve_attack(i,t,s,lambda t:target_exists(self.world,t),self.math.critical,self.math.hit,
             self.math.damage,lambda i:False,defender_phase=lambda h,k,d:self.reaction(t,i,h,k,d),
@@ -385,19 +407,24 @@ class SharedControllers:
             if r['hit']:self.latest_hit[t]=event
             dispatch_shared_attack(self.world,[r],lambda r:None,self.change)
             self.trace[event]['hpAfter']=self.value(t,10)
-    def create_effect(self,spec):
+    def create_effect(self,spec,trace_fields=None):
         def resource(res,seb):
             if res!=28:raise NotImplementedError('Unrecovered effect resource duration')
             return self.effect_resources[seb]
         identity=create_combat_effect(spec,resource,self.world.allocate,self.world.add_component)
-        self.emit('effect_birth',effect=identity,type=spec['type'],lifetime=self.world.objects[identity]['components'][32][0])
+        self.emit('effect_birth',effect=identity,type=spec['type'],lifetime=self.world.objects[identity]['components'][32][0],
+                  **(trace_fields or {}))
         return identity
     def balloon(self,i,s):
-        return self.create_effect(skill_balloon_spec(s['id'],self.units[i]['position'],self.specs[i]['team']==0))
+        spec=skill_balloon_spec(s['id'],self.units[i]['position'],self.specs[i]['team']==0)
+        metadata=dict(caster=i,skill=s['id'],position=list(spec['position'])) if self.trace_observations else None
+        return self.create_effect(spec,metadata)
     def trail(self,i,previous):
         identity=create_projectile_trail(self.world,i,previous,isometric_trail_screen)
-        self.emit('effect_birth',effect=identity,type=17,lifetime=10,projectile=i,
-                  previous=list(previous),screen=list(isometric_trail_screen(previous)))
+        fields=dict(previous=list(previous),screen=list(isometric_trail_screen(previous)))
+        if self.trace_observations:
+            fields['position']=list(self.world.objects[identity]['components'][0][:3])
+        self.emit('effect_birth',effect=identity,type=17,lifetime=10,projectile=i,**fields)
     def attack_effect(self,result):
         t=result['target']
         if not target_exists(self.world,t):return
@@ -433,7 +460,7 @@ class SharedControllers:
             self.projectile_sources[identity]=(i,s,c.copy(),index)
             self.emit('projectile_launch',projectile=identity,owner=i,storedTarget=t,
                 commandId=c['traceId'],hitIndex=index,skill=s['id'],start=start,end=end)
-            self.sound(s)
+            self.sound(s,i,t)
     def impact_projectile(self,identity):
         components=self.world.objects[identity]['components']
         if components[46] is None:
@@ -522,7 +549,7 @@ class SharedControllers:
         i,t,s=u['id'],c['target'],ROWS[c['skill']]
         used=use_fighter_skill(s,index,dict(can_use=lambda first:self.eligible(i,s,t,first),
             pay_mp=lambda:self.pay(i,s),balloon=lambda:self.balloon(i,s),attack=lambda:self.attack_result(i,t,s,c,index),
-            cure=lambda:self.heal(i,t,s),send=lambda event,results:self.deliver(results) if event==26 else self.deliver_cures(results) if event==27 else None,sound=lambda:self.sound(s),
+            cure=lambda:self.heal(i,t,s),send=lambda event,results:self.deliver(results) if event==26 else self.deliver_cures(results) if event==27 else None,sound=lambda:self.sound(s,i,t),
             cells=lambda kind:self.skill_cells(i,s),damage_cell=lambda cell:self.hit_cell(i,s,cell,c,index),cell_effect=lambda cell:self.create_effect(cell_skill_effect_spec(s,cell)),
             buff_cell=lambda cell:self.buff_cell(i,s,cell),unsupported_category=lambda:self.unsupported_category(i,s),
             fire_projectiles=lambda:self.fire_skill_projectiles(i,t,s,c,index)))
@@ -560,9 +587,16 @@ class SharedControllers:
                 most_front=lambda u:is_most_front(u['board'][7]),front_target=self.normal_target,decide=self.decide))
         elif state==4:
             weapon=self.specs[i]['weapon']
+            def normal_attack_sound():
+                raw=self.next_lib('normal_attack_update')
+                passed=random_below(raw,100)<100
+                if self.trace_observations:
+                    sound=26 if not self.specs[i]['human'] else (24 if weapon['projectileFlag'] else 25)
+                    self.emit('sound_request',sound=sound,passed=passed,source='normal_attack_update',
+                              caster=i,target=u['long_board'].get(16))
             gauge,state=update_attacking(u['board'][4],u['board'][8],lambda:u['long_board'].get(16),weapon['projectileFlag'],weapon['type'],
                 lambda t:self.attack(i,t,None),lambda t,sid:self.fire_skill_projectiles(i,t,ROWS[sid],dict(traceId=None),0),
-                lambda:self.next_lib('normal_attack_update'),lambda:self.decide(u))
+                normal_attack_sound,lambda:self.decide(u))
             u['board'][8]=gauge
             if state is not None:self.change(u,state)
     def run(self,ticks,input_callback=None,finish_policy='at-horizon',stop_on_verdict=None,tick_hook=None):
@@ -628,6 +662,11 @@ class SharedControllers:
             self.phase='animation'
             update_animations(self.fighter_animations.members,self.world,self.animation_resources,
                 dict(enabled=True,auto_animation=False,common_frames_update=True),lambda i,b:self.animate(self.units[i],b))
+            if self.trace_observations:
+                for identity in self.fighter_animations.members:
+                    components=self.world.objects[identity]['components']
+                    animation,seb=components[12],components[2]
+                    self.emit('animation_frame',target=identity,frame=seb[2],rate=animation[0],clip=seb[1])
             self.phase='effects'
             update_effect_phase(self.effects.members,self.effect_values,self.effect_positions,self.world.is_destroyed,self.world.destroy)
             self.phase='garbage'

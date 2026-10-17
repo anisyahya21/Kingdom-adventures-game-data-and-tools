@@ -32,7 +32,7 @@ globalThis.localStorage = {
   getItem: (key) => data.get(key) ?? null,
   setItem: (key, value) => { if (rejectWrites) throw new Error("quota"); data.set(key, value); },
 };
-const profile = { version: 1, characters: [{ id: "fixture-character", jobName: "Champion", rank: "A", statLevels: { atk: 10, hp: 20 } }], equipment: { "Fixture sword": 10 }, valuables: {} };
+const profile = { version: 1, characters: [{ id: "fixture-character", gender: 1, jobName: "Champion", rank: "A", statLevels: { atk: 10, hp: 20 } }], equipment: { "Fixture sword": 10 }, valuables: {} };
 const build = { characterId: "fixture-character", characterName: "Fixture DPS", jobName: "Champion", rank: "A", picks: [{ slot: "Weapon", item: "Fixture sword", level: 20 }], skills: ["Fixture required skill"], stats: { atk: 100, hp: 200 }, addedLevels: 10, requiredUpgrades: [{ item: "Fixture sword", currentLevel: 10, requiredLevel: 20, addedLevels: 10 }] };
 const goals = { atk: { mode: "min", min: 100 } };
 const saved = saveFarmingFavorite(build, profile, goals, true);
@@ -49,6 +49,7 @@ const loadout = favoriteToLoadout(restored);
 assert.equal(loadout.id, favoriteToLoadout(restored).id, "stable destination ID supports upsert");
 assert.equal(loadout.equipment[0].level, 20);
 assert.equal(loadout.useProfileInventory, false);
+assert.equal(loadout.gender, 1, "favorite preserves the source character gender");
 assert.deepEqual(loadout.skills, ["Fixture required skill"]);
 rejectWrites = true;
 assert.throws(() => removeFarmingFavorite(saved.id), /storage/);

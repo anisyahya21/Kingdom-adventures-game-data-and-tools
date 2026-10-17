@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { HUD_SPRITES } from "@/lib/battle-replay";
 import {
   CONSUMABLE_UNSUPPORTED_TEXT,
   type GeneratedChestDrop,
@@ -13,21 +14,21 @@ import {
  * the branch the runner returned for an item click - the HUD never re-simulates a fight, never applies
  * an item effect of its own and never paints a heal or a hit that the runner did not report.
  *
- * Layout intent (matched against the user's own battle screenshots): the treasure strip sits along the
- * top edge of the arena frame, the readable ally HP/MP block and the status tick sit under it, and the
+ * The treasure bar sits inside the top of the battlefield viewport; readable HP/MP and status sit in
+ * the surrounding frame, and the
  * consumable action bar lives inside the same frame at the bottom so battlefield and items share one
  * screen on desktop and on a narrow viewport. The HUD stays to a few short rows (the ally block is one
  * line on a desktop-width frame) because the arena below it is sized from what is left of the viewport.
  */
 
-const TREASURE_STRIP_LIMIT = 8;
+const TREASURE_STRIP_LIMIT = 10;
 
 /**
  * How the runner certified the eligible chest count (SHIP-RUNTIME-CONTRACT.md section 3). The count is
  * only "pre-result" when the certificate basis is present; "native-win-loss-gate" is the loss-side 0.
  */
-export function chestEligibilityLabel(awarded: number | null, basis: string | null | undefined): string | null {
-  if (awarded === null) return null;
+export function chestEligibilityLabel(awarded: number | null | undefined, basis: string | null | undefined): string | null {
+  if (typeof awarded !== "number" || !Number.isSafeInteger(awarded) || awarded < 0) return null;
   if (basis === "reward-entitlement-certificate") return `${awarded} eligible (pre-result certificate)`;
   if (basis === "native-win-loss-gate") return `${awarded} eligible (native loss gate)`;
   return `${awarded} eligible in simulation`;
@@ -37,9 +38,9 @@ export type AllyVitalRow = {
   unitId: string;
   name: string;
   hp: number;
-  maxHp: number;
+  maxHp: number | null;
   mp: number;
-  maxMp: number;
+  maxMp: number | null;
   dead: boolean;
 };
 
@@ -87,6 +88,8 @@ export function BattleTreasureStrip({
   awarded,
   awardedBasis,
   pending,
+  inViewport = false,
+  displayScale = 1,
 }: {
   /** chests the runner queued at or before the displayed tick */
   queued: number;
@@ -96,9 +99,30 @@ export function BattleTreasureStrip({
   awarded: number | null;
   awardedBasis?: string | null;
   pending: number;
+  inViewport?: boolean;
+  displayScale?: number;
 }) {
   const shown = drops.slice(0, TREASURE_STRIP_LIMIT);
   const overflow = drops.length - shown.length;
+  if (inViewport) {
+    const description = `${queued} earned boxes queued${atEnd ? `; ${chestEligibilityLabel(awarded, awardedBasis) ?? "final eligibility unknown"}` : "; provisional until the fight ends"}`;
+    return (
+      <div className="ka-prize-bar" data-battle-prize-bar data-generated-chest-summary
+        data-generated-live-chests={queued} aria-label={description} title={description}
+        style={{ transform: `scale(${displayScale})`, backgroundImage: `url(${HUD_SPRITES.treasureBar})` }}>
+        <span className="sr-only" data-generated-live-chest-count={queued}>{description}</span>
+        <span data-generated-chest-drops>
+          {shown.map((drop, index) => (
+            <span key={drop.seq} className="ka-prize-bar__box" data-generated-chest={drop.treasureId ?? "unresolved"}
+              style={{ left: 15 + index * 23 }}>
+              <TreasureIcon drop={drop} />
+            </span>
+          ))}
+        </span>
+        {overflow > 0 ? <span className="ka-prize-bar__overflow" data-chest-overflow>+{overflow}</span> : null}
+      </div>
+    );
+  }
   return (
     <div className="ka-hud-strip" data-generated-chest-summary data-generated-live-chests={queued}>
       <span className="ka-hud-strip__label">Chests</span>
@@ -143,8 +167,8 @@ export function BattleAllyVitals({ rows }: { rows: AllyVitalRow[] }) {
   return (
     <div className="ka-hud-vitals" data-ally-vitals>
       {rows.map((row) => {
-        const hpPercent = gaugePercent(row.hp, row.maxHp);
-        const mpPercent = gaugePercent(row.mp, row.maxMp);
+        const hpPercent = row.maxHp === null ? 0 : gaugePercent(row.hp, row.maxHp);
+        const mpPercent = row.maxMp === null ? 0 : gaugePercent(row.mp, row.maxMp);
         return (
           <div
             key={row.unitId}
@@ -152,9 +176,9 @@ export function BattleAllyVitals({ rows }: { rows: AllyVitalRow[] }) {
             data-ally-vitals-unit={row.unitId}
             data-ally-vitals-name={row.name}
             data-ally-hp={row.hp}
-            data-ally-max-hp={row.maxHp}
+            data-ally-max-hp={row.maxHp ?? "unknown"}
             data-ally-mp={row.mp}
-            data-ally-max-mp={row.maxMp}
+            data-ally-max-mp={row.maxMp ?? "unknown"}
             data-ally-dead={row.dead ? "1" : "0"}
           >
             <span className="ka-hud-vital__name">{row.name}</span>
@@ -168,10 +192,10 @@ export function BattleAllyVitals({ rows }: { rows: AllyVitalRow[] }) {
             </span>
             <span className="ka-hud-vital__nums" data-ally-vitals-number>
               <span className="ka-hud-vital__hp">
-                HP {row.hp}/{row.maxHp}
+                HP {row.hp}/{row.maxHp ?? "?"}
               </span>
               <span className="ka-hud-vital__mp">
-                MP {row.mp}/{row.maxMp}
+                MP {row.mp}/{row.maxMp ?? "?"}
               </span>
             </span>
           </div>

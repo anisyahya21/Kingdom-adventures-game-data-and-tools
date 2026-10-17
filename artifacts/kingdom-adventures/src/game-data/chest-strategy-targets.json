@@ -1,0 +1,958 @@
+{
+  "schema": "ka-website-strategy-picker-catalog-v1",
+  "createdUtc": "2026-10-11",
+  "objective": "Earned; options are ranked by measured fixed-tuple mean, with highest retained as a separate observed statistic.",
+  "statOrder": [
+    "atk",
+    "spd",
+    "lck"
+  ],
+  "fixedSetup": {
+    "formation": "one Synthetic DPS, four fodders, one healer; fixed-formation policy",
+    "policyPath": "A:\\KingdomAdventurersOptimizer\\project\\coordination\\native-preparation\\rust\\standalone-optimizer\\src\\fixed_formation_policy.json",
+    "policySha256": "94d46d129321f1e305fa76b692940e981d55665b3095c1a6609637a78e62653d"
+  },
+  "provenance": {
+    "sourcePath": "A:\\KingdomAdventurersOptimizer\\runtime\\overnight-research-20261011\\all20-mean-validation\\review.json",
+    "sourceSha256": "a6c238196a839b0b5abf33f7c417653e873bb93458042fd089806d2491850101",
+    "freezePath": "A:\\KingdomAdventurersOptimizer\\runtime\\overnight-research-20261011\\all20-mean-validation\\validation-freeze.json",
+    "freezeSha256": "263f4860075005c9e5d01750cfcc9ce2ad716733abf7963570abfc90b068ae29",
+    "reviewerPath": "A:\\KingdomAdventurersOptimizer\\runtime\\overnight-research-20261011\\all20-mean-validation\\review.py",
+    "reviewerSha256": "c5648024e6bad2f930bd52210930717aef6386374c4507c94d9e1d94180a139d",
+    "verifiedTrials": 3600,
+    "seedRange": [
+      748,
+      807
+    ],
+    "configsPerEncounter": 3,
+    "verification": "review.py asserts unique (seed, encounter, atk, spd, lck) observations and 3600 saved trials; each retained fixed tuple has n=60. Failures are included in its reward mean and highest.",
+    "excludedReservedTargetCount": 0,
+    "additionalReviews": [
+      {
+        "path": "runtime\\extreme-average-20261012\\review-validation.json",
+        "sha256": "ecf10883e7204045d4219eb952f61dd57db2ca6bcadfe488c824d0c2341718f1"
+      },
+      {
+        "path": "runtime\\extreme-average-20261012-round2\\review-validation.json",
+        "sha256": "fcec5e643c8a781cd518d4984a4e0ead7069c9ed0422c3c57892fed50c98366a"
+      },
+      {
+        "path": "runtime\\extreme-average-20261013-all5\\review-validation.json",
+        "sha256": "92df56bfda3e432f4de19e7e13e8a58c537825cabec57bc37e8af8e99f74b2f0"
+      }
+    ]
+  },
+  "options": [
+    {
+      "id": "e0-atk67-spd88-lck34",
+      "encounter": 0,
+      "atk": 67,
+      "spd": 88,
+      "lck": 34,
+      "mean": 5.716666666666667,
+      "highest": 24.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e0-atk69-spd68-lck94",
+      "encounter": 0,
+      "atk": 69,
+      "spd": 68,
+      "lck": 94,
+      "mean": 5.583333333333333,
+      "highest": 18.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e0-atk73-spd68-lck94",
+      "encounter": 0,
+      "atk": 73,
+      "spd": 68,
+      "lck": 94,
+      "mean": 4.866666666666666,
+      "highest": 13.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e1-atk140-spd459-lck5",
+      "encounter": 1,
+      "atk": 140,
+      "spd": 459,
+      "lck": 5,
+      "mean": 7.55,
+      "highest": 29.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e1-atk128-spd515-lck72",
+      "encounter": 1,
+      "atk": 128,
+      "spd": 515,
+      "lck": 72,
+      "mean": 6.616666666666666,
+      "highest": 31.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e1-atk128-spd515-lck77",
+      "encounter": 1,
+      "atk": 128,
+      "spd": 515,
+      "lck": 77,
+      "mean": 6.616666666666666,
+      "highest": 31.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e2-atk398-spd404-lck376",
+      "encounter": 2,
+      "atk": 398,
+      "spd": 404,
+      "lck": 376,
+      "mean": 8.9,
+      "highest": 54.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e2-atk405-spd480-lck365",
+      "encounter": 2,
+      "atk": 405,
+      "spd": 480,
+      "lck": 365,
+      "mean": 8.2,
+      "highest": 52.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e2-atk406-spd480-lck410",
+      "encounter": 2,
+      "atk": 406,
+      "spd": 480,
+      "lck": 410,
+      "mean": 7.983333333333333,
+      "highest": 52.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e3-atk1089-spd622-lck57",
+      "encounter": 3,
+      "atk": 1089,
+      "spd": 622,
+      "lck": 57,
+      "mean": 9.633333333333333,
+      "highest": 54.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e3-atk994-spd656-lck126",
+      "encounter": 3,
+      "atk": 994,
+      "spd": 656,
+      "lck": 126,
+      "mean": 9.925,
+      "highest": 40.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 11,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 11/80; defeats: 0/80. Different seed groups are not matched comparisons.",
+      "previousMeasurements": [
+        {
+          "id": "e3-atk994-spd656-lck126",
+          "encounter": 3,
+          "atk": 994,
+          "spd": 656,
+          "lck": 126,
+          "mean": 9.55,
+          "highest": 59.0,
+          "n": 60,
+          "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+        }
+      ]
+    },
+    {
+      "id": "e3-atk1084-spd637-lck47",
+      "encounter": 3,
+      "atk": 1084,
+      "spd": 637,
+      "lck": 47,
+      "mean": 8.866666666666667,
+      "highest": 34.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e4-atk62-spd80-lck66",
+      "encounter": 4,
+      "atk": 62,
+      "spd": 80,
+      "lck": 66,
+      "mean": 2.2333333333333334,
+      "highest": 13.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e4-atk62-spd80-lck116",
+      "encounter": 4,
+      "atk": 62,
+      "spd": 80,
+      "lck": 116,
+      "mean": 2.1333333333333333,
+      "highest": 16.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e4-atk62-spd100-lck56",
+      "encounter": 4,
+      "atk": 62,
+      "spd": 100,
+      "lck": 56,
+      "mean": 1.75,
+      "highest": 15.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e5-atk141-spd471-lck63",
+      "encounter": 5,
+      "atk": 141,
+      "spd": 471,
+      "lck": 63,
+      "mean": 4.35,
+      "highest": 51.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e5-atk85-spd185-lck53",
+      "encounter": 5,
+      "atk": 85,
+      "spd": 185,
+      "lck": 53,
+      "mean": 4.25,
+      "highest": 28.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e5-atk143-spd422-lck25",
+      "encounter": 5,
+      "atk": 143,
+      "spd": 422,
+      "lck": 25,
+      "mean": 3.2333333333333334,
+      "highest": 33.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e6-atk252-spd419-lck223",
+      "encounter": 6,
+      "atk": 252,
+      "spd": 419,
+      "lck": 223,
+      "mean": 5.733333333333333,
+      "highest": 38.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e6-atk256-spd444-lck253",
+      "encounter": 6,
+      "atk": 256,
+      "spd": 444,
+      "lck": 253,
+      "mean": 4.333333333333333,
+      "highest": 24.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e6-atk366-spd298-lck244",
+      "encounter": 6,
+      "atk": 366,
+      "spd": 298,
+      "lck": 244,
+      "mean": 2.8666666666666667,
+      "highest": 30.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e7-atk1779-spd1160-lck21",
+      "encounter": 7,
+      "atk": 1779,
+      "spd": 1160,
+      "lck": 21,
+      "mean": 10.383333333333333,
+      "highest": 35.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e7-atk1550-spd538-lck12",
+      "encounter": 7,
+      "atk": 1550,
+      "spd": 538,
+      "lck": 12,
+      "mean": 9.65,
+      "highest": 38.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 13,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 13/80; defeats: 0/80. Different seed groups are not matched comparisons.",
+      "previousMeasurements": [
+        {
+          "id": "e7-atk1550-spd538-lck12",
+          "encounter": 7,
+          "atk": 1550,
+          "spd": 538,
+          "lck": 12,
+          "mean": 9.05,
+          "highest": 31.0,
+          "n": 60,
+          "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+        }
+      ]
+    },
+    {
+      "id": "e7-atk1112-spd516-lck281",
+      "encounter": 7,
+      "atk": 1112,
+      "spd": 516,
+      "lck": 281,
+      "mean": 8.066666666666666,
+      "highest": 59.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e8-atk48-spd92-lck230",
+      "encounter": 8,
+      "atk": 48,
+      "spd": 92,
+      "lck": 230,
+      "mean": 1.95,
+      "highest": 17.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e8-atk48-spd92-lck250",
+      "encounter": 8,
+      "atk": 48,
+      "spd": 92,
+      "lck": 250,
+      "mean": 1.95,
+      "highest": 17.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e8-atk54-spd100-lck290",
+      "encounter": 8,
+      "atk": 54,
+      "spd": 100,
+      "lck": 290,
+      "mean": 1.65,
+      "highest": 16.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e9-atk151-spd143-lck188",
+      "encounter": 9,
+      "atk": 151,
+      "spd": 143,
+      "lck": 188,
+      "mean": 3.816666666666667,
+      "highest": 26.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e9-atk140-spd505-lck114",
+      "encounter": 9,
+      "atk": 140,
+      "spd": 505,
+      "lck": 114,
+      "mean": 3.0,
+      "highest": 31.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e9-atk140-spd505-lck129",
+      "encounter": 9,
+      "atk": 140,
+      "spd": 505,
+      "lck": 129,
+      "mean": 3.0,
+      "highest": 31.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e10-atk276-spd466-lck11",
+      "encounter": 10,
+      "atk": 276,
+      "spd": 466,
+      "lck": 11,
+      "mean": 6.5,
+      "highest": 36.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e10-atk316-spd408-lck11",
+      "encounter": 10,
+      "atk": 316,
+      "spd": 408,
+      "lck": 11,
+      "mean": 5.933333333333334,
+      "highest": 29.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e10-atk341-spd425-lck230",
+      "encounter": 10,
+      "atk": 341,
+      "spd": 425,
+      "lck": 230,
+      "mean": 3.05,
+      "highest": 18.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e11-atk2412-spd863-lck48",
+      "encounter": 11,
+      "atk": 2412,
+      "spd": 863,
+      "lck": 48,
+      "mean": 9.666666666666666,
+      "highest": 43.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e11-atk1969-spd483-lck50",
+      "encounter": 11,
+      "atk": 1969,
+      "spd": 483,
+      "lck": 50,
+      "mean": 7.45,
+      "highest": 34.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e11-atk2342-spd940-lck32",
+      "encounter": 11,
+      "atk": 2342,
+      "spd": 940,
+      "lck": 32,
+      "mean": 7.15,
+      "highest": 50.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e12-atk110-spd189-lck152",
+      "encounter": 12,
+      "atk": 110,
+      "spd": 189,
+      "lck": 152,
+      "mean": 5.45,
+      "highest": 32.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e12-atk110-spd189-lck162",
+      "encounter": 12,
+      "atk": 110,
+      "spd": 189,
+      "lck": 162,
+      "mean": 5.45,
+      "highest": 32.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e12-atk93-spd213-lck18",
+      "encounter": 12,
+      "atk": 93,
+      "spd": 213,
+      "lck": 18,
+      "mean": 4.8,
+      "highest": 48.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e13-atk173-spd368-lck153",
+      "encounter": 13,
+      "atk": 173,
+      "spd": 368,
+      "lck": 153,
+      "mean": 7.883333333333334,
+      "highest": 59.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e13-atk186-spd363-lck198",
+      "encounter": 13,
+      "atk": 186,
+      "spd": 363,
+      "lck": 198,
+      "mean": 7.766666666666667,
+      "highest": 55.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e13-atk187-spd368-lck188",
+      "encounter": 13,
+      "atk": 187,
+      "spd": 368,
+      "lck": 188,
+      "mean": 6.65,
+      "highest": 42.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e14-atk454-spd439-lck304",
+      "encounter": 14,
+      "atk": 454,
+      "spd": 439,
+      "lck": 304,
+      "mean": 16.516666666666666,
+      "highest": 48.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e14-atk454-spd439-lck339",
+      "encounter": 14,
+      "atk": 454,
+      "spd": 439,
+      "lck": 339,
+      "mean": 16.516666666666666,
+      "highest": 48.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e14-atk516-spd543-lck71",
+      "encounter": 14,
+      "atk": 516,
+      "spd": 543,
+      "lck": 71,
+      "mean": 11.366666666666667,
+      "highest": 66.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e15-atk1062-spd725-lck628",
+      "encounter": 15,
+      "atk": 1062,
+      "spd": 725,
+      "lck": 628,
+      "mean": 16.283333333333335,
+      "highest": 45.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e15-atk1063-spd675-lck628",
+      "encounter": 15,
+      "atk": 1063,
+      "spd": 675,
+      "lck": 628,
+      "mean": 15.216666666666667,
+      "highest": 39.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e15-atk1061-spd705-lck648",
+      "encounter": 15,
+      "atk": 1061,
+      "spd": 705,
+      "lck": 648,
+      "mean": 14.9,
+      "highest": 36.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e16-atk28-spd143-lck193",
+      "encounter": 16,
+      "atk": 28,
+      "spd": 143,
+      "lck": 193,
+      "mean": 3.066666666666667,
+      "highest": 19.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e16-atk37-spd120-lck127",
+      "encounter": 16,
+      "atk": 37,
+      "spd": 120,
+      "lck": 127,
+      "mean": 2.533333333333333,
+      "highest": 16.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e16-atk33-spd118-lck55",
+      "encounter": 16,
+      "atk": 33,
+      "spd": 118,
+      "lck": 55,
+      "mean": 2.05,
+      "highest": 14.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e17-atk71-spd250-lck95",
+      "encounter": 17,
+      "atk": 71,
+      "spd": 250,
+      "lck": 95,
+      "mean": 18.4,
+      "highest": 48.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e17-atk73-spd250-lck95",
+      "encounter": 17,
+      "atk": 73,
+      "spd": 250,
+      "lck": 95,
+      "mean": 17.266666666666666,
+      "highest": 54.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e17-atk62-spd217-lck103",
+      "encounter": 17,
+      "atk": 62,
+      "spd": 217,
+      "lck": 103,
+      "mean": 16.933333333333334,
+      "highest": 44.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e18-atk173-spd424-lck89",
+      "encounter": 18,
+      "atk": 173,
+      "spd": 424,
+      "lck": 89,
+      "mean": 29.566666666666666,
+      "highest": 65.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e18-atk168-spd502-lck119",
+      "encounter": 18,
+      "atk": 168,
+      "spd": 502,
+      "lck": 119,
+      "mean": 28.566666666666666,
+      "highest": 69.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e18-atk168-spd502-lck129",
+      "encounter": 18,
+      "atk": 168,
+      "spd": 502,
+      "lck": 129,
+      "mean": 28.566666666666666,
+      "highest": 69.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e19-atk238-spd369-lck336",
+      "encounter": 19,
+      "atk": 238,
+      "spd": 369,
+      "lck": 336,
+      "mean": 37.666666666666664,
+      "highest": 86.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e19-atk238-spd389-lck336",
+      "encounter": 19,
+      "atk": 238,
+      "spd": 389,
+      "lck": 336,
+      "mean": 37.666666666666664,
+      "highest": 86.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e19-atk239-spd339-lck241",
+      "encounter": 19,
+      "atk": 239,
+      "spd": 339,
+      "lck": 241,
+      "mean": 32.3,
+      "highest": 85.0,
+      "n": 60,
+      "source": "all20-mean-validation; seeds 748-807; 60 matched fresh trials; failures included"
+    },
+    {
+      "id": "e3-atk1089-spd491-lck57",
+      "encounter": 3,
+      "atk": 1089,
+      "spd": 491,
+      "lck": 57,
+      "mean": 8.925,
+      "highest": 45.0,
+      "n": 80,
+      "seedRange": [
+        1208,
+        1287
+      ],
+      "status": "Measured alternative; higher average not established",
+      "source": "Independent validation; seeds 1208–1287; failures included; different seed groups are not matched comparisons",
+      "lowAtMost1": 6,
+      "defeats": 0,
+      "pairedMean95CI": [
+        -1.6625,
+        3.55
+      ]
+    },
+    {
+      "id": "e7-atk1500-spd1160-lck21",
+      "encounter": 7,
+      "atk": 1500,
+      "spd": 1160,
+      "lck": 21,
+      "mean": 9.025,
+      "highest": 32.0,
+      "n": 80,
+      "seedRange": [
+        1208,
+        1287
+      ],
+      "status": "Measured alternative; higher average not established",
+      "source": "Independent validation; seeds 1208–1287; failures included; different seed groups are not matched comparisons",
+      "lowAtMost1": 14,
+      "defeats": 0,
+      "pairedMean95CI": [
+        -2.55,
+        1.05
+      ]
+    },
+    {
+      "id": "e11-atk2250-spd483-lck50",
+      "encounter": 11,
+      "atk": 2250,
+      "spd": 483,
+      "lck": 50,
+      "mean": 7.225,
+      "highest": 29.0,
+      "n": 80,
+      "seedRange": [
+        1208,
+        1287
+      ],
+      "status": "Measured alternative; higher average not established",
+      "source": "Independent validation; seeds 1208–1287; failures included; different seed groups are not matched comparisons",
+      "lowAtMost1": 17,
+      "defeats": 0,
+      "pairedMean95CI": [
+        -1.475,
+        2.225
+      ]
+    },
+    {
+      "id": "e19-atk300-spd389-lck336",
+      "encounter": 19,
+      "atk": 300,
+      "spd": 389,
+      "lck": 336,
+      "mean": 35.15,
+      "highest": 79.0,
+      "n": 120,
+      "seedRange": [
+        1348,
+        1467
+      ],
+      "status": "Measured alternative; higher average not established",
+      "source": "Independent validation; seeds 1348–1467; failures included; different seed groups are not matched comparisons",
+      "lowAtMost1": 0,
+      "defeats": 0
+    },
+    {
+      "id": "e19-atk318-spd474-lck199",
+      "encounter": 19,
+      "atk": 318,
+      "spd": 474,
+      "lck": 199,
+      "mean": 30.8,
+      "highest": 79.0,
+      "n": 120,
+      "seedRange": [
+        1348,
+        1467
+      ],
+      "status": "Measured alternative; higher average not established",
+      "source": "Independent validation; seeds 1348–1467; failures included; different seed groups are not matched comparisons",
+      "lowAtMost1": 0,
+      "defeats": 0
+    },
+    {
+      "id": "e3-atk1270-spd490-lck5",
+      "encounter": 3,
+      "atk": 1270,
+      "spd": 490,
+      "lck": 5,
+      "mean": 8.2125,
+      "highest": 46.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 5,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 5/80; defeats: 0/80. Different seed groups are not matched comparisons."
+    },
+    {
+      "id": "e7-atk1620-spd615-lck5",
+      "encounter": 7,
+      "atk": 1620,
+      "spd": 615,
+      "lck": 5,
+      "mean": 9.3,
+      "highest": 36.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 11,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 11/80; defeats: 0/80. Different seed groups are not matched comparisons."
+    },
+    {
+      "id": "e15-atk1062-spd725-lck450",
+      "encounter": 15,
+      "atk": 1062,
+      "spd": 725,
+      "lck": 450,
+      "mean": 12.3125,
+      "highest": 41.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 12,
+      "defeats": 2,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 12/80; defeats: 2/80. Different seed groups are not matched comparisons."
+    },
+    {
+      "id": "e15-atk1062-spd725-lck800",
+      "encounter": 15,
+      "atk": 1062,
+      "spd": 725,
+      "lck": 800,
+      "mean": 14.325,
+      "highest": 47.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 13,
+      "defeats": 5,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 13/80; defeats: 5/80. Different seed groups are not matched comparisons."
+    },
+    {
+      "id": "e19-atk280-spd389-lck336",
+      "encounter": 19,
+      "atk": 280,
+      "spd": 389,
+      "lck": 336,
+      "mean": 36.2625,
+      "highest": 68.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 0,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 0/80; defeats: 0/80. Different seed groups are not matched comparisons."
+    },
+    {
+      "id": "e19-atk300-spd389-lck280",
+      "encounter": 19,
+      "atk": 300,
+      "spd": 389,
+      "lck": 280,
+      "mean": 37.7625,
+      "highest": 76.0,
+      "n": 80,
+      "seedRange": [
+        1508,
+        1587
+      ],
+      "lowAtMost1": 0,
+      "defeats": 0,
+      "status": "Measured alternative; superiority depends on comparison",
+      "source": "Independent validation; seeds 1508–1587; failures included. Earned ≤1: 0/80; defeats: 0/80. Different seed groups are not matched comparisons."
+    }
+  ],
+  "updatedUtc": "2026-10-13"
+}

@@ -19,7 +19,7 @@ function sorted(record: Record<string, unknown>) { return Object.entries(record)
 export function favoriteFingerprint(build: ProfileGoalBuild, profile: PlayerProfile) {
   const character = profile.characters.find((row) => row.id === build.characterId);
   return JSON.stringify({ characterId: build.characterId, jobName: build.jobName ?? character?.jobName, rank: build.rank ?? character?.rank,
-    levels: sorted(character?.statLevels ?? {}), valuables: sorted(profile.valuables), stats: sorted(build.stats),
+    gender: character?.gender, levels: sorted(character?.statLevels ?? {}), valuables: sorted(profile.valuables), stats: sorted(build.stats),
     picks: [...build.picks].sort((left, right) => left.slot.localeCompare(right.slot)), skills: build.skills ?? [] });
 }
 
@@ -37,7 +37,7 @@ export function createFarmingFavorite(build: ProfileGoalBuild, profile: PlayerPr
 export function favoriteToLoadout(favorite: FarmingFavorite): SavedLoadout & { useProfileInventory: boolean } {
   const character = favorite.profile.characters.find((row) => row.id === favorite.build.characterId);
   if (!character) throw new Error("This favorite has no saved character snapshot.");
-  return { id: `favorite:${favorite.id}`, name: favorite.name,
+  return { id: `favorite:${favorite.id}`, name: favorite.name, gender: character.gender,
     jobName: favorite.build.jobName ?? character.jobName, rank: favorite.build.rank ?? character.rank,
     statLevels: { ...character.statLevels }, equipment: favorite.build.picks.map((pick) => ({ name: pick.item, level: pick.level })),
     skills: [...(favorite.build.skills ?? [])], residentStatItems: profileResidentStatItems(favorite.profile),

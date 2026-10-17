@@ -1,0 +1,84 @@
+{
+  "source": {
+    "textAsset": "snd",
+    "assetFile": "198e3cb8d70764dc8a7c3c3a1c3039f7",
+    "pathId": 1
+  },
+  "sounds": {
+    "16": {
+      "file": "/battle-assets/sounds/se_heal.wav",
+      "name": "se_heal",
+      "sha256": "90d2b37660d76795015bdb5e9b684b75800a80cd02284650afe43308afd64f13"
+    },
+    "17": {
+      "file": "/battle-assets/sounds/se_1_do_sp.wav",
+      "name": "se_1_do_sp",
+      "sha256": "d44b79053970307da3c486c6a5ed72229349177c0065e38ee4a525420af03b3c"
+    },
+    "18": {
+      "file": "/battle-assets/sounds/se_miss.wav",
+      "name": "se_miss",
+      "sha256": "998be0ffdbbbb26ef7d4b5bd99525451b25c32426943e5273568324dc65722d9"
+    },
+    "19": {
+      "file": "/battle-assets/sounds/se_secchi.wav",
+      "name": "se_secchi",
+      "sha256": "0929e757773f24c58bb3c37a4da8acdca0dd60c231bc52f87a33d2cbe7b2d956"
+    },
+    "20": {
+      "file": "/battle-assets/sounds/se_bu.wav",
+      "name": "se_bu",
+      "sha256": "35b78f066aaafed972a74cfd8bad9abcb052e8f9bf9304b74323fe927605ce0b"
+    },
+    "21": {
+      "file": "/battle-assets/sounds/se_wave.wav",
+      "name": "se_wave",
+      "sha256": "4eaacd342a342739f26e8ad833fbcedb14b976b9bcade6d625b87b72d07d752e"
+    },
+    "22": {
+      "file": "/battle-assets/sounds/se_click_high.wav",
+      "name": "se_click_high",
+      "sha256": "d240b3a2647c540ad31d1e401d32246e32c4640bceb0650f17b0e991e8ad346a"
+    },
+    "23": {
+      "file": "/battle-assets/sounds/se_click_low.wav",
+      "name": "se_click_low",
+      "sha256": "bc96974aac1a7b2abd84984de5aef4024716cb3acc89c69a8d57bb7aed19da09"
+    },
+    "24": {
+      "file": "/battle-assets/sounds/se_btl_arrow.wav",
+      "name": "se_btl_arrow",
+      "sha256": "d86968d06ee996a338ba8227afdb0b20e728ff283ca7158356f9917aae5b601e"
+    },
+    "25": {
+      "file": "/battle-assets/sounds/se_btl_slash.wav",
+      "name": "se_btl_slash",
+      "sha256": "fe152563a095981b3e8b772d81745203df186bd3fe04bb1a3b369877fe3b67aa"
+    },
+    "26": {
+      "file": "/battle-assets/sounds/se_btl_attack_enemy.wav",
+      "name": "se_btl_attack_enemy",
+      "sha256": "161cad0aa77f4e461ced1d30d42f00a12974a91ad683aa006d4c1586fdf2cae2"
+    },
+    "27": {
+      "file": "/battle-assets/sounds/se_btl_critical.wav",
+      "name": "se_btl_critical",
+      "sha256": "7b9c0601c46a5247571c4863c529e4fd5431378cc29dd0ee81d054a0fc2dfca9"
+    },
+    "28": {
+      "file": "/battle-assets/sounds/se_btl_magic.wav",
+      "name": "se_btl_magic",
+      "sha256": "eab4dfdc9f2894af2e942899399785016218d3c3dccc2147e4dac5b7f8ee6ed8"
+    },
+    "29": {
+      "file": "/battle-assets/sounds/se_btl_runaway.wav",
+      "name": "se_btl_runaway",
+      "sha256": "fdeef9e4bcb7d96f3962b7ca6ad58d4c2a4fb6bea7fba4ab2a89e4a9178055a5"
+    },
+    "30": {
+      "file": "/battle-assets/sounds/se_btl_guard.wav",
+      "name": "se_btl_guard",
+      "sha256": "fc9cf3edf885c42c7dfd1f24c23777f8a22676ddd17152f4919ce939b80e5b68"
+    }
+  }
+}

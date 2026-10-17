@@ -45,11 +45,33 @@ import {
 
 export type HumanClipId =
   | "equipWaitUp"
+  | "equipWaitRight"
+  | "equipWaitDown"
+  | "equipWaitLeft"
   | "attackSwordUp"
+  | "attackSwordRight"
+  | "attackSwordDown"
+  | "attackSwordLeft"
   | "attackMagicUp"
+  | "attackMagicRight"
+  | "attackMagicDown"
+  | "attackMagicLeft"
   | "attackGunUp"
+  | "attackGunRight"
+  | "attackGunDown"
+  | "attackGunLeft"
   | "attackSpearUp"
-  | "attackBowUp";
+  | "attackSpearRight"
+  | "attackSpearDown"
+  | "attackSpearLeft"
+  | "attackBowUp"
+  | "attackBowRight"
+  | "attackBowDown"
+  | "attackBowLeft"
+  | "attackScoopUp"
+  | "attackScoopRight"
+  | "attackScoopDown"
+  | "attackScoopLeft";
 
 /** One SEB key record; `frame` is the key and the line's own list is sorted by it. */
 export type HumanSebRecord = {
@@ -73,6 +95,8 @@ export type HumanClip = {
   behaviour: number;
   humanBase: number;
   direction: string;
+  /** seb.inf `,u` variant; the native flip mirrors every sprite line horizontally. */
+  flip?: boolean;
   why: string;
   source: string;
   maxFrame: number;
@@ -967,7 +991,7 @@ export function humanLineRecordsAt(clip: HumanClip, frame: number): HumanIdleLin
       h: record.h,
       transX: record.transX,
       transY: record.transY,
-      reversU: record.reversU,
+      reversU: (record.reversU ^ (clip.flip ? 1 : 0)) & 1,
       reversV: record.reversV,
     });
   }

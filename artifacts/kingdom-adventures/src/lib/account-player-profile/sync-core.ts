@@ -5,6 +5,7 @@ export type PlayerProfile = {
     id: string;
     jobName: string;
     rank: string;
+    gender?: 0 | 1;
     statLevels: Record<string, number>;
   }>;
   valuables: Record<string, number>;
@@ -99,6 +100,7 @@ function stableProfile(profile: PlayerProfile) {
       id: character.id,
       jobName: character.jobName,
       rank: character.rank,
+      ...(character.gender === 0 || character.gender === 1 ? { gender: character.gender } : {}),
       statLevels: Object.fromEntries(Object.entries(character.statLevels).sort(([a], [b]) => a.localeCompare(b))),
     })),
     valuables: Object.fromEntries(Object.entries(profile.valuables).sort(([a], [b]) => a.localeCompare(b))),

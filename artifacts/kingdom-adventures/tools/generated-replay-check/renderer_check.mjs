@@ -141,7 +141,7 @@ for (const [label, base, clipId] of clipCases) {
   check(`${label} resolves to ${clipId}`, generatedClipForBase(base, 0), clipId);
   checkTrue(`${clipId} is exported with real frames`, (HUMAN_CLIPS[clipId]?.frames.length ?? 0) > 0, JSON.stringify(HUMAN_CLIPS[clipId]?.frames?.length));
 }
-check("the ally direction offset resolves the enemy twin of base 16", generatedClipForBase(18, 2), "attackSwordUp");
+check("the native direction resolves the enemy twin of base 16", generatedClipForBase(18, 2), "attackSwordDown");
 check("the weapon motion map now reports motion 4 as decoded", generatedAttackClipId(4), "attackSwordUp");
 check("the skill motion 31 resolves to the magic clip", generatedAttackClipId(31), "attackMagicUp");
 check("no idle clip is substituted for a decoded attack", generatedAttackClipId(4) === "equipWaitUp", false);

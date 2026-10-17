@@ -375,6 +375,40 @@ img[src^="/character_sprites/"] {
   background: hsl(var(--background) / 0.7);
 }
 
+/* Native prize bar: ten entries, 23 logical pixels apart, independent of world panning. */
+.ka-prize-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 40px;
+  transform-origin: top left;
+  background-size: 240px 40px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  z-index: 20;
+  pointer-events: none;
+}
+.ka-prize-bar__box {
+  position: absolute;
+  top: 28px;
+  transform: translate(-50%, -100%);
+}
+.ka-prize-bar .ka-hud-chest {
+  width: 22px;
+  height: 22px;
+}
+.ka-prize-bar__overflow {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 8px;
+  line-height: 10px;
+  color: #fff;
+  text-shadow: 0 1px #000;
+}
+
+
 .ka-hud-strip__label {
   font-size: 0.68rem;
   font-weight: 600;

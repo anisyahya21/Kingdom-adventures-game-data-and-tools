@@ -1,0 +1,368 @@
+{
+  "clip": {
+    "layers": 1,
+    "maxFrame": 4,
+    "frames": [
+      {
+        "line": 0,
+        "frame": 0,
+        "tex": 27,
+        "u": 0,
+        "v": 0,
+        "w": 16,
+        "h": 24,
+        "transX": -8,
+        "transY": -12,
+        "reversU": 0,
+        "reversV": 0
+      },
+      {
+        "line": 0,
+        "frame": 1,
+        "tex": 27,
+        "u": 0,
+        "v": 0,
+        "w": 16,
+        "h": 24,
+        "transX": -8,
+        "transY": -12,
+        "reversU": 0,
+        "reversV": 0
+      },
+      {
+        "line": 0,
+        "frame": 2,
+        "tex": 27,
+        "u": 16,
+        "v": 0,
+        "w": 16,
+        "h": 24,
+        "transX": -8,
+        "transY": -12,
+        "reversU": 0,
+        "reversV": 0
+      },
+      {
+        "line": 0,
+        "frame": 3,
+        "tex": 27,
+        "u": 16,
+        "v": 0,
+        "w": 16,
+        "h": 24,
+        "transX": -8,
+        "transY": -12,
+        "reversU": 0,
+        "reversV": 0
+      }
+    ],
+    "recordsPerLine": [
+      4
+    ],
+    "bytes": 88,
+    "sha256": "89e1783c0c3fad211ef8d46aa66b57c4f0bac8e468508406b2cc1fbe009a3c76"
+  },
+  "images": {
+    "27": {
+      "file": "/battle-assets/projectiles/arrow_00.png",
+      "cellWidth": 16,
+      "cellHeight": 24,
+      "columns": 2,
+      "rows": 1,
+      "cells": [
+        [
+          {
+            "x": 4,
+            "y": 2,
+            "sourceX": 0,
+            "sourceY": 0,
+            "width": 7,
+            "height": 19
+          }
+        ],
+        [
+          {
+            "x": 4,
+            "y": 2,
+            "sourceX": 7,
+            "sourceY": 0,
+            "width": 7,
+            "height": 18
+          }
+        ]
+      ],
+      "sha256": "f0aa957d330a4b55c350fe1673069ecaea2f04ffbc72a7e68b16fdff8891d06d"
+    },
+    "28": {
+      "file": "/battle-assets/projectiles/fire_ball_00.png",
+      "cellWidth": 16,
+      "cellHeight": 24,
+      "columns": 2,
+      "rows": 1,
+      "cells": [
+        [
+          {
+            "x": 2,
+            "y": 2,
+            "sourceX": 0,
+            "sourceY": 0,
+            "width": 12,
+            "height": 21
+          }
+        ],
+        [
+          {
+            "x": 3,
+            "y": 2,
+            "sourceX": 12,
+            "sourceY": 0,
+            "width": 10,
+            "height": 20
+          }
+        ]
+      ],
+      "sha256": "e5697dbb4f734873fdea060a6bb992186e7b9f20198d7a6df7af65062d486fff"
+    },
+    "29": {
+      "file": "/battle-assets/projectiles/ice_ball_00.png",
+      "cellWidth": 16,
+      "cellHeight": 24,
+      "columns": 2,
+      "rows": 1,
+      "cells": [
+        [
+          {
+            "x": 2,
+            "y": 2,
+            "sourceX": 0,
+            "sourceY": 0,
+            "width": 12,
+            "height": 21
+          }
+        ],
+        [
+          {
+            "x": 3,
+            "y": 2,
+            "sourceX": 12,
+            "sourceY": 0,
+            "width": 10,
+            "height": 20
+          }
+        ]
+      ],
+      "sha256": "cb4f9460a48057df0e2eb05046bee246864eb7692b18a6fb9b079b71a5b2f572"
+    },
+    "30": {
+      "file": "/battle-assets/projectiles/thunder_ball_00.png",
+      "cellWidth": 16,
+      "cellHeight": 24,
+      "columns": 2,
+      "rows": 1,
+      "cells": [
+        [
+          {
+            "x": 3,
+            "y": 3,
+            "sourceX": 0,
+            "sourceY": 0,
+            "width": 11,
+            "height": 20
+          }
+        ],
+        [
+          {
+            "x": 4,
+            "y": 3,
+            "sourceX": 0,
+            "sourceY": 20,
+            "width": 10,
+            "height": 18
+          }
+        ]
+      ],
+      "sha256": "0eb96e1f48729fd65b2801f07aeb4776454f1f8323770ce0b3a713058458d47a"
+    },
+    "31": {
+      "file": "/battle-assets/projectiles/heal_ball_00.png",
+      "cellWidth": 16,
+      "cellHeight": 24,
+      "columns": 2,
+      "rows": 1,
+      "cells": [
+        [
+          {
+            "x": 0,
+            "y": 3,
+            "sourceX": 12,
+            "sourceY": 0,
+            "width": 15,
+            "height": 18
+          }
+        ],
+        [
+          {
+            "x": 2,
+            "y": 3,
+            "sourceX": 0,
+            "sourceY": 0,
+            "width": 12,
+            "height": 19
+          }
+        ]
+      ],
+      "sha256": "c2b2f12cdb85f3eee6f928d81bca219a4555afbcc999633a9491cc6120b68d81"
+    },
+    "32": {
+      "file": "/battle-assets/projectiles/effect_32.png",
+      "cellWidth": 60,
+      "cellHeight": 60,
+      "columns": 5,
+      "rows": 1,
+      "cells": [
+        [
+          {
+            "x": 22,
+            "y": 23,
+            "sourceX": 132,
+            "sourceY": 28,
+            "width": 15,
+            "height": 17
+          }
+        ],
+        [
+          {
+            "x": 15,
+            "y": 17,
+            "sourceX": 132,
+            "sourceY": 0,
+            "width": 29,
+            "height": 28
+          }
+        ],
+        [
+          {
+            "x": 11,
+            "y": 11,
+            "sourceX": 96,
+            "sourceY": 0,
+            "width": 36,
+            "height": 40
+          }
+        ],
+        [
+          {
+            "x": 4,
+            "y": 7,
+            "sourceX": 0,
+            "sourceY": 0,
+            "width": 50,
+            "height": 50
+          }
+        ],
+        [
+          {
+            "x": 6,
+            "y": 9,
+            "sourceX": 50,
+            "sourceY": 0,
+            "width": 46,
+            "height": 46
+          }
+        ]
+      ],
+      "sha256": "8f0ffb0031bff8f51efa386ecb4853d525f9ff72160b52de396a9be36b9c7aae"
+    },
+    "33": {
+      "file": "/battle-assets/projectiles/effect_33.png",
+      "cellWidth": 60,
+      "cellHeight": 60,
+      "columns": 5,
+      "rows": 1,
+      "cells": [
+        [
+          {
+            "x": 20,
+            "y": 50,
+            "sourceX": 0,
+            "sourceY": 94,
+            "width": 20,
+            "height": 8
+          }
+        ],
+        [
+          {
+            "x": 18,
+            "y": 38,
+            "sourceX": 0,
+            "sourceY": 59,
+            "width": 24,
+            "height": 20
+          }
+        ],
+        [
+          {
+            "x": 16,
+            "y": 32,
+            "sourceX": 0,
+            "sourceY": 33,
+            "width": 28,
+            "height": 26
+          }
+        ],
+        [
+          {
+            "x": 16,
+            "y": 16,
+            "sourceX": 0,
+            "sourceY": 0,
+            "width": 28,
+            "height": 33
+          }
+        ],
+        [
+          {
+            "x": 16,
+            "y": 14,
+            "sourceX": 0,
+            "sourceY": 79,
+            "width": 28,
+            "height": 15
+          }
+        ]
+      ],
+      "sha256": "df07f94c68ec4671602435942dff296b8fe86e673b45868ad1c8b5b7fbbe287a"
+    },
+    "34": {
+      "file": "/battle-assets/projectiles/effect_34.png",
+      "cellWidth": 16,
+      "cellHeight": 16,
+      "columns": 2,
+      "rows": 1,
+      "cells": [
+        [
+          {
+            "x": 5,
+            "y": 6,
+            "sourceX": 9,
+            "sourceY": 0,
+            "width": 5,
+            "height": 5
+          }
+        ],
+        [
+          {
+            "x": 3,
+            "y": 4,
+            "sourceX": 0,
+            "sourceY": 0,
+            "width": 9,
+            "height": 9
+          }
+        ]
+      ],
+      "sha256": "7f06ab344220d4f9fafba3aa4c659b976bbfdacf9c8d8afed3006ef9b5ea71e3"
+    }
+  },
+  "source": "Original effect img.inf, projectile.seb and OPT/PNG; img 27..34, seb 27 only."
+}

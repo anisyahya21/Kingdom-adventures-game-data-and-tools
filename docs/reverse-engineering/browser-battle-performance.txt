@@ -1,0 +1,23 @@
+Browser battle simulation speed, 2026-10-15
+
+Scope: live Pyodide player battles, their rollback checkpoints, and replay read-ahead. No combat rules, tick cadence, RNG, sound timing or animation events were removed.
+
+Measured bottleneck: bounded cProfile of RL ticks 0..280 attributed about 2.0 s of 4.6 profiled seconds to queue_position, whose five full-team HP scans were eagerly evaluated on ordinary formation decisions even when decide_next_state never used the result. The profile overhead is substantial; it is diagnostic and is not a production speed claim. Unprofiled timings below include replay export and JSON serialization.
+
+Changes:
+- Compute queue_position only for state not in (2,7,8) with column outside 0..4, exactly the branch that reads that argument. All candidate evaluation/RNG order remains intact.
+- Capture an engine checkpoint every 20 native ticks, at each window edge, and at explicit consumable boundaries. The previous worker configuration cloned the full engine roughly every 5-7 ticks. No frames or events are skipped.
+- Start with 160 ticks, advance in bounded 200-tick batches, and request another batch whenever fewer than six playback seconds remain (minimum 120 ticks). The old fixed 60-tick trigger left just 0.75 s at 4x.
+- Retain up to 40 checkpoints, with 36 dense recent points covering at least 700 ticks, so the maximum 480-tick 4x target plus one 200-tick batch still has nearby rollback points. Retained count is bounded; older seeking uses the existing deterministic replay path.
+
+Evidence on this Windows PC, Chrome155, real RL scenario (23 fighters), original fixed seeds and identical windows 80/180/280/380:
+- Original actual Pyodide worker request + full replay JSON parse: 111.70 ticks/s (5.59x native 20-tick/s time).
+- Final worker configuration: 228.87 ticks/s (11.44x native time), a 2.05x throughput improvement. Startup is reported separately (about 2.03 s original, 1.51 s final in these samples); network caching means that startup difference is not an isolated engine improvement.
+- Intermediate 16-checkpoint configuration reached 241.88 ticks/s, but the final 40-point configuration is the release measurement.
+- Actual rendered 4x playback over about 8.2 s advanced from tick16 to644 with zero simulation-buffer stops. At approximately 2.2 s, playback was at tick172 and the worker had already reached the final playback window at760. The 13-ms UI interval is the existing 4x presentation cadence.
+- Production verification also passed: the live worker reported verdict tick351, then completed its final window at560 while playback was still catching up. Playback reached560 and stopped normally, with zero buffer stalls. The browser harness now records worker window/verdict metadata to distinguish this legitimate finish from an exhausted simulation buffer. Production and local runtime ZIP contents were checked: only the line-ending-dependent manifest digests differed, not runtime source or game data.
+- Unprofiled CPython session/export/JSON timings, matched RL and R4 fixtures: about 2.00x and2.09x faster. These are local CPython orchestration measurements, not browser or desktop optimizer rates.
+
+Correctness: full replay hashes match every original measured window for RL/R4. Both normal advancement and a consumable inserted at tick250 match a fresh authoritative export, including RNG final state. A production-size 40-checkpoint session advanced to760 retains a point within20 ticks below displayed tick80, then applying a consumable there also matches a fresh export exactly. Synthetic stock was explicitly supplied for this diagnostic; these runs are not strategy evidence. Animation regression80/80, sound2266, and browser78/78 pass. The production build passes. Typecheck retains the same48 errors in unchanged pages, with no new diagnostics in the changed files.
+
+Tools: tools/browser-battle-performance/benchmark.py and worker-benchmark.mjs. Raw measurements, bootstrap, profile and browser reports are retained under the local runtime directory and copied into RE-evidence/20261015-browser-battle-speed. Browser numbers characterize this fixture and PC; slower visitor hardware or larger battles can have lower rates. The buffer remains bounded, and a consumable rebuilds only the deterministic branch it changes.

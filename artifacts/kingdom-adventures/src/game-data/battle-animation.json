@@ -621,6 +621,626 @@
         }
       ]
     },
+    "monsterWaitXL": {
+      "group": "monster",
+      "seb": "monster_xl_wait_up.seb",
+      "maxFrame": 20,
+      "layers": 2,
+      "textures": {
+        "3": "shadow_xl.png",
+        "8": "iwa_monster_l_01.png"
+      },
+      "frames": [
+        {
+          "line": 0,
+          "frame": 0,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 9,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 10,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 19,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 0,
+          "tex": 8,
+          "u": 0,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 9,
+          "tex": 8,
+          "u": 0,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 10,
+          "tex": 8,
+          "u": 150,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 19,
+          "tex": 8,
+          "u": 150,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        }
+      ]
+    },
+    "monsterWaitXLRight": {
+      "group": "monster",
+      "seb": "monster_xl_wait_right.seb",
+      "maxFrame": 20,
+      "layers": 2,
+      "textures": {
+        "3": "shadow_xl.png",
+        "8": "iwa_monster_l_01.png"
+      },
+      "frames": [
+        {
+          "line": 0,
+          "frame": 0,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 9,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 10,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 19,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 0,
+          "tex": 8,
+          "u": 0,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 9,
+          "tex": 8,
+          "u": 0,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 10,
+          "tex": 8,
+          "u": 150,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 19,
+          "tex": 8,
+          "u": 150,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        }
+      ]
+    },
+    "monsterAttackXL": {
+      "group": "monster",
+      "seb": "monster_xl_attack_up.seb",
+      "maxFrame": 10,
+      "layers": 2,
+      "textures": {
+        "3": "shadow_xl.png",
+        "22": "iwa_monster_xl_00.png"
+      },
+      "frames": [
+        {
+          "line": 0,
+          "frame": 0,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 1,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 2,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 4,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 6,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -34,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 8,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 9,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 0,
+          "tex": 22,
+          "u": 0,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 1,
+          "tex": 22,
+          "u": 0,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -152,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 2,
+          "tex": 22,
+          "u": 0,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 4,
+          "tex": 22,
+          "u": 150,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 6,
+          "tex": 22,
+          "u": 150,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -64,
+          "transY": -154,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 8,
+          "tex": 22,
+          "u": 150,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 9,
+          "tex": 22,
+          "u": 150,
+          "v": 0,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        }
+      ]
+    },
+    "monsterAttackXLRight": {
+      "group": "monster",
+      "seb": "monster_xl_attack_right.seb",
+      "maxFrame": 10,
+      "layers": 2,
+      "textures": {
+        "3": "shadow_xl.png",
+        "22": "iwa_monster_xl_00.png"
+      },
+      "frames": [
+        {
+          "line": 0,
+          "frame": 0,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 1,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 2,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 4,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 6,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -35,
+          "transY": -57,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 8,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 0,
+          "frame": 9,
+          "tex": 3,
+          "u": 0,
+          "v": 0,
+          "w": 80,
+          "h": 60,
+          "transX": -40,
+          "transY": -59,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 0,
+          "tex": 22,
+          "u": 0,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 1,
+          "tex": 22,
+          "u": 0,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -151,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 2,
+          "tex": 22,
+          "u": 0,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 4,
+          "tex": 22,
+          "u": 150,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 6,
+          "tex": 22,
+          "u": 150,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -66,
+          "transY": -148,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 8,
+          "tex": 22,
+          "u": 150,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        },
+        {
+          "line": 1,
+          "frame": 9,
+          "tex": 22,
+          "u": 0,
+          "v": 150,
+          "w": 150,
+          "h": 150,
+          "transX": -75,
+          "transY": -150,
+          "reversU": 0,
+          "reversV": 0
+        }
+      ]
+    },
     "humanWait": {
       "group": "chara",
       "seb": "equip_wait_up.seb",
@@ -3378,9 +3998,12 @@
   },
   "images": {},
   "copied": [
+    "iwa_monster_l_01.png",
     "iwa_monster_s_00.png",
+    "iwa_monster_xl_00.png",
     "mizu_shadow_s.png",
-    "shadow_s.png"
+    "shadow_s.png",
+    "shadow_xl.png"
   ],
   "sources": {
     "monsterWait": {
@@ -3415,6 +4038,46 @@
     },
     "monsterAttackLeft": {
       "path": "RE-evidence/20260911-treasure/monster-original/monster_s_attack_right.seb",
+      "bytes": 292,
+      "intact": true,
+      "lines": {
+        "0": 7,
+        "1": 7
+      },
+      "droppedRecords": 0
+    },
+    "monsterWaitXL": {
+      "path": "RE-evidence/20260911-treasure/monster-original/monster_xl_wait_up.seb",
+      "bytes": 172,
+      "intact": true,
+      "lines": {
+        "0": 4,
+        "1": 4
+      },
+      "droppedRecords": 0
+    },
+    "monsterWaitXLRight": {
+      "path": "RE-evidence/20260911-treasure/monster-original/monster_xl_wait_right.seb",
+      "bytes": 172,
+      "intact": true,
+      "lines": {
+        "0": 4,
+        "1": 4
+      },
+      "droppedRecords": 0
+    },
+    "monsterAttackXL": {
+      "path": "RE-evidence/20260911-treasure/monster-original/monster_xl_attack_up.seb",
+      "bytes": 292,
+      "intact": true,
+      "lines": {
+        "0": 7,
+        "1": 7
+      },
+      "droppedRecords": 0
+    },
+    "monsterAttackXLRight": {
+      "path": "RE-evidence/20260911-treasure/monster-original/monster_xl_attack_right.seb",
       "bytes": 292,
       "intact": true,
       "lines": {

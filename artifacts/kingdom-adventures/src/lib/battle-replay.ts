@@ -198,7 +198,7 @@ export const COMBAT_TEXT_SIZE = { width: 50, height: 16 } as const;
 /* Damage numbers                                                      */
 /* ------------------------------------------------------------------ */
 
-export type NumberStyle = "ally" | "critical" | "enemy";
+export type NumberStyle = "ally" | "critical" | "enemy" | "heal";
 
 /**
  * CONFIRMED rects: com/num_m_02.png is a 90x50 sheet with four digit rows of
@@ -219,14 +219,19 @@ export const NUMBER_SHEET = {
 export const NUMBER_ROW_Y: Record<NumberStyle, number> = {
   ally: 0,
   critical: 10,
-  enemy: 20,
+  enemy: 0,
+  heal: 30,
 };
 
 export const NUMBER_ROW_IMAGES: Record<NumberStyle, string> = {
   ally: "/battle-assets/numbers/num_m_02.png",
   critical: "/battle-assets/numbers/num_m_02.png",
-  enemy: "/battle-assets/numbers/num_m_02.png",
+  enemy: "/battle-assets/numbers/num_red.png",
+  heal: "/battle-assets/numbers/num_m_02.png",
 };
+
+/** Original num_red.seb starts its digit-zero rectangle at U=9. */
+export const NUMBER_ROW_X: Record<NumberStyle, number> = { ally: 0, critical: 0, enemy: 9, heal: 0 };
 
 export const NUMBER_GLYPH = { width: 8, height: 10, symbolX: 80, symbolWidth: 7 } as const;
 
@@ -1621,11 +1626,18 @@ const clips = (battleAnimation as { clips: Record<string, {
   textures: Record<string, string>;
 }> }).clips;
 
-export const MONSTER_CLIPS: Record<"wait" | "waitLeft" | "attack" | "attackLeft", DecodedClip> = {
+export const MONSTER_CLIPS: Record<
+  "wait" | "waitLeft" | "attack" | "attackLeft" | "waitXL" | "waitXLRight" | "attackXL" | "attackXLRight",
+  DecodedClip
+> = {
   wait: { id: "monsterWait", ...clips.monsterWait },
   waitLeft: { id: "monsterWaitLeft", ...clips.monsterWaitLeft },
   attack: { id: "monsterAttack", ...clips.monsterAttack },
   attackLeft: { id: "monsterAttackLeft", ...clips.monsterAttackLeft },
+  waitXL: { id: "monsterWaitXL", ...clips.monsterWaitXL },
+  waitXLRight: { id: "monsterWaitXLRight", ...clips.monsterWaitXLRight },
+  attackXL: { id: "monsterAttackXL", ...clips.monsterAttackXL },
+  attackXLRight: { id: "monsterAttackXLRight", ...clips.monsterAttackXLRight },
 };
 
 export type MonsterDirectionId = "up" | "right" | "down" | "left";
@@ -1726,9 +1738,14 @@ export const BATTLE_DIRECTIONS: Record<"ally" | "enemy", MonsterDirectionId> = {
 export function monsterClipForDirection(
   state: "wait" | "attack",
   direction: MonsterDirectionId,
+  large = false,
 ): DecodedClip {
   const { asset } = MONSTER_DIRECTION_VARIANTS[direction];
-  if (state === "attack") return asset === "up" ? MONSTER_CLIPS.attack : MONSTER_CLIPS.attackLeft;
+  if (state === "attack") {
+    if (large) return asset === "up" ? MONSTER_CLIPS.attackXL : MONSTER_CLIPS.attackXLRight;
+    return asset === "up" ? MONSTER_CLIPS.attack : MONSTER_CLIPS.attackLeft;
+  }
+  if (large) return asset === "up" ? MONSTER_CLIPS.waitXL : MONSTER_CLIPS.waitXLRight;
   return asset === "up" ? MONSTER_CLIPS.wait : MONSTER_CLIPS.waitLeft;
 }
 

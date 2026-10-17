@@ -1,4 +1,5 @@
 import { getJobProfile } from "@/game-data/job-profile";
+import { equipmentAllowedForGender } from "@/game-data/equipment-gender";
 import { canSetSkill } from "@/game-data/skill-job-admission";
 import { resolveEquipmentAffinity } from "@/game-data/equipment-job-admission";
 import { EQUIPMENT_BY_ID } from "@/lib/battle-setup";
@@ -17,17 +18,20 @@ export function canPickHumanSkill(jobName: string, name: string, selected: reado
 
 /** A matching equipped resistance skill may lift a weapon or shield's rejected affinity. */
 export function canPickHumanEquipment(
-  character: Pick<SavedLoadout, "jobName" | "skills">,
+  character: Pick<SavedLoadout, "jobName" | "skills" | "gender">,
   data: SharedLoadoutData,
   name: string,
 ): boolean {
   if (!character.jobName) return false;
+  const id = resolveCombatEquipmentId(name);
+  const entry = id === null ? undefined : EQUIPMENT_BY_ID.get(id);
+  // EquipData.FLAG_FOR_WOMEN = 1024 in the recovered native declaration.
+  // Unspecified gender must not admit equipment requiring a female character.
+  if (entry && !equipmentAllowedForGender(entry.flags, character.gender)) return false;
   const slot = gearSlotForName(name, data.slotAssignments);
   if (slot !== "weapon" && slot !== "shield") return true;
   const profile = getJobProfile(data, character.jobName);
   if (!profile) return false;
-  const id = resolveCombatEquipmentId(name);
-  const entry = id === null ? undefined : EQUIPMENT_BY_ID.get(id);
   if (!entry) return false;
   const weaponType = slot === "shield" ? "Shield" : data.weaponTypes?.[name] ?? null;
   const access = slot === "shield"
