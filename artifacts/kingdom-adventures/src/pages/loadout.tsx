@@ -11,7 +11,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import {
-  Plus, Trash2, Loader2, Camera,
+  Plus, Trash2, Loader2, Camera, Star,
   ChevronDown, ChevronRight, Package, X, Check, Pencil,
   Download, Copy, Info, RotateCcw, Crown, Sword, Shield, Gem, ArrowUp, ArrowDown,
 } from "lucide-react";
@@ -23,6 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/searchable-select";
+import { favoriteFingerprint, saveFarmingFavorite, useFarmingFavorites } from "@/lib/farming-favorites";
+import { CombatNavigation } from "@/components/ka/combat-navigation";
 import { PageHeader } from "@/components/ka/page-header";
 import { ToneBadge } from "@/components/ka/badges";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
@@ -2067,14 +2069,18 @@ function ProfileGoalSearchPanel({
   onCreate,
 }: {
   data: SharedData;
-  onCreate: (build: ProfileGoalBuild, profile: PlayerProfile) => void;
+  onCreate: (build: ProfileGoalBuild, profile: PlayerProfile, destination?: "builder" | "simulator") => void;
 }) {
   const [goals, setGoals] = useState<Record<string, ProfileStatGoal | undefined>>({});
+  const favorites = useFarmingFavorites();
+  const favoriteKeys = new Set(favorites.map((favorite) => favorite.fingerprint));
+  const [favoriteNotice, setFavoriteNotice] = useState("");
   const [editing, setEditing] = useState<Record<string, { mode: ProfileGoalMode; min: string; max: string }>>({});
   const [speedTargetMode, setSpeedTargetMode] = useState<ProfileGoalMode | "bracket">("min");
   const [speedBracket, setSpeedBracket] = useState("");
   const [allowEquipmentLevelUp, setAllowEquipmentLevelUp] = useState(false);
-  const [profile, setProfile] = useState<PlayerProfile | null>(null);
+  const [profile, setProfile] = useState<PlayerProfile | null>(() => readPlayerProfile());
+  const [showAllTargets, setShowAllTargets] = useState(false);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
   const [searchComplete, setSearchComplete] = useState(false);
   const [matchCount, setMatchCount] = useState(0);
@@ -2340,25 +2346,27 @@ function ProfileGoalSearchPanel({
     setStatus("Search cancelled.");
   };
 
-  const goalKeys = STAT_KEYS;
+  const primaryTargets = ["atk", "spd", "lck", "hp", "def", "mp"];
+  const goalKeys = showAllTargets ? STAT_KEYS : STAT_KEYS.filter((stat) => primaryTargets.includes(stat));
   return (
     <Card className="mb-5 border-primary/25 shadow-sm">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <CardTitle className="text-base">Find builds for target stats</CardTitle>
-            <CardDescription>Match targets or maximize stats using your profile characters and owned gear.</CardDescription>
+            <CardTitle className="text-base">Find Builds</CardTitle>
+            <CardDescription>Choose your targets. Search your profile characters and owned equipment.</CardDescription>
           </div>
-          <Button variant="outline" className="min-h-11" onClick={useProfileData}>Use profile data</Button>
+          <Button variant="outline" className="min-h-11" onClick={useProfileData}>Refresh profile</Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-muted/30 p-3">
           <Button variant={allowEquipmentLevelUp ? "default" : "outline"} className="min-h-11" aria-pressed={allowEquipmentLevelUp} onClick={() => { resetSearch(); setAllowEquipmentLevelUp((value) => !value); }}>
             <ArrowUp className="mr-2 h-4 w-4" />Allow equipment level up{allowEquipmentLevelUp && <Check className="ml-2 h-4 w-4" />}
           </Button>
-          <span className="text-xs text-muted-foreground">{allowEquipmentLevelUp ? "Current levels and upgrades up to Lv99." : "Current equipment levels only."}</span>
+          <span className="text-xs text-muted-foreground">{allowEquipmentLevelUp ? "Current levels and upgrades up to Lv99." : "Owned gear at current levels."}</span>
         </div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Target stats</h3><button type="button" className="min-h-11 text-xs text-primary hover:underline" onClick={() => setShowAllTargets((value) => !value)}>{showAllTargets ? "Show main stats" : "More stats"}</button></div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {goalKeys.map((stat) => {
             const value = editing[stat] ?? { mode: "min" as ProfileGoalMode, min: "", max: "" };
@@ -2435,6 +2443,7 @@ function ProfileGoalSearchPanel({
           <span className="text-xs text-muted-foreground">{status}</span>
         </div>
         {error && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">{error}</p>}
+        {favoriteNotice && <p role="status" className="text-sm text-muted-foreground">{favoriteNotice}</p>}
         {profile && profile.characters.length === 0 && <p className="text-sm text-muted-foreground">The profile has no characters yet.</p>}
         {pageBuilds.length > 0 && (
           <div className="space-y-2">
@@ -2472,7 +2481,15 @@ function ProfileGoalSearchPanel({
                     ))}
                   </div>
                 </div>
-                <Button variant="outline" className="min-h-11" onClick={() => profile && onCreate(build, profile)}>Use this build</Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" className="min-h-11 gap-2" disabled={!profile || favoriteKeys.has(favoriteFingerprint(build, profile))} onClick={() => {
+                    if (!profile) return;
+                    try { saveFarmingFavorite(build, profile, goals, allowEquipmentLevelUp); setFavoriteNotice("Saved to Favorites."); }
+                    catch (cause) { setFavoriteNotice(cause instanceof Error ? cause.message : "Could not save this build."); }
+                  }}><Star className={`h-4 w-4 ${profile && favoriteKeys.has(favoriteFingerprint(build, profile)) ? "fill-current" : ""}`} />{profile && favoriteKeys.has(favoriteFingerprint(build, profile)) ? "Saved" : "Favorite"}</Button>
+                  <Button variant="outline" className="min-h-11" onClick={() => profile && onCreate(build, profile, "builder")}>Save character</Button>
+                  <Button className="min-h-11" onClick={() => profile && onCreate(build, profile, "simulator")}><Sword className="mr-2 h-4 w-4" />Simulate</Button>
+                </div>
               </div>
             ))}
           </div>
@@ -3403,10 +3420,20 @@ function PublishNameDialog({
   );
 }
 
-export default function LoadoutPage() {
+export default function LoadoutPage({ view = "builder" }: { view?: "builder" | "finder" }) {
   const { data, isLoading } = useSharedData();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
+  const [buildDestination, setBuildDestination] = useState<{ id: string; simulator: boolean } | null>(null);
   const { loadouts, save } = usePrivateLoadouts();
+  // usePrivateLoadouts persists its update in an earlier effect. Transfer only after
+  // that commit so the simulator can resolve the newly saved character by ID.
+  useEffect(() => {
+    if (!buildDestination || !loadouts.some((loadout) => loadout.id === buildDestination.id)) return;
+    const simulate = buildDestination.simulator && writeLoadoutHandoff([buildDestination.id]);
+    navigate(simulate ? "/combat/multi-box/simulator" : "/combat/character-builder");
+    setBuildDestination(null);
+  }, [buildDestination, loadouts, navigate]);
   const [playerProfile] = usePlayerProfile();
   const [residentItems, setResidentItems] = useResidentProfileValuables();
   const profileStorageError = useProfileStorageError();
@@ -3432,7 +3459,7 @@ export default function LoadoutPage() {
     return id;
   };
 
-  const applyProfileBuild = (build: ProfileGoalBuild, profile: PlayerProfile) => {
+  const applyProfileBuild = (build: ProfileGoalBuild, profile: PlayerProfile, destination: "builder" | "simulator" = "builder") => {
     const character = profile.characters.find((candidate) => candidate.id === build.characterId);
     if (!character) return;
     const requiresUpgrades = build.addedLevels > 0;
@@ -3454,6 +3481,7 @@ export default function LoadoutPage() {
     };
     save([...loadouts, newLoadout]);
     setExpandedId(newLoadout.id);
+    if (view === "finder") setBuildDestination({ id: newLoadout.id, simulator: destination === "simulator" });
   };
 
   const importProfileCharacters = () => {
@@ -3593,8 +3621,13 @@ export default function LoadoutPage() {
     };
   }, []);
 
+  if (view === "finder") return <div className="mx-auto max-w-7xl px-4 py-6">
+    {isLoading ? <p className="py-8 text-sm text-muted-foreground">Loading build data…</p> : data ? <ProfileGoalSearchPanel data={data} onCreate={applyProfileBuild} /> : <p role="alert">Build data could not be loaded.</p>}
+  </div>;
+
   return (
     <div className="min-h-screen bg-background transition-colors">
+      <CombatNavigation />
       {publishNameSetup && (
         <PublishNameDialog
           onSave={(name) => publishSetupWithName(publishNameSetup, name)}
@@ -3615,7 +3648,7 @@ export default function LoadoutPage() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <PageHeader
             icon={<Package className="w-5 h-5 text-orange-500" />}
-            title="Characters"
+            title="Character Builder"
             actions={(
               <div className="flex flex-wrap items-center gap-2">
                 {(playerProfile.characters?.length ?? 0) > 0 && <Button variant="outline" size="sm" onClick={importProfileCharacters} className="min-h-11">Add/update profile characters</Button>}
@@ -3627,9 +3660,9 @@ export default function LoadoutPage() {
                 <Button variant="ghost" size="icon" onClick={() => setPendingDeleteId("all")} className="h-11 w-11 text-destructive" title="Delete all characters">
                   <RotateCcw className="w-3.5 h-3.5" />
                 </Button>
-                <Link href="/battle" data-action="open-player-battle" className="inline-flex">
+                <Link href="/combat/multi-box/simulator" data-action="open-player-battle" className="inline-flex">
                   <Button size="sm" className="h-8 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-600/90">
-                    <Sword className="w-3.5 h-3.5" />Player Battle
+                    <Sword className="w-3.5 h-3.5" />Simulator
                   </Button>
                 </Link>
                 <Button size="sm" onClick={addLoadout} className="min-h-11 gap-1.5">
@@ -3690,7 +3723,7 @@ export default function LoadoutPage() {
           </CardContent>
         </Card>
 
-        {!isLoading && data && <ProfileGoalSearchPanel data={data} onCreate={applyProfileBuild} />}
+
 
         {isLoading && (
           <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
@@ -3877,59 +3910,6 @@ export default function LoadoutPage() {
             className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-muted/30 transition-colors py-4 text-sm text-muted-foreground hover:text-foreground">
             <Plus className="w-4 h-4" />Add another character
           </button>
-        )}
-
-        {!isLoading && data && (
-          <div className="mt-6 space-y-3">
-            {(sharedSetup || shareLoadError) && (
-              <div className={`rounded-md border px-3 py-2 text-xs ${shareLoadError ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-200"}`}>
-                {shareLoadError ? shareLoadError : `Viewing shared setup link: ${sharedSetup?.setup.title}. Try match uses your private loadouts.`}
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-2">
-              {setups.map((setup) => (
-                <button
-                  key={setup.id}
-                  onClick={() => setActiveToolTab(setup.id)}
-                  className={`h-9 rounded-md px-3 text-sm font-medium transition-colors ${activeToolTab === setup.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
-                >
-                  {setup.title}
-                </button>
-              ))}
-              <button
-                onClick={() => setActiveToolTab("combat")}
-                className={`h-9 rounded-md px-3 text-sm font-medium transition-colors ${activeToolTab === "combat" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
-              >
-                Combat Sandbox
-              </button>
-            </div>
-            <p className="px-1 text-[11px] text-muted-foreground">
-              Multi Box Kairo/Wairo setups and the Combat Sandbox are community research tools with a simplified model - not the authoritative player battle.{" "}
-              <Link href="/battle" className="font-medium text-emerald-600 underline dark:text-emerald-400">Open Player Battle</Link>{" "}
-              for a real run.
-            </p>
-
-            {setups.map((setup) => (
-              activeToolTab === setup.id ? (
-                <BoxSetupCard
-                  key={setup.id}
-                  setup={sharedSetup?.setup.id === setup.id ? sharedSetup.setup : setup}
-                  loadouts={loadouts}
-                  data={data}
-                  profileEquipment={playerProfile.equipment}
-                  onChange={sharedSetup?.setup.id === setup.id ? () => {} : updateSetup}
-                  onPublish={publishSetup}
-                  publishStatus={publishStatus[setup.id]}
-                  onCreateLoadout={addLoadout}
-                  readOnly={sharedSetup?.setup.id === setup.id}
-                />
-              ) : null
-            ))}
-
-            {activeToolTab === "combat" && (
-              <LoadoutCombatTool loadouts={loadouts} data={data} profileEquipment={playerProfile.equipment} />
-            )}
-          </div>
         )}
 
         <p className="text-xs text-muted-foreground mt-4 text-center">

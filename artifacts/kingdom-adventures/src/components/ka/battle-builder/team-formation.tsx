@@ -1,3 +1,4 @@
+import { UserRound } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { MONSTER_BY_ID, type BattleSetup } from "@/lib/battle-setup";
@@ -70,49 +71,50 @@ export function TeamFormation({ characters, setup, data, preview, previewStatus 
 }) {
   const entries = formationEntries(characters, setup);
   const allies = preview?.units.filter((unit) => unit.side === "ally" && unit.cell && unit.rosterIndex !== null) ?? [];
-  const rows = [...new Set(allies.map((unit) => unit.cell![1]))].sort((a, b) => a - b);
+  const prepared = allies.length > 0;
+  const firstRow = prepared ? Math.min(...allies.map((unit) => unit.cell![1])) : 0;
+  const lastRow = prepared ? Math.max(...allies.map((unit) => unit.cell![1])) : 0;
+  const rowCount = Math.max(2, prepared ? lastRow - firstRow + 1 : Math.ceil(entries.length / COLUMNS));
+  const rows = Array.from({ length: rowCount }, (_, index) => firstRow + index);
   const cells = new Map(allies.map((unit) => [`${unit.cell![0]},${unit.cell![1]}`, unit]));
   return (
     <Card data-team-formation data-formation-units={entries.length} data-formation-rows={rows.length}>
       <CardHeader>
         <CardTitle>2 - Team formation</CardTitle>
-        <CardDescription>Battle starting cells · front row first. Positions follow formation priority and defense.</CardDescription>
+        <CardDescription>{prepared ? "Front row first. Positions follow formation priority and defense." : entries.length ? "Team preview. Battle positions appear when the formation is ready." : "Add characters to fill your formation."}</CardDescription>
       </CardHeader>
       <CardContent>
-        {rows.length ? (
-          <div className="space-y-2" aria-label="Team formation">
-            {rows.map((row, rowIndex) => (
-              <div key={row}>
-                <div className="mb-1 text-xs text-muted-foreground">{rowIndex === 0 ? "Front row" : `Back row ${rowIndex}`} · cell row {row}</div>
-                <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-                  {Array.from({ length: COLUMNS }, (_, column) => {
-                    const unit = cells.get(`${column},${row}`);
-                    const entry = unit?.rosterIndex === null || unit?.rosterIndex === undefined ? undefined : entries[unit.rosterIndex];
-                    return (
-                      <div
-                        key={column}
-                        className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border/70 bg-muted/10 px-0.5 py-2 text-center sm:px-2"
-                        data-formation-cell={`${column},${row}`}
-                        data-formation-kind={entry?.kind ?? "empty"}
-                        title={entry?.kind === "pet" ? `${entry.name} · ${entry.owner}'s pet` : entry?.name}
-                      >
-                        <span className="text-[10px] tabular-nums text-muted-foreground">{column},{row}</span>
-                        <span className="flex h-14 w-full items-center justify-center sm:h-16">
-                          {entry ? <FormationSprite entry={entry} data={data} /> : null}
-                        </span>
-                        <span className="w-full truncate text-[10px] font-medium sm:text-xs">{entry?.name ?? unit?.name ?? ""}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+        <div className="space-y-3" aria-label="Team formation">
+          {rows.map((row, rowIndex) => (
+            <div key={row}>
+              <div className="mb-2 text-xs text-muted-foreground">{rowIndex === 0 ? "Front row" : `Back row ${rowIndex}`}</div>
+              <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                {Array.from({ length: COLUMNS }, (_, column) => {
+                  const unit = cells.get(`${column},${row}`);
+                  const entry = prepared
+                    ? unit?.rosterIndex === null || unit?.rosterIndex === undefined ? undefined : entries[unit.rosterIndex]
+                    : entries[rowIndex * COLUMNS + column];
+                  return (
+                    <div
+                      key={column}
+                      className={`flex min-h-28 min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-0.5 py-3 text-center sm:min-h-32 sm:px-2 ${entry || unit ? "border-border bg-muted/20" : "border-dashed border-border/60 bg-muted/5"}`}
+                      data-formation-cell={`${column},${row}`}
+                      data-formation-kind={entry?.kind ?? "empty"}
+                      aria-label={entry?.name ?? unit?.name ?? `Empty slot ${rowIndex * COLUMNS + column + 1}`}
+                      title={entry?.kind === "pet" ? `${entry.name} · ${entry.owner}'s pet` : entry?.name}
+                    >
+                      <span className="flex h-14 w-full items-center justify-center sm:h-16">
+                        {entry ? <FormationSprite entry={entry} data={data} /> : <UserRound aria-hidden="true" className="h-7 w-7 text-muted-foreground/20" />}
+                      </span>
+                      <span className={`w-full truncate text-[10px] sm:text-xs ${entry || unit ? "font-medium" : "text-muted-foreground/50"}`}>{entry?.name ?? unit?.name ?? "Empty"}</span>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground" data-formation-status={previewStatus}>
-            {previewStatus === "loading" ? "Calculating starting cells…" : previewStatus === "error" ? "Starting cells are unavailable. See the preview error below." : previewStatus === "ok" ? "No starting cells were returned." : setup ? "Calculating starting cells…" : "Add a valid team to see its starting cells."}
-          </p>
-        )}
+            </div>
+          ))}
+        </div>
+        {entries.length > 0 && !prepared && previewStatus === "loading" && <p role="status" className="mt-3 text-xs text-muted-foreground">Arranging battle positions…</p>}
       </CardContent>
     </Card>
   );

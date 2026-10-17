@@ -48,9 +48,16 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventurers Skills Database",
     description: "Search Kingdom Adventurers skills, effects, compatibility, and planning data for jobs and units.",
   },
+  "/combat": { title: "Combat Hub", description: "Build characters, plan multi-box farming teams, and explore combat formulas." },
+  "/combat/character-builder": { title: "Character Builder", description: "Build characters with equipment, skills, and stat planning." },
+  "/combat/multi-box": { title: "Multi-Box Farming", description: "Find builds for target stats using your profile characters and gear." },
+  "/combat/multi-box/favorites": { title: "Favorite Builds", description: "Reopen saved farming builds without searching again." },
+  "/combat/multi-box/match-stats": { title: "Match Stats", description: "Find legal character and equipment builds for your stat targets." },
+  "/combat/multi-box/simulator": { title: "Farming Simulator", description: "Test your farming team in the battle simulator." },
+  "/combat/formulas": { title: "Combat Formulas", description: "Explore native damage, magic, arrow skills, and target selection." },
   "/loadout": {
-    title: "Kingdom Adventurers Loadout Builder",
-    description: "Build and compare Kingdom Adventurers loadouts with equipment, skills, jobs, and stat planning.",
+    title: "Combat Hub",
+    description: "Build characters, plan multi-box farming teams, and explore combat formulas.",
   },
   "/eggs-pets-monsters": {
     title: "Kingdom Adventurers Eggs, Pets, and Monsters",

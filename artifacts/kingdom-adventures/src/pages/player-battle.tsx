@@ -156,7 +156,7 @@ function PreviewUnitRow({ unit }: { unit: BattlePreviewUnit }) {
   );
 }
 
-export default function PlayerBattlePage() {
+export default function PlayerBattlePage({ embedded = false }: { embedded?: boolean }) {
   const [, navigate] = useLocation();
   const [stored, setStored] = useLocalFeature<BattleTeamDraft>(BATTLE_TEAM_DRAFT_KEY, createDraft(ENCOUNTER_VARIANTS[0]?.id ?? 19));
   const draft: BattleTeamDraft = useMemo(() => normalizeDraft(stored) ?? createDraft(ENCOUNTER_VARIANTS[0]?.id ?? 19), [stored]);
@@ -554,7 +554,7 @@ export default function PlayerBattlePage() {
     <div className="mx-auto max-w-7xl space-y-4 px-4 py-6" data-player-battle-root data-encounter-id={draft.encounterId} data-run-state={runState.status}>
       <PageHeader
         icon={<Sword className="h-5 w-5" />}
-        title="Player Battle"
+        title={embedded ? "Simulator" : "Player Battle"}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {resetPending ? (
@@ -565,7 +565,7 @@ export default function PlayerBattlePage() {
                 <RotateCcw className="h-3 w-3" /> Reset team
               </Button>
             )}
-            <Link href="/loadout" className="text-xs font-medium underline">
+            <Link href="/combat/character-builder" className="text-xs font-medium underline">
               Characters
             </Link>
           </div>
@@ -655,10 +655,10 @@ export default function PlayerBattlePage() {
       <Card data-builder-consumables>
         <CardHeader>
           <CardTitle className="text-base">4 - Provision consumables (optional)</CardTitle>
-          <CardDescription>Stock the items the fight's action bar spends from. A row at 0 has nothing to click.</CardDescription>
+          <CardDescription>Maximum uses for this fight. 0 means none; a longer fight can run out.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5">
-          {providableConsumables.map((row) => {
+          {providableConsumables.filter((row) => row.supported).map((row) => {
             const item = row.type === "holy_herb" ? null : canonicalRecoveryItem(row.name);
             const label = row.type === "holy_herb" ? HERB_ITEM_NAME : row.name;
             const stock =
@@ -672,11 +672,7 @@ export default function PlayerBattlePage() {
               >
                 <span className="flex-1">
                   {label} <span className="text-muted-foreground">- {item?.effect ?? "restores all residents' MP"}</span>
-                  {row.supported ? null : (
-                    <span className="text-amber-600 dark:text-amber-400" title={row.disabledReason ?? undefined}>
-                      {" "}Not clickable in a battle.
-                    </span>
-                  )}
+
                 </span>
                 <NumberField
                   value={stock}

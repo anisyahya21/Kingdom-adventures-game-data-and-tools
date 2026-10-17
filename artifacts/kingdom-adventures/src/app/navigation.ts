@@ -22,7 +22,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Tools",
     children: [
       { href: "/match-finder", label: "Marriage Match Finder" },
-      { href: "/loadout", label: "Loadout Builder" },
+      { href: "/combat", label: "Combat Hub" },
       { href: "/equipment-exchange", label: "Equipment Exchange" },
       { href: "/equipment-level-optimizer", label: "Equipment lv Optimizer" },
       { href: "/survey", label: "Survey Calculator" },

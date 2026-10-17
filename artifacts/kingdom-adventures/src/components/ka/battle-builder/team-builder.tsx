@@ -1,26 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Plus, Search, Trash2, UserPlus } from "lucide-react";
+import { EncounterCards } from "@/components/ka/encounter-cards";
+import { useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, Copy, Plus, Trash2, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/searchable-select";
-import { DifficultyBadge, RankBadge } from "@/components/ka/badges";
+import { RankBadge } from "@/components/ka/badges";
 import { getEquipmentIcon } from "@/lib/equipment-icons";
 import { getSkillIcon } from "@/lib/skill-icons";
 import { getStatIcon } from "@/lib/stat-icons";
 import {
-  ENCOUNTER_FAMILIES,
-  ENCOUNTER_VARIANTS,
   JOB_CATALOG,
   JOB_BY_ID,
-  MONSTER_BY_ID,
-  difficultyName,
-  type BattleEncounterVariant,
 } from "@/lib/battle-setup";
 import type { SavedLoadout } from "@/lib/battle-legality";
 import { dropUnsupportedHumanEquipment } from "@/lib/battle-picker-rules";
-import { MONSTER_ICON_MAP } from "@/lib/monster-icons";
 import {
   BUILDER_EQUIPMENT_SLOTS,
   createDraftCharacter,
@@ -47,159 +42,11 @@ import {
 /* 1 - Encounter (comes first)                                         */
 /* ------------------------------------------------------------------ */
 
-/**
- * Presentation-only helpers for the encounter tiles. The family label comes from the recovered table
- * and is long ("Saturday - Kairobot Knight's Challenge"); the tile shows the part after the weekday so
- * the card stays readable. The boss art is the monster's own recovered sprite (`MONSTER_BY_ID.src`),
- * with the wiki icon map as the existing fallback - no new game data is introduced.
- */
-function shortFamilyName(name: string): string {
-  const separator = name.indexOf(" - ");
-  return separator === -1 ? name : name.slice(separator + 3);
-}
-
-function encounterBoss(entry: BattleEncounterVariant): { name: string | null; art: string | null } {
-  const boss = MONSTER_BY_ID.get(entry.boss.monsterId);
-  if (!boss) return { name: null, art: null };
-  return { name: boss.name, art: boss.src || MONSTER_ICON_MAP[boss.name] || null };
-}
-
-/**
- * Recovered titles carry the difficulty as a trailing "(Hard)" suffix; the card and the Selected
- * row show the difficulty once as a badge, so drop the suffix when it exactly matches the name.
- */
-function encounterTitle(entry: BattleEncounterVariant): string {
-  const suffix = ` (${entry.difficultyName})`;
-  return entry.title.endsWith(suffix) ? entry.title.slice(0, -suffix.length) : entry.title;
-}
-
-export function EncounterSection({
-  encounterId,
-  onSelect,
-}: {
-  encounterId: number;
-  onSelect: (encounterId: number) => void;
-}) {
-  const current = ENCOUNTER_VARIANTS.find((entry) => entry.id === encounterId) ?? ENCOUNTER_VARIANTS[0];
-  // Start on the selected encounter's own family instead of the 20-card "All" list; "All" stays
-  // selectable, so every encounter remains reachable.
-  const [family, setFamily] = useState<string>(() => current.familyId);
-  const [query, setQuery] = useState("");
-
-  // Keep the selected encounter inside the visible list when the page switches encounter.
-  useEffect(() => {
-    if (family !== "all" && current.familyId !== family) setFamily(current.familyId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current.familyId]);
-
-  const visible = useMemo(() => {
-    const text = query.trim().toLowerCase();
-    return ENCOUNTER_VARIANTS.filter((entry) => {
-      if (family !== "all" && entry.familyId !== family) return false;
-      if (!text) return true;
-      return (
-        entry.title.toLowerCase().includes(text) ||
-        entry.familyName.toLowerCase().includes(text) ||
-        difficultyName(entry.difficulty).toLowerCase().includes(text) ||
-        String(entry.id) === text
-      );
-    });
-  }, [family, query]);
-
-  return (
-    <Card data-builder-encounter>
-      <CardHeader>
-        <CardTitle>1 - Pick an encounter</CardTitle>
-        <CardDescription>Who you fight first. The team is built and run against this encounter.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex min-w-[12rem] flex-1 items-center gap-2 rounded border bg-background px-2 py-1">
-            <Search className="h-3.5 w-3.5 text-muted-foreground" />
-            <input
-              aria-label="Search encounters"
-              placeholder="Search encounters..."
-              className="w-full bg-transparent text-sm outline-none"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-          <div className="flex flex-wrap gap-1" role="tablist" aria-label="Encounter families">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={family === "all"}
-              className={`rounded border px-2 py-1 text-xs font-medium ${family === "all" ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}
-              onClick={() => setFamily("all")}
-            >
-              All
-            </button>
-            {ENCOUNTER_FAMILIES.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                role="tab"
-                aria-selected={family === entry.id}
-                className={`rounded border px-2 py-1 text-xs font-medium ${family === entry.id ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}
-                onClick={() => setFamily(entry.id)}
-                title={entry.name}
-              >
-                {shortFamilyName(entry.name)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid max-h-72 grid-cols-1 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((entry: BattleEncounterVariant) => {
-            const selected = entry.id === encounterId;
-            const boss = encounterBoss(entry);
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => onSelect(entry.id)}
-                aria-pressed={selected}
-                data-encounter-option={entry.id}
-                data-difficulty={entry.difficulty}
-                data-encounter-boss={entry.boss.monsterId}
-                className={`flex items-center gap-2 rounded-lg border p-1.5 text-left transition-colors ${selected ? "border-primary bg-primary/10" : "bg-card hover:border-primary/60 hover:bg-muted"}`}
-              >
-                <span className="ka-encounter-art" data-encounter-art={boss.art ? "recovered" : "missing"}>
-                  {boss.art ? (
-                    <img src={boss.art} alt="" className="ka-encounter-art__img" />
-                  ) : (
-                    <span className="ka-encounter-art__empty">?</span>
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-1">
-                    <span className="truncate text-xs font-semibold">{encounterTitle(entry)}</span>
-                    <DifficultyBadge difficulty={entry.difficultyName} className="shrink-0 text-[9px]" />
-                  </span>
-                  <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
-                    {boss.name ? `${boss.name} · ` : ""}
-                    {entry.enemyTotal} enemies · Lv {entry.levelField} · {shortFamilyName(entry.familyName)}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {visible.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">No encounters match your search.</p> : null}
-
-        <div className="flex flex-wrap items-center gap-2 text-xs" data-selected-encounter={current.id}>
-          <span className="ka-hud-strip__label">Selected</span>
-          <span className="font-medium">{encounterTitle(current)}</span>
-          <DifficultyBadge difficulty={current.difficultyName} className="text-[9px]" />
-          <span className="text-muted-foreground">
-            {encounterBoss(current).name ?? "boss art not recovered"} · {current.enemyTotal} enemies ·{" "}
-            {shortFamilyName(current.familyName)}
-          </span>
-        </div>
-      </CardContent>
-    </Card>
-  );
+export function EncounterSection({ encounterId, onSelect }: { encounterId: number; onSelect: (id: number) => void }) {
+  return <Card data-builder-encounter>
+    <CardHeader><CardTitle>1 - Pick an encounter</CardTitle></CardHeader>
+    <CardContent><EncounterCards encounterId={encounterId} onSelect={onSelect} /></CardContent>
+  </Card>;
 }
 
 /* ------------------------------------------------------------------ */

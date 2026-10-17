@@ -140,11 +140,11 @@ const BUILT_IN_TOOLS = [
     badgeCategory: "skill" satisfies KaCategory,
   },
   {
-    slug: "/loadout",
-    title: "Loadout Builder",
-    description: "Build character loadouts and calculate total stats.",
+    slug: "/combat",
+    title: "Combat Hub",
+    description: "Build characters, plan multi-box farming teams, and explore combat formulas.",
     icon: <Package className="w-6 h-6 text-orange-500" />,
-    badge: "Builder",
+    badge: "Combat",
     badgeCategory: "builder" satisfies KaCategory,
   },
   {

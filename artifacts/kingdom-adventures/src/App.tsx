@@ -18,6 +18,9 @@ const EquipmentStatsExchangePage = lazy(() => import("@/pages/equipment-stats-ex
 const MonstersPage = lazy(() => import("@/pages/monsters"));
 const JobsPage = lazy(() => import("@/pages/jobs"));
 const SkillsPage = lazy(() => import("@/pages/skills"));
+const CombatPage = lazy(() => import("@/pages/combat"));
+const CombatFormulasPage = lazy(() => import("@/pages/combat-formulas"));
+const MultiBoxFarmingPage = lazy(() => import("@/pages/multi-box-farming"));
 const LoadoutPage = lazy(() => import("@/pages/loadout"));
 const EggsPage = lazy(() => import("@/pages/eggs"));
 const EggsPetsMonstersPage = lazy(() => import("@/pages/eggs-pets-monsters"));
@@ -180,7 +183,14 @@ function Router() {
         <Route path="/jobs/:name">{() => <JobsPage />}</Route>
         <Route path="/skills">{() => <SkillsPage />}</Route>
         <Route path="/skill">{() => <SkillsPage />}</Route>
-        <Route path="/loadout">{() => <LoadoutPage />}</Route>
+        <Route path="/combat">{() => <CombatPage />}</Route>
+        <Route path="/combat/character-builder">{() => <LoadoutPage />}</Route>
+        <Route path="/combat/multi-box">{() => <MultiBoxFarmingPage />}</Route>
+        <Route path="/combat/multi-box/favorites">{() => <MultiBoxFarmingPage />}</Route>
+        <Route path="/combat/multi-box/match-stats">{() => <MultiBoxFarmingPage />}</Route>
+        <Route path="/combat/multi-box/simulator">{() => <MultiBoxFarmingPage />}</Route>
+        <Route path="/combat/formulas">{() => <CombatFormulasPage />}</Route>
+        <Route path="/loadout">{() => <CombatPage />}</Route>
         <Route path="/eggs-pets-monsters">{() => <EggsPetsMonstersPage />}</Route>
         <Route path="/eggs">{() => <EggsPage />}</Route>
         <Route path="/monsters-pets">{() => <MonstersPetsPage />}</Route>
