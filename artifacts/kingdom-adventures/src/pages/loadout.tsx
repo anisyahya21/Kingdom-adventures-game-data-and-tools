@@ -56,10 +56,9 @@ import { prepareProfileWorkerInput, type ProfileWorkerMessage } from "@/lib/prof
 import { compareEquipmentNamesOriginalOrder } from "@/lib/equipment-order";
 
 import { ENCOUNTER_FAMILIES, ENCOUNTER_VARIANTS, difficultyName } from "@/lib/battle-setup";
-import { CHEST_STRATEGY_OPTIONS, chestStrategyGoals, strategyOptionForProfileBuild, type ChestStrategyOption } from "@/lib/chest-strategy-targets";
+import { CHEST_STRATEGY_OPTIONS, chestStrategyGoals, strategyOptionForProfileBuild, type ChestStrategyOption, type ChestStrategyOptionTarget } from "@/lib/chest-strategy-targets";
 import { isExactStrategyBuild, measuredStrategyTargetId, strategyMatchDeviation, type ProfileStrategyMatch, type StrategyMatchTarget } from "@/lib/profile-strategy-matches";
 import { measuredStrategyBoundaries, measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
-import { bestMeasuredPanel } from "@/lib/chest-strategy-boundary-access";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2102,13 +2101,14 @@ function ProfileGoalSearchPanel({
   const [strategyFamily, setStrategyFamily] = useState(ENCOUNTER_FAMILIES[0].id);
   const [strategyDifficulty, setStrategyDifficulty] = useState(0);
   const [strategyTolerance, setStrategyTolerance] = useState({ atk: "0", spd: "0", lck: "15" });
-  const [nearestStrategy, setNearestStrategy] = useState<ChestStrategyOption | null>(null);
-  const [appliedStrategy, setAppliedStrategy] = useState<ChestStrategyOption | null>(null);
+  const [nearestStrategy, setNearestStrategy] = useState<ChestStrategyOptionTarget | null>(null);
+  const [appliedStrategy, setAppliedStrategy] = useState<ChestStrategyOptionTarget | null>(null);
   const [profile, setProfile] = useState<PlayerProfile | null>(() => readPlayerProfile());
   const [liveProfile] = usePlayerProfile();
   const [profileMatches, setProfileMatches] = useState<ProfileStrategyMatch[] | null>(null);
   const [variantChecks, setVariantChecks] = useState<Record<string, MeasuredVariantCheck>>({});
   const [showDistantOptions, setShowDistantOptions] = useState(false);
+  const strategyQueryConsumed = useRef(false);
   useEffect(() => { setProfileMatches(null); setVariantChecks({}); resetSearch(); }, [liveProfile, strategyFamily, strategyDifficulty, allowEquipmentLevelUp]);
   const [showAllTargets, setShowAllTargets] = useState(false);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
@@ -2156,11 +2156,7 @@ function ProfileGoalSearchPanel({
 
   const strategyEncounter = farmingRequest ? ENCOUNTER_VARIANTS.find((entry) => entry.id === farmingRequest.settings.encounterId) : ENCOUNTER_VARIANTS.find((entry) => entry.familyId === strategyFamily && entry.difficulty === strategyDifficulty);
   const strategyOptions = CHEST_STRATEGY_OPTIONS.filter((entry) => entry.encounter === strategyEncounter?.id)
-    .map((entry) => {
-      const latest = bestMeasuredPanel(measuredStrategyBoundaries(entry.id));
-      return latest ? { ...entry, dex: latest.stats[3] ?? entry.dex ?? 18, mean: latest.mean, highest: latest.highest, n: latest.n,
-        seedRange: latest.seedRange, source: `Fixed research team · seeds ${latest.seedRange?.join("–") ?? "unknown"}` } : entry;
-    }).sort((a, b) => b.mean - a.mean);
+    .sort((a, b) => (b.mean ?? -Infinity) - (a.mean ?? -Infinity));
   const profileEvidence = (option: ChestStrategyOption) => {
     const match = profileMatches?.find((entry) => entry.id === option.id);
     return match?.build ? measuredStrategyBuild(option.encounter, match.build.stats) : null;
@@ -2169,13 +2165,13 @@ function ProfileGoalSearchPanel({
     .filter((option) => showDistantOptions || profileEvidence(option) !== null || strategyMatchDeviation(profileMatches.find((match) => match.id === option.id) ?? { id: option.id, build: null, complete: false, searchNodes: 0 }, option) <= 0.1)
     .sort((a, b) => {
       const deviation = (option: ChestStrategyOption) => strategyMatchDeviation(profileMatches.find((match) => match.id === option.id) ?? { id: option.id, build: null, complete: false, searchNodes: 0 }, option);
-      const reward = (option: ChestStrategyOption) => profileEvidence(option)?.mean ?? (deviation(option) === 0 ? option.mean : null);
+      const reward = (option: ChestStrategyOption) => profileEvidence(option)?.mean ?? (deviation(option) === 0 ? option.mean ?? null : null);
       const ar = reward(a), br = reward(b);
       if ((ar === null) !== (br === null)) return ar === null ? 1 : -1;
       if (ar !== null && br !== null && ar !== br) return br - ar;
-      return deviation(a) - deviation(b) || b.mean - a.mean;
+      return deviation(a) - deviation(b) || (b.mean ?? -Infinity) - (a.mean ?? -Infinity);
     });
-  const applyStrategy = (option: ChestStrategyOption, exact = false, nearest = false) => {
+  const applyStrategy = (option: ChestStrategyOptionTarget, exact = false, nearest = false) => {
     const margins = { atk: Number(strategyTolerance.atk), spd: Number(strategyTolerance.spd), lck: Number(strategyTolerance.lck) };
     if (!exact && !nearest && Object.values(strategyTolerance).some((raw) => raw.trim() === "" || !Number.isInteger(Number(raw)) || Number(raw) < 0)) {
       setError("Enter non-negative whole numbers for each search tolerance."); return;
@@ -2189,9 +2185,29 @@ function ProfileGoalSearchPanel({
     setEditing(Object.fromEntries(Object.entries(nextGoals).map(([stat, goal]) => [stat, { mode: "range" as ProfileGoalMode, min: String(goal.min), max: String(goal.max) }])));
     setAppliedStrategy(option);
     setNearestStrategy(nearest ? option : null);
-    setStatus(`DPS targets filled for ${strategyEncounter?.title ?? "selected encounter"}. Review the ranges, then start profile search.`);
+    const targetEncounter = ENCOUNTER_VARIANTS.find((entry) => entry.id === option.encounter);
+    setStatus(`DPS targets filled for ${targetEncounter?.title ?? "selected encounter"}. Review the ranges, then start profile search.`);
   };
-  const strategyOptionForBuild = (option: ChestStrategyOption, build: ProfileGoalBuild): ChestStrategyOption => {
+  useEffect(() => {
+    if (strategyQueryConsumed.current) return;
+    strategyQueryConsumed.current = true;
+    const url = new URL(window.location.href);
+    const strategyId = url.searchParams.get("strategy");
+    const encounterId = url.searchParams.get("encounter");
+    if (!strategyId && encounterId === null) return;
+    const option = strategyId ? CHEST_STRATEGY_OPTIONS.find((entry) => entry.id === strategyId) : undefined;
+    url.searchParams.delete("strategy");
+    url.searchParams.delete("encounter");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    const encounter = option
+      ? ENCOUNTER_VARIANTS.find((entry) => entry.id === option.encounter)
+      : ENCOUNTER_VARIANTS.find((entry) => entry.id === Number(encounterId));
+    if (!encounter) return;
+    setStrategyFamily(encounter.familyId);
+    setStrategyDifficulty(encounter.difficulty);
+    if (option) applyStrategy(option, true);
+  }, [applyStrategy]);
+  const strategyOptionForBuild = (option: ChestStrategyOption, build: ProfileGoalBuild): ChestStrategyOptionTarget => {
     const evidence = measuredStrategyBuild(option.encounter, build.stats);
     return strategyOptionForProfileBuild(option, build.stats, evidence ? { ...evidence, lowAtMost1: evidence.low } : null);
   };
@@ -2441,7 +2457,7 @@ function ProfileGoalSearchPanel({
         targets: variantTarget ? [variantTarget] : strategyOptions.map(({ id, atk, spd, lck, dex }) => ({ id, atk, spd, lck, dex: dex ?? 18 })),
         ...(variantTarget || farmingRequest ? { maxSearchNodes: 250_000 } : {}),
       });
-      else worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp, nearestTargets: nearestStrategy ? { atk: nearestStrategy.atk, spd: nearestStrategy.spd, lck: nearestStrategy.lck, dex: nearestStrategy.dex ?? 18 } : undefined });
+      else worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp, nearestTargets: nearestStrategy ? { atk: nearestStrategy.atk, spd: nearestStrategy.spd, lck: nearestStrategy.lck, dex: nearestStrategy.dex } : undefined });
     } catch (cause) {
       if (generation === generationRef.current) {
         const message = cause instanceof Error ? cause.message : "Profile search failed.";
@@ -2517,7 +2533,7 @@ function ProfileGoalSearchPanel({
           const seedLabel = (range?: number[]) => range?.length === 2 ? `seeds ${range[0]}–${range[1]}` : "seed range unavailable";
           const percentInterval = (range?: number[]) => range?.length === 2 ? `${(range[0] * 100).toFixed(1)}–${(range[1] * 100).toFixed(1)}%` : "not supplied";
           return <div key={option.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3">
-          <div className="min-w-0 text-sm"><div className="font-medium tabular-nums">{match?.build ? "Your profile build" : "Research target"}: ATT {actionOption.atk} · Speed {actionOption.spd} · Luck {actionOption.lck} · DEX {actionOption.dex ?? 18}</div>{match?.build ? measured ? <div className="text-xs text-muted-foreground">Exact profile tuple reward: avg {measured.mean.toFixed(2)} · {measured.n} fixed-team seeds</div> : <div className="text-xs text-muted-foreground">Reward for these profile stats is unmeasured.</div> : <div className="text-xs text-muted-foreground">Fixed-team target reward: avg {option.mean.toFixed(2)} · Highest {option.highest} · {option.n} seeds</div>}{!match?.build && option.status && <div className="text-xs text-muted-foreground">{option.status}</div>}{!match?.build && <div className="text-xs text-muted-foreground">{option.source}</div>}</div>
+          <div className="min-w-0 text-sm"><div className="font-medium tabular-nums">{match?.build ? "Your profile build" : "Research target"}: ATT {actionOption.atk} · Speed {actionOption.spd} · Luck {actionOption.lck} · DEX {actionOption.dex}</div>{match?.build ? measured ? <div className="text-xs text-muted-foreground">Exact profile tuple reward: avg {measured.mean.toFixed(2)} · {measured.n} fixed-team seeds</div> : <div className="text-xs text-muted-foreground">Reward for these profile stats is unmeasured.</div> : <div className="text-xs text-muted-foreground">{option.mean !== undefined ? `Fixed-team target reward: avg ${option.mean.toFixed(2)} · Highest ${option.highest ?? "—"} · ${option.n ?? "—"} seeds` : "Measured summary unavailable."}</div>}{!match?.build && option.status && <div className="text-xs text-muted-foreground">{option.status}</div>}{!match?.build && <div className="text-xs text-muted-foreground">{option.source}</div>}</div>
           {match && <div className="w-full space-y-1 text-xs">
             <div className="font-medium">{deviation === 0 ? "Exact ATT/Speed/Luck/DEX achievable" : measured ? "Measured profile alternative" : deviation <= 0.1 ? "Nearby profile option — reward unmeasured" : match.build ? "Large stat mismatch" : match.complete ? "No eligible build" : "Unresolved: no build found within the search budget"}{match.build && ` · ${match.build.characterName}`}</div>
             {match.build && <div>Your build: ATT {match.build.stats.atk} ({match.build.stats.atk - option.atk >= 0 ? "+" : ""}{match.build.stats.atk - option.atk}) · Speed {match.build.stats.spd} ({match.build.stats.spd - option.spd >= 0 ? "+" : ""}{match.build.stats.spd - option.spd}) · Luck {match.build.stats.lck} ({match.build.stats.lck - option.lck >= 0 ? "+" : ""}{match.build.stats.lck - option.lck}){Number.isFinite(match.build.stats.dex) && ` · DEX ${match.build.stats.dex}`}{deviation !== 0 && ` · largest deviation ${(deviation * 100).toFixed(1)}%`}</div>}
@@ -2533,7 +2549,7 @@ function ProfileGoalSearchPanel({
         {profileMatches !== null && displayedStrategyOptions.length === 0 && <p className="text-sm">No exact or nearby option found. Show distant or unresolved targets to inspect the gaps; an unfinished search does not prove a target is impossible.</p>}
         {strategyOptions.length === 0 && <p className="text-sm text-muted-foreground">No measured options are available for this encounter yet.</p>}
         {nearestStrategy && <p className="text-xs text-muted-foreground">Automatic closeness mode: no ± values needed. Search ranks up to 40 builds by total relative ATT/Speed/Luck/DEX deviation. At equal DPS closeness, your maximized stats are improved; explicit limits still apply. Equivalent stat outcomes are grouped. Stat closeness does not guarantee similar rewards or the same Speed bracket. Large searches pause after each million steps. Continue refining resumes the same search; results are provisional until complete.</p>}
-        {appliedStrategy && <p role="status" className="text-xs text-muted-foreground">{appliedStrategy.status === "Profile build tuple; reward unmeasured" ? `Targets filled below for your legal profile tuple: ATT ${appliedStrategy.atk}, Speed ${appliedStrategy.spd}, Luck ${appliedStrategy.lck}, DEX ${appliedStrategy.dex ?? 18}. Reward for these stats is unmeasured.` : `Targets filled below. The reported average applies to ATT ${appliedStrategy.atk}, Speed ${appliedStrategy.spd}, Luck ${appliedStrategy.lck}, and DEX ${appliedStrategy.dex ?? 18}; nearby gear results may differ.`}</p>}
+        {appliedStrategy && <p role="status" className="text-xs text-muted-foreground">{appliedStrategy.mean === undefined ? `Targets filled below for ATT ${appliedStrategy.atk}, Speed ${appliedStrategy.spd}, Luck ${appliedStrategy.lck}, and DEX ${appliedStrategy.dex}. Reward for these stats is unmeasured.` : `Targets filled below. The reported average applies to ATT ${appliedStrategy.atk}, Speed ${appliedStrategy.spd}, Luck ${appliedStrategy.lck}, and DEX ${appliedStrategy.dex}; nearby gear results may differ.`}</p>}
       </section>
         <details className="rounded-md border px-3"><summary className="cursor-pointer py-2 text-sm font-medium">Manual stat search (optional)</summary>
         <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Target stats</h3><button type="button" className="min-h-11 text-xs text-primary hover:underline" onClick={() => setShowAllTargets((value) => !value)}>{showAllTargets ? "Show main stats" : "More stats"}</button></div>
@@ -2647,7 +2663,7 @@ function ProfileGoalSearchPanel({
                     {build.picks.length === 0 && <span className="text-xs text-muted-foreground">No gear needed</span>}
                   </div>
                   {!!build.skills?.length && <div className="mt-2 text-xs text-muted-foreground">Required skills: {build.skills.join(" · ")} (ownership not recorded)</div>}
-                  {nearestStrategy && <div className="mt-2 text-xs tabular-nums">{(["atk", "spd", "lck", "dex"] as const).map((stat) => { const delta = (build.stats[stat] ?? 0) - (nearestStrategy[stat] ?? (stat === "dex" ? 18 : 0)); return <span key={stat} className="mr-3">{stat.toUpperCase()} {build.stats[stat]} ({delta >= 0 ? "+" : ""}{delta} vs target)</span>; })}<div className="text-muted-foreground">Reward average is unmeasured for this build.</div></div>}
+                  {nearestStrategy && <div className="mt-2 text-xs tabular-nums">{(["atk", "spd", "lck", "dex"] as const).map((stat) => { const delta = (build.stats[stat] ?? 0) - nearestStrategy[stat]; return <span key={stat} className="mr-3">{stat.toUpperCase()} {build.stats[stat]} ({delta >= 0 ? "+" : ""}{delta} vs target)</span>; })}<div className="text-muted-foreground">Reward average is unmeasured for this build.</div></div>}
                   <div className="mt-1 flex flex-wrap gap-2 text-[11px] tabular-nums text-muted-foreground">
                     {Object.entries(goals).filter(([, goal]) => goal).map(([stat, goal]) => (
                       <span key={stat}><StatLabel stat={stat} icons={data.statIcons} /> {build.stats[stat]?.toLocaleString()} ({nearestStrategy && ["atk", "spd", "lck"].includes(stat) ? "comparison target" : goalLabelText(goal)})</span>

@@ -17,6 +17,11 @@ type BoundaryPoint = {
   retention90?: string;
   retention80?: string;
   seedRange?: number[];
+  meanDpsMp?: number;
+  meanHealerMp?: number;
+  setupId?: string;
+  sourceCohort?: string;
+  mpMode?: "sufficient";
 };
 
 type BoundaryPanel = BoundaryPoint & {

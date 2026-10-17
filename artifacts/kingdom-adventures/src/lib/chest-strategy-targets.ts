@@ -8,17 +8,26 @@ export type ChestStrategyOption = {
   atk: number;
   spd: number;
   lck: number;
-  /** Defaults to the catalog's measured DEX18 baseline. */
-  dex?: number;
+  /** Explicit DEX used by this measured configuration. */
+  dex: number;
   mean: number;
   highest: number;
   n: number;
+  median?: number;
   source: string;
   status?: string;
   seedRange?: number[];
   lowAtMost1?: number;
   defeats?: number;
+  setupId?: string;
+  mpMode?: "sufficient";
+  meanDpsMp?: number;
+  meanHealerMp?: number;
+  sourceCohort?: string;
 };
+
+type StrategyEvidenceKey = "mean" | "highest" | "n" | "median" | "lowAtMost1" | "defeats" | "seedRange" | "setupId" | "mpMode" | "meanDpsMp" | "meanHealerMp" | "sourceCohort";
+export type ChestStrategyOptionTarget = Omit<ChestStrategyOption, StrategyEvidenceKey> & Partial<Pick<ChestStrategyOption, StrategyEvidenceKey>>;
 
 export const CHEST_STRATEGY_OPTIONS = catalog.options as ChestStrategyOption[];
 
@@ -26,17 +35,23 @@ export const CHEST_STRATEGY_OPTIONS = catalog.options as ChestStrategyOption[];
 export function strategyOptionForProfileBuild(
   option: ChestStrategyOption,
   stats: Record<string, number>,
-  evidence?: Pick<ChestStrategyOption, "mean" | "highest" | "n" | "lowAtMost1" | "defeats" | "seedRange"> | null,
-): ChestStrategyOption {
+  evidence?: Partial<Pick<ChestStrategyOption, StrategyEvidenceKey>> | null,
+): ChestStrategyOptionTarget {
   return {
     ...option,
     atk: stats.atk, spd: stats.spd, lck: stats.lck, dex: stats.dex,
-    mean: evidence?.mean ?? 0,
-    highest: evidence?.highest ?? 0,
-    n: evidence?.n ?? 0,
+    mean: evidence?.mean,
+    highest: evidence?.highest,
+    n: evidence?.n,
+    median: evidence?.median,
     lowAtMost1: evidence?.lowAtMost1,
     defeats: evidence?.defeats,
     seedRange: evidence?.seedRange,
+    setupId: evidence?.setupId,
+    mpMode: evidence?.mpMode,
+    meanDpsMp: evidence?.meanDpsMp,
+    meanHealerMp: evidence?.meanHealerMp,
+    sourceCohort: evidence?.sourceCohort,
     source: evidence ? `Fixed research team · seeds ${evidence.seedRange?.join("–") ?? "unknown"}` : "Legal profile build; reward not measured",
     status: evidence ? "Exact profile build tuple has measured reward evidence" : "Profile build tuple; reward unmeasured",
   };
@@ -47,6 +62,6 @@ export function chestStrategyGoals(
   option: Pick<ChestStrategyOption, "atk" | "spd" | "lck" | "dex">,
   tolerance: Record<"atk" | "spd" | "lck", number>,
 ): Record<string, StatGoal> {
-  // Catalog rewards were measured at DEX18. Exact measured variants carry their own DEX.
+  // Every catalog target carries its explicitly measured four-stat tuple.
   return exactStrategyGoals(option, tolerance);
 }
