@@ -2429,7 +2429,8 @@ function ProfileGoalSearchPanel({
             setStatus(message.complete ? "Measured tuple profile check complete." : "Checking this measured tuple against your profile…");
           } else {
             setProfileMatches(message.matches);
-            setStatus(`Checked ${message.completed}/${message.total} strategy targets against your profile${message.complete ? " · comparison complete" : "…"}`);
+            const unfinished = message.matches.filter((match) => !match.complete).length;
+            setStatus(`Checked ${message.completed}/${message.total} strategy targets against your profile${message.complete ? unfinished ? ` · ${unfinished} searches stopped at their limit; closest builds and survival tradeoffs remain provisional` : " · search complete" : "…"}`);
           }
           if (message.complete) { setBusy(false); worker.terminate(); workerRef.current = null; }
         } else if (message.type === "error") {

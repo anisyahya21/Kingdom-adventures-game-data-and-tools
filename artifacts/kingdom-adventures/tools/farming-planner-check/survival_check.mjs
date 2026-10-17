@@ -24,4 +24,15 @@ const tradeoffs = await search(["hp", "mp", "def"]);
 assert.equal(tradeoffs.builds.length, 3, "all non-dominated survival choices remain visible");
 for (const stat of ["hp", "mp", "def"]) assert.ok(tradeoffs.builds.some((build) => build.stats[stat] === 100));
 assert.deepEqual(normalizeFarmingSettings({ maximizeStats: ["hp", "hp", "atk", "mp", null] }).maximizeStats, ["hp", "mp"]);
+// A neutral-DPS equipment pair is invisible to empty-first coordinate descent:
+// each item alone moves ATT away, but together they preserve it and improve survival.
+const pairBonuses = { "Strong body": { atk: 10, hp: 100 }, "Balancing shield": { atk: -10, def: 100 } };
+const paired = { characters: [{ ...input.characters[0], input: { ...input.characters[0].input,
+  slots: [{ slot: "Body", items: ["Strong body"] }, { slot: "Shield", items: ["Balancing shield"] }],
+  contribution: item => pairBonuses[item] } }], inventory: Object.keys(pairBonuses).map(item=>({item,ownership:"owned",currentLevel:1})) };
+let earlyPair = false;
+for await (const page of compareProfileStrategies(paired, targets, false, 24, ["hp", "def"])) {
+  if (page.matches.some(match=>match.builds?.some(build=>build.stats.atk===100 && build.stats.hp===110 && build.stats.def===110))) earlyPair=true;
+}
+assert.ok(earlyPair, "survival warm starts must find the compensating pair within a bounded search");
 console.log("PASS: HP, MP and DEF maximize after exact DPS match; all three survival tradeoffs preserved; settings validated.");

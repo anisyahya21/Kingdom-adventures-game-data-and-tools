@@ -284,38 +284,56 @@ function* enumerateCharacter(
   // This quickly considers weapons/head/shield instead of returning only the
   // empty-first branches when a large search hits its provisional budget.
   if (Object.keys(nearestTargets).length) {
-    const selected: Array<Candidate | undefined> = slots.map(() => undefined);
-    const score = (stats: Record<string, number>) => Object.entries(nearestTargets).reduce((sum, [stat, target]) => sum + Math.abs((stats[stat] ?? 0) - target) / Math.max(1, target), 0)
-      + keys.reduce((sum, stat) => {
-        const goal = input.goals[stat], value = stats[stat] ?? 0;
-        if (!goal || goal.mode === "maximize") return sum;
-        const lo = goal.mode === "max" ? -Infinity : goal.min ?? -Infinity;
-        const hi = goal.mode === "min" ? Infinity : goal.max ?? Infinity;
-        return sum + 1000 * Math.max(0, lo - value, value - hi);
-      }, 0);
-    for (let pass = 0; pass < 2; pass++) {
-      for (let index = 0; index < slots.length; index++) {
-        if (selected[index]) addValues(runningStats, selected[index]!.contribution, -1);
-        const occupied = new Set(selected.filter((entry, at) => at !== index && entry).map((entry) => entry!.item));
-        let best: Candidate | undefined;
-        let bestStats = { ...runningStats }, bestScore = score(runningStats);
-        for (const candidate of slots[index].candidates) {
-          yield { kind: "node" };
-          if (occupied.has(candidate.item)) continue;
-          const stats = { ...runningStats }; addValues(stats, candidate.contribution);
-          const value = score(stats);
-          const improvesObjectives = objectives.every((stat) => (stats[stat] ?? 0) >= (bestStats[stat] ?? 0)) && objectives.some((stat) => (stats[stat] ?? 0) > (bestStats[stat] ?? 0));
-          if (value < bestScore || (value === bestScore && improvesObjectives)) { best = candidate; bestStats = stats; bestScore = value; }
+    // Empty-first coordinate descent can miss gear pairs whose DPS effects cancel.
+    // Also start from each requested survival objective, then optimize closeness.
+    // These are legal warm starts only; completeness still comes from the DFS.
+    for (const startingObjective of [undefined, ...objectives]) {
+      const selected: Array<Candidate | undefined> = slots.map(() => undefined);
+      if (startingObjective) {
+        const occupied = new Set<string>();
+        for (let index = 0; index < slots.length; index++) {
+          let best: Candidate | undefined;
+          for (const candidate of slots[index].candidates) {
+            yield { kind: "node" };
+            if (occupied.has(candidate.item)) continue;
+            if ((candidate.contribution[startingObjective] ?? 0) > (best?.contribution[startingObjective] ?? 0)) best = candidate;
+          }
+          selected[index] = best;
+          if (best) { occupied.add(best.item); addValues(runningStats, best.contribution); }
         }
-        selected[index] = best;
-        if (best) addValues(runningStats, best.contribution);
       }
-      picks.splice(0, picks.length, ...selected.flatMap((candidate, index) => candidate ? [{ slot: slots[index].slot, item: candidate.item, level: candidate.level }] : []));
-      yield* visit(slots.length);
+      const score = (stats: Record<string, number>) => Object.entries(nearestTargets).reduce((sum, [stat, target]) => sum + Math.abs((stats[stat] ?? 0) - target) / Math.max(1, target), 0)
+        + keys.reduce((sum, stat) => {
+          const goal = input.goals[stat], value = stats[stat] ?? 0;
+          if (!goal || goal.mode === "maximize") return sum;
+          const lo = goal.mode === "max" ? -Infinity : goal.min ?? -Infinity;
+          const hi = goal.mode === "min" ? Infinity : goal.max ?? Infinity;
+          return sum + 1000 * Math.max(0, lo - value, value - hi);
+        }, 0);
+      for (let pass = 0; pass < 2; pass++) {
+        for (let index = 0; index < slots.length; index++) {
+          if (selected[index]) addValues(runningStats, selected[index]!.contribution, -1);
+          const occupied = new Set(selected.filter((entry, at) => at !== index && entry).map((entry) => entry!.item));
+          let best: Candidate | undefined;
+          let bestStats = { ...runningStats }, bestScore = score(runningStats);
+          for (const candidate of slots[index].candidates) {
+            yield { kind: "node" };
+            if (occupied.has(candidate.item)) continue;
+            const stats = { ...runningStats }; addValues(stats, candidate.contribution);
+            const value = score(stats);
+            const improvesObjectives = objectives.every((stat) => (stats[stat] ?? 0) >= (bestStats[stat] ?? 0)) && objectives.some((stat) => (stats[stat] ?? 0) > (bestStats[stat] ?? 0));
+            if (value < bestScore || (value === bestScore && improvesObjectives)) { best = candidate; bestStats = stats; bestScore = value; }
+          }
+          selected[index] = best;
+          if (best) addValues(runningStats, best.contribution);
+        }
+        picks.splice(0, picks.length, ...selected.flatMap((candidate, index) => candidate ? [{ slot: slots[index].slot, item: candidate.item, level: candidate.level }] : []));
+        yield* visit(slots.length);
+      }
+      for (const key of Object.keys(runningStats)) delete runningStats[key];
+      Object.assign(runningStats, input.baseStats);
+      picks.length = 0;
     }
-    for (const key of Object.keys(runningStats)) delete runningStats[key];
-    Object.assign(runningStats, input.baseStats);
-    picks.length = 0;
   }
   yield* visit(0);
 }
