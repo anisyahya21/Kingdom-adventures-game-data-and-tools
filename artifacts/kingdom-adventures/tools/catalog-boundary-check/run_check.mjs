@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { measuredPointFor, bestMeasuredPanel } from '../../src/lib/chest-strategy-boundary-access.ts';
-import { CHEST_STRATEGY_OPTIONS, strategyOptionForProfileBuild, chestStrategyGoals } from '../../src/lib/chest-strategy-targets.ts';
+import { register } from 'node:module';
+register('../battle-setup-check/ts-loader.mjs', import.meta.url);
+const { CHEST_STRATEGY_OPTIONS, strategyOptionForProfileBuild, chestStrategyGoals } = await import('../../src/lib/chest-strategy-targets.ts');
 const data = JSON.parse(fs.readFileSync(new URL('../../src/game-data/chest-strategy-targets.json',import.meta.url)));
 const boundaries = JSON.parse(fs.readFileSync(new URL('../../src/game-data/chest-strategy-boundaries.json',import.meta.url)));
 const options = CHEST_STRATEGY_OPTIONS;
