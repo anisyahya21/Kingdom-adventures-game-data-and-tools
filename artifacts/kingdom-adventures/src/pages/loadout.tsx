@@ -2456,6 +2456,7 @@ function ProfileGoalSearchPanel({
       if (comparison) worker.postMessage({ type: "compare", input, upgrades: allowEquipmentLevelUp,
         targets: variantTarget ? [variantTarget] : strategyOptions.map(({ id, atk, spd, lck, dex }) => ({ id, atk, spd, lck, dex: dex ?? 18 })),
         ...(variantTarget || farmingRequest ? { maxSearchNodes: 250_000 } : {}),
+        ...(farmingRequest ? { maximizeStats: farmingRequest.settings.maximizeStats } : {}),
       });
       else worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp, nearestTargets: nearestStrategy ? { atk: nearestStrategy.atk, spd: nearestStrategy.spd, lck: nearestStrategy.lck, dex: nearestStrategy.dex } : undefined });
     } catch (cause) {

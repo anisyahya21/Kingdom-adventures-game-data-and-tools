@@ -66,6 +66,11 @@ export function FarmingPlannerSetup({ onSearch, onSettingsChange, children }: { 
 
 
         </div>
+        <div className="rounded-lg border bg-muted/10 p-3">
+          <p className="mb-2 text-xs font-medium">Improve survivability</p>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">{(["hp", "mp", "def"] as const).map((stat) => <label key={stat} className="flex min-h-9 cursor-pointer items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-primary" checked={settings.maximizeStats.includes(stat)} onChange={(event) => update({ maximizeStats: event.target.checked ? [...settings.maximizeStats, stat] : settings.maximizeStats.filter((value) => value !== stat) })} />Maximize {stat.toUpperCase()}</label>)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">Improve these stats among builds equally close to the DPS target. Multiple selections can produce different tradeoffs.</p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border bg-muted/15 px-3 text-sm"><span className="flex items-center gap-2"><Heart className="h-4 w-4 shrink-0 text-muted-foreground" /><span>Use placeholder healer & fodders</span></span><input type="checkbox" className="h-4 w-4 shrink-0 accent-primary" checked={settings.placeholderSupports} onChange={(event) => update({ placeholderSupports: event.target.checked })} /></label>
           <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border bg-muted/15 px-3 text-sm"><span className="flex items-center gap-2"><FlaskConical className="h-4 w-4 shrink-0 text-muted-foreground" />Allow consumables</span><input type="checkbox" className="h-4 w-4 shrink-0 accent-primary" checked={settings.allowConsumables} onChange={(event) => update({ allowConsumables: event.target.checked })} /></label>

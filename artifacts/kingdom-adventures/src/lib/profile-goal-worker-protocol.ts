@@ -14,7 +14,7 @@ export type ProfileWorkerMessage =
 
 export type ProfileWorkerRequest =
   | { type: "start"; input: ProfileWorkerInput; upgrades: boolean; nearestTargets?: Record<string, number> }
-  | { type: "compare"; input: ProfileWorkerInput; upgrades: boolean; targets: import("./profile-strategy-matches").StrategyMatchTarget[]; maxSearchNodes?: number }
+  | { type: "compare"; input: ProfileWorkerInput; upgrades: boolean; targets: import("./profile-strategy-matches").StrategyMatchTarget[]; maxSearchNodes?: number; maximizeStats?: Array<"hp" | "mp" | "def"> }
   | { type: "page"; page: number }
   | { type: "refine" };
 

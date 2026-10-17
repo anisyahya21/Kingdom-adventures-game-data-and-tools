@@ -23,7 +23,7 @@ self.onmessage = async (event: MessageEvent<ProfileWorkerRequest>) => {
   try {
     if (message.type === "compare") {
       let lastSent = 0;
-      for await (const progress of compareProfileStrategies(restoreProfileWorkerInput(message.input), message.targets, message.upgrades, message.maxSearchNodes)) {
+      for await (const progress of compareProfileStrategies(restoreProfileWorkerInput(message.input), message.targets, message.upgrades, message.maxSearchNodes, message.maximizeStats)) {
         const now = performance.now();
         if (progress.complete || now - lastSent >= 100) { send({ type: "comparison", ...progress }); lastSent = now; }
       }

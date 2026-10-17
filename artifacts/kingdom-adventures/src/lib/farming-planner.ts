@@ -9,6 +9,7 @@ export type FarmingPlannerSettings = {
   trainCharacters: boolean;
   placeholderSupports: boolean;
   allowConsumables: boolean;
+  maximizeStats: Array<"hp" | "mp" | "def">;
   holyHerbLimit: number;
   recoveryPotionLimit: number;
   startingTeamId: string;
@@ -25,7 +26,7 @@ export const DEFAULT_FARMING_SETTINGS: FarmingPlannerSettings = {
   version: 1,
   encounterId: ENCOUNTER_VARIANTS.find((row) => row.familyId.includes("wairo") && row.difficulty === 2)?.id ?? ENCOUNTER_VARIANTS[0].id,
   goal: "rewards", useProfile: true, levelUpGear: false, trainCharacters: false,
-  placeholderSupports: true, allowConsumables: true, holyHerbLimit: 0, recoveryPotionLimit: 0,
+  placeholderSupports: true, allowConsumables: true, maximizeStats: [], holyHerbLimit: 0, recoveryPotionLimit: 0,
   startingTeamId: "", maxGearLevel: "99", trainingCap: "999", targetMatching: "nearby",
   excludedCharacters: [], reservedEquipment: [],
 };
@@ -40,6 +41,7 @@ export function normalizeFarmingSettings(value: unknown): FarmingPlannerSettings
   for (const key of ["holyHerbLimit", "recoveryPotionLimit"] as const) {
     if (typeof raw[key] === "number" && Number.isFinite(raw[key])) result[key] = Math.max(0, Math.min(999, Math.trunc(raw[key])));
   }
+  if (Array.isArray(raw.maximizeStats)) result.maximizeStats = [...new Set(raw.maximizeStats.filter((stat): stat is "hp" | "mp" | "def" => ["hp", "mp", "def"].includes(stat)))];
   if (raw.goal === "clear") result.goal = "clear";
   if (raw.targetMatching === "exact") result.targetMatching = "exact";
   for (const key of ["startingTeamId", "maxGearLevel", "trainingCap"] as const) {
