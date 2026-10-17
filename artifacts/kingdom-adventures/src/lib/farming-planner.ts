@@ -63,3 +63,5 @@ export function farmingConsumableStock(settings: FarmingPlannerSettings) {
   return { holyHerbStock: settings.allowConsumables ? settings.holyHerbLimit : 0,
     itemStock: { "Recovery Potion (L)": settings.allowConsumables ? settings.recoveryPotionLimit : 0 } };
 }
+
+export type FarmingSearchRequest = { id: number; settings: FarmingPlannerSettings };

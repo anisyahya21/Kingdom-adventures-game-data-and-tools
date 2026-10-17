@@ -1,3 +1,7 @@
+import { FarmingDpsResults } from "@/components/ka/farming-dps-results";
+import { farmingConsumableStock, type FarmingSearchRequest } from "@/lib/farming-planner";
+import { BATTLE_TEAM_DRAFT_KEY, BATTLE_TEAM_DRAFT_SCHEMA } from "@/lib/battle-team-draft";
+import type { SavedRoster } from "@/lib/account-rosters";
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { STAT_CANONICAL, STAT_COLUMNS, STAT_KEYS } from "@/game-data/stat-parameter-ids";
@@ -2081,8 +2085,10 @@ function goalLabelText(goal: ProfileStatGoal | undefined): string {
 function ProfileGoalSearchPanel({
   data,
   onCreate,
+  farmingRequest,
 }: {
   data: SharedData;
+  farmingRequest?: FarmingSearchRequest;
   onCreate: (build: ProfileGoalBuild, profile: PlayerProfile, destination?: "builder" | "simulator") => void;
 }) {
   const [goals, setGoals] = useState<Record<string, ProfileStatGoal | undefined>>({});
@@ -2092,7 +2098,7 @@ function ProfileGoalSearchPanel({
   const [editing, setEditing] = useState<Record<string, { mode: ProfileGoalMode; min: string; max: string }>>({});
   const [speedTargetMode, setSpeedTargetMode] = useState<ProfileGoalMode | "bracket">("min");
   const [speedBracket, setSpeedBracket] = useState("");
-  const [allowEquipmentLevelUp, setAllowEquipmentLevelUp] = useState(false);
+  const [allowEquipmentLevelUp, setAllowEquipmentLevelUp] = useState(farmingRequest?.settings.levelUpGear ?? false);
   const [strategyFamily, setStrategyFamily] = useState(ENCOUNTER_FAMILIES[0].id);
   const [strategyDifficulty, setStrategyDifficulty] = useState(0);
   const [strategyTolerance, setStrategyTolerance] = useState({ atk: "0", spd: "0", lck: "15" });
@@ -2148,7 +2154,7 @@ function ProfileGoalSearchPanel({
     setStatus(`Profile loaded: ${next.characters.length} characters and ${ownedCount} owned gear types.`);
   };
 
-  const strategyEncounter = ENCOUNTER_VARIANTS.find((entry) => entry.familyId === strategyFamily && entry.difficulty === strategyDifficulty);
+  const strategyEncounter = farmingRequest ? ENCOUNTER_VARIANTS.find((entry) => entry.id === farmingRequest.settings.encounterId) : ENCOUNTER_VARIANTS.find((entry) => entry.familyId === strategyFamily && entry.difficulty === strategyDifficulty);
   const strategyOptions = CHEST_STRATEGY_OPTIONS.filter((entry) => entry.encounter === strategyEncounter?.id)
     .map((entry) => {
       const latest = bestMeasuredPanel(measuredStrategyBoundaries(entry.id));
@@ -2280,7 +2286,12 @@ function ProfileGoalSearchPanel({
       setError("Click Use profile data to load your saved characters and gear first.");
       return;
     }
-    const currentProfile = readPlayerProfile();
+    const originalProfile = readPlayerProfile();
+    const currentProfile = farmingRequest ? { ...originalProfile,
+      characters: originalProfile.characters.filter((character) => !farmingRequest.settings.excludedCharacters.includes(character.id)),
+      equipment: Object.fromEntries(Object.entries(originalProfile.equipment).filter(([name]) => !farmingRequest.settings.reservedEquipment.includes(name))) } : originalProfile;
+    if (currentProfile.characters.length === 0) { setError("Add a character to your profile or remove character exclusions, then search again."); return; }
+    if (farmingRequest && strategyOptions.length === 0) { setError("No recorded combinations are available for this encounter yet."); return; }
     setProfile(currentProfile);
     const activeGoals = (comparison ? {} : Object.fromEntries(Object.entries(goals).filter(([stat, goal]) => goal && (!nearestStrategy || (!["atk", "spd", "lck", "dex"].includes(stat)))))) as Record<string, ProfileStatGoal>;
     for (const [stat, value] of Object.entries(comparison ? {} : editing)) {
@@ -2382,7 +2393,7 @@ function ProfileGoalSearchPanel({
           rank: character.rank,
           available: true,
           eligible: !!jobProfile && rankExists && [...Object.keys(activeGoals), ...(nearestStrategy || comparison ? ["atk", "spd", "lck", "dex"] : [])].every((stat) => Number.isFinite(curve[stat])),
-          input: { baseStats, goals: activeGoals, slots, contribution },
+          input: { baseStats, goals: activeGoals, slots, contribution, ...(farmingRequest ? { maxLevel: Number(farmingRequest.settings.maxGearLevel) } : {}) },
         };
         });
       });
@@ -2428,7 +2439,7 @@ function ProfileGoalSearchPanel({
       };
       if (comparison) worker.postMessage({ type: "compare", input, upgrades: allowEquipmentLevelUp,
         targets: variantTarget ? [variantTarget] : strategyOptions.map(({ id, atk, spd, lck, dex }) => ({ id, atk, spd, lck, dex: dex ?? 18 })),
-        ...(variantTarget ? { maxSearchNodes: 250_000 } : {}),
+        ...(variantTarget || farmingRequest ? { maxSearchNodes: 250_000 } : {}),
       });
       else worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp, nearestTargets: nearestStrategy ? { atk: nearestStrategy.atk, spd: nearestStrategy.spd, lck: nearestStrategy.lck, dex: nearestStrategy.dex ?? 18 } : undefined });
     } catch (cause) {
@@ -2453,6 +2464,13 @@ function ProfileGoalSearchPanel({
     setMatchCount(0);
     setStatus("Search cancelled.");
   };
+
+  useEffect(() => {
+    if (farmingRequest) void runSearch(true);
+    // A request remounts this panel; run once after the profile-reset effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (farmingRequest) return <FarmingDpsResults profile={profile} matches={profileMatches} options={strategyOptions} busy={busy} status={status} error={error} equipmentIcons={data.equipIcons} onCancel={cancelSearch} onCreate={onCreate} allowUpgrades={allowEquipmentLevelUp} exactOnly={farmingRequest.settings.targetMatching === "exact"} />;
 
   const primaryTargets = ["atk", "spd", "lck", "hp", "def", "mp"];
   const goalKeys = showAllTargets ? STAT_KEYS : STAT_KEYS.filter((stat) => primaryTargets.includes(stat));
@@ -3578,12 +3596,14 @@ function PublishNameDialog({
   );
 }
 
-export default function LoadoutPage({ view = "builder" }: { view?: "builder" | "finder" }) {
+export default function LoadoutPage({ view = "builder", farmingRequest }: { view?: "builder" | "finder"; farmingRequest?: FarmingSearchRequest }) {
   const { data, isLoading } = useSharedData();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
   const [buildDestination, setBuildDestination] = useState<{ id: string; simulator: boolean } | null>(null);
   const { loadouts, save } = usePrivateLoadouts();
+  const [, setFarmingDraft] = useLocalFeature<unknown>(BATTLE_TEAM_DRAFT_KEY, null);
+  const [farmingRosters] = useLocalFeature<SavedRoster[]>("ka_battle_rosters", []);
   // usePrivateLoadouts persists its update in an earlier effect. Transfer only after
   // that commit so the simulator can resolve the newly saved character by ID.
   useEffect(() => {
@@ -3638,6 +3658,16 @@ export default function LoadoutPage({ view = "builder" }: { view?: "builder" | "
       skills: [...(build.skills ?? [])],
       residentStatItems: profileResidentStatItems(profile),
     };
+    if (farmingRequest && destination === "simulator") {
+      const settings = farmingRequest.settings;
+      const roster = Array.isArray(farmingRosters) ? farmingRosters.find((roster) => roster.id === settings.startingTeamId) : undefined;
+      setFarmingDraft((previous: unknown) => {
+        const old = previous && typeof previous === "object" ? previous as Record<string, unknown> : {};
+        return { ...old, schema: BATTLE_TEAM_DRAFT_SCHEMA, encounterId: settings.encounterId,
+          ...(roster ? { characters: roster.characters, partyBonus: roster.partyBonus } : {}),
+          consumables: farmingConsumableStock(settings) };
+      });
+    }
     save([...loadouts, newLoadout]);
     setExpandedId(newLoadout.id);
     if (view === "finder") setBuildDestination({ id: newLoadout.id, simulator: destination === "simulator" });
@@ -3782,7 +3812,7 @@ export default function LoadoutPage({ view = "builder" }: { view?: "builder" | "
   }, []);
 
   if (view === "finder") return <div className="mx-auto max-w-7xl px-4 py-6">
-    {isLoading ? <p className="py-8 text-sm text-muted-foreground">Loading build data…</p> : data ? <ProfileGoalSearchPanel data={data} onCreate={applyProfileBuild} /> : <p role="alert">Build data could not be loaded.</p>}
+    {isLoading ? <p className="py-8 text-sm text-muted-foreground">Loading build data…</p> : data ? <ProfileGoalSearchPanel data={data} onCreate={applyProfileBuild} farmingRequest={farmingRequest} /> : <p role="alert">Build data could not be loaded.</p>}
   </div>;
 
   return (
