@@ -23,7 +23,9 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
   const [selected, setSelected] = useState<string[]>([]);
   const [created, setCreated] = useState<string[] | null>(null);
   const [page, setPage] = useState(0);
+  const [createdPage, setCreatedPage] = useState(0);
   useEffect(() => setPage(0), [matches]);
+  useEffect(() => setCreatedPage(0), [matches, created]);
   const rows = useMemo(() => {
     const optionById = new Map(options.map((option) => [option.id, option]));
     const seen = new Set<string>();
@@ -49,6 +51,17 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
   const availableMatches = [...firstRows.keys()].flatMap((id) => matchesById.has(id) ? [matchesById.get(id)!] : []);
   const pageCount = Math.max(1, Math.ceil(availableMatches.length / 25));
   const pageMatches = availableMatches.slice(page * 25, (page + 1) * 25);
+  const createdRows = rows.filter((row) => created?.includes(row.match.id));
+  const createdPageCount = Math.max(1, Math.ceil(createdRows.length / 5));
+  const visibleCreatedPage = Math.min(createdPage, createdPageCount - 1);
+  const pageCreatedRows = createdRows.slice(visibleCreatedPage * 5, (visibleCreatedPage + 1) * 5);
+  useEffect(() => {
+    if (createdPage !== visibleCreatedPage) setCreatedPage(visibleCreatedPage);
+  }, [createdPage, visibleCreatedPage]);
+  const renderCreatedPagination = () => <div className="flex items-center justify-between gap-3 border-t pt-3">
+    <span className="text-xs text-muted-foreground">Showing {visibleCreatedPage * 5 + 1}–{Math.min((visibleCreatedPage + 1) * 5, createdRows.length)} of {createdRows.length} equipment builds · page {visibleCreatedPage + 1} of {createdPageCount}</span>
+    <div className="flex gap-2"><Button variant="outline" size="sm" disabled={visibleCreatedPage === 0} onClick={() => setCreatedPage((value) => Math.max(0, value - 1))}>Previous</Button><Button variant="outline" size="sm" disabled={visibleCreatedPage + 1 >= createdPageCount} onClick={() => setCreatedPage((value) => Math.min(createdPageCount - 1, value + 1))}>Next</Button></div>
+  </div>;
   return <section aria-label="Recommended DPS builds" className="space-y-3" data-dps-results>
     <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Achievable strategies</h2>{busy && <Button variant="outline" onClick={onCancel}>Cancel search</Button>}</div>
     <p role="status" className="text-xs text-muted-foreground">{status || "Preparing your profile…"}</p>
@@ -74,7 +87,8 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
       <Button className="mt-4 min-h-11" disabled={busy || selected.length === 0} onClick={() => setCreated([...selected])}>Create character builds{selected.length > 0 ? ` (${selected.length})` : ""}</Button>
     </div>}
     {created && <h2 className="pt-2 text-lg font-semibold">Character builds · equipment and survivability</h2>}
-    {rows.filter((row) => created?.includes(row.match.id)).map(({ match, build, option, fingerprint }) => {
+    {createdRows.length > 5 && <div className="rounded-xl border bg-card p-4">{renderCreatedPagination()}</div>}
+    {pageCreatedRows.map(({ match, build, option, fingerprint }) => {
       const character = profile!.characters.find((character) => character.id === build.characterId);
       const evidence = measuredStrategyBuild(option.encounter, build.stats);
       const saved = favorites.some((favorite) => favorite.fingerprint === fingerprint);
@@ -91,5 +105,6 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
         <div className="flex flex-wrap gap-2"><Button onClick={() => onCreate(build, profile!, "simulator")}>Simulate</Button><Button variant="outline" onClick={() => onCreate(build, profile!, "builder")}>Save character</Button><Button variant="outline" disabled={saved} onClick={() => { try { saveFarmingFavorite(build, profile!, chestStrategyGoals(option, { atk: 0, spd: 0, lck: 0 }), allowUpgrades); setNotice("Saved to Favorites."); } catch (cause) { setNotice(cause instanceof Error ? cause.message : "Could not save favorite."); } }}><Star className={`mr-2 h-4 w-4 ${saved ? "fill-current" : ""}`} />{saved ? "Saved" : "Favorite"}</Button></div>
       </CardContent></Card>;
     })}
+    {createdRows.length > 5 && <div className="rounded-xl border bg-card p-4">{renderCreatedPagination()}</div>}
   </section>;
 }
