@@ -10,7 +10,7 @@ import { chestStrategyGoals, type ChestStrategyOption } from "@/lib/chest-strate
 import { measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
 import { strategyMatchDeviation, type ProfileStrategyMatch } from "@/lib/profile-strategy-matches";
 import { compareFarmingDpsRank } from "@/lib/farming-dps-ranking";
-import { exactAccountDiagnosticCase, accountDiagnosticLabel, accountDiagnosticScenario } from "@/game-data/account-diagnostic-evidence";
+import { exactAccountDiagnosticCase, accountDiagnosticLabel, accountDiagnosticScenario, accountDiagnosticFailedPilotApplies } from "@/game-data/account-diagnostic-evidence";
 import type { ProfileGoalBuild } from "@/lib/profile-loadout-goal-planner";
 import type { PlayerProfile } from "@/lib/player-profile";
 import { testedProfileEvidenceVisible, type TestedProfileCandidate } from "@/lib/tested-profile-build";
@@ -55,10 +55,13 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
         if (seen.has(`${match.id}:${fingerprint}`) || exactOnly && strategyMatchDeviation(variant, option) !== 0) return [];
         seen.add(`${match.id}:${fingerprint}`);
         const measured = measuredStrategyBuild(option.encounter, build.stats);
-        return [{ match: variant, build, option, fingerprint, measured, deviation: strategyMatchDeviation(variant, option) }];
+        const character = profile.characters.find((item) => item.id === build.characterId);
+        const diagnostic = exactAccountDiagnosticCase(option.encounter, build, character?.gender);
+        const failedExactSetupPilot = accountDiagnosticFailedPilotApplies(diagnostic, option.encounter, testedProfileSetup);
+        return [{ match: variant, build, option, fingerprint, measured, failedExactSetupPilot, deviation: strategyMatchDeviation(variant, option) }];
       });
-    }).sort((a, b) => compareFarmingDpsRank({ id: a.match.id, measuredMean: a.measured?.mean ?? null, deviation: a.deviation }, { id: b.match.id, measuredMean: b.measured?.mean ?? null, deviation: b.deviation }));
-  }, [matches, options, profile, exactOnly]);
+    }).sort((a, b) => compareFarmingDpsRank({ id: a.match.id, failedExactSetupPilot: a.failedExactSetupPilot, measuredMean: a.measured?.mean ?? null, deviation: a.deviation }, { id: b.match.id, failedExactSetupPilot: b.failedExactSetupPilot, measuredMean: b.measured?.mean ?? null, deviation: b.deviation }));
+  }, [matches, options, profile, exactOnly, testedProfileSetup]);
   const firstRows = useMemo(() => {
     const first = new Map<string, (typeof rows)[number]>();
     for (const row of rows) if (!first.has(row.match.id)) first.set(row.match.id, row);

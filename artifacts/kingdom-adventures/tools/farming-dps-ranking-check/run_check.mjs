@@ -16,3 +16,12 @@ assert.deepEqual(rows.sort(compareFarmingDpsRank).map((row) => row.id), [
   "far-target-score-99",
 ]);
 console.log("PASS: actual measurements rank first by observed mean; unmeasured builds rank by stat distance.");
+
+const failed = { id: "failed-exact", measuredMean: 99, deviation: 0, failedExactSetupPilot: true };
+const unknown = { id: "unmeasured-alternative", measuredMean: null, deviation: 0.1 };
+assert.deepEqual([failed, unknown].sort(compareFarmingDpsRank).map(row => row.id), [unknown.id, failed.id], "a matching failed pilot must not lead on research mean or closeness");
+assert.ok(compareFarmingDpsRank(failed, unknown) > 0);
+assert.ok(compareFarmingDpsRank(unknown, failed) < 0);
+assert.equal(compareFarmingDpsRank(failed, failed), 0);
+assert.ok(compareFarmingDpsRank({ ...failed, failedExactSetupPilot: false }, unknown) < 0, "other setups retain ordinary ranking");
+console.log("PASS: conditional failed-pilot demotion preserves alternatives and ordinary ranking outside that setup.");

@@ -148,3 +148,14 @@ export function accountDiagnosticScenario(diagnostic: DiagnosticCase | LiveBuild
   }
   return `${ACCOUNT_DIAGNOSTIC_E3.source} ${ACCOUNT_DIAGNOSTIC_E3.policy} User team not measured. This conditional small-sample diagnostic does not change fixed-research reward averages or ranking.`;
 }
+
+/** A conservative ordering signal only for the tested finite-resource support setup. */
+export function accountDiagnosticFailedPilotApplies(
+  diagnostic: DiagnosticCase | LiveBuildPilotCase | null,
+  encounterId: number,
+  setup?: { encounterId: number; placeholderSupports: boolean; finiteHpMp: boolean; allowConsumables: boolean; holyHerbLimit: number; recoveryPotionLimit: number },
+): boolean {
+  return !!diagnostic && "evidenceClass" in diagnostic && diagnostic.evidenceClass === "live-build-pilot" &&
+    setup?.encounterId === encounterId && setup.placeholderSupports && setup.finiteHpMp &&
+    setup.allowConsumables && setup.holyHerbLimit === 10 && setup.recoveryPotionLimit === 0;
+}

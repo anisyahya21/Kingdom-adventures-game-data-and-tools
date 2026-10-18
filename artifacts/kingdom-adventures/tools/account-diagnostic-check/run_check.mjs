@@ -70,3 +70,14 @@ assert.equal(exactAccountDiagnosticCase(4, pilotBuild, 0), null, "pilot must rej
 assert.equal(exactAccountDiagnosticCase(3, pilotBuild, 1), null, "pilot must reject other genders");
 
 console.log("Account diagnostic exact-match checks passed (3 original cases unchanged; pilot exact match and cohort mismatch gates passed).");
+
+const { accountDiagnosticFailedPilotApplies } = await import("../../src/game-data/account-diagnostic-evidence.ts");
+const matchingSetup = { encounterId: 3, placeholderSupports: true, finiteHpMp: true, allowConsumables: true, holyHerbLimit: 10, recoveryPotionLimit: 0 };
+assert.equal(accountDiagnosticFailedPilotApplies(pilotCase, 3, matchingSetup), true);
+for (const change of [{ encounterId: 4 }, { placeholderSupports: false }, { finiteHpMp: false }, { allowConsumables: false }, { holyHerbLimit: 9 }, { recoveryPotionLimit: 1 }]) {
+  assert.equal(accountDiagnosticFailedPilotApplies(pilotCase, 3, { ...matchingSetup, ...change }), false);
+}
+assert.equal(accountDiagnosticFailedPilotApplies(null, 3, matchingSetup), false);
+assert.equal(accountDiagnosticFailedPilotApplies(baseCase, 3, matchingSetup), false);
+assert.equal(accountDiagnosticFailedPilotApplies(pilotCase, 3), false);
+console.log("PASS: failed-pilot ordering requires exact identity and matching support/resource controls.");
