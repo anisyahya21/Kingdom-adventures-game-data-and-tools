@@ -13,9 +13,12 @@ import { compareFarmingDpsRank } from "@/lib/farming-dps-ranking";
 import { exactAccountDiagnosticCase, ACCOUNT_DIAGNOSTIC_E3 } from "@/game-data/account-diagnostic-evidence";
 import type { ProfileGoalBuild } from "@/lib/profile-loadout-goal-planner";
 import type { PlayerProfile } from "@/lib/player-profile";
+import { testedProfileEvidenceVisible, type TestedProfileCandidate } from "@/lib/tested-profile-build";
 
-export function FarmingDpsResults({ profile, matches, options, busy, status, error, onCancel, onCreate, equipmentIcons, allowUpgrades, exactOnly }: {
+export function FarmingDpsResults({ profile, matches, options, busy, status, error, onCancel, onCreate, equipmentIcons, allowUpgrades, exactOnly, testedProfileBuild, testedProfileCandidate, testedProfileSetup }: {
   profile: PlayerProfile | null; matches: ProfileStrategyMatch[] | null; options: ChestStrategyOption[];
+  testedProfileBuild?: ProfileGoalBuild | null; testedProfileCandidate?: TestedProfileCandidate;
+  testedProfileSetup?: { encounterId: number; placeholderSupports: boolean; allowConsumables: boolean; holyHerbLimit: number; recoveryPotionLimit: number; finiteHpMp: boolean };
   busy: boolean; status: string; error: string; equipmentIcons?: Record<string, string>; allowUpgrades: boolean; exactOnly: boolean;
   onCancel: () => void; onCreate: (build: ProfileGoalBuild, profile: PlayerProfile, destination?: "builder" | "simulator") => void;
 }) {
@@ -55,6 +58,8 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
   const createdRows = rows.filter((row) => created?.includes(row.match.id));
   const createdPageCount = Math.max(1, Math.ceil(createdRows.length / 5));
   const visibleCreatedPage = Math.min(createdPage, createdPageCount - 1);
+  const testedProfileVisible = !!testedProfileBuild && !!testedProfileCandidate && !!testedProfileSetup && !!profile &&
+    testedProfileEvidenceVisible(testedProfileCandidate, testedProfileSetup);
   const pageCreatedRows = createdRows.slice(visibleCreatedPage * 5, (visibleCreatedPage + 1) * 5);
   useEffect(() => {
     if (createdPage !== visibleCreatedPage) setCreatedPage(visibleCreatedPage);
@@ -69,6 +74,24 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {notice && <p role="status" className="text-sm">{notice}</p>}
     {!busy && !error && matches !== null && rows.length === 0 && <p className="rounded-lg border p-4 text-sm text-muted-foreground">No {exactOnly ? "exact " : ""}build found for this setup. Try allowing gear upgrades or removing exclusions. An unfinished search does not prove a build is impossible.</p>}
+    {testedProfileVisible && <Card><CardContent className="space-y-3 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><h3 className="font-semibold">Tested profile build</h3>
+          <p className="text-xs text-muted-foreground">Conditional diagnostic · {testedProfileBuild!.jobName} · Rank {testedProfileBuild!.rank} · ATK {testedProfileBuild!.stats.atk} · SPD {testedProfileBuild!.stats.spd} · LCK {testedProfileBuild!.stats.lck} · DEX {testedProfileBuild!.stats.dex}</p>
+          <p className="mt-1 text-xs">HP {testedProfileBuild!.stats.hp.toLocaleString()} · MP {testedProfileBuild!.stats.mp.toLocaleString()} · DEF {testedProfileBuild!.stats.def.toLocaleString()}</p>
+        </div>
+        <Button onClick={() => onCreate(testedProfileBuild!, profile!, "simulator")}>Simulate</Button>
+      </div>
+      <div className="flex flex-wrap gap-2">{testedProfileBuild!.picks.map((pick) => <span key={pick.slot} className="rounded-md border px-2 py-1 text-xs">{pick.slot}: {pick.item} Lv{pick.level}</span>)}</div>
+      <p className="text-xs text-muted-foreground">Required skills: {(testedProfileBuild!.skills ?? []).join(", ")} · ownership not recorded.</p>
+      <div className="rounded-md border border-amber-500/30 px-3 py-2 text-xs">
+        <p className="font-medium text-amber-700 dark:text-amber-300">Modeled callbacks: average {testedProfileCandidate!.averageCallbacks} · median {testedProfileCandidate!.medianCallbacks} · highest {testedProfileCandidate!.highestCallbacks}</p>
+        <p className="mt-1">{testedProfileCandidate!.sampleSize} paired-seed tests · survived {testedProfileCandidate!.survivedRuns}/{testedProfileCandidate!.sampleSize} · 0–1 callback in {testedProfileCandidate!.atMostOneCallbackRuns}/{testedProfileCandidate!.sampleSize} · median Herbs {testedProfileCandidate!.medianHerbsUsed}</p>
+        <details className="mt-1 text-muted-foreground"><summary className="cursor-pointer">Scenario assumptions</summary>
+          <p className="mt-1">Fixed synthetic supports, finite HP/MP, at most 10 Holy Herbs at 20% DPS MP using a 200-tick window, and 0 potions. One run reached the Herb cap and a low-MP reserve after its final reward callback; no lost eligible cast was demonstrated. Your team has not been measured. These are conditional simulator callbacks, not settled or earned rewards; they do not change fixed-research averages or ranking. The Simulate button starts a fresh run, not a replay of these tests.</p>
+        </details>
+      </div>
+    </CardContent></Card>}
     {rows.length > 0 && <div className="rounded-xl border bg-card p-4">
       <p className="mb-3 text-xs text-muted-foreground">Exact-stat averages use the fixed research team. Your account team’s survival, skills, and MP changes remain untested. Other builds rank by four-stat closeness; their rewards are unmeasured.</p>
       <div className="overflow-x-auto"><table className="w-full text-left text-sm tabular-nums"><thead><tr className="border-b text-xs text-muted-foreground"><th scope="col" className="p-2">Pick</th><th scope="col" className="p-2">Tested target</th><th scope="col" className="p-2">Your build</th>{["Exact-stat evidence", "Target avg", "Target best", "Target n", "Target seeds"].map((label) => <th key={label} className="whitespace-nowrap p-2 text-right" scope="col">{label}</th>)}</tr></thead><tbody>{pageMatches.map((match) => {
