@@ -143,7 +143,9 @@ export function FarmingDpsResults({ profile, sharedData, plannerSettings, matche
   const [createdPage, setCreatedPage] = useState(0);
   const [showFixedTeamBenchmarks, setShowFixedTeamBenchmarks] = useState(false);
   useEffect(() => setPage(0), [matches]);
-  useEffect(() => setCreatedPage(0), [matches, created]);
+  // Streaming target updates must not send players back to page one while browsing recipes.
+  useEffect(() => setCreatedPage(0), [profile, sharedData, plannerSettings, exactOnly, created]);
+  useEffect(() => { if (busy) setCreatedPage(0); }, [busy]);
   const targetRows = useMemo(() => {
     const optionById = new Map(options.map((option) => [option.id, option]));
     const seen = new Set<string>();
