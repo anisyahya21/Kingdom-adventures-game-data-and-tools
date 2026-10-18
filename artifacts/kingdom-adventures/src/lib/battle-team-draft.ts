@@ -10,6 +10,7 @@ import {
   jobCurveFor,
   loadoutEquipment,
   loadoutParameters,
+  normalizeEquipmentVariantOverrides,
   resolveCombatEquipmentId,
   SKILL_ID_BY_NAME,
   statAtLevel,
@@ -210,6 +211,7 @@ export function draftStatRows(character: SavedLoadout, shared: BuilderSharedData
     : { parameters: {} as RawParameterSet, levels: {} as Record<string, number> };
   const curve = shared ? jobCurveFor(shared, jobName, rank) : {};
   const slots = shared ? loadoutEquipment(character, shared).slots : null;
+  const equipmentOverrides = shared ? normalizeEquipmentVariantOverrides(shared.overrides) : undefined;
 
   return STAT_KEYS.map((stat) => {
     const level = levels[stat] ?? character.statLevels?.[stat] ?? character.level ?? 1;
@@ -232,7 +234,7 @@ export function draftStatRows(character: SavedLoadout, shared: BuilderSharedData
         const name = gearInSlot(character, slot.slot, shared.slotAssignments)?.name;
         if (!name) continue;
         const multiplier = selection.affinity === 0 ? 0.5 : 1;
-        for (const [rawKey, contribution] of Object.entries(shared.overrides?.[name] ?? {})) {
+        for (const [rawKey, contribution] of Object.entries(equipmentOverrides?.[name] ?? {})) {
           if (canonicalStatKey(rawKey) !== stat) continue;
           const base = contribution?.base ?? 0;
           const inc = contribution?.inc ?? 0;

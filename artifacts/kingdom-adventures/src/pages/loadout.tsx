@@ -7,6 +7,7 @@ import { STAT_CANONICAL, STAT_COLUMNS, STAT_KEYS } from "@/game-data/stat-parame
 import { getStatIcon, STAT_ICON_KEY } from "@/lib/stat-icons";
 import {
   battleSetupFromLoadouts,
+  normalizeEquipmentVariantOverrides,
   writeLoadoutHandoff,
   type SavedLoadoutPet,
   type SharedLoadoutData,
@@ -410,6 +411,7 @@ function useSharedData() {
   return useQuery({
     queryKey: ["ka-shared"],
     queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
+    select: (data) => ({ ...data, overrides: normalizeEquipmentVariantOverrides(data.overrides) }),
     staleTime: 15000,
   });
 }

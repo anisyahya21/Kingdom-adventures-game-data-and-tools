@@ -11,7 +11,8 @@ const dps={name:'Profile DPS',jobName:'Ninja',rank:'A',gender:0,statLevels:{hp:3
 dps.skillInvocations=dps.skills.map(()=>0);
 assert.equal(dps.skills.length,7); assert.equal(dps.skills.at(-1),'Shield Resistance');
 const totals=Object.fromEntries(draftStatRows(dps,shared).map(r=>[r.stat,r.total]));
-assert.deepEqual(['atk','spd','lck','dex','hp','mp','def'].map(k=>totals[k]),[301,600,622,11,3908,1598,1340]);
+// The blue Legendary Shield uses its own recovered row, not the red variant's shared pairs.
+assert.deepEqual(['atk','spd','lck','dex','hp','mp','def'].map(k=>totals[k]),[301,600,550,11,3864,1598,1272]);
 const conversion=battleSetupFromLoadouts([dps,...farmingResearchSupportLoadouts()],shared,{encounterId:3,partyMax:6,holyHerbStock:10});
 assert.deepEqual(conversion.issues.filter(x=>x.category==='ERROR'),[]);
 assert.ok(conversion.setup);

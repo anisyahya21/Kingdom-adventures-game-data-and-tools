@@ -243,6 +243,40 @@ export function equipmentVariantAmbiguity(
     .map((candidate) => candidate.id);
 }
 
+const KNOWN_AMBIGUOUS_EQUIPMENT_VARIANTS: Readonly<Record<string, number>> = {
+  "B/ Legendary Shield (B)": 192,
+  "E/ Hat (B)": 235,
+};
+
+/**
+ * Correct only the two audited same-name variant rows whose shared table pairs belong to a
+ * different recovered id. Every other admin override is preserved verbatim. Names still resolve
+ * through the generated site id map, so this does not guess a variant from its contribution numbers.
+ */
+export function normalizeEquipmentVariantOverrides(
+  overrides: SharedLoadoutData["overrides"],
+): SharedLoadoutData["overrides"] {
+  if (!overrides) return overrides;
+  let normalized: NonNullable<SharedLoadoutData["overrides"]> | null = null;
+  for (const [name, siteStats] of Object.entries(overrides)) {
+    const expectedId = KNOWN_AMBIGUOUS_EQUIPMENT_VARIANTS[name];
+    if (expectedId === undefined) continue;
+    const id = resolveCombatEquipmentId(name);
+    const entry = id === null ? undefined : EQUIPMENT_BY_ID.get(id);
+    if (id !== expectedId || !entry || equipmentVariantAmbiguity(name, entry, overrides).length === 0) continue;
+    const canonicalStats: Record<string, { base: number; inc: number }> = {};
+    for (const stat of STAT_KEYS) {
+      const pair = entry.parameters[STAT_PARAMETER_IDS[stat] - 10] ?? [0, 0];
+      if (pair[0] || pair[1] || Object.keys(siteStats ?? {}).some((rawStat) => canonicalStatKey(rawStat) === stat)) {
+        canonicalStats[stat] = { base: pair[0] ?? 0, inc: pair[1] ?? 0 };
+      }
+    }
+    normalized ??= { ...overrides };
+    normalized[name] = canonicalStats;
+  }
+  return normalized ?? overrides;
+}
+
 const SLOT_KEY_BY_SITE_SLOT: Record<string, EquipmentSlotKey> = {
   weapon: "weapon",
   shield: "shield",
@@ -1058,12 +1092,13 @@ export function battleSetupFromLoadouts(
   shared: SharedLoadoutData,
   options: LoadoutConversionOptions = {},
 ): BattleSetupConversionResult {
+  const effectiveShared = { ...shared, overrides: normalizeEquipmentVariantOverrides(shared.overrides) };
   const issues: SetupIssue[] = [];
   const { names, issues: nameIssues } = uniqueNames(loadouts);
   issues.push(...nameIssues);
 
   const converted = loadouts.map((loadout, index) =>
-    humanUnitFromLoadout(loadout, shared, options, names[index]),
+    humanUnitFromLoadout(loadout, effectiveShared, options, names[index]),
   );
   const units = converted.map((entry) => entry.unit);
   for (const entry of converted) issues.push(...entry.issues);

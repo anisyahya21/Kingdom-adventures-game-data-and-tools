@@ -14,9 +14,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const APP = path.resolve(here, "..");
+const APP = path.resolve(here, "..", "..");
 const WORKSPACE = path.resolve(APP, "..", "..", "..", "..");
-const SHARED_JSON = path.join(WORKSPACE, "KA-Website", "artifacts", "api-server", "data", "ka_shared.json");
+const SHARED_JSON = path.resolve(APP, "..", "api-server", "data", "ka_shared.json");
 
 const args = process.argv.slice(2);
 const outIndex = args.indexOf("--out");
@@ -46,6 +46,7 @@ const {
   battleSetupFromLoadouts,
   describeNativeRunnerRejection,
   equipmentVariantAmbiguity,
+  normalizeEquipmentVariantOverrides,
   resolveCombatEquipmentId,
   SKILL_ID_BY_NAME,
   SKILL_NAME_CONFLICTS,
@@ -54,6 +55,7 @@ const {
 const { STAT_PARAMETER_IDS, canonicalStatKey } = await import("@/game-data/stat-parameter-ids");
 const { EQUIPMENT_CATALOG: COMBAT_EQUIPMENT, SKILL_CATALOG, EQUIPMENT_BY_ID, SKILL_BY_ID, importBattleSetup, serializeBattleSetup } = await import("@/lib/battle-setup");
 const { battleSetupToCombatScenario } = await import("@/lib/battle-setup-adapter");
+const { draftStatRows } = await import("@/lib/battle-team-draft");
 const { JOB_SKILL_DATA } = await import("@/lib/generated-job-skill-data");
 const { EQUIPMENT_CATALOG: SITE_EQUIPMENT } = await import("@/lib/generated-equipment-data");
 
@@ -116,6 +118,30 @@ check("294 of 296 shared rows agree with the recovered contribution table", SITE
 check("variant ambiguity resolves the duplicate-name row", equipmentVariantAmbiguity("E/ Hat (B)", EQUIPMENT_BY_ID.get(235), shared.overrides), [237]);
 check("non-variant rows report no ambiguity", equipmentVariantAmbiguity("F/ Wooden Staff", EQUIPMENT_BY_ID.get(resolveCombatEquipmentId("F/ Wooden Staff")), shared.overrides), []);
 check("the matching (R) row reports no ambiguity", equipmentVariantAmbiguity("E/ Hat (R)", EQUIPMENT_BY_ID.get(237), shared.overrides), []);
+const normalizedOverrides = normalizeEquipmentVariantOverrides(shared.overrides);
+for (const [name, id] of [["B/ Legendary Shield (B)", 192], ["E/ Hat (B)", 235]]) {
+  const canonical = EQUIPMENT_BY_ID.get(id);
+  const statMismatch = Object.entries(normalizedOverrides[name] ?? {}).some(([rawStat, pair]) => {
+    const pid = STAT_PARAMETER_IDS[canonicalStatKey(rawStat)];
+    const native = pid ? canonical.parameters[pid - 10] ?? [0, 0] : [0, 0];
+    return !pid || (pair.base ?? 0) !== native[0] || (pair.inc ?? 0) !== native[1];
+  });
+  check(`${name} uses its own recovered id ${id} contribution pairs`, statMismatch, false);
+}
+check("variant normalization preserves unrelated admin override row", normalizedOverrides["F/ Wooden Staff"], shared.overrides["F/ Wooden Staff"]);
+check("variant normalization preserves site ids for the two ambiguous names", [resolveCombatEquipmentId("B/ Legendary Shield (B)"), resolveCombatEquipmentId("E/ Hat (B)")], [192, 235]);
+const parityDraft = {
+  name: "Profile DPS", jobName: "Ninja", rank: "A", gender: 0,
+  statLevels: { hp: 321, mp: 337, vig: 254, atk: 5, def: 176, spd: 3, lck: 1, int: 3, dex: 1, gth: 4, mov: 1, hrt: 1 },
+  equipment: [
+    { name: "B/ Mystic Hat", level: 99 }, { name: "F/ Wooden Stick", level: 99 },
+    { name: "B/ Legendary Shield (B)", level: 60 }, { name: "C/ Light Mail", level: 1 },
+    { name: "E/ Leather Shoes", level: 5 },
+  ], skills: ["Shield Resistance"],
+  residentStatItems: { life: 4, wisdom: 5, vitality: 6, might: 6, resilience: 15 },
+};
+const parityStats = Object.fromEntries(draftStatRows(parityDraft, shared).map((row) => [row.stat, row.total]));
+check("Ninja draft stats match the corrected original equipment tuple", ["atk", "spd", "lck", "dex", "hp", "mp", "def"].map((key) => parityStats[key]), [301, 600, 550, 11, 3864, 1598, 1272]);
 const parameterSignatures = new Map();
 for (const id of Object.values(STAT_PARAMETER_IDS)) {
   parameterSignatures.set(id, COMBAT_EQUIPMENT.map((entry) => JSON.stringify(entry.parameters[id - 10] ?? null)).join(";"));
@@ -300,7 +326,7 @@ writeFileSync(scenarioPath, JSON.stringify(scenario, null, 2) + "\n");
 
 const PY = `
 import json, sys
-sys.path.insert(0, r"${path.join(WORKSPACE, "KA-Website", "tools", "recovery")}")
+sys.path.insert(0, r"${path.join(WORKSPACE, "project", "KA-Website", "tools", "recovery")}")
 from combat_scenario import load_scenario, ScenarioError
 from combat_setup import prepare_setup
 out = {}
