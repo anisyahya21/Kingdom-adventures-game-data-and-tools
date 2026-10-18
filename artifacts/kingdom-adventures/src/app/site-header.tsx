@@ -466,8 +466,9 @@ export function SiteHeader() {
             <DialogTitle>Log in</DialogTitle>
             <DialogDescription>Log in to your account.</DialogDescription>
           </DialogHeader>
+          {authError && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{authError}</p>}
           <div className="grid gap-2">
-            <Button variant="outline" disabled={authBusy} onClick={() => { setAuthBusy(true); void startDiscordAuth().catch((error) => { setAuthError(error instanceof Error ? error.message : "Discord login is unavailable."); setAuthBusy(false); }); }}>Log in with Discord</Button>
+            <Button variant="outline" disabled={authBusy} onClick={() => { setAuthError(""); setAuthBusy(true); void startDiscordAuth().catch((error) => { setAuthError(error instanceof Error ? error.message : "Discord login is unavailable."); setAuthBusy(false); }); }}>Log in with Discord</Button>
             <Button onClick={() => { setLoginOpen(false); void startPopupLogin(); }} disabled={authBusy}>Log in with Telegram</Button>
             <details className="mt-2 text-sm text-muted-foreground">
               <summary className="cursor-pointer rounded-sm py-1 text-center underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Having trouble signing in?</summary>
