@@ -192,6 +192,7 @@ export default function ChaosSetupLabPage() {
   const mapPanelRef = useRef<HTMLDivElement | null>(null);
   const [undoStack, setUndoStack] = useState<SetupSnapshot[]>([]);
   const [tool, setTool] = useState<Tool>("none");
+  const [placementMode, setPlacementMode] = useState<"map" | "direct">("map");
   const [panel, setPanel] = useState<"plan" | "build" | "view" | "help" | null>(
     "plan",
   );
@@ -542,6 +543,7 @@ export default function ChaosSetupLabPage() {
   }, []);
 
   const mapPlacing =
+    placementMode === "map" &&
     ["stone", "board", "monster", "unit"].includes(tool) &&
     !pickSetupAreaFromMap;
   useEffect(() => {
@@ -1441,10 +1443,12 @@ export default function ChaosSetupLabPage() {
         setResultCycle(null);
         setGeneratorError(null);
         setCopyStatus(movingPiece ? "Piece moved." : "Piece placed.");
-        setSelectedPiece(k);
+        setSelectedPiece(movingPiece ? k : null);
         setMovingPiece(null);
-        setTool("none");
-        setHoverTile(null);
+        if (movingPiece) {
+          setTool("none");
+          setHoverTile(null);
+        }
         return;
       }
       if (!nativeLand) {
@@ -1910,6 +1914,7 @@ export default function ChaosSetupLabPage() {
             onCellClick={
               mapPlacing ? undefined : (cell) => onCellClick(cell.x, cell.y)
             }
+            onCellHover={mapPlacing ? undefined : setHoverTile}
             onEditorObjectClick={(point, camera) => {
               if (tool !== "none" || pickSetupAreaFromMap) return false;
               const id = hitBuilder(
@@ -2109,6 +2114,21 @@ export default function ChaosSetupLabPage() {
             )}
             {panel === "build" && (
               <div className="space-y-3">
+                <label className="flex items-center justify-between gap-2 text-xs font-medium">
+                  Placement
+                  <select
+                    aria-label="Placement mode"
+                    value={placementMode}
+                    onChange={(event) => {
+                      setPlacementMode(event.target.value as "map" | "direct");
+                      setHoverTile(null);
+                    }}
+                    className="h-9 min-w-0 rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="direct">Tap a tile</option>
+                    <option value="map">Drag map + confirm</option>
+                  </select>
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     variant="outline"
@@ -2350,7 +2370,9 @@ export default function ChaosSetupLabPage() {
                 ? "Tap an area to plan here"
                 : tool === "reclaim"
                   ? `Tap a tile to ${reclaimMode} land`
-                  : `Move the map under the ${tool === "unit" ? "fighter" : tool}, then confirm`}
+                  : placementMode === "map"
+                    ? `Move the map under the ${tool === "unit" ? "fighter" : tool}, then confirm`
+                    : `Tap a tile to place the ${tool === "unit" ? "fighter" : tool}`}
             </span>
             <Button
               size="icon"

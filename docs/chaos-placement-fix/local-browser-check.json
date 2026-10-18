@@ -1,0 +1,13 @@
+{
+  "phase": "local",
+  "base": "http://127.0.0.1:5199",
+  "twoModes": true,
+  "repeatedMapPlacement": true,
+  "occupiedCellRejected": true,
+  "repeatedTapPlacement": true,
+  "moveIsOneShot": true,
+  "pieceCount": 4,
+  "savedPlanParseable": true,
+  "generatedStones": 4,
+  "generatedBoards": 77
+}
