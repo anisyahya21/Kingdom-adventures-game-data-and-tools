@@ -1,7 +1,8 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { and, eq, gt, isNull } from "drizzle-orm";
-import { discordOAuthJson } from "../lib/discord-oauth";
+import { discordOAuthJson, discordClientAuthorization, discordRetryAfterSeconds, DiscordOAuthRateLimitError } from "../lib/discord-oauth";
+import { discordOAuthReadiness } from "../lib/discord-oauth-readiness";
 
 const router = Router();
 
@@ -1052,12 +1053,15 @@ async function linkIdentity(module: DbModule, userId: string, provider: "telegra
 router.get("/providers", (_req, res) => {
   res.json({ telegram: telegramOidcReady(), discord: Boolean(process.env.DISCORD_CLIENT_ID?.trim() && process.env.DISCORD_CLIENT_SECRET?.trim()) });
 });
+router.get("/discord/health", (_req, res) => { res.json(discordOAuthReadiness()); });
 
 router.post("/discord/start", async (req, res) => {
   const module = await getDbModule();
   if (!module) { res.status(503).json({ error: "Account storage is unavailable." }); return; }
   const clientId = process.env.DISCORD_CLIENT_ID?.trim();
   if (!clientId || !process.env.DISCORD_CLIENT_SECRET?.trim()) { res.status(503).json({ error: "Discord login is not configured yet." }); return; }
+  const retryAfterSeconds = discordRetryAfterSeconds();
+  if (retryAfterSeconds) { res.set("Retry-After", String(retryAfterSeconds)).status(429).json({ error: new DiscordOAuthRateLimitError(retryAfterSeconds).message, retryAfterSeconds }); return; }
   const token = String(req.cookies?.[SESSION_COOKIE_NAME] || "");
   const current = req.body?.link === true ? await getSessionUser(module, token) : null;
   if (req.body?.link === true && !current) { res.status(401).json({ error: "Sign in before linking Discord." }); return; }
@@ -1092,8 +1096,8 @@ router.get("/discord/callback", async (req, res) => {
     const code = String(req.query.code || "");
     if (!code || req.query.error) throw new Error("Discord login was cancelled. You can return to Profile.");
     const access = await discordOAuthJson<{ access_token?: string }>("/oauth2/token", {
-      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ client_id: process.env.DISCORD_CLIENT_ID || "", client_secret: process.env.DISCORD_CLIENT_SECRET || "", grant_type: "authorization_code", code, redirect_uri: context.redirectUri || "" }),
+      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: discordClientAuthorization() },
+      body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: context.redirectUri || "" }),
     });
     if (!access.access_token) throw new Error("Discord authorization failed. Please start again from Profile.");
     const identity = await discordOAuthJson<{ id?: string; username?: string; global_name?: string }>("/users/@me", { headers: { Authorization: `Bearer ${access.access_token}` } });
@@ -1115,6 +1119,10 @@ router.get("/discord/callback", async (req, res) => {
     res.clearCookie("ka_discord_oauth", { path: "/", secure: authCookieSecure(), sameSite: "lax" });
     res.redirect(context.returnTo || "/player-profile");
   } catch (error) {
+    if (error instanceof DiscordOAuthRateLimitError) {
+      res.set("Retry-After", String(error.retryAfterSeconds)).status(429).type("text/plain").send(error.message);
+      return;
+    }
     // Do not expose provider tokens, DB errors or secrets to the browser.
     const message = error instanceof Error && !('code' in error) ? error.message : "Could not link this Discord account. It may already belong to another account.";
     res.status(400).type("text/plain").send(message);

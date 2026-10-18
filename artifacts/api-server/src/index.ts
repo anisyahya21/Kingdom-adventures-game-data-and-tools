@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { initGoogleCache } from "./lib/google-cache";
 import { ensureProfileSchema } from "./lib/profile-schema";
+import { verifyDiscordOAuthReadiness } from "./lib/discord-oauth-readiness";
 
 const rawPort = process.env["PORT"];
 
@@ -28,4 +29,5 @@ app.listen({ port, host }, (err) => {
   }
 
   logger.info({ port, host }, "Server listening");
+  void verifyDiscordOAuthReadiness();
 });
