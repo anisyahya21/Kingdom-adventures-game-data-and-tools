@@ -36,6 +36,11 @@ try {
         if(['/jobs','/houses','/skills','/survey','/monster-spawns','/monster-pet-stats'].includes(pathname)) assert.ok(html.includes('<h1'), `Missing database heading: ${pathname}`);
         if(pathname==='/jobs') assert.ok(html.includes('Archer'), 'Actual job records must be present before JavaScript');
         if(pathname==='/monster-spawns') assert.ok(html.includes('Skullene'), 'Actual monster records must be present before JavaScript');
+        if(['/monster-pet-stats','/monster-xp'].includes(pathname)) {
+          assert.match(html, /<details data-tool-help[^>]*>/);
+          assert.doesNotMatch(html.match(/<details data-tool-help[^>]*>/)[0], /\bopen(?:=|\s|>)/);
+          assert.ok(html.includes(pathname === '/monster-xp' ? 'The game chooses one non-zero exp stat' : 'The data comes from the mined'));
+        }
       }
       assert.ok(html.includes(`content="${isIndexablePage(pathname) ? "index, follow" : "noindex, follow"}"`));
     });
@@ -96,6 +101,19 @@ try {
   });
   page = await context.newPage();
   page.on('pageerror', error => pageErrors.push(error.message));
+  for (const route of ['/monster-pet-stats', '/monster-xp']) {
+    await page.goto(base + route);
+    await page.waitForFunction(route => document.querySelector('#root')?.getAttribute('data-client-route') === route, route);
+    const help = page.locator('details[data-tool-help]');
+    assert.equal(await help.getAttribute('open'), null);
+    assert.ok(await help.locator('p').count() > 0);
+    await help.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await help.locator('p').first().waitFor({ state: 'visible' });
+    await page.keyboard.press('Enter');
+    assert.equal(await help.getAttribute('open'), null);
+    checks.push(`collapsed help present and keyboard accessible ${route}`);
+  }
   await page.goto(base);
   await page.waitForFunction(() => document.querySelector('#root')?.hasAttribute('data-client-route') && document.querySelector('h1'));
   const profile = JSON.stringify({ version:1, equipment:{'Wooden Stick':7},characters:[],valuables:{} });
