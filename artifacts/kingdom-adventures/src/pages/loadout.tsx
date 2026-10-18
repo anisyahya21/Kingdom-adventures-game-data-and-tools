@@ -59,6 +59,8 @@ import { ENCOUNTER_FAMILIES, ENCOUNTER_VARIANTS, difficultyName } from "@/lib/ba
 import { CHEST_STRATEGY_OPTIONS, chestStrategyGoals, strategyOptionForProfileBuild, type ChestStrategyOption, type ChestStrategyOptionTarget } from "@/lib/chest-strategy-targets";
 import { isExactStrategyBuild, measuredStrategyTargetId, strategyMatchDeviation, type ProfileStrategyMatch, type StrategyMatchTarget } from "@/lib/profile-strategy-matches";
 import { measuredStrategyBoundaries, measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
+import { getResearchGroup, loadResearchBank } from "@/lib/research-strategy-bank";
+import { compatibleResearchTargets } from "@/lib/research-profile-targets";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2109,6 +2111,9 @@ function ProfileGoalSearchPanel({
   const [variantChecks, setVariantChecks] = useState<Record<string, MeasuredVariantCheck>>({});
   const [showDistantOptions, setShowDistantOptions] = useState(false);
   const strategyQueryConsumed = useRef(false);
+  const [researchTarget, setResearchTarget] = useState<ChestStrategyOption | null>(null);
+  const [researchComparisonOptions, setResearchComparisonOptions] = useState<ChestStrategyOption[]>([]);
+  const [, setResearchBankLoaded] = useState<number | null>(null);
   useEffect(() => { setProfileMatches(null); setVariantChecks({}); resetSearch(); }, [liveProfile, strategyFamily, strategyDifficulty, allowEquipmentLevelUp]);
   const [showAllTargets, setShowAllTargets] = useState(false);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
@@ -2155,7 +2160,12 @@ function ProfileGoalSearchPanel({
   };
 
   const strategyEncounter = farmingRequest ? ENCOUNTER_VARIANTS.find((entry) => entry.id === farmingRequest.settings.encounterId) : ENCOUNTER_VARIANTS.find((entry) => entry.familyId === strategyFamily && entry.difficulty === strategyDifficulty);
-  const strategyOptions = CHEST_STRATEGY_OPTIONS.filter((entry) => entry.encounter === strategyEncounter?.id)
+  useEffect(() => {
+    let active = true;
+    if (strategyEncounter) void loadResearchBank(strategyEncounter.id).then(() => { if (active) setResearchBankLoaded(strategyEncounter.id); }).catch(() => {});
+    return () => { active = false; };
+  }, [strategyEncounter?.id]);
+  const strategyOptions = [...CHEST_STRATEGY_OPTIONS, ...researchComparisonOptions, ...(researchTarget ? [researchTarget] : [])].filter((entry) => entry.encounter === strategyEncounter?.id)
     .sort((a, b) => (b.mean ?? -Infinity) - (a.mean ?? -Infinity));
   const profileEvidence = (option: ChestStrategyOption) => {
     const match = profileMatches?.find((entry) => entry.id === option.id);
@@ -2193,10 +2203,12 @@ function ProfileGoalSearchPanel({
     strategyQueryConsumed.current = true;
     const url = new URL(window.location.href);
     const strategyId = url.searchParams.get("strategy");
+    const researchId = url.searchParams.get("research");
     const encounterId = url.searchParams.get("encounter");
-    if (!strategyId && encounterId === null) return;
+    if (!strategyId && !researchId && encounterId === null) return;
     const option = strategyId ? CHEST_STRATEGY_OPTIONS.find((entry) => entry.id === strategyId) : undefined;
     url.searchParams.delete("strategy");
+    url.searchParams.delete("research");
     url.searchParams.delete("encounter");
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
     const encounter = option
@@ -2206,6 +2218,20 @@ function ProfileGoalSearchPanel({
     setStrategyFamily(encounter.familyId);
     setStrategyDifficulty(encounter.difficulty);
     if (option) applyStrategy(option, true);
+    if (researchId) void getResearchGroup(encounter.id, researchId).then((group) => {
+      if (!group) { setError("That measured cohort is not present in this encounter's bank."); return; }
+      const target: ChestStrategyOption = {
+        id: `research:${group.id}`, encounter: encounter.id,
+        atk: group.stats[0], spd: group.stats[1], lck: group.stats[2], dex: group.stats[3],
+        mean: group.mean, highest: group.highest, median: group.median, n: group.n,
+        lowAtMost1: group.low, defeats: group.defeats,
+        meanDpsMp: group.meanDpsMp ?? undefined, meanHealerMp: group.meanHealerMp ?? undefined,
+        source: "Exact measured cohort · sufficient MP", sourceCohort: group.cohortId ?? group.id,
+        setupId: group.profileId ?? undefined, mpMode: "sufficient",
+        status: "Cohort sample; nearby stats remain unmeasured",
+      };
+      setResearchTarget(target); applyStrategy(target, true);
+    }).catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load measured cohort."));
   }, [applyStrategy]);
   const strategyOptionForBuild = (option: ChestStrategyOption, build: ProfileGoalBuild): ChestStrategyOptionTarget => {
     const evidence = measuredStrategyBuild(option.encounter, build.stats);
@@ -2417,6 +2443,17 @@ function ProfileGoalSearchPanel({
       const input = await prepareProfileWorkerInput({ characters, inventory }, allowEquipmentLevelUp, controller.signal,
         (completed, total) => { if (generation === generationRef.current) setStatus(`Preparing equipment stats · ${completed}/${total} character contexts…`); });
       if (generation !== generationRef.current || controller.signal.aborted) return;
+      let comparisonOptions = strategyOptions;
+      if (farmingRequest && strategyEncounter && !variantTarget) {
+        const bank = await loadResearchBank(strategyEncounter.id);
+        if (generation !== generationRef.current || controller.signal.aborted) return;
+        const extras = compatibleResearchTargets(input, bank);
+        const curated = CHEST_STRATEGY_OPTIONS.filter(o => o.encounter === strategyEncounter.id);
+        const keys = new Set(curated.map(o => [o.atk,o.spd,o.lck,o.dex].join(":")));
+        const additional = extras.filter(o => !keys.has([o.atk,o.spd,o.lck,o.dex].join(":")));
+        setResearchComparisonOptions(additional);
+        comparisonOptions = [...curated,...additional];
+      }
       const worker = new Worker(new URL("../workers/profile-goal-search.worker.ts", import.meta.url), { type: "module" });
       workerRef.current = worker;
       worker.onmessage = (event: MessageEvent<ProfileWorkerMessage>) => {
@@ -2430,7 +2467,7 @@ function ProfileGoalSearchPanel({
           } else {
             setProfileMatches(message.matches);
             const unfinished = message.matches.filter((match) => !match.complete).length;
-            setStatus(`Checked ${message.completed}/${message.total} strategy targets against your profile${message.complete ? unfinished ? ` · ${unfinished} searches stopped at their limit; closest builds and survival tradeoffs remain provisional` : " · search complete" : "…"}`);
+            setStatus(`Checked ${message.completed}/${message.total} strategy targets against your profile${message.complete ? unfinished ? ` · ${unfinished} searches not exhausted; closest builds and survival tradeoffs remain provisional` : " · search complete" : "…"}`);
           }
           if (message.complete) { setBusy(false); worker.terminate(); workerRef.current = null; }
         } else if (message.type === "error") {
@@ -2455,8 +2492,8 @@ function ProfileGoalSearchPanel({
         worker.terminate(); workerRef.current = null;
       };
       if (comparison) worker.postMessage({ type: "compare", input, upgrades: allowEquipmentLevelUp,
-        targets: variantTarget ? [variantTarget] : strategyOptions.map(({ id, atk, spd, lck, dex }) => ({ id, atk, spd, lck, dex: dex ?? 18 })),
-        ...(variantTarget || farmingRequest ? { maxSearchNodes: 250_000 } : {}),
+        targets: variantTarget ? [variantTarget] : comparisonOptions.map(({ id, atk, spd, lck, dex }) => ({ id, atk, spd, lck, dex: dex ?? 18 })),
+        ...(variantTarget || farmingRequest ? { maxSearchNodes: variantTarget ? 250_000 : Math.min(250_000, Math.max(1000, Math.floor(8_000_000/Math.max(1,comparisonOptions.length)))) } : {}),
         ...(farmingRequest ? { maximizeStats: farmingRequest.settings.maximizeStats } : {}),
       });
       else worker.postMessage({ type: "start", input, upgrades: allowEquipmentLevelUp, nearestTargets: nearestStrategy ? { atk: nearestStrategy.atk, spd: nearestStrategy.spd, lck: nearestStrategy.lck, dex: nearestStrategy.dex } : undefined });

@@ -25,7 +25,11 @@ self.onmessage = async (event: MessageEvent<ProfileWorkerRequest>) => {
       let lastSent = 0;
       for await (const progress of compareProfileStrategies(restoreProfileWorkerInput(message.input), message.targets, message.upgrades, message.maxSearchNodes, message.maximizeStats)) {
         const now = performance.now();
-        if (progress.complete || now - lastSent >= 100) { send({ type: "comparison", ...progress }); lastSent = now; }
+        if (progress.complete || now - lastSent >= 100) {
+          // Send headline builds during progress; clone all gear alternatives once.
+          const matches = progress.complete ? progress.matches : progress.matches.map(({ builds: _builds, ...match }) => match);
+          send({ type: "comparison", ...progress, matches }); lastSent = now;
+        }
       }
       return;
     }

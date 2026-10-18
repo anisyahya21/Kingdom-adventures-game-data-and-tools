@@ -1,7 +1,7 @@
 import { EncounterCards } from "@/components/ka/encounter-cards";
 import { useState } from "react";
 import { Link } from "wouter";
-import { ArrowRight, Check, ChevronDown, FlaskConical, Heart, Package, Search, Settings2, Sparkles, Swords, Target, Users, WandSparkles } from "lucide-react";
+import { Check, ChevronDown, FlaskConical, Heart, Package, Settings2, Users, WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { usePlayerProfile } from "@/lib/player-profile";
 import { ENCOUNTER_BY_ID } from "@/lib/battle-setup";
 import type { SavedRoster } from "@/lib/account-rosters";
 import { DEFAULT_FARMING_SETTINGS, FARMING_PLANNER_KEY, normalizeFarmingSettings, type FarmingPlannerSettings } from "@/lib/farming-planner";
+import { ResearchStrategyBank } from "@/components/ka/research-strategy-bank";
 
 const selectClass = "h-11 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring";
 
@@ -91,6 +92,7 @@ export function FarmingPlannerSetup({ onSearch, onSettingsChange, children }: { 
       </CardContent>
     </Card>
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-muted-foreground"><p>{settings.levelUpGear ? `Gear up to Lv${settings.maxGearLevel || "—"}` : "Current gear levels"} · Current training · Weak & full strength</p><Button variant="ghost" className="min-h-11 gap-2 text-xs" onClick={() => setMoreOpen((value) => !value)} aria-expanded={moreOpen}><Settings2 className="h-4 w-4" />More settings<ChevronDown className={`h-3.5 w-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`} /></Button></div>
+    <ResearchStrategyBank encounter={settings.encounterId} />
     {moreOpen && <Card><CardContent className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5"><label className="space-y-2 text-xs font-medium">Maximum equipment level<Input aria-label="Maximum equipment level" className="h-11" inputMode="numeric" type="number" min="1" max="99" disabled={!settings.levelUpGear} value={settings.maxGearLevel} onChange={(event) => update({ maxGearLevel: event.target.value })} /></label><label className="space-y-2 text-xs font-medium">Target matching<select aria-label="Target matching" className={selectClass} value={settings.targetMatching} onChange={(event) => update({ targetMatching: event.target.value as FarmingPlannerSettings["targetMatching"] })}><option value="nearby">Closest available builds</option><option value="exact">Exact targets only</option></select></label></CardContent></Card>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {children}
