@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { BookOpenText } from "lucide-react";
+import { ArrowLeft, BatteryMedium, Brain, Heart, Package, Sprout, Wrench } from "lucide-react";
 import { PageHeader } from "@/components/ka/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UTILITY_STAT_EFFECTS, freshFogHp, fogPulses, wagonMaterialLoad } from "@/game-data/utility-stat-effects";
+
+const statIcons = { mov: Package, hrt: Heart, vig: BatteryMedium, int: Brain, dex: Wrench, gth: Sprout };
+const statOrder = ["mov", "hrt", "dex", "int", "gth", "vig"] as const;
 
 function numberOrNull(value: string, min: number) {
   if (!value.trim()) return null;
@@ -23,79 +24,87 @@ export default function StatEffectsGuidePage() {
   const moveValue = numberOrNull(move, 0);
   const stockValue = numberOrNull(stock, 0);
   const hp = areaValue === null ? null : freshFogHp(areaValue);
-  const pulses = hp === null || heartValue === null ? null : fogPulses(hp, heartValue);
+  const clears = hp === null || heartValue === null ? null : fogPulses(hp, heartValue);
   const load = moveValue === null || stockValue === null ? null : wagonMaterialLoad(moveValue, stockValue);
 
-  return <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-    <PageHeader icon={<BookOpenText className="w-5 h-5" />} title="Stats outside combat">
-      <p>What your residents' stats change during town work, transport and exploration, and when more of a stat stops helping.</p>
+  return <article className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
+    <Link href="/guides" className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+      <ArrowLeft className="h-4 w-4" /> All guides
+    </Link>
+    <PageHeader title="Resident Stats">
+      <p>What to train for carrying, clearing fog and working around town.</p>
     </PageHeader>
-    <div className="flex flex-wrap gap-2">
-      <Link href="/guides"><Button variant="outline" size="sm">All guides</Button></Link>
-      <Link href="/skills"><Button variant="outline" size="sm">Skill database</Button></Link>
-      <a href="#heart"><Button variant="outline" size="sm">Heart & fog</Button></a>
-      <a href="#move"><Button variant="outline" size="sm">Move & wagons</Button></a>
-    </div>
-    <div className="grid gap-4 md:grid-cols-2">
-      {UTILITY_STAT_EFFECTS.map(stat => <Card key={stat.key}>
-        <CardHeader className="pb-2"><CardTitle className="text-base">{stat.name}</CardTitle></CardHeader>
-        <CardContent className="text-sm space-y-2 leading-relaxed"><p>{stat.effect}</p><p className="text-muted-foreground">{stat.training}</p></CardContent>
-      </Card>)}
-    </div>
-    <Card id="heart" className="scroll-mt-20">
-      <CardHeader><CardTitle>Heart & fog: train for fewer pulses</CardTitle></CardHeader>
-      <CardContent className="space-y-4 text-sm leading-relaxed">
-        <p>Each eligible fog tile in range loses HP equal to effective Heart per clearing pulse. The pulse runs every 19 exploration updates. For one worker, with fixed Heart and no other clearing damage:</p>
-        <p className="rounded-md bg-muted p-3 font-mono">Pulses = round up(remaining fog HP ÷ Heart)</p>
-        <p>Normal fresh fog scales from 100 HP at area level 1 to 1,000 HP at level 500 and above. Therefore 1,000 effective Heart is enough for a one-pulse clear throughout this fog-scaling path. That is a useful ceiling for damage to normal fresh fog, not a cap on Heart. Lower areas and partially cleared fog need less.</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1">Area level<Input type="number" min="1" step="1" value={area} onChange={e => setArea(e.target.value)} /></label>
-          <label className="space-y-1">Effective Heart<Input type="number" min="1" step="1" value={heart} onChange={e => setHeart(e.target.value)} /></label>
+    <nav aria-label="Stats in this guide" className="mt-6 flex flex-wrap gap-2 border-b pb-6">
+      {statOrder.map(key => {
+        const stat = UTILITY_STAT_EFFECTS.find(entry => entry.key === key)!;
+        return <a key={key} href={`#${key}`} className="inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-medium hover:bg-muted">{stat.name}</a>;
+      })}
+    </nav>
+
+    {statOrder.map(key => {
+      const stat = UTILITY_STAT_EFFECTS.find(entry => entry.key === key)!;
+      const Icon = statIcons[key];
+      return <section key={key} id={key} className="scroll-mt-20 border-b py-8 sm:py-10">
+        <div className="mb-4 flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></span>
+          <h2 className="text-xl font-semibold tracking-tight">{stat.name}</h2>
         </div>
-        <div className="rounded-md bg-muted p-3" aria-live="polite">{hp === null || pulses === null ? "Enter a positive area level and Heart." : <>
-          <strong>{hp.toLocaleString()} fog HP · {pulses.toLocaleString()} {pulses === 1 ? "pulse" : "pulses"}</strong>
-          <p>{pulses > 1 ? `The next reduction is at ${Math.ceil(hp / (pulses - 1)).toLocaleString()} Heart (${pulses - 1} ${pulses === 2 ? "pulse" : "pulses"}).` : "More Heart cannot reduce this target below one pulse."}</p>
-        </>}</div>
-        <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b"><th className="p-2">Area level</th><th className="p-2">Fresh fog HP / one-pulse Heart</th></tr></thead><tbody>{[1, 50, 100, 200, 300, 400, 499, 500].map(level => <tr key={level} className="border-b last:border-0"><td className="p-2">{level === 500 ? "500+" : level}</td><td className="p-2">{freshFogHp(level)}</td></tr>)}</tbody></table></div>
-        <p><strong>Range is separate.</strong> De-Fogger adds 1 to the job's clearing range. Reaching the next position and waiting for the next pulse can still take time after a one-pulse clear.</p>
-        <p><strong>Surveys also use Heart.</strong> Each survey calculates a Heart requirement from its prior success count, then maps your Heart relative to that requirement onto its own success-rate range. The preferred job group adds 20 percentage points, capped at 100%. There is no single Heart target for every survey.</p>
-      </CardContent>
-    </Card>
-    <Card id="move" className="scroll-mt-20">
-      <CardHeader><CardTitle>Move & wagons: train for the available load</CardTitle></CardHeader>
-      <CardContent className="space-y-4 text-sm leading-relaxed">
-        <p><strong>1 Move value = capacity for 1 carried unit.</strong> This uses the effective stat value, including applicable equipment, rather than its training level. Wagon Yard works without Transport Corps.</p>
-        <p>For eligible cargo, the wagon selects one source storage location and takes:</p>
-        <p className="rounded-md bg-muted p-3 font-mono">Load = min(effective Move, selected container's current stock)</p>
-        <p>The wagon does not combine stock from several containers to fill unused capacity before returning. Stored items use up to Move matching objects from the same warehouse; coins are limited by the selected deposit. Individual non-stock objects can use a single-object pickup path.</p>
-        <p><strong>What one point of Move carries:</strong> one material unit, one coin from a coin-box deposit, or one matching stored item. The inspected pickup paths do not apply different carrying weights to different material types.</p>
-        <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b"><th className="p-2">Effective Move</th><th className="p-2">3,000,000 copper coins in a box</th><th className="p-2">300 identical items in one HG storage</th></tr></thead><tbody>{[50, 100, 200, 300, 1000].map(value => <tr key={value} className="border-b last:border-0"><td className="p-2">{value.toLocaleString()}</td><td className="p-2">{value.toLocaleString()} coins</td><td className="p-2">{Math.min(value, 300)} items</td></tr>)}</tbody></table></div>
-        <p>Thus Move 100 takes 100 copper coins from that box, leaving 2,999,900, or 100 of those stored items, leaving 200. Move 300 can collect all 300 items in one pickup. Move above 300 adds nothing to that item pickup, but can still increase the coin load.</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1">Effective Move<Input type="number" min="0" step="1" value={move} onChange={e => setMove(e.target.value)} /></label>
-          <label className="space-y-1">Stock in selected material container<Input type="number" min="0" step="1" value={stock} onChange={e => setStock(e.target.value)} /></label>
+        <div className="space-y-4 text-base leading-7">
+          <p>{stat.effect}</p>
+          <p>{stat.training}</p>
+
+          {key === "mov" && <>
+            <div className="border-l-2 border-primary pl-4">
+              <p className="font-semibold">1 Move = room for 1 carried unit</p>
+              <p>With 200 Move, a wagon can collect 200 units. If the container only holds 80, it brings back 80.</p>
+            </div>
+            <p>A wagon collects from one container before returning. It does not visit other containers to fill the remaining space. Materials have the same carrying cost; different amounts in storage can explain different-sized loads.</p>
+            <p>There is no separate fixed wagon-load cap in this calculation. Once Move is high enough to empty the container, raising it further will not help that pickup.</p>
+            <details className="rounded-xl border px-4">
+              <summary className="cursor-pointer py-4 font-medium">Check a wagon load</summary>
+              <div className="space-y-4 pb-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="space-y-2 text-sm font-medium">Move value<Input type="number" min="0" step="1" value={move} onChange={e => setMove(e.target.value)} /></label>
+                  <label className="space-y-2 text-sm font-medium">Units in container<Input type="number" min="0" step="1" value={stock} onChange={e => setStock(e.target.value)} /></label>
+                </div>
+                <p className="rounded-lg bg-muted p-3" aria-live="polite">{load === null ? "Enter Move and the amount in one container." : <><strong>{load.toLocaleString()} units per pickup.</strong>{moveValue! >= stockValue! ? " This empties the container." : ` ${ (stockValue! - load).toLocaleString()} units remain.`}</>}</p>
+              </div>
+            </details>
+            <details className="rounded-xl border px-4">
+              <summary className="cursor-pointer py-4 font-medium">Useful skills for Wagon Yard</summary>
+              <div className="space-y-4 pb-4">
+                <p>Transport Corps is optional. Residents can use Wagon Yard without it.</p>
+                <dl className="space-y-4">
+                  <div><dt className="font-medium"><Link href="/skills?search=Transport%20Corps" className="text-primary hover:underline">Transport Corps</Link></dt><dd>Makes wagon travel 50% faster.</dd></div>
+                  <div><dt className="font-medium"><Link href="/skills?search=All-Out%20Sprint" className="text-primary hover:underline">All-Out Sprint</Link></dt><dd>Doubles travel speed, including wagon journeys. With Transport Corps, wagon travel is three times as fast.</dd></div>
+                  <div><dt className="font-medium"><Link href="/skills?search=Move%20Speed%20UP" className="text-primary hover:underline">Move Speed UP</Link></dt><dd>Adds a flat travel-speed bonus that also works with wagons.</dd></div>
+                  <div><dt className="font-medium"><Link href="/skills?search=Insta-Move" className="text-primary hover:underline">Insta-Move</Link></dt><dd>Can teleport on long journeys, including the return trip with a loaded wagon. Uses MP.</dd></div>
+                </dl>
+              </div>
+            </details>
+          </>}
+
+          {key === "hrt" && <>
+            <p>Fog takes more work to clear in higher-level areas. With 1,000 Heart, a resident can clear ordinary, untouched fog in one action, even in areas at level 500 or above. Lower-level areas need less Heart.</p>
+            <p>Heart also helps with surveys, but the amount you need depends on the survey and how many times it has already succeeded.</p>
+            <details className="rounded-xl border px-4">
+              <summary className="cursor-pointer py-4 font-medium">Check how much Heart you need</summary>
+              <div className="space-y-4 pb-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="space-y-2 text-sm font-medium">Area level<Input type="number" min="1" step="1" value={area} onChange={e => setArea(e.target.value)} /></label>
+                  <label className="space-y-2 text-sm font-medium">Heart value<Input type="number" min="1" step="1" value={heart} onChange={e => setHeart(e.target.value)} /></label>
+                </div>
+                <div className="rounded-lg bg-muted p-3" aria-live="polite">{hp === null || clears === null ? <p>Enter a positive area level and Heart value.</p> : <>
+                  <p className="font-semibold">{clears.toLocaleString()} {clears === 1 ? "clearing action" : "clearing actions"} needed</p>
+                  <p>{clears > 1 ? `${Math.ceil(hp / (clears - 1)).toLocaleString()} Heart would reduce this to ${clears - 1}.` : "More Heart will not clear this fog any faster."}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">For one resident clearing untouched fog. Moving to the next tile still takes time.</p>
+                </>}</div>
+              </div>
+            </details>
+          </>}
         </div>
-        <div className="rounded-md bg-muted p-3" aria-live="polite">{load === null ? "Enter a non-negative Move and source stock." : <><strong>{load.toLocaleString()} materials in this pickup</strong><p>{moveValue! >= stockValue! ? "More Move adds nothing to this pickup: source stock is the limit." : `Another ${stockValue! - moveValue!} Move would let this pickup take all currently available stock.`}</p></>}</div>
-        <p><strong>No extra fixed load cap was found in this pickup path.</strong> The useful target is the largest per-container load your task regularly offers. Fragmented or depleted stock lowers that target. Receiving storage and collection can also limit deliveries.</p>
-        <p>The carrying rule does not make every resource transportable. Energy cannot be transported by Wagon Yard. For eligible cargo, use the actual selected container's stock and capacity for your target.</p>
-        <p>Different available stock can produce different loads: with Move 300, a source holding 100 Wood gives 100 Wood, while a warehouse holding 300 matching items gives 300 items. Extra Move cannot supply stock that is not there.</p>
-        <p>More cargo can reduce trips, but once Move exceeds the available load, improve travel and source availability. Doubling travel speed does not double a full cycle that also includes work, waiting and drop-off.</p>
-        <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b"><th className="p-2">Skill</th><th className="p-2">Wagon benefit</th></tr></thead><tbody>
-          <tr className="border-b"><td className="p-2"><Link href="/skills?search=Transport%20Corps" className="text-primary">Transport Corps</Link></td><td className="p-2">Travel speed ×1.5.</td></tr>
-          <tr className="border-b"><td className="p-2"><Link href="/skills?search=All-Out%20Sprint" className="text-primary">All-Out Sprint</Link></td><td className="p-2">Travel speed ×2; bypasses the empty-Vigor half-speed branch.</td></tr>
-          <tr className="border-b"><td className="p-2"><Link href="/skills?search=Move%20Speed%20UP" className="text-primary">Move Speed UP</Link></td><td className="p-2">Adds 1 internal speed unit after multipliers.</td></tr>
-          <tr><td className="p-2"><Link href="/skills?search=Insta-Move" className="text-primary">Insta-Move</Link></td><td className="p-2">Can teleport at route starts at least 35 Manhattan cells away, including loaded returns. Requires MP and activation success.</td></tr>
-        </tbody></table></div>
-        <p>Transport Corps and All-Out Sprint combine to ×3 travel speed in the ordinary cart branch. Terrain, vehicles and the separate global speed boost can change the final speed.</p>
-      </CardContent>
-    </Card>
-    <Card>
-      <CardHeader><CardTitle className="text-base">Other stats and the limits of this guide</CardTitle></CardHeader>
-      <CardContent className="text-sm space-y-2 leading-relaxed">
-        <p>HP supports survival; MP funds active skills, including instant work and teleportation. Those skills scale human MP costs by average stat <em>levels</em>, not current stat values or a percentage of maximum MP.</p>
-        <p>Attack, Defense, combat Speed and Luck retain their combat roles. No independent wagon-load or fog-damage bonus from them is established in the inspected paths. Combat Speed is not the walking-speed stat. Dexterity and Intelligence have both combat and work uses.</p>
-        <p className="text-muted-foreground">Based on game code and in-game data. Some effects still need investigation, including Well-Prepared and its possible role before area challenges. Complete wagon-trip timing has not been measured. Listed limits apply to the named action, not every possible use of a stat.</p>
-      </CardContent>
-    </Card>
-  </div>;
+      </section>;
+    })}
+    <p className="py-6 text-sm leading-6 text-muted-foreground">Looking for a particular skill? <Link href="/skills" className="font-medium text-primary hover:underline">Browse the skill database</Link>.</p>
+  </article>;
 }

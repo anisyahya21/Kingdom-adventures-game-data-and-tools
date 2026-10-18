@@ -57,7 +57,7 @@ export function buildGlobalSearchEntries(): GlobalSearchEntry[] {
       .filter((entry) => !entry.external)
       .map((entry) => ({ label: entry.label, subtitle: section.title, href: entry.href })),
   );
-  entries.push({ label: "Stats outside combat", subtitle: "Guide — Heart, fog, Move, wagons and town work", href: "/guides/stat-effects" });
+  entries.push({ label: "Resident Stats", subtitle: "Guide — Heart, fog, Move, wagons and town work", href: "/guides/stat-effects" });
 
   entries.push({
     label: "Add Friends",

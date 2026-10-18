@@ -167,7 +167,7 @@ export default function SkillsPage() {
             <CardTitle className="text-base">Skills</CardTitle>
             <CardDescription className="text-xs">
               Every named skill has an explanation. Some effects still need deeper investigation; unconfirmed effects are marked. Tips / Notes are community context.
-              {" "}<Link href="/guides/stat-effects" className="text-primary hover:underline">Stats outside combat guide</Link>
+              {" "}<Link href="/guides/stat-effects" className="text-primary hover:underline">Resident Stats guide</Link>
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">

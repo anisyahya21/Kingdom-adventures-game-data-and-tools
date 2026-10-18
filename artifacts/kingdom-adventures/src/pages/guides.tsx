@@ -151,7 +151,7 @@ export default function GuidesPage() {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <ToolNavigationCard href="/guides/stat-effects" title="Stats outside combat" description="Heart and fog, Move and wagon loads, town-work stats, useful thresholds and movement skills. Includes fog and cargo calculators." />
+        <ToolNavigationCard href="/guides/stat-effects" title="Resident Stats" description="What to train for carrying, clearing fog and working around town." />
         <ToolNavigationCard href={BUILT_IN_GUIDE.href} title={BUILT_IN_GUIDE.title} description={BUILT_IN_GUIDE.description} detail={BUILT_IN_GUIDE.note} />
 
         {loading ? (
