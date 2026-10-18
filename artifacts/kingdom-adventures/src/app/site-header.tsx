@@ -356,10 +356,11 @@ export function SiteHeader() {
 
         <Link
           href="/"
-          className="shrink-0 whitespace-nowrap text-[clamp(11px,3.7vw,16px)] sm:text-2xl font-semibold hover:opacity-80 transition-opacity"
+          className="inline-flex min-w-0 shrink items-center gap-1.5 whitespace-nowrap text-[clamp(11px,3.2vw,16px)] sm:gap-2 sm:text-2xl font-semibold hover:opacity-80 transition-opacity"
           title="Go to home page"
         >
-          Kingdom Adventurers
+          <img src="/brand/kairo-wairo-v1-64.png" alt="" width={32} height={32} className="h-5 w-5 shrink-0 rounded-full min-[350px]:h-6 min-[350px]:w-6 sm:h-8 sm:w-8" />
+          <span className="truncate">Kingdom Adventurers</span>
         </Link>
 
         <div className="flex min-w-0 flex-1 items-center justify-end gap-0.5 sm:flex-none">
@@ -387,9 +388,9 @@ export function SiteHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button variant="ghost" className="h-11 shrink-0 px-1 min-[350px]:px-2 sm:px-3 text-xs" title={authError || undefined} onClick={() => { if (authError) void refreshAuthSession(); else setLoginOpen(true); }} disabled={authBusy || fallbackBusy}>
+            <Button variant="ghost" className="h-11 shrink-0 px-1 min-[350px]:px-2 sm:px-3 text-xs" aria-label={authError ? "Retry account connection" : undefined} title={authError || undefined} onClick={() => { if (authError) void refreshAuthSession(); else setLoginOpen(true); }} disabled={authBusy || fallbackBusy}>
               {authBusy || fallbackBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {authError ? "Retry account" : "Log in"}
+              {authError ? <><span className="sm:hidden">Retry</span><span className="hidden sm:inline">Retry account</span></> : "Log in"}
             </Button>
           )}
 

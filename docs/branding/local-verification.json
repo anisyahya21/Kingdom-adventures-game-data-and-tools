@@ -1,0 +1,189 @@
+{
+  "phase": "local",
+  "base": "http://127.0.0.1:5197",
+  "pass": true,
+  "results": [
+    {
+      "width": 320,
+      "route": "/",
+      "logoSrc": "/brand/kairo-wairo-v1-64.png",
+      "logoLoaded": true,
+      "headerLinkWidth": 142.515625,
+      "nameTruncated": false,
+      "headerOverlap": false,
+      "horizontalOverflow": false,
+      "icons": [
+        {
+          "href": "/brand/kairo-wairo-v1-32.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1-16.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1.svg",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "route": "/monster-spawns",
+      "logoSrc": "/brand/kairo-wairo-v1-64.png",
+      "logoLoaded": true,
+      "headerLinkWidth": 142.515625,
+      "nameTruncated": false,
+      "headerOverlap": false,
+      "horizontalOverflow": false,
+      "icons": [
+        {
+          "href": "/brand/kairo-wairo-v1-32.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1-16.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1.svg",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/",
+      "logoSrc": "/brand/kairo-wairo-v1-64.png",
+      "logoLoaded": true,
+      "headerLinkWidth": 162.1875,
+      "nameTruncated": false,
+      "headerOverlap": false,
+      "horizontalOverflow": false,
+      "icons": [
+        {
+          "href": "/brand/kairo-wairo-v1-32.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1-16.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1.svg",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/monster-spawns",
+      "logoSrc": "/brand/kairo-wairo-v1-64.png",
+      "logoLoaded": true,
+      "headerLinkWidth": 162.1875,
+      "nameTruncated": false,
+      "headerOverlap": false,
+      "horizontalOverflow": false,
+      "icons": [
+        {
+          "href": "/brand/kairo-wairo-v1-32.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1-16.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1.svg",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "route": "/",
+      "logoSrc": "/brand/kairo-wairo-v1-64.png",
+      "logoLoaded": true,
+      "headerLinkWidth": 294.203125,
+      "nameTruncated": false,
+      "headerOverlap": false,
+      "horizontalOverflow": false,
+      "icons": [
+        {
+          "href": "/brand/kairo-wairo-v1-32.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1-16.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1.svg",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "route": "/monster-spawns",
+      "logoSrc": "/brand/kairo-wairo-v1-64.png",
+      "logoLoaded": true,
+      "headerLinkWidth": 294.203125,
+      "nameTruncated": false,
+      "headerOverlap": false,
+      "horizontalOverflow": false,
+      "icons": [
+        {
+          "href": "/brand/kairo-wairo-v1-32.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1-16.png",
+          "type": "image/png"
+        },
+        {
+          "href": "/brand/kairo-wairo-v1.svg",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "file": "/brand/kairo-wairo-v1-16.png",
+      "status": 200,
+      "bytes": 876,
+      "matches": true
+    },
+    {
+      "file": "/brand/kairo-wairo-v1-32.png",
+      "status": 200,
+      "bytes": 2301,
+      "matches": true
+    },
+    {
+      "file": "/brand/kairo-wairo-v1.svg",
+      "status": 200,
+      "bytes": 53207,
+      "matches": true
+    },
+    {
+      "file": "/brand/kairo-wairo-v1-180.png",
+      "status": 200,
+      "bytes": 35717,
+      "matches": true
+    },
+    {
+      "file": "/favicon.ico",
+      "status": 200,
+      "bytes": 7850,
+      "matches": true
+    },
+    {
+      "file": "/favicon.svg",
+      "status": 200,
+      "bytes": 53207,
+      "matches": true
+    }
+  ]
+}
