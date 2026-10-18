@@ -1,0 +1,186 @@
+{
+  "base": "https://kingdom-adventures-game-data-and-tools-marriage-matc-63wigemt9.vercel.app",
+  "passed": true,
+  "elapsedSeconds": 21.463,
+  "results": [
+    {
+      "path": "/houses?tab=facilities&search=Tool%20Workshop",
+      "status": 200,
+      "bytes": 82463,
+      "canonical": "/houses",
+      "passed": true
+    },
+    {
+      "path": "/jobs/Beast%20Tamer",
+      "status": 200,
+      "bytes": 68239,
+      "canonical": "/jobs/Beast%20Tamer",
+      "passed": true
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "bytes": 34787,
+      "canonical": "/",
+      "passed": true
+    },
+    {
+      "path": "/jobs",
+      "status": 200,
+      "bytes": 1240334,
+      "canonical": "/jobs",
+      "passed": true
+    },
+    {
+      "path": "/monster-xp",
+      "status": 200,
+      "bytes": 17613,
+      "canonical": "/monster-xp",
+      "collapsedHelpPresent": true,
+      "passed": true
+    },
+    {
+      "path": "/guides",
+      "status": 200,
+      "bytes": 13737,
+      "canonical": "/guides",
+      "point5ContentPresent": true,
+      "passed": true
+    },
+    {
+      "path": "/monster-pet-stats",
+      "status": 200,
+      "bytes": 644572,
+      "canonical": "/monster-pet-stats",
+      "collapsedHelpPresent": true,
+      "passed": true
+    },
+    {
+      "path": "/jobs-marriage",
+      "status": 200,
+      "bytes": 20835,
+      "canonical": "/jobs-marriage",
+      "point5ContentPresent": true,
+      "passed": true
+    },
+    {
+      "path": "/match-finder",
+      "status": 200,
+      "bytes": 51552,
+      "canonical": "/match-finder",
+      "point5ContentPresent": true,
+      "passed": true
+    },
+    {
+      "path": "/world-map",
+      "status": 200,
+      "bytes": 29911,
+      "canonical": "/world-map",
+      "point5ContentPresent": true,
+      "passed": true
+    },
+    {
+      "path": "/world-map-v2",
+      "status": 200,
+      "bytes": 11263,
+      "canonical": "/world-map-v2",
+      "point5ContentPresent": true,
+      "passed": true
+    },
+    {
+      "path": "/playthrough-guide",
+      "status": 200,
+      "bytes": 66404273,
+      "canonical": "/playthrough-guide",
+      "point5ContentPresent": true,
+      "passed": true
+    },
+    {
+      "path": "/monsters?monster=Skullene",
+      "status": 308,
+      "bytes": 15,
+      "redirect": "/monster-spawns?monster=Skullene",
+      "passed": true
+    },
+    {
+      "path": "/world-builder",
+      "status": 200,
+      "bytes": 24080,
+      "canonical": "/world-builder",
+      "point5ContentPresent": true,
+      "passed": true
+    },
+    {
+      "path": "/survey-planner?search=retained",
+      "status": 308,
+      "bytes": 15,
+      "redirect": "/survey?search=retained",
+      "passed": true
+    },
+    {
+      "path": "/loadout?share=preserved",
+      "status": 308,
+      "bytes": 15,
+      "redirect": "/combat?share=preserved",
+      "passed": true
+    },
+    {
+      "path": "/skill",
+      "status": 308,
+      "bytes": 15,
+      "redirect": "/skills",
+      "passed": true
+    },
+    {
+      "path": "/seo-check-missing-page",
+      "status": 404,
+      "bytes": 2913,
+      "passed": true
+    },
+    {
+      "path": "/jobs/SEO-check-nonexistent-job",
+      "status": 404,
+      "bytes": 2913,
+      "passed": true
+    },
+    {
+      "path": "/shops/seo-check-nonexistent-shop",
+      "status": 404,
+      "bytes": 2913,
+      "passed": true
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 200,
+      "bytes": 9030,
+      "passed": true
+    },
+    {
+      "path": "/sitemap_index.xml",
+      "status": 200,
+      "bytes": 216,
+      "passed": true
+    },
+    {
+      "path": "/player-profile",
+      "status": 200,
+      "bytes": 3158,
+      "canonical": "/player-profile",
+      "passed": true
+    },
+    {
+      "path": "/ka-api/auth/session",
+      "status": 200,
+      "bytes": 36,
+      "apiPassthrough": true,
+      "passed": true
+    },
+    {
+      "path": "/browser-combat.zip",
+      "status": 200,
+      "bytes": 215301,
+      "runtimeMatches": true,
+      "passed": true
+    }
+  ]
+}
