@@ -31,7 +31,11 @@ assert.deepEqual(scenario.ownUnits.slice(2).map(u=>u.skills),[[],[],[],[]]);
 const draft={schema:BATTLE_TEAM_DRAFT_SCHEMA,encounterId:3,characters:[dps,...farmingResearchSupportLoadouts()].map((x,i)=>draftCharacterFromLoadout(x,i+1)),researchSupports:'fixed-spd4456-v1',partyBonus:4};
 assert.equal(normalizeDraft(draft).researchSupports,'fixed-spd4456-v1');
 const memory=new Map(); globalThis.window={sessionStorage:{getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v),removeItem:k=>memory.delete(k)}};
-assert.equal(writeFarmingSimulationHandoff({loadout:dps,encounterId:3,placeholderSupports:true,allowConsumables:true,startingTeamId:'',consumables:{holyHerbStock:10,itemStock:{}}}),true);
+assert.equal(writeFarmingSimulationHandoff({loadout:dps,encounterId:3,placeholderSupports:true,allowConsumables:true,startingTeamId:'',consumables:{holyHerbStock:10,itemStock:{}},battleSeconds:1800}),true);
 assert.equal(readFarmingSimulationHandoff().loadout.skills.at(-1),'Shield Resistance'); assert.equal(readFarmingSimulationHandoff(),null);
+assert.equal(writeFarmingSimulationHandoff({loadout:dps,encounterId:3,placeholderSupports:true,allowConsumables:true,startingTeamId:'',consumables:{holyHerbStock:10,itemStock:{}},battleSeconds:1800}),true);
+assert.equal(readFarmingSimulationHandoff().battleSeconds,1800, 'Ribbon alternative handoff carries the tested 36,000-tick limit'); assert.equal(readFarmingSimulationHandoff(),null);
+assert.equal(writeFarmingSimulationHandoff({loadout:dps,encounterId:3,placeholderSupports:true,allowConsumables:true,startingTeamId:'',consumables:{holyHerbStock:10,itemStock:{}},battleSeconds:3601}),true);
+assert.equal(readFarmingSimulationHandoff(),null, 'invalid requested battle horizon is rejected');
 console.log('PASS: six-role farming setup converts, validates and adapts; finite DPS MP and required mastery preserved; support mode survives storage; handoff consumed once.');
 

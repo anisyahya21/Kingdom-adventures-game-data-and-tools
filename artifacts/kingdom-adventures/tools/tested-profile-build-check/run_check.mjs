@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { TESTED_PROFILE_BUILD_CANDIDATE as candidate } from "../../src/game-data/tested-profile-build.ts";
-import { projectTestedProfileBuild, testedProfileEvidenceVisible } from "../../src/lib/tested-profile-build.ts";
+import { TESTED_PROFILE_BUILD_CANDIDATE as candidate, TESTED_PROFILE_BUILD_ALTERNATIVES } from "../../src/game-data/tested-profile-build.ts";
+import { projectTestedProfileBuild, projectTestedProfileBuildCandidates, testedProfileEvidenceVisible } from "../../src/lib/tested-profile-build.ts";
 
 const profile = {
   version: 1,
@@ -42,4 +42,27 @@ assert.equal(testedProfileEvidenceVisible({ ...n20, survivedRuns: 21 }, exactPol
 assert.equal(testedProfileEvidenceVisible(n20, { ...exactPolicy, holyHerbLimit: 9 }), false, "changed policy hides result");
 assert.equal(testedProfileEvidenceVisible(n20, { ...exactPolicy, placeholderSupports: false }), false, "real team hides synthetic-support result");
 assert.equal(testedProfileEvidenceVisible({ ...n20, status: "pending" }, exactPolicy), false, "pending evidence stays hidden");
+
+const ribbon = TESTED_PROFILE_BUILD_ALTERNATIVES[0];
+const ribbonProfile = {
+  ...profile,
+  equipment: Object.fromEntries(ribbon.equipment.map(({ item, level }) => [item, level])),
+};
+const projectedCandidates = projectTestedProfileBuildCandidates(ribbonProfile, [candidate, ribbon],
+  (tested, character, equipment) => equipment.some(({ item }) => item === "A/ Ribbon")
+    ? ribbon.stats : candidate.stats,
+  (_tested, _character, item) => ribbon.equipment.some((entry) => entry.item === item),
+  () => true);
+assert.equal(projectedCandidates.length, 1, "exact Ribbon profile yields only its matching candidate");
+assert.equal(projectedCandidates[0].candidate.evidenceSha256, ribbon.evidenceSha256);
+assert.equal(projectedCandidates[0].build.stats.mp, 1766);
+assert.equal(ribbon.horizonSeconds, 1800, "alternative handoff uses its audited 36,000-tick horizon");
+assert.notEqual(ribbon.horizonSeconds, candidate.horizonSeconds, "alternative horizon remains distinct from primary");
+assert.deepEqual(ribbon.pairedCallbackDelta, { mean: -7.15, lower: -22.15, upper: 4.95 });
+assert.equal(projectTestedProfileBuildCandidates({
+  ...ribbonProfile, equipment: { ...ribbonProfile.equipment, [ribbon.equipment.at(-1).item]: 39 },
+}, [ribbon], (_character, equipment) => equipment.some(({ item }) => item === "A/ Ribbon") ? ribbon.stats : null,
+(_tested, _character, item) => ribbon.equipment.some((entry) => entry.item === item), () => true).length, 0, "wrong Ribbon level rejects alternative");
+assert.equal(projectTestedProfileBuildCandidates(ribbonProfile, [ribbon], () => ({ ...ribbon.stats, mp: 1765 }),
+(_tested, _character, item) => ribbon.equipment.some((entry) => entry.item === item), () => true).length, 0, "altered MP rejects alternative");
 console.log("Tested profile build projection and activation gates passed.");

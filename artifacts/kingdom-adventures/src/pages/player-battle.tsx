@@ -384,6 +384,7 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
     const supportLoadouts = pendingFarmingHandoff.placeholderSupports ? farmingResearchSupportLoadouts() : pendingFarmingHandoff.startingRoster!.slice(1);
     const supportCharacters = supportLoadouts.map((character, index) => draftCharacterFromLoadout(character, index + 2));
     const dps = draftCharacterFromLoadout(pendingFarmingHandoff.loadout, 1);
+    if (pendingFarmingHandoff.battleSeconds !== undefined) setBattleSeconds(pendingFarmingHandoff.battleSeconds);
     setStored({
       schema: "ka-battle-team-draft-1",
       encounterId: pendingFarmingHandoff.encounterId,

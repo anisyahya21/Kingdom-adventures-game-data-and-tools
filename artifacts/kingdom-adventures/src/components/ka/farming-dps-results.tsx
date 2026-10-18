@@ -26,12 +26,13 @@ function accountRewardEvidenceLabel(exactMeasuredMatch: boolean): string {
     : "Unmeasured for your team";
 }
 
-export function FarmingDpsResults({ profile, matches, options, busy, status, error, onCancel, onCreate, equipmentIcons, allowUpgrades, exactOnly, testedProfileBuild, testedProfileCandidate, testedProfileSetup }: {
+export function FarmingDpsResults({ profile, matches, options, busy, status, error, onCancel, onCreate, equipmentIcons, allowUpgrades, exactOnly, testedProfileBuild, testedProfileCandidate, testedProfileAlternatives, testedProfileSetup }: {
   profile: PlayerProfile | null; matches: ProfileStrategyMatch[] | null; options: ChestStrategyOption[];
   testedProfileBuild?: ProfileGoalBuild | null; testedProfileCandidate?: TestedProfileCandidate;
+  testedProfileAlternatives?: readonly { candidate: TestedProfileCandidate; build: ProfileGoalBuild }[];
   testedProfileSetup?: { encounterId: number; placeholderSupports: boolean; allowConsumables: boolean; holyHerbLimit: number; recoveryPotionLimit: number; finiteHpMp: boolean };
   busy: boolean; status: string; error: string; equipmentIcons?: Record<string, string>; allowUpgrades: boolean; exactOnly: boolean;
-  onCancel: () => void; onCreate: (build: ProfileGoalBuild, profile: PlayerProfile, destination?: "builder" | "simulator") => void;
+  onCancel: () => void; onCreate: (build: ProfileGoalBuild, profile: PlayerProfile, destination?: "builder" | "simulator", battleSeconds?: number) => void;
 }) {
   const favorites = useFarmingFavorites();
   const [notice, setNotice] = useState("");
@@ -72,6 +73,7 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
   const visibleCreatedPage = Math.min(createdPage, createdPageCount - 1);
   const testedProfileVisible = !!testedProfileBuild && !!testedProfileCandidate && !!testedProfileSetup && !!profile &&
     testedProfileEvidenceVisible(testedProfileCandidate, testedProfileSetup);
+  const visibleTestedAlternatives = !!testedProfileSetup && !!profile ? (testedProfileAlternatives ?? []).filter(({ candidate }) => testedProfileEvidenceVisible(candidate, testedProfileSetup)) : [];
   const pageCreatedRows = createdRows.slice(visibleCreatedPage * 5, (visibleCreatedPage + 1) * 5);
   useEffect(() => {
     if (createdPage !== visibleCreatedPage) setCreatedPage(visibleCreatedPage);
@@ -92,7 +94,7 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
           <p className="text-xs text-muted-foreground">Conditional diagnostic · {testedProfileBuild!.jobName} · Rank {testedProfileBuild!.rank} · ATK {testedProfileBuild!.stats.atk} · SPD {testedProfileBuild!.stats.spd} · LCK {testedProfileBuild!.stats.lck} · DEX {testedProfileBuild!.stats.dex}</p>
           <p className="mt-1 text-xs">HP {testedProfileBuild!.stats.hp.toLocaleString()} · MP {testedProfileBuild!.stats.mp.toLocaleString()} · DEF {testedProfileBuild!.stats.def.toLocaleString()}</p>
         </div>
-        <Button onClick={() => onCreate(testedProfileBuild!, profile!, "simulator")}>Simulate</Button>
+        <Button onClick={() => onCreate(testedProfileBuild!, profile!, "simulator", testedProfileCandidate!.horizonSeconds)}>Simulate</Button>
       </div>
       <div className="flex flex-wrap gap-2">{testedProfileBuild!.picks.map((pick) => <span key={pick.slot} className="rounded-md border px-2 py-1 text-xs">{pick.slot}: {pick.item} Lv{pick.level}</span>)}</div>
       <p className="text-xs text-muted-foreground">Required skills: {(testedProfileBuild!.skills ?? []).join(", ")} · ownership not recorded.</p>
@@ -104,6 +106,22 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
         </details>
       </div>
     </CardContent></Card>}
+    {visibleTestedAlternatives.map(({ candidate, build }) => <Card key={`tested-alt-${candidate.evidenceSha256}`}><CardContent className="space-y-3 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div>
+        <h3 className="font-semibold">Lower-resource alternative · A/ Ribbon Lv40</h3>
+        <p className="text-xs text-muted-foreground">Conditional diagnostic · Ninja · Rank A · ATK {build.stats.atk} · SPD {build.stats.spd} · LCK {build.stats.lck} · DEX {build.stats.dex}</p>
+        <p className="mt-1 text-xs">HP {build.stats.hp.toLocaleString()} · MP {build.stats.mp.toLocaleString()} · DEF {build.stats.def}</p>
+      </div><Button onClick={() => onCreate(build, profile!, "simulator", candidate.horizonSeconds)}>Simulate this alternative</Button></div>
+      <div className="flex flex-wrap gap-2">{build.picks.map((pick) => <span key={pick.slot} className="rounded-md border px-2 py-1 text-xs">{pick.slot}: {pick.item} Lv{pick.level}</span>)}</div>
+      <p className="text-xs text-muted-foreground">Required skills: {(build.skills ?? []).join(", ")} · ownership not recorded.</p>
+      <div className="rounded-md border border-amber-500/30 px-3 py-2 text-xs">
+        <p className="font-medium text-amber-700 dark:text-amber-300">Modeled callbacks: average {candidate.averageCallbacks} · median {candidate.medianCallbacks} · best {candidate.highestCallbacks}</p>
+        <p className="mt-1">Separate 20-pair, 36,000-tick cohort · survived {candidate.survivedRuns}/20 · completed {candidate.completedRuns}/20 · 0–1 callback in {candidate.atMostOneCallbackRuns}/20 · Herbs avg/median {candidate.averageHerbsUsed}/{candidate.medianHerbsUsed} · paid MP avg {candidate.averagePaidMp?.toLocaleString()}.</p>
+        <details className="mt-1 text-muted-foreground"><summary className="cursor-pointer">Scenario and evidence limits</summary>
+          <p className="mt-1">Fixed synthetic supports; finite HP/MP; at most 10 Holy Herbs at 20% DPS MP using a 200-tick window; 0 potions. In these 20 matched seeds, Ribbon averaged 4.65 Herbs and 7,726.4 paid MP versus control 6.75 Herbs and 10,197.8 paid MP. Ribbon averaged 13.9 callbacks; control endpoint averaged 21.05, with 1 unfinished battle, so that is not a full-battle control mean. Paired callback difference was −7.15 (95% interval −22.15 to 4.95); reward retention is uncertain. The current primary build is a separate 18,000-tick cohort, not a paired comparison. These are conditional simulator callbacks, not settled or earned rewards; fixed-research averages and ranking are unchanged. Simulate starts a fresh run at the tested 1,800-second horizon. Herbs must be used manually in replay; stock does not reproduce tested timing. Evidence audit hashes: candidate {candidate.evidenceSha256}; control {candidate.controlEvidenceSha256}.</p>
+        </details>
+      </div>
+    </CardContent></Card>)}
     {rows.length > 0 && <div className="rounded-xl border bg-card p-4">
       <p className="mb-2 text-xs text-muted-foreground">Fixed-team rewards do not measure your account team; profile reward results remain unmeasured.</p>
       <label className="mb-3 flex min-h-11 items-center gap-2 text-sm">

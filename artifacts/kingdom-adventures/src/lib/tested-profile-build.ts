@@ -21,6 +21,13 @@ export type TestedProfileCandidate = {
   highestCallbacks?: number | null;
   atMostOneCallbackRuns?: number | null;
   evidenceSha256?: string;
+  horizonSeconds?: number;
+  displayKind?: "primary" | "resource-alternative";
+  controlEvidenceSha256?: string;
+  pairedCallbackDelta?: { mean: number; lower: number; upper: number };
+  completedRuns?: number;
+  averageHerbsUsed?: number;
+  averagePaidMp?: number;
   policy: { placeholderSupports: boolean; encounterId: number; holyHerbLimit: number; recoveryPotionLimit: number; finiteHpMp: boolean };
 };
 
@@ -56,6 +63,22 @@ export function projectTestedProfileBuild(
     };
   }
   return null;
+}
+
+export function projectTestedProfileBuildCandidates(
+  profile: PlayerProfile,
+  candidates: readonly TestedProfileCandidate[],
+  calculateStats: (candidate: TestedProfileCandidate, character: PlayerProfile["characters"][number], equipment: readonly { slot: string; item: string; level: number }[]) => Record<string, number> | null,
+  legalEquipment: (candidate: TestedProfileCandidate, character: PlayerProfile["characters"][number], item: string) => boolean,
+  legalSkills: (candidate: TestedProfileCandidate, character: PlayerProfile["characters"][number], skills: readonly string[]) => boolean,
+) {
+  return candidates.flatMap((candidate) => {
+    const build = projectTestedProfileBuild(profile, candidate,
+      (character, equipment) => calculateStats(candidate, character, equipment),
+      (character, item) => legalEquipment(candidate, character, item),
+      (character, skills) => legalSkills(candidate, character, skills));
+    return build ? [{ candidate, build }] : [];
+  });
 }
 
 /** Display requires the exact synthetic-support finite-resource scenario and at least 20 audited runs. */

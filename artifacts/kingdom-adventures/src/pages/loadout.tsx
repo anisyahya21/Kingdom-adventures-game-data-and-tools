@@ -61,8 +61,8 @@ import { isExactStrategyBuild, measuredStrategyTargetId, strategyMatchDeviation,
 import { measuredStrategyBoundaries, measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
 import { getResearchGroup, loadResearchBank } from "@/lib/research-strategy-bank";
 import { compatibleResearchTargets } from "@/lib/research-profile-targets";
-import { TESTED_PROFILE_BUILD_CANDIDATE } from "@/game-data/tested-profile-build";
-import { projectTestedProfileBuild } from "@/lib/tested-profile-build";
+import { TESTED_PROFILE_BUILD_CANDIDATE, TESTED_PROFILE_BUILD_CANDIDATES } from "@/game-data/tested-profile-build";
+import { projectTestedProfileBuild, projectTestedProfileBuildCandidates } from "@/lib/tested-profile-build";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2093,7 +2093,7 @@ function ProfileGoalSearchPanel({
 }: {
   data: SharedData;
   farmingRequest?: FarmingSearchRequest;
-  onCreate: (build: ProfileGoalBuild, profile: PlayerProfile, destination?: "builder" | "simulator") => void;
+  onCreate: (build: ProfileGoalBuild, profile: PlayerProfile, destination?: "builder" | "simulator", battleSeconds?: number) => void;
 }) {
   const [goals, setGoals] = useState<Record<string, ProfileStatGoal | undefined>>({});
   const favorites = useFarmingFavorites();
@@ -2528,32 +2528,31 @@ function ProfileGoalSearchPanel({
     // A request remounts this panel; run once after the profile-reset effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const testedProfileBuild = useMemo(() => {
-    if (!farmingRequest || !profile || !farmingRequest.settings.useProfile || farmingRequest.settings.trainCharacters ||
-        TESTED_PROFILE_BUILD_CANDIDATE.equipment.some(({ item }) => farmingRequest.settings.reservedEquipment.includes(item))) return null;
-    const projected = projectTestedProfileBuild(profile, TESTED_PROFILE_BUILD_CANDIDATE,
-      (character, equipment) => {
+  const testedProfileBuilds = useMemo(() => {
+    if (!farmingRequest || !profile || !farmingRequest.settings.useProfile || farmingRequest.settings.trainCharacters) return [];
+    const candidates = TESTED_PROFILE_BUILD_CANDIDATES.filter((candidate) => !candidate.equipment.some(({ item }) => farmingRequest.settings.reservedEquipment.includes(item)));
+    return projectTestedProfileBuildCandidates(profile, candidates,
+      (candidate, character, equipment) => {
         const loadout: Loadout = {
           id: `tested-profile:${character.id}`, name: character.jobName, jobName: character.jobName,
           rank: character.rank, gender: character.gender, statLevels: { ...character.statLevels },
           equipment: equipment.map(({ item, level }) => ({ name: item, level })),
-          skills: [...TESTED_PROFILE_BUILD_CANDIDATE.requiredSkills], residentStatItems: profileResidentStatItems(profile),
+          skills: [...candidate.requiredSkills], residentStatItems: profileResidentStatItems(profile),
         };
         return calcStats(loadout, data, profile.equipment);
       },
-      (character, item) => {
+      (candidate, character, item) => {
         const loadout: Loadout = { id: `tested-profile:${character.id}`, name: character.jobName, jobName: character.jobName,
           rank: character.rank, gender: character.gender, statLevels: { ...character.statLevels },
-          equipment: TESTED_PROFILE_BUILD_CANDIDATE.equipment.map(({ item: name, level }) => ({ name, level })),
-          skills: [...TESTED_PROFILE_BUILD_CANDIDATE.requiredSkills], residentStatItems: profileResidentStatItems(profile) };
-        const expectedSlot = TESTED_PROFILE_BUILD_CANDIDATE.equipment.find((entry) => entry.item === item)?.slot;
+          equipment: (candidate?.equipment ?? []).map(({ item: name, level }) => ({ name, level })),
+          skills: [...(candidate?.requiredSkills ?? ["Shield Resistance"])], residentStatItems: profileResidentStatItems(profile) };
+        const expectedSlot = candidate?.equipment.find((entry) => entry.item === item)?.slot;
         return !!expectedSlot && data.slotAssignments?.[item] === expectedSlot && !!data.overrides?.[item] && canPickHumanEquipment(loadout, data, item);
       },
-      (character, skills) => skills.every((skill) => canPickHumanSkill(character.jobName, skill, [])),
-    );
-    return projected && !farmingRequest.settings.excludedCharacters.includes(projected.characterId) ? projected : null;
+      (_candidate, character, skills) => skills.every((skill) => canPickHumanSkill(character.jobName, skill, [])),
+    ).filter(({ build }) => !farmingRequest.settings.excludedCharacters.includes(build.characterId));
   }, [farmingRequest, profile, data]);
-  if (farmingRequest) return <FarmingDpsResults profile={profile} matches={profileMatches} options={strategyOptions} busy={busy} status={status} error={error} equipmentIcons={data.equipIcons} onCancel={cancelSearch} onCreate={onCreate} allowUpgrades={allowEquipmentLevelUp} exactOnly={farmingRequest.settings.targetMatching === "exact"} testedProfileBuild={testedProfileBuild} testedProfileCandidate={TESTED_PROFILE_BUILD_CANDIDATE} testedProfileSetup={{ encounterId: farmingRequest.settings.encounterId, placeholderSupports: farmingRequest.settings.placeholderSupports, allowConsumables: farmingRequest.settings.allowConsumables, holyHerbLimit: farmingRequest.settings.holyHerbLimit, recoveryPotionLimit: farmingRequest.settings.recoveryPotionLimit, finiteHpMp: true }} />;
+  if (farmingRequest) return <FarmingDpsResults profile={profile} matches={profileMatches} options={strategyOptions} busy={busy} status={status} error={error} equipmentIcons={data.equipIcons} onCancel={cancelSearch} onCreate={onCreate} allowUpgrades={allowEquipmentLevelUp} exactOnly={farmingRequest.settings.targetMatching === "exact"} testedProfileBuild={testedProfileBuilds.find(({ candidate }) => candidate === TESTED_PROFILE_BUILD_CANDIDATE)?.build ?? null} testedProfileCandidate={TESTED_PROFILE_BUILD_CANDIDATE} testedProfileAlternatives={testedProfileBuilds.filter(({ candidate }) => candidate.displayKind === "resource-alternative")} testedProfileSetup={{ encounterId: farmingRequest.settings.encounterId, placeholderSupports: farmingRequest.settings.placeholderSupports, allowConsumables: farmingRequest.settings.allowConsumables, holyHerbLimit: farmingRequest.settings.holyHerbLimit, recoveryPotionLimit: farmingRequest.settings.recoveryPotionLimit, finiteHpMp: true }} />;
 
   const primaryTargets = ["atk", "spd", "lck", "hp", "def", "mp"];
   const goalKeys = showAllTargets ? STAT_KEYS : STAT_KEYS.filter((stat) => primaryTargets.includes(stat));
@@ -3719,7 +3718,7 @@ export default function LoadoutPage({ view = "builder", farmingRequest }: { view
     return id;
   };
 
-  const applyProfileBuild = (build: ProfileGoalBuild, profile: PlayerProfile, destination: "builder" | "simulator" = "builder") => {
+  const applyProfileBuild = (build: ProfileGoalBuild, profile: PlayerProfile, destination: "builder" | "simulator" = "builder", battleSeconds?: number) => {
     const character = profile.characters.find((candidate) => candidate.id === build.characterId);
     if (!character) return;
     const requiresUpgrades = build.addedLevels > 0;
@@ -3760,6 +3759,7 @@ export default function LoadoutPage({ view = "builder", farmingRequest }: { view
         allowConsumables: settings.allowConsumables,
         consumables: farmingConsumableStock(settings),
         startingTeamId: settings.startingTeamId,
+        ...(battleSeconds === undefined ? {} : { battleSeconds }),
         ...(roster ? { startingRoster: roster.characters, ...(roster.partyBonus === undefined ? {} : { partyBonus: roster.partyBonus }) } : {}),
       });
       if (!handoffWritten) {

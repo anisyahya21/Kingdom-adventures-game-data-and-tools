@@ -82,6 +82,7 @@ export type FarmingSimulationHandoff = {
   startingTeamId: string;
   startingRoster?: DraftCharacter[];
   partyBonus?: number;
+  battleSeconds?: number;
 };
 
 export const FARMING_SIMULATION_HANDOFF_KEY = "ka_farming_simulation_handoff";
@@ -116,6 +117,7 @@ export function readFarmingSimulationHandoff(): FarmingSimulationHandoff | null 
         typeof value.allowConsumables !== "boolean" || !value.consumables ||
         typeof value.startingTeamId !== "string") return null;
     if (value.startingRoster !== undefined && !Array.isArray(value.startingRoster)) return null;
+    if (value.battleSeconds !== undefined && (!Number.isInteger(value.battleSeconds) || value.battleSeconds < 1 || value.battleSeconds > 3600)) return null;
     return value as FarmingSimulationHandoff;
   } catch {
     return null;
