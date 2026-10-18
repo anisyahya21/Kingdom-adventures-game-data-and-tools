@@ -15,6 +15,17 @@ import type { ProfileGoalBuild } from "@/lib/profile-loadout-goal-planner";
 import type { PlayerProfile } from "@/lib/player-profile";
 import { testedProfileEvidenceVisible, type TestedProfileCandidate } from "@/lib/tested-profile-build";
 
+const FIXED_TEAM_BENCHMARK_HEADERS = [
+  "Exact-stat research mean", "Exact-stat research best", "Exact-stat research n",
+  "Fixed-team target avg", "Fixed-team target best", "Fixed-team target n", "Fixed-team target seeds",
+] as const;
+
+function accountRewardEvidenceLabel(exactMeasuredMatch: boolean): string {
+  return exactMeasuredMatch
+    ? "Unmeasured for your team · Exact four-stat research match"
+    : "Unmeasured for your team";
+}
+
 export function FarmingDpsResults({ profile, matches, options, busy, status, error, onCancel, onCreate, equipmentIcons, allowUpgrades, exactOnly, testedProfileBuild, testedProfileCandidate, testedProfileSetup }: {
   profile: PlayerProfile | null; matches: ProfileStrategyMatch[] | null; options: ChestStrategyOption[];
   testedProfileBuild?: ProfileGoalBuild | null; testedProfileCandidate?: TestedProfileCandidate;
@@ -28,6 +39,7 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
   const [created, setCreated] = useState<string[] | null>(null);
   const [page, setPage] = useState(0);
   const [createdPage, setCreatedPage] = useState(0);
+  const [showFixedTeamBenchmarks, setShowFixedTeamBenchmarks] = useState(false);
   useEffect(() => setPage(0), [matches]);
   useEffect(() => setCreatedPage(0), [matches, created]);
   const rows = useMemo(() => {
@@ -93,8 +105,13 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
       </div>
     </CardContent></Card>}
     {rows.length > 0 && <div className="rounded-xl border bg-card p-4">
-      <p className="mb-3 text-xs text-muted-foreground">Exact-stat averages use the fixed research team. Your account team’s survival, skills, and MP changes remain untested. Other builds rank by four-stat closeness; their rewards are unmeasured.</p>
-      <div className="overflow-x-auto"><table className="w-full text-left text-sm tabular-nums"><thead><tr className="border-b text-xs text-muted-foreground"><th scope="col" className="p-2">Pick</th><th scope="col" className="p-2">Tested target</th><th scope="col" className="p-2">Your build</th>{["Exact-stat evidence", "Target avg", "Target best", "Target n", "Target seeds"].map((label) => <th key={label} className="whitespace-nowrap p-2 text-right" scope="col">{label}</th>)}</tr></thead><tbody>{pageMatches.map((match) => {
+      <p className="mb-2 text-xs text-muted-foreground">Fixed-team rewards do not measure your account team; profile reward results remain unmeasured.</p>
+      <label className="mb-3 flex min-h-11 items-center gap-2 text-sm">
+        <input type="checkbox" className="h-4 w-4 accent-primary" checked={showFixedTeamBenchmarks}
+          onChange={(event) => setShowFixedTeamBenchmarks(event.target.checked)} aria-label="Show fixed-team benchmarks" />
+        <span>Show fixed-team benchmarks</span>
+      </label>
+      <div className="overflow-x-auto"><table className="w-full text-left text-sm tabular-nums"><thead><tr className="border-b text-xs text-muted-foreground"><th scope="col" className="p-2">Pick</th><th scope="col" className="p-2">Research target</th><th scope="col" className="p-2">Your build</th><th scope="col" className="p-2">Account reward evidence</th>{showFixedTeamBenchmarks && FIXED_TEAM_BENCHMARK_HEADERS.map((label) => <th key={label} className="whitespace-nowrap p-2 text-right" scope="col">{label}</th>)}</tr></thead><tbody>{pageMatches.map((match) => {
         const found = firstRows.get(match.id)!;
         const build = found.build;
         const option = found.option;
@@ -104,9 +121,18 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
         const diagnostic = exactAccountDiagnosticCase(option.encounter, build, sourceCharacter?.gender);
         return <tr key={match.id} className="border-b border-border/40 last:border-0">
           <td className="p-2"><input aria-label={`Select strategy ${match.id}`} type="checkbox" className="h-4 w-4 accent-primary" checked={selected.includes(match.id)} onChange={(event) => { setSelected((old) => event.target.checked ? [...old, match.id] : old.filter((id) => id !== match.id)); }} /></td>
-          <td className="p-2"><div className="whitespace-nowrap text-xs">ATK {option.atk} · SPD {option.spd} · LCK {option.lck} · DEX {option.dex}</div><div className="mt-1 text-[11px] text-muted-foreground">Fixed research team · target evidence</div></td>
-          <td className="p-2 text-xs"><div className="whitespace-nowrap font-medium">{build.jobName ?? sourceCharacter?.jobName} · {build.rank ?? sourceCharacter?.rank}</div><div className="mt-1 whitespace-nowrap text-[11px]">ATK {build.stats.atk} · SPD {build.stats.spd} · LCK {build.stats.lck} · DEX {build.stats.dex}</div><div className="mt-1 whitespace-nowrap text-[11px] text-muted-foreground">HP {build.stats.hp} · MP {build.stats.mp} · DEF {build.stats.def}</div><div className="mt-1 text-[11px] text-muted-foreground">{measured ? "Exact stats measured with fixed research team" : `${exact ? "Exact target stats" : "Unmeasured · four-stat distance prioritized"}`}{!match.complete && " · closest found so far"}</div>{diagnostic && <p className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">Fixed-support diagnostic: DPS survived {diagnostic.survivedRuns}/{diagnostic.sampleSize}</p>}</td>
-          <td className="whitespace-nowrap p-2 text-right text-xs">{measured ? <><span className="font-medium">{measured.mean.toFixed(2)} avg</span><span className="mt-1 block text-[10px] text-muted-foreground">best {measured.highest} · n {measured.n}</span></> : <span className="text-muted-foreground">Unmeasured</span>}</td><td className="p-2 text-right font-medium">{option.mean.toFixed(2)}{option.n < 200 && <span className="mt-1 block whitespace-nowrap text-[10px] font-normal text-muted-foreground">Exploratory sample</span>}</td><td className="p-2 text-right">{option.highest}</td><td className="p-2 text-right">{option.n.toLocaleString()}</td><td className="whitespace-nowrap p-2 text-right text-xs">{option.seedRange?.length === 2 ? `${option.seedRange[0]}–${option.seedRange[1]}` : "Not recorded"}</td>
+          <td className="p-2"><div className="whitespace-nowrap text-xs">ATK {option.atk} · SPD {option.spd} · LCK {option.lck} · DEX {option.dex}</div></td>
+          <td className="p-2 text-xs"><div className="whitespace-nowrap font-medium">{build.jobName ?? sourceCharacter?.jobName} · {build.rank ?? sourceCharacter?.rank}</div><div className="mt-1 whitespace-nowrap text-[11px]">ATK {build.stats.atk} · SPD {build.stats.spd} · LCK {build.stats.lck} · DEX {build.stats.dex}</div><div className="mt-1 whitespace-nowrap text-[11px] text-muted-foreground">HP {build.stats.hp} · MP {build.stats.mp} · DEF {build.stats.def}</div><div className="mt-1 text-[11px] text-muted-foreground">{exact ? "Exact four-stat match" : "Four-stat distance prioritized"}{!match.complete && " · closest found so far"}</div>{diagnostic && <p className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">Fixed-support diagnostic: DPS survived {diagnostic.survivedRuns}/{diagnostic.sampleSize}</p>}</td>
+          <td className="p-2 text-xs text-muted-foreground">{accountRewardEvidenceLabel(exact && measured !== null)}</td>
+          {showFixedTeamBenchmarks && <>
+            <td className="p-2 text-right text-xs">{measured?.mean.toFixed(2) ?? <span className="text-muted-foreground">Not measured</span>}</td>
+            <td className="p-2 text-right text-xs">{measured?.highest ?? <span className="text-muted-foreground">Not measured</span>}</td>
+            <td className="p-2 text-right text-xs">{measured?.n.toLocaleString() ?? <span className="text-muted-foreground">Not measured</span>}</td>
+            <td className="p-2 text-right font-medium">{option.mean.toFixed(2)}{option.n < 200 && <span className="mt-1 block whitespace-nowrap text-[10px] font-normal text-muted-foreground">Exploratory sample</span>}</td>
+            <td className="p-2 text-right">{option.highest}</td>
+            <td className="p-2 text-right">{option.n.toLocaleString()}</td>
+            <td className="whitespace-nowrap p-2 text-right text-xs">{option.seedRange?.length === 2 ? `${option.seedRange[0]}–${option.seedRange[1]}` : "Not recorded"}</td>
+          </>}
         </tr>;
       })}</tbody></table></div>
       <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3"><span className="text-xs text-muted-foreground">{availableMatches.length.toLocaleString()} strategies · page {page + 1} of {pageCount}</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>Previous</Button><Button variant="outline" size="sm" disabled={page + 1 >= pageCount} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}>Next</Button></div></div>
