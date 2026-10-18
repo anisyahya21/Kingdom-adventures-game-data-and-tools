@@ -46,7 +46,7 @@ export type ProfileGoalBuild = {
   stats: Record<string, number>;
   /** Sum of levels added across selected items; always 0 in the owned-current pass. */
   addedLevels: number;
-  /** Sum of relative deviations from the selected measured DPS point. */
+  /** Largest normalized stat deviation from the selected measured DPS point. */
   targetDistance?: number;
   requiredUpgrades: Array<{ item: string; currentLevel: number; requiredLevel: number; addedLevels: number }>;
 };
@@ -80,6 +80,32 @@ export type ProfileGoalSearchOptions = {
   nearestTargets?: Record<string, number>;
   maxSearchNodes?: number;
 };
+
+/** Largest per-stat relative difference; shared with the strategy-match label and ordering. */
+export function normalizedMaxDeviation(
+  stats: Record<string, number>,
+  targets: Record<string, number>,
+): number {
+  const deviations = Object.entries(targets).map(([stat, target]) => {
+    const actual = stats[stat];
+    return Number.isFinite(actual) ? Math.abs(actual! - target) / Math.max(1, target) : Infinity;
+  });
+  return deviations.length ? Math.max(...deviations) : 0;
+}
+
+/** Optimistic largest deviation any completion of the remaining slot choices can achieve. */
+export function normalizedMaxDeviationBound(
+  stats: Record<string, number>,
+  minimumRemaining: Record<string, number>,
+  maximumRemaining: Record<string, number>,
+  targets: Record<string, number>,
+): number {
+  return Math.max(0, ...Object.entries(targets).map(([stat, target]) => {
+    const low = (stats[stat] ?? 0) + (minimumRemaining[stat] ?? 0);
+    const high = (stats[stat] ?? 0) + (maximumRemaining[stat] ?? 0);
+    return Math.max(0, low - target, target - high) / Math.max(1, target);
+  }));
+}
 
 type OwnedLevel = { level: number; quantity: number };
 type Candidate = { item: string; currentLevel: number; level: number; contribution: Record<string, number> };
@@ -302,7 +328,7 @@ function* enumerateCharacter(
           if (best) { occupied.add(best.item); addValues(runningStats, best.contribution); }
         }
       }
-      const score = (stats: Record<string, number>) => Object.entries(nearestTargets).reduce((sum, [stat, target]) => sum + Math.abs((stats[stat] ?? 0) - target) / Math.max(1, target), 0)
+      const score = (stats: Record<string, number>) => normalizedMaxDeviation(stats, nearestTargets)
         + keys.reduce((sum, stat) => {
           const goal = input.goals[stat], value = stats[stat] ?? 0;
           if (!goal || goal.mode === "maximize") return sum;
@@ -364,10 +390,11 @@ export async function* searchProfileGoalBuildPages(
   const nearestTargets = options.nearestTargets ?? {};
   const nearest = Object.keys(nearestTargets).length > 0;
   const optimizing = objectives.length > 0 || nearest;
-  const distance = (stats: Record<string, number>) => Object.entries(nearestTargets).reduce((sum, [stat, target]) => sum + Math.abs((stats[stat] ?? 0) - target) / Math.max(1, target), 0);
+  const distance = (stats: Record<string, number>) => normalizedMaxDeviation(stats, nearestTargets);
   const frontier: ProfileGoalBuild[] = [];
   // Keep nondominated stat tradeoffs. Equal stat vectors prefer fewer added levels, then fewer items.
   const dominates = (a: Record<string, number>, b: Record<string, number>) => objectives.every((stat) => (a[stat] ?? 0) >= (b[stat] ?? 0)) && objectives.some((stat) => (a[stat] ?? 0) > (b[stat] ?? 0));
+  const sameTargetTuple = (a: ProfileGoalBuild, b: ProfileGoalBuild) => Object.keys(nearestTargets).every((stat) => (a.stats[stat] ?? 0) === (b.stats[stat] ?? 0));
   const sameVector = (a: ProfileGoalBuild, b: ProfileGoalBuild) => objectives.every((stat) => (a.stats[stat] ?? 0) === (b.stats[stat] ?? 0));
   const cheaper = (a: ProfileGoalBuild, b: ProfileGoalBuild) => a.addedLevels < b.addedLevels || (a.addedLevels === b.addedLevels && (a.picks.length < b.picks.length || (a.picks.length === b.picks.length && (a.skills?.length ?? 0) <= (b.skills?.length ?? 0))));
   const consider = (build: ProfileGoalBuild) => {
@@ -380,14 +407,27 @@ export async function* searchProfileGoalBuildPages(
         if (!cheaper(build, frontier[equivalent])) return;
         frontier.splice(equivalent, 1);
       }
-      // Closeness has priority. At equal distance, honor every requested maximize
-      // stat using Pareto dominance rather than silently preferring empty slots.
-      if (frontier.some((entry) => entry.targetDistance === build.targetDistance && dominates(entry.stats, build.stats))) return;
+      // Keep distinct target tuples even when their largest deviations tie; for the same
+      // four-stat tuple, only a dominated survival variant is redundant.
+      if (frontier.some((entry) => sameTargetTuple(entry, build) && dominates(entry.stats, build.stats))) return;
       for (let index = frontier.length - 1; index >= 0; index--) {
-        if (frontier[index].targetDistance === build.targetDistance && dominates(build.stats, frontier[index].stats)) frontier.splice(index, 1);
+        if (sameTargetTuple(build, frontier[index]) && dominates(build.stats, frontier[index].stats)) frontier.splice(index, 1);
       }
       frontier.push(build);
-      frontier.sort((a, b) => a.targetDistance! - b.targetDistance! || a.addedLevels - b.addedLevels || a.picks.length - b.picks.length || (a.skills?.length ?? 0) - (b.skills?.length ?? 0));
+      // Compute tie ranks once per candidate; doing pairwise checks inside the sort comparator
+      // would repeat the O(n²) dominance scan O(n log n) times for every completed build.
+      const survivalRank = new Map(frontier.map((candidate) => [candidate,
+        frontier.reduce((count, other) => count + Number(other !== candidate
+          && other.targetDistance === candidate.targetDistance
+          && dominates(other.stats, candidate.stats)), 0),
+      ]));
+      frontier.sort((a, b) => {
+        const byDistance = a.targetDistance! - b.targetDistance!;
+        if (byDistance) return byDistance;
+        const bySurvivalRank = survivalRank.get(a)! - survivalRank.get(b)!;
+        if (bySurvivalRank) return bySurvivalRank;
+        return a.addedLevels - b.addedLevels || a.picks.length - b.picks.length || (a.skills?.length ?? 0) - (b.skills?.length ?? 0);
+      });
       if (frontier.length > 40) frontier.pop();
       return;
     }
@@ -417,10 +457,7 @@ export async function* searchProfileGoalBuildPages(
     }
     return { iterator: enumerateCharacter(character, ownedLevels, inventoryPolicy, options.includeCurrentBuilds ?? false, (upper) => !nearest && frontier.some((entry) => dominates(entry.stats, upper)), nearestTargets, (stats, low, high) => {
       if (!nearest || frontier.length < 40) return false;
-      const bound = Object.entries(nearestTargets).reduce((sum, [stat, target]) => {
-        const lo = (stats[stat] ?? 0) + (low[stat] ?? 0), hi = (stats[stat] ?? 0) + (high[stat] ?? 0);
-        return sum + Math.max(0, lo - target, target - hi) / Math.max(1, target);
-      }, 0);
+      const bound = normalizedMaxDeviationBound(stats, low, high, nearestTargets);
       return bound > frontier[frontier.length - 1].targetDistance!;
     }), done: false };
   });

@@ -33,8 +33,9 @@ const originalMeasured = { id: "repro", encounter: 19, atk: 1112, spd: 516, lck:
 const legalNearbyStats = { atk: 1156, spd: 509, lck: 302, dex: 17 };
 const actualBuildOption = strategyOptionForProfileBuild(originalMeasured, legalNearbyStats);
 assert.deepEqual([actualBuildOption.atk, actualBuildOption.spd, actualBuildOption.lck, actualBuildOption.dex], [1156,509,302,17]);
-assert.equal(actualBuildOption.mean, 0, "nearby profile stats must not inherit the original reward mean");
-assert.equal(actualBuildOption.n, 0, "unmeasured profile stats must not inherit the original sample count");
+assert.equal(actualBuildOption.mean, undefined, "unmeasured reward must remain unknown, not a zero reward or inherited mean");
+assert.equal(actualBuildOption.n, undefined, "unmeasured sample count must remain unknown");
+assert.equal(actualBuildOption.highest, undefined, "unmeasured profile stats must not inherit the target record");
 assert.match(actualBuildOption.status, /unmeasured/);
 const window = chestStrategyGoals(actualBuildOption, { atk: 15, spd: 15, lck: 15 });
 assert.deepEqual([window.atk.min, window.atk.max, window.spd.min, window.spd.max, window.lck.min, window.lck.max, window.dex.min, window.dex.max], [1141,1171,494,524,287,317,17,17], "profile search window must include the found build in all four stats");

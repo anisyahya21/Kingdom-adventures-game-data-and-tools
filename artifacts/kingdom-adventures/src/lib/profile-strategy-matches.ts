@@ -1,4 +1,4 @@
-import { searchProfileGoalBuildPages, type ProfileGoalBuild, type ProfileGoalSearchInput } from "./profile-loadout-goal-planner";
+import { normalizedMaxDeviation, searchProfileGoalBuildPages, type ProfileGoalBuild, type ProfileGoalSearchInput } from "./profile-loadout-goal-planner";
 
 export type StrategyMatchTarget = { id: string; atk: number; spd: number; lck: number; dex?: number };
 export type ProfileStrategyMatch = { id: string; build: ProfileGoalBuild | null; complete: boolean; searchNodes: number; builds?: ProfileGoalBuild[] };
@@ -13,11 +13,9 @@ export function isExactStrategyBuild(build: ProfileGoalBuild | null, target: Str
 
 export function strategyMatchDeviation(match: ProfileStrategyMatch, target: StrategyMatchTarget): number {
   if (!match.build) return Infinity;
-  return Math.max(...(["atk", "spd", "lck", "dex"] as const).map((stat) => {
-    const expected = stat === "dex" ? target.dex ?? 18 : target[stat];
-    const actual = match.build!.stats[stat];
-    return Number.isFinite(actual) ? Math.abs(actual - expected) / Math.max(1, expected) : Infinity;
-  }));
+  return normalizedMaxDeviation(match.build.stats, {
+    atk: target.atk, spd: target.spd, lck: target.lck, dex: target.dex ?? 18,
+  });
 }
 
 /** Reuse the legal owned-gear planner; a bounded search never proves that a target is impossible. */
@@ -42,7 +40,13 @@ export async function* compareProfileStrategies(input: ProfileGoalSearchInput, t
       const best = (maximizeStats.length ? alternatives : page.builds).reduce<ProfileGoalBuild | null>((current, build) => {
         if (!current) return build;
         const deviation = (candidate: ProfileGoalBuild) => strategyMatchDeviation({ ...match, build: candidate }, target);
-        return deviation(build) < deviation(current) || deviation(build) === deviation(current) && (build.targetDistance ?? Infinity) < (current.targetDistance ?? Infinity) ? build : current;
+        const betterSurvival = maximizeStats.every((stat) => (build.stats[stat] ?? 0) >= (current.stats[stat] ?? 0))
+          && maximizeStats.some((stat) => (build.stats[stat] ?? 0) > (current.stats[stat] ?? 0));
+        return deviation(build) < deviation(current)
+          || deviation(build) === deviation(current) && (
+            (build.targetDistance ?? Infinity) < (current.targetDistance ?? Infinity)
+            || (build.targetDistance ?? Infinity) === (current.targetDistance ?? Infinity) && betterSurvival
+          ) ? build : current;
       }, maximizeStats.length ? null : match.build);
       match = { id: target.id, build: best, complete: page.complete, searchNodes: page.searchNodes, ...(maximizeStats.length ? { builds: alternatives } : {}) };
       yield { matches: [...matches, match], completed: matches.length, total: targets.length, complete: false };
