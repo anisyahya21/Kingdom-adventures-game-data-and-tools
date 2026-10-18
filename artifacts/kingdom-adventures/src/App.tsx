@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/app/app-shell";
 import { GlobalJobPreview } from "@/components/ka/global-job-preview";
 import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL, encodeCanonicalPath, getSeoMeta } from "@/app/seo";
+import { isIndexablePage, isKnownPage } from "@/app/seo-policy";
 import { trackPageView } from "@/lib/analytics";
 import { startProfileAccountSync } from "@/lib/account-player-profile/sync";
 import { gameAccountContext } from "@/lib/game-accounts";
@@ -106,6 +107,11 @@ function SeoManager() {
     const title = meta.title.includes(SITE_NAME) ? meta.title : `${meta.title} | ${SITE_NAME}`;
 
     document.title = title;
+    upsertMeta('meta[name="robots"]', () => {
+      const element = document.createElement("meta");
+      element.name = "robots";
+      return element;
+    }, isIndexablePage(pathname) ? "index, follow" : "noindex, follow");
 
     upsertMeta('meta[name="description"]', () => {
       const element = document.createElement("meta");
@@ -184,7 +190,7 @@ function Router() {
         <Route path="/monsters">{() => <MonstersPage />}</Route>
         <Route path="/weekly-conquest">{() => <WeeklyConquestPage />}</Route>
         <Route path="/jobs">{() => <JobsPage />}</Route>
-        <Route path="/jobs/:name">{() => <JobsPage />}</Route>
+        <Route path="/jobs/:name">{(params) => isKnownPage(`/jobs/${params.name}`) ? <JobsPage /> : <NotFound />}</Route>
         <Route path="/skills">{() => <SkillsPage />}</Route>
         <Route path="/skill">{() => <SkillsPage />}</Route>
         <Route path="/combat">{() => <CombatPage />}</Route>
@@ -207,7 +213,7 @@ function Router() {
         <Route path="/item-sources">{() => <ItemSourcesPage />}</Route>
         <Route path="/items-reference">{() => <ItemSourcesPage />}</Route>
         <Route path="/shops">{() => <ShopsPage />}</Route>
-        <Route path="/shops/:slug">{() => <ShopsPage />}</Route>
+        <Route path="/shops/:slug">{(params) => isKnownPage(`/shops/${params.slug}`) ? <ShopsPage /> : <NotFound />}</Route>
         <Route path="/research">{() => <ResearchPage />}</Route>
         <Route path="/training-facilities">{() => <TrainingFacilitiesPage />}</Route>
         <Route path="/sync-devices">{() => <SyncDevicesPage />}</Route>

@@ -1,4 +1,5 @@
 ﻿import { SHOP_RECORDS } from "@/lib/shop-utils";
+import { canonicalPath, isKnownPage } from "./seo-policy";
 
 export const SITE_URL = "https://kingdom-adventures-community-tools.vercel.app";
 export const SITE_NAME = "Kingdom Adventurers Community Tools";
@@ -111,7 +112,7 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     description: "Track Kingdom Adventurers training facilities and future planning tools for training-focused town progression.",
   },
   "/houses": {
-    title: "Kingdom Adventurers Houses and Facilities",
+    title: "Kingdom Adventurers Buildings & Facilities: Unlocks, Costs and Upgrades",
     description: "Plan Kingdom Adventurers houses and facilities with plot sizes, building costs, extra beds, shelves, monster rooms, owner jobs, upgrade costs, map unlocks, HP, range, storage, and production data.",
   },
   "/survey": {
@@ -203,6 +204,26 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: "Kingdom Adventurers Tool Updates",
     description: "See recent updates to the Kingdom Adventurers community tools, databases, and calculators.",
   },
+  "/chaos-setup-lab": {
+    title: "Kingdom Adventurers Chaos Stone Setup",
+    description: "Plan Chaos Stone placement and explore the setup in the world workspace.",
+  },
+  "/event-reminders": {
+    title: "Kingdom Adventurers Event Reminders",
+    description: "Set up reminders for Kingdom Adventurers events and activities.",
+  },
+  "/battle-setup": {
+    title: "Kingdom Adventurers Battle Setup",
+    description: "Choose characters, equipment, skills and encounters for battle planning.",
+  },
+  "/strategy-search": {
+    title: "Kingdom Adventurers Strategy Search",
+    description: "Explore battle strategy search tools for Kingdom Adventurers.",
+  },
+  "/battle": {
+    title: "Kingdom Adventurers Battle Simulator",
+    description: "Test character and team setups in the Kingdom Adventurers battle simulator.",
+  },
   "/sync-devices": {
     title: "Kingdom Adventurers Sync Devices",
     description: "Sync Kingdom Adventurers tool settings and planning data across your devices.",
@@ -210,7 +231,8 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
 };
 
 export function getSeoMeta(pathname: string): SeoMeta {
-  const cleanPath = pathname.split("?")[0].replace(/\/$/, "") || "/";
+  const cleanPath = canonicalPath(pathname);
+  if (!isKnownPage(cleanPath)) return { title: "Page not found", description: "Browse Kingdom Adventurers tools, databases and guides.", canonicalPath: cleanPath };
 
   if (cleanPath.startsWith("/jobs/")) {
     const jobName = decodeURIComponent(cleanPath.replace("/jobs/", ""));

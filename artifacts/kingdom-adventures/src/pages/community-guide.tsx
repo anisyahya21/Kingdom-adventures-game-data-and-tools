@@ -16,6 +16,15 @@ export default function CommunityGuidePage() {
   const [ownerTokens, setOwnerTokens] = useState<Record<string, string>>(() => getGuideOwnerTokens());
 
   useEffect(() => {
+    if (loading || error !== "Guide not found.") return;
+    const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    if (!robots) return;
+    const previous = robots.content;
+    robots.content = "noindex, follow";
+    return () => { robots.content = previous; };
+  }, [loading, error]);
+
+  useEffect(() => {
     const url = new URL(window.location.href);
     const editToken = url.searchParams.get("edit") ?? url.searchParams.get("ownerToken") ?? "";
     if (!cachedGuide || !editToken) return;
