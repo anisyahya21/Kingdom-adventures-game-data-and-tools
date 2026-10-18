@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, BatteryMedium, Brain, Heart, Package, Sprout, Wrench } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/ka/page-header";
 import { Input } from "@/components/ui/input";
 import { UTILITY_STAT_EFFECTS, freshFogHp, fogPulses, wagonMaterialLoad } from "@/game-data/utility-stat-effects";
 
-const statIcons = { mov: Package, hrt: Heart, vig: BatteryMedium, int: Brain, dex: Wrench, gth: Sprout };
 const statOrder = ["mov", "hrt", "dex", "int", "gth", "vig"] as const;
 
 function numberOrNull(value: string, min: number) {
@@ -43,12 +42,8 @@ export default function StatEffectsGuidePage() {
 
     {statOrder.map(key => {
       const stat = UTILITY_STAT_EFFECTS.find(entry => entry.key === key)!;
-      const Icon = statIcons[key];
       return <section key={key} id={key} className="scroll-mt-20 border-b py-8 sm:py-10">
-        <div className="mb-4 flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></span>
-          <h2 className="text-xl font-semibold tracking-tight">{stat.name}</h2>
-        </div>
+        <h2 className="mb-4 text-xl font-semibold tracking-tight">{stat.name}</h2>
         <div className="space-y-4 text-base leading-7">
           <p>{stat.effect}</p>
           <p>{stat.training}</p>
