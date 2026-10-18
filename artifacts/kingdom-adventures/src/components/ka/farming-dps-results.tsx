@@ -10,7 +10,7 @@ import { chestStrategyGoals, type ChestStrategyOption } from "@/lib/chest-strate
 import { measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
 import { strategyMatchDeviation, type ProfileStrategyMatch } from "@/lib/profile-strategy-matches";
 import { compareFarmingDpsRank } from "@/lib/farming-dps-ranking";
-import { exactAccountDiagnosticCase, accountDiagnosticLabel, accountDiagnosticScenario, accountDiagnosticFailedPilotApplies } from "@/game-data/account-diagnostic-evidence";
+import { exactAccountDiagnosticCase, accountDiagnosticLabel, accountDiagnosticScenario, accountDiagnosticFailedPilotApplies, accountDiagnosticObservedDeathsApply } from "@/game-data/account-diagnostic-evidence";
 import type { ProfileGoalBuild } from "@/lib/profile-loadout-goal-planner";
 import type { PlayerProfile } from "@/lib/player-profile";
 import { testedProfileEvidenceVisible, type TestedProfileCandidate } from "@/lib/tested-profile-build";
@@ -69,9 +69,10 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
         const character = profile.characters.find((item) => item.id === build.characterId);
         const diagnostic = exactAccountDiagnosticCase(option.encounter, build, character?.gender);
         const failedExactSetupPilot = accountDiagnosticFailedPilotApplies(diagnostic, option.encounter, testedProfileSetup);
-        return [{ match: variant, build, option, fingerprint, measured, failedExactSetupPilot, deviation: strategyMatchDeviation(variant, option) }];
+        const observedDpsDeaths = accountDiagnosticObservedDeathsApply(diagnostic, option.encounter, testedProfileSetup);
+        return [{ match: variant, build, option, fingerprint, measured, failedExactSetupPilot, observedDpsDeaths, deviation: strategyMatchDeviation(variant, option) }];
       });
-    }).sort((a, b) => compareFarmingDpsRank({ id: a.match.id, failedExactSetupPilot: a.failedExactSetupPilot, measuredMean: a.measured?.mean ?? null, deviation: a.deviation }, { id: b.match.id, failedExactSetupPilot: b.failedExactSetupPilot, measuredMean: b.measured?.mean ?? null, deviation: b.deviation }));
+    }).sort((a, b) => compareFarmingDpsRank({ id: a.match.id, failedExactSetupPilot: a.failedExactSetupPilot, observedDpsDeaths: a.observedDpsDeaths, measuredMean: a.measured?.mean ?? null, deviation: a.deviation }, { id: b.match.id, failedExactSetupPilot: b.failedExactSetupPilot, observedDpsDeaths: b.observedDpsDeaths, measuredMean: b.measured?.mean ?? null, deviation: b.deviation }));
   }, [matches, options, profile, exactOnly, testedProfileSetup]);
   const firstRows = useMemo(() => {
     const first = new Map<string, (typeof rows)[number]>();
@@ -146,7 +147,7 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
       <Button className="mt-4 min-h-11" disabled={busy || selected.length === 0} onClick={() => setCreated([...selected])}>View selected equipment{selected.length > 0 ? ` (${selected.length})` : ""}</Button>
       </div>
     </details>}
-    {createdRows.length > 0 && <h2 ref={equipmentHeading} className="scroll-mt-24 pt-2 text-lg font-semibold">Your equipment options</h2>}
+    {createdRows.length > 0 && <h2 ref={equipmentHeading} className="scroll-mt-24 pt-2 text-lg font-semibold">Your equipment options · untested first</h2>}
     {createdRows.length > 5 && <div className="rounded-xl border bg-card p-4">{renderCreatedPagination()}</div>}
     {pageCreatedRows.map(({ match, build, option, fingerprint }) => {
       const character = profile!.characters.find((character) => character.id === build.characterId);

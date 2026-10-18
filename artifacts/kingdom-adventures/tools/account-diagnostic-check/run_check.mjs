@@ -54,7 +54,7 @@ assert.match(accountDiagnosticLabel(pilotCase), /^Failed pilot: DPS died before 
 assert.match(accountDiagnosticScenario(pilotCase), /Three seeds only/);
 assert.match(accountDiagnosticScenario(pilotCase), /not population reliability/);
 assert.equal(accountDiagnosticLabel(baseCase), "Fixed-support diagnostic: DPS survived 6/20", "existing survival label remains unchanged");
-assert.equal(accountDiagnosticScenario(baseCase), "Anonymized account diagnostic; 60 fixed browser-runtime runs across three exact builds. Fixed synthetic healer and four fodders; at most 10 Holy Herbs at 20% DPS MP using a 200-tick sample window; 0 potions; finite HP/MP. User team not measured. This conditional small-sample diagnostic does not change fixed-research reward averages or ranking.", "existing scenario caveat remains unchanged");
+assert.equal(accountDiagnosticScenario(baseCase), "Anonymized account diagnostic; 60 fixed browser-runtime runs across three exact builds. Fixed synthetic healer and four fodders; at most 10 Holy Herbs at 20% DPS MP using a 200-tick sample window; 0 potions; finite HP/MP. User team not measured. Recorded DPS deaths move an exact matching setup after untested options; untested does not mean safer. Fixed-research reward averages are unchanged.", "existing scenario caveat remains unchanged");
 
 for (const mutation of [
   (build) => { build.stats.hp += 1; },
@@ -81,3 +81,12 @@ assert.equal(accountDiagnosticFailedPilotApplies(null, 3, matchingSetup), false)
 assert.equal(accountDiagnosticFailedPilotApplies(baseCase, 3, matchingSetup), false);
 assert.equal(accountDiagnosticFailedPilotApplies(pilotCase, 3), false);
 console.log("PASS: failed-pilot ordering requires exact identity and matching support/resource controls.");
+
+const { accountDiagnosticObservedDeathsApply } = await import("../../src/game-data/account-diagnostic-evidence.ts");
+assert.equal(accountDiagnosticObservedDeathsApply(baseCase, 3, matchingSetup), true);
+for (const change of [{ encounterId: 4 }, { placeholderSupports: false }, { finiteHpMp: false }, { allowConsumables: false }, { holyHerbLimit: 9 }, { recoveryPotionLimit: 1 }]) {
+  assert.equal(accountDiagnosticObservedDeathsApply(baseCase, 3, { ...matchingSetup, ...change }), false);
+}
+assert.equal(accountDiagnosticObservedDeathsApply(null,3,matchingSetup),false);
+assert.equal(accountDiagnosticObservedDeathsApply({...baseCase,survivedRuns:20},3,matchingSetup),false);
+console.log("PASS: observed-death ordering requires matching finite-resource synthetic support controls.");
