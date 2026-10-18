@@ -154,7 +154,7 @@ function PreviewUnitRow({ unit }: { unit: BattlePreviewUnit }) {
       <td className="py-0.5 pr-2 text-muted-foreground">{unit.side}</td>
       <td className="py-0.5 pr-2">{unit.petOwnerName ?? "-"}</td>
       <td className="py-0.5 pr-2 tabular-nums">{unit.cell ? `${unit.cell[0]},${unit.cell[1]}` : "-"}</td>
-      <td className="py-0.5 tabular-nums">{hp?.effectiveValue ?? "-"} / {hp?.effectiveMaximum ?? "-"}</td>
+      <td className="py-0.5 tabular-nums">{hp?.effectiveMaximum ?? "-"}</td>
     </tr>
   );
 }
@@ -907,7 +907,7 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
                     <th className="py-0.5 pr-2 font-medium">Side</th>
                     <th className="py-0.5 pr-2 font-medium">Owner</th>
                     <th className="py-0.5 pr-2 font-medium">Cell</th>
-                    <th className="py-0.5 font-medium">HP current / max</th>
+                    <th className="py-0.5 font-medium">Max HP</th>
                   </tr>
                 </thead>
                 <tbody>
