@@ -31,14 +31,9 @@ if (await readFile(catalogFile, "utf8") !== catalog) {
 
 const builtIndex = await readFile(path.join(output, "index.html"), "utf8");
 const templateFile = path.join(root, "dist/search-template.html");
-if (!builtIndex.includes("data-search-summary")) await writeFile(templateFile, builtIndex);
+if (!builtIndex.includes("data-prerendered-page=")) await writeFile(templateFile, builtIndex);
 const html = await readFile(templateFile, "utf8");
 const escape = value => String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
-const primary = ["/jobs", "/skills", "/houses", "/shops", "/equipment", "/monster-spawns", "/monster-pet-stats", "/survey", "/guides"];
-const links = pathname => (pathname === "/jobs" ? paths.filter(p => p.startsWith("/jobs/"))
-  : pathname === "/shops" ? SHOP_RECORDS.map(s => `/shops/${s.slug}`) : primary)
-  .filter(p => p !== pathname)
-  .map(p => `<li><a href="${escape(encodeCanonicalPath(p))}">${escape(getSeoMeta(p).title.replace(/ - Kingdom Adventurers.*$/, ""))}</a></li>`).join("");
 
 function documentFor(pathname, { notFound = false, dynamicGuide = false } = {}) {
   const meta = getSeoMeta(pathname);
@@ -55,8 +50,9 @@ function documentFor(pathname, { notFound = false, dynamicGuide = false } = {}) 
     .replace(/<meta name="twitter:title"[^>]*>/, `<meta name="twitter:title" content="${escape(title)}" />`)
     .replace(/<meta\s+name="twitter:description"[^]*?\/>/, `<meta name="twitter:description" content="${escape(description)}" />`);
   if (!notFound && !dynamicGuide) doc = doc.replace("</head>", `    <link rel="canonical" href="${escape(canonical)}" />\n  </head>`);
-  const intro = `<main data-search-summary style="max-width:64rem;margin:2rem auto;padding:0 1rem;font-family:system-ui;line-height:1.6"><h1>${escape(notFound ? "Page not found" : meta.title)}</h1><p>${escape(description)}</p><nav aria-label="Related tools"><ul>${links(pathname)}</ul></nav><noscript>Enable JavaScript to use the interactive tools, filters and calculators.</noscript></main>`;
-  return doc.replace('<div id="root"></div>', `<div id="root">${intro}</div>`);
+  // Actual application HTML is rendered by prerender-search-pages.mjs afterward.
+  // Personal pages and runtime community guides keep the regular client render.
+  return doc;
 }
 
 await mkdir(path.join(output, "_search"), { recursive: true });

@@ -121,6 +121,6 @@
     "no uncaught JavaScript errors in tested flows"
   ],
   "sitemapPages": 97,
-  "elapsedSeconds": 4.734,
+  "elapsedSeconds": 5.068,
   "scope": "Local routing simulation and isolated Chrome; API failures deliberately use bundled fallback. Deployment routing needs independent verification."
 }
