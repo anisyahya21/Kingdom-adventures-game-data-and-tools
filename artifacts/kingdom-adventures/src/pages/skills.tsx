@@ -319,7 +319,7 @@ export default function SkillsPage() {
                           </span>
                         </th>
                       ))}
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Description</th>
+                      <th className="hidden md:table-cell text-left px-3 py-2 text-xs font-medium text-muted-foreground">Description</th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tips / Notes</th>
                       <th className="w-16" />
                     </tr>
@@ -351,6 +351,9 @@ export default function SkillsPage() {
                               ) : null}
                               <span>{skill.name}</span>
                             </div>
+                            <p className="mt-2 w-[250px] max-w-[65vw] whitespace-normal text-xs font-normal leading-relaxed text-muted-foreground md:hidden">
+                              {getSkillDescription(skill.name) ?? "Effect still needs investigation."}
+                            </p>
                           </td>
                           <td className="px-3 py-2 text-center">
                             {numCell(skill.studioLevel, () => undefined, false)}
@@ -372,7 +375,7 @@ export default function SkillsPage() {
                               {craftable ? "Y" : "N"}
                             </span>
                           </td>
-                          <td className="px-3 py-2 min-w-[220px] max-w-sm text-xs text-muted-foreground">
+                          <td className="hidden md:table-cell px-3 py-2 min-w-[220px] max-w-sm text-xs text-muted-foreground">
                             <span data-description-source={getSkillDescriptionEvidence(skill.name)} title={`${getSkillDescriptionEvidence(skill.name) === "code" ? "Clarified from game code. " : ""}${getNativeSkillDescription(skill.name) ? `Original in-game wording: ${getNativeSkillDescription(skill.name)}` : "Original game text marks this entry unused."}`}>
                               {getSkillDescription(skill.name) ?? <span className="text-muted-foreground/50">Not documented in game</span>}
                             </span>
