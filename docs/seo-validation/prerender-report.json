@@ -3,14 +3,14 @@
   "completed": 97,
   "total": 97,
   "workers": 4,
-  "elapsedSeconds": 39.324,
-  "pagesPerSecond": 2.4666870104770626,
+  "elapsedSeconds": 36.339,
+  "pagesPerSecond": 2.6693084564792646,
   "remainingSeconds": 0,
   "results": [
     {
       "path": "/",
-      "htmlBytes": 31253,
-      "textCharacters": 1230
+      "htmlBytes": 31251,
+      "textCharacters": 1228
     },
     {
       "path": "/battle-replay",
@@ -43,6 +43,11 @@
       "textCharacters": 625
     },
     {
+      "path": "/chaos-setup-lab",
+      "htmlBytes": 19294,
+      "textCharacters": 127
+    },
+    {
       "path": "/combat/formulas",
       "htmlBytes": 24045,
       "textCharacters": 5127
@@ -53,24 +58,19 @@
       "textCharacters": 555
     },
     {
-      "path": "/chaos-setup-lab",
-      "htmlBytes": 19294,
-      "textCharacters": 127
-    },
-    {
       "path": "/combat/multi-box",
       "htmlBytes": 20420,
       "textCharacters": 1345
     },
     {
-      "path": "/combat/multi-box/simulator",
-      "htmlBytes": 48507,
-      "textCharacters": 2007
-    },
-    {
       "path": "/daily-rank-rewards",
       "htmlBytes": 313753,
       "textCharacters": 12893
+    },
+    {
+      "path": "/combat/multi-box/simulator",
+      "htmlBytes": 48507,
+      "textCharacters": 2007
     },
     {
       "path": "/combat/multi-box/match-stats",
@@ -114,8 +114,8 @@
     },
     {
       "path": "/event-reminders",
-      "htmlBytes": 49499,
-      "textCharacters": 2462
+      "htmlBytes": 49497,
+      "textCharacters": 2460
     },
     {
       "path": "/guides/stat-effects",
@@ -128,14 +128,14 @@
       "textCharacters": 523
     },
     {
-      "path": "/houses",
-      "htmlBytes": 78840,
-      "textCharacters": 2637
-    },
-    {
       "path": "/item-sources",
       "htmlBytes": 23118,
       "textCharacters": 2712
+    },
+    {
+      "path": "/houses",
+      "htmlBytes": 78840,
+      "textCharacters": 2637
     },
     {
       "path": "/job-center",
@@ -143,14 +143,14 @@
       "textCharacters": 661
     },
     {
-      "path": "/jobs",
-      "htmlBytes": 1237134,
-      "textCharacters": 12158
-    },
-    {
       "path": "/jobs-marriage",
       "htmlBytes": 16451,
       "textCharacters": 2422
+    },
+    {
+      "path": "/jobs",
+      "htmlBytes": 1237134,
+      "textCharacters": 12158
     },
     {
       "path": "/jobs/Archer",
@@ -218,19 +218,14 @@
       "textCharacters": 1651
     },
     {
-      "path": "/jobs/Guerilla",
-      "htmlBytes": 65272,
-      "textCharacters": 1093
-    },
-    {
       "path": "/jobs/Gunner",
       "htmlBytes": 114278,
       "textCharacters": 1690
     },
     {
-      "path": "/jobs/Mage",
-      "htmlBytes": 113830,
-      "textCharacters": 1667
+      "path": "/jobs/Guerilla",
+      "htmlBytes": 65272,
+      "textCharacters": 1093
     },
     {
       "path": "/jobs/Knight",
@@ -238,14 +233,19 @@
       "textCharacters": 1652
     },
     {
-      "path": "/jobs/Merchant",
-      "htmlBytes": 114945,
-      "textCharacters": 1738
+      "path": "/jobs/Mage",
+      "htmlBytes": 113830,
+      "textCharacters": 1667
     },
     {
       "path": "/jobs/Magic%20Knight",
       "htmlBytes": 66831,
       "textCharacters": 1121
+    },
+    {
+      "path": "/jobs/Merchant",
+      "htmlBytes": 114945,
+      "textCharacters": 1738
     },
     {
       "path": "/jobs/Monarch",
@@ -278,14 +278,14 @@
       "textCharacters": 1683
     },
     {
-      "path": "/jobs/Researcher",
-      "htmlBytes": 115771,
-      "textCharacters": 1732
-    },
-    {
       "path": "/jobs/Rancher",
       "htmlBytes": 114493,
       "textCharacters": 1713
+    },
+    {
+      "path": "/jobs/Researcher",
+      "htmlBytes": 115771,
+      "textCharacters": 1732
     },
     {
       "path": "/jobs/Royal",
@@ -343,14 +343,14 @@
       "textCharacters": 917
     },
     {
-      "path": "/monster-spawns",
-      "htmlBytes": 681176,
-      "textCharacters": 28527
-    },
-    {
       "path": "/monsters-pets",
       "htmlBytes": 9809,
       "textCharacters": 784
+    },
+    {
+      "path": "/monster-spawns",
+      "htmlBytes": 681176,
+      "textCharacters": 28527
     },
     {
       "path": "/playthrough-guide",
@@ -358,14 +358,14 @@
       "textCharacters": 239
     },
     {
-      "path": "/shops",
-      "htmlBytes": 18908,
-      "textCharacters": 1052
-    },
-    {
       "path": "/research",
       "htmlBytes": 598531,
       "textCharacters": 15341
+    },
+    {
+      "path": "/shops",
+      "htmlBytes": 18908,
+      "textCharacters": 1052
     },
     {
       "path": "/shops/accessory-shop",
@@ -378,14 +378,14 @@
       "textCharacters": 1214
     },
     {
-      "path": "/shops/armor-shop",
-      "htmlBytes": 62929,
-      "textCharacters": 2248
-    },
-    {
       "path": "/shops/furniture-shop",
       "htmlBytes": 43776,
       "textCharacters": 1173
+    },
+    {
+      "path": "/shops/armor-shop",
+      "htmlBytes": 62929,
+      "textCharacters": 2248
     },
     {
       "path": "/shops/insectarium",
@@ -403,14 +403,14 @@
       "textCharacters": 1497
     },
     {
-      "path": "/shops/items-reference",
-      "htmlBytes": 990757,
-      "textCharacters": 8554
-    },
-    {
       "path": "/shops/orchard",
       "htmlBytes": 24292,
       "textCharacters": 438
+    },
+    {
+      "path": "/shops/items-reference",
+      "htmlBytes": 990757,
+      "textCharacters": 8554
     },
     {
       "path": "/shops/restaurant",
@@ -423,11 +423,6 @@
       "textCharacters": 3571
     },
     {
-      "path": "/skills",
-      "htmlBytes": 208271,
-      "textCharacters": 30129
-    },
-    {
       "path": "/shops/zoo",
       "htmlBytes": 36098,
       "textCharacters": 1335
@@ -438,14 +433,9 @@
       "textCharacters": 3974
     },
     {
-      "path": "/strategy-search",
-      "htmlBytes": 8985,
-      "textCharacters": 994
-    },
-    {
-      "path": "/timed-events",
-      "htmlBytes": 17579,
-      "textCharacters": 1066
+      "path": "/skills",
+      "htmlBytes": 208271,
+      "textCharacters": 30129
     },
     {
       "path": "/town-rank",
@@ -453,19 +443,29 @@
       "textCharacters": 2842
     },
     {
+      "path": "/timed-events",
+      "htmlBytes": 17579,
+      "textCharacters": 1066
+    },
+    {
+      "path": "/strategy-search",
+      "htmlBytes": 8985,
+      "textCharacters": 994
+    },
+    {
       "path": "/survey",
       "htmlBytes": 324814,
       "textCharacters": 2240
     },
     {
-      "path": "/training-facilities",
-      "htmlBytes": 467501,
-      "textCharacters": 6349
-    },
-    {
       "path": "/updates",
       "htmlBytes": 14916,
       "textCharacters": 6099
+    },
+    {
+      "path": "/training-facilities",
+      "htmlBytes": 467501,
+      "textCharacters": 6349
     },
     {
       "path": "/wario-dungeon",

@@ -18,7 +18,8 @@ const cases = [
   {path:"/jobs",canonical:"/jobs",rendered:true},
   {path:"/jobs/Beast%20Tamer",canonical:"/jobs/Beast%20Tamer",rendered:true},
   {path:"/houses?tab=facilities&search=Tool%20Workshop",canonical:"/houses",rendered:true},
-  {path:"/monster-pet-stats",canonical:"/monster-pet-stats",rendered:true},
+  {path:"/monster-pet-stats",canonical:"/monster-pet-stats",rendered:true,help:true},
+  {path:"/monster-xp",canonical:"/monster-xp",rendered:true,help:true},
   {path:"/monsters?monster=Skullene",status:308,redirect:"/monster-spawns?monster=Skullene"},
   {path:"/survey-planner?search=retained",status:308,redirect:"/survey?search=retained"},
   {path:"/skill",status:308,redirect:"/skills"},
@@ -81,6 +82,13 @@ try {
           assert.ok(!html.includes('data-search-summary'));
         }
         if(item.rendered) assert.ok(html.includes('data-prerendered-page='));
+        if(item.help) {
+          const details=html.match(/<details data-tool-help[^>]*>/)?.[0];
+          assert.ok(details, 'Missing upfront help content');
+          assert.doesNotMatch(details, /\bopen(?:=|\s|>)/);
+          assert.ok(html.includes(item.path === '/monster-xp' ? 'The game chooses one non-zero exp stat' : 'The data comes from the mined'));
+          result.collapsedHelpPresent=true;
+        }
         if(item.noindex) assert.ok(html.includes('content="noindex, follow"'));
         if(item.redirect) {
           const target=new URL(location,base);
