@@ -3,7 +3,8 @@ import { discordClientAuthorization, discordOAuthJson, discordRetryAfterSeconds,
 let status: "not-configured" | "checking" | "ready" | "cooldown" | "unavailable" = "not-configured";
 let checkedAt: string | null = null;
 let running = false;
-export function discordOAuthReadiness() { return { status, checkedAt, transport: process.env.DISCORD_HTTP_RELAY_URL ? "vercel" : "direct", retryAfterSeconds: discordRetryAfterSeconds(), credentialsAndIdentityVerified: status === "ready" }; }
+let reminderBotVerified = false;
+export function discordOAuthReadiness() { return { status, checkedAt, transport: process.env.DISCORD_HTTP_RELAY_URL ? "vercel" : "direct", retryAfterSeconds: discordRetryAfterSeconds(), credentialsAndIdentityVerified: status === "ready", reminderBotVerified }; }
 
 // Discord documents this owner-only grant for testing. No website account is
 // created or linked, no reminders are sent, and the temporary token is revoked.
@@ -22,6 +23,12 @@ export async function verifyDiscordOAuthReadiness(allowScheduledRetry = true) {
     const identity = await discordOAuthJson<{ id?: string }>("/users/@me", { headers: { Authorization: `Bearer ${token}` } });
     if (!identity.id || !/^\d+$/.test(identity.id)) throw new Error("Invalid verification identity");
     status = "ready";
+    if (process.env.DISCORD_BOT_TOKEN?.trim()) {
+      try {
+        const bot = await discordOAuthJson<{ id?: string; bot?: boolean }>("/users/@me", { headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN.trim()}` } });
+        reminderBotVerified = bot.bot === true && bot.id === process.env.DISCORD_CLIENT_ID?.trim();
+      } catch { reminderBotVerified = false; }
+    }
   } catch (error) {
     status = error instanceof DiscordOAuthRateLimitError ? "cooldown" : "unavailable";
     if (error instanceof DiscordOAuthRateLimitError && allowScheduledRetry && error.retryAfterSeconds <= 3600) {

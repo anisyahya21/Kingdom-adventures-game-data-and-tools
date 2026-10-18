@@ -34,7 +34,7 @@ export function ProfileSignInNotice({ authenticated }: { authenticated: boolean 
     const timer = window.setInterval(() => { const time = Date.now(); setNow(time); if (time >= retryAt) window.clearInterval(timer); }, 1000);
     return () => window.clearInterval(timer);
   }, [dismissed, available, reason, retryAt]);
-  if (dismissed || !notices[reason]) return null;
+  if (dismissed || !Object.prototype.hasOwnProperty.call(notices, reason)) return null;
   const [title, message] = available ? ["Discord is available again", "You can retry connecting your Discord account."] : notices[reason];
   const wait = seconds >= 3600 ? `${Math.floor(seconds / 3600)}h ${Math.ceil(seconds % 3600 / 60)}m` : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   return <Alert className="bg-muted/20">

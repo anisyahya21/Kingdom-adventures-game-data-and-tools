@@ -16,8 +16,9 @@ try{
  }
  reply=new Response('{"retry_after":2,"global":true}',{status:429,headers:{'content-type':'application/json'}});await assert.rejects(discordOAuthJson('/oauth2/token',{method:'POST'}),e=>e instanceof DiscordOAuthRateLimitError&&e.retryAfterSeconds===2);
  assert.equal(discordRetryAfterSeconds(),2);const count=calls.length;await assert.rejects(discordOAuthJson('/users/@me',{}),DiscordOAuthRateLimitError);assert.equal(calls.length,count,'Cooldown prevents outbound requests');now+=3000;
- reply=(url)=>new Response(JSON.stringify(url.endsWith('/oauth2/token')?{access_token:'owner-test-token'}:url.endsWith('/users/@me')?{id:'12345'}:{}),{headers:{'content-type':'application/json'}});
- await verifyDiscordOAuthReadiness(false);assert.equal(discordOAuthReadiness().credentialsAndIdentityVerified,true);assert.ok(calls.at(-1).url.endsWith('/oauth2/token/revoke'));assert.equal(new URLSearchParams(calls.at(-3).init.body).get('grant_type'),'client_credentials');
+ process.env.DISCORD_BOT_TOKEN='fixture-bot-token';
+ reply=(url,init)=>new Response(JSON.stringify(url.endsWith('/oauth2/token')?{access_token:'owner-test-token'}:url.endsWith('/users/@me')?(init.headers.get('authorization').startsWith('Bot ')?{id:'test-client',bot:true}:{id:'12345'}):{}),{headers:{'content-type':'application/json'}});
+ await verifyDiscordOAuthReadiness(false);assert.equal(discordOAuthReadiness().credentialsAndIdentityVerified,true);assert.ok(calls.at(-1).url.endsWith('/oauth2/token/revoke'));assert.ok(calls.some(c=>new URLSearchParams(c.init.body).get('grant_type')==='client_credentials'));assert.equal(discordOAuthReadiness().reminderBotVerified,true);
  assert.ok(!JSON.stringify(warnings).includes('private-test-secret'));assert.ok(!JSON.stringify(warnings).includes('owner-test-token'));assert.ok(!JSON.stringify(warnings).includes('secret-token'));
  originalInfo(JSON.stringify({ok:true,basicAuthentication:true,htmlAndJsonErrorsHandled:true,realCooldownRespected:true,requestsBlockedDuringCooldown:true,ownerReadinessAndTokenCleanup:true,sensitiveBodiesExcluded:true}));
 }finally{globalThis.fetch=originalFetch;console.warn=originalWarn;console.info=originalInfo;Date.now=originalNow;}
