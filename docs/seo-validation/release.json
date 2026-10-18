@@ -6,5 +6,11 @@
   "productionHttpChecks": 18,
   "localChecks": 120,
   "sitemapSubmission": "Sitemap submitted successfully",
-  "sitemapDiscovery": "Previous count still displayed; updated processing pending"
+  "sitemapDiscovery": "Previous count still displayed; updated processing pending",
+  "individualIndexingRequest": {
+    "url": "/monster-pet-stats",
+    "outcome": "Quota Exceeded",
+    "googleMessage": "Daily quota exceeded; try again tomorrow",
+    "surveyRequest": "Not attempted after daily quota response"
+  }
 }
