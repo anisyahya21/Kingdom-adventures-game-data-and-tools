@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ALL_AREA_LEVELS, XP_TERRAINS, XP_UP_BONUSES, getXpResult, nativeTerrainAtLevel, type XpTerrain } from "@/lib/monster-xp";
 import { getSkillIcon } from "@/lib/skill-icons";
 import { localSharedData } from "@/lib/local-shared-data";
+import { ToolHelp } from "@/components/ka/tool-help";
 
 const terrainLabels: Record<XpTerrain, string> = {
   "Ground/dirt": "Ground / dug dirt",
@@ -134,9 +135,17 @@ export default function MonsterXpPage() {
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <h1 className="flex items-center gap-2 text-xl font-bold text-foreground"><Calculator className="h-5 w-5 text-violet-500" />Monster XP per kill</h1>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Expected battle XP by area level and terrain. The game chooses one non-zero exp stat at random, so each monster uses the average of its non-zero exp values.</p>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Compare expected Kingdom Adventurers battle XP per kill by area level, terrain, and XP Up skills.</p>
           </div>
           <Skull className="hidden h-8 w-8 text-muted-foreground/30 sm:block" />
+        </div>
+
+        <div className="mb-4">
+          <ToolHelp title="How the XP estimate works">
+            <p>The game chooses one non-zero exp stat at random, so each monster uses the average of its non-zero exp values.</p>
+            <p>Choose an area level to see its terrain results, or compare two areas. Enable the XP Up skills you use; their bonuses multiply together.</p>
+            <p>These are XP-per-kill estimates. They do not measure kills per minute or travel time.</p>
+          </ToolHelp>
         </div>
 
         <Card className="mb-6 border-violet-500/20 bg-violet-500/5">

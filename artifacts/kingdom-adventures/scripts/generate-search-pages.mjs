@@ -1,4 +1,4 @@
-/** Deterministic static search documents; the existing React app replaces the summary. */
+/** Deterministic metadata documents, followed by rendering the actual public app. */
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

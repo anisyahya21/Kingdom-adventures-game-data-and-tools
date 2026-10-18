@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/searchable-select";
+import { ToolHelp } from "@/components/ka/tool-help";
 import { parseCsv } from "@/lib/monster-truth";
 import monsterCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Monster.csv?raw";
 
@@ -222,32 +223,15 @@ export default function MonsterPetStatsPage() {
         </div>
         <div className="max-w-4xl space-y-2 text-sm leading-relaxed text-muted-foreground">
           <p>
-            Detailed Kingdom Adventurers monster and pet stat database built from the mined <code>Monster.csv</code>.
-            Search by monster name or id, sort by core stats, and compare up to four monsters side by side.
-          </p>
-          <p>
-            Each stat is stored as a level-based block:
-            <span className="font-medium text-foreground"> level 1, level 100, level 1,000, and level 10,000</span>,
-            with a custom level column for quick pet and monster planning.
+            Compare Kingdom Adventurers monster and pet stats at different levels, side by side.
           </p>
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">How This Sheet Reads</CardTitle>
-          <CardDescription>
-            The mined monster sheet packs stats in blocks. This view focuses on HP, MP, Attack, Def, Speed, Luck, and Dex.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2 text-xs">
-          {STAT_KEYS.map((key) => (
-            <Badge key={key} variant="outline" className="font-medium">
-              {STAT_LABELS[key]}: Lv 1 / 100 / 1k / 10k
-            </Badge>
-          ))}
-        </CardContent>
-      </Card>
+      <ToolHelp title="How to read and compare these stats">
+        <p>Search by monster name or ID, sort by a stat, and compare up to four monsters.</p>
+        <p>The data comes from the mined <code>Monster.csv</code>. HP, MP, Attack, Def, Speed, Luck, and Dex are shown at level 1, 100, 1,000, and 10,000, with a custom level column for planning.</p>
+      </ToolHelp>
 
       <Card>
         <CardHeader className="pb-3">
