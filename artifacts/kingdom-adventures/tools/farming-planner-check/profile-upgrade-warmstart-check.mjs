@@ -53,9 +53,45 @@ assert.ok(fairProfiles.searchNodes <= 1_000, "multiple-character passes share on
 assert.ok(fairProfiles.builds.some((build) => build.characterId === "hp-heavy"));
 assert.ok(fairProfiles.builds.some((build) => build.characterId === "def-heavy"), "round-robin character search retains a non-dominated second profile");
 
+const accountLikeCharacters = [];
+const accountLikeInventory = [];
+const accountLikeBonuses = new Map();
+for (const [characterId, hp, def] of [["profile-ninja", 100, 30], ["profile-samurai", 130, 20]]) {
+  const slotItems = ["Weapon", "Body", "Accessory"].map((slot, slotIndex) => {
+    const names = Array.from({ length: 24 }, (_, itemIndex) => `${characterId} ${slot} ${itemIndex}`);
+    for (let itemIndex = 0; itemIndex < names.length; itemIndex += 1) {
+      const item = names[itemIndex];
+      accountLikeInventory.push({ item, ownership: "owned", currentLevel: 40 + (itemIndex % 10) });
+      accountLikeBonuses.set(item, slotIndex === 0 ? { atk: itemIndex - 12, hp: 20 } : slotIndex === 1 ? { def: itemIndex, hp: 10 } : { spd: itemIndex - 12, hp: 5 });
+    }
+    return { slot, items: names };
+  });
+  const skillSets = [[], ...Array.from({ length: 9 }, (_, index) => [`${characterId} resistance ${index}`])];
+  for (const skills of skillSets) {
+    accountLikeCharacters.push({
+      id: characterId, name: characterId, jobName: characterId === "profile-ninja" ? "Ninja" : "Samurai", rank: "A", skills,
+      skillItems: Object.fromEntries(skills.map((skill) => [skill, [slotItems[0].items[0]]])), available: true, eligible: true,
+      input: {
+        baseStats: { atk: 700, spd: 500, lck: 100, dex: 11, hp, def }, goals: {}, slots: slotItems,
+        contribution: (item) => accountLikeBonuses.get(item),
+      },
+    });
+  }
+}
+let fullAccountContexts;
+for await (const page of compareProfileStrategies({ characters: accountLikeCharacters, inventory: accountLikeInventory },
+  [{ id: "full-profile-target", atk: 700, spd: 500, lck: 100, dex: 11 }], true, 5_000, ["hp", "def"])) fullAccountContexts = page.matches[0];
+assert.ok(fullAccountContexts.searchNodes <= 5_000, "2-character x 10-skill-context comparison stays within its original total target cap");
+assert.deepEqual(new Set(fullAccountContexts.builds.filter((build) => build.addedLevels === 0 && build.picks.length >= 2).map((build) => build.characterId)),
+  new Set(["profile-ninja", "profile-samurai"]), "primary full-current searches retain multi-slot builds from both actual profile-character groups");
+assert.ok(fullAccountContexts.builds.some((build) => build.addedLevels === 0 && build.skills?.length === 0),
+  "the current-level pass selects the fewest-required-skills context before broader upgrade contexts");
+
 console.log(JSON.stringify({
   status: "passed",
   small: { nodes: smallUpgradeSearch.searchNodes, complete: smallUpgradeSearch.complete, candidates: smallUpgradeSearch.builds.length, bestHp: Math.max(...smallUpgradeSearch.builds.map((build) => build.stats.hp)) },
   large: { nodes: largeUpgradeSearch.searchNodes, complete: largeUpgradeSearch.complete, candidates: largeUpgradeSearch.builds.length, bestHp: Math.max(...largeUpgradeSearch.builds.map((build) => build.stats.hp)) },
   upgradesDisabled: { nodes: currentOnly.searchNodes, complete: currentOnly.complete, candidates: currentOnly.builds.length },
+  fullAccountContexts: { nodes: fullAccountContexts.searchNodes, complete: fullAccountContexts.complete, totalContexts: accountLikeCharacters.length,
+    candidates: fullAccountContexts.builds.length, currentMultiSlotCharacters: [...new Set(fullAccountContexts.builds.filter((build) => build.addedLevels === 0 && build.picks.length >= 2).map((build) => build.characterId))] },
 }));

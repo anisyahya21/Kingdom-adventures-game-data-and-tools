@@ -254,9 +254,9 @@ export function FarmingDpsResults({ profile, sharedData, plannerSettings, matche
     });
   }, [recipeRows, targetRows]);
   const createdRows = useMemo(() => {
-    if (busy && !created) return buildRows.filter((row) => row.sourceKind === "hosted-recipe");
     const seen = new Set<string>();
     return buildRows.filter((row) => {
+      if (busy && !created && row.sourceKind !== "hosted-recipe") return false;
       if (row.sourceKind === "research-target" && created !== null && !created.includes(row.match?.id ?? "") ||
           seen.has(row.dedupeFingerprint)) return false;
       seen.add(row.dedupeFingerprint);

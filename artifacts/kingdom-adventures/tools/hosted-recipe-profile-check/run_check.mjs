@@ -44,17 +44,35 @@ assert.equal(primary.build.stats.atk, fixture.statsAll12.atk);
 assert.deepEqual(primary.skills, fixture.loadout.skills);
 assert.deepEqual(primary.skillInvocations, [0, 0, 0, 0, 0, 0]);
 assert.ok(!("mean" in primary) && !("survivedRuns" in primary), "candidate carries no outcome or safety score");
-assert.deepEqual(primary.cohortIds, ["primary-six-validation-20"]);
+assert.ok(primary.cohortIds.includes("primary-six-validation-20"), "primary cohort remains represented in the merged recipe provenance");
 assert.equal(profileFarmingBuildFingerprint({ ...primary.build, skills: [] }, profile), profileFarmingBuildFingerprint(primary.build, profile),
   "legacy stat-target skill requirements normalize to the exact canonical farming skill list for card deduplication");
 assert.notEqual(profileFarmingBuildFingerprint({ ...primary.build, skills: ["Shield Resistance"] }, profile), profileFarmingBuildFingerprint(primary.build, profile),
   "gear-legalizing skills remain a distinct exact recipe identity");
 const duplicateDataset = structuredClone(dataset);
 const primaryRecord = duplicateDataset.records.find(({ cohortId }) => cohortId === "primary-six-validation-20");
-duplicateDataset.records.push({ ...structuredClone(primaryRecord), cohortId: "same-recipe-control", caseId: "same-recipe-control" });
+duplicateDataset.records.push({
+  ...structuredClone(primaryRecord),
+  cohortId: "same-recipe-control",
+  caseId: "same-recipe-control",
+  build: { ...structuredClone(primaryRecord.build), job: "Samurai", rank: "S", gender: 1 },
+});
 const merged = projectHostedRecipeProfileCandidates(duplicateDataset, profile, localSharedData, settings)
   .find(({ recipeId }) => recipeId === primary.recipeId);
-assert.deepEqual(merged.cohortIds, ["primary-six-validation-20", "same-recipe-control"], "same gear-and-skill recipes merge cohort provenance");
+const mergedRows = projectHostedRecipeProfileCandidates(duplicateDataset, profile, localSharedData, settings)
+  .filter(({ recipeId }) => recipeId === primary.recipeId);
+assert.equal(mergedRows.length, 1, "different source jobs with identical encounter, gear, and ordered skills yield one actual-profile projection");
+assert.deepEqual(merged.cohortIds, [...new Set([...primary.cohortIds, "same-recipe-control"])].sort(), "same gear-and-skill recipes merge cohort provenance across source jobs");
+assert.deepEqual(merged.caseIds, [...new Set([...primary.caseIds, "same-recipe-control"])].sort(), "merged recipe retains every source case identifier");
+assert.ok(merged.sourceIdentities.some(({ job, rank, gender }) => job === "Samurai" && rank === "S" && gender === 1),
+  "recipe provenance retains the differing source character identity while projection stays per actual profile character");
+const otherEncounterDataset = structuredClone(dataset);
+otherEncounterDataset.records.push({ ...structuredClone(primaryRecord), cohortId: "same-recipe-other-encounter", caseId: "same-recipe-other-encounter",
+  scenario: { ...primaryRecord.scenario, encounterId: 4 } });
+const encounterFourRecipe = projectHostedRecipeProfileCandidates(otherEncounterDataset, profile, localSharedData, { ...settings, encounterId: 4 })
+  .find(({ cohortIds }) => cohortIds.includes("same-recipe-other-encounter"));
+assert.ok(encounterFourRecipe);
+assert.notEqual(encounterFourRecipe.recipeId, primary.recipeId, "encounter remains part of recipe identity even when gear and ordered skills match");
 
 const changedProfile = structuredClone(profile);
 changedProfile.characters[0].statLevels.atk += 1;

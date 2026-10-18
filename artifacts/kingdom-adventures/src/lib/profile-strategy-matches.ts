@@ -19,6 +19,7 @@ export function strategyMatchDeviation(match: ProfileStrategyMatch, target: Stra
 }
 
 const MAX_CURRENT_LEVEL_WARM_START_NODES = 5_000;
+const MAX_STRATEGY_MATCH_BUILDS = 40;
 
 function profileBuildKey(build: ProfileGoalBuild): string {
   return JSON.stringify([
@@ -60,6 +61,49 @@ function mergeStrategyFrontiers(
     || profileBuildKey(a).localeCompare(profileBuildKey(b)));
 }
 
+function strategyContextKey(build: ProfileGoalBuild): string {
+  return JSON.stringify([build.characterId, build.jobName, build.rank, build.skills ?? []]);
+}
+
+function limitStrategyFrontier(
+  frontiers: readonly ProfileGoalBuild[][],
+  target: StrategyMatchTarget,
+  maximizeStats: Array<"hp" | "mp" | "def">,
+): ProfileGoalBuild[] {
+  const ranked = mergeStrategyFrontiers(frontiers, target, maximizeStats);
+  if (ranked.length <= MAX_STRATEGY_MATCH_BUILDS) return ranked;
+  const selected = new Set<ProfileGoalBuild>();
+  const contexts = new Set<string>();
+  for (const build of ranked) {
+    const context = strategyContextKey(build);
+    if (contexts.has(context)) continue;
+    contexts.add(context);
+    selected.add(build);
+    if (selected.size >= MAX_STRATEGY_MATCH_BUILDS) break;
+  }
+  for (const build of ranked) {
+    if (selected.size >= MAX_STRATEGY_MATCH_BUILDS) break;
+    selected.add(build);
+  }
+  return ranked.filter((build) => selected.has(build));
+}
+
+function primaryCurrentContexts(characters: ProfileGoalSearchInput["characters"]): ProfileGoalSearchInput["characters"] {
+  const groups = new Map<string, ProfileGoalSearchInput["characters"][number]>();
+  for (const character of characters) {
+    if (!character.available || !character.eligible) continue;
+    const key = JSON.stringify([character.id, character.jobName, character.rank]);
+    const previous = groups.get(key);
+    const skills = character.skills ?? [];
+    const previousSkills = previous?.skills ?? [];
+    if (!previous || skills.length < previousSkills.length
+      || skills.length === previousSkills.length && skills.join("\u0000").localeCompare(previousSkills.join("\u0000")) < 0) {
+      groups.set(key, character);
+    }
+  }
+  return [...groups.values()];
+}
+
 /** Reuse the legal owned-gear planner; a bounded search never proves that a target is impossible. */
 export async function* compareProfileStrategies(input: ProfileGoalSearchInput, targets: StrategyMatchTarget[], upgrades: boolean, maxSearchNodes = 1_000_000, maximizeStats: Array<"hp" | "mp" | "def"> = []) {
   const search = { ...input, characters: input.characters.map((character) => ({ ...character, input: { ...character.input, goals: Object.fromEntries(maximizeStats.filter((stat) => ["hp", "mp", "def"].includes(stat)).map((stat) => [stat, { mode: "maximize" as const }])) } })) };
@@ -67,27 +111,44 @@ export async function* compareProfileStrategies(input: ProfileGoalSearchInput, t
   for (const target of targets) {
     if (upgrades && Number.isFinite(maxSearchNodes) && maxSearchNodes > 0) {
       const currentBudget = Math.min(MAX_CURRENT_LEVEL_WARM_START_NODES, Math.floor(maxSearchNodes));
-      let currentFrontier: ProfileGoalBuild[] = [];
+      const currentContexts = primaryCurrentContexts(search.characters);
+      const currentFrontiers: ProfileGoalBuild[][] = [];
       let currentNodes = 0;
-      for await (const page of searchProfileGoalBuildPages(search, {
-        nearestTargets: { atk: target.atk, spd: target.spd, lck: target.lck, dex: target.dex ?? 18 },
-        inventoryPolicy: "owned-current", includeCurrentBuilds: true,
-        maxSearchNodes: currentBudget, pageSize: 40, nodeSliceSize: 20_000,
-      })) {
-        currentFrontier = page.builds;
-        currentNodes = page.searchNodes;
-        const best = mergeStrategyFrontiers([currentFrontier], target, maximizeStats)[0] ?? null;
-        yield {
-          matches: [...matches, { id: target.id, build: best, complete: false, searchNodes: currentNodes, builds: currentFrontier }],
-          completed: matches.length, total: targets.length, complete: false,
-        };
-        if (page.complete || page.limited || page.cancelled) break;
+      let plannerBudget = currentBudget;
+
+      for (let contextIndex = 0; contextIndex < currentContexts.length && plannerBudget > 0; contextIndex += 1) {
+        const character = currentContexts[contextIndex];
+        const contextsLeft = currentContexts.length - contextIndex;
+        const contextBudget = Math.max(1, Math.ceil(plannerBudget / contextsLeft));
+        let contextNodes = 0;
+        let contextFrontier: ProfileGoalBuild[] = [];
+        for await (const page of searchProfileGoalBuildPages({ characters: [character], inventory: search.inventory }, {
+          nearestTargets: { atk: target.atk, spd: target.spd, lck: target.lck, dex: target.dex ?? 18 },
+          inventoryPolicy: "owned-current", includeCurrentBuilds: true,
+          maxSearchNodes: contextBudget, pageSize: 40, nodeSliceSize: 20_000,
+        })) {
+          contextNodes = page.searchNodes;
+          contextFrontier = page.builds;
+          if (page.complete || page.limited || page.cancelled) break;
+        }
+        if (contextFrontier.length) currentFrontiers.push(contextFrontier);
+        currentNodes += contextNodes;
+        plannerBudget = Math.max(0, plannerBudget - contextNodes);
+
+        if (contextIndex === currentContexts.length - 1 || plannerBudget <= 0) {
+          const currentFrontier = limitStrategyFrontier(currentFrontiers, target, maximizeStats);
+          yield {
+            matches: [...matches, { id: target.id, build: currentFrontier[0] ?? null, complete: false, searchNodes: currentNodes, builds: currentFrontier }],
+            completed: matches.length, total: targets.length, complete: false,
+          };
+        }
       }
 
+      let currentFrontier = limitStrategyFrontier(currentFrontiers, target, maximizeStats);
       const currentExactFound = !maximizeStats.length && currentFrontier.some((build) =>
         strategyMatchDeviation({ id: target.id, build, complete: false, searchNodes: 0 }, target) === 0);
       if (currentExactFound) {
-        const combined = mergeStrategyFrontiers([currentFrontier], target, maximizeStats);
+        const combined = limitStrategyFrontier([currentFrontier], target, maximizeStats);
         matches.push({ id: target.id, build: combined[0] ?? null, complete: true, searchNodes: currentNodes, builds: combined });
         continue;
       }
@@ -106,7 +167,7 @@ export async function* compareProfileStrategies(input: ProfileGoalSearchInput, t
           upgradeFrontier = page.builds;
           upgradeNodes = page.searchNodes;
           upgradeComplete = page.complete;
-          const combined = mergeStrategyFrontiers([currentFrontier, upgradeFrontier], target, maximizeStats);
+          const combined = limitStrategyFrontier([currentFrontier, upgradeFrontier], target, maximizeStats);
           const best = combined[0] ?? null;
           exactBuildFound = !maximizeStats.length && combined.some((build) => strategyMatchDeviation({ id: target.id, build, complete: false, searchNodes: 0 }, target) === 0);
           yield {
@@ -116,7 +177,7 @@ export async function* compareProfileStrategies(input: ProfileGoalSearchInput, t
           if (page.complete || page.limited || page.cancelled || exactBuildFound) break;
         }
       }
-      const combined = mergeStrategyFrontiers([currentFrontier, upgradeFrontier], target, maximizeStats);
+      const combined = limitStrategyFrontier([currentFrontier, upgradeFrontier], target, maximizeStats);
       const complete = upgradeComplete || exactBuildFound;
       matches.push({ id: target.id, build: combined[0] ?? null, complete, searchNodes: currentNodes + upgradeNodes, builds: combined });
       continue;

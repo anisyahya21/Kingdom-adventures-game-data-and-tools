@@ -18,6 +18,7 @@ export type HostedRecipeProfileCandidate = {
   recipeId: string;
   cohortIds: string[];
   caseIds: string[];
+  sourceIdentities: Array<{ job: string; rank: string; gender: number }>;
   skills: string[];
   skillInvocations: number[];
   build: ProfileGoalBuild;
@@ -76,10 +77,10 @@ export function profileFarmingBuildFingerprint(build: ProfileGoalBuild, profile:
 type HostedRecipeRecord = HostedEvidenceDataset["records"][number];
 
 function recipeKey(record: HostedRecipeRecord): string {
-  const gear = [...record.build.gear].sort((a, b) => a.slot.localeCompare(b.slot))
+  const gear = [...record.build.gear].sort((a, b) => a.slot.localeCompare(b.slot) || a.name.localeCompare(b.name) || a.level - b.level)
     .map(({ slot, name, level }) => [slot, name, level]);
   const skills = record.build.skills.map(({ label, invocationLevel }) => [label, invocationLevel]);
-  return JSON.stringify([record.build.job, record.build.rank, record.build.gender, gear, skills]);
+  return JSON.stringify([record.scenario.encounterId, gear, skills]);
 }
 
 function allStats(rows: ReturnType<typeof draftStatRows>): Record<string, number> | null {
@@ -100,15 +101,30 @@ export function projectHostedRecipeProfileCandidates(
 ): HostedRecipeProfileCandidate[] {
   if (!settings.useProfile || !Array.isArray(dataset.records)) return [];
 
-  const recipes = new Map<string, { record: HostedRecipeRecord; cohortIds: Set<string>; caseIds: Set<string> }>();
+  const recipes = new Map<string, {
+    record: HostedRecipeRecord;
+    cohortIds: Set<string>;
+    caseIds: Set<string>;
+    sourceIdentities: Map<string, { job: string; rank: string; gender: number }>;
+    referenceTuples: Set<string>;
+  }>();
   for (const record of dataset.records) {
     if (record.sourceAudit.strictTraceAuditPassed !== true) continue;
     const key = recipeKey(record);
     const existing = recipes.get(key);
+    const sourceIdentity = { job: record.build.job, rank: record.build.rank, gender: record.build.gender };
+    const sourceIdentityKey = JSON.stringify(sourceIdentity);
+    const referenceTupleKey = JSON.stringify([record.build.statsAll12.atk, record.build.statsAll12.spd,
+      record.build.statsAll12.lck, record.build.statsAll12.dex]);
     if (existing) {
       existing.cohortIds.add(record.cohortId);
       existing.caseIds.add(record.caseId);
-    } else recipes.set(key, { record, cohortIds: new Set([record.cohortId]), caseIds: new Set([record.caseId]) });
+      existing.sourceIdentities.set(sourceIdentityKey, sourceIdentity);
+      existing.referenceTuples.add(referenceTupleKey);
+    } else recipes.set(key, {
+      record, cohortIds: new Set([record.cohortId]), caseIds: new Set([record.caseId]),
+      sourceIdentities: new Map([[sourceIdentityKey, sourceIdentity]]), referenceTuples: new Set([referenceTupleKey]),
+    });
   }
 
   const candidates: HostedRecipeProfileCandidate[] = [];
@@ -175,8 +191,7 @@ export function projectHostedRecipeProfileCandidates(
         if (skillResult.issues.some(({ category, code }) => category === "ERROR" || code === "SKILL_JOB_GROUP_UNKNOWN")) continue;
         const stats = allStats(draftStatRows(loadout, sharedData as BuilderSharedData));
         if (!stats) continue;
-        if (exactOnly && (stats.atk !== record.build.statsAll12.atk || stats.spd !== record.build.statsAll12.spd ||
-            stats.lck !== record.build.statsAll12.lck || stats.dex !== record.build.statsAll12.dex)) continue;
+        if (exactOnly && !recipe.referenceTuples.has(JSON.stringify([stats.atk, stats.spd, stats.lck, stats.dex]))) continue;
 
         const fingerprint = `${character.id}|${key}|${JSON.stringify(picks)}`;
         if (emitted.has(fingerprint)) continue;
@@ -186,6 +201,8 @@ export function projectHostedRecipeProfileCandidates(
           recipeId: `hosted-recipe:${key}`,
           cohortIds: [...recipe.cohortIds].sort(),
           caseIds: [...recipe.caseIds].sort(),
+          sourceIdentities: [...recipe.sourceIdentities.values()].sort((a, b) =>
+            a.job.localeCompare(b.job) || a.rank.localeCompare(b.rank) || a.gender - b.gender),
           skills: [...skills],
           skillInvocations: [...skillInvocations],
           build: {
