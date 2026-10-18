@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { FarmingFavorites } from "@/components/ka/farming-favorites";
 import { useFarmingFavorites } from "@/lib/farming-favorites";
 import { FarmingPlannerSetup } from "@/components/ka/farming-planner-setup";
+import { GameAccountPicker } from "@/components/ka/game-account-picker";
 
 const LoadoutPage = lazy(() => import("@/pages/loadout"));
 const PlayerBattlePage = lazy(() => import("@/pages/player-battle"));
@@ -30,6 +31,7 @@ export default function MultiBoxFarmingPage() {
       <PageHeader icon={<Boxes className="h-5 w-5 text-primary" />} title={<span className="flex flex-wrap items-center gap-2">Multi-Box Farming</span>} actions={<nav aria-label="Farming tools" className="grid max-w-full grid-cols-2 gap-1 rounded-xl border bg-muted/30 p-1 sm:inline-flex">{modes.map(({ href, label, icon: Icon }) => <Link key={href} href={href} aria-current={location === href ? "page" : undefined} className={`inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 text-xs font-medium sm:px-4 sm:text-sm ${location === href ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><Icon className="h-4 w-4" />{label}{label === "Favorites" && favorites.length > 0 && <span className="text-xs">{favorites.length}</span>}</Link>)}</nav>}>
         <p>{simulator ? "Test your team against the selected encounter." : matchStats ? "Find legal builds for specific stat targets." : favoritesPage ? "Reopen your saved builds without searching again." : "Choose the encounter, then decide what the search can use and change."}</p>
       </PageHeader>
+      <GameAccountPicker onChange={() => setRequest(undefined)} />
       {!simulator && !matchStats && !favoritesPage && <FarmingPlannerSetup onSettingsChange={() => setRequest(undefined)} onSearch={(settings) => setRequest({ id: Date.now(), settings })}>
         {request && <Suspense fallback={<p className="text-sm text-muted-foreground">Loading profile search…</p>}><LoadoutPage key={request.id} view="finder" farmingRequest={request} /></Suspense>}
       </FarmingPlannerSetup>}

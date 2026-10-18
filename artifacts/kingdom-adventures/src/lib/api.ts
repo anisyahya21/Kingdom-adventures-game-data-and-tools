@@ -5,16 +5,10 @@ export function configuredApiBase() {
   if (typeof window === "undefined") return envBase;
 
   const isLocalHost = /^(localhost|127\.0\.0\.1|192\.168\.)$/i.test(window.location.hostname);
-  if (window.location.protocol === "https:" && !isLocalHost && envBase) {
-    try {
-      const envOrigin = new URL(envBase).origin;
-      if (envOrigin !== window.location.origin) {
-        // Prefer same-origin /ka-api rewrites in production to keep auth cookies first-party on mobile browsers.
-        return "";
-      }
-    } catch {
-      // Ignore invalid env base and continue with existing logic.
-    }
+  if (window.location.protocol === "https:" && !isLocalHost) {
+    // A single first-party API origin keeps sessions independent of build-time
+    // environment values and stale device overrides after deployments.
+    return "";
   }
 
   const params = new URLSearchParams(window.location.search);

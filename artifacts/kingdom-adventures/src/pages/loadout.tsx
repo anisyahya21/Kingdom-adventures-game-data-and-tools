@@ -30,6 +30,7 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { favoriteFingerprint, saveFarmingFavorite, useFarmingFavorites } from "@/lib/farming-favorites";
 import { CombatNavigation } from "@/components/ka/combat-navigation";
 import { PageHeader } from "@/components/ka/page-header";
+import { GameAccountPicker } from "@/components/ka/game-account-picker";
 import { ToneBadge } from "@/components/ka/badges";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { toPng } from "html-to-image";
@@ -3942,6 +3943,7 @@ export default function LoadoutPage({ view = "builder", farmingRequest }: { view
             title="Character Builder"
             actions={(
               <div className="flex flex-wrap items-center gap-2">
+                <GameAccountPicker />
                 {(playerProfile.characters?.length ?? 0) > 0 && <Button variant="outline" size="sm" onClick={importProfileCharacters} className="min-h-11">Add/update profile characters</Button>}
                 <Link href="/player-profile" className="inline-flex min-h-11 items-center text-xs text-primary underline-offset-2 hover:underline">Edit profile</Link>
                 {profileImportNotice && <span className="text-[10px] text-muted-foreground">Profile sync: {profileImportNotice}</span>}

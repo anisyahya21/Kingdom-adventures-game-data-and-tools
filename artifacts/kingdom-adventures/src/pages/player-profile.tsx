@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Check, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import { getEquipmentIcon } from "@/lib/equipment-icons";
 import { localSharedData } from "@/lib/local-shared-data";
 import {
   fetchAuthSession,
-  updateAuthProfile,
   type AuthSessionResponse,
 } from "@/lib/auth-session";
 import {
@@ -27,6 +26,10 @@ import { gearSlotForName } from "@/lib/battle-team-draft";
 import { RESIDENT_STAT_ITEMS } from "@/game-data/resident-stat-items";
 import { EquipmentSprite } from "@/components/ka/equipment-sprite";
 import { useProfileAccountSync } from "@/lib/account-player-profile/sync";
+import { GameAccountPicker } from "@/components/ka/game-account-picker";
+
+import { ProfileAccountSettings } from "@/components/ka/profile-account-settings";
+const EventReminderSettings = lazy(() => import("@/pages/event-reminder-app"));
 
 type EquipmentEntry = (typeof EQUIPMENT_CATALOG)[number];
 const jobsData = localSharedData as unknown as SharedJobProfileData;
@@ -115,11 +118,8 @@ export default function PlayerProfilePage() {
     guest: true,
   });
   const [authLoading, setAuthLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [accountName, setAccountName] = useState("");
-  const [gameId, setGameId] = useState("");
-  const [accountError, setAccountError] = useState("");
-  const [accountSaved, setAccountSaved] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [notificationsOpen, setNotificationsOpen] = useState(() => new URLSearchParams(window.location.search).get("tab") === "notifications");
   const [tab, setTab] = useState("equipment");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("ALL");
@@ -137,11 +137,10 @@ export default function PlayerProfilePage() {
         .then((session) => {
           if (live && request === latestRequest) {
             setAuth(session);
-            setAccountName(session.user?.displayName ?? "");
-            setGameId(session.user?.gameId ?? "");
+            setAuthError("");
           }
         })
-        .catch(() => {})
+        .catch((error) => { if (live) setAuthError(error instanceof Error ? error.message : "Could not check your session."); })
         .finally(() => {
           if (live && request === latestRequest) setAuthLoading(false);
         });
@@ -175,38 +174,6 @@ export default function PlayerProfilePage() {
       );
     }).sort(compareEquipmentCatalogOriginalOrder);
   }, [profile.equipment, category, search, ownedOnly]);
-
-  const saveAccount = async () => {
-    const normalizedName = accountName.trim();
-    const normalizedId = gameId.trim();
-    if (normalizedId && !/^\d{3},\d{3},\d{3}$/.test(normalizedId)) {
-      setAccountError("Game ID must match 123,456,789 format.");
-      return;
-    }
-    setSavingProfile(true);
-    setAccountError("");
-    setAccountSaved(false);
-    try {
-      await updateAuthProfile({
-        displayName: normalizedName,
-        gameId: normalizedId,
-      });
-      const session = await fetchAuthSession();
-      setAuth(session);
-      window.dispatchEvent(
-        new CustomEvent("ka-auth-changed", {
-          detail: { authenticated: session.authenticated },
-        }),
-      );
-      setAccountSaved(true);
-    } catch (error) {
-      setAccountError(
-        error instanceof Error ? error.message : "Could not save profile.",
-      );
-    } finally {
-      setSavingProfile(false);
-    }
-  };
 
   const setEquipmentLevel = (name: string, level: number) =>
     setProfile((previous) => ({
@@ -252,72 +219,17 @@ export default function PlayerProfilePage() {
         <div className="text-sm text-muted-foreground">Account</div>
         <h1 className="text-3xl font-bold tracking-tight">Player Profile</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Characters, gear levels and valuables save automatically to your
-          account when logged in. Your collection is shared with Loadout and Houses.
+          {notificationsOpen ? "Manage event subscriptions and reminder delivery." : "Your characters, gear and valuables, shared with Loadout and Houses."}
         </p>
       </div>
-      <Card>
-        <CardContent className="grid gap-4 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-          <label className="space-y-1 text-sm">
-            <span>Display name</span>
-            <Input
-              className="h-11"
-              value={accountName}
-              maxLength={64}
-              onChange={(event) => {
-                setAccountName(event.target.value);
-                setAccountSaved(false);
-              }}
-              placeholder="Your name"
-              disabled={!auth.authenticated}
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span>Game ID</span>
-            <Input
-              className="h-11"
-              value={gameId}
-              onChange={(event) => {
-                setGameId(event.target.value);
-                setAccountSaved(false);
-              }}
-              placeholder="123,456,789"
-              disabled={!auth.authenticated}
-            />
-            <span className="block text-xs text-muted-foreground">
-              Format: 3 digits, comma, 3 digits, comma, 3 digits.
-            </span>
-          </label>
-          <Button
-            className="h-11"
-            onClick={() => void saveAccount()}
-            disabled={savingProfile || !auth.authenticated}
-          >
-            {savingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {accountSaved ? (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                Saved
-              </>
-            ) : auth.authenticated ? (
-              "Save account details"
-            ) : (
-              "Log in to edit account"
-            )}
-          </Button>
-          {!auth.authenticated && (
-            <div className="text-sm text-muted-foreground sm:col-span-3">
-              Collection edits stay on this device while logged out. Log in
-              using the account menu to save them across devices.
-            </div>
-          )}
-          {accountError && (
-            <div className="text-sm text-destructive sm:col-span-3">
-              {accountError}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <div className="inline-flex rounded-lg border bg-muted/30 p-1" role="group" aria-label="Profile section">
+        <Button variant={!notificationsOpen ? "secondary" : "ghost"} aria-pressed={!notificationsOpen} onClick={() => setNotificationsOpen(false)}>Profile & collection</Button>
+        <Button variant={notificationsOpen ? "secondary" : "ghost"} aria-pressed={notificationsOpen} onClick={() => setNotificationsOpen(true)}>Notifications</Button>
+      </div>
+      {notificationsOpen ? <Card><CardContent className="p-4 sm:p-5"><Suspense fallback={<p className="py-4 text-sm text-muted-foreground">Loading notifications…</p>}><EventReminderSettings embedded /></Suspense></CardContent></Card> : <>
+      {authError && <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">{authError}<Button variant="outline" onClick={() => window.dispatchEvent(new CustomEvent("ka-auth-changed"))}>Retry connection</Button></div>}
+      <ProfileAccountSettings session={auth} />
+      <GameAccountPicker label="Edit collection for" />
       <Card>
         <CardContent className="space-y-3 p-4">
           <div role={accountSync.status === "error" || accountSync.status === "conflict" ? "alert" : "status"} className="text-sm" aria-live="polite">
@@ -801,6 +713,7 @@ export default function PlayerProfilePage() {
           Open Houses planner
         </Link>
       </p>
+      </>}
     </main>
   );
 }

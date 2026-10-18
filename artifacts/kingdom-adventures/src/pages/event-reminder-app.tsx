@@ -1,4 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { ProfileNotifications } from "@/components/ka/profile-notifications";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { reminderGachaGroup, type ReminderGachaGroup } from "@/lib/event-reminder-catalog";
 import { Bell, BellOff, Check, ChevronDown, Clock3, Info, Loader2, Minus, Plus, RefreshCw, Search, Share, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -22,9 +24,9 @@ type ReminderDefinition =
   | { type: "wairo" }
   | { type: "weekly-conquest" };
 
-type ReminderOption = {
+export type ReminderOption = {
   id: string;
-  group: "Wairo" | "S Rank Gacha" | "S Rank Facility" | "Weekly";
+  group: "Wairo" | ReminderGachaGroup | "Weekly";
   title: string;
   detail: string;
   startsAt: Date;
@@ -34,24 +36,24 @@ type ReminderOption = {
   definition: ReminderDefinition;
 };
 
-type SavedReminder = {
+export type SavedReminder = {
   id: string;
   offsetHours: number;
   mode: ReminderMode;
   savedAt: number;
 };
 
-type DeliveryChannels = {
+export type DeliveryChannels = {
   push: boolean;
   telegram: boolean;
   discord: boolean;
 };
 
-type DeliveryTargets = {
+export type DeliveryTargets = {
   telegramChatId: string;
 };
 
-type TelegramStatus = {
+export type TelegramStatus = {
   configured: boolean;
   botUsername: string;
   botUrl: string;
@@ -75,7 +77,7 @@ type ReminderScheduleResponse = {
   reminders: ReminderSchedulePreview[];
 };
 
-type DiscordStatus = {
+export type DiscordStatus = {
   connected: boolean;
   username: string;
   lastError: string;
@@ -384,7 +386,7 @@ function ReminderRow({
   );
 }
 
-export default function EventReminderAppPage() {
+export default function EventReminderAppPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [now, setNow] = useState(() => new Date());
   const [eventOffset] = useEventHourOffset();
   const [clientId] = useState(() => getOrCreateClientId());
@@ -405,6 +407,7 @@ export default function EventReminderAppPage() {
   const [scheduleCheckBusy, setScheduleCheckBusy] = useState(false);
   const [channels, setChannels] = useState<DeliveryChannels>(() => readDeliverySettings().channels);
   const [targets, setTargets] = useState<DeliveryTargets>(() => readDeliverySettings().targets);
+  const deliveryChannels = embedded ? { ...channels, push: false } : channels;
   const [telegramStatus, setTelegramStatus] = useState<TelegramStatus>({
     configured: false,
     botUsername: "",
@@ -546,7 +549,7 @@ export default function EventReminderAppPage() {
     }] : [];
 
     const gacha = ALL_GACHA_EVENTS
-      .filter((event) => event.title.startsWith("S Rank") || event.kind === "facilities")
+      .filter((event) => reminderGachaGroup(event) !== null)
       .map((event): ReminderOption => {
         const resolved = nextReminderGachaEvent(event, now, eventOffset);
         const id = `gacha:${event.id}`;
@@ -554,9 +557,9 @@ export default function EventReminderAppPage() {
         const adjusted = nextReminderGachaEvent(event, now, optionOffset);
         return {
           id,
-          group: event.kind === "facilities" ? "S Rank Facility" : "S Rank Gacha",
+          group: reminderGachaGroup(event)!,
           title: event.title,
-          detail: event.poolLabel,
+          detail: event.kind === "weapons" ? event.notes || event.poolLabel : event.poolLabel,
           startsAt: resolved.startAt,
           adjustedStartsAt: adjusted.startAt,
           offsetHours: optionOffset,
@@ -567,8 +570,8 @@ export default function EventReminderAppPage() {
       .filter((option) => !search || option.title.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 
-    return [...wairo, ...weekly, ...(expanded === "gacha" || search ? gacha : gacha.slice(0, 10))];
-  }, [customOffsets, eventOffset, expanded, now, saved, search, wairoTwoStep]);
+    return [...wairo, ...weekly, ...(embedded || expanded === "gacha" || search ? gacha : gacha.slice(0, 10))];
+  }, [customOffsets, embedded, eventOffset, expanded, now, saved, search, wairoTwoStep]);
 
   const syncStatus = async () => setStatus(await getBrowserPushStatus());
 
@@ -656,7 +659,7 @@ export default function EventReminderAppPage() {
     setMessage(`Saving reminder channels for ${option.title}...`);
     try {
       let pushSubscriptionJson: ReturnType<PushSubscription["toJSON"]> | null = null;
-      if (channels.push) {
+      if (deliveryChannels.push) {
         const pushSubscription = await subscribeBrowserPush();
         pushSubscriptionJson = pushSubscription.toJSON();
       }
@@ -672,7 +675,7 @@ export default function EventReminderAppPage() {
           offsetHours: option.offsetHours,
           mode: option.mode,
           definition: option.definition,
-          channels,
+          channels: deliveryChannels,
           targets,
         }),
       });
@@ -696,11 +699,12 @@ export default function EventReminderAppPage() {
     setBusyId(option.id);
     setMessage(`Turning off ${option.title} reminders...`);
     try {
-      await fetch(apiUrl("/event-reminders/subscriptions"), {
+      const response = await fetch(apiUrl("/event-reminders/subscriptions"), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clientId, subscriptionId: option.id }),
       });
+      if (!response.ok) throw new Error("Could not stop this reminder. Please try again.");
       setSaved((current) => {
         const next = { ...current };
         delete next[option.id];
@@ -713,16 +717,16 @@ export default function EventReminderAppPage() {
       });
       setMessage(`${option.title} reminders are off.`);
       await syncStatus();
-    } catch {
-      setMessage("Removed locally. The server could not be reached.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not stop this reminder. Please try again.");
     } finally {
       setBusyId(null);
     }
   };
 
   const needsIosInstall = isIosDevice() && status?.supported && !status.standalone;
-  const noChannelReason = !channels.push && !channels.telegram && !channels.discord ? "Select at least one delivery channel." : "";
-  const pushBlockedReason = channels.push && status && !status.supported ? status.supportReason : "";
+  const noChannelReason = !deliveryChannels.push && !deliveryChannels.telegram && !deliveryChannels.discord ? "Select at least one delivery channel." : "";
+  const pushBlockedReason = deliveryChannels.push && status && !status.supported ? status.supportReason : "";
   const telegramTargetReason = channels.telegram && !targets.telegramChatId.trim() ? "Telegram enabled: add your Telegram chat ID." : "";
   const discordTargetReason = channels.discord && !discordStatus.connected ? "Discord DM requires Discord connection first." : "";
   const blockedReason = noChannelReason || pushBlockedReason || telegramTargetReason || discordTargetReason;
@@ -731,7 +735,7 @@ export default function EventReminderAppPage() {
     setMessage("Scheduling a test notification for 5 seconds from now...");
     try {
       let pushSubscriptionJson: ReturnType<PushSubscription["toJSON"]> | null = null;
-      if (channels.push) {
+      if (deliveryChannels.push) {
         const pushSubscription = await subscribeBrowserPush();
         pushSubscriptionJson = pushSubscription.toJSON();
       }
@@ -741,7 +745,7 @@ export default function EventReminderAppPage() {
         body: JSON.stringify({
           clientId,
           delaySeconds: 5,
-          channels,
+          channels: deliveryChannels,
           targets,
           pushSubscription: pushSubscriptionJson,
         }),
@@ -807,10 +811,24 @@ export default function EventReminderAppPage() {
     await syncStatus();
   };
 
+  if (embedded) return <ProfileNotifications
+    options={options} saved={saved} channels={deliveryChannels} targets={targets} status={status}
+    telegram={telegramStatus} discord={discordStatus} message={message} blockedReason={blockedReason}
+    busyId={busyId} errors={reminderErrors} testBusy={testBusy}
+    setChannel={(channel, enabled) => setChannels((current) => ({ ...current, [channel]: enabled }))}
+    setTelegramId={(id) => setTargets((current) => ({ ...current, telegramChatId: id }))}
+    subscribe={(option) => void subscribe(option)} unsubscribe={(option) => void unsubscribe(option)}
+    setOffset={(id, hours) => setCustomOffsets((current) => ({ ...current, [id]: hours }))}
+    setWairoWarning={setWairoTwoStep} connectDiscord={connectDiscord}
+    disconnectDiscord={() => void disconnectDiscord()} testDiscord={() => void sendDiscordTestDm()}
+    testTelegram={() => void sendTelegramTestDm()} test={() => void sendTestNotification()}
+    checkSchedule={() => void checkReminderScheduleNow()}
+  />;
+
   return (
-    <main className="min-h-dvh bg-black text-white">
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-6 pt-[max(1rem,env(safe-area-inset-top))]">
-        <div className="sticky top-0 z-10 -mx-4 bg-black/90 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur">
+    <section className={embedded ? "mt-4 overflow-hidden rounded-lg bg-slate-950 text-white" : "min-h-dvh bg-black text-white"}>
+      <div className={embedded ? "mx-auto flex max-w-3xl flex-col px-4 py-4" : "mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-6 pt-[max(1rem,env(safe-area-inset-top))]"}>
+        <div className={embedded ? "pb-3" : "sticky top-0 z-10 -mx-4 bg-black/90 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur"}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-300">Kingdom Adventurers</div>
@@ -832,6 +850,7 @@ export default function EventReminderAppPage() {
             />
           ) : null}
 
+          {!embedded && <a href="/player-profile?tab=notifications" className="block rounded-lg border border-white/10 p-3 text-sm text-sky-200">Manage notifications in your profile →</a>}
           <StatusGrid status={status} />
 
           {needsIosInstall || status?.installRequired ? (
@@ -1055,10 +1074,10 @@ export default function EventReminderAppPage() {
           <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-50">
             <div className="flex items-center gap-2 font-semibold">
               <Check className="h-4 w-4" />
-              Standalone mode
+              {embedded ? "Notification delivery" : "Standalone mode"}
             </div>
             <p className="mt-1 text-emerald-100/80">
-              This installed app is only for event reminders. Notifications open this page, not the full website.
+              {embedded ? "Browser push permission and subscriptions are specific to this device." : "This installed app is only for event reminders. Notifications open this page, not the full website."}
             </p>
           </div>
 
@@ -1068,7 +1087,7 @@ export default function EventReminderAppPage() {
           </div>
         </div>
       </div>
-    </main>
+    </section>
   );
 }
 

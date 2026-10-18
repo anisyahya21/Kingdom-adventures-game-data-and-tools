@@ -15,8 +15,21 @@ const POST_MESSAGE_SOURCE = "ka-auth";
 
 let dbModule: DbModule | null = null;
 
+// Personalized auth responses must never be reused by a deployment/CDN cache.
+router.use((req, res, next) => {
+  res.set("Cache-Control", "private, no-store, max-age=0");
+  res.set("Vercel-CDN-Cache-Control", "no-store");
+  res.vary("Cookie");
+  const site = req.get("sec-fetch-site");
+  if (req.method !== "GET" && site && site !== "same-origin" && site !== "none" && process.env.NODE_ENV === "production") {
+    res.status(403).json({ error: "Open the website to manage your account." });
+    return;
+  }
+  next();
+});
+
 function authCookieSameSite(): "lax" | "strict" | "none" {
-  const raw = String(process.env.AUTH_COOKIE_SAME_SITE || "none").trim().toLowerCase();
+  const raw = String(process.env.AUTH_COOKIE_SAME_SITE || "lax").trim().toLowerCase();
   if (raw === "none") {
     // Browsers reject SameSite=None cookies unless Secure is true.
     return authCookieSecure() ? "none" : "lax";
@@ -385,6 +398,9 @@ async function getSessionUser(module: DbModule, rawSessionToken: string) {
       userId: module.usersTable.id,
       telegramUserId: module.usersTable.telegramUserId,
       telegramUsername: module.usersTable.telegramUsername,
+      discordUserId: module.usersTable.discordUserId,
+      discordUsername: module.usersTable.discordUsername,
+      gameAccounts: module.usersTable.gameAccounts,
       firstName: module.usersTable.firstName,
       lastName: module.usersTable.lastName,
       displayName: module.usersTable.displayName,
@@ -433,6 +449,13 @@ router.post("/telegram/start", async (req, res) => {
     return;
   }
 
+  const linkSession = req.body?.link === true
+    ? await getSessionUser(module, String(req.cookies?.[SESSION_COOKIE_NAME] || "")) : null;
+  if (req.body?.link === true && !linkSession) {
+    res.status(401).json({ error: "Sign in before linking Telegram." }); return;
+  }
+  const browserToken = randomToken();
+  res.cookie("ka_telegram_oauth", browserToken, { httpOnly: true, secure: authCookieSecure(), sameSite: "lax", path: "/", maxAge: challengeTtlMs() });
   const state = randomToken(24);
   const nonce = randomToken(16);
   const codeVerifier = randomToken(48);
@@ -455,7 +478,7 @@ router.post("/telegram/start", async (req, res) => {
 
   await module.db.insert(module.authChallengesTable).values({
     state,
-    nonce: JSON.stringify({ nonce, codeVerifier, redirectUri: callbackUrl, returnTo }),
+    nonce: JSON.stringify({ nonce, codeVerifier, redirectUri: callbackUrl, returnTo, browserHash: sha256Hex(browserToken), linkUserId: linkSession?.userId, linkSessionHash: linkSession ? sha256Hex(String(req.cookies?.[SESSION_COOKIE_NAME] || "")) : undefined }),
     flow: "telegram_oidc",
     createdAt: now,
     expiresAt,
@@ -789,13 +812,30 @@ router.get("/telegram/callback", async (req, res) => {
     };
   }
 
-  const userId = await upsertTelegramUser(module, {
-    telegramUserId: telegramIdentity.telegramUserId,
-    telegramUsername: telegramIdentity.telegramUsername,
-    firstName: telegramIdentity.firstName,
-    lastName: telegramIdentity.lastName,
-    photoUrl: telegramIdentity.photoUrl,
-  });
+  let loginContext: OAuthContext = {};
+  if (challengeRows[0].flow === "telegram_oidc") {
+    loginContext = JSON.parse(challengeRows[0].nonce) as OAuthContext;
+    if (loginContext.browserHash && loginContext.browserHash !== sha256Hex(String(req.cookies?.ka_telegram_oauth || ""))) {
+      res.status(400).send("Login started in another browser. Please try again."); return;
+    }
+  }
+  // Claim once, including concurrent callback requests.
+  const claimed = await module.db.update(module.authChallengesTable).set({ consumedAt: new Date() })
+    .where(and(eq(module.authChallengesTable.id, challengeRows[0].id), isNull(module.authChallengesTable.consumedAt)))
+    .returning({ id: module.authChallengesTable.id });
+  if (!claimed.length) { res.status(400).send("Login already completed. Please try again."); return; }
+  let userId: string | undefined;
+  try {
+    if (loginContext.linkUserId) {
+      await assertLinkSession(module, req, loginContext);
+      await linkIdentity(module, loginContext.linkUserId, "telegram", telegramIdentity.telegramUserId, telegramIdentity.telegramUsername || "");
+      userId = loginContext.linkUserId;
+    } else {
+      userId = await upsertTelegramUser(module, telegramIdentity);
+    }
+  } catch (error) {
+    res.status(409).type("text/plain").send(error instanceof Error ? error.message : "Could not link Telegram."); return;
+  }
 
   if (!userId) {
     res.status(500).type("text/plain").send("Failed to create user session.");
@@ -879,7 +919,7 @@ router.get("/session", async (req, res) => {
 
   const displayName = [sessionUser.firstName, sessionUser.lastName].filter(Boolean).join(" ")
     || sessionUser.telegramUsername
-    || "Telegram user";
+    || sessionUser.discordUsername || "Player";
   const preferredDisplayName = String(sessionUser.displayName || "").trim() || displayName;
 
   res.json({
@@ -889,6 +929,10 @@ router.get("/session", async (req, res) => {
       id: sessionUser.userId,
       isAdmin: isAdminTelegramUser(sessionUser.telegramUserId, sessionUser.telegramUsername),
       telegramUsername: sessionUser.telegramUsername || "",
+      linkedProviders: { telegram: Boolean(sessionUser.telegramUserId), discord: Boolean(sessionUser.discordUserId) },
+      discordUsername: sessionUser.discordUsername || "",
+      accountsRevision: sha256Hex(JSON.stringify(sessionUser.gameAccounts || null)),
+      gameAccounts: sessionUser.gameAccounts?.length ? sessionUser.gameAccounts : [{ id: "primary", name: "Main account", gameId: sessionUser.gameId || "" }],
       firstName: sessionUser.firstName || "",
       lastName: sessionUser.lastName || "",
       photoUrl: sessionUser.photoUrl || "",
@@ -918,16 +962,35 @@ router.post("/profile", async (req, res) => {
   }
 
   try {
+    if (req.body?.expectedUserId !== sessionUser.userId) {
+      res.status(409).json({ error: "Your login changed. Refresh Profile before saving." }); return;
+    }
     const nextDisplayName = normalizeDisplayName((req.body as { displayName?: string } | undefined)?.displayName);
     const nextGameId = normalizeGameId((req.body as { gameId?: string } | undefined)?.gameId);
+    const accounts = req.body?.gameAccounts;
+    if (accounts !== undefined && (!Array.isArray(accounts) || accounts.length < 1 || accounts.length > 20)) throw new Error("Add between 1 and 20 game accounts.");
+    const seen = new Set<string>();
+    const nextAccounts = accounts?.map((account: { id?: string; name?: string; gameId?: string }) => {
+      if (!account || typeof account.id !== "string" || !/^(primary|[0-9a-f-]{36})$/.test(account.id) || seen.has(account.id)) throw new Error("Invalid or duplicate game account.");
+      seen.add(account.id);
+      const name = normalizeDisplayName(account.name);
+      if (!name) throw new Error("Give each game account a name.");
+      return { id: account.id, name, gameId: normalizeGameId(account.gameId) };
+    });
+    if (nextAccounts && !seen.has("primary")) throw new Error("Keep the main account to preserve your existing collection.");
+    const primaryId = nextAccounts?.find((account: { id: string }) => account.id === "primary")?.gameId;
 
-    await module.db
-      .update(module.usersTable)
-      .set({
+    await module.db.transaction(async (tx) => {
+      const [current] = await tx.select().from(module.usersTable).where(eq(module.usersTable.id, sessionUser.userId)).for("update");
+      if (!current || (nextAccounts && req.body?.accountsRevision !== sha256Hex(JSON.stringify(current.gameAccounts || null)))) {
+        throw new Error("Game accounts changed in another tab. Refresh Profile before saving.");
+      }
+      await tx.update(module.usersTable).set({
         displayName: nextDisplayName || null,
-        gameId: nextGameId || null,
-      })
-      .where(eq(module.usersTable.id, sessionUser.userId));
+        gameId: primaryId ?? (nextGameId || null),
+        ...(nextAccounts ? { gameAccounts: nextAccounts } : {}),
+      }).where(eq(module.usersTable.id, sessionUser.userId));
+    });
 
     res.json({ ok: true });
   } catch (error) {
@@ -952,6 +1015,133 @@ router.post("/logout", async (req, res) => {
 
   clearSessionCookie(res);
   res.json({ ok: true });
+});
+
+type OAuthContext = {
+  redirectUri?: string;
+  returnTo?: string;
+  browserHash?: string;
+  linkUserId?: string;
+  linkSessionHash?: string;
+};
+
+async function assertLinkSession(module: DbModule, req: any, context: OAuthContext) {
+  const token = String(req.cookies?.[SESSION_COOKIE_NAME] || "");
+  const current = token ? await getSessionUser(module, token) : null;
+  if (!current || current.userId !== context.linkUserId || sha256Hex(token) !== context.linkSessionHash) {
+    throw new Error("Your login changed. Start linking again from Profile.");
+  }
+}
+
+async function linkIdentity(module: DbModule, userId: string, provider: "telegram" | "discord", identity: string, username: string) {
+  await module.db.transaction(async (tx) => {
+    const [user] = await tx.select().from(module.usersTable).where(eq(module.usersTable.id, userId)).for("update");
+    if (!user) throw new Error("Account no longer exists.");
+    const column = provider === "discord" ? module.usersTable.discordUserId : module.usersTable.telegramUserId;
+    const linked = provider === "discord" ? user.discordUserId : user.telegramUserId;
+    if (linked && linked !== identity) throw new Error(`Unlink your current ${provider} account first.`);
+    const [owner] = await tx.select({ id: module.usersTable.id }).from(module.usersTable).where(eq(column, identity));
+    if (owner && owner.id !== userId) throw new Error(`This ${provider} account already belongs to another website account.`);
+    await tx.update(module.usersTable).set(provider === "discord"
+      ? { discordUserId: identity, discordUsername: username }
+      : { telegramUserId: identity, telegramUsername: username }).where(eq(module.usersTable.id, userId));
+  });
+}
+
+router.get("/providers", (_req, res) => {
+  res.json({ telegram: telegramOidcReady(), discord: Boolean(process.env.DISCORD_CLIENT_ID?.trim() && process.env.DISCORD_CLIENT_SECRET?.trim()) });
+});
+
+router.post("/discord/start", async (req, res) => {
+  const module = await getDbModule();
+  if (!module) { res.status(503).json({ error: "Account storage is unavailable." }); return; }
+  const clientId = process.env.DISCORD_CLIENT_ID?.trim();
+  if (!clientId || !process.env.DISCORD_CLIENT_SECRET?.trim()) { res.status(503).json({ error: "Discord login is not configured yet." }); return; }
+  const token = String(req.cookies?.[SESSION_COOKIE_NAME] || "");
+  const current = req.body?.link === true ? await getSessionUser(module, token) : null;
+  if (req.body?.link === true && !current) { res.status(401).json({ error: "Sign in before linking Discord." }); return; }
+  const origin = baseUrlFromRequest(req);
+  const redirectUri = process.env.DISCORD_LOGIN_REDIRECT_URI?.trim() || `${origin}/ka-api/auth/discord/callback`;
+  // Callback must return through the same website host to set its first-party cookie.
+  if (new URL(redirectUri).origin !== new URL(origin).origin) { res.status(503).json({ error: "Discord login callback must use this website's domain." }); return; }
+  const state = randomToken(24);
+  const browserToken = randomToken();
+  const context: OAuthContext = { redirectUri, returnTo: `${origin}/player-profile`, browserHash: sha256Hex(browserToken),
+    ...(current ? { linkUserId: current.userId, linkSessionHash: sha256Hex(token) } : {}) };
+  await module.db.insert(module.authChallengesTable).values({ state, nonce: JSON.stringify(context), flow: "discord_login", expiresAt: new Date(Date.now() + challengeTtlMs()) });
+  res.cookie("ka_discord_oauth", browserToken, { httpOnly: true, secure: authCookieSecure(), sameSite: "lax", path: "/", maxAge: challengeTtlMs() });
+  const url = new URL("https://discord.com/oauth2/authorize");
+  url.search = new URLSearchParams({ client_id: clientId, response_type: "code", scope: "identify", state, redirect_uri: redirectUri }).toString();
+  res.json({ url: url.toString() });
+});
+
+router.get("/discord/callback", async (req, res) => {
+  const module = await getDbModule();
+  if (!module) { res.status(503).send("Account storage is unavailable. Please try again."); return; }
+  try {
+    const state = String(req.query.state || "");
+    const [challenge] = await module.db.select().from(module.authChallengesTable)
+      .where(and(eq(module.authChallengesTable.state, state), eq(module.authChallengesTable.flow, "discord_login"), isNull(module.authChallengesTable.consumedAt), gt(module.authChallengesTable.expiresAt, new Date()))).limit(1);
+    if (!challenge) throw new Error("Login expired or already completed. Please try again.");
+    const context = JSON.parse(challenge.nonce) as OAuthContext;
+    if (!context.browserHash || context.browserHash !== sha256Hex(String(req.cookies?.ka_discord_oauth || ""))) throw new Error("Start login in this browser and try again.");
+    const claimed = await module.db.update(module.authChallengesTable).set({ consumedAt: new Date() })
+      .where(and(eq(module.authChallengesTable.id, challenge.id), isNull(module.authChallengesTable.consumedAt))).returning({ id: module.authChallengesTable.id });
+    if (!claimed.length) throw new Error("Login already completed.");
+    const code = String(req.query.code || "");
+    if (!code || req.query.error) throw new Error("Discord login was cancelled. You can return to Profile.");
+    const response = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ client_id: process.env.DISCORD_CLIENT_ID || "", client_secret: process.env.DISCORD_CLIENT_SECRET || "", grant_type: "authorization_code", code, redirect_uri: context.redirectUri || "" }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const access = await response.json() as { access_token?: string };
+    if (!response.ok || !access.access_token) throw new Error("Discord authorization failed. Please try again.");
+    const identityResponse = await fetch("https://discord.com/api/v10/users/@me", { headers: { Authorization: `Bearer ${access.access_token}` }, signal: AbortSignal.timeout(15000) });
+    const identity = await identityResponse.json() as { id?: string; username?: string; global_name?: string };
+    if (!identityResponse.ok || !identity.id || !/^\d+$/.test(identity.id)) throw new Error("Could not verify your Discord identity.");
+    let userId: string;
+    if (context.linkUserId) {
+      await assertLinkSession(module, req, context);
+      await linkIdentity(module, context.linkUserId, "discord", identity.id, identity.username || "");
+      userId = context.linkUserId;
+    } else {
+      const [user] = await module.db.insert(module.usersTable)
+        .values({ discordUserId: identity.id, discordUsername: identity.username, displayName: identity.global_name || identity.username, lastLoginAt: new Date() })
+        .onConflictDoUpdate({ target: module.usersTable.discordUserId, set: { discordUsername: identity.username, lastLoginAt: new Date() } })
+        .returning({ id: module.usersTable.id });
+      userId = user.id;
+    }
+    const session = await createSession(module, userId, req.ip, req.get("user-agent"));
+    res.cookie(SESSION_COOKIE_NAME, session.rawSessionToken, { httpOnly: true, secure: authCookieSecure(), sameSite: authCookieSameSite(), path: "/", maxAge: sessionTtlMs(), domain: authCookieDomain() });
+    res.clearCookie("ka_discord_oauth", { path: "/", secure: authCookieSecure(), sameSite: "lax" });
+    res.redirect(context.returnTo || "/player-profile");
+  } catch (error) {
+    // Do not expose provider tokens, DB errors or secrets to the browser.
+    const message = error instanceof Error && !('code' in error) ? error.message : "Could not link this Discord account. It may already belong to another account.";
+    res.status(400).type("text/plain").send(message);
+  }
+});
+
+router.post("/providers/:provider/unlink", async (req, res) => {
+  const module = await getDbModule();
+  if (!module) { res.status(503).json({ error: "Account storage is unavailable." }); return; }
+  const provider = req.params.provider;
+  if (provider !== "telegram" && provider !== "discord") { res.status(400).json({ error: "Unknown login provider." }); return; }
+  const session = await getSessionUser(module, String(req.cookies?.[SESSION_COOKIE_NAME] || ""));
+  if (!session) { res.status(401).json({ error: "Sign in required." }); return; }
+  if (req.body?.expectedUserId !== session.userId) { res.status(409).json({ error: "Your login changed. Refresh Profile before unlinking." }); return; }
+  try {
+    await module.db.transaction(async (tx) => {
+      const [user] = await tx.select().from(module.usersTable).where(eq(module.usersTable.id, session.userId)).for("update");
+      if (!user || (provider === "telegram" ? !user.discordUserId : !user.telegramUserId)) throw new Error("Link another login method before unlinking this one.");
+      await tx.update(module.usersTable).set(provider === "telegram" ? { telegramUserId: null, telegramUsername: null } : { discordUserId: null, discordUsername: null }).where(eq(module.usersTable.id, session.userId));
+      // Revoke other sessions after changing sign-in access. Keep this browser active.
+      const { ne } = await import("drizzle-orm");
+      await tx.update(module.userSessionsTable).set({ revokedAt: new Date() }).where(and(eq(module.userSessionsTable.userId, session.userId), ne(module.userSessionsTable.id, session.sessionId)));
+    });
+    res.json({ ok: true });
+  } catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Could not unlink account." }); }
 });
 
 export default router;

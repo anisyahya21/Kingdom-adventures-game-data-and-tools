@@ -3,6 +3,8 @@ import { ArrowRight, BookOpen, Boxes, SlidersHorizontal, Swords } from "lucide-r
 import { PageHeader } from "@/components/ka/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 
+import { GameAccountPicker } from "@/components/ka/game-account-picker";
+
 const tools = [
   { href: "/combat/character-builder", icon: SlidersHorizontal, title: "Character Builder", description: "Build a character. Choose equipment and skills, and see how their stats come together.", detail: "Characters · Equipment · Skills", action: "Build a character", number: "01" },
   { href: "/combat/multi-box", icon: Boxes, title: "Multi-Box Farming", description: "Turn target stats into builds from your profile, then put your team through the simulator.", detail: "Find builds · Simulate · Compare", action: "Plan a farming team", number: "02" },
@@ -14,6 +16,7 @@ export default function CombatPage() {
     <PageHeader icon={<Swords className="h-6 w-6 text-primary" />} title="Combat Hub">
       <p>Build your characters. Plan your team. Understand the fight.</p>
     </PageHeader>
+    <GameAccountPicker />
     <div className="grid gap-4 lg:grid-cols-3">
       {tools.map(({ href, icon: Icon, title, description, detail, action, number }) => <Link key={href} href={href} className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <Card className="h-full overflow-hidden transition-all group-hover:-translate-y-1 group-hover:border-primary/50 group-hover:shadow-md">

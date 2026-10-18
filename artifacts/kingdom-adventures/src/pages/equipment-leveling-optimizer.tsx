@@ -23,6 +23,10 @@ import { getEquipmentIcon } from "@/lib/equipment-icons";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
 import { matchesLooseSearch } from "@/lib/search-normalize";
+import { GameAccountPicker } from "@/components/ka/game-account-picker";
+import { useProfileAccountSync } from "@/lib/account-player-profile/sync";
+import { usePlayerProfile, playerProfileStorageKey, type PlayerProfile } from "@/lib/player-profile";
+import { accountEquipmentRows, levelingStorageKey, withCurrentEquipmentLevel } from "@/lib/equipment-leveling-account";
 import equipCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Equip.csv?raw";
 import expCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Exp.csv?raw";
 
@@ -261,10 +265,10 @@ const DEFAULT_GRAND_ROWS = Object.fromEntries(
   EQUIPMENT.map((item) => [String(item.id), { checked: true, level: 1 }]),
 ) as Record<string, GrandRow>;
 
-function readGrandStorage() {
+function readGrandStorage(key = GRAND_STORAGE_KEY) {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(GRAND_STORAGE_KEY);
+    const raw = window.localStorage.getItem(key);
     return raw ? JSON.parse(raw) as {
       recipientId?: string;
       currentLevel?: number;
@@ -276,10 +280,10 @@ function readGrandStorage() {
   }
 }
 
-function readOptimizerStorage() {
+function readOptimizerStorage(key = OPTIMIZER_STORAGE_KEY) {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(OPTIMIZER_STORAGE_KEY);
+    const raw = window.localStorage.getItem(key);
     return raw ? JSON.parse(raw) as {
       recipientId?: string;
       recipientCurrentLevel?: number;
@@ -1441,6 +1445,29 @@ function TwoItemFormulaDialog({
 }
 
 export default function EquipmentLevelingOptimizerPage() {
+  const sync = useProfileAccountSync();
+  const [profile, setProfile] = usePlayerProfile();
+  const [pendingScope, setPendingScope] = useState<string | null>(null);
+  useEffect(() => {
+    if (pendingScope === sync.accountId) setPendingScope(null);
+  }, [pendingScope, sync.accountId]);
+  const loading = (sync.status === "syncing" && !sync.accountId) || (pendingScope !== null && pendingScope !== sync.accountId);
+  const updateCurrentLevel = (name: string, level: number) => {
+    if (!sync.accountId || loading) return;
+    // A stale control must not write into a different account after a scope switch.
+    if (playerProfileStorageKey() !== `ka_player_profile_account_data_v1:${encodeURIComponent(sync.accountId)}`) return;
+    setProfile((previous) => withCurrentEquipmentLevel(previous, name, level));
+  };
+  return <>
+    <div className="mx-auto max-w-6xl space-y-2 px-4 pt-6"><GameAccountPicker onChange={setPendingScope} />
+      {sync.accountId && <p role="status" className={`text-xs ${sync.status === "error" || sync.status === "conflict" ? "text-destructive" : "text-muted-foreground"}`}>{sync.message}{sync.status === "error" && <Button size="sm" variant="ghost" onClick={() => void sync.retry()}>Retry saving</Button>}{sync.status === "conflict" && <a href="/player-profile" className="ml-2 underline">Resolve in Profile</a>}</p>}
+    </div>
+    {loading ? <p role="status" className="mx-auto max-w-6xl px-4 py-6 text-sm text-muted-foreground">Loading saved equipment…</p>
+      : <EquipmentLevelingWorkspace key={sync.accountId || "device"} scope={sync.accountId} profile={profile} updateCurrentLevel={updateCurrentLevel} />}
+  </>;
+}
+
+function EquipmentLevelingWorkspace({ scope, profile, updateCurrentLevel }: { scope: string | null; profile: PlayerProfile; updateCurrentLevel: (name: string, level: number) => void }) {
   const { data: sharedData } = useQuery({
     queryKey: ["ka-shared"],
     queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
@@ -1449,34 +1476,60 @@ export default function EquipmentLevelingOptimizerPage() {
   const equipIcons = sharedData?.equipIcons ?? {};
   const firstItem = EQUIPMENT[0]?.id ? String(EQUIPMENT[0].id) : "";
   const secondItem = EQUIPMENT[1]?.id ? String(EQUIPMENT[1].id) : "";
-  const optimizerStored = useMemo(() => readOptimizerStorage(), []);
-  const grandStored = useMemo(() => optimizerStored?.grand ?? readGrandStorage(), [optimizerStored]);
+  const optimizerKey = levelingStorageKey(OPTIMIZER_STORAGE_KEY, scope);
+  const grandKey = levelingStorageKey(GRAND_STORAGE_KEY, scope);
+  const optimizerStored = useMemo(() => readOptimizerStorage(optimizerKey), [optimizerKey]);
+  const grandStored = useMemo(() => optimizerStored?.grand ?? readGrandStorage(grandKey), [optimizerStored, grandKey]);
+  const savedLevel = (id: string) => clampLevel(profile.equipment[EQUIPMENT_BY_ID.get(id)?.name || ""] || 1);
   const [recipientId, setRecipientId] = useState(optimizerStored?.recipientId ?? firstItem);
-  const [recipientCurrentLevel, setRecipientCurrentLevel] = useState(clampLevel(optimizerStored?.recipientCurrentLevel ?? 1));
+  const [deviceRecipientLevel, setDeviceRecipientLevel] = useState(clampLevel(optimizerStored?.recipientCurrentLevel ?? savedLevel(recipientId)));
   const [recipientTargetLevel, setRecipientTargetLevel] = useState(clampLevel(optimizerStored?.recipientTargetLevel ?? MAX_LEVEL));
   const [sourceId, setSourceId] = useState(optimizerStored?.sourceId ?? secondItem);
-  const [sourceLevel, setSourceLevel] = useState(clampLevel(optimizerStored?.sourceLevel ?? 1));
+  const [deviceSourceLevel, setDeviceSourceLevel] = useState(clampLevel(optimizerStored?.sourceLevel ?? savedLevel(sourceId)));
   const [calcSnapshot, setCalcSnapshot] = useState<CalcSnapshot | null>(null);
 
   const [itemAId, setItemAId] = useState(optimizerStored?.itemAId ?? secondItem);
   const [itemBId, setItemBId] = useState(optimizerStored?.itemBId ?? (EQUIPMENT[2]?.id ? String(EQUIPMENT[2].id) : secondItem));
-  const [itemALevel, setItemALevel] = useState(clampLevel(optimizerStored?.itemALevel ?? 1));
+  const [deviceItemALevel, setDeviceItemALevel] = useState(clampLevel(optimizerStored?.itemALevel ?? savedLevel(itemAId)));
   const [itemATargetLevel, setItemATargetLevel] = useState(clampLevel(optimizerStored?.itemATargetLevel ?? MAX_LEVEL));
-  const [itemBLevel, setItemBLevel] = useState(clampLevel(optimizerStored?.itemBLevel ?? 1));
+  const [deviceItemBLevel, setDeviceItemBLevel] = useState(clampLevel(optimizerStored?.itemBLevel ?? savedLevel(itemBId)));
   const [itemBTargetLevel, setItemBTargetLevel] = useState(clampLevel(optimizerStored?.itemBTargetLevel ?? MAX_LEVEL));
   const [twoCalculated, setTwoCalculated] = useState(false);
 
   const [grandRecipientId, setGrandRecipientId] = useState(grandStored?.recipientId ?? firstItem);
-  const [grandCurrentLevel, setGrandCurrentLevel] = useState(clampLevel(grandStored?.currentLevel ?? 1));
+  const [deviceGrandCurrentLevel, setDeviceGrandCurrentLevel] = useState(clampLevel(grandStored?.currentLevel ?? savedLevel(grandRecipientId)));
   const [grandTargetLevel, setGrandTargetLevel] = useState(clampLevel(grandStored?.targetLevel ?? MAX_LEVEL));
   const [grandQuery, setGrandQuery] = useState("");
-  const [grandRows, setGrandRows] = useState<Record<string, GrandRow>>(() => buildGrandRowsFromStorage(grandStored?.rows));
+  const [grandPlanRows, setGrandRows] = useState<Record<string, GrandRow>>(() => grandStored?.rows ? buildGrandRowsFromStorage(grandStored.rows) : scope ? accountEquipmentRows(EQUIPMENT, profile.equipment) : buildGrandRowsFromStorage(undefined));
   const [grandCalculated, setGrandCalculated] = useState(false);
+
+  const changeLevel = (id: string, level: number, setDeviceLevel: (level: number) => void) => {
+    if (scope) updateCurrentLevel(EQUIPMENT_BY_ID.get(id)?.name || "", level);
+    else setDeviceLevel(clampLevel(level));
+    setCalcSnapshot(null); setTwoCalculated(false); setGrandCalculated(false);
+  };
+  const recipientCurrentLevel = scope ? savedLevel(recipientId) : deviceRecipientLevel;
+  const sourceLevel = scope ? savedLevel(sourceId) : deviceSourceLevel;
+  const itemALevel = scope ? savedLevel(itemAId) : deviceItemALevel;
+  const itemBLevel = scope ? savedLevel(itemBId) : deviceItemBLevel;
+  const grandCurrentLevel = scope ? savedLevel(grandRecipientId) : deviceGrandCurrentLevel;
+  const setRecipientCurrentLevel = (level: number) => changeLevel(recipientId, level, setDeviceRecipientLevel);
+  const setSourceLevel = (level: number) => changeLevel(sourceId, level, setDeviceSourceLevel);
+  const setItemALevel = (level: number) => changeLevel(itemAId, level, setDeviceItemALevel);
+  const setItemBLevel = (level: number) => changeLevel(itemBId, level, setDeviceItemBLevel);
+  const setGrandCurrentLevel = (level: number) => changeLevel(grandRecipientId, level, setDeviceGrandCurrentLevel);
+  const grandRows = useMemo(() => scope ? Object.fromEntries(EQUIPMENT.map((item) => [String(item.id), {
+    ...grandPlanRows[String(item.id)], level: clampLevel(profile.equipment[item.name] || 1),
+  }])) as Record<string, GrandRow> : grandPlanRows, [scope, grandPlanRows, profile.equipment]);
+
+  useEffect(() => {
+    setCalcSnapshot(null); setTwoCalculated(false); setGrandCalculated(false);
+  }, [profile.equipment]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(
-      OPTIMIZER_STORAGE_KEY,
+      optimizerKey,
       JSON.stringify({
         recipientId,
         recipientCurrentLevel,
@@ -1498,7 +1551,7 @@ export default function EquipmentLevelingOptimizerPage() {
       }),
     );
     window.localStorage.setItem(
-      GRAND_STORAGE_KEY,
+      grandKey,
       JSON.stringify({
         recipientId: grandRecipientId,
         currentLevel: grandCurrentLevel,
@@ -1507,6 +1560,8 @@ export default function EquipmentLevelingOptimizerPage() {
       }),
     );
   }, [
+    optimizerKey,
+    grandKey,
     grandCurrentLevel,
     grandRecipientId,
     grandRows,
@@ -1672,6 +1727,7 @@ export default function EquipmentLevelingOptimizerPage() {
   const availableSources = selectedCount;
 
   const updateGrandRow = (id: string, patch: Partial<GrandRow>) => {
+    if (scope && patch.level !== undefined) updateCurrentLevel(EQUIPMENT_BY_ID.get(id)?.name || "", patch.level);
     setGrandRows((prev) => {
       const current = prev[id] ?? DEFAULT_GRAND_ROWS[id] ?? { checked: true, level: 1 };
       return { ...prev, [id]: { ...current, ...patch } };
@@ -1712,6 +1768,13 @@ export default function EquipmentLevelingOptimizerPage() {
           sacrifice item planning, cap-stage math, and Grand Prize exchange inputs.
         </p>
       </div>
+
+      {scope && <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
+        <p className="text-sm text-muted-foreground">Current levels sync with this game account. Target levels stay in this planner.</p>
+        <Button variant="outline" size="sm" onClick={() => {
+          setGrandRows(accountEquipmentRows(EQUIPMENT, profile.equipment)); setCalcSnapshot(null); setTwoCalculated(false); setGrandCalculated(false);
+        }}>Select owned sources</Button>
+      </div>}
 
       <Card>
         <CardHeader className="pb-3">

@@ -7,6 +7,7 @@ import { GlobalJobPreview } from "@/components/ka/global-job-preview";
 import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL, encodeCanonicalPath, getSeoMeta } from "@/app/seo";
 import { trackPageView } from "@/lib/analytics";
 import { startProfileAccountSync } from "@/lib/account-player-profile/sync";
+import { gameAccountContext } from "@/lib/game-accounts";
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Home = lazy(() => import("@/pages/home"));
 const JobsMarriagePage = lazy(() => import("@/pages/jobs-marriage"));
@@ -95,6 +96,8 @@ function upsertMeta(selector: string, create: () => HTMLMetaElement | HTMLLinkEl
 
 function SeoManager() {
   const [pathname] = useLocation();
+  const accountContext = gameAccountContext(pathname);
+  useEffect(() => { window.dispatchEvent(new CustomEvent("ka-profile-context-changed")); }, [accountContext]);
 
   useEffect(() => {
     const meta = getSeoMeta(pathname);

@@ -1,7 +1,6 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import QRCode from "qrcode";
-import { Bell, BriefcaseBusiness, CalendarDays, ClipboardList, Clock3, Trophy, Wand2, Award, AlertTriangle, Plus, Minus, ExternalLink, Smartphone } from "lucide-react";
+import { Bell, BriefcaseBusiness, CalendarDays, ClipboardList, Clock3, Trophy, Wand2, Award, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -76,76 +75,6 @@ const EVENT_CARDS = [
 
 type EventCard = (typeof EVENT_CARDS)[number] & { disabled?: boolean; facilityIconId?: number };
 
-function EventReminderInstallPanel() {
-  const [qrCodeUrl, setQrCodeUrl] = useState("");
-  const [installUrl, setInstallUrl] = useState("/event-reminders?install=1");
-
-  useEffect(() => {
-    const url = `${window.location.origin}/event-reminders?install=1`;
-    setInstallUrl(url);
-    QRCode.toDataURL(url, {
-      width: 132,
-      margin: 1,
-      color: {
-        dark: "#020617",
-        light: "#f8fafc",
-      },
-    }).then(setQrCodeUrl).catch(() => setQrCodeUrl(""));
-  }, []);
-
-  return (
-    <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-4">
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-        <div className="space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="rounded-md bg-sky-500/15 p-2">
-              <Bell className="h-5 w-5 text-sky-300" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-sky-100">Event Reminder App</div>
-              <div className="mt-1 text-xs leading-relaxed text-sky-100/75">
-                One-page mobile PWA for Wairo, Weekly Conquest reset, S Rank gacha, and S Rank facility notifications.
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-2 text-xs text-sky-100/75 sm:grid-cols-3">
-            <div className="rounded-md bg-black/15 px-3 py-2">1. Scan the QR code with your phone.</div>
-            <div className="rounded-md bg-black/15 px-3 py-2">2. Follow the big install prompt.</div>
-            <div className="rounded-md bg-black/15 px-3 py-2">3. iPhone still needs Share, then Add to Home Screen.</div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button asChild className="bg-sky-500 text-white hover:bg-sky-500">
-              <Link href="/event-reminders?install=1">
-                <Smartphone className="h-4 w-4" />
-                Open install screen
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="border-sky-400/40 bg-transparent text-sky-100 hover:bg-sky-500/10">
-              <a href={installUrl} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-4 w-4" />
-                Open in new tab
-              </a>
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
-          {qrCodeUrl ? (
-            <img src={qrCodeUrl} alt="QR code for the Event Reminder App" className="h-32 w-32 rounded-md bg-white p-1" />
-          ) : (
-            <div className="grid h-32 w-32 place-items-center rounded-md bg-white/10 text-xs text-sky-100/60">QR</div>
-          )}
-          <div className="max-w-40 text-xs leading-relaxed text-sky-100/70">
-            Generated on this page from this website. Scan it to open the install help screen for KA Events.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function TimedEventsPage() {
   const [offset, setOffset] = useEventHourOffset();
   const [now, setNow] = useState(() => new Date());
@@ -163,54 +92,25 @@ export default function TimedEventsPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <CalendarDays className="w-5 h-5 text-muted-foreground" />
-          <h1 className="text-xl font-bold tracking-tight">Events</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-muted-foreground" /><h1 className="text-xl font-bold tracking-tight">Events</h1></div>
+          <p className="text-sm text-muted-foreground">Schedules, rewards and upcoming events.</p>
         </div>
-        <p className="text-sm text-muted-foreground max-w-3xl">
-          Kingdom Adventurers event hub for briefing room missions, weekly conquest, gacha windows, Wairo Dungeon,
-          daily rank rewards, Kairo Room, and Job Center schedules.
-        </p>
+        <Button asChild variant="outline" size="sm"><Link href="/player-profile?tab=notifications"><Bell className="mr-2 h-4 w-4" />Manage reminders</Link></Button>
       </div>
-
-      {/* DST Warning Box - styled to match site theme, only icon is red */}
-      <div className="border-2 border-border bg-muted text-foreground rounded-lg px-4 py-3 flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 mt-0.5 text-red-500 shrink-0" />
-        <div>
-          <div className="font-semibold">Warning: Daylight Saving Time (DST) Offset</div>
-          <div className="text-sm mt-1">
-            Some event times may be affected by DST or timezone differences. If event times look off, use the offset control below to adjust.<br />
-            <span className="font-medium">Kairo Room, Job Center, Wairo Dungeon, and Gacha Events</span> follow your local time <span className="font-medium">plus any offset you set here</span>.<br />
-            <span className="font-medium">Daily Rank Rewards & Weekly Conquest</span> follow Japan time. Briefing Room uses the Japan calendar with the Events offset applied.
-          </div>
+      <details className="rounded-lg border bg-muted/15 px-4 py-3">
+        <summary className="cursor-pointer text-sm text-muted-foreground">Event time settings <span className="ml-2 font-mono text-foreground">{offset >= 0 ? "+" : ""}{offset}h</span></summary>
+        <div className="mt-3 space-y-3 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-3"><span>Event time offset</span><div className="flex items-center gap-3">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setOffset((value) => Math.max(-23, value - 1))} disabled={offset <= -23} aria-label="Decrease offset"><Minus className="h-4 w-4" /></Button>
+            <span className="min-w-8 text-center font-mono text-foreground">{offset >= 0 ? "+" : ""}{offset}h</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setOffset((value) => Math.min(23, value + 1))} disabled={offset >= 23} aria-label="Increase offset"><Plus className="h-4 w-4" /></Button>
+          </div></div>
+          <p>Kairo Room, Job Center, Wairo Dungeon and Gacha Events use local time plus this offset. Daily Rank Rewards and Weekly Conquest use Japan time. Briefing Room uses the Japan calendar with this offset applied.</p>
+          <p className="text-xs">If event times look off after a daylight saving change, adjust the offset here.</p>
         </div>
-      </div>
-
-      {/* Offset Control - dark theme */}
-      <div className="flex items-center gap-3 border border-border bg-muted rounded-lg px-4 py-2 w-fit my-2">
-        <span className="font-medium text-primary">Event Time Offset:</span>
-        <button
-          className="p-1 rounded border border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-          onClick={() => setOffset((v) => Math.max(-23, v - 1))}
-          disabled={offset <= -23}
-          aria-label="Decrease offset"
-        >
-          <Minus className="w-4 h-4" />
-        </button>
-        <span className="font-mono text-base w-10 text-center">{offset >= 0 ? `+${offset}` : offset}h</span>
-        <button
-          className="p-1 rounded border border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-          onClick={() => setOffset((v) => Math.min(23, v + 1))}
-          disabled={offset >= 23}
-          aria-label="Increase offset"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-        <span className="text-xs text-muted-foreground">(applies to Briefing Room’s calendar and home timer, Kairo Room, Job Center, Wairo Dungeon, and Gacha Events)</span>
-      </div>
-
-      <EventReminderInstallPanel />
+      </details>
 
       <div className="grid gap-4 md:grid-cols-2">
         {(EVENT_CARDS as EventCard[]).map((card) => {

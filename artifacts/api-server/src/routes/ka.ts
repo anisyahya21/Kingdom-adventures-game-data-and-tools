@@ -860,7 +860,7 @@ async function resolveAuthenticatedSession(req: Request): Promise<AuthenticatedS
 
   return {
     userId: row.userId,
-    telegramUserId: row.telegramUserId,
+    telegramUserId: row.telegramUserId || "",
     isAdmin: getAdminTelegramUserIds().has(String(row.telegramUserId))
       || getAdminTelegramUsernames().has(String(row.telegramUsername || "").replace(/^@+/, "").toLowerCase()),
     displayName,
@@ -1599,6 +1599,15 @@ router.put("/ka/loadouts", (req, res) => {
   res.json({ ok: true });
 });
 
+async function resolveGameProfileScope(req: Request, userId: string): Promise<string> {
+  const id = req.query.gameAccountId;
+  if (id === undefined || id === "primary") return userId;
+  if (typeof id !== "string" || !/^[0-9a-f-]{36}$/.test(id) || !dbModule) throw new Error("Invalid game account.");
+  const [user] = await dbModule.db.select({ accounts: dbModule.usersTable.gameAccounts }).from(dbModule.usersTable).where(eq(dbModule.usersTable.id, userId));
+  if (!user?.accounts?.some((account) => account.id === id)) throw new Error("Game account does not belong to this profile.");
+  return `${userId}:game:${id}`;
+}
+
 // Private, explicit saves. Each roster is one small row; battles and replay events never reach this API.
 router.get("/ka/account-player-profile", async (req, res) => {
   try {
@@ -1606,11 +1615,12 @@ router.get("/ka/account-player-profile", async (req, res) => {
     const session = await resolveAuthenticatedSession(req);
     if (!session) { res.status(401).json({ error: "Log in to access your player profile." }); return; }
     if (!dbModule) { res.status(503).json({ error: "Account profile saves are unavailable." }); return; }
-    const key = `${ACCOUNT_PLAYER_PROFILE_PREFIX}${session.userId}`;
+    const scope = await resolveGameProfileScope(req, session.userId);
+    const key = `${ACCOUNT_PLAYER_PROFILE_PREFIX}${scope}`;
     const rows = await dbModule.db.select({ value: dbModule.appStateTable.value })
       .from(dbModule.appStateTable).where(eq(dbModule.appStateTable.key, key)).limit(1);
     const envelope = rows.length ? readAccountPlayerProfileEnvelope(rows[0].value) : null;
-    res.json({ profile: envelope?.profile ?? null, revision: envelope?.revision ?? null, accountId: session.userId });
+    res.json({ profile: envelope?.profile ?? null, revision: envelope?.revision ?? null, accountId: scope });
   } catch (error) {
     console.error("account-player-profile: read failed", error);
     res.status(503).json({ error: "Could not load your account player profile." });
@@ -1624,8 +1634,9 @@ router.put("/ka/account-player-profile", async (req, res) => {
     const session = await resolveAuthenticatedSession(req);
     if (!session) { res.status(401).json({ error: "Log in to save your player profile." }); return; }
     if (!dbModule) { res.status(503).json({ error: "Account profile saves are unavailable." }); return; }
+    const scope = await resolveGameProfileScope(req, session.userId);
     const input = req.body as Record<string, unknown> | undefined;
-    if (!isRecord(input) || input.expectedAccountId !== session.userId) {
+    if (!isRecord(input) || input.expectedAccountId !== scope) {
       res.status(403).json({ error: "Your login changed. Refresh account sync before saving." }); return;
     }
     if (!isRecord(input) || (input.revision !== null && typeof input.revision !== "string") || !isAccountPlayerProfile(input.profile)) {
@@ -1634,7 +1645,7 @@ router.put("/ka/account-player-profile", async (req, res) => {
     if (Buffer.byteLength(JSON.stringify(input), "utf8") > ACCOUNT_PLAYER_PROFILE_MAX_BYTES) {
       res.status(413).json({ error: "The player profile is too large to save." }); return;
     }
-    const key = `${ACCOUNT_PLAYER_PROFILE_PREFIX}${session.userId}`;
+    const key = `${ACCOUNT_PLAYER_PROFILE_PREFIX}${scope}`;
     const revision = crypto.randomUUID();
     const envelope: AccountPlayerProfileEnvelope = { revision, profile: input.profile };
     const updatedAt = new Date();
@@ -1642,18 +1653,18 @@ router.put("/ka/account-player-profile", async (req, res) => {
       const inserted = await dbModule.db.insert(dbModule.appStateTable).values({
         key, value: envelope as unknown as Record<string, unknown>, updatedAt,
       }).onConflictDoNothing({ target: dbModule.appStateTable.key }).returning({ key: dbModule.appStateTable.key });
-      if (inserted.length) { res.json({ profile: envelope.profile, revision, accountId: session.userId }); return; }
+      if (inserted.length) { res.json({ profile: envelope.profile, revision, accountId: scope }); return; }
     } else {
       const updated = await dbModule.db.update(dbModule.appStateTable).set({
         value: envelope as unknown as Record<string, unknown>, updatedAt,
       }).where(and(eq(dbModule.appStateTable.key, key), sql`${dbModule.appStateTable.value}->>'revision' = ${input.revision}`))
         .returning({ key: dbModule.appStateTable.key });
-      if (updated.length) { res.json({ profile: envelope.profile, revision, accountId: session.userId }); return; }
+      if (updated.length) { res.json({ profile: envelope.profile, revision, accountId: scope }); return; }
     }
     const currentRows = await dbModule.db.select({ value: dbModule.appStateTable.value })
       .from(dbModule.appStateTable).where(eq(dbModule.appStateTable.key, key)).limit(1);
     const current = currentRows.length ? readAccountPlayerProfileEnvelope(currentRows[0].value) : null;
-    res.status(409).json({ profile: current?.profile ?? null, revision: current?.revision ?? null, accountId: session.userId });
+    res.status(409).json({ profile: current?.profile ?? null, revision: current?.revision ?? null, accountId: scope });
   } catch (error) {
     console.error("account-player-profile: save failed", error);
     res.status(503).json({ error: "Could not save your account player profile." });

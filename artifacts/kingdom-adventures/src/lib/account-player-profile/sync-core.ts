@@ -56,7 +56,7 @@ export type ProfileSyncDependencies = {
   sanitize: (profile: unknown) => PlayerProfile;
   getSession: () => Promise<{ accountId: string } | null>;
   api: {
-    read: () => Promise<AccountProfileEnvelope>;
+    read: (accountId: string) => Promise<AccountProfileEnvelope>;
     write: (profile: PlayerProfile, revision: string | null, expectedAccountId: string) => Promise<
       | { kind: "saved"; revision: string | null; accountId?: string }
       | { kind: "conflict"; current: AccountProfileEnvelope }
@@ -226,7 +226,7 @@ export class AccountPlayerProfileSyncController {
     const startingEditGeneration = this.editGeneration;
     let remote: AccountProfileEnvelope;
     try {
-      remote = await this.deps.api.read();
+      remote = await this.deps.api.read(accountId);
     } catch (error) {
       if (refreshGeneration === this.refreshGeneration && this.isCurrent(accountId, accountGeneration)) {
         this.bootstrapping = false;

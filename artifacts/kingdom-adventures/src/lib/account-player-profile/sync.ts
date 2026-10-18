@@ -1,3 +1,4 @@
+import { selectedGameAccount, gameAccountScope, gameAccountQuery } from "@/lib/game-accounts";
 import { requestSession } from "@/lib/session-request";
 import { useSyncExternalStore } from "react";
 import { apiUrl, configuredApiBase } from "@/lib/api";
@@ -20,7 +21,7 @@ import {
 
 type AuthSessionPayload = {
   authenticated?: boolean;
-  user?: { id?: string };
+  user?: { id?: string; gameAccounts?: Array<{ id: string; name: string; gameId: string }> };
 };
 
 type ApiEnvelope = {
@@ -32,7 +33,10 @@ type ApiEnvelope = {
 async function loadAccountId(): Promise<{ accountId: string } | null> {
   const response = await requestSession(`${configuredApiBase()}/ka-api/auth/session`);
   const payload = response.ok ? await response.json() as AuthSessionPayload : null;
-  return parseAccountSessionResponse(response.status, payload);
+  const session = parseAccountSessionResponse(response.status, payload);
+  if (!session) return null;
+  const id = selectedGameAccount(session.accountId, payload?.user?.gameAccounts || []);
+  return { accountId: gameAccountScope(session.accountId, id) };
 }
 
 async function readEnvelope(response: Response): Promise<AccountProfileEnvelope> {
@@ -56,8 +60,8 @@ async function readEnvelope(response: Response): Promise<AccountProfileEnvelope>
   };
 }
 
-async function readAccountProfile(): Promise<AccountProfileEnvelope> {
-  const response = await fetch(apiUrl("/account-player-profile"), { credentials: "include", cache: "no-store" });
+async function readAccountProfile(accountId: string): Promise<AccountProfileEnvelope> {
+  const response = await fetch(apiUrl("/account-player-profile") + gameAccountQuery(accountId), { credentials: "include", cache: "no-store" });
   if (response.status === 401) throw new Error("Sign in to sync this profile. Your device copy is preserved.");
   if (!response.ok) {
     throw new Error(`Could not load the account profile (${response.status}). Your device copy is preserved.`);
@@ -70,7 +74,7 @@ async function writeAccountProfile(
   revision: string | null,
   expectedAccountId: string,
 ) {
-  const response = await fetch(apiUrl("/account-player-profile"), {
+  const response = await fetch(apiUrl("/account-player-profile") + gameAccountQuery(expectedAccountId), {
     method: "PUT",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -157,10 +161,17 @@ export function startProfileAccountSync() {
       if (document.visibilityState === "visible") void sync.refresh(true);
     };
     window.addEventListener("ka-auth-changed", onAuthChanged);
+    window.addEventListener("ka-profile-context-changed", onAuthChanged);
+    const onScopeStorage = (event: StorageEvent) => {
+      if (event.key?.startsWith("ka_game_account_choice:")) onAuthChanged();
+    };
+    window.addEventListener("storage", onScopeStorage);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
     removeRuntimeListeners = () => {
       window.removeEventListener("ka-auth-changed", onAuthChanged);
+      window.removeEventListener("ka-profile-context-changed", onAuthChanged);
+      window.removeEventListener("storage", onScopeStorage);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };

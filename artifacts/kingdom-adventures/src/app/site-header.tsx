@@ -8,6 +8,7 @@ import {
   fetchAuthSession,
   logoutAuthSession,
   startTelegramAuth,
+  startDiscordAuth,
   startTelegramFallbackAuth,
   verifyTelegramFallbackAuth,
   type AuthSessionResponse,
@@ -39,6 +40,7 @@ export function SiteHeader() {
   const [authSession, setAuthSession] = useState<AuthSessionResponse>({ authenticated: false, guest: true });
   const [authLoading, setAuthLoading] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [loginOpen, setLoginOpen] = useState(false);
   const [fallbackOpen, setFallbackOpen] = useState(false);
   const [fallbackData, setFallbackData] = useState<TelegramFallbackStartResponse | null>(null);
@@ -70,8 +72,9 @@ export function SiteHeader() {
     setAuthLoading(true);
     fetchAuthSession()
       .then((session) => {
-        if (mounted) setAuthSession(session);
+        if (mounted) { setAuthSession(session); setAuthError(""); }
       })
+      .catch(() => { if (mounted) setAuthError("Account connection unavailable. Please retry."); })
       .finally(() => {
         if (mounted) setAuthLoading(false);
       });
@@ -85,8 +88,10 @@ export function SiteHeader() {
     return fetchAuthSession()
       .then((session) => {
         setAuthSession(session);
+        setAuthError("");
         window.dispatchEvent(new CustomEvent("ka-auth-changed", { detail: { authenticated: session.authenticated } }));
       })
+      .catch(() => setAuthError("Account connection unavailable. Please retry."))
       .finally(() => setAuthLoading(false));
   };
 
@@ -136,6 +141,7 @@ export function SiteHeader() {
           authPopupRef.current = null;
           stopAuthPopupPolling();
         })
+        .catch(() => setAuthError("Account connection unavailable. Please retry."))
         .finally(() => {
           authPopupPollInFlightRef.current = false;
         });
@@ -182,7 +188,7 @@ export function SiteHeader() {
   useEffect(() => {
     function handleAuthMessage(event: MessageEvent) {
       const payload = event.data as { source?: string; type?: string } | null;
-      if (!payload || payload.source !== "ka-auth") return;
+      if (event.origin !== window.location.origin || !payload || payload.source !== "ka-auth") return;
       stopAuthPopupPolling();
       if (authPopupRef.current && !authPopupRef.current.closed) {
         authPopupRef.current.close();
@@ -206,6 +212,13 @@ export function SiteHeader() {
     return () => {
       stopAuthPopupPolling();
     };
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => { void fetchAuthSession().then((session) => { setAuthSession(session); setAuthError(""); }).catch(() => setAuthError("Account connection unavailable. Please retry.")); };
+    window.addEventListener("ka-auth-changed", refresh);
+    window.addEventListener("focus", refresh);
+    return () => { window.removeEventListener("ka-auth-changed", refresh); window.removeEventListener("focus", refresh); };
   }, []);
 
   const startPopupLogin = async () => {
@@ -372,9 +385,9 @@ export function SiteHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button variant="ghost" className="h-11 shrink-0 px-1 min-[350px]:px-2 sm:px-3 text-xs" onClick={() => setLoginOpen(true)} disabled={authBusy || fallbackBusy}>
+            <Button variant="ghost" className="h-11 shrink-0 px-1 min-[350px]:px-2 sm:px-3 text-xs" title={authError || undefined} onClick={() => { if (authError) void refreshAuthSession(); else setLoginOpen(true); }} disabled={authBusy || fallbackBusy}>
               {authBusy || fallbackBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Log in
+              {authError ? "Retry account" : "Log in"}
             </Button>
           )}
 
@@ -440,6 +453,7 @@ export function SiteHeader() {
             <DialogDescription>Choose how to log in with Telegram.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
+            <Button variant="outline" disabled={authBusy} onClick={() => { setAuthBusy(true); void startDiscordAuth().catch((error) => { setAuthError(error instanceof Error ? error.message : "Discord login is unavailable."); setAuthBusy(false); }); }}>Log in with Discord</Button>
             <Button onClick={() => { setLoginOpen(false); void startPopupLogin(); }} disabled={authBusy}>Log in with Telegram</Button>
             <Button variant="outline" onClick={() => { setLoginOpen(false); void startFallbackLogin(); }} disabled={fallbackBusy}>Log in with bot code</Button>
           </div>

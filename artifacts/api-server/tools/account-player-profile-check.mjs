@@ -65,6 +65,7 @@ await runInNewContext(`(async () => { ${routeCode} })()`, {
   router,
   dbModule: { db, appStateTable: table },
   resolveAuthenticatedSession: async () => userId ? { userId } : undefined,
+  resolveGameProfileScope: async (_req, userId) => userId,
   accountRequestFromWebsite: () => true,
   isRecord: (value) => Boolean(value && typeof value === "object" && !Array.isArray(value)),
   isAccountPlayerProfile: helpers.validate,

@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { initGoogleCache } from "./lib/google-cache";
+import { ensureProfileSchema } from "./lib/profile-schema";
 
 const rawPort = process.env["PORT"];
 
@@ -17,6 +18,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+await ensureProfileSchema();
 initGoogleCache();
 
 app.listen({ port, host }, (err) => {
