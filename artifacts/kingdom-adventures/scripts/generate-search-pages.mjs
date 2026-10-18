@@ -25,7 +25,7 @@ if (process.argv.includes("--prepare")) {
   console.log(`Prepared ${paths.length} known route identities`);
   process.exit(0);
 }
-if (await readFile(catalogFile, "utf8") !== catalog) {
+if ((await readFile(catalogFile, "utf8")).replace(/\r\n/g, "\n") !== catalog) {
   throw new Error("Search route catalog is stale: run npm run seo:prepare before building");
 }
 

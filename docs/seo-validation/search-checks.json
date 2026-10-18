@@ -111,6 +111,8 @@
     "initial HTML /world-map-v2",
     "sitemap canonical unique indexable destinations",
     "sitemap index has correct root",
+    "collapsed help present and keyboard accessible /monster-pet-stats",
+    "collapsed help present and keyboard accessible /monster-xp",
     "monster alias preserves query and fragment",
     "houses facilities tab and search query survive",
     "job name with spaces renders with encoded canonical",
@@ -121,6 +123,6 @@
     "no uncaught JavaScript errors in tested flows"
   ],
   "sitemapPages": 97,
-  "elapsedSeconds": 5.068,
+  "elapsedSeconds": 6.282,
   "scope": "Local routing simulation and isolated Chrome; API failures deliberately use bundled fallback. Deployment routing needs independent verification."
 }
