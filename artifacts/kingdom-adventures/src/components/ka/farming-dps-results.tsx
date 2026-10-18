@@ -11,8 +11,12 @@ import { measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
 import { strategyMatchDeviation, type ProfileStrategyMatch } from "@/lib/profile-strategy-matches";
 import { compareFarmingDpsRank } from "@/lib/farming-dps-ranking";
 import { exactAccountDiagnosticCase, accountDiagnosticLabel, accountDiagnosticScenario, accountDiagnosticFailedPilotApplies, accountDiagnosticObservedDeathsApply } from "@/game-data/account-diagnostic-evidence";
+import { findHostedAccountCombatEvidence, type HostedEvidenceMatch } from "@/game-data/hosted-account-combat-evidence";
+import { HOSTED_ACCOUNT_EVIDENCE_FIXED_POLICY, prepareHostedAccountEvidenceInput } from "@/game-data/prepare-hosted-account-evidence";
 import type { ProfileGoalBuild } from "@/lib/profile-loadout-goal-planner";
 import type { PlayerProfile } from "@/lib/player-profile";
+import type { SharedLoadoutData } from "@/lib/battle-legality";
+import type { FarmingPlannerSettings } from "@/lib/farming-planner";
 import { testedProfileEvidenceVisible, type TestedProfileCandidate } from "@/lib/tested-profile-build";
 
 const FIXED_TEAM_BENCHMARK_HEADERS = [
@@ -26,14 +30,56 @@ function accountRewardEvidenceLabel(exactMeasuredMatch: boolean): string {
     : "Unmeasured for your team";
 }
 
-export function FarmingDpsResults({ profile, matches, options, busy, status, error, onCancel, onCreate, equipmentIcons, allowUpgrades, exactOnly, testedProfileBuild, testedProfileCandidate, testedProfileAlternatives, testedProfileSetup }: {
+function hostedCohortLabel(match: HostedEvidenceMatch): string {
+  if (match.cohortId === "primary-six-validation-20") return "Primary six-skill cohort";
+  if (match.cohortId === "mp-followup-pajamas-replication-5") return "Pajamas follow-up replication";
+  if (match.cohortId === "mp-followup-fire-pajamas-5") return "Fire Sword + Pajamas cohort";
+  if (match.caseId === "speed-breakpoint") return "Pajamas original cohort";
+  const labels: Record<string, string> = {
+    "dex-accessibility-small": "DEX accessibility cohort",
+    "attack-speed-joint": "Attack/speed cohort",
+    "luck-dex-attack-tradeoff": "Luck/DEX tradeoff cohort",
+  };
+  return labels[match.caseId] ?? "Measured build cohort";
+}
+
+function ConditionalHostedEvidence({ matches }: { matches: HostedEvidenceMatch[] }) {
+  if (matches.length === 0) return null;
+  return <div className="rounded-md border border-primary/25 bg-muted/20 p-3 text-xs">
+    <p className="font-medium">Fixed-support test results</p>
+    <div className="mt-2 space-y-2">{matches.map((match) => {
+      const summary = match.outcomeSummary;
+      const terminality = summary.terminality;
+      return <div key={match.cohortId} className="rounded border bg-background/60 p-2">
+        <p className="font-medium">{hostedCohortLabel(match)} · {match.sample.n} tests</p>
+        <p className="mt-1 tabular-nums">Modeled average {summary.modeledCallbacks.mean.toFixed(1)} · survived {summary.survival.survived}/{summary.survival.sampleSize}{terminality.horizonCensored > 0 ? " · 18k-tick endpoint" : ""}</p>
+        <details className="mt-1 text-muted-foreground">
+          <summary className="cursor-pointer">Scope, resources, and limits</summary>
+          <p className="mt-1">Callback scope: {summary.callbackScope}. Terminal battles: {terminality.terminalByVerdictAndDeparture}/{match.sample.n}; horizon-censored: {terminality.horizonCensored}/{match.sample.n}. First DPS boss attack observed: {summary.firstBossAttempt.count}/{match.sample.n}.</p>
+          <p className="mt-1 tabular-nums">Mean paid MP {summary.dpsPaidMp.mean.toFixed(0)} · mean Herbs {summary.herbsUsed.mean.toFixed(1)}{summary.preFirstBossAttemptGrossDpt ? ` · gross pre-boss DPT ${summary.preFirstBossAttemptGrossDpt.mean.toFixed(2)}` : ""}{summary.mpReserveWarnings !== undefined ? ` · MP reserve warnings ${summary.mpReserveWarnings}` : ""}.</p>
+          <p className="mt-1">Median {summary.modeledCallbacks.median.toFixed(1)} · highest {summary.modeledCallbacks.max}. These are modeled prize callbacks, not verified collected rewards. Separate cohorts remain separate. {match.caveat}</p>
+        </details>
+      </div>;
+    })}</div>
+  </div>;
+}
+
+export function FarmingDpsResults({ profile, sharedData, plannerSettings, matches, options, busy, status, error, onCancel, onCreate, equipmentIcons, allowUpgrades, exactOnly, testedProfileBuild, testedProfileCandidate, testedProfileAlternatives, testedProfileSetup }: {
   profile: PlayerProfile | null; matches: ProfileStrategyMatch[] | null; options: ChestStrategyOption[];
+  sharedData?: SharedLoadoutData | null; plannerSettings?: FarmingPlannerSettings;
   testedProfileBuild?: ProfileGoalBuild | null; testedProfileCandidate?: TestedProfileCandidate;
   testedProfileAlternatives?: readonly { candidate: TestedProfileCandidate; build: ProfileGoalBuild }[];
   testedProfileSetup?: { encounterId: number; placeholderSupports: boolean; allowConsumables: boolean; holyHerbLimit: number; recoveryPotionLimit: number; finiteHpMp: boolean };
   busy: boolean; status: string; error: string; equipmentIcons?: Record<string, string>; allowUpgrades: boolean; exactOnly: boolean;
   onCancel: () => void; onCreate: (build: ProfileGoalBuild, profile: PlayerProfile, destination?: "builder" | "simulator", battleSeconds?: number) => void;
 }) {
+  const [hostedEvidenceState, setHostedEvidenceState] = useState<{
+    profile: PlayerProfile; sharedData: SharedLoadoutData; settings: FarmingPlannerSettings;
+    matches: Record<string, HostedEvidenceMatch[]>;
+  } | null>(null);
+  const hostedEvidenceByFingerprint = hostedEvidenceState?.profile === profile &&
+    hostedEvidenceState?.sharedData === sharedData && hostedEvidenceState?.settings === plannerSettings
+    ? hostedEvidenceState.matches : {};
   const favorites = useFarmingFavorites();
   const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -97,7 +143,24 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
   const testedProfileVisible = !!testedProfileBuild && !!testedProfileCandidate && !!testedProfileSetup && !!profile &&
     testedProfileEvidenceVisible(testedProfileCandidate, testedProfileSetup);
   const visibleTestedAlternatives = !!testedProfileSetup && !!profile ? (testedProfileAlternatives ?? []).filter(({ candidate }) => testedProfileEvidenceVisible(candidate, testedProfileSetup)) : [];
-  const pageCreatedRows = createdRows.slice(visibleCreatedPage * 5, (visibleCreatedPage + 1) * 5);
+  const pageCreatedRows = useMemo(() => createdRows.slice(visibleCreatedPage * 5, (visibleCreatedPage + 1) * 5), [createdRows, visibleCreatedPage]);
+  useEffect(() => {
+    let cancelled = false;
+    setHostedEvidenceState(null);
+    if (!profile || !sharedData || !plannerSettings || !pageCreatedRows.length) return () => { cancelled = true; };
+    void Promise.all(pageCreatedRows.map(async ({ fingerprint, build }) => {
+      try {
+        const prepared = await prepareHostedAccountEvidenceInput({ build, profile, sharedData, plannerSettings, policy: HOSTED_ACCOUNT_EVIDENCE_FIXED_POLICY });
+        return [fingerprint, await findHostedAccountCombatEvidence(prepared.lookupInput)] as const;
+      } catch {
+        // Unsupported/nearby builds and stale page state remain simply unmeasured.
+        return [fingerprint, []] as const;
+      }
+    })).then((entries) => {
+      if (!cancelled) setHostedEvidenceState({ profile, sharedData, settings: plannerSettings, matches: Object.fromEntries(entries) });
+    });
+    return () => { cancelled = true; };
+  }, [pageCreatedRows, profile, sharedData, plannerSettings]);
   useEffect(() => {
     if (createdPage !== visibleCreatedPage) setCreatedPage(visibleCreatedPage);
   }, [createdPage, visibleCreatedPage]);
@@ -165,6 +228,7 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
         {!!build.skills?.length && <p className="text-xs text-muted-foreground">Required skills: {build.skills.join(" · ")} · check ownership in game.</p>}
         {diagnostic && <div className="rounded-md border border-amber-500/30 px-3 py-2 text-xs"><p className="font-medium text-amber-700 dark:text-amber-300">{accountDiagnosticLabel(diagnostic)}</p><details className="mt-1 text-muted-foreground"><summary className="cursor-pointer">Scenario assumptions</summary><p className="mt-1">{accountDiagnosticScenario(diagnostic)}</p></details></div>}
         <p className="text-xs text-muted-foreground">{evidence ? `These exact stats averaged ${evidence.mean.toFixed(2)} chests with the fixed research team (${evidence.n} runs).` : "Rewards for these stats have not been measured."} Test your own team in the simulator.</p>
+        <ConditionalHostedEvidence matches={hostedEvidenceByFingerprint[fingerprint] ?? []} />
         <div className="flex flex-wrap gap-2"><Button onClick={() => onCreate(build, profile!, "simulator")}>Simulate</Button><Button variant="outline" onClick={() => onCreate(build, profile!, "builder")}>Save character</Button><Button variant="outline" disabled={saved} onClick={() => { try { saveFarmingFavorite(build, profile!, chestStrategyGoals(option, { atk: 0, spd: 0, lck: 0 }), allowUpgrades); setNotice("Saved to Favorites."); } catch (cause) { setNotice(cause instanceof Error ? cause.message : "Could not save favorite."); } }}><Star className={`mr-2 h-4 w-4 ${saved ? "fill-current" : ""}`} />{saved ? "Saved" : "Favorite"}</Button></div>
       </CardContent></Card>;
     })}

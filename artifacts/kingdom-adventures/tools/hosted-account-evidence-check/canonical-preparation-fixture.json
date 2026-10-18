@@ -1,0 +1,67 @@
+{
+  "fixtureVersion": 1,
+  "provenance": {
+    "sourcePanelSha256": "1a03b3051f755425aa49fda0ebd294a39f248c1bba19e8b1bcc72da0ab95eb2a",
+    "note": "Anonymized canonical-preparation fields copied from the audited primary-six case; account IDs, character name, battle trace, and full scenario omitted."
+  },
+  "encounterId": 3,
+  "statsAll12": {
+    "hp": 5694,
+    "mp": 1636,
+    "vig": 2703,
+    "atk": 747,
+    "def": 2402,
+    "spd": 615,
+    "lck": 98,
+    "int": 28,
+    "dex": 11,
+    "gth": 22,
+    "mov": 65,
+    "hrt": 9
+  },
+  "loadout": {
+    "id": "fixture-character-1",
+    "name": "Anonymized canonical preparation fixture",
+    "jobName": "Ninja",
+    "rank": "A",
+    "gender": 0,
+    "statLevels": {
+      "hp": 321,
+      "mp": 337,
+      "vig": 254,
+      "atk": 5,
+      "def": 176,
+      "spd": 3,
+      "lck": 1,
+      "int": 3,
+      "dex": 1,
+      "gth": 4,
+      "mov": 1,
+      "hrt": 1
+    },
+    "equipment": [
+      { "name": "S/ Golden Headpiece", "level": 99 },
+      { "name": "S/ Blizzard Sword", "level": 99 },
+      { "name": "S/ Wairo Shield", "level": 99 },
+      { "name": "A/ Royal Robe", "level": 90 },
+      { "name": "B/ Red Ribbon", "level": 19 }
+    ],
+    "skills": [
+      "Counter",
+      "7-Hit Attack",
+      "5-Hit Attack",
+      "4-Hit Attack",
+      "3-Hit Attack",
+      "2-Hit Attack"
+    ],
+    "residentStatItems": {
+      "know-how": 6,
+      "craftsman": 6,
+      "life": 4,
+      "might": 6,
+      "resilience": 15,
+      "vitality": 6,
+      "wisdom": 5
+    }
+  }
+}
