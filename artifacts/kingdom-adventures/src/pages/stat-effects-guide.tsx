@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ka/page-header";
 import { Input } from "@/components/ui/input";
 import { localSharedData } from "@/lib/local-shared-data";
 import { getStatIcon } from "@/lib/stat-icons";
-import { UTILITY_STAT_EFFECTS, freshFogHp, fogPulses, wagonMaterialLoad } from "@/game-data/utility-stat-effects";
+import { UTILITY_STAT_EFFECTS, freshFogHp, fogPulses } from "@/game-data/utility-stat-effects";
 
 const statOrder = ["mov", "hrt", "dex", "int", "gth", "vig"] as const;
 
@@ -18,15 +18,10 @@ function numberOrNull(value: string, min: number) {
 export default function StatEffectsGuidePage() {
   const [area, setArea] = useState("100");
   const [heart, setHeart] = useState("100");
-  const [move, setMove] = useState("80");
-  const [stock, setStock] = useState("100");
   const areaValue = numberOrNull(area, 1);
   const heartValue = numberOrNull(heart, 1);
-  const moveValue = numberOrNull(move, 0);
-  const stockValue = numberOrNull(stock, 0);
   const hp = areaValue === null ? null : freshFogHp(areaValue);
   const clears = hp === null || heartValue === null ? null : fogPulses(hp, heartValue);
-  const load = moveValue === null || stockValue === null ? null : wagonMaterialLoad(moveValue, stockValue);
 
   return <article className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
     <Link href="/guides" className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
@@ -61,16 +56,6 @@ export default function StatEffectsGuidePage() {
             </div>
             <p>A wagon collects from one container before returning. It does not visit other containers to fill the remaining space. Materials have the same carrying cost; different amounts in storage can explain different-sized loads.</p>
             <p>There is no separate fixed wagon-load cap in this calculation. Once Move is high enough to empty the container, raising it further will not help that pickup.</p>
-            <details className="rounded-xl border px-4">
-              <summary className="cursor-pointer py-4 font-medium">Check a wagon load</summary>
-              <div className="space-y-4 pb-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="space-y-2 text-sm font-medium">Move value<Input type="number" min="0" step="1" value={move} onChange={e => setMove(e.target.value)} /></label>
-                  <label className="space-y-2 text-sm font-medium">Units in container<Input type="number" min="0" step="1" value={stock} onChange={e => setStock(e.target.value)} /></label>
-                </div>
-                <p className="rounded-lg bg-muted p-3" aria-live="polite">{load === null ? "Enter Move and the amount in one container." : <><strong>{load.toLocaleString()} units per pickup.</strong>{moveValue! >= stockValue! ? " This empties the container." : ` ${ (stockValue! - load).toLocaleString()} units remain.`}</>}</p>
-              </div>
-            </details>
             <details className="rounded-xl border px-4">
               <summary className="cursor-pointer py-4 font-medium">Useful skills for Wagon Yard</summary>
               <div className="space-y-4 pb-4">
