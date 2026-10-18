@@ -4622,7 +4622,7 @@ export default function WorldMapPage() {
       {/* â”€â”€ FULLSCREEN CONTAINER â”€â”€ */}
       <div
         ref={fullscreenContainerRef}
-        className={isFullscreen ? "fixed inset-0 z-[9990] flex overflow-hidden" : ""}
+        className={isFullscreen ? "dark text-foreground fixed inset-0 z-[9990] flex overflow-hidden" : "dark text-foreground"}
         style={isFullscreen ? { background: currentTheme.appBg } : {}}
       >
         {/* Left toolbar — only in fullscreen */}
@@ -4739,15 +4739,18 @@ export default function WorldMapPage() {
           {!isFullscreen && (
             <main className="w-full px-3 sm:px-4 py-6 space-y-6 select-none" style={{ background: currentTheme.appBg }}>
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold">World map (Beta)</h1>
+                <h1 className="text-2xl font-bold">World Map: Tile View</h1>
                 <span className="rounded-full border px-3 py-1 text-xs font-medium">Beta</span>
                 <span className="rounded-full border px-3 py-1 text-xs font-medium">Experimental</span>
               </div>
 
+              <p className="text-sm text-muted-foreground">
+                Explore the Kingdom Adventurers tile map and annotate your plans. For other views, open the <a href="/world-map-v2" className="underline underline-offset-2">isometric World Map</a>; for town layouts, use the <a href="/world-builder" className="underline underline-offset-2">World Builder</a>.
+              </p>
               <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
                 Map data pulled from{" "}
                 <a href="https://docs.google.com/spreadsheets/d/1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A/edit?gid=1473922384#gid=1473922384" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">Map full</a>
-                {" "}by minhnim (Kingdom Adventurers EN Sheet) Â· terrain from{" "}
+                {" "}by minhnim (Kingdom Adventurers EN Sheet) · terrain from{" "}
                 <a href="https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/edit?gid=1631803140#gid=1631803140" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">KA GameData</a>
               </p>
 

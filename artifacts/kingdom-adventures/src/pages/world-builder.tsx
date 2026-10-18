@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RotateCw, Move, Layers, X, Undo2, Redo2, ZoomIn, ZoomOut, LocateFixed, Package, Waves, Search, Plus, Trash2, Maximize2, Minimize2, Eye, EyeOff } from 'lucide-react';
 import RuntimeWorldRenderTestPage from './runtime-world-render-test';
 import { Button } from '@/components/ui/button';
+import { ToolHelp } from '@/components/ka/tool-help';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { BUILDINGS, PLOT_SIZES, PLOT_TILES } from '@/game-data/buildings';
 import { FACILITIES, FACILITY_TABS } from '@/game-data/facilities';
@@ -312,9 +313,13 @@ export default function WorldBuilderPage() {
       <span className="text-xs text-muted-foreground">Each build keeps its own town, undo history and save.</span>
     </div>}
     {!isFullscreen&&<div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <div><h1 className="text-2xl font-bold">World Builder</h1><p className="text-sm text-muted-foreground">Build your kingdom · {world.items.filter(isHall).length}/5 towns</p></div>
+      <div><h1 className="text-2xl font-bold">World Builder</h1><p className="text-sm text-muted-foreground">Plan Kingdom Adventurers towns, plots and indoor facilities · {world.items.filter(isHall).length}/5 towns</p></div>
       <span className={`text-xs ${saveError?'text-destructive':'text-muted-foreground'}`} role="status">{saveError|| (saved?'Saved in this browser':'Saving…')}</span>
     </div>}
+    {!isFullscreen&&<div className="mb-3"><ToolHelp title="How to plan and save a town layout">
+      <p>Choose Build to select what to place, then tap a tile or use Drag map + confirm. Use the placement controls, Undo and Redo to adjust your layout.</p>
+      <p>Your builds are saved in this browser. Switch builds to compare layouts. Use the <a href="/world-map-v2" className="underline underline-offset-2">World Map</a> to explore locations, or check unlocks in <a href="/houses" className="underline underline-offset-2">Houses &amp; Facilities</a>.</p>
+    </ToolHelp></div>}
     <div className="mb-2 flex flex-wrap gap-2" aria-label="World builder tools">
       <label className="flex items-center gap-2 text-sm">Placement<select aria-label="Placement mode" className="rounded border bg-background p-2" value={placementMode} onChange={e=>{setPlacementMode(e.target.value as 'direct'|'map');setHover(null);setLinePreview([]);}}><option value="direct">Tap a tile</option><option value="map">Drag map + confirm</option></select></label>
       <Button variant={levels?'secondary':'outline'} aria-pressed={levels} onClick={()=>setLevels(!levels)}><Layers className="mr-2 h-4 w-4"/>Levels</Button>

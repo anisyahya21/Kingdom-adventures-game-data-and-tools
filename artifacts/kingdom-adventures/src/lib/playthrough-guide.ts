@@ -10,6 +10,12 @@ export type GuideOverlay = {
 };
 
 export const PLAYTHROUGH_GUIDE_SECTION_OVERLAYS: Record<string, GuideOverlay> = {
+  "Survey": {
+    title: "Plan a survey",
+    description: "Check survey requirements and calculate success with your survey team.",
+    href: "/survey",
+    cta: "Open Survey Calculator",
+  },
   "Marriage (Simple)": {
     title: "Use the site tools for pair planning",
     description: "Jump to Match Finder and Marriage Sim for compatibility checks and outcome planning.",

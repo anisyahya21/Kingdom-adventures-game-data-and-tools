@@ -4,7 +4,7 @@ import { readFile, stat, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { getSeoMeta, SITE_URL, encodeCanonicalPath } from "../src/app/seo.ts";
+import { getSeoMeta, getDocumentTitle, SITE_URL, encodeCanonicalPath } from "../src/app/seo.ts";
 import { ROUTE_ALIASES, isIndexablePage } from "../src/app/seo-policy.ts";
 
 const app = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -28,12 +28,20 @@ try {
     check(`initial HTML ${rule.source}`, () => {
       assert.equal((html.match(/rel="canonical"/g) || []).length, 1);
       assert.ok(html.includes(`href="${canonical}"`), `Wrong canonical ${rule.source}`);
+      const title = html.match(/<title>(.*?)<\/title>/)?.[1].replaceAll('&amp;', '&').replaceAll('&#39;', "'");
+      assert.equal(title, getDocumentTitle(getSeoMeta(pathname).title));
+      assert.equal((title.match(/Kingdom Adventurers/g) || []).length, 1, 'Avoid repeating the game name in titles');
       assert.ok(!html.includes('data-search-summary'));
       if(isIndexablePage(pathname)) {
         assert.ok(html.includes('data-prerendered-page='), `No actual application HTML: ${pathname}`);
         assert.ok(!/http:\/\/127\.0\.0\.1:\d+/.test(html), `Local build URL leaked into page HTML: ${pathname}`);
         assert.ok(!html.includes('Use bundled reference data during static rendering'));
-        if(['/jobs','/houses','/skills','/survey','/monster-spawns','/monster-pet-stats'].includes(pathname)) assert.ok(html.includes('<h1'), `Missing database heading: ${pathname}`);
+        if(['/jobs','/houses','/skills','/survey','/monster-spawns','/monster-pet-stats','/jobs-marriage','/guides','/playthrough-guide','/match-finder','/world-map','/world-map-v2','/world-builder'].includes(pathname)) assert.ok(html.includes('<h1'), `Missing page heading: ${pathname}`);
+        if(pathname==='/playthrough-guide') {
+          assert.ok(html.includes('Your first step'), 'Guide content must be present before JavaScript');
+          assert.ok(html.includes('Open Survey Calculator'), 'Guide links to the corresponding calculator');
+          assert.ok(!html.includes('Could not load the guide.'), 'Do not publish a guide loading error');
+        }
         if(pathname==='/jobs') assert.ok(html.includes('Archer'), 'Actual job records must be present before JavaScript');
         if(pathname==='/monster-spawns') assert.ok(html.includes('Skullene'), 'Actual monster records must be present before JavaScript');
         if(['/monster-pet-stats','/monster-xp'].includes(pathname)) {
@@ -101,7 +109,7 @@ try {
   });
   page = await context.newPage();
   page.on('pageerror', error => pageErrors.push(error.message));
-  for (const route of ['/monster-pet-stats', '/monster-xp']) {
+  for (const route of ['/monster-pet-stats', '/monster-xp', '/match-finder', '/world-map-v2', '/world-builder']) {
     await page.goto(base + route);
     await page.waitForFunction(route => document.querySelector('#root')?.getAttribute('data-client-route') === route, route);
     const help = page.locator('details[data-tool-help]');
@@ -112,9 +120,38 @@ try {
     await help.locator('p').first().waitFor({ state: 'visible' });
     await page.keyboard.press('Enter');
     assert.equal(await help.getAttribute('open'), null);
+    if (route === '/world-map-v2' || route === '/world-builder') {
+      await page.waitForFunction(() => {
+        const canvas = document.querySelector('canvas[aria-label="Engine driven map renderer canvas"]');
+        if (!canvas?.width || !canvas?.height) return false;
+        const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        const colors = new Set();
+        for (let y = 0; y < canvas.height; y += Math.max(1, Math.floor(canvas.height / 24))) {
+          for (let x = 0; x < canvas.width; x += Math.max(1, Math.floor(canvas.width / 24))) {
+            const i = (y * canvas.width + x) * 4;
+            colors.add(`${pixels[i]},${pixels[i+1]},${pixels[i+2]}`);
+          }
+        }
+        return colors.size > 12;
+      }, {}, {timeout:20000});
+    }
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `Mobile overflow: ${route}`);
     await page.screenshot({path: path.join(reports, `${route.slice(1)}-mobile.png`)});
     checks.push(`collapsed help present and keyboard accessible ${route}`);
+  }
+  for (const route of ['/guides', '/jobs-marriage', '/playthrough-guide', '/world-map']) {
+    await page.goto(base + route);
+    await page.waitForFunction(route => document.querySelector('#root')?.getAttribute('data-client-route') === route, route);
+    await page.locator('h1').first().waitFor();
+    assert.equal(await page.title(), getDocumentTitle(getSeoMeta(route).title));
+    if(route==='/playthrough-guide') {
+      await page.getByRole('heading', {name:'Your first step',exact:true}).waitFor();
+      assert.equal(await page.getByText('Could not load the guide.',{exact:true}).count(), 0);
+      assert.equal(await page.getByRole('link', {name:'Open Survey Calculator',exact:true}).getAttribute('href'), '/survey');
+    }
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `Mobile overflow: ${route}`);
+    await page.screenshot({path: path.join(reports, `${route.slice(1)}-mobile.png`)});
+    checks.push(`clear title, heading and mobile layout ${route}`);
   }
   await page.goto(base);
   await page.waitForFunction(() => document.querySelector('#root')?.hasAttribute('data-client-route') && document.querySelector('h1'));

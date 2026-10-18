@@ -110,6 +110,9 @@ try {
           return {html:root.innerHTML,text:(root.querySelector('main') ?? root).textContent || ''};
         });
         if(snapshot.text.trim().length<50) throw Error(`No useful page content: ${item.source}`);
+        if(item.source==='/playthrough-guide' && (!/<h2\b/.test(snapshot.html) || snapshot.text.includes('Could not load the guide.'))) {
+          throw Error('Playthrough guide content did not load; refusing to publish an error as the guide');
+        }
         // Replace only the root. Correct metadata and asset references remain
         // the output of the shared SEO generator and Vite build.
         const cleanDoc=item.doc.replace(/<div id="root"[^>]*>[^]*?<\/div>\s*<\/body>/,'<div id="root"></div>\n  </body>');

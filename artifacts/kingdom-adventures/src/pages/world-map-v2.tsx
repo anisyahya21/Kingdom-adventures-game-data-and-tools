@@ -1,6 +1,8 @@
 import { lazy, Suspense, useState } from "react";
 import RuntimeWorldGridTestPage from "@/pages/runtime-world-grid-test";
 import RuntimeWorldRenderTestPage from "@/pages/runtime-world-render-test";
+import { PageHeader } from "@/components/ka/page-header";
+import { ToolHelp } from "@/components/ka/tool-help";
 
 const TileMapPage = lazy(() => import("@/pages/world-map"));
 
@@ -13,10 +15,14 @@ export default function WorldMapV2Page() {
 
   return (
     <div className="mx-auto max-w-[2400px] px-4 py-4">
-      <div className="text-xs leading-relaxed text-muted-foreground">
-        work in progress...
-        <br />
-        Map with full terrain, facility locations, resource spawns and map chip.
+      <PageHeader title="Kingdom Adventurers World Map">
+        <p>Explore terrain, area levels, facilities and resources in isometric or top view. Work in progress.</p>
+      </PageHeader>
+      <div className="mt-3">
+        <ToolHelp title="Map views and planning tools">
+          <p>Switch between isometric and top-view maps. Use Show levels to check areas and the layer controls to choose which objects are visible.</p>
+          <p>To plan towns, plots and indoor facilities, open the <a href="/world-builder" className="underline underline-offset-2">World Builder</a>. For drawing and exploration annotations, use the <a href="/world-map" className="underline underline-offset-2">Tile Map</a>.</p>
+        </ToolHelp>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">

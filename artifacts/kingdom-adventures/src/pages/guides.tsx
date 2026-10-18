@@ -20,7 +20,7 @@ import {
 const BUILT_IN_GUIDE = {
   href: "/playthrough-guide",
   title: "Playthrough Guide by Jaza",
-  description: "Website-styled version of the community progression guide, with site links layered on top.",
+  description: "Progress from your first town to marriage, surveys and level 999 children.",
   badge: "Guide",
   note: "Community guide",
 };
@@ -128,7 +128,7 @@ export default function GuidesPage() {
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <PageHeader
         artworkKey="/guides"
-        title="Guides"
+        title="Kingdom Adventurers Guides"
         actions={(
           <Link href="/add-guide">
             <Button className="gap-2 self-start">
@@ -139,8 +139,7 @@ export default function GuidesPage() {
         )}
       >
         <p>
-          Community-written Kingdom Adventurers guides collected in one place, including progression advice,
-          playthrough notes, event planning, town development, jobs, equipment, pets, monsters, and strategy help.
+          Playthrough advice, resident stats and community guides, with links to the tools you need.
         </p>
       </PageHeader>
 
@@ -153,6 +152,7 @@ export default function GuidesPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <ToolNavigationCard href="/guides/stat-effects" title="Resident Stats" description="What to train for carrying, clearing fog and working around town." />
         <ToolNavigationCard href={BUILT_IN_GUIDE.href} title={BUILT_IN_GUIDE.title} description={BUILT_IN_GUIDE.description} detail={BUILT_IN_GUIDE.note} />
+        <ToolNavigationCard href="/jobs-marriage" title="Jobs, Ranks & Awakening" description="Job types, skill slots, level caps and awakening, with links to the marriage calculator." />
 
         {loading ? (
           <Card>

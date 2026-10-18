@@ -3,6 +3,9 @@ import { canonicalPath, isKnownPage } from "./seo-policy";
 
 export const SITE_URL = "https://kingdom-adventures-community-tools.vercel.app";
 export const SITE_NAME = "Kingdom Adventurers Community Tools";
+export function getDocumentTitle(title: string) {
+  return title.includes("Kingdom Adventurers") ? title : `${title} | ${SITE_NAME}`;
+}
 export const DEFAULT_DESCRIPTION =
   "Kingdom Adventurers tools, databases, guides, job stats, equipment exchange, shops, monsters, pets, events, maps, and calculators for planning stronger towns.";
 
@@ -22,12 +25,12 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     description: "Compare Kingdom Adventurers jobs by stats, battle type, skills, ranges, and weapon or shield access.",
   },
   "/jobs-marriage": {
-    title: "Kingdom Adventurers Jobs and Marriage Hub",
-    description: "Read a wiki-style Kingdom Adventurers jobs and marriage overview, then jump to Job Database and Match Finder tools.",
+    title: "Kingdom Adventurers Jobs, Ranks & Awakening Guide",
+    description: "Understand Kingdom Adventurers job types, ranks, skill slots, level caps and awakening. Open the job database or marriage calculator to plan residents.",
   },
   "/match-finder": {
-    title: "Kingdom Adventurers Match Finder",
-    description: "Find strong Kingdom Adventurers marriage matches and plan children, awakenings, and job pairings.",
+    title: "Kingdom Adventurers Marriage Calculator & Match Finder",
+    description: "Compare marriage compatibility, plan parent job pairings and simulate child stats and awakening in Kingdom Adventurers.",
   },
   "/equipment": {
     title: "Kingdom Adventurers Equipment Stats and Exchange",
@@ -165,15 +168,15 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     description: "Plan Kingdom Adventurers town rank progression, unlocks, requirements, and rewards.",
   },
   "/world-map": {
-    title: "Kingdom Adventurers World Map",
-    description: "Use the Kingdom Adventurers world map to plan exploration, monsters, rewards, and resources.",
+    title: "Kingdom Adventurers Tile Map & Annotation Tools",
+    description: "Explore the Kingdom Adventurers tile map, inspect locations and annotate exploration plans with drawing, road and deployment tools.",
   },
   "/world-map-v2": {
-    title: "Kingdom Adventurers World Map V2",
-    description: "View the work-in-progress Kingdom Adventurers isometric world map with terrain, facilities, resources, and map chip layers.",
+    title: "Kingdom Adventurers Interactive World Map: Levels & Resources",
+    description: "Explore Kingdom Adventurers terrain, area levels, facilities and resource locations in isometric or top view. Switch map layers and plan your next area.",
   },
   "/world-builder": {
-    title: "Kingdom Adventurers World Builder",
+    title: "Kingdom Adventurers World Builder & Town Layout Planner",
     description: "Plan towns, land plots and indoor facilities on the world map. Save your kingdom in your browser.",
   },
   "/map-2-testing": {
@@ -185,8 +188,8 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     description: "Test base terrain and nature or object composition in an isolated lab with offsets, anchors, source modes, and draw order controls.",
   },
   "/guides": {
-    title: "Kingdom Adventurers Guides",
-    description: "Read Kingdom Adventurers guides, community notes, playthrough help, and strategy resources.",
+    title: "Kingdom Adventurers Guides: Progression, Jobs & Resident Stats",
+    description: "Find Jaza's Kingdom Adventurers playthrough, the jobs and awakening overview, resident stat explanations and community strategy guides.",
   },
   "/add-friends": {
     title: "Kingdom Adventurers Add Friends",
@@ -197,8 +200,8 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     description: "Manage your Kingdom Adventurers profile, equipment collection, characters, and valuables.",
   },
   "/playthrough-guide": {
-    title: "Kingdom Adventurers Playthrough Guide",
-    description: "Follow a Kingdom Adventurers playthrough guide with progression advice, planning tips, and strategy notes.",
+    title: "Kingdom Adventurers Progression & Playthrough Guide by Jaza",
+    description: "Follow Jaza's Kingdom Adventurers progression guide, from your first town and clearing fog to research, marriage, surveys and level 999 children.",
   },
   "/updates": {
     title: "Kingdom Adventurers Tool Updates",

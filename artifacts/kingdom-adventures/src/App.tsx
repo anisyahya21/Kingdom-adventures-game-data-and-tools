@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/app/app-shell";
 import { GlobalJobPreview } from "@/components/ka/global-job-preview";
-import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL, encodeCanonicalPath, getSeoMeta } from "@/app/seo";
+import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL, encodeCanonicalPath, getSeoMeta, getDocumentTitle } from "@/app/seo";
 import { isIndexablePage, isKnownPage } from "@/app/seo-policy";
 import { trackPageView } from "@/lib/analytics";
 import { startProfileAccountSync } from "@/lib/account-player-profile/sync";
@@ -104,7 +104,7 @@ function SeoManager() {
     const meta = getSeoMeta(pathname);
     const canonicalUrl = `${SITE_URL}${encodeCanonicalPath(meta.canonicalPath)}`;
     const imageUrl = `${SITE_URL}/opengraph.jpg`;
-    const title = meta.title.includes(SITE_NAME) ? meta.title : `${meta.title} | ${SITE_NAME}`;
+    const title = getDocumentTitle(meta.title);
 
     document.title = title;
     upsertMeta('meta[name="robots"]', () => {

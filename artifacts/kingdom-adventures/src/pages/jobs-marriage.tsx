@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ToolNavigationCard } from "@/components/ka/tool-navigation-card";
 import { Link } from "wouter";
 import { localSharedData } from "@/lib/local-shared-data";
+import { PageHeader } from "@/components/ka/page-header";
 
 type SharedJob = {
   category?: string;
@@ -45,6 +46,9 @@ export default function JobsMarriagePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
+      <PageHeader title="Jobs, Ranks & Awakening Guide">
+        <p>Understand Kingdom Adventurers residents, then use the job database or marriage calculator to plan your next characters.</p>
+      </PageHeader>
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className="space-y-3">
           <h2 className="text-base font-semibold">Tools</h2>

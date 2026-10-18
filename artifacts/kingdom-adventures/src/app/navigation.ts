@@ -47,9 +47,9 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Guides",
     children: [
-      { href: "/jobs-marriage", label: "Job overview" },
+      { href: "/jobs-marriage", label: "Jobs & Awakening" },
       { href: "/playthrough-guide", label: "Playthrough" },
-      { href: "/guides", label: "Tips tricks" },
+      { href: "/guides", label: "Guides & Tips" },
     ],
   },
   {

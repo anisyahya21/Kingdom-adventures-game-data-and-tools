@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { inflateRawSync } from "node:zlib";
-import { SITE_URL } from "../src/app/seo.ts";
+import { SITE_URL, getSeoMeta, getDocumentTitle } from "../src/app/seo.ts";
 
 const base = new URL(process.argv[2]);
 assert.equal(base.protocol,"https:");
@@ -20,6 +20,7 @@ const cases = [
   {path:"/houses?tab=facilities&search=Tool%20Workshop",canonical:"/houses",rendered:true},
   {path:"/monster-pet-stats",canonical:"/monster-pet-stats",rendered:true,help:true},
   {path:"/monster-xp",canonical:"/monster-xp",rendered:true,help:true},
+  ...['/guides','/jobs-marriage','/playthrough-guide','/match-finder','/world-map','/world-map-v2','/world-builder'].map(path=>({path,canonical:path,rendered:true,point5:true})),
   {path:"/monsters?monster=Skullene",status:308,redirect:"/monster-spawns?monster=Skullene"},
   {path:"/survey-planner?search=retained",status:308,redirect:"/survey?search=retained"},
   {path:"/skill",status:308,redirect:"/skills"},
@@ -94,6 +95,23 @@ try {
           assert.ok(!html.includes('data-search-summary'));
         }
         if(item.rendered) assert.ok(html.includes('data-prerendered-page='));
+        if(item.point5) {
+          const escape=value=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+          assert.ok(html.includes(`<title>${escape(getDocumentTitle(getSeoMeta(item.path).title))}</title>`));
+          assert.ok(html.includes('<h1'));
+          if(item.path==='/playthrough-guide') {
+            assert.ok(html.includes('Your first step'));
+            assert.ok(html.includes('Open Survey Calculator'));
+            assert.ok(!html.includes('Could not load the guide.'));
+          }
+          if(['/match-finder','/world-map-v2','/world-builder'].includes(item.path)) {
+            const details=html.match(/<details data-tool-help[^>]*>/)?.[0];
+            assert.ok(details);
+            assert.doesNotMatch(details,/\bopen(?:=|\s|>)/);
+            assert.ok(html.includes(item.path==='/match-finder' ? 'In Match Finder, add your available residents' : item.path==='/world-map-v2' ? 'Switch between isometric and top-view' : 'Choose Build to select'));
+          }
+          result.point5ContentPresent=true;
+        }
         if(item.help) {
           const details=html.match(/<details data-tool-help[^>]*>/)?.[0];
           assert.ok(details, 'Missing upfront help content');

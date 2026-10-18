@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { EntityLink } from "@/components/ka/entity-link";
 import { PageHeader } from "@/components/ka/page-header";
+import { ToolHelp } from "@/components/ka/tool-help";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { localSharedData } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
@@ -2898,14 +2899,22 @@ export default function MarriageMatcher() {
       <div className="max-w-5xl mx-auto px-4 py-10">
         <PageHeader
           icon={<Heart className="w-5 h-5 text-rose-500" />}
-          title="Match Finder & Marriage Sim"
+          title="Marriage Match Finder & Simulator"
           className="mb-6"
 
         >
           <p>
-            Find optimal Kingdom Adventures job pairings, simulate marriage outcomes, preview child stats, and browse full compatibility data.
+            Compare Kingdom Adventurers marriage pairings and simulate child jobs, stats and awakening.
           </p>
         </PageHeader>
+
+        <div className="mb-4">
+          <ToolHelp title="How to plan marriages with these tools">
+            <p>In Match Finder, add your available residents by job, rank and gender. Choose child targets in Planner Setup, calculate pairings, and lock pairs you want to keep.</p>
+            <p>Use Marriage Simulator to compare individual parents and preview child outcomes. The compatible-pairs reference lets you browse job combinations.</p>
+            <p>For the wider progression advice, read <a href="/playthrough-guide" className="underline underline-offset-2">Jaza's playthrough guide</a>. Check job stats and access in the <a href="/jobs" className="underline underline-offset-2">Job Database</a>.</p>
+          </ToolHelp>
+        </div>
 
         <div className="mb-4 rounded-lg border border-red-300 bg-red-50/70 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
           <strong className="text-foreground dark:text-red-200">Warning:</strong> marriage is forever in Kingdom Adventures. You cannot unmarry or divorce, so double-check pairs before committing in-game. Do not marry your Monarch until you completely understand the marriage mechanics, and it is strongly worth asking the community before committing to a Monarch marriage.
