@@ -130,7 +130,8 @@ export async function startDiscordAuth(link = false) {
     method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "x-ka-origin": window.location.origin },
     body: JSON.stringify({ link }),
   });
-  const payload = await response.json() as { url?: string; error?: string };
+  const payload = await response.json().catch(() => null) as { url?: string; error?: string } | null;
+  if (!payload) throw new Error(`Discord sign-in is temporarily unavailable (HTTP ${response.status}). Please try again.`);
   if (!response.ok || !payload.url) throw new Error(payload.error || "Could not start Discord login.");
   window.location.assign(payload.url);
 }

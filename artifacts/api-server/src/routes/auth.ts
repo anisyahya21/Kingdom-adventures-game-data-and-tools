@@ -1,6 +1,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { and, eq, gt, isNull } from "drizzle-orm";
+import { discordOAuthJson } from "../lib/discord-oauth";
 
 const router = Router();
 
@@ -1090,16 +1091,13 @@ router.get("/discord/callback", async (req, res) => {
     if (!claimed.length) throw new Error("Login already completed.");
     const code = String(req.query.code || "");
     if (!code || req.query.error) throw new Error("Discord login was cancelled. You can return to Profile.");
-    const response = await fetch("https://discord.com/api/oauth2/token", {
+    const access = await discordOAuthJson<{ access_token?: string }>("/oauth2/token", {
       method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ client_id: process.env.DISCORD_CLIENT_ID || "", client_secret: process.env.DISCORD_CLIENT_SECRET || "", grant_type: "authorization_code", code, redirect_uri: context.redirectUri || "" }),
-      signal: AbortSignal.timeout(15000),
     });
-    const access = await response.json() as { access_token?: string };
-    if (!response.ok || !access.access_token) throw new Error("Discord authorization failed. Please try again.");
-    const identityResponse = await fetch("https://discord.com/api/v10/users/@me", { headers: { Authorization: `Bearer ${access.access_token}` }, signal: AbortSignal.timeout(15000) });
-    const identity = await identityResponse.json() as { id?: string; username?: string; global_name?: string };
-    if (!identityResponse.ok || !identity.id || !/^\d+$/.test(identity.id)) throw new Error("Could not verify your Discord identity.");
+    if (!access.access_token) throw new Error("Discord authorization failed. Please start again from Profile.");
+    const identity = await discordOAuthJson<{ id?: string; username?: string; global_name?: string }>("/users/@me", { headers: { Authorization: `Bearer ${access.access_token}` } });
+    if (!identity.id || !/^\d+$/.test(identity.id)) throw new Error("Could not verify your Discord identity.");
     let userId: string;
     if (context.linkUserId) {
       await assertLinkSession(module, req, context);
