@@ -3,7 +3,7 @@ import { discordClientAuthorization, discordOAuthJson, discordRetryAfterSeconds,
 let status: "not-configured" | "checking" | "ready" | "cooldown" | "unavailable" = "not-configured";
 let checkedAt: string | null = null;
 let running = false;
-export function discordOAuthReadiness() { return { status, checkedAt, retryAfterSeconds: discordRetryAfterSeconds(), credentialsAndIdentityVerified: status === "ready" }; }
+export function discordOAuthReadiness() { return { status, checkedAt, transport: process.env.DISCORD_HTTP_RELAY_URL ? "vercel" : "direct", retryAfterSeconds: discordRetryAfterSeconds(), credentialsAndIdentityVerified: status === "ready" }; }
 
 // Discord documents this owner-only grant for testing. No website account is
 // created or linked, no reminders are sent, and the temporary token is revoked.

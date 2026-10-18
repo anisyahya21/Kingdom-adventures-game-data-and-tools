@@ -4,6 +4,9 @@
       "includeFiles": "api/{_battle_runtime/**,_battle_preview.py}",
       "maxDuration": 60,
       "memory": 1024
+    },
+    "api/discord-provider.js": {
+      "maxDuration": 30
     }
   },
   "routes": [
@@ -51,6 +54,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/ka-auth/discord-provider",
+      "destination": "/api/discord-provider"
+    },
     {
       "source": "/api/(.*)",
       "destination": "https://kingdom-adventures-game-data-and-tools.onrender.com/api/$1"

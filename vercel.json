@@ -12,6 +12,10 @@
   ],
   "rewrites": [
     {
+      "source": "/ka-auth/discord-provider",
+      "destination": "/api/discord-provider"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "https://kingdom-adventures-game-data-and-tools.onrender.com/api/$1"
     },

@@ -1082,7 +1082,7 @@ router.post("/discord/start", async (req, res) => {
 
 router.get("/discord/callback", async (req, res) => {
   const module = await getDbModule();
-  if (!module) { res.status(503).send("Account storage is unavailable. Please try again."); return; }
+  if (!module) { res.redirect(303, "/player-profile?signInError=unavailable"); return; }
   try {
     const state = String(req.query.state || "");
     const [challenge] = await module.db.select().from(module.authChallengesTable)
@@ -1120,12 +1120,14 @@ router.get("/discord/callback", async (req, res) => {
     res.redirect(context.returnTo || "/player-profile");
   } catch (error) {
     if (error instanceof DiscordOAuthRateLimitError) {
-      res.set("Retry-After", String(error.retryAfterSeconds)).status(429).type("text/plain").send(error.message);
+      res.set("Retry-After", String(error.retryAfterSeconds)).redirect(303, `/player-profile?signInError=cooldown&retryAt=${Date.now() + error.retryAfterSeconds * 1000}`);
       return;
     }
     // Do not expose provider tokens, DB errors or secrets to the browser.
-    const message = error instanceof Error && !('code' in error) ? error.message : "Could not link this Discord account. It may already belong to another account.";
-    res.status(400).type("text/plain").send(message);
+    const message = error instanceof Error ? error.message : "";
+    const reason = /already belongs|already belong|unlink your current/i.test(message) || (typeof error === "object" && error !== null && "code" in error && error.code === "23505") ? "conflict"
+      : /cancelled/i.test(message) ? "cancelled" : /expired|already completed|another browser|login changed/i.test(message) ? "expired" : "unavailable";
+    res.redirect(303, `/player-profile?signInError=${reason}`);
   }
 });
 

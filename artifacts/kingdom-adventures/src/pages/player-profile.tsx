@@ -29,6 +29,7 @@ import { useProfileAccountSync } from "@/lib/account-player-profile/sync";
 import { GameAccountPicker } from "@/components/ka/game-account-picker";
 
 import { ProfileAccountSettings } from "@/components/ka/profile-account-settings";
+import { ProfileSignInNotice } from "@/components/ka/profile-sign-in-notice";
 const EventReminderSettings = lazy(() => import("@/pages/event-reminder-app"));
 
 type EquipmentEntry = (typeof EQUIPMENT_CATALOG)[number];
@@ -222,6 +223,7 @@ export default function PlayerProfilePage() {
           {notificationsOpen ? "Manage event subscriptions and reminder delivery." : "Your characters, gear and valuables, shared with Loadout and Houses."}
         </p>
       </div>
+      <ProfileSignInNotice authenticated={auth.authenticated} />
       <div className="inline-flex rounded-lg border bg-muted/30 p-1" role="group" aria-label="Profile section">
         <Button variant={!notificationsOpen ? "secondary" : "ghost"} aria-pressed={!notificationsOpen} onClick={() => setNotificationsOpen(false)}>Profile & collection</Button>
         <Button variant={notificationsOpen ? "secondary" : "ghost"} aria-pressed={notificationsOpen} onClick={() => setNotificationsOpen(true)}>Notifications</Button>

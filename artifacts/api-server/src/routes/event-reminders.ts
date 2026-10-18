@@ -1,3 +1,4 @@
+import { discordApiFetch } from "../lib/discord-oauth";
 import { Router } from "express";
 import fs from "fs";
 import path from "path";
@@ -1190,7 +1191,7 @@ async function sendDiscordReminder(
   const botToken = process.env.DISCORD_BOT_TOKEN?.trim();
   if (!botToken) throw new Error("DISCORD_BOT_TOKEN is not configured");
 
-  const dmChannelResponse = await fetch("https://discord.com/api/v10/users/@me/channels", {
+  const dmChannelResponse = await discordApiFetch("/users/@me/channels", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1207,7 +1208,7 @@ async function sendDiscordReminder(
     throw new Error("Discord DM channel id missing");
   }
 
-  const response = await fetch(`https://discord.com/api/v10/channels/${encodeURIComponent(dmChannel.id)}/messages`, {
+  const response = await discordApiFetch(`/channels/${encodeURIComponent(dmChannel.id)}/messages`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1424,7 +1425,7 @@ async function exchangeDiscordOAuthCode(code: string) {
     redirect_uri: discordRedirectUri(),
   });
 
-  const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
+  const tokenResponse = await discordApiFetch("/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: tokenBody.toString(),
@@ -1444,7 +1445,7 @@ async function exchangeDiscordOAuthCode(code: string) {
     throw new Error("Discord OAuth did not return an access token.");
   }
 
-  const userResponse = await fetch("https://discord.com/api/v10/users/@me", {
+  const userResponse = await discordApiFetch("/users/@me", {
     headers: { Authorization: `Bearer ${tokenData.access_token}` },
   });
   if (!userResponse.ok) {
