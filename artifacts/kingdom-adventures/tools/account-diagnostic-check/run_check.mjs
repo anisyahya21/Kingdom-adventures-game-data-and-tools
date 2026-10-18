@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { ACCOUNT_DIAGNOSTIC_E3, exactAccountDiagnosticCase, sameOrderedSkillEvidence } from "../../src/game-data/account-diagnostic-evidence.ts";
+import { ACCOUNT_DIAGNOSTIC_E3, ACCOUNT_LIVE_BUILD_PILOT_E3, accountDiagnosticLabel, accountDiagnosticScenario, exactAccountDiagnosticCase, sameOrderedSkillEvidence } from "../../src/game-data/account-diagnostic-evidence.ts";
 
 function toBuild(testCase) {
   return {
     characterId: "local-test", characterName: "Fixture", jobName: testCase.job, rank: testCase.rank,
-    skills: ["Shield Resistance"],
+    skills: [...testCase.skills],
     picks: testCase.equipment.map((pick, index) => ({ slot: `slot-${index}`, item: pick.equipmentName, level: pick.level })),
     stats: { ...testCase.stats }, addedLevels: 0, requiredUpgrades: [],
   };
@@ -43,4 +43,30 @@ assert.equal(sameOrderedSkillEvidence([...expectedSkills].reverse(), baseCase.in
 assert.equal(sameOrderedSkillEvidence(expectedSkills, [1, ...baseCase.invocations.slice(1)], expectedSkills, baseCase.invocations), false,
   "invocation levels must match exactly");
 
-console.log("Account diagnostic exact-match checks passed (3 exact cases; stats, gear, encounter, identity and skill mismatches rejected).");
+const pilotCase = ACCOUNT_LIVE_BUILD_PILOT_E3.cases[0];
+const pilotBuild = toBuild(pilotCase);
+assert.equal(exactAccountDiagnosticCase(3, pilotBuild, 0), pilotCase, "exact pilot package must match its distinct cohort");
+assert.equal(ACCOUNT_LIVE_BUILD_PILOT_E3.auditedTraceCount, 3);
+assert.equal(exactAccountDiagnosticCase(3, { ...pilotBuild, skills: [] }, 0), pilotCase, "real planner carries only required equipment skills");
+assert.equal(exactAccountDiagnosticCase(3, { ...baseBuild, skills: ["Shield Resistance"] }, 0), baseCase, "original planner skill representation remains supported");
+assert.deepEqual(ACCOUNT_LIVE_BUILD_PILOT_E3.seeds.map(({ mathSeed, libSeed }) => [mathSeed, libSeed]), [[170200, 270200], [170201, 270201], [170202, 270202]]);
+assert.match(accountDiagnosticLabel(pilotCase), /^Failed pilot: DPS died before attacking the boss in 3\/3 modeled tests$/);
+assert.match(accountDiagnosticScenario(pilotCase), /Three seeds only/);
+assert.match(accountDiagnosticScenario(pilotCase), /not population reliability/);
+assert.equal(accountDiagnosticLabel(baseCase), "Fixed-support diagnostic: DPS survived 6/20", "existing survival label remains unchanged");
+assert.equal(accountDiagnosticScenario(baseCase), "Anonymized account diagnostic; 60 fixed browser-runtime runs across three exact builds. Fixed synthetic healer and four fodders; at most 10 Holy Herbs at 20% DPS MP using a 200-tick sample window; 0 potions; finite HP/MP. User team not measured. This conditional small-sample diagnostic does not change fixed-research reward averages or ranking.", "existing scenario caveat remains unchanged");
+
+for (const mutation of [
+  (build) => { build.stats.hp += 1; },
+  (build) => { build.picks[2].level -= 1; },
+  (build) => { build.picks[0].item = "A similarly statted item"; },
+  (build) => { build.skills[1] = "6-Hit Attack"; },
+]) {
+  const changed = structuredClone(pilotBuild);
+  mutation(changed);
+  assert.equal(exactAccountDiagnosticCase(3, changed, 0), null, "pilot must reject changed stats, gear, or skill identity");
+}
+assert.equal(exactAccountDiagnosticCase(4, pilotBuild, 0), null, "pilot must reject other encounters");
+assert.equal(exactAccountDiagnosticCase(3, pilotBuild, 1), null, "pilot must reject other genders");
+
+console.log("Account diagnostic exact-match checks passed (3 original cases unchanged; pilot exact match and cohort mismatch gates passed).");
