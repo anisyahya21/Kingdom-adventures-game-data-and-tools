@@ -7,7 +7,7 @@ import { matchHostedAccountCombatEvidence } from "../../src/game-data/hosted-acc
 import { localSharedData } from "../../src/lib/local-shared-data.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dataset = JSON.parse(await readFile(path.resolve(here, "../../public/hosted-account-evidence-v4.compact.json"), "utf8"));
+const dataset = JSON.parse(await readFile(path.resolve(here, "../../public/hosted-account-evidence-v5.compact.json"), "utf8"));
 const fixture = JSON.parse(await readFile(path.resolve(here, "../hosted-account-evidence-check/canonical-preparation-fixture.json"), "utf8"));
 const character = {
   id: fixture.loadout.id,

@@ -5,7 +5,7 @@ import { INVOCATION_LEVELS } from "@/lib/battle-team-draft";
 import type { ProfileGoalBuild } from "@/lib/profile-loadout-goal-planner";
 
 const BASE_URL = (import.meta as ImportMeta & { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/";
-const EVIDENCE_URL = `${BASE_URL}hosted-account-evidence-v4.compact.json`;
+const EVIDENCE_URL = `${BASE_URL}hosted-account-evidence-v5.compact.json`;
 const STAT_KEYS = ["hp", "mp", "vig", "atk", "def", "spd", "lck", "int", "dex", "gth", "mov", "hrt"] as const;
 const SLOT_ORDER: EquipmentSlotKey[] = ["weapon", "shield", "head", "body", "accessory"];
 const PLANNER_SLOT_TO_CANONICAL: Readonly<Record<string, EquipmentSlotKey>> = {
@@ -70,7 +70,7 @@ type HostedRecord = {
 
 export type HostedEvidenceDataset = {
   schema: "hosted-measured-combat-evidence-draft-3";
-  evidenceBankRevision: "v4";
+  evidenceBankRevision: "v5";
   records: HostedRecord[];
 };
 
@@ -196,7 +196,7 @@ function validRecord(value: unknown): value is HostedRecord {
 
 function validateDataset(value: unknown): HostedEvidenceDataset {
   if (!isRecord(value) || value.schema !== "hosted-measured-combat-evidence-draft-3" ||
-      value.evidenceBankRevision !== "v4" || !Array.isArray(value.records)) {
+      value.evidenceBankRevision !== "v5" || !Array.isArray(value.records)) {
     throw new Error("Hosted combat evidence has an unsupported schema.");
   }
   if (value.records.length === 0 || !value.records.every(validRecord)) {

@@ -1,0 +1,66 @@
+{
+  "fixtureVersion": 1,
+  "provenance": {
+    "sourcePanelSha256": "3125cf7c603935d51be023e0b9101e35beb0f84f1a0edb9f4b6d7dc28861a533",
+    "note": "Anonymized preparation fields from the strictly audited Samurai recipe panel; account identifiers, display name, traces, and full scenario omitted."
+  },
+  "encounterId": 3,
+  "statsAll12": {
+    "hp": 5084,
+    "mp": 1252,
+    "vig": 2483,
+    "atk": 1038,
+    "def": 2328,
+    "spd": 773,
+    "lck": 302,
+    "int": 23,
+    "dex": 13,
+    "gth": 20,
+    "mov": 22,
+    "hrt": 23
+  },
+  "loadout": {
+    "id": "samurai-fixture-character",
+    "name": "Anonymized Samurai canonical-preparation fixture",
+    "jobName": "Samurai",
+    "rank": "A",
+    "gender": 1,
+    "statLevels": {
+      "hp": 259,
+      "mp": 219,
+      "vig": 210,
+      "atk": 100,
+      "def": 142,
+      "spd": 95,
+      "lck": 94,
+      "int": 9,
+      "dex": 4,
+      "gth": 10,
+      "mov": 4,
+      "hrt": 8
+    },
+    "equipment": [
+      { "name": "S/ Blizzard Sword", "level": 99 },
+      { "name": "S/ Wairo Shield", "level": 99 },
+      { "name": "S/ Golden Headpiece", "level": 99 },
+      { "name": "A/ Royal Robe", "level": 90 },
+      { "name": "B/ Red Ribbon", "level": 19 }
+    ],
+    "skills": [
+      "Counter",
+      "7-Hit Attack",
+      "5-Hit Attack",
+      "4-Hit Attack",
+      "3-Hit Attack",
+      "2-Hit Attack"
+    ],
+    "skillInvocations": [0, 0, 0, 0, 0, 0],
+    "residentStatItems": {
+      "life": 4,
+      "wisdom": 5,
+      "vitality": 6,
+      "might": 6,
+      "resilience": 15
+    }
+  }
+}

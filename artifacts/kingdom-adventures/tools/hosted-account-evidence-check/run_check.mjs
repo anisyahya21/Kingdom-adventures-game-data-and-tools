@@ -10,8 +10,13 @@ import { prepareHostedAccountEvidenceInput } from "../../src/game-data/prepare-h
 import { localSharedData } from "../../src/lib/local-shared-data.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dataset = JSON.parse(await readFile(path.resolve(here, "../../public/hosted-account-evidence-v4.compact.json"), "utf8"));
-assert.equal(dataset.evidenceBankRevision, "v4", "the loader fixture uses the current hosted evidence bank");
+const dataset = JSON.parse(await readFile(path.resolve(here, "../../public/hosted-account-evidence-v5.compact.json"), "utf8"));
+const v4Dataset = JSON.parse(await readFile(path.resolve(here, "../../public/hosted-account-evidence-v4.compact.json"), "utf8"));
+assert.equal(dataset.evidenceBankRevision, "v5", "the loader fixture uses the current hosted evidence bank");
+assert.equal(dataset.records.length, 12);
+assert.equal(dataset.records.reduce((total, record) => total + record.sample.n, 0), 75);
+assert.deepEqual(dataset.records.slice(0, v4Dataset.records.length), v4Dataset.records,
+  "all v4 cohorts remain semantically unchanged at the front of v5");
 const prepFixture = JSON.parse(await readFile(path.resolve(here, "canonical-preparation-fixture.json"), "utf8"));
 const pajamas = dataset.records.filter((record) => record.cohortId.includes("pajamas"));
 assert.equal(pajamas.length, 2, "the two Pajamas five-run cohorts stay separately represented");
@@ -68,6 +73,20 @@ assert.equal(ribbon40.outcomeSummary.terminality.terminalByVerdictAndDeparture, 
 assert.equal(ribbon40.outcomeSummary.terminality.horizonCensored, 1);
 assert.match(ribbon40.outcomeSummary.callbackScope, /endpoint mean/,
   "the nonterminal Ribbon 40 run stays labeled as a finite-horizon endpoint");
+
+const samuraiRecords = dataset.records.filter((record) => record.build.job === "Samurai");
+assert.deepEqual(samuraiRecords.map(({ cohortId }) => cohortId), [
+  "samurai-blizzard-red-5", "samurai-scalpel-red-5", "samurai-scalpel-ribbon40-5",
+]);
+assert.equal(samuraiRecords.reduce((total, record) => total + record.sample.n, 0), 15,
+  "only the three new Samurai cohorts contribute the 15 appended rows");
+for (const record of samuraiRecords) {
+  const exact = matchHostedAccountCombatEvidence(dataset, queryFor(record));
+  assert.deepEqual(exact.map(({ cohortId }) => cohortId), [record.cohortId],
+    "each Samurai full package maps to only its own exact cohort");
+  assert.equal(exact[0].sample.n, 5);
+  assert.equal(exact[0].build.job, "Samurai");
+}
 
 for (const mutate of [
   (q) => { q.build.stats.dex += 1; },
@@ -192,4 +211,63 @@ await assert.rejects(() => prepareHostedAccountEvidenceInput({
   plannerSettings,
   policy,
 }));
+
+const samuraiFixture = JSON.parse(await readFile(path.resolve(here, "canonical-samurai-preparation-fixture.json"), "utf8"));
+const samuraiRecord = samuraiRecords[0];
+const samuraiLoadout = samuraiFixture.loadout;
+assert.equal(samuraiFixture.encounterId, samuraiRecord.scenario.encounterId);
+assert.deepEqual(samuraiFixture.statsAll12, samuraiRecord.build.statsAll12);
+const samuraiProfile = {
+  version: 1,
+  equipment: Object.fromEntries(samuraiLoadout.equipment.map(({ name, level }) => [name, level])),
+  characters: [{
+    id: samuraiLoadout.id,
+    jobName: samuraiLoadout.jobName,
+    rank: samuraiLoadout.rank,
+    gender: samuraiLoadout.gender,
+    statLevels: { ...samuraiLoadout.statLevels },
+  }],
+  valuables: { ...samuraiLoadout.residentStatItems },
+};
+const samuraiSlotLabel = { weapon: "Weapon", shield: "Shield", head: "Head", body: "Armor", accessory: "Accessory" };
+const samuraiBuild = {
+  characterId: samuraiLoadout.id,
+  characterName: samuraiLoadout.name,
+  jobName: samuraiLoadout.jobName,
+  rank: samuraiLoadout.rank,
+  skills: [...samuraiLoadout.skills],
+  picks: samuraiRecord.build.gear.map(({ slot, name, level }) => ({ slot: samuraiSlotLabel[slot], item: name, level })),
+  stats: { ...samuraiFixture.statsAll12 },
+  addedLevels: 0,
+  requiredUpgrades: [],
+};
+const samuraiSettings = { ...plannerSettings, encounterId: samuraiFixture.encounterId };
+const samuraiPreparation = await prepareHostedAccountEvidenceInput({
+  build: samuraiBuild,
+  profile: samuraiProfile,
+  sharedData: localSharedData,
+  plannerSettings: samuraiSettings,
+  policy,
+});
+assert.equal(samuraiPreparation.fingerprints.support, samuraiRecord.scenario.supportFingerprintSha256,
+  "canonical Samurai support preparation matches the measured fingerprint");
+assert.equal(samuraiPreparation.fingerprints.formation, samuraiRecord.scenario.formationFingerprintSha256,
+  "canonical Samurai formation matches the measured fingerprint");
+assert.equal(samuraiPreparation.fingerprints.encounter, samuraiRecord.scenario.encounterFingerprintSha256,
+  "canonical Samurai encounter preparation matches the measured fingerprint");
+assert.deepEqual(matchHostedAccountCombatEvidence(dataset, samuraiPreparation.lookupInput).map(({ cohortId }) => cohortId),
+  [samuraiRecord.cohortId], "the anonymized actual-Samurai fixture returns only its exact cohort");
+for (const mutate of [
+  (query) => { query.build.stats.atk += 1; },
+  (query) => { query.build.picks[0].level -= 1; },
+  (query) => { query.orderedSkills.push("Shield Resistance"); query.skillInvocations.push(0); },
+  (query) => { query.gender = 0; },
+  (query) => { query.encounterId += 1; },
+  (query) => { query.encounterFingerprintSha256 = "wrong"; },
+]) {
+  const changed = structuredClone(samuraiPreparation.lookupInput);
+  mutate(changed);
+  assert.deepEqual(matchHostedAccountCombatEvidence(dataset, changed), [],
+    "a changed Samurai tuple/setup cannot borrow a nearby cohort");
+}
 console.log("Hosted account evidence exact-match checks passed.");
