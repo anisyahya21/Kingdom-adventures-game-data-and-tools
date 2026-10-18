@@ -9,6 +9,7 @@ import { favoriteFingerprint, saveFarmingFavorite, useFarmingFavorites } from "@
 import { chestStrategyGoals, type ChestStrategyOption } from "@/lib/chest-strategy-targets";
 import { measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
 import { strategyMatchDeviation, type ProfileStrategyMatch } from "@/lib/profile-strategy-matches";
+import { compareFarmingDpsRank } from "@/lib/farming-dps-ranking";
 import type { ProfileGoalBuild } from "@/lib/profile-loadout-goal-planner";
 import type { PlayerProfile } from "@/lib/player-profile";
 
@@ -34,16 +35,18 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
         const fingerprint = favoriteFingerprint(build, profile);
         if (seen.has(`${match.id}:${fingerprint}`) || exactOnly && strategyMatchDeviation(variant, option) !== 0) return [];
         seen.add(`${match.id}:${fingerprint}`);
-        return [{ match: variant, build, option, fingerprint }];
+        const measured = measuredStrategyBuild(option.encounter, build.stats);
+        return [{ match: variant, build, option, fingerprint, measured, deviation: strategyMatchDeviation(variant, option) }];
       });
-    });
+    }).sort((a, b) => compareFarmingDpsRank({ id: a.match.id, measuredMean: a.measured?.mean ?? null, deviation: a.deviation }, { id: b.match.id, measuredMean: b.measured?.mean ?? null, deviation: b.deviation }));
   }, [matches, options, profile, exactOnly]);
   const firstRows = useMemo(() => {
     const first = new Map<string, (typeof rows)[number]>();
     for (const row of rows) if (!first.has(row.match.id)) first.set(row.match.id, row);
     return first;
   }, [rows]);
-  const availableMatches = (matches ?? []).filter((match) => firstRows.has(match.id));
+  const matchesById = new Map((matches ?? []).map((match) => [match.id, match]));
+  const availableMatches = [...firstRows.keys()].flatMap((id) => matchesById.has(id) ? [matchesById.get(id)!] : []);
   const pageCount = Math.max(1, Math.ceil(availableMatches.length / 25));
   const pageMatches = availableMatches.slice(page * 25, (page + 1) * 25);
   return <section aria-label="Recommended DPS builds" className="space-y-3" data-dps-results>
@@ -53,17 +56,18 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
     {notice && <p role="status" className="text-sm">{notice}</p>}
     {!busy && !error && matches !== null && rows.length === 0 && <p className="rounded-lg border p-4 text-sm text-muted-foreground">No {exactOnly ? "exact " : ""}build found for this setup. Try allowing gear upgrades or removing exclusions. An unfinished search does not prove a build is impossible.</p>}
     {rows.length > 0 && <div className="rounded-xl border bg-card p-4">
-      <p className="mb-3 text-xs text-muted-foreground">Choose one or more strategies, then create the character builds. Compare the tested strategies with the closest builds your profile can make. Scores below belong to the tested strategy, not a prediction for your character.</p>
-      <div className="overflow-x-auto"><table className="w-full text-left text-sm tabular-nums"><thead><tr className="border-b text-xs text-muted-foreground"><th scope="col" className="p-2">Pick</th><th scope="col" className="p-2">Tested strategy</th><th scope="col" className="p-2">Your closest build</th>{["Strategy avg", "Strategy best", "Trials", "Seed range"].map((label) => <th key={label} scope="col" className="whitespace-nowrap p-2 text-right">{label}</th>)}</tr></thead><tbody>{pageMatches.map((match) => {
+      <p className="mb-3 text-xs text-muted-foreground">Exact-stat averages use the fixed research team. Your account team’s survival, skills, and MP changes remain untested. Other builds rank by four-stat closeness; their rewards are unmeasured.</p>
+      <div className="overflow-x-auto"><table className="w-full text-left text-sm tabular-nums"><thead><tr className="border-b text-xs text-muted-foreground"><th scope="col" className="p-2">Pick</th><th scope="col" className="p-2">Tested target</th><th scope="col" className="p-2">Your build</th>{["Exact-stat evidence", "Target avg", "Target best", "Target n", "Target seeds"].map((label) => <th key={label} className="whitespace-nowrap p-2 text-right" scope="col">{label}</th>)}</tr></thead><tbody>{pageMatches.map((match) => {
         const found = firstRows.get(match.id)!;
         const build = found.build;
         const option = found.option;
         const exact = strategyMatchDeviation({ ...match, build }, option) === 0;
+        const measured = measuredStrategyBuild(option.encounter, build.stats);
         return <tr key={match.id} className="border-b border-border/40 last:border-0">
           <td className="p-2"><input aria-label={`Select strategy ${match.id}`} type="checkbox" className="h-4 w-4 accent-primary" checked={selected.includes(match.id)} onChange={(event) => { setSelected((old) => event.target.checked ? [...old, match.id] : old.filter((id) => id !== match.id)); }} /></td>
-          <td className="p-2"><div className="whitespace-nowrap text-xs">ATK {option.atk} · SPD {option.spd} · LCK {option.lck} · DEX {option.dex}</div><div className="mt-1 text-[11px] text-muted-foreground">Tested with the fixed research team</div></td>
-          <td className="p-2 text-xs"><div className="whitespace-nowrap font-medium">{build.jobName ?? profile?.characters.find((row) => row.id === build.characterId)?.jobName} · {build.rank ?? profile?.characters.find((row) => row.id === build.characterId)?.rank}</div><div className="mt-1 whitespace-nowrap text-[11px]">ATK {build.stats.atk} · SPD {build.stats.spd} · LCK {build.stats.lck} · DEX {build.stats.dex}</div><div className="mt-1 whitespace-nowrap text-[11px] text-muted-foreground">HP {build.stats.hp} · MP {build.stats.mp} · DEF {build.stats.def}</div><div className="mt-1 text-[11px] text-muted-foreground">{exact ? "Exact DPS stats · test your team" : "Different stats · your performance is unmeasured"}{!match.complete && " · closest found so far"}</div></td>
-          <td className="p-2 text-right font-medium">{option.mean.toFixed(2)}{option.n < 200 && <span className="mt-1 block whitespace-nowrap text-[10px] font-normal text-muted-foreground">Exploratory sample</span>}</td><td className="p-2 text-right">{option.highest}</td><td className="p-2 text-right">{option.n.toLocaleString()}</td><td className="whitespace-nowrap p-2 text-right text-xs">{option.seedRange?.length === 2 ? `${option.seedRange[0]}–${option.seedRange[1]}` : "Not recorded"}</td>
+          <td className="p-2"><div className="whitespace-nowrap text-xs">ATK {option.atk} · SPD {option.spd} · LCK {option.lck} · DEX {option.dex}</div><div className="mt-1 text-[11px] text-muted-foreground">Fixed research team · target evidence</div></td>
+          <td className="p-2 text-xs"><div className="whitespace-nowrap font-medium">{build.jobName ?? profile?.characters.find((row) => row.id === build.characterId)?.jobName} · {build.rank ?? profile?.characters.find((row) => row.id === build.characterId)?.rank}</div><div className="mt-1 whitespace-nowrap text-[11px]">ATK {build.stats.atk} · SPD {build.stats.spd} · LCK {build.stats.lck} · DEX {build.stats.dex}</div><div className="mt-1 whitespace-nowrap text-[11px] text-muted-foreground">HP {build.stats.hp} · MP {build.stats.mp} · DEF {build.stats.def}</div><div className="mt-1 text-[11px] text-muted-foreground">{measured ? "Exact stats measured with fixed research team" : `${exact ? "Exact target stats" : "Unmeasured · four-stat distance prioritized"}`}{!match.complete && " · closest found so far"}</div></td>
+          <td className="whitespace-nowrap p-2 text-right text-xs">{measured ? <><span className="font-medium">{measured.mean.toFixed(2)} avg</span><span className="mt-1 block text-[10px] text-muted-foreground">best {measured.highest} · n {measured.n}</span></> : <span className="text-muted-foreground">Unmeasured</span>}</td><td className="p-2 text-right font-medium">{option.mean.toFixed(2)}{option.n < 200 && <span className="mt-1 block whitespace-nowrap text-[10px] font-normal text-muted-foreground">Exploratory sample</span>}</td><td className="p-2 text-right">{option.highest}</td><td className="p-2 text-right">{option.n.toLocaleString()}</td><td className="whitespace-nowrap p-2 text-right text-xs">{option.seedRange?.length === 2 ? `${option.seedRange[0]}–${option.seedRange[1]}` : "Not recorded"}</td>
         </tr>;
       })}</tbody></table></div>
       <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3"><span className="text-xs text-muted-foreground">{availableMatches.length.toLocaleString()} strategies · page {page + 1} of {pageCount}</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>Previous</Button><Button variant="outline" size="sm" disabled={page + 1 >= pageCount} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}>Next</Button></div></div>

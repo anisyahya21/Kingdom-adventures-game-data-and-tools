@@ -48,6 +48,8 @@ import { downloadJson } from "@/lib/download-json";
 import { optimizerScenarioFilename, optimizerScenarioFromSetup } from "@/lib/strategy-optimizer-export";
 import { deleteAccountRoster, fetchAccountRosters, saveAccountRoster, type SavedRoster } from "@/lib/account-rosters";
 import { interactionCapabilities } from "@/lib/battle-interaction";
+import { readFarmingSimulationHandoff } from "@/lib/farming-planner";
+import { farmingResearchSupportLoadouts, applyFarmingResearchSupports } from "@/lib/farming-research-supports";
 import {
   BATTLE_TEAM_DRAFT_KEY,
   DEFAULT_CONSUMABLES,
@@ -89,6 +91,7 @@ import {
  */
 
 const transport: BattleScenarioTransport = startBrowserBattle;
+const FARMING_TEAM_BACKUP_KEY = "ka_battle_team_draft_before_farming_simulation";
 
 type PreviewState =
   | { status: "idle" }
@@ -162,6 +165,10 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
   const draft: BattleTeamDraft = useMemo(() => normalizeDraft(stored) ?? createDraft(ENCOUNTER_VARIANTS[0]?.id ?? 19), [stored]);
   const [sharedData, setSharedData] = useState<BuilderSharedData | null>(null);
   const [teamMessage, setTeamMessage] = useState<string | null>(null);
+  const [pendingFarmingHandoff, setPendingFarmingHandoff] = useState<ReturnType<typeof readFarmingSimulationHandoff>>(null);
+  const [hasFarmingBackup, setHasFarmingBackup] = useState(() => {
+    try { return Boolean(window.localStorage.getItem(FARMING_TEAM_BACKUP_KEY)); } catch { return false; }
+  });
   const [previewState, setPreviewState] = useState<PreviewState>({ status: "idle" });
   const [runState, setRunState] = useState<RunState>({ status: "idle" });
   const [battleSeconds, setBattleSeconds] = useState(900);
@@ -260,6 +267,19 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
   useEffect(() => {
     if (handoffRead.current) return;
     handoffRead.current = true;
+    const farmingHandoff = readFarmingSimulationHandoff();
+    if (farmingHandoff) {
+      if (farmingHandoff.placeholderSupports) {
+        setPendingFarmingHandoff(farmingHandoff);
+        setTeamMessage("Use this profile DPS with synthetic research supports? The healer has SPD 4456 and 10M MP; your DPS keeps its actual HP, MP and equipment. This replaces the simulator team and keeps a recoverable local backup.");
+      } else if (!farmingHandoff.startingRoster?.length) {
+        setTeamMessage("Farming Simulate needs a selected saved support roster. No roster was supplied, so your current simulator team remains unchanged.");
+      } else {
+        setPendingFarmingHandoff(farmingHandoff);
+        setTeamMessage("Farming Simulate is ready to replace the first character in your selected saved team with this DPS. Review and confirm before changing the current simulator team.");
+      }
+      return;
+    }
     const { payload, message } = readLoadoutHandoff();
     if (message) setTeamMessage(message);
     if (!payload || payload.loadoutIds.length === 0) return;
@@ -282,7 +302,7 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
 
   const conversion = useMemo(() => {
     if (!sharedData) return null;
-    return battleSetupFromLoadouts(loadoutsWithResidentValuables(draft.characters, deviceResidentValuables(deviceValuables)) as SavedLoadout[], sharedData, {
+    const result = battleSetupFromLoadouts(loadoutsWithResidentValuables(draft.characters, deviceResidentValuables(deviceValuables)) as SavedLoadout[], sharedData, {
       encounterId: draft.encounterId,
       tickLimit: battleSeconds * 20,
       holyHerbStock: consumables.holyHerbStock,
@@ -290,7 +310,12 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
       itemStock: consumables.itemStock,
       partyMax: draft.partyBonus === undefined ? undefined : 2 + draft.partyBonus,
     });
-  }, [sharedData, draft.characters, draft.encounterId, draft.partyBonus, deviceValuables, consumables, battleSeconds]);
+    if (draft.researchSupports && result.setup) {
+      const researchSetup = applyFarmingResearchSupports(result.setup);
+      return { ...result, setup: researchSetup, units: researchSetup.playerTeam.filter((unit) => unit.kind === "human"), provenance: [...result.provenance, { field: "playerTeam[1..5].parameters; partyLimit", origin: "RESEARCH_SYNTHETIC" as const, note: "Pinned synthetic research supports and six slots; profile DPS parameters and gear are unchanged. Not account-owned support stats." }] };
+    }
+    return result;
+  }, [sharedData, draft.characters, draft.encounterId, draft.partyBonus, draft.researchSupports, deviceValuables, consumables, battleSeconds]);
 
   const issues = useMemo(() => {
     if (conversion) return conversion.issues;
@@ -340,6 +365,52 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
     setStored((current) => ({ ...(normalizeDraft(current) ?? draft), characters: next }));
     setPreviewState({ status: "idle" });
     setRunState({ status: "idle" });
+  };
+
+  const applyFarmingHandoff = () => {
+    if (!pendingFarmingHandoff || (!pendingFarmingHandoff.placeholderSupports && pendingFarmingHandoff.startingRoster?.length !== 6)) {
+      setTeamMessage("The selected saved roster must contain exactly six characters before Farming Simulate can replace its DPS slot.");
+      setPendingFarmingHandoff(null);
+      return;
+    }
+    try {
+      if (!window.localStorage.getItem(FARMING_TEAM_BACKUP_KEY)) window.localStorage.setItem(FARMING_TEAM_BACKUP_KEY, JSON.stringify(draft));
+    } catch {
+      setTeamMessage("Could not save a recoverable copy of the current team, so Farming Simulate made no changes.");
+      setPendingFarmingHandoff(null);
+      return;
+    }
+    const supportLoadouts = pendingFarmingHandoff.placeholderSupports ? farmingResearchSupportLoadouts() : pendingFarmingHandoff.startingRoster!.slice(1);
+    const supportCharacters = supportLoadouts.map((character, index) => draftCharacterFromLoadout(character, index + 2));
+    const dps = draftCharacterFromLoadout(pendingFarmingHandoff.loadout, 1);
+    setStored({
+      schema: "ka-battle-team-draft-1",
+      encounterId: pendingFarmingHandoff.encounterId,
+      characters: [dps, ...supportCharacters],
+      ...(pendingFarmingHandoff.placeholderSupports ? { researchSupports: "fixed-spd4456-v1" as const, partyBonus: 4 } : pendingFarmingHandoff.partyBonus === undefined ? {} : { partyBonus: pendingFarmingHandoff.partyBonus }),
+      consumables: pendingFarmingHandoff.consumables,
+    });
+    setPendingFarmingHandoff(null);
+    setHasFarmingBackup(true);
+    setTeamMessage(pendingFarmingHandoff.placeholderSupports ? "Profile DPS with synthetic research supports loaded. DPS MP is finite; research-support values and six party slots are assumptions. The previous simulator team can be restored." : "Farming team loaded: the selected roster's first character was replaced by the profile DPS. The prior simulator team can be restored.");
+    setPreviewState({ status: "idle" });
+    setRunState({ status: "idle" });
+  };
+
+  const restoreFarmingBackup = () => {
+    try {
+      const raw = window.localStorage.getItem(FARMING_TEAM_BACKUP_KEY);
+      const backup = raw ? normalizeDraft(JSON.parse(raw)) : null;
+      if (!backup) return;
+      setStored(backup);
+      window.localStorage.removeItem(FARMING_TEAM_BACKUP_KEY);
+      setHasFarmingBackup(false);
+      setTeamMessage("Restored the simulator team saved before Farming Simulate.");
+      setPreviewState({ status: "idle" });
+      setRunState({ status: "idle" });
+    } catch {
+      setTeamMessage("Could not restore the saved simulator team.");
+    }
   };
 
   const setConsumables = (next: DraftConsumables) => {
@@ -410,6 +481,7 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
   };
 
   const saveToAccount = async (roster?: SavedRoster) => {
+    if (!roster && draft.researchSupports) return;
     const name = roster?.name ?? rosterName.trim();
     if (!name || (!roster && draft.characters.length === 0) || accountBusy) return;
     setAccountBusy(true);
@@ -585,14 +657,14 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
 
       <TeamFormation characters={draft.characters} setup={errors.length === 0 ? setup : null} data={sharedData} preview={preview} previewStatus={previewState.status} />
 
-      <TeamSection
+      {draft.researchSupports ? <Card><CardHeader><CardTitle className="text-base">Profile DPS · research support team</CardTitle></CardHeader><CardContent className="space-y-2 text-sm"><p>{draft.characters[0]?.name}: actual profile gear, HP and MP; Counter and 7/5/4/3/2-Hit Attack at High, plus required equipment skills.</p><p>Synthetic healer: HP 18,000 · MP 10,000,000 · SPD 4,456 · Heal Maddy + Backup at High. Four fixed Scholar fodders; six party slots assumed.</p><p className="text-xs text-muted-foreground">Support parameters are fixed for this test. This is not your full account team or a prediction of its average. Choose another DPS in Build my DPS, or restore the previous team below.</p></CardContent></Card> : <TeamSection
         characters={draft.characters}
         data={sharedData}
         allSkills={allSkills}
         savedLoadouts={savedLoadouts}
         onSaveCharacter={saveCharacter}
         onChange={setCharacters}
-      />
+      />}
 
       <label className="flex flex-wrap items-center gap-2 rounded border px-3 py-2 text-sm">
         <span>Extra party slots from valuables</span>
@@ -608,8 +680,8 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <Input value={rosterName} onChange={(event) => setRosterName(event.target.value)} maxLength={80} placeholder="Loadout name" aria-label="Loadout name" className="min-h-11 min-w-0 flex-1 basis-44" />
-            <Button type="button" onClick={saveRoster} disabled={!rosterName.trim() || draft.characters.length === 0} className="min-h-11 gap-2"><Save className="h-4 w-4" />Save on device</Button>
-            <Button type="button" variant="outline" onClick={() => void saveToAccount()} disabled={accountStatus !== "ready" || accountBusy || accountRosters.length >= 20 || !rosterName.trim() || draft.characters.length === 0} className="min-h-11 gap-2"><Save className="h-4 w-4" />Save to account</Button>
+            <Button type="button" onClick={saveRoster} disabled={!!draft.researchSupports || !rosterName.trim() || draft.characters.length === 0} className="min-h-11 gap-2"><Save className="h-4 w-4" />Save on device</Button>
+            <Button type="button" variant="outline" onClick={() => void saveToAccount()} disabled={!!draft.researchSupports || accountStatus !== "ready" || accountBusy || accountRosters.length >= 20 || !rosterName.trim() || draft.characters.length === 0} className="min-h-11 gap-2"><Save className="h-4 w-4" />Save to account</Button>
             <Button type="button" variant="outline" onClick={() => downloadForOptimizer(rosterName.trim() || "Current team")} disabled={!setup} className="min-h-11 gap-2" title="Import this JSON with the desktop optimizer's Import Build button"><Download className="h-4 w-4" />Download team JSON</Button>
           </div>
           <p className="text-xs font-medium text-muted-foreground">On this device</p>
@@ -692,9 +764,14 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
       </Card>
 
       {teamMessage ? (
-        <p className="text-xs text-muted-foreground" data-team-message>
-          {teamMessage}
-        </p>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-team-message>
+          <span>{teamMessage}</span>
+          {pendingFarmingHandoff ? <>
+            <Button type="button" variant="outline" size="sm" onClick={() => { setPendingFarmingHandoff(null); setTeamMessage("Kept the current simulator team unchanged."); }}>Keep current team</Button>
+            <Button type="button" size="sm" onClick={applyFarmingHandoff}>Use farming team</Button>
+          </> : null}
+          {hasFarmingBackup ? <Button type="button" variant="outline" size="sm" onClick={restoreFarmingBackup}>Restore previous team</Button> : null}
+        </div>
       ) : null}
 
       <Card data-builder-issues>

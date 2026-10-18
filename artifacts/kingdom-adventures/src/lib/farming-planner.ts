@@ -1,4 +1,6 @@
 import { ENCOUNTER_VARIANTS } from "@/lib/battle-setup";
+import type { SavedLoadout } from "@/lib/battle-legality";
+import type { DraftCharacter, DraftConsumables } from "@/lib/battle-team-draft";
 
 export type FarmingPlannerSettings = {
   version: 1;
@@ -67,3 +69,55 @@ export function farmingConsumableStock(settings: FarmingPlannerSettings) {
 }
 
 export type FarmingSearchRequest = { id: number; settings: FarmingPlannerSettings };
+
+/** One-shot handoff from a farming result. The loadout is inline so Simulate never creates a
+ * duplicate saved character or depends on a storage write racing navigation. */
+export type FarmingSimulationHandoff = {
+  schema: "ka-farming-simulation-handoff-1";
+  loadout: SavedLoadout;
+  encounterId: number;
+  placeholderSupports: boolean;
+  allowConsumables: boolean;
+  consumables: DraftConsumables;
+  startingTeamId: string;
+  startingRoster?: DraftCharacter[];
+  partyBonus?: number;
+};
+
+export const FARMING_SIMULATION_HANDOFF_KEY = "ka_farming_simulation_handoff";
+
+export function farmingDpsSkills(requiredEquipmentSkills: string[] = []): string[] {
+  return [...new Set(["Counter", "7-Hit Attack", "5-Hit Attack", "4-Hit Attack", "3-Hit Attack", "2-Hit Attack", ...requiredEquipmentSkills])];
+}
+
+export function writeFarmingSimulationHandoff(
+  handoff: Omit<FarmingSimulationHandoff, "schema">,
+): boolean {
+  try {
+    window.sessionStorage.setItem(
+      FARMING_SIMULATION_HANDOFF_KEY,
+      JSON.stringify({ ...handoff, schema: "ka-farming-simulation-handoff-1" }),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Read and clear a pending one-shot handoff; malformed storage never leaks into another visit. */
+export function readFarmingSimulationHandoff(): FarmingSimulationHandoff | null {
+  try {
+    const raw = window.sessionStorage.getItem(FARMING_SIMULATION_HANDOFF_KEY);
+    window.sessionStorage.removeItem(FARMING_SIMULATION_HANDOFF_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<FarmingSimulationHandoff>;
+    if (value.schema !== "ka-farming-simulation-handoff-1" || !value.loadout ||
+        !Number.isInteger(value.encounterId) || typeof value.placeholderSupports !== "boolean" ||
+        typeof value.allowConsumables !== "boolean" || !value.consumables ||
+        typeof value.startingTeamId !== "string") return null;
+    if (value.startingRoster !== undefined && !Array.isArray(value.startingRoster)) return null;
+    return value as FarmingSimulationHandoff;
+  } catch {
+    return null;
+  }
+}

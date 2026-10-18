@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const APP = path.resolve(here, "..", "..");
 const WORKSPACE = path.resolve(APP, "..", "..", "..");
-const SHARED_JSON = path.join(WORKSPACE, "KA-Website", "artifacts", "api-server", "data", "ka_shared.json");
+const SHARED_JSON = process.env.KA_SHARED_JSON ?? path.resolve(APP, "..", "api-server", "data", "ka_shared.json");
 
 const { battleSetupFromLoadouts } = await import("@/lib/battle-legality");
 const { createDraft, normalizeDraft } = await import("@/lib/battle-team-draft");

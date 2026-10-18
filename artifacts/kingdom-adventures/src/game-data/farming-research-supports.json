@@ -1,0 +1,486 @@
+{
+  "schema": "ka-farming-research-supports-1",
+  "profileId": null,
+  "profileNote": "The prepared E3 template does not record a profileId; this is an explicitly synthetic support-only profile.",
+  "formationId": null,
+  "formationNote": "The template specifies inherited canonical formation but records no formationId.",
+  "encounterId": 3,
+  "source": {
+    "path": "A:\\KingdomAdventurersOptimizer\\runtime\\all20-tradeoff-validation-20261016-prep\\plans\\e3\\host\\template-intent.json",
+    "sha256": "dd57655526c902e2ae1462117bd84b07a228723ef17cea2fe24e91753dc119a0"
+  },
+  "note": "Synthetic support-only raw parameters copied from ownUnits[1..5] of the pinned E3 template. MP 10000000 appears only on the healer. No DPS unit or DPS raw parameters are included. This does not establish an account-team outcome.",
+  "units": [
+    {
+      "name": "Healer (representative Wizard S, assumed/editable)",
+      "parameters": {
+        "10": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 18000,
+          "rawValue": 18000,
+          "trainingLevel": 300
+        },
+        "11": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 10000000,
+          "rawValue": 10000000,
+          "trainingLevel": 300
+        },
+        "12": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 3000,
+          "rawValue": 3000,
+          "trainingLevel": 1
+        },
+        "13": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 3000,
+          "trainingLevel": 1
+        },
+        "14": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 3000,
+          "trainingLevel": 1
+        },
+        "15": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 4456,
+          "trainingLevel": 1
+        },
+        "16": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 3000,
+          "trainingLevel": 1
+        },
+        "18": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 3000,
+          "trainingLevel": 1
+        },
+        "19": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 3000,
+          "trainingLevel": 1
+        },
+        "20": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 3000,
+          "trainingLevel": 1
+        },
+        "21": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 3000,
+          "trainingLevel": 1
+        },
+        "22": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 3000,
+          "trainingLevel": 1
+        }
+      },
+      "skills": [
+        37,
+        107
+      ],
+      "invocationLevels": [
+        0,
+        0
+      ],
+      "equipment": [],
+      "weaponId": 0
+    },
+    {
+      "name": "Scholar Fodder 1",
+      "parameters": {
+        "10": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 150,
+          "rawValue": 150,
+          "trainingLevel": 20
+        },
+        "11": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 43,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "12": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 176,
+          "rawValue": 176,
+          "trainingLevel": 20
+        },
+        "13": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 46,
+          "trainingLevel": 20
+        },
+        "14": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 42,
+          "trainingLevel": 20
+        },
+        "15": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "16": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "18": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "19": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 91,
+          "trainingLevel": 20
+        },
+        "20": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 67,
+          "trainingLevel": 20
+        },
+        "21": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 72,
+          "trainingLevel": 20
+        },
+        "22": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 77,
+          "trainingLevel": 20
+        }
+      },
+      "skills": [],
+      "invocationLevels": [],
+      "equipment": [],
+      "weaponId": 0
+    },
+    {
+      "name": "Scholar Fodder 2",
+      "parameters": {
+        "10": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 150,
+          "rawValue": 150,
+          "trainingLevel": 20
+        },
+        "11": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 43,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "12": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 176,
+          "rawValue": 176,
+          "trainingLevel": 20
+        },
+        "13": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 46,
+          "trainingLevel": 20
+        },
+        "14": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 42,
+          "trainingLevel": 20
+        },
+        "15": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "16": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "18": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "19": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 91,
+          "trainingLevel": 20
+        },
+        "20": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 67,
+          "trainingLevel": 20
+        },
+        "21": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 72,
+          "trainingLevel": 20
+        },
+        "22": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 77,
+          "trainingLevel": 20
+        }
+      },
+      "skills": [],
+      "invocationLevels": [],
+      "equipment": [],
+      "weaponId": 0
+    },
+    {
+      "name": "Scholar Fodder 3",
+      "parameters": {
+        "10": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 150,
+          "rawValue": 150,
+          "trainingLevel": 20
+        },
+        "11": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 43,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "12": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 176,
+          "rawValue": 176,
+          "trainingLevel": 20
+        },
+        "13": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 46,
+          "trainingLevel": 20
+        },
+        "14": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 42,
+          "trainingLevel": 20
+        },
+        "15": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "16": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "18": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "19": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 91,
+          "trainingLevel": 20
+        },
+        "20": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 67,
+          "trainingLevel": 20
+        },
+        "21": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 72,
+          "trainingLevel": 20
+        },
+        "22": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 77,
+          "trainingLevel": 20
+        }
+      },
+      "skills": [],
+      "invocationLevels": [],
+      "equipment": [],
+      "weaponId": 0
+    },
+    {
+      "name": "Scholar Fodder 4",
+      "parameters": {
+        "10": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 150,
+          "rawValue": 150,
+          "trainingLevel": 20
+        },
+        "11": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 43,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "12": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 176,
+          "rawValue": 176,
+          "trainingLevel": 20
+        },
+        "13": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 46,
+          "trainingLevel": 20
+        },
+        "14": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 42,
+          "trainingLevel": 20
+        },
+        "15": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "16": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "18": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 43,
+          "trainingLevel": 20
+        },
+        "19": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 91,
+          "trainingLevel": 20
+        },
+        "20": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 67,
+          "trainingLevel": 20
+        },
+        "21": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 72,
+          "trainingLevel": 20
+        },
+        "22": {
+          "extraMax": 0,
+          "extraValue": 0,
+          "rawMax": 2147483647,
+          "rawValue": 77,
+          "trainingLevel": 20
+        }
+      },
+      "skills": [],
+      "invocationLevels": [],
+      "equipment": [],
+      "weaponId": 0
+    }
+  ]
+}

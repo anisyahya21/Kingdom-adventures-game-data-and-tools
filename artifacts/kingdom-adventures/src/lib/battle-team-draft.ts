@@ -48,6 +48,8 @@ export type BattleTeamDraft = {
    * run with 0 stock has nothing to click. Optional for older drafts.
    */
   consumables?: DraftConsumables;
+  /** Explicit synthetic support parameters; the profile DPS remains unmodified. */
+  researchSupports?: "fixed-spd4456-v1";
 };
 
 export type DraftConsumables = {
@@ -605,6 +607,8 @@ export function normalizeDraft(raw: unknown): BattleTeamDraft | null {
       ? { partyBonus: candidate.partyBonus }
       : {}),
     consumables: normalizeConsumables(candidate.consumables),
+    ...(candidate.researchSupports === "fixed-spd4456-v1" && characters.length === 6
+      ? { researchSupports: "fixed-spd4456-v1" as const } : {}),
   };
 }
 

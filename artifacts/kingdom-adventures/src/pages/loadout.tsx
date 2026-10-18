@@ -1,6 +1,5 @@
 import { FarmingDpsResults } from "@/components/ka/farming-dps-results";
-import { farmingConsumableStock, type FarmingSearchRequest } from "@/lib/farming-planner";
-import { BATTLE_TEAM_DRAFT_KEY, BATTLE_TEAM_DRAFT_SCHEMA } from "@/lib/battle-team-draft";
+import { farmingConsumableStock, farmingDpsSkills, writeFarmingSimulationHandoff, type FarmingSearchRequest } from "@/lib/farming-planner";
 import type { SavedRoster } from "@/lib/account-rosters";
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
@@ -2114,7 +2113,7 @@ function ProfileGoalSearchPanel({
   const [researchTarget, setResearchTarget] = useState<ChestStrategyOption | null>(null);
   const [researchComparisonOptions, setResearchComparisonOptions] = useState<ChestStrategyOption[]>([]);
   const [, setResearchBankLoaded] = useState<number | null>(null);
-  useEffect(() => { setProfileMatches(null); setVariantChecks({}); resetSearch(); }, [liveProfile, strategyFamily, strategyDifficulty, allowEquipmentLevelUp]);
+  useEffect(() => { setProfile(liveProfile); setProfileMatches(null); setVariantChecks({}); resetSearch(); }, [liveProfile, strategyFamily, strategyDifficulty, allowEquipmentLevelUp]);
   const [showAllTargets, setShowAllTargets] = useState(false);
   const [pageBuilds, setPageBuilds] = useState<ProfileGoalBuild[]>([]);
   const [searchLimited, setSearchLimited] = useState(false);
@@ -3657,7 +3656,6 @@ export default function LoadoutPage({ view = "builder", farmingRequest }: { view
   const [, navigate] = useLocation();
   const [buildDestination, setBuildDestination] = useState<{ id: string; simulator: boolean } | null>(null);
   const { loadouts, save } = usePrivateLoadouts();
-  const [, setFarmingDraft] = useLocalFeature<unknown>(BATTLE_TEAM_DRAFT_KEY, null);
   const [farmingRosters] = useLocalFeature<SavedRoster[]>("ka_battle_rosters", []);
   // usePrivateLoadouts persists its update in an earlier effect. Transfer only after
   // that commit so the simulator can resolve the newly saved character by ID.
@@ -3716,12 +3714,31 @@ export default function LoadoutPage({ view = "builder", farmingRequest }: { view
     if (farmingRequest && destination === "simulator") {
       const settings = farmingRequest.settings;
       const roster = Array.isArray(farmingRosters) ? farmingRosters.find((roster) => roster.id === settings.startingTeamId) : undefined;
-      setFarmingDraft((previous: unknown) => {
-        const old = previous && typeof previous === "object" ? previous as Record<string, unknown> : {};
-        return { ...old, schema: BATTLE_TEAM_DRAFT_SCHEMA, encounterId: settings.encounterId,
-          ...(roster ? { characters: roster.characters, partyBonus: roster.partyBonus } : {}),
-          consumables: farmingConsumableStock(settings) };
+      if (!settings.placeholderSupports && (!roster || roster.characters.length !== 6)) {
+        setProfileImportNotice("Simulate requires the selected starting roster to contain exactly six characters. Choose a six-character roster; no simulator team or saved character was changed.");
+        return;
+      }
+      // Keep required equipment mastery: dropping it can change affinity and the displayed stats.
+      const simulationSkills = farmingDpsSkills(newLoadout.skills);
+      if (simulationSkills.length > 9) {
+        setProfileImportNotice("This build needs more than nine skills with the farming attacks. Choose another equipment variant.");
+        return;
+      }
+      const handoffWritten = writeFarmingSimulationHandoff({
+        loadout: { ...newLoadout, skills: simulationSkills, skillInvocations: simulationSkills.map(() => 0) },
+        encounterId: settings.encounterId,
+        placeholderSupports: settings.placeholderSupports,
+        allowConsumables: settings.allowConsumables,
+        consumables: farmingConsumableStock(settings),
+        startingTeamId: settings.startingTeamId,
+        ...(roster ? { startingRoster: roster.characters, ...(roster.partyBonus === undefined ? {} : { partyBonus: roster.partyBonus }) } : {}),
       });
+      if (!handoffWritten) {
+        setProfileImportNotice("Simulate could not start because this browser blocked the one-shot handoff; no character or team was changed.");
+        return;
+      }
+      navigate("/combat/multi-box/simulator");
+      return;
     }
     save([...loadouts, newLoadout]);
     setExpandedId(newLoadout.id);
