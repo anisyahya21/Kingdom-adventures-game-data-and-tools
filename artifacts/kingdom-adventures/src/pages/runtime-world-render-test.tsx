@@ -1,3 +1,4 @@
+import { MapSceneLayer, type MapSceneDraw } from "@/components/ka/map-scene-layer";
 import { placementAtViewportCenter } from '@/lib/map-placement';
 import { createResourceCache } from "@/lib/resource-cache";
 import { zoomAt, wheelZoomFactor } from '@/lib/map-camera';
@@ -248,6 +249,8 @@ export type RuntimeCellHighlightOverlay = {
 
 type RuntimeWorldRenderTestPageProps = {
   /** Optional editor layer; the public reference map has no editor state. */
+  drawSceneLayer?: MapSceneDraw;
+  animateScene?: boolean;
   drawEditorLayer?: (context: CanvasRenderingContext2D, camera: CameraState, width: number, height: number) => void;
   onTerrainReady?: (land: Set<string>) => void;
   editorCellPicking?: boolean;
@@ -831,6 +834,8 @@ function UnverifiedRuntimeWorldRenderTestPage({
   onEditorLine,
   editorLineAllowed,
   onEditorObjectClick,
+  drawSceneLayer,
+  animateScene = false,
   fillHeight = false,
   publicMode = false,
   initialZoom = 0.65,
@@ -2803,6 +2808,7 @@ function UnverifiedRuntimeWorldRenderTestPage({
           onClick={onCanvasClick}
           aria-label="Engine driven map renderer canvas"
         />
+        {drawSceneLayer && <MapSceneLayer camera={camera} draw={drawSceneLayer} animate={animateScene} />}
         {/* GameForm.DrawOverlayTopAlpha 0x16be250: resGame2 SEB24/image27,
             original 120x165 image scaled to the viewport after the world pass.
             This fixed overlay is independent of the time-of-day lighting. */}

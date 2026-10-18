@@ -222,11 +222,11 @@ export function placementLimit(facilityId?:number):number|undefined {
 export function placedCount(items:BuilderItem[],facilityId:number) {
   return items.filter(i=>i.kind==='facility'&&i.facilityId===facilityId).length;
 }
-export function validatePlacement(item: BuilderItem, state: BuilderState, index: PlacementIndex): {error?:string; parentId?:string} {
+export function validatePlacement(item: BuilderItem, state: BuilderState, index: PlacementIndex, options: {ignoreAcquisitionLimit?: boolean} = {}): {error?:string; parentId?:string} {
   const footprint=cells(item);
   const max=placementLimit(item.facilityId);
   const moving=state.items.some(i=>i.id===item.id);
-  if(max!==undefined&&!moving&&placedCount(state.items,item.facilityId!)>=max)
+  if(!options.ignoreAcquisitionLimit&&max!==undefined&&!moving&&placedCount(state.items,item.facilityId!)>=max)
     return {error:`${itemName(item)} limit reached (${max}/${max}). Move or remove an existing one first.`};
   if(item.facilityId!==undefined&&!isManualFacility(item.facilityId)&&!state.items.some(i=>i.id===item.id))return {error:'This fixture is supplied by its plot and cannot be placed manually.'};
   if(footprint.some(c=>!inBounds(c))) return {error:'Stay inside the world map.'};

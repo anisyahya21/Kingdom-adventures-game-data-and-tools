@@ -1,0 +1,73 @@
+{
+  "status": "local review",
+  "deployed": false,
+  "date": "2026-10-18",
+  "head": "b2496463526839253bb3ce1da24335be1e566d85",
+  "build": "passed",
+  "typecheck": {
+    "baselineUnchanged": true,
+    "existingDiagnostics": 48,
+    "editedFileDiagnostics": 0
+  },
+  "checks": {
+    "existingLandPlannerScenarios": 21,
+    "connectedReclamationScenarios": 21,
+    "workspacePlacementLimit": "none; generation batch remains 1 to 7",
+    "multiSetupSaveRoundTrip": "passed with 14 stones",
+    "waterFixture": "no layout",
+    "viewFitAssertions": 7104,
+    "saveRoundTrips": 3,
+    "invalidSavesRejected": 8,
+    "mechanicsPreserved": [
+      "spawn origin",
+      "directional bounds",
+      "distance calculation",
+      "profile targets"
+    ]
+  },
+  "browser": {
+    "phoneWidths": [
+      320,
+      390
+    ],
+    "controlsOutsideMap": 0,
+    "horizontalOverflow": false,
+    "consoleErrors": 0,
+    "verified": [
+      "Simple generation flow: area level, stone count, Generate",
+      "9999 with seven stones renders the complete scene immediately",
+      "Selected-area header uses its own count; generation flow has no setup dropdown or stage guide",
+      "3200 and 9999 seven-stone setups coexist on one map",
+      "manually confirmed fifteenth stone then undid it",
+      "Go to setup preserves both areas and marker positions",
+      "generation and alternatives update only the target area's setup",
+      "multi-setup workspace survives reload",
+      "native stone sprite selection exposes Move and Remove",
+      "connected reclamation replaces superseded existing-land-only restriction",
+      "3200 typed without Enter enables generation",
+      "3200 seven stones uses 61 boards and no reclamation",
+      "Stones / Boards / Ally guide stages",
+      "removed board highlighted as one uncovered tile",
+      "Fill missing boards repairs coverage",
+      "guide dimensions reserved by responsive camera fitting",
+      "1/3/7 stone generation across local revisions",
+      "alternate layouts invalidated by changed input",
+      "invalid level blocks generation",
+      "visible sprite selection",
+      "blocked move rejected",
+      "valid move confirmed",
+      "undo move",
+      "saved layout survives reload",
+      "opacity control",
+      "native fighter selection",
+      "animation pause",
+      "zoom and focus"
+    ]
+  },
+  "limits": [
+    "Bounded compact-pattern search is experimental and not exhaustive or a native spawning or combat simulation.",
+    "Ally tile checks use connected original or planned reclaimed land and occupancy; player exploration and town boundaries must be checked in game.",
+    "Actor sprites illustrate positions; the monster is representative.",
+    "No original-game runtime validation or deployment is claimed."
+  ]
+}

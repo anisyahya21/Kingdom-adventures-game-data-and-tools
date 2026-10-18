@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "producedBy": "ka_slice.py",
+  "binary": "A:\\KingdomAdventurersOptimizer\\project\\RE-evidence\\G2.1\\39257e72291d\\inputs\\libil2cpp.so",
+  "binarySha256": "fb834373cb3bd1dc7dac941fcf94113f3b5123e033cf0a41d5e00c0656e30208",
+  "batches": [
+    "explicit addresses"
+  ],
+  "method": "Index extent from the linear sweep, disassembled from the frozen binary, trailing padding after the last `ret` trimmed. Call labels come from script.json; nothing is renamed or inferred.",
+  "limits": [
+    "The index extent is an upper bound; bodyEnd records where the listing actually stops.",
+    "A listing is generated text over original code. The authority is the binary hash plus the code hash per entry."
+  ],
+  "slices": [
+    {
+      "rva": "0x148bf40",
+      "name": "ecs.AISystem$$MoveStart",
+      "listing": "148bf40.asm",
+      "selection": "explicit addresses",
+      "fileOffset": "0x1487f40",
+      "indexExtent": [
+        "0x148bf40",
+        "0x148c2dc"
+      ],
+      "extentInstrs": 232,
+      "bodyEnd": "0x148c2b0",
+      "instrs": 220,
+      "endsWithReturn": false,
+      "truncated": false,
+      "extentIsUpperBound": true,
+      "codeBytes": 928,
+      "codeSha256": "425aaad28ec457bece7b7954c9363865f3a3a40dc38dbe8e6ad6578d15aa0912",
+      "currentCitations": 0,
+      "tier": "record-only"
+    },
+    {
+      "rva": "0x1496eac",
+      "name": "ecs.AISystem$$UpdateMonsterPatrol",
+      "listing": "1496eac.asm",
+      "selection": "explicit addresses",
+      "fileOffset": "0x1492eac",
+      "indexExtent": [
+        "0x1496eac",
+        "0x1497350"
+      ],
+      "extentInstrs": 298,
+      "bodyEnd": "0x149730c",
+      "instrs": 280,
+      "endsWithReturn": false,
+      "truncated": false,
+      "extentIsUpperBound": true,
+      "codeBytes": 1192,
+      "codeSha256": "49747106f144369b96141e6e125065def34c233d2f54f257069878da78bec0ae",
+      "currentCitations": 0,
+      "tier": "record-only"
+    },
+    {
+      "rva": "0x1498b94",
+      "name": "ecs.AISystem$$UpdateMonsterIdle",
+      "listing": "1498b94.asm",
+      "selection": "explicit addresses",
+      "fileOffset": "0x1494b94",
+      "indexExtent": [
+        "0x1498b94",
+        "0x1498eac"
+      ],
+      "extentInstrs": 199,
+      "bodyEnd": "0x1498eac",
+      "instrs": 198,
+      "endsWithReturn": false,
+      "truncated": false,
+      "extentIsUpperBound": true,
+      "codeBytes": 796,
+      "codeSha256": "d9d40b9063ad9e0492dd7a37adb5b7773859af21a913fed0e852560653bbb3cd",
+      "currentCitations": 0,
+      "tier": "record-only"
+    },
+    {
+      "rva": "0x1565f14",
+      "name": "ecs.EnemyBaseSystem$$CreateMonster",
+      "listing": "1565f14.asm",
+      "selection": "tier C from `ka_index.py gaps`",
+      "fileOffset": "0x1561f14",
+      "indexExtent": [
+        "0x1565f14",
+        "0x1566264"
+      ],
+      "extentInstrs": 213,
+      "bodyEnd": "0x1566260",
+      "instrs": 211,
+      "endsWithReturn": false,
+      "truncated": false,
+      "extentIsUpperBound": true,
+      "codeBytes": 852,
+      "codeSha256": "ffe80f08f7961109ac15aa9e7320333fe4612637126dc93a6a59c5333af7a537",
+      "currentCitations": 3,
+      "tier": "C"
+    },
+    {
+      "rva": "0x1566268",
+      "name": "ecs.EnemyBaseSystem$$GenerateMonsterFromEnemyGenerators",
+      "listing": "1566268.asm",
+      "selection": "tier C from `ka_index.py gaps`",
+      "fileOffset": "0x1562268",
+      "indexExtent": [
+        "0x1566268",
+        "0x15666c8"
+      ],
+      "extentInstrs": 281,
+      "bodyEnd": "0x15665cc",
+      "instrs": 217,
+      "endsWithReturn": false,
+      "truncated": false,
+      "extentIsUpperBound": true,
+      "codeBytes": 1124,
+      "codeSha256": "0ed0eca3dbc73afe91ea4cd67521dd000d45108f5449a666edc63b53b5231142",
+      "currentCitations": 3,
+      "tier": "C"
+    },
+    {
+      "rva": "0x15682c4",
+      "name": "ecs.EnemyBaseSystem$$OnChangeHour",
+      "listing": "15682c4.asm",
+      "selection": "explicit addresses",
+      "fileOffset": "0x15642c4",
+      "indexExtent": [
+        "0x15682c4",
+        "0x15686f8"
+      ],
+      "extentInstrs": 270,
+      "bodyEnd": "0x15685ec",
+      "instrs": 202,
+      "endsWithReturn": false,
+      "truncated": false,
+      "extentIsUpperBound": true,
+      "codeBytes": 1080,
+      "codeSha256": "2b3388a45237a37b71115ff238f5f3c6c0cc1c53898575875b8ab359470bdf55",
+      "currentCitations": 0,
+      "tier": "record-only"
+    }
+  ],
+  "skipped": []
+}

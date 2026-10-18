@@ -1,30 +1,84 @@
-import { builderDraws, drawBuilder } from '@/lib/world-builder-render';
-import { BUILDER_ASSETS, initialWorld, placementIndex, makeItem, type BuilderState } from '@/lib/world-builder';
-import { BuilderSpriteCache } from '@/lib/builder-sprite-cache';
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  stoneFootprint,
+  eastFrontSpawn,
+  stoneDirectionalBounds,
+  withinStoneDirectionalRange,
+  movementEnvelope,
+  cardinalStepsInRange,
+  getProfileTargets,
+} from "@/lib/chaos-rules";
+import {
+  findChaosLayouts,
+  completeChaosLayout,
+  resolveChaosLevel,
+  type ChaosPlannerContext,
+} from "@/lib/chaos-planner";
+import {
+  CHAOS_PLAN_KEY,
+  decodeChaosPlan,
+  encodeChaosPlan,
+  emptyChaosPlan,
+  type ChaosSetupGroup,
+} from "@/lib/chaos-plan";
+import { fitChaosSetup } from "@/lib/chaos-planner-view";
+import { builderDraws, hitBuilder } from "@/lib/world-builder-render";
+import {
+  BUILDER_ASSETS,
+  initialWorld,
+  placementIndex,
+  makeItem,
+  validatePlacement,
+  type BuilderState,
+} from "@/lib/world-builder";
+import { BuilderSpriteCache } from "@/lib/builder-sprite-cache";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Check, ChevronDown, Eraser, Shield, Skull } from "lucide-react";
-import RuntimeWorldRenderTestPage, { type RuntimeCellHighlightOverlay, type RuntimeExternalOverlay } from "./runtime-world-render-test";
-import { NATIVE_MAP, mapTerrainCodeToType, parseTerrainMapCsv, type TerrainType } from "@/lib/monster-truth";
-import { getCharacterPreviewEnvelope, renderCharacterPreview } from "@/lib/character-renderer";
+import {
+  X,
+  Plus,
+  Minus,
+  Undo2,
+  LocateFixed,
+  Eye,
+  HelpCircle,
+  Move,
+  Trash2,
+  Hammer,
+  Sparkles,
+  Users,
+} from "lucide-react";
+import { HUMAN_IDLE_CHARACTERS } from "@/lib/human-battle-idle";
+import { getMonsterSprite } from "@/lib/monster-sprites";
+import {
+  loadHumanSceneFrames,
+  loadSceneImage,
+  makeChaosScene,
+  type HumanSceneFrames,
+} from "@/lib/chaos-scene";
+import signboardSpriteUrl from "../../../../website_icons/facilities_confirmed/facility_068_info_board.png";
+import RuntimeWorldRenderTestPage, {
+  type RuntimeCellHighlightOverlay,
+} from "./runtime-world-render-test";
+import {
+  NATIVE_MAP,
+  mapTerrainCodeToType,
+  parseTerrainMapCsv,
+  type TerrainType,
+} from "@/lib/monster-truth";
 import fullTerrainCsv from "../data/full-terrain-map.csv?raw";
 import chaosStoneSpriteUrl from "../../../../website_icons/facilities_confirmed/facility_191_chaos_stone.png";
-import signboardSpriteUrl from "../../../../website_icons/facilities_confirmed/facility_068_info_board.png";
 
-type Tool = "none" | "stone" | "board" | "monster" | "unit" | "reclaim" | "erase";
+type Tool =
+  | "none"
+  | "stone"
+  | "board"
+  | "monster"
+  | "unit"
+  | "reclaim"
+  | "erase";
 type Piece = "stone" | "board";
 type DemoSeamMode = "auto" | "first" | "last";
 type ReclaimMode = "claim" | "unclaim";
-type AnchorScore = {
-  reclaimCount: number;
-  unreachable: number;
-  spread: number;
-  maxDistance: number;
-  totalDistance: number;
-  centerBias: number;
-};
 type ResultCycleState = {
   options: Point[][];
   index: number;
@@ -34,30 +88,30 @@ type ResultCycleState = {
 };
 
 type Point = { x: number; y: number };
+type SetupSnapshot = {
+  pieces: Map<string, Piece>;
+  paintedSea: Set<string>;
+  reclaimed: Set<string>;
+  monster: Point | null;
+  unit: Point | null;
+  area: Point | null;
+  groups: ChaosSetupGroup[];
+  activeGroup: string | null;
+};
 
 const FULL_TERRAIN_MAP = parseTerrainMapCsv(fullTerrainCsv);
 const ROWS = FULL_TERRAIN_MAP.length;
 const COLS = FULL_TERRAIN_MAP[0]?.length ?? 0;
-const TILE_PX_MAX = 10;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 14;
-const ZOOM_STEP = 0.25;
-const WORLD_MAP_WATER_COLOR = "#6d96db";
 const CHAOS_STONE_SPRITE = chaosStoneSpriteUrl;
-const SIGNBOARD_SPRITE = signboardSpriteUrl;
 const LEGENDARY_CAVE_FACILITY_ID = 196;
-const TOOL_BUTTON_BASE_CLASS = "flex h-10 w-10 items-center justify-center rounded-full border transition-colors";
-const TOOL_BUTTON_ACTIVE_CLASS = "border-cyan-300/70 bg-cyan-400/20 text-cyan-100";
-const TOOL_BUTTON_IDLE_CLASS = "border-border/60 bg-background/85 text-muted-foreground hover:border-cyan-300/60 hover:bg-cyan-400/10 hover:text-foreground";
-
-const TERRAIN_COLORS: Record<TerrainType, string> = {
-  grass: "#2f7d32",
-  sand: "#c6ad62",
-  volcano: "#b94f45",
-  swamp: "#2f7d73",
-  rock: "#8a8f98",
-  snow: "#a9c8dc",
-  ground: "#a87b1d",
+const VISIBLE_MAP_FACILITIES = [LEGENDARY_CAVE_FACILITY_ID];
+const HIDDEN_MAP_NATURE = {
+  terrain: false,
+  resources: false,
+  humans: false,
+  special: false,
 };
 
 function terrainAt(x: number, y: number): TerrainType | undefined {
@@ -65,7 +119,10 @@ function terrainAt(x: number, y: number): TerrainType | undefined {
 }
 
 function getNativeIndex(index: number, cellCount: number, nativeCount: number) {
-  return Math.min(nativeCount - 1, Math.floor((index * nativeCount) / cellCount));
+  return Math.min(
+    nativeCount - 1,
+    Math.floor((index * nativeCount) / cellCount),
+  );
 }
 
 function levelAt(x: number, y: number): number | undefined {
@@ -92,80 +149,14 @@ function inside(x: number, y: number) {
   return x >= 0 && y >= 0 && x < COLS && y < ROWS;
 }
 
-function stoneFootprint(anchor: Point): Point[] {
-  const { x, y } = anchor;
-  return [
-    { x, y },
-    { x: x + 1, y },
-    { x, y: y + 1 },
-    { x: x + 1, y: y + 1 },
-  ];
-}
-
-function eastFrontSpawn(anchor: Point): Point {
-  // Spawn origin is the south-east tile of the 2x2 stone footprint.
-  return { x: anchor.x + 1, y: anchor.y + 1 };
-}
-
-function stoneDirectionalBounds(anchor: Point) {
-  return {
-    minX: anchor.x - 2,
-    maxX: anchor.x + 5,
-    minY: anchor.y - 3,
-    maxY: anchor.y + 4,
-  };
-}
-
-function withinStoneDirectionalRange(anchor: Point, p: Point) {
-  const b = stoneDirectionalBounds(anchor);
-  return p.x >= b.minX && p.x <= b.maxX && p.y >= b.minY && p.y <= b.maxY;
-}
-
-function movementEnvelope(anchor: Point): Set<string> {
-  const b = stoneDirectionalBounds(anchor);
-  const out = new Set<string>();
-  for (let y = b.minY; y <= b.maxY; y += 1) {
-    for (let x = b.minX; x <= b.maxX; x += 1) {
-      if (inside(x, y)) out.add(keyOf(x, y));
-    }
-  }
-  return out;
-}
-
-function stepDistance(a: Point, b: Point) {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
-
-function cardinalStepsInRange(anchor: Point, from: Point, to: Point): number | null {
-  if (!inside(from.x, from.y) || !inside(to.x, to.y)) return null;
-  if (!withinStoneDirectionalRange(anchor, from) || !withinStoneDirectionalRange(anchor, to)) return null;
-  // Profile distance: cardinal movement only, without obstacle-routing bias.
-  return stepDistance(from, to);
-}
-
-function getProfileTargets(stoneCount: number) {
-  if (stoneCount <= 1) return { maxDistance: 4, maxSpread: 1 };
-  if (stoneCount === 2) return { maxDistance: 5, maxSpread: 1 };
-  if (stoneCount === 3) return { maxDistance: 6, maxSpread: 1 };
-  if (stoneCount === 4) return { maxDistance: 6, maxSpread: 1 };
-  if (stoneCount === 5) return { maxDistance: 7, maxSpread: 2 };
-  if (stoneCount === 6) return { maxDistance: 7, maxSpread: 2 };
-  return { maxDistance: 8, maxSpread: 3 };
-}
-
-function isSeaAtKey(key: string, baseSea: Set<string>, paintedSea: Set<string>, reclaimed: Set<string>) {
+function isSeaAtKey(
+  key: string,
+  baseSea: Set<string>,
+  paintedSea: Set<string>,
+  reclaimed: Set<string>,
+) {
   if (reclaimed.has(key)) return false;
   return baseSea.has(key) || paintedSea.has(key);
-}
-
-function compareAnchorScores(a: AnchorScore, b: AnchorScore) {
-  if (a.unreachable !== b.unreachable) return a.unreachable < b.unreachable ? -1 : 1;
-  if (a.reclaimCount !== b.reclaimCount) return a.reclaimCount < b.reclaimCount ? -1 : 1;
-  if (a.spread !== b.spread) return a.spread < b.spread ? -1 : 1;
-  if (a.maxDistance !== b.maxDistance) return a.maxDistance < b.maxDistance ? -1 : 1;
-  if (a.totalDistance !== b.totalDistance) return a.totalDistance < b.totalDistance ? -1 : 1;
-  if (a.centerBias !== b.centerBias) return a.centerBias < b.centerBias ? -1 : 1;
-  return 0;
 }
 
 function clampZoom(value: number) {
@@ -173,115 +164,212 @@ function clampZoom(value: number) {
 }
 
 export default function ChaosSetupLabPage() {
-  const mapViewportRef = useRef<HTMLDivElement | null>(null);
-  const mapGridRef = useRef<HTMLDivElement | null>(null);
-  const previousMapZoomRef = useRef<number>(1);
-  const [tool, setTool] = useState<Tool>("none");
-  const [placementMethod,setPlacementMethod]=useState<'direct'|'map'>(()=>{
-    try{return localStorage.getItem('ka-chaos-placement-method-v1')==='direct'?'direct':'map';}catch{return 'map';}
+  const [loadedPlan] = useState(() => {
+    try {
+      const saved = localStorage.getItem(CHAOS_PLAN_KEY);
+      return {
+        plan: saved ? decodeChaosPlan(saved) : emptyChaosPlan(),
+        error: "",
+      };
+    } catch {
+      return {
+        plan: emptyChaosPlan(),
+        error:
+          "Saved plan could not be loaded. The stored copy has been preserved.",
+      };
+    }
   });
-  useEffect(()=>{try{localStorage.setItem('ka-chaos-placement-method-v1',placementMethod);}catch{/* Placement still works without browser storage. */}},[placementMethod]);
+  const [saveError, setSaveError] = useState(loadedPlan.error);
+  const [setupGroups, setSetupGroups] = useState<ChaosSetupGroup[]>(
+    loadedPlan.plan.groups ?? [],
+  );
+  const [activeSetupId, setActiveSetupId] = useState<string | null>(
+    loadedPlan.plan.activeGroup ?? null,
+  );
+  const restoredFocus = useRef(false);
+  const mapCanvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const workspacePanelRef = useRef<HTMLElement | null>(null);
+  const mapPanelRef = useRef<HTMLDivElement | null>(null);
+  const [undoStack, setUndoStack] = useState<SetupSnapshot[]>([]);
+  const [tool, setTool] = useState<Tool>("none");
+  const [panel, setPanel] = useState<"plan" | "build" | "view" | "help" | null>(
+    "plan",
+  );
+  const [suggestedStoneCount, setSuggestedStoneCount] = useState<number | null>(
+    null,
+  );
+  const [buildStage, setBuildStage] = useState<
+    "all" | "land" | "stones" | "boards" | "ally"
+  >("all");
+  const [structureOpacity, setStructureOpacity] = useState(0.65);
+  const [animateActors, setAnimateActors] = useState(
+    () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  const [humanId, setHumanId] = useState("archer-c");
+  const [humanFrames, setHumanFrames] = useState<HumanSceneFrames | null>(null);
+  const [monsterImage, setMonsterImage] = useState<HTMLImageElement | null>(
+    null,
+  );
+  const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
+  const [movingPiece, setMovingPiece] = useState<string | null>(null);
+  const [zoomRequest, setZoomRequest] = useState<{
+    factor: number;
+    token: number;
+  } | null>(null);
+  const [assetError, setAssetError] = useState<string | null>(null);
   const [reclaimMode, setReclaimMode] = useState<ReclaimMode>("claim");
   const [showCoverageCheck, setShowCoverageCheck] = useState<boolean>(false);
-  const [demoStoneCount, setDemoStoneCount] = useState<number>(1);
-  const [demoAxis, setDemoAxis] = useState<"x" | "y">("x");
-  const [demoSeamMode, setDemoSeamMode] = useState<DemoSeamMode>("auto");
-  const [showDebugLabels, setShowDebugLabels] = useState<boolean>(false);
+  const [demoStoneCount, setDemoStoneCount] = useState<number>(() => {
+    const active = loadedPlan.plan.groups?.find(
+      (group) => group.id === loadedPlan.plan.activeGroup,
+    );
+    const count = active?.pieceKeys.filter(
+      (key) => loadedPlan.plan.pieces.get(key) === "stone",
+    ).length;
+    return Math.min(7, Math.max(1, count ?? 7));
+  });
+  const demoAxis = "x" as const;
+  const demoSeamMode = "auto" as const;
   const [showLevelOverlay, setShowLevelOverlay] = useState<boolean>(false);
   const [mapZoom, setMapZoom] = useState<number>(1);
-  const [pickSetupAreaFromMap, setPickSetupAreaFromMap] = useState<boolean>(false);
-  const [selectedSetupArea, setSelectedSetupArea] = useState<Point | null>(null);
-  const [nativeLand,setNativeLand]=useState<Set<string>|null>(null);
+  const [pickSetupAreaFromMap, setPickSetupAreaFromMap] =
+    useState<boolean>(false);
+  const [selectedSetupArea, setSelectedSetupArea] = useState<Point | null>(
+    loadedPlan.plan.area,
+  );
+  const [nativeLand, setNativeLand] = useState<Set<string> | null>(null);
+  const onTerrainReady = useCallback((land: Set<string>) => {
+    setNativeLand((previous) =>
+      previous?.size === land.size &&
+      [...land].every((key) => previous.has(key))
+        ? previous
+        : land,
+    );
+  }, []);
   const [hoverTile, setHoverTile] = useState<Point | null>(null);
-  const [locationInput, setLocationInput] = useState<string>("");
+  const [locationInput, setLocationInput] = useState<string>(() =>
+    loadedPlan.plan.area
+      ? String(levelAt(loadedPlan.plan.area.x, loadedPlan.plan.area.y) ?? "")
+      : "",
+  );
   const locationInputRef = useRef<HTMLInputElement | null>(null);
-  const levelPickerRef = useRef<HTMLDivElement | null>(null);
-  const [showLevelDropdown, setShowLevelDropdown] = useState<boolean>(false);
-  const [paintedSeaTiles, setPaintedSeaTiles] = useState<Set<string>>(() => new Set());
-  const [reclaimedTiles, setReclaimedTiles] = useState<Set<string>>(() => new Set());
-  const [pieces, setPieces] = useState<Map<string, Piece>>(() => new Map());
-  const [openMonsterTile, setOpenMonsterTile] = useState<Point | null>(null);
-  const [openUnitTile, setOpenUnitTile] = useState<Point | null>(null);
-  const [unitMarkerLayout,setUnitMarkerLayout]=useState<{width:number;height:number;offsetX:number;offsetY:number}|undefined>();
-  const [unitMarkerSpriteUrl, setUnitMarkerSpriteUrl] = useState<string | null>(null);
+  const [paintedSeaTiles, setPaintedSeaTiles] = useState<Set<string>>(
+    () => loadedPlan.plan.paintedSea,
+  );
+  const [reclaimedTiles, setReclaimedTiles] = useState<Set<string>>(
+    () => loadedPlan.plan.reclaimed,
+  );
+  const [pieces, setPieces] = useState<Map<string, Piece>>(
+    () => loadedPlan.plan.pieces,
+  );
+  const [openMonsterTile, setOpenMonsterTile] = useState<Point | null>(
+    loadedPlan.plan.monster,
+  );
+  const [openUnitTile, setOpenUnitTile] = useState<Point | null>(
+    loadedPlan.plan.unit,
+  );
   const [generatorError, setGeneratorError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [resultCycle, setResultCycle] = useState<ResultCycleState | null>(null);
-  const [nextResultAnimating, setNextResultAnimating] = useState<boolean>(false);
-  const [runtimeFocusCell, setRuntimeFocusCell] = useState<{ x: number; y: number; token: number } | null>(null);
-  const nextResultAnimationTimerRef = useRef<number | null>(null);
+  const [runtimeFocusCell, setRuntimeFocusCell] = useState<{
+    x: number;
+    y: number;
+    token: number;
+  } | null>(null);
 
   useEffect(() => {
-    if (!showLevelDropdown) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (!levelPickerRef.current) return;
-      const target = event.target as Node | null;
-      if (target && levelPickerRef.current.contains(target)) return;
-      setShowLevelDropdown(false);
-    };
-    window.addEventListener("mousedown", onPointerDown);
-    return () => window.removeEventListener("mousedown", onPointerDown);
-  }, [showLevelDropdown]);
+    if (loadedPlan.error) return;
+    try {
+      localStorage.setItem(
+        CHAOS_PLAN_KEY,
+        encodeChaosPlan({
+          pieces,
+          paintedSea: paintedSeaTiles,
+          reclaimed: reclaimedTiles,
+          monster: openMonsterTile,
+          unit: openUnitTile,
+          area: selectedSetupArea,
+          groups: currentGroups(),
+          activeGroup: activeSetupId,
+        }),
+      );
+      setSaveError("");
+    } catch {
+      setSaveError(
+        "Device storage is unavailable. Keep this tab open to preserve the layout.",
+      );
+    }
+  }, [
+    pieces,
+    paintedSeaTiles,
+    reclaimedTiles,
+    openMonsterTile,
+    openUnitTile,
+    selectedSetupArea,
+    loadedPlan.error,
+    setupGroups,
+    activeSetupId,
+  ]);
+  useEffect(() => {
+    if (!copyStatus) return;
+    const timer = window.setTimeout(() => setCopyStatus(null), 4500);
+    return () => window.clearTimeout(timer);
+  }, [copyStatus]);
+  useEffect(() => {
+    if (!nativeLand || restoredFocus.current) return;
+    restoredFocus.current = true;
+    if (loadedPlan.plan.pieces.size) {
+      const active = loadedPlan.plan.groups?.find(
+        (group) => group.id === loadedPlan.plan.activeGroup,
+      );
+      fitSetupView(
+        (active?.pieceKeys ?? [...loadedPlan.plan.pieces.keys()]).map(parseKey),
+        null,
+      );
+      setPanel("plan");
+    }
+  }, [nativeLand, loadedPlan]);
 
   useEffect(() => {
-    return () => {
-      if (nextResultAnimationTimerRef.current != null) {
-        window.clearTimeout(nextResultAnimationTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const previewCanvas = document.createElement("canvas");
-    const params={jobName:'Archer',rank:'A',variant:1,equipState:'right',scale:2,poseFrame:1} as const;
-    Promise.all([renderCharacterPreview(previewCanvas,params),getCharacterPreviewEnvelope(params)])
-      .then(([ok,envelope])=>{
-        if(cancelled||!ok||!envelope)return;
-        const pose=envelope.poseReferences[params.poseFrame]??{x:0,y:0};
-        setUnitMarkerLayout({width:envelope.cropW,height:envelope.cropH,offsetX:envelope.cropX-envelope.originX+pose.x,offsetY:envelope.cropY-envelope.originY+pose.y});
-        setUnitMarkerSpriteUrl(previewCanvas.toDataURL('image/png'));
+    let live = true;
+    const character = HUMAN_IDLE_CHARACTERS.find(
+      (item) => item.id === humanId,
+    )!;
+    setHumanFrames(null);
+    loadHumanSceneFrames(character)
+      .then((frames) => {
+        if (live) setHumanFrames(frames);
       })
       .catch(() => {
-        if (!cancelled) setUnitMarkerSpriteUrl(null);
+        if (live) setAssetError("Fighter art could not load. Reload to retry.");
       });
-
     return () => {
-      cancelled = true;
+      live = false;
+    };
+  }, [humanId]);
+  useEffect(() => {
+    let live = true;
+    const sprite = getMonsterSprite("Diamondoom")!;
+    loadSceneImage(
+      `${import.meta.env.BASE_URL}${sprite.src.replace(/^\//, "")}`,
+    )
+      .then((image) => {
+        if (live) setMonsterImage(image);
+      })
+      .catch(() => {
+        if (live) setAssetError("Monster art could not load. Reload to retry.");
+      });
+    return () => {
+      live = false;
     };
   }, []);
-
-  useEffect(() => {
-    const viewport = mapViewportRef.current;
-    const previousZoom = previousMapZoomRef.current;
-
-    if (!viewport || previousZoom === mapZoom) {
-      previousMapZoomRef.current = mapZoom;
-      return;
-    }
-
-    const centerXInBaseScale = (viewport.scrollLeft + viewport.clientWidth / 2) / Math.max(previousZoom, 0.01);
-    const centerYInBaseScale = (viewport.scrollTop + viewport.clientHeight / 2) / Math.max(previousZoom, 0.01);
-
-    requestAnimationFrame(() => {
-      const nextScrollLeft = centerXInBaseScale * mapZoom - viewport.clientWidth / 2;
-      const nextScrollTop = centerYInBaseScale * mapZoom - viewport.clientHeight / 2;
-      const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
-      const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
-
-      viewport.scrollLeft = Math.max(0, Math.min(maxScrollLeft, nextScrollLeft));
-      viewport.scrollTop = Math.max(0, Math.min(maxScrollTop, nextScrollTop));
-    });
-
-    previousMapZoomRef.current = mapZoom;
-  }, [mapZoom]);
 
   const baseSeaTiles = useMemo(() => {
     const out = new Set<string>();
     for (let y = 0; y < ROWS; y += 1) {
       for (let x = 0; x < COLS; x += 1) {
         // Real map mask: non-terrain cells are outside playable shape.
-        if (nativeLand ? !nativeLand.has(keyOf(x,y)) : !terrainAt(x, y)) {
+        if (nativeLand ? !nativeLand.has(keyOf(x, y)) : !terrainAt(x, y)) {
           out.add(keyOf(x, y));
         }
       }
@@ -305,7 +393,7 @@ export default function ChaosSetupLabPage() {
     pieces.forEach((piece, k) => {
       if (piece === "stone") anchors.push(parseKey(k));
     });
-    anchors.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+    anchors.sort((a, b) => a.y - b.y || a.x - b.x);
     return anchors;
   }, [pieces]);
 
@@ -330,13 +418,24 @@ export default function ChaosSetupLabPage() {
     return stoneAnchors.map((anchor) => {
       const id = stoneIdByAnchorKey.get(keyOf(anchor.x, anchor.y)) ?? 0;
       const spawn = eastFrontSpawn(anchor);
-      const distanceToM = openMonsterTile
-        ? cardinalStepsInRange(anchor, spawn, openMonsterTile)
+      const owner = setupGroups.find((group) =>
+        group.pieceKeys.includes(keyOf(anchor.x, anchor.y)),
+      );
+      const monster =
+        owner && owner.id !== activeSetupId ? owner.monster : openMonsterTile;
+      const distanceToM = monster
+        ? cardinalStepsInRange(anchor, spawn, monster)
         : null;
       const canReachM = distanceToM != null;
       return { id, anchor, spawn, canReachM, distanceToM };
     });
-  }, [stoneAnchors, stoneIdByAnchorKey, openMonsterTile]);
+  }, [
+    stoneAnchors,
+    stoneIdByAnchorKey,
+    openMonsterTile,
+    setupGroups,
+    activeSetupId,
+  ]);
 
   const stoneLevelSummary = useMemo(() => {
     const levels = stoneAnchors
@@ -345,7 +444,9 @@ export default function ChaosSetupLabPage() {
     if (levels.length === 0) return { min: null, max: null, avg: null };
     const min = Math.min(...levels);
     const max = Math.max(...levels);
-    const avg = Math.round(levels.reduce((sum, lv) => sum + lv, 0) / levels.length);
+    const avg = Math.round(
+      levels.reduce((sum, lv) => sum + lv, 0) / levels.length,
+    );
     return { min, max, avg };
   }, [stoneAnchors]);
 
@@ -375,38 +476,10 @@ export default function ChaosSetupLabPage() {
     return byLevel;
   }, []);
 
-  const nativeLevelLabelByKey = useMemo(() => {
-    const labels = new Map<string, number>();
-    const nativeRows = NATIVE_MAP.length;
-    const nativeCols = NATIVE_MAP[0]?.length ?? 0;
-
-    for (let ny = 0; ny < nativeRows; ny += 1) {
-      for (let nx = 0; nx < nativeCols; nx += 1) {
-        const native = NATIVE_MAP[ny]?.[nx];
-        if (!native) continue;
-
-        const minX = Math.floor((nx * COLS) / nativeCols);
-        const maxX = Math.floor(((nx + 1) * COLS) / nativeCols) - 1;
-        const minY = Math.floor((ny * ROWS) / nativeRows);
-        const maxY = Math.floor(((ny + 1) * ROWS) / nativeRows) - 1;
-        if (maxX < minX || maxY < minY) continue;
-
-        const centerX = Math.floor((minX + maxX) / 2);
-        const centerY = Math.floor((minY + maxY) / 2);
-        labels.set(keyOf(centerX, centerY), native.level);
-      }
-    }
-
-    return labels;
-  }, []);
-
   useEffect(() => {
-    if (!selectedSetupArea) {
-      setLocationInput("");
-      return;
-    }
-    const lv = levelAt(selectedSetupArea.x, selectedSetupArea.y);
-    setLocationInput(lv != null ? String(lv) : "");
+    setResultCycle(null);
+    setGeneratorError(null);
+    setSuggestedStoneCount(null);
   }, [selectedSetupArea]);
 
   const distanceProfile = useMemo(() => {
@@ -417,9 +490,13 @@ export default function ChaosSetupLabPage() {
       .filter((d): d is number => typeof d === "number");
     const maxDistance = distances.length > 0 ? Math.max(...distances) : null;
     const minDistance = distances.length > 0 ? Math.min(...distances) : null;
-    const spread = maxDistance != null && minDistance != null ? maxDistance - minDistance : null;
+    const spread =
+      maxDistance != null && minDistance != null
+        ? maxDistance - minDistance
+        : null;
     const allReach = stoneReachChecks.every((s) => s.canReachM);
-    const distancePass = maxDistance != null ? maxDistance <= target.maxDistance : false;
+    const distancePass =
+      maxDistance != null ? maxDistance <= target.maxDistance : false;
     const spreadPass = spread != null ? spread <= target.maxSpread : false;
     return {
       target,
@@ -441,7 +518,7 @@ export default function ChaosSetupLabPage() {
     boardKeys.sort((a, b) => {
       const pa = parseKey(a);
       const pb = parseKey(b);
-      return (pa.y - pb.y) || (pa.x - pb.x);
+      return pa.y - pb.y || pa.x - pb.x;
     });
     const out = new Map<string, number>();
     boardKeys.forEach((k, idx) => out.set(k, idx + 1));
@@ -459,50 +536,215 @@ export default function ChaosSetupLabPage() {
   }, [stoneAnchors]);
 
   const blockedFacilityTiles = useMemo(() => {
-    const native=initialWorld();
-    const fixed={...native,items:native.items.filter(i=>i.fixed)};
-    return new Set(placementIndex(fixed,new Set()).occupied.keys());
+    const native = initialWorld();
+    const fixed = { ...native, items: native.items.filter((i) => i.fixed) };
+    return new Set(placementIndex(fixed, new Set()).occupied.keys());
   }, []);
 
-  const mapPlacing=placementMethod==='map'&&['stone','board','monster','unit'].includes(tool)&&!pickSetupAreaFromMap;
-  useEffect(()=>{const handle=(e:KeyboardEvent)=>{if(e.key==='Escape')setTool('none');};window.addEventListener('keydown',handle);return()=>window.removeEventListener('keydown',handle);},[]);
+  const mapPlacing =
+    ["stone", "board", "monster", "unit"].includes(tool) &&
+    !pickSetupAreaFromMap;
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setTool("none");
+        setPickSetupAreaFromMap(false);
+        setHoverTile(null);
+        setMovingPiece(null);
+        setSelectedPiece(null);
+      }
+    };
+    window.addEventListener("keydown", handle);
+    return () => window.removeEventListener("keydown", handle);
+  }, []);
   const placementPreview = useMemo(() => {
     const cells = new Set<string>();
-    if (!hoverTile || (tool !== "stone" && tool !== "board" && tool !== "monster" && tool !== "unit")) {
-      return { kind: null as "stone" | "board" | "monster" | "unit" | null, valid: false, cells };
+    if (
+      !hoverTile ||
+      (tool !== "stone" &&
+        tool !== "board" &&
+        tool !== "monster" &&
+        tool !== "unit")
+    ) {
+      return {
+        kind: null as "stone" | "board" | "monster" | "unit" | null,
+        valid: false,
+        cells,
+      };
     }
 
     if (tool === "monster" || tool === "unit") {
       const k = keyOf(hoverTile.x, hoverTile.y);
       cells.add(k);
-      const valid = inside(hoverTile.x,hoverTile.y) && !seaTiles.has(k) && !occupiedByStones.has(k) && !blockedFacilityTiles.has(k);
+      const valid =
+        inside(hoverTile.x, hoverTile.y) &&
+        !seaTiles.has(k) &&
+        !occupiedByStones.has(k) &&
+        !blockedFacilityTiles.has(k);
       return { kind: tool, valid, cells };
     }
 
     if (tool === "board") {
       const k = keyOf(hoverTile.x, hoverTile.y);
       cells.add(k);
-      const valid = inside(hoverTile.x,hoverTile.y) && !seaTiles.has(k) && !occupiedByStones.has(k) && !blockedFacilityTiles.has(k);
-      return { kind: "board" as const, valid, cells };
+      const valid =
+        inside(hoverTile.x, hoverTile.y) &&
+        !seaTiles.has(k) &&
+        !occupiedByStones.has(k) &&
+        !blockedFacilityTiles.has(k) &&
+        !(
+          openMonsterTile?.x === hoverTile.x &&
+          openMonsterTile.y === hoverTile.y
+        ) &&
+        !(openUnitTile?.x === hoverTile.x && openUnitTile.y === hoverTile.y);
+      return {
+        kind: "board" as const,
+        valid: valid && !piecePlacementError("board", hoverTile),
+        cells,
+      };
     }
 
-    const valid = isStoneAnchorValid(hoverTile, seaTiles, pieces, blockedFacilityTiles);
+    const valid =
+      !piecePlacementError("stone", hoverTile) &&
+      !stoneFootprint(hoverTile).some(
+        (p) =>
+          (openMonsterTile?.x === p.x && openMonsterTile.y === p.y) ||
+          (openUnitTile?.x === p.x && openUnitTile.y === p.y),
+      );
     stoneFootprint(hoverTile).forEach((p) => {
       if (inside(p.x, p.y)) cells.add(keyOf(p.x, p.y));
     });
     return { kind: "stone" as const, valid, cells };
-  }, [blockedFacilityTiles, hoverTile, tool, seaTiles, occupiedByStones, pieces]);
+  }, [
+    blockedFacilityTiles,
+    hoverTile,
+    tool,
+    seaTiles,
+    occupiedByStones,
+    pieces,
+    openMonsterTile,
+    openUnitTile,
+    movingPiece,
+    nativeLand,
+    reclaimedTiles,
+  ]);
 
-  const [spriteCache]=useState(()=>new BuilderSpriteCache());
-  const [spriteVersion,setSpriteVersion]=useState(0);
-  const plannedWorld=useMemo<BuilderState>(()=>({version:1,reclaimed:[],items:[...pieces].map(([id,piece])=>({...makeItem('facility',piece==='stone'?191:68),id,...parseKey(id)}))}),[pieces]);
-  const placementGhost=hoverTile&&(tool==='stone'||tool==='board')?{...makeItem('facility',tool==='stone'?191:68),id:'placement-preview',...hoverTile}:null;
-  const facilityDraws=useMemo(()=>builderDraws(plannedWorld,placementGhost,true),[plannedWorld,tool,hoverTile?.x,hoverTile?.y]);
-  useEffect(()=>spriteCache.subscribe(()=>setSpriteVersion(v=>v+1)),[spriteCache]);
-  useEffect(()=>{
-    for(const id of new Set(facilityDraws.map(d=>d.sprite))){const sprite=BUILDER_ASSETS.sprites[id];if(sprite)spriteCache.load(id,`${import.meta.env.BASE_URL}${sprite.url.replace(/^\//,'')}`);}
-  },[facilityDraws,spriteCache]);
-  const drawFacilities=useCallback((ctx:CanvasRenderingContext2D,camera:{offsetX:number;offsetY:number;zoom:number},width:number,height:number)=>drawBuilder(ctx,camera,width,height,facilityDraws,spriteCache.images),[facilityDraws,spriteCache,spriteVersion]);
+  const [spriteCache] = useState(() => new BuilderSpriteCache());
+  const [spriteVersion, setSpriteVersion] = useState(0);
+  const plannedWorld = useMemo<BuilderState>(
+    () => ({
+      version: 1,
+      reclaimed: [],
+      items: [...pieces].map(([id, piece]) => ({
+        ...makeItem("facility", piece === "stone" ? 191 : 68),
+        id,
+        ...parseKey(id),
+      })),
+    }),
+    [pieces],
+  );
+  const placementGhost =
+    hoverTile && (tool === "stone" || tool === "board")
+      ? {
+          ...makeItem("facility", tool === "stone" ? 191 : 68),
+          id: movingPiece ?? "placement-preview",
+          ...hoverTile,
+        }
+      : null;
+  const facilityDraws = useMemo(
+    () => builderDraws(plannedWorld, placementGhost, placementPreview.valid),
+    [
+      plannedWorld,
+      tool,
+      hoverTile?.x,
+      hoverTile?.y,
+      placementPreview.valid,
+      movingPiece,
+    ],
+  );
+  useEffect(
+    () => spriteCache.subscribe(() => setSpriteVersion((v) => v + 1)),
+    [spriteCache],
+  );
+  useEffect(() => {
+    for (const id of new Set(facilityDraws.map((d) => d.sprite))) {
+      const sprite = BUILDER_ASSETS.sprites[id];
+      if (sprite)
+        spriteCache.load(
+          id,
+          `${import.meta.env.BASE_URL}${sprite.url.replace(/^\//, "")}`,
+        );
+    }
+  }, [facilityDraws, spriteCache]);
+  const sceneActors = useMemo(() => {
+    const actors: {
+      cell: Point;
+      kind: "monster" | "unit";
+      preview?: boolean;
+    }[] = [];
+    for (const group of setupGroups)
+      if (group.id !== activeSetupId) {
+        if (group.monster)
+          actors.push({ cell: group.monster, kind: "monster" });
+        if (group.unit) actors.push({ cell: group.unit, kind: "unit" });
+      }
+    for (const kind of ["monster", "unit"] as const) {
+      const preview = tool === kind && !!hoverTile;
+      const cell = preview
+        ? hoverTile
+        : kind === "monster"
+          ? openMonsterTile
+          : openUnitTile;
+      if (cell) actors.push({ cell, kind, preview });
+    }
+    return actors;
+  }, [
+    tool,
+    hoverTile,
+    openMonsterTile,
+    openUnitTile,
+    setupGroups,
+    activeSetupId,
+  ]);
+  const drawScene = useMemo(
+    () =>
+      makeChaosScene({
+        structures: facilityDraws.map((draw) => ({
+          ...draw,
+          opacity:
+            draw.opacity *
+            (buildStage === "stones"
+              ? pieces.get(draw.itemId) === "stone"
+                ? 1
+                : 0.12
+              : buildStage === "boards"
+                ? pieces.get(draw.itemId) === "board"
+                  ? 0.95
+                  : 0.18
+                : buildStage === "ally" || buildStage === "land"
+                  ? 0.22
+                  : 1),
+        })),
+        images: spriteCache.images,
+        actors: sceneActors,
+        human: humanFrames,
+        monster: monsterImage,
+        opacity: buildStage === "all" ? structureOpacity : 1,
+        animate: animateActors,
+      }),
+    [
+      facilityDraws,
+      buildStage,
+      pieces,
+      spriteCache,
+      spriteVersion,
+      sceneActors,
+      humanFrames,
+      monsterImage,
+      structureOpacity,
+      animateActors,
+    ],
+  );
 
   const runtimeMapZoom = useMemo(() => {
     return Math.max(0.14, Math.min(3.2, mapZoom * 0.2));
@@ -516,74 +758,6 @@ export default function ChaosSetupLabPage() {
     return Array.from(reclaimedTiles).map(parseKey);
   }, [reclaimedTiles]);
 
-  const runtimeOverlays = useMemo<RuntimeExternalOverlay[]>(() => {
-    const out: RuntimeExternalOverlay[] = [];
-
-    if (openMonsterTile) {
-      out.push({
-        id: "open-monster",
-        cellX: openMonsterTile.x,
-        cellY: openMonsterTile.y,
-        markerKind: "monster",
-        anchorMode: "center",
-      });
-    }
-
-    if (openUnitTile) {
-      out.push({
-        id: "open-unit",
-        cellX: openUnitTile.x,
-        cellY: openUnitTile.y,
-        ...(unitMarkerSpriteUrl
-          ? {
-              widthTiles: 1,
-              spriteUrl: unitMarkerSpriteUrl,
-              spriteLayout: unitMarkerLayout,
-            }
-          : {
-              markerText: "U",
-              markerKind: "unit" as const,
-              anchorMode: "center" as const,
-            }),
-      });
-    }
-
-    if (hoverTile && placementPreview.kind === "monster") {
-      out.push({
-        id: "preview-monster",
-        cellX: hoverTile.x,
-        cellY: hoverTile.y,
-        markerKind: "monster",
-        anchorMode: "center",
-        invalid: !placementPreview.valid,
-        opacity: 0.62,
-      });
-    }
-
-    if (hoverTile && placementPreview.kind === "unit") {
-      out.push({
-        id: "preview-unit",
-        cellX: hoverTile.x,
-        cellY: hoverTile.y,
-        ...(unitMarkerSpriteUrl
-          ? {
-              widthTiles: 1,
-              spriteUrl: unitMarkerSpriteUrl,
-              spriteLayout: unitMarkerLayout,
-            }
-          : {
-              markerText: "U",
-              markerKind: "unit" as const,
-              anchorMode: "center" as const,
-            }),
-        invalid: !placementPreview.valid,
-        opacity: 0.62,
-      });
-    }
-
-    return out;
-  }, [hoverTile, openMonsterTile, openUnitTile, placementPreview.kind, placementPreview.valid, unitMarkerSpriteUrl, unitMarkerLayout]);
-
   const combinedEnvelope = useMemo(() => {
     const all = new Set<string>();
     stoneAnchors.forEach((anchor) => {
@@ -594,7 +768,13 @@ export default function ChaosSetupLabPage() {
 
   const extraOpenInEnvelope = useMemo(() => {
     const allowed = new Set<string>();
-    if (openMonsterTile) allowed.add(keyOf(openMonsterTile.x, openMonsterTile.y));
+    setupGroups.forEach((group) => {
+      if (group.id !== activeSetupId)
+        for (const cell of [group.monster, group.unit])
+          if (cell) allowed.add(keyOf(cell.x, cell.y));
+    });
+    if (openMonsterTile)
+      allowed.add(keyOf(openMonsterTile.x, openMonsterTile.y));
     if (openUnitTile) allowed.add(keyOf(openUnitTile.x, openUnitTile.y));
 
     let count = 0;
@@ -607,12 +787,28 @@ export default function ChaosSetupLabPage() {
       count += 1;
     });
     return count;
-  }, [blockedFacilityTiles, combinedEnvelope, seaTiles, occupiedByStones, pieces, openMonsterTile, openUnitTile]);
+  }, [
+    blockedFacilityTiles,
+    setupGroups,
+    activeSetupId,
+    combinedEnvelope,
+    seaTiles,
+    occupiedByStones,
+    pieces,
+    openMonsterTile,
+    openUnitTile,
+  ]);
 
   const leakTiles = useMemo(() => {
     const leaks = new Set<string>();
     const allowed = new Set<string>();
-    if (openMonsterTile) allowed.add(keyOf(openMonsterTile.x, openMonsterTile.y));
+    setupGroups.forEach((group) => {
+      if (group.id !== activeSetupId)
+        for (const cell of [group.monster, group.unit])
+          if (cell) allowed.add(keyOf(cell.x, cell.y));
+    });
+    if (openMonsterTile)
+      allowed.add(keyOf(openMonsterTile.x, openMonsterTile.y));
     if (openUnitTile) allowed.add(keyOf(openUnitTile.x, openUnitTile.y));
 
     combinedEnvelope.forEach((k) => {
@@ -624,11 +820,27 @@ export default function ChaosSetupLabPage() {
       leaks.add(k);
     });
     return leaks;
-  }, [blockedFacilityTiles, combinedEnvelope, seaTiles, occupiedByStones, pieces, openMonsterTile, openUnitTile]);
+  }, [
+    blockedFacilityTiles,
+    setupGroups,
+    activeSetupId,
+    combinedEnvelope,
+    seaTiles,
+    occupiedByStones,
+    pieces,
+    openMonsterTile,
+    openUnitTile,
+  ]);
 
   const stoneCoverageChecks = useMemo(() => {
     const allowed = new Set<string>();
-    if (openMonsterTile) allowed.add(keyOf(openMonsterTile.x, openMonsterTile.y));
+    setupGroups.forEach((group) => {
+      if (group.id !== activeSetupId)
+        for (const cell of [group.monster, group.unit])
+          if (cell) allowed.add(keyOf(cell.x, cell.y));
+    });
+    if (openMonsterTile)
+      allowed.add(keyOf(openMonsterTile.x, openMonsterTile.y));
     if (openUnitTile) allowed.add(keyOf(openUnitTile.x, openUnitTile.y));
 
     return stoneAnchors.map((anchor) => {
@@ -645,11 +857,65 @@ export default function ChaosSetupLabPage() {
       });
       return { id, anchor, leakCount, covered: leakCount === 0 };
     });
-  }, [blockedFacilityTiles, stoneAnchors, stoneIdByAnchorKey, seaTiles, occupiedByStones, pieces, openMonsterTile, openUnitTile]);
+  }, [
+    blockedFacilityTiles,
+    setupGroups,
+    activeSetupId,
+    stoneAnchors,
+    stoneIdByAnchorKey,
+    seaTiles,
+    occupiedByStones,
+    pieces,
+    openMonsterTile,
+    openUnitTile,
+  ]);
 
   const runtimeCoverageOverlays = useMemo<RuntimeCellHighlightOverlay[]>(() => {
     const overlays: RuntimeCellHighlightOverlay[] = [];
-    placementPreview.cells.forEach(k=>overlays.push({...parseKey(k),fillColor:placementPreview.valid?'rgba(34,197,94,0.35)':'rgba(239,68,68,0.4)',strokeColor:placementPreview.valid?'#22c55e':'#ef4444',lineWidth:2}));
+    if (buildStage === "land")
+      (
+        setupGroups.find((group) => group.id === activeSetupId)
+          ?.reclaimedKeys ?? [...reclaimedTiles]
+      ).forEach((key) =>
+        overlays.push({
+          ...parseKey(key),
+          fillColor: "rgba(56,189,248,0.35)",
+          strokeColor: "#38bdf8",
+          lineWidth: 2,
+        }),
+      );
+    if (buildStage === "ally" && openUnitTile)
+      overlays.push({
+        ...openUnitTile,
+        fillColor: "rgba(56,189,248,0.4)",
+        strokeColor: "#38bdf8",
+        lineWidth: 3,
+      });
+    if (selectedPiece) {
+      const anchor = parseKey(selectedPiece);
+      const selectedCells =
+        pieces.get(selectedPiece) === "stone"
+          ? stoneFootprint(anchor)
+          : [anchor];
+      selectedCells.forEach((cell) =>
+        overlays.push({
+          ...cell,
+          fillColor: "rgba(56,189,248,0.16)",
+          strokeColor: "#38bdf8",
+          lineWidth: 2,
+        }),
+      );
+    }
+    placementPreview.cells.forEach((k) =>
+      overlays.push({
+        ...parseKey(k),
+        fillColor: placementPreview.valid
+          ? "rgba(34,197,94,0.35)"
+          : "rgba(239,68,68,0.4)",
+        strokeColor: placementPreview.valid ? "#22c55e" : "#ef4444",
+        lineWidth: 2,
+      }),
+    );
     if (!showCoverageCheck) return overlays;
 
     combinedEnvelope.forEach((k) => {
@@ -659,7 +925,9 @@ export default function ChaosSetupLabPage() {
       const p = parseKey(k);
       const isCovered = occupiedByStones.has(k) || pieces.get(k) === "board";
       const isReservedOpen =
-        (openMonsterTile && openMonsterTile.x === p.x && openMonsterTile.y === p.y) ||
+        (openMonsterTile &&
+          openMonsterTile.x === p.x &&
+          openMonsterTile.y === p.y) ||
         (openUnitTile && openUnitTile.x === p.x && openUnitTile.y === p.y);
       if (!isCovered && !isReservedOpen) {
         overlays.push({
@@ -684,10 +952,88 @@ export default function ChaosSetupLabPage() {
     });
 
     return overlays;
-  }, [placementPreview, showCoverageCheck, combinedEnvelope, leakTiles, seaTiles, occupiedByStones, pieces, openMonsterTile, openUnitTile]);
+  }, [
+    selectedSetupArea,
+    buildStage,
+    reclaimedTiles,
+    setupGroups,
+    activeSetupId,
+    panel,
+    selectedPiece,
+    placementPreview,
+    showCoverageCheck,
+    combinedEnvelope,
+    leakTiles,
+    seaTiles,
+    occupiedByStones,
+    pieces,
+    openMonsterTile,
+    openUnitTile,
+  ]);
+
+  function rememberSetup() {
+    setUndoStack((previous) => [
+      ...previous.slice(-19),
+      {
+        pieces: new Map(pieces),
+        paintedSea: new Set(paintedSeaTiles),
+        reclaimed: new Set(reclaimedTiles),
+        monster: openMonsterTile,
+        unit: openUnitTile,
+        area: selectedSetupArea,
+        groups: currentGroups(),
+        activeGroup: activeSetupId,
+      },
+    ]);
+  }
+
+  function currentGroups() {
+    return setupGroups.map((group) => ({
+      ...group,
+      pieceKeys: group.pieceKeys.filter((key) => pieces.has(key)),
+      ...(group.id === activeSetupId
+        ? { monster: openMonsterTile, unit: openUnitTile }
+        : {}),
+    }));
+  }
+
+  function undoSetup() {
+    const snapshot = undoStack.at(-1);
+    if (!snapshot) return;
+    setSelectedPiece(null);
+    setMovingPiece(null);
+    setPieces(snapshot.pieces);
+    setPaintedSeaTiles(snapshot.paintedSea);
+    setReclaimedTiles(snapshot.reclaimed);
+    setOpenMonsterTile(snapshot.monster);
+    setOpenUnitTile(snapshot.unit);
+    setSelectedSetupArea(snapshot.area);
+    setSetupGroups(snapshot.groups);
+    setActiveSetupId(snapshot.activeGroup);
+    setLocationInput(
+      snapshot.area
+        ? String(levelAt(snapshot.area.x, snapshot.area.y) ?? "")
+        : "",
+    );
+    setUndoStack((previous) => previous.slice(0, -1));
+    setResultCycle(null);
+    setGeneratorError(null);
+    setTool("none");
+    setPickSetupAreaFromMap(false);
+    setHoverTile(null);
+    setCopyStatus("Last change undone.");
+  }
 
   function clearAll() {
+    rememberSetup();
+    setSelectedSetupArea(null);
+    setPickSetupAreaFromMap(false);
+    setTool("none");
+    setSelectedPiece(null);
+    setMovingPiece(null);
     setPieces(new Map());
+    setSetupGroups([]);
+    setActiveSetupId(null);
     setPaintedSeaTiles(new Set());
     setReclaimedTiles(new Set());
     setOpenMonsterTile(null);
@@ -697,76 +1043,105 @@ export default function ChaosSetupLabPage() {
     setShowCoverageCheck(false);
     setLocationInput("");
     setResultCycle(null);
-    setNextResultAnimating(false);
     setHoverTile(null);
   }
 
-  function focusSetupView() {
+  function focusSetupView(
+    stage?: "land" | "stones" | "boards" | "ally" | null,
+  ) {
     const focusPoints: Point[] = [];
-    occupiedByStones.forEach((k) => focusPoints.push(parseKey(k)));
+    const activeKeys = setupGroups.find(
+      (group) => group.id === activeSetupId,
+    )?.pieceKeys;
+    const include = (key: string) => !activeKeys || activeKeys.includes(key);
+    stoneAnchors.forEach((anchor) => {
+      if (include(keyOf(anchor.x, anchor.y)))
+        focusPoints.push(...stoneFootprint(anchor));
+    });
     pieces.forEach((piece, k) => {
-      if (piece === "board") focusPoints.push(parseKey(k));
+      if (piece === "board" && include(k)) focusPoints.push(parseKey(k));
     });
     if (openMonsterTile) focusPoints.push(openMonsterTile);
     if (openUnitTile) focusPoints.push(openUnitTile);
+    if (stage === "land")
+      (
+        setupGroups.find((group) => group.id === activeSetupId)
+          ?.reclaimedKeys ?? [...reclaimedTiles]
+      ).forEach((key) => focusPoints.push(parseKey(key)));
 
     if (focusPoints.length === 0) {
       setCopyStatus("No setup tiles to focus yet.");
       return;
     }
 
-    const xs = focusPoints.map((p) => p.x);
-    const ys = focusPoints.map((p) => p.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-
-    const centerX = (minX + maxX + 1) / 2;
-    const centerY = (minY + maxY + 1) / 2;
-    const boundsSpan = Math.max(maxX - minX + 1, maxY - minY + 1);
-    const fitBaseZoom = boundsSpan <= 4 ? 9 : boundsSpan <= 8 ? 7.5 : boundsSpan <= 14 ? 6.5 : 5.5;
-    const targetZoom = +Math.min(ZOOM_MAX, Math.max(fitBaseZoom, mapZoom + 1.2)).toFixed(2);
-    setMapZoom(targetZoom);
-    setRuntimeFocusCell({ x: centerX, y: centerY, token: Date.now() });
-
-    setCopyStatus(`Focused on setup at ${Math.round(targetZoom * 100)}% zoom.`);
+    fitSetupView(focusPoints, stage);
   }
 
-  function trySelectLocationFromInput(input: string) {
-    const level = Number.parseInt(input.trim(), 10);
-    if (!Number.isFinite(level)) {
-      setCopyStatus("Invalid level. Enter a level value (for example 135).");
-      return;
+  function fitSetupView(
+    points: readonly Point[],
+    stage?: "land" | "stones" | "boards" | "ally" | null,
+  ) {
+    const viewport = mapCanvasContainerRef.current;
+    if (!viewport) return;
+    const guided = stage !== null && (stage !== undefined || panel === "plan");
+    const activeStage = stage ?? buildStage;
+    const width = viewport.clientWidth,
+      height = viewport.clientHeight;
+    const left = guided && width >= 760 ? 350 : 0;
+    let top =
+      guided && width < 760
+        ? activeStage === "boards"
+          ? 340
+          : activeStage === "ally"
+            ? 310
+            : 260
+        : 80;
+    if (
+      guided &&
+      width < 760 &&
+      panel === "plan" &&
+      activeStage === buildStage
+    ) {
+      const panelRect = workspacePanelRef.current?.getBoundingClientRect();
+      if (panelRect)
+        top = panelRect.bottom - viewport.getBoundingClientRect().top + 20;
     }
-    const candidates = levelTilesByLevel.get(level) ?? [];
-    if (candidates.length === 0) {
-      setCopyStatus(`No map tiles found for Lv ${level}.`);
-      return;
-    }
-
-    const focus = selectedSetupArea ?? { x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2) };
-    let best = candidates[0];
-    let bestDist = Math.abs(best.x - focus.x) + Math.abs(best.y - focus.y);
-    for (let i = 1; i < candidates.length; i += 1) {
-      const c = candidates[i];
-      const dist = Math.abs(c.x - focus.x) + Math.abs(c.y - focus.y);
-      if (dist < bestDist) {
-        best = c;
-        bestDist = dist;
-      }
-    }
-
-    setSelectedSetupArea(best);
-    setPickSetupAreaFromMap(false);
-    setLocationInput(String(level));
-    setCopyStatus(`Picked level ${level}: using tile (${best.x},${best.y}).`);
+    const bottom = 80;
+    const fit = fitChaosSetup(points, {
+      width: Math.max(160, width - left),
+      height: Math.max(80, height - top - bottom),
+    });
+    if (!fit) return;
+    const zoom = clampZoom(fit.zoom / 0.2) * 0.2;
+    setMapZoom(zoom / 0.2);
+    const dx = left / 2 / (24 * zoom),
+      dy = (top - bottom) / 2 / (12 * zoom);
+    setRuntimeFocusCell({
+      x: fit.x - (dx + dy) / 2,
+      y: fit.y - (dy - dx) / 2,
+      token: Date.now(),
+    });
   }
 
-  function openLocationLevelDropdown() {
-    const input = locationInputRef.current;
-    if (input) input.focus();
-    setShowLevelDropdown((prev) => !prev);
+  useEffect(() => {
+    if (panel !== "plan") return;
+    const observer = new ResizeObserver(() =>
+      focusSetupView(buildStage === "all" ? undefined : buildStage),
+    );
+    if (workspacePanelRef.current) observer.observe(workspacePanelRef.current);
+    if (mapCanvasContainerRef.current)
+      observer.observe(mapCanvasContainerRef.current);
+    return () => observer.disconnect();
+  }, [panel, buildStage, pieces, openMonsterTile, openUnitTile]);
+
+  function resolveLevelInput(input: string) {
+    const level = /^\d+$/.test(input.trim()) ? Number(input.trim()) : NaN;
+    return resolveChaosLevel(
+      input,
+      levelTilesByLevel.get(level) ?? [],
+      nativeLand ?? new Set(),
+      selectedSetupArea,
+    );
   }
 
   async function copyDiagnostics() {
@@ -794,9 +1169,17 @@ export default function ChaosSetupLabPage() {
         let row = "";
         for (let x = minX; x <= maxX; x += 1) {
           const k = keyOf(x, y);
-          if (openMonsterTile && openMonsterTile.x === x && openMonsterTile.y === y) {
+          if (
+            openMonsterTile &&
+            openMonsterTile.x === x &&
+            openMonsterTile.y === y
+          ) {
             row += "M";
-          } else if (openUnitTile && openUnitTile.x === x && openUnitTile.y === y) {
+          } else if (
+            openUnitTile &&
+            openUnitTile.x === x &&
+            openUnitTile.y === y
+          ) {
             row += "U";
           } else if (spawnIdByKey.has(k)) {
             row += "S";
@@ -823,15 +1206,31 @@ export default function ChaosSetupLabPage() {
     };
 
     const lines: string[] = [];
-    lines.push(`stones=${stoneAnchors.length} boards=${boardIdByKey.size} reclaimed=${reclaimedTiles.size}`);
-    lines.push(`extraOpenInEnvelope=${extraOpenInEnvelope} mStandable=${monsterTileStandable} uStandable=${unitTileStandable} unitAdj=${unitAdjMonster}`);
-    lines.push(`M=${openMonsterTile ? `(${openMonsterTile.x},${openMonsterTile.y})` : "-"} U=${openUnitTile ? `(${openUnitTile.x},${openUnitTile.y})` : "-"}`);
-    stoneReachChecks.forEach(({ id, anchor, spawn, canReachM, distanceToM }) => {
-      lines.push(`S${id}: anchor=(${anchor.x},${anchor.y}) spawn=(${spawn.x},${spawn.y}) reach=${canReachM} steps=${distanceToM ?? "-"}`);
-    });
-    lines.push(`profile: n=${stoneAnchors.length} targetMax=${distanceProfile.target.maxDistance} targetSpread=${distanceProfile.target.maxSpread}`);
-    lines.push(`profile: max=${distanceProfile.maxDistance ?? "-"} min=${distanceProfile.minDistance ?? "-"} spread=${distanceProfile.spread ?? "-"}`);
-    lines.push(`profile: allReach=${distanceProfile.allReach} maxPass=${distanceProfile.distancePass} spreadPass=${distanceProfile.spreadPass} overall=${distanceProfile.overallPass}`);
+    lines.push(
+      `stones=${stoneAnchors.length} boards=${boardIdByKey.size} reclaimed=${reclaimedTiles.size}`,
+    );
+    lines.push(
+      `extraOpenInEnvelope=${extraOpenInEnvelope} mStandable=${monsterTileStandable} uStandable=${unitTileStandable} unitAdj=${unitAdjMonster}`,
+    );
+    lines.push(
+      `M=${openMonsterTile ? `(${openMonsterTile.x},${openMonsterTile.y})` : "-"} U=${openUnitTile ? `(${openUnitTile.x},${openUnitTile.y})` : "-"}`,
+    );
+    stoneReachChecks.forEach(
+      ({ id, anchor, spawn, canReachM, distanceToM }) => {
+        lines.push(
+          `S${id}: anchor=(${anchor.x},${anchor.y}) spawn=(${spawn.x},${spawn.y}) reach=${canReachM} steps=${distanceToM ?? "-"}`,
+        );
+      },
+    );
+    lines.push(
+      `profile: n=${stoneAnchors.length} targetMax=${distanceProfile.target.maxDistance} targetSpread=${distanceProfile.target.maxSpread}`,
+    );
+    lines.push(
+      `profile: max=${distanceProfile.maxDistance ?? "-"} min=${distanceProfile.minDistance ?? "-"} spread=${distanceProfile.spread ?? "-"}`,
+    );
+    lines.push(
+      `profile: allReach=${distanceProfile.allReach} maxPass=${distanceProfile.distancePass} spreadPass=${distanceProfile.spreadPass} overall=${distanceProfile.overallPass}`,
+    );
     lines.push("ascii-layout:");
     lines.push(renderAsciiMap());
 
@@ -839,12 +1238,20 @@ export default function ChaosSetupLabPage() {
       await navigator.clipboard.writeText(lines.join("\n"));
       setCopyStatus("Diagnostics copied. Paste them here.");
     } catch {
-      setCopyStatus("Copy failed. You can manually copy the diagnostics panel text.");
+      setCopyStatus(
+        "Copy failed. You can manually copy the diagnostics panel text.",
+      );
     }
   }
 
-  function isStoneAnchorValid(anchor: Point, mapSea: Set<string>, mapPieces: Map<string, Piece>, blockedTiles: Set<string>) {
-    if (!inside(anchor.x, anchor.y) || !inside(anchor.x + 1, anchor.y + 1)) return false;
+  function isStoneAnchorValid(
+    anchor: Point,
+    mapSea: Set<string>,
+    mapPieces: Map<string, Piece>,
+    blockedTiles: Set<string>,
+  ) {
+    if (!inside(anchor.x, anchor.y) || !inside(anchor.x + 1, anchor.y + 1))
+      return false;
     const fp = stoneFootprint(anchor);
     const footprintKeys = new Set(fp.map((p) => keyOf(p.x, p.y)));
 
@@ -880,26 +1287,204 @@ export default function ChaosSetupLabPage() {
     stoneKeys.forEach((k) => next.delete(k));
   }
 
+  function piecePlacementError(piece: Piece, cell: Point) {
+    if (!nativeLand) return "Wait for the map to load.";
+    const state: BuilderState = {
+      version: 1,
+      reclaimed: [...reclaimedTiles].map(parseKey),
+      items: [
+        ...initialWorld().items,
+        ...[...pieces]
+          .filter(([id]) => id !== movingPiece)
+          .map(([id, kind]) => ({
+            ...makeItem("facility", kind === "stone" ? 191 : 68),
+            id: `chaos-${id}`,
+            ...parseKey(id),
+          })),
+      ],
+    };
+    const item = {
+      ...makeItem("facility", piece === "stone" ? 191 : 68),
+      id: movingPiece ? `chaos-${movingPiece}` : "chaos-draft",
+      ...cell,
+    };
+    // The edited object stays in the state for native move/budget checks; omit only its occupancy.
+    if (movingPiece) {
+      const kind = pieces.get(movingPiece)!;
+      state.items.push({
+        ...makeItem("facility", kind === "stone" ? 191 : 68),
+        id: item.id,
+        ...parseKey(movingPiece),
+      });
+    }
+    return (
+      validatePlacement(
+        item,
+        state,
+        placementIndex(state, nativeLand, movingPiece ? item.id : undefined),
+        { ignoreAcquisitionLimit: piece === "stone" },
+      ).error ?? null
+    );
+  }
+
+  function beginTool(next: Tool) {
+    setTool(next);
+    setMovingPiece(null);
+    setSelectedPiece(null);
+    setHoverTile(null);
+    setPickSetupAreaFromMap(false);
+    setPanel(null);
+    setCopyStatus(null);
+  }
+
+  function cancelPlacement() {
+    setTool("none");
+    setHoverTile(null);
+    setMovingPiece(null);
+  }
+
+  function moveSelected() {
+    if (!selectedPiece) return;
+    const piece = pieces.get(selectedPiece);
+    if (!piece) return;
+    setMovingPiece(selectedPiece);
+    setTool(piece);
+    setHoverTile(null);
+    setSelectedPiece(null);
+    setPanel(null);
+  }
+
+  function removeSelected() {
+    if (!selectedPiece) return;
+    rememberSetup();
+    setPieces((previous) => {
+      const next = new Map(previous);
+      next.delete(selectedPiece);
+      return next;
+    });
+    setSelectedPiece(null);
+    setResultCycle(null);
+    setCopyStatus("Piece removed. Undo restores it.");
+  }
+
   function onCellClick(x: number, y: number) {
     const k = keyOf(x, y);
+    if (!pickSetupAreaFromMap && tool === "none") {
+      const hit = [...pieces].find(([id, kind]) =>
+        kind === "stone"
+          ? stoneFootprint(parseKey(id)).some((p) => p.x === x && p.y === y)
+          : id === k,
+      );
+      setSelectedPiece(hit?.[0] ?? null);
+      return;
+    }
 
     if (pickSetupAreaFromMap) {
       const lv = levelAt(x, y);
       if (lv != null) {
         setSelectedSetupArea({ x, y });
+        setLocationInput(String(lv));
+        setGeneratorError(null);
         setPickSetupAreaFromMap(false);
+        setPanel("plan");
         setCopyStatus(`Picked location: (${x},${y}) Lv ${lv}.`);
       } else {
-        setCopyStatus("Selected tile has no valid level data. Pick another tile.");
+        setCopyStatus(
+          "Selected tile has no valid level data. Pick another tile.",
+        );
       }
       return;
     }
 
+    if (tool !== "none") {
+      if (tool === "stone" || tool === "board") {
+        const error = piecePlacementError(tool, { x, y });
+        if (error) {
+          setCopyStatus(error);
+          return;
+        }
+        const occupiedByMarker = (
+          tool === "stone" ? stoneFootprint({ x, y }) : [{ x, y }]
+        ).some(
+          (p) =>
+            (openMonsterTile?.x === p.x && openMonsterTile.y === p.y) ||
+            (openUnitTile?.x === p.x && openUnitTile.y === p.y),
+        );
+        if (occupiedByMarker) {
+          setCopyStatus("Keep the monster and fighter tiles open.");
+          return;
+        }
+        rememberSetup();
+        setPieces((previous) => {
+          const next = new Map(previous);
+          if (movingPiece) next.delete(movingPiece);
+          next.set(k, tool);
+          return next;
+        });
+        setSetupGroups((previous) =>
+          previous.map((group) =>
+            !(movingPiece
+              ? group.pieceKeys.includes(movingPiece)
+              : group.id === `${Math.floor(x / 16)},${Math.floor(y / 16)}`)
+              ? group
+              : {
+                  ...group,
+                  pieceKeys: [
+                    ...group.pieceKeys.filter(
+                      (key) => key !== movingPiece && key !== k,
+                    ),
+                    k,
+                  ],
+                },
+          ),
+        );
+        setResultCycle(null);
+        setGeneratorError(null);
+        setCopyStatus(movingPiece ? "Piece moved." : "Piece placed.");
+        setSelectedPiece(k);
+        setMovingPiece(null);
+        setTool("none");
+        setHoverTile(null);
+        return;
+      }
+      if (!nativeLand) {
+        setCopyStatus("Wait for the map to load.");
+        return;
+      }
+      if (
+        (tool === "monster" || tool === "unit") &&
+        (seaTiles.has(k) ||
+          occupiedByStones.has(k) ||
+          blockedFacilityTiles.has(k))
+      ) {
+        setCopyStatus("Markers need an open land tile.");
+        return;
+      }
+      if (
+        tool === "reclaim" &&
+        !(reclaimMode === "claim" ? seaTiles.has(k) : reclaimedTiles.has(k))
+      ) {
+        setCopyStatus(
+          reclaimMode === "claim"
+            ? "Claim works only on sea tiles."
+            : "Unclaim works only on reclaimed tiles.",
+        );
+        return;
+      }
+      rememberSetup();
+      setResultCycle(null);
+      setGeneratorError(null);
+      setCopyStatus(null);
+    }
     if (tool === "reclaim") {
       const currentlyReclaimed = reclaimedTiles.has(k);
       const currentlySea = seaTiles.has(k);
       if (reclaimMode === "unclaim" && currentlyReclaimed) {
-        // Unclaim: turn tile back into sea and clear pieces on that tile.
+        // Unclaim: turn tile back into sea and clear pieces and markers on that tile.
+        if (openMonsterTile?.x === x && openMonsterTile.y === y)
+          setOpenMonsterTile(null);
+        if (openUnitTile?.x === x && openUnitTile.y === y)
+          setOpenUnitTile(null);
         setReclaimedTiles((prev) => {
           const next = new Set(prev);
           next.delete(k);
@@ -936,14 +1521,18 @@ export default function ChaosSetupLabPage() {
         setCopyStatus(
           reclaimMode === "claim"
             ? "Claim works only on sea tiles."
-            : "Unclaim works only on reclaimed tiles."
+            : "Unclaim works only on reclaimed tiles.",
         );
       }
       return;
     }
 
     if (tool === "erase") {
-      if (openMonsterTile && openMonsterTile.x === x && openMonsterTile.y === y) {
+      if (
+        openMonsterTile &&
+        openMonsterTile.x === x &&
+        openMonsterTile.y === y
+      ) {
         setOpenMonsterTile(null);
       }
       if (openUnitTile && openUnitTile.x === x && openUnitTile.y === y) {
@@ -958,30 +1547,12 @@ export default function ChaosSetupLabPage() {
       return;
     }
 
-    if (tool === "board") {
-      if (seaTiles.has(k) || occupiedByStones.has(k) || blockedFacilityTiles.has(k)) return;
-      setPieces((prev) => {
-        const next = new Map(prev);
-        next.set(k, "board");
-        return next;
-      });
-      return;
-    }
-
-    if (tool === "stone") {
-      const anchor = { x, y };
-      setPieces((prev) => {
-        const next = new Map(prev);
-        if (isStoneAnchorValid(anchor, seaTiles, next, blockedFacilityTiles)) {
-          next.set(k, "stone");
-        }
-        return next;
-      });
-      return;
-    }
-
     if (tool === "monster" || tool === "unit") {
-      if (seaTiles.has(k) || occupiedByStones.has(k) || blockedFacilityTiles.has(k)) {
+      if (
+        seaTiles.has(k) ||
+        occupiedByStones.has(k) ||
+        blockedFacilityTiles.has(k)
+      ) {
         setCopyStatus("M/U markers can only be placed on open land tiles.");
         return;
       }
@@ -999,1366 +1570,892 @@ export default function ChaosSetupLabPage() {
         }
       } else {
         setOpenUnitTile({ x, y });
-        if (openMonsterTile && openMonsterTile.x === x && openMonsterTile.y === y) {
+        if (
+          openMonsterTile &&
+          openMonsterTile.x === x &&
+          openMonsterTile.y === y
+        ) {
           setOpenMonsterTile(null);
         }
       }
     }
   }
 
-  function getCollapsedSeamIndex(segmentCount: number, mode: DemoSeamMode): number | null {
-    const seamCount = segmentCount - 1;
-    if (seamCount < 2) return null;
-    if (mode === "first") return 0;
-    if (mode === "last") return seamCount - 1;
-    return Math.floor((seamCount - 1) / 2);
-  }
-
-  function buildGridAnchors(
-    stoneCount: number,
-    cols: number,
-    stepX: number,
-    stepY: number,
-    compactAxis: "x" | "y",
-    seamMode: DemoSeamMode,
-    center: Point
-  ) {
-    const n = Math.max(1, Math.min(7, stoneCount));
-    const cx = center.x;
-    const cy = center.y;
-
-    const rows = Math.ceil(n / cols);
-
-    const collapsedRowSeam = compactAxis === "x" && stepY > 2 ? getCollapsedSeamIndex(rows, seamMode) : null;
-    const collapsedColSeam = compactAxis === "y" && stepX > 2 ? getCollapsedSeamIndex(cols, seamMode) : null;
-
-    const xGapReduction = collapsedColSeam != null ? 1 : 0;
-    const yGapReduction = collapsedRowSeam != null ? 1 : 0;
-
-    const footprintW = (cols - 1) * stepX + 2 - xGapReduction;
-    const footprintH = (rows - 1) * stepY + 2 - yGapReduction;
-    const startX = Math.floor(cx - footprintW / 2);
-    const startY = Math.floor(cy - footprintH / 2);
-
-    const rowYs: number[] = [];
-    let curY = startY;
-    for (let r = 0; r < rows; r += 1) {
-      rowYs.push(curY);
-      if (r < rows - 1) {
-        const seamReduction = collapsedRowSeam === r ? 1 : 0;
-        curY += stepY - seamReduction;
-      }
-    }
-
-    const colXs: number[] = [];
-    let curX = startX;
-    for (let c = 0; c < cols; c += 1) {
-      colXs.push(curX);
-      if (c < cols - 1) {
-        const seamReduction = collapsedColSeam === c ? 1 : 0;
-        curX += stepX - seamReduction;
-      }
-    }
-
-    const anchors: Point[] = [];
-    for (let r = 0; r < rows; r += 1) {
-      for (let c = 0; c < cols; c += 1) {
-        if (anchors.length >= n) break;
-        anchors.push({ x: colXs[c], y: rowYs[r] });
-      }
-    }
-    return anchors;
-  }
-
-  function buildDemoAnchors(stoneCount: number, compactAxis: "x" | "y", seamMode: DemoSeamMode, center: Point) {
-    const n = Math.max(1, Math.min(7, stoneCount));
-    const maxCols = n;
-    const candidates: Point[][] = [];
-    const stepVariants: Array<{ stepX: number; stepY: number }> = [
-      { stepX: 2, stepY: 3 },
-      { stepX: 3, stepY: 2 },
-      { stepX: 2, stepY: 2 },
-      { stepX: 3, stepY: 3 },
-    ];
-
-      for (let cols = 1; cols <= maxCols; cols += 1) {
-        for (const v of stepVariants) {
-          candidates.push(buildGridAnchors(n, cols, v.stepX, v.stepY, compactAxis, seamMode, center));
-        }
-      }
-
-    const unique = new Map<string, Point[]>();
-    candidates.forEach((anchors) => {
-      const key = anchors
-        .map((a) => `${a.x},${a.y}`)
-        .sort()
-        .join("|");
-      if (!unique.has(key)) unique.set(key, anchors);
+  function plannerContext(focus: Point): ChaosPlannerContext {
+    const level = levelAt(focus.x, focus.y)!;
+    const areaWidth = COLS / NATIVE_MAP[0].length,
+      areaHeight = ROWS / NATIVE_MAP.length;
+    const areaX = Math.floor(focus.x / areaWidth),
+      areaY = Math.floor(focus.y / areaHeight);
+    const id = `${areaX},${areaY}`;
+    const replacing = new Set(
+      setupGroups.find((group) => group.id === id)?.pieceKeys ?? [],
+    );
+    const blocked = new Set(blockedFacilityTiles);
+    pieces.forEach((kind, key) => {
+      if (replacing.has(key)) return;
+      (kind === "stone"
+        ? stoneFootprint(parseKey(key))
+        : [parseKey(key)]
+      ).forEach((cell) => blocked.add(keyOf(cell.x, cell.y)));
     });
-
-    return Array.from(unique.values());
+    for (const group of currentGroups())
+      if (group.id !== id) {
+        for (const cell of [group.monster, group.unit])
+          if (cell) blocked.add(keyOf(cell.x, cell.y));
+      }
+    return {
+      land: new Set([...(nativeLand ?? []), ...retainedReclaimed(id)]),
+      blocked,
+      focus,
+      areaCells: (levelTilesByLevel.get(level) ?? []).filter(
+        (cell) =>
+          Math.floor(cell.x / areaWidth) === areaX &&
+          Math.floor(cell.y / areaHeight) === areaY,
+      ),
+    };
   }
 
-  function translateAnchors(anchors: Point[], dx: number, dy: number): Point[] {
-    return anchors.map((a) => ({ x: a.x + dx, y: a.y + dy }));
-  }
-
-  function scoreAnchorLayout(
-    anchors: Point[],
-    baseSea: Set<string>,
-    paintedSea: Set<string>,
-    reclaimed: Set<string>,
-    requiredSpawnLevel: number | null,
-    focusPoint: Point | null
-  ): AnchorScore | null {
-    const n = anchors.length;
-    if (n === 0) return null;
-
-    const anchorPieces = new Map<string, Piece>();
-    const reclaimForAnchors = new Set<string>();
-
-    for (const a of anchors) {
-      if (!inside(a.x, a.y) || !inside(a.x + 1, a.y + 1)) return null;
-      const fp = stoneFootprint(a);
-      for (const p of fp) {
-        const k = keyOf(p.x, p.y);
-        if (anchorPieces.get(k) === "board") return null;
-        if (blockedFacilityTiles.has(k)) return null;
-        if (isSeaAtKey(k, baseSea, paintedSea, reclaimed)) reclaimForAnchors.add(k);
-      }
-      anchorPieces.set(keyOf(a.x, a.y), "stone");
-    }
-
-    if (requiredSpawnLevel != null) {
-      for (const a of anchors) {
-        const spawn = eastFrontSpawn(a);
-        const spawnLevel = levelAt(spawn.x, spawn.y);
-        if (spawnLevel == null || spawnLevel !== requiredSpawnLevel) return null;
-      }
-    }
-
-    const stoneCells = new Set<string>();
-    anchors.forEach((a) => {
-      stoneFootprint(a).forEach((p) => {
-        if (inside(p.x, p.y)) stoneCells.add(keyOf(p.x, p.y));
-      });
+  function retainedReclaimed(replacingId: string) {
+    const replacing = setupGroups.find((group) => group.id === replacingId);
+    const replacingKeys = new Set(replacing?.pieceKeys ?? []);
+    const needed = new Set<string>();
+    pieces.forEach((kind, key) => {
+      if (replacingKeys.has(key)) return;
+      (kind === "stone"
+        ? stoneFootprint(parseKey(key))
+        : [parseKey(key)]
+      ).forEach((cell) => needed.add(keyOf(cell.x, cell.y)));
     });
-
-    const stoneSources = anchors.map((anchor) => ({ anchor, spawn: eastFrontSpawn(anchor) }));
-
-    let best: AnchorScore | null = null;
-
-    for (let y = 0; y < ROWS; y += 1) {
-      for (let x = 0; x < COLS; x += 1) {
-        const k = keyOf(x, y);
-        if (stoneCells.has(k)) continue;
-        if (blockedFacilityTiles.has(k)) continue;
-
-        const p = { x, y };
-        const distances = stoneSources.map(({ anchor, spawn }) => cardinalStepsInRange(anchor, spawn, p));
-        const numeric = distances.filter((d): d is number => d != null);
-        if (numeric.length === 0) continue;
-
-        const unreachable = n - numeric.length;
-        const maxDistance = Math.max(...numeric);
-        const minDistance = Math.min(...numeric);
-        const spread = maxDistance - minDistance;
-        const totalDistance = numeric.reduce((sum, d) => sum + d, 0);
-        const fx = focusPoint?.x ?? Math.floor(COLS / 2);
-        const fy = focusPoint?.y ?? Math.floor(ROWS / 2);
-        const centerBias = Math.abs(x - fx) + Math.abs(y - fy);
-
-        const mReclaim = isSeaAtKey(k, baseSea, paintedSea, reclaimed) && !reclaimForAnchors.has(k) ? 1 : 0;
-        const candidate = { unreachable, spread, maxDistance, totalDistance, centerBias };
-        const candidateWithReclaim = { reclaimCount: reclaimForAnchors.size + mReclaim, ...candidate };
-        if (!best) {
-          best = candidateWithReclaim;
-          continue;
-        }
-
-        if (candidateWithReclaim.unreachable !== best.unreachable) {
-          if (candidateWithReclaim.unreachable < best.unreachable) best = candidateWithReclaim;
-          continue;
-        }
-        if (candidateWithReclaim.reclaimCount !== best.reclaimCount) {
-          if (candidateWithReclaim.reclaimCount < best.reclaimCount) best = candidateWithReclaim;
-          continue;
-        }
-        if (candidateWithReclaim.spread !== best.spread) {
-          if (candidateWithReclaim.spread < best.spread) best = candidateWithReclaim;
-          continue;
-        }
-        if (candidateWithReclaim.maxDistance !== best.maxDistance) {
-          if (candidateWithReclaim.maxDistance < best.maxDistance) best = candidateWithReclaim;
-          continue;
-        }
-        if (candidateWithReclaim.totalDistance !== best.totalDistance) {
-          if (candidateWithReclaim.totalDistance < best.totalDistance) best = candidateWithReclaim;
-          continue;
-        }
-        if (candidateWithReclaim.centerBias < best.centerBias) best = candidateWithReclaim;
+    for (const group of currentGroups())
+      if (group.id !== replacingId) {
+        group.reclaimedKeys?.forEach((key) => needed.add(key));
+        for (const cell of [group.monster, group.unit])
+          if (cell) needed.add(keyOf(cell.x, cell.y));
       }
-    }
-
-    return best;
+    const retained = new Set(reclaimedTiles);
+    replacing?.reclaimedKeys?.forEach((key) => {
+      if (!needed.has(key)) retained.delete(key);
+    });
+    return retained;
   }
 
   function applyAnchorsAsSetup(
     anchors: Point[],
     focus: Point,
-    sourcePaintedSeaTiles: Set<string>,
-    sourceReclaimedTiles: Set<string>,
+    _painted: Set<string>,
+    _reclaimed: Set<string>,
     resultIndex: number,
-    resultTotal: number
+    resultTotal: number,
   ) {
-    const nextPieces = new Map<string, Piece>();
-    const nextPaintedSea = new Set<string>(sourcePaintedSeaTiles);
-    const nextReclaimed = new Set<string>(sourceReclaimedTiles);
-
-    anchors.forEach((a) => {
-      stoneFootprint(a).forEach((p) => {
-        const k = keyOf(p.x, p.y);
-        if (isSeaAtKey(k, baseSeaTiles, nextPaintedSea, nextReclaimed)) nextReclaimed.add(k);
-      });
-    });
-
-    anchors.forEach((a) => {
-      const tempSea = new Set<string>();
-      baseSeaTiles.forEach((k) => tempSea.add(k));
-      nextPaintedSea.forEach((k) => tempSea.add(k));
-      nextReclaimed.forEach((k) => tempSea.delete(k));
-      if (isStoneAnchorValid(a, tempSea, nextPieces, blockedFacilityTiles)) {
-        nextPieces.set(keyOf(a.x, a.y), "stone");
-      }
-    });
-
-    const stoneSources = anchors.map((anchor) => ({ anchor, spawn: eastFrontSpawn(anchor) }));
-
-    const isSeaTile = (k: string) => {
-      if (nextReclaimed.has(k)) return false;
-      return baseSeaTiles.has(k) || nextPaintedSea.has(k);
-    };
-
-    const isStandable = (p: Point, stoneCells: Set<string>) => {
-      if (!inside(p.x, p.y)) return false;
-      const k = keyOf(p.x, p.y);
-      if (blockedFacilityTiles.has(k)) return false;
-      return !stoneCells.has(k);
-    };
-
-    const stoneCells = new Set<string>();
-    anchors.forEach((a) => {
-      stoneFootprint(a).forEach((p) => {
-        if (inside(p.x, p.y)) stoneCells.add(keyOf(p.x, p.y));
-      });
-    });
-
-    // Pick M/U by minimizing travel imbalance first, then max travel.
-    const target = getProfileTargets(anchors.length);
-    let best: {
-      monster: Point;
-      unit: Point;
-      unitDirectionPriority: number;
-      unreachableCount: number;
-      unitUnreachableCount: number;
-      pairUnreachableCount: number;
-      reclaimCount: number;
-      pairViolationCount: number;
-      pairSpread: number;
-      pairMaxDistance: number;
-      pairVariance: number;
-      pairTotalDistance: number;
-      spread: number;
-      maxDistance: number;
-      totalDistance: number;
-      violationCount: number;
-      sortedDesc: number[];
-      variance: number;
-      unitSpread: number;
-      unitMaxDistance: number;
-      unitTotalDistance: number;
-      unitViolationCount: number;
-      unitSortedDesc: number[];
-      unitVariance: number;
-      centerBias: number;
-    } | null = null;
-
-    function getDistanceProfile(p: Point, requireAllReach: boolean) {
-      const distances = stoneSources.map(({ anchor, spawn }) => cardinalStepsInRange(anchor, spawn, p));
-      const numericDistances = distances.filter((d): d is number => d != null);
-      const unreachableCount = distances.length - numericDistances.length;
-      if (requireAllReach && unreachableCount > 0) return null;
-      if (numericDistances.length === 0) return null;
-      const maxDistance = Math.max(...numericDistances);
-      const minDistance = Math.min(...numericDistances);
-      const spread = maxDistance - minDistance;
-      const totalDistance = numericDistances.reduce((sum, d) => sum + d, 0);
-      const meanDistance = totalDistance / numericDistances.length;
-      const variance = numericDistances.reduce((sum, d) => {
-        const diff = d - meanDistance;
-        return sum + diff * diff;
-      }, 0);
-      const sortedDesc = [...numericDistances].sort((a, b) => b - a);
-      const violationCount =
-        unreachableCount +
-        Number(maxDistance > target.maxDistance) +
-        Number(spread > target.maxSpread);
-      return {
-        spread,
-        maxDistance,
-        totalDistance,
-        violationCount,
-        unreachableCount,
-        sortedDesc,
-        variance,
-      };
-    }
-
-    function getUnitDirectionPriority(monster: Point, unit: Point) {
-      if (unit.x === monster.x && unit.y === monster.y - 1) return 0;
-      if (unit.x === monster.x - 1 && unit.y === monster.y) return 1;
-      if (unit.x === monster.x + 1 && unit.y === monster.y) return 2;
-      if (unit.x === monster.x && unit.y === monster.y + 1) return 3;
-      return 9;
-    }
-
-    function isCandidateBetter(candidate: {
-      unitDirectionPriority: number;
-      unreachableCount: number;
-      unitUnreachableCount: number;
-      pairUnreachableCount: number;
-      pairViolationCount: number;
-      pairSpread: number;
-      pairMaxDistance: number;
-      pairVariance: number;
-      pairTotalDistance: number;
-      spread: number;
-      maxDistance: number;
-      totalDistance: number;
-      violationCount: number;
-      sortedDesc: number[];
-      variance: number;
-      unitSpread: number;
-      unitMaxDistance: number;
-      unitTotalDistance: number;
-      unitViolationCount: number;
-      unitSortedDesc: number[];
-      unitVariance: number;
-      centerBias: number;
-    }, current: {
-      unitDirectionPriority: number;
-      unreachableCount: number;
-      unitUnreachableCount: number;
-      pairUnreachableCount: number;
-      pairViolationCount: number;
-      pairSpread: number;
-      pairMaxDistance: number;
-      pairVariance: number;
-      pairTotalDistance: number;
-      spread: number;
-      maxDistance: number;
-      totalDistance: number;
-      violationCount: number;
-      sortedDesc: number[];
-      variance: number;
-      unitSpread: number;
-      unitMaxDistance: number;
-      unitTotalDistance: number;
-      unitViolationCount: number;
-      unitSortedDesc: number[];
-      unitVariance: number;
-      centerBias: number;
-    } | null) {
-      if (!current) return true;
-      if (candidate.unreachableCount !== current.unreachableCount) return candidate.unreachableCount < current.unreachableCount;
-      if (candidate.violationCount !== current.violationCount) return candidate.violationCount < current.violationCount;
-      if (candidate.spread !== current.spread) return candidate.spread < current.spread;
-      if (candidate.maxDistance !== current.maxDistance) return candidate.maxDistance < current.maxDistance;
-      if (candidate.variance !== current.variance) return candidate.variance < current.variance;
-      const len = Math.min(candidate.sortedDesc.length, current.sortedDesc.length);
-      for (let i = 0; i < len; i += 1) {
-        if (candidate.sortedDesc[i] !== current.sortedDesc[i]) {
-          return candidate.sortedDesc[i] < current.sortedDesc[i];
-        }
-      }
-      if (candidate.totalDistance !== current.totalDistance) return candidate.totalDistance < current.totalDistance;
-      if (candidate.unitUnreachableCount !== current.unitUnreachableCount) return candidate.unitUnreachableCount < current.unitUnreachableCount;
-      if (candidate.pairUnreachableCount !== current.pairUnreachableCount) return candidate.pairUnreachableCount < current.pairUnreachableCount;
-      if (candidate.unitDirectionPriority !== current.unitDirectionPriority) {
-        return candidate.unitDirectionPriority < current.unitDirectionPriority;
-      }
-      if (candidate.unitTotalDistance !== current.unitTotalDistance) return candidate.unitTotalDistance < current.unitTotalDistance;
-      if (candidate.unitMaxDistance !== current.unitMaxDistance) return candidate.unitMaxDistance < current.unitMaxDistance;
-      if (candidate.unitSpread !== current.unitSpread) return candidate.unitSpread < current.unitSpread;
-      return candidate.centerBias < current.centerBias;
-    }
-
-    const neighborDirs: Point[] = [
-      { x: 1, y: 0 },
-      { x: -1, y: 0 },
-      { x: 0, y: 1 },
-      { x: 0, y: -1 },
-    ];
-
-    for (let y = 0; y < ROWS; y += 1) {
-      for (let x = 0; x < COLS; x += 1) {
-        const monsterCandidate = { x, y };
-        if (!isStandable(monsterCandidate, stoneCells)) continue;
-        const monsterProfile = getDistanceProfile(monsterCandidate, true);
-        if (!monsterProfile) continue;
-
-        for (const dir of neighborDirs) {
-          const unitCandidate = { x: x + dir.x, y: y + dir.y };
-          if (!isStandable(unitCandidate, stoneCells)) continue;
-          const unitProfile = getDistanceProfile(unitCandidate, false);
-          if (!unitProfile) continue;
-
-          const centerBias = Math.abs(x - focus.x) + Math.abs(y - focus.y);
-
-          const candidate = {
-            monster: monsterCandidate,
-            unit: unitCandidate,
-            unitDirectionPriority: getUnitDirectionPriority(monsterCandidate, unitCandidate),
-            unreachableCount: monsterProfile.unreachableCount,
-            unitUnreachableCount: unitProfile.unreachableCount,
-            pairUnreachableCount: monsterProfile.unreachableCount + unitProfile.unreachableCount,
-            reclaimCount:
-              nextReclaimed.size +
-              Number(isSeaTile(keyOf(monsterCandidate.x, monsterCandidate.y))) +
-              Number(isSeaTile(keyOf(unitCandidate.x, unitCandidate.y))),
-            pairViolationCount: monsterProfile.violationCount + unitProfile.violationCount,
-            pairSpread: Math.max(monsterProfile.spread, unitProfile.spread),
-            pairMaxDistance: Math.max(monsterProfile.maxDistance, unitProfile.maxDistance),
-            pairVariance: Math.max(monsterProfile.variance, unitProfile.variance),
-            pairTotalDistance: monsterProfile.totalDistance + unitProfile.totalDistance,
-            spread: monsterProfile.spread,
-            maxDistance: monsterProfile.maxDistance,
-            totalDistance: monsterProfile.totalDistance,
-            violationCount: monsterProfile.violationCount,
-            sortedDesc: monsterProfile.sortedDesc,
-            variance: monsterProfile.variance,
-            unitSpread: unitProfile.spread,
-            unitMaxDistance: unitProfile.maxDistance,
-            unitTotalDistance: unitProfile.totalDistance,
-            unitViolationCount: unitProfile.violationCount,
-            unitSortedDesc: unitProfile.sortedDesc,
-            unitVariance: unitProfile.variance,
-            centerBias,
-          };
-
-          if (!best || candidate.reclaimCount < best.reclaimCount || (candidate.reclaimCount === best.reclaimCount && isCandidateBetter(candidate, best))) {
-            best = {
-              ...candidate,
-            };
-          }
-        }
-      }
-    }
-
-    if (!best) {
-      setGeneratorError("Demo rejected: no valid M/U pair where all spawn tiles can reach M by range.");
+    const layout = completeChaosLayout(anchors, plannerContext(focus));
+    if (!layout) {
+      setGeneratorError(
+        "This layout cannot connect to existing land. Generate a new layout.",
+      );
       return false;
     }
-
-    const monster = best.monster;
-    const unit = best.unit;
-    if (isSeaTile(keyOf(monster.x, monster.y))) nextReclaimed.add(keyOf(monster.x, monster.y));
-    if (isSeaTile(keyOf(unit.x, unit.y))) nextReclaimed.add(keyOf(unit.x, unit.y));
-
-    const union = new Set<string>();
-    anchors.forEach((a) => {
-      movementEnvelope(a).forEach((k) => union.add(k));
-    });
-
-    const open = new Set([keyOf(monster.x, monster.y), keyOf(unit.x, unit.y)]);
-
-    const mKey = keyOf(monster.x, monster.y);
-    const uKey = keyOf(unit.x, unit.y);
-    const mStandable = !stoneCells.has(mKey) && !isSeaTile(mKey);
-    const uStandable = !stoneCells.has(uKey) && !isSeaTile(uKey);
-    const adjacent = Math.abs(monster.x - unit.x) + Math.abs(monster.y - unit.y) === 1;
-    if (!mStandable || !uStandable || !adjacent) {
-      const reasons: string[] = [];
-      if (!mStandable) reasons.push("M is not standable");
-      if (!uStandable) reasons.push("U is not standable");
-      if (!adjacent) reasons.push("M and U are not adjacent");
-      setGeneratorError(`Demo rejected: ${reasons.join("; ")}.`);
-      return false;
+    rememberSetup();
+    const id = `${Math.floor(focus.x / 16)},${Math.floor(focus.y / 16)}`;
+    let groups = currentGroups();
+    if (!groups.length && pieces.size) {
+      const area = stoneAnchors[0]
+        ? eastFrontSpawn(stoneAnchors[0])
+        : (selectedSetupArea ?? focus);
+      groups = [
+        {
+          id: `${Math.floor(area.x / 16)},${Math.floor(area.y / 16)}`,
+          area,
+          pieceKeys: [...pieces.keys()],
+          monster: openMonsterTile,
+          unit: openUnitTile,
+        },
+      ];
     }
-
-    union.forEach((k) => {
-      if (open.has(k)) return;
-      if (stoneCells.has(k)) return;
-      if (baseSeaTiles.has(k) && !nextReclaimed.has(k)) return;
-      if (nextPaintedSea.has(k) && !nextReclaimed.has(k)) return;
-      nextPieces.set(k, "board");
+    const next = new Map<string, Piece>(pieces);
+    groups
+      .find((group) => group.id === id)
+      ?.pieceKeys.forEach((key) => next.delete(key));
+    const newKeys: string[] = [];
+    layout.anchors.forEach((anchor) => {
+      const key = keyOf(anchor.x, anchor.y);
+      next.set(key, "stone");
+      newKeys.push(key);
     });
-
-    setPieces(nextPieces);
-    setPaintedSeaTiles(nextPaintedSea);
-    setReclaimedTiles(nextReclaimed);
-    setOpenMonsterTile(monster);
-    setOpenUnitTile(unit);
+    layout.boards.forEach((cell) => {
+      const key = keyOf(cell.x, cell.y);
+      next.set(key, "board");
+      newKeys.push(key);
+    });
+    const usedGround = new Set<string>(
+      [
+        ...layout.anchors.flatMap(stoneFootprint),
+        ...layout.boards,
+        layout.monster,
+        layout.unit,
+      ].map((cell) => keyOf(cell.x, cell.y)),
+    );
+    const plannedLand = new Set([
+      ...layout.reclaimed.map((cell) => keyOf(cell.x, cell.y)),
+      ...[...retainedReclaimed(id)].filter((key) => usedGround.has(key)),
+    ]);
+    setSetupGroups([
+      ...groups.filter((group) => group.id !== id),
+      {
+        id,
+        area: focus,
+        pieceKeys: newKeys,
+        reclaimedKeys: [...plannedLand],
+        monster: layout.monster,
+        unit: layout.unit,
+      },
+    ]);
+    setActiveSetupId(id);
+    setPieces(next);
+    setReclaimedTiles(
+      new Set([
+        ...retainedReclaimed(id),
+        ...layout.reclaimed.map((cell) => keyOf(cell.x, cell.y)),
+      ]),
+    );
+    setOpenMonsterTile(layout.monster);
+    setOpenUnitTile(layout.unit);
+    setSelectedPiece(null);
+    setMovingPiece(null);
+    setTool("none");
+    setHoverTile(null);
+    setPickSetupAreaFromMap(false);
     setGeneratorError(null);
-    const resultText = resultTotal > 1 ? ` Result ${resultIndex + 1}/${resultTotal}.` : "";
-    setCopyStatus(`Setup applied (${anchors.length} stones, reclaimed ${nextReclaimed.size} tiles).${resultText}`);
+    setSuggestedStoneCount(null);
+    setPanel("plan");
+    setBuildStage("all");
+    setShowLevelOverlay(false);
+    setShowCoverageCheck(false);
+    fitSetupView(
+      newKeys.map(parseKey).concat([layout.monster, layout.unit]),
+      undefined,
+    );
+    setCopyStatus(null);
     return true;
   }
 
   function cycleToNextResult() {
-    setNextResultAnimating(true);
-    if (nextResultAnimationTimerRef.current != null) {
-      window.clearTimeout(nextResultAnimationTimerRef.current);
-    }
-    nextResultAnimationTimerRef.current = window.setTimeout(() => {
-      setNextResultAnimating(false);
-      nextResultAnimationTimerRef.current = null;
-    }, 140);
+    if (!resultCycle || resultCycle.options.length < 2) return;
+    const index = (resultCycle.index + 1) % resultCycle.options.length;
+    if (
+      applyAnchorsAsSetup(
+        resultCycle.options[index],
+        resultCycle.focus,
+        new Set(),
+        new Set(),
+        index,
+        resultCycle.options.length,
+      )
+    )
+      setResultCycle((previous) =>
+        previous ? { ...previous, index } : previous,
+      );
+  }
 
-    if (!resultCycle || resultCycle.options.length < 2) {
-      setCopyStatus("Only one best result is available for current settings.");
+  function generateSetup(count = demoStoneCount) {
+    const focus = selectedSetupArea ?? resolveLevelInput(locationInput);
+    if (!focus || !nativeLand) return;
+    const context = plannerContext(focus);
+    const { layouts } = findChaosLayouts(context, count);
+    if (!layouts.length) {
+      let suggested: number | null = null;
+      for (let smaller = count - 1; smaller >= 1; smaller--)
+        if (findChaosLayouts(context, smaller, 1).layouts.length) {
+          suggested = smaller;
+          break;
+        }
+      setSuggestedStoneCount(suggested);
+      fitSetupView(context.areaCells, "stones");
+      setGeneratorError(
+        `No ${count}-stone layout found at Lv ${levelAt(focus.x, focus.y)} with connected land and two open positions. ${suggested ? `Try ${suggested} stone${suggested === 1 ? "" : "s"}, or pick another area.` : "Pick another area."}`,
+      );
+      setResultCycle(null);
+      setBuildStage("all");
       return;
     }
-    const nextIndex = (resultCycle.index + 1) % resultCycle.options.length;
-    const ok = applyAnchorsAsSetup(
-      resultCycle.options[nextIndex],
-      resultCycle.focus,
-      resultCycle.basePaintedSeaTiles,
-      resultCycle.baseReclaimedTiles,
-      nextIndex,
-      resultCycle.options.length
+    const options = layouts.map((layout) => layout.anchors);
+    if (
+      applyAnchorsAsSetup(
+        options[0],
+        focus,
+        new Set(),
+        new Set(),
+        0,
+        options.length,
+      )
+    )
+      setResultCycle({
+        options,
+        index: 0,
+        focus,
+        basePaintedSeaTiles: new Set(),
+        baseReclaimedTiles: new Set(),
+      });
+  }
+
+  function fillMissingBoards() {
+    const added = [...leakTiles].filter(
+      (key) => !piecePlacementError("board", parseKey(key)),
     );
-    if (!ok) return;
-    setResultCycle((prev) => {
-      if (!prev) return prev;
-      return { ...prev, index: nextIndex };
+    if (!added.length) return;
+    rememberSetup();
+    setPieces((previous) => {
+      const next = new Map(previous);
+      added.forEach((key) => next.set(key, "board"));
+      return next;
     });
-  }
-
-  function applyStoneDemo(stoneCount: number, compactAxis: "x" | "y" = "x", seamMode: DemoSeamMode = "auto") {
-    const focus = selectedSetupArea ?? { x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2) };
-    const requiredSpawnLevel = selectedSetupArea ? levelAt(selectedSetupArea.x, selectedSetupArea.y) ?? null : null;
-    if (selectedSetupArea && requiredSpawnLevel == null) {
-      setGeneratorError("Selected setup area has no valid level data. Pick another area tile.");
-      return false;
-    }
-    const anchorCandidates = buildDemoAnchors(stoneCount, compactAxis, seamMode, focus);
-
-    let bestAnchorScore: AnchorScore | null = null;
-    const bestAnchorOptions = new Map<string, Point[]>();
-
-    const evaluateAnchorCandidates = (candidateList: Point[][]) => {
-      candidateList.forEach((candidateAnchors) => {
-        const score = scoreAnchorLayout(
-          candidateAnchors,
-          baseSeaTiles,
-          paintedSeaTiles,
-          reclaimedTiles,
-          requiredSpawnLevel,
-          selectedSetupArea
-        );
-        if (!score) return;
-        const candidateKey = candidateAnchors.map((a) => `${a.x},${a.y}`).sort().join("|");
-        if (!bestAnchorScore) {
-          bestAnchorScore = score;
-          bestAnchorOptions.clear();
-          bestAnchorOptions.set(candidateKey, candidateAnchors);
-          return;
-        }
-        const cmp = compareAnchorScores(score, bestAnchorScore);
-        if (cmp > 0) {
-          return;
-        }
-        if (cmp < 0) {
-          bestAnchorScore = score;
-          bestAnchorOptions.clear();
-          bestAnchorOptions.set(candidateKey, candidateAnchors);
-          return;
-        }
-        if (!bestAnchorOptions.has(candidateKey)) bestAnchorOptions.set(candidateKey, candidateAnchors);
-      });
-    };
-
-    evaluateAnchorCandidates(anchorCandidates);
-
-    if (!bestAnchorScore) {
-      const offsetRange = [-4, -2, 0, 2, 4];
-      const expanded = new Map<string, Point[]>();
-      anchorCandidates.forEach((candidate) => {
-        const baseKey = candidate.map((a) => `${a.x},${a.y}`).sort().join("|");
-        expanded.set(baseKey, candidate);
-        offsetRange.forEach((dx) => {
-          offsetRange.forEach((dy) => {
-            if (dx === 0 && dy === 0) return;
-            const shifted = translateAnchors(candidate, dx, dy);
-            const shiftedKey = shifted.map((a) => `${a.x},${a.y}`).sort().join("|");
-            if (!expanded.has(shiftedKey)) expanded.set(shiftedKey, shifted);
-          });
-        });
-      });
-      evaluateAnchorCandidates(Array.from(expanded.values()));
-    }
-
-    if (!bestAnchorScore) {
-      setGeneratorError(
-        requiredSpawnLevel != null
-          ? `No valid ${stoneCount}-stone layout found where all S spawn tiles are Lv ${requiredSpawnLevel} in the selected area.`
-          : `No valid ${stoneCount}-stone layout found for the selected area.`
-      );
-      setResultCycle(null);
-      return false;
-    }
-    const equalBestAnchors = Array.from(bestAnchorOptions.values());
-    const cycleState: ResultCycleState = {
-      options: equalBestAnchors.map((candidate) => candidate.map((a) => ({ x: a.x, y: a.y }))),
-      index: 0,
-      focus: { ...focus },
-      basePaintedSeaTiles: new Set<string>(paintedSeaTiles),
-      baseReclaimedTiles: new Set<string>(reclaimedTiles),
-    };
-
-    const ok = applyAnchorsAsSetup(cycleState.options[0] ?? [], focus, cycleState.basePaintedSeaTiles, cycleState.baseReclaimedTiles, 0, cycleState.options.length);
-    if (!ok) {
-      setResultCycle(null);
-      return false;
-    }
-    setResultCycle(cycleState);
-    return true;
-  }
-
-  function tileStyle(x: number, y: number) {
-    const k = keyOf(x, y);
-    const terrain = terrainAt(x, y);
-    const reclaimed = reclaimedTiles.has(k);
-    if (seaTiles.has(k)) return "";
-    if (!terrain && !reclaimed) return "bg-slate-950";
-    if (showDebugLabels && spawnIdByKey.has(k)) return "bg-fuchsia-300";
-    if (showCoverageCheck && leakTiles.has(k)) {
-      return "bg-rose-400/80";
-    }
-    if (showCoverageCheck && combinedEnvelope.has(k)) {
-      const isCovered = occupiedByStones.has(k) || pieces.get(k) === "board";
-      const isReservedOpen =
-        (openMonsterTile && openMonsterTile.x === x && openMonsterTile.y === y) ||
-        (openUnitTile && openUnitTile.x === x && openUnitTile.y === y);
-      if (!isCovered && !isReservedOpen && !seaTiles.has(k)) return "bg-amber-300/60";
-    }
-    if (openMonsterTile && openMonsterTile.x === x && openMonsterTile.y === y) return "bg-red-400";
-    if (openUnitTile && openUnitTile.x === x && openUnitTile.y === y) return "bg-emerald-400";
-    return "";
-  }
-
-  function tileInlineStyle(x: number, y: number): CSSProperties | undefined {
-    const k = keyOf(x, y);
-    const terrain = terrainAt(x, y);
-    const reclaimed = reclaimedTiles.has(k);
-    const selectedArea = selectedSetupArea && selectedSetupArea.x === x && selectedSetupArea.y === y;
-    const leak = showCoverageCheck && leakTiles.has(k);
-    const inPlacementPreview = placementPreview.cells.has(k);
-    const nativeRows = NATIVE_MAP.length;
-    const nativeCols = NATIVE_MAP[0]?.length ?? 0;
-    const ny = getNativeIndex(y, ROWS, nativeRows);
-    const nx = getNativeIndex(x, COLS, nativeCols);
-    const nSX = Math.floor((nx * COLS) / nativeCols);
-    const nEX = Math.floor(((nx + 1) * COLS) / nativeCols) - 1;
-    const nSY = Math.floor((ny * ROWS) / nativeRows);
-    const nEY = Math.floor(((ny + 1) * ROWS) / nativeRows) - 1;
-    const overlayBorders = showLevelOverlay
-      ? {
-          right: x === nEX,
-          left: x === nSX && nx === 0,
-          bottom: y === nEY,
-          top: y === nSY && ny === 0,
-        }
-      : null;
-
-    const overlayShadow = [
-      selectedArea ? "inset 0 0 0 1px #fde047" : null,
-      leak ? "inset 0 0 0 2px rgba(239,68,68,0.95)" : null,
-      inPlacementPreview
-        ? placementPreview.valid
-          ? "inset 0 0 0 2px rgba(148,163,184,0.55)"
-          : "inset 0 0 0 2px rgba(239,68,68,0.8)"
-        : null,
-    ].filter(Boolean).join(", ") || undefined;
-
-    if (seaTiles.has(k)) {
-      return {
-        backgroundColor: WORLD_MAP_WATER_COLOR,
-        borderRight: overlayBorders?.right ? "1px solid rgba(0,0,0,0.62)" : undefined,
-        borderLeft: overlayBorders?.left ? "1px solid rgba(0,0,0,0.62)" : undefined,
-        borderBottom: overlayBorders?.bottom ? "1px solid rgba(0,0,0,0.62)" : undefined,
-        borderTop: overlayBorders?.top ? "1px solid rgba(0,0,0,0.62)" : undefined,
-        boxShadow: overlayShadow,
-      };
-    }
-
-    if (!terrain && !reclaimed) return undefined;
-    if (showDebugLabels && spawnIdByKey.has(k)) return undefined;
-    if (openMonsterTile && openMonsterTile.x === x && openMonsterTile.y === y) return undefined;
-    if (openUnitTile && openUnitTile.x === x && openUnitTile.y === y) return undefined;
-
-    if (reclaimed) {
-      const reclaimedBase = terrain ? TERRAIN_COLORS[terrain] : "#6f8f3a";
-      const reclaimedPattern =
-        "repeating-linear-gradient(135deg, rgba(255,255,255,0.16) 0 2px, rgba(0,0,0,0.10) 2px 4px)";
-      return {
-        backgroundColor: reclaimedBase,
-        backgroundImage: reclaimedPattern,
-        borderRight: overlayBorders?.right ? "1px solid rgba(0,0,0,0.62)" : undefined,
-        borderLeft: overlayBorders?.left ? "1px solid rgba(0,0,0,0.62)" : undefined,
-        borderBottom: overlayBorders?.bottom ? "1px solid rgba(0,0,0,0.62)" : undefined,
-        borderTop: overlayBorders?.top ? "1px solid rgba(0,0,0,0.62)" : undefined,
-        boxShadow: overlayShadow,
-      };
-    }
-
-    if (!terrain) return undefined;
-    return {
-      backgroundColor: TERRAIN_COLORS[terrain],
-      borderRight: overlayBorders?.right ? "1px solid rgba(0,0,0,0.62)" : undefined,
-      borderLeft: overlayBorders?.left ? "1px solid rgba(0,0,0,0.62)" : undefined,
-      borderBottom: overlayBorders?.bottom ? "1px solid rgba(0,0,0,0.62)" : undefined,
-      borderTop: overlayBorders?.top ? "1px solid rgba(0,0,0,0.62)" : undefined,
-      boxShadow: overlayShadow,
-    };
-  }
-
-  function tileLabel(x: number, y: number) {
-    const k = keyOf(x, y);
-    if (openMonsterTile && openMonsterTile.x === x && openMonsterTile.y === y) return "M";
-    if (openUnitTile && openUnitTile.x === x && openUnitTile.y === y) return "U";
-
-    const spawnId = spawnIdByKey.get(k);
-    if (spawnId != null) return `S${spawnId}`;
-
-    const stoneId = stoneIdByAnchorKey.get(k);
-    if (stoneId != null) return `${stoneId}`;
-
-    const boardId = boardIdByKey.get(k);
-    if (boardId != null) return `B${boardId}`;
-
-    return "";
-  }
-
-  function tileHoverText(x: number, y: number) {
-    const k = keyOf(x, y);
-    const lv = levelAt(x, y);
-    const terrain = terrainAt(x, y);
-    const sea = seaTiles.has(k);
-    const reclaimed = reclaimedTiles.has(k);
-    const state = reclaimed ? "Reclaimed land" : sea ? "Sea" : "Land";
-    const terrainLabel = terrain ?? (reclaimed ? "reclaimed" : "water");
-    return `Lv ${lv ?? "-"} | ${terrainLabel} | ${state}`;
-  }
-
-  function tileDecor(x: number, y: number) {
-    const k = keyOf(x, y);
-
-    if (openMonsterTile && openMonsterTile.x === x && openMonsterTile.y === y) {
-      return (
-        <span className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center">
-          <span className="flex h-[88%] w-[88%] items-center justify-center rounded-full border border-red-900/40 bg-red-500/90 text-slate-100">
-            <Skull className="h-[72%] w-[72%]" strokeWidth={2.2} />
-          </span>
-        </span>
-      );
-    }
-
-    if (openUnitTile && openUnitTile.x === x && openUnitTile.y === y) {
-      return (
-        <span className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center">
-          <span className="flex h-[88%] w-[88%] items-center justify-center rounded-full border border-emerald-900/40 bg-emerald-500/90 text-slate-100">
-            <Shield className="h-[72%] w-[72%]" strokeWidth={2.2} />
-          </span>
-        </span>
-      );
-    }
-
-    if (placementPreview.kind === "monster" && hoverTile && x === hoverTile.x && y === hoverTile.y) {
-      const outerClass = placementPreview.valid
-        ? "border-red-900/40 bg-red-500/80"
-        : "border-red-900/55 bg-red-900/45";
-      return (
-        <span className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center opacity-60">
-          <span className={`flex h-[88%] w-[88%] items-center justify-center rounded-full border ${outerClass} text-slate-100`}>
-            <Skull className="h-[72%] w-[72%]" strokeWidth={2.2} />
-          </span>
-        </span>
-      );
-    }
-
-    if (placementPreview.kind === "unit" && hoverTile && x === hoverTile.x && y === hoverTile.y) {
-      const outerClass = placementPreview.valid
-        ? "border-emerald-900/40 bg-emerald-500/80"
-        : "border-red-900/55 bg-red-900/45";
-      return (
-        <span className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center opacity-60">
-          <span className={`flex h-[88%] w-[88%] items-center justify-center rounded-full border ${outerClass} text-slate-100`}>
-            <Shield className="h-[72%] w-[72%]" strokeWidth={2.2} />
-          </span>
-        </span>
-      );
-    }
-
-    if (pieces.get(k) === "board") {
-      return (
-        <span className="pointer-events-none absolute inset-0 z-[4]">
-          <img
-            src={SIGNBOARD_SPRITE}
-            alt=""
-            className="h-full w-full object-contain [image-rendering:pixelated]"
-            draggable={false}
-          />
-        </span>
-      );
-    }
-
-    if (stoneIdByAnchorKey.has(k)) {
-      return (
-        <span
-          className="pointer-events-none absolute left-0 top-0 z-[3]"
-          style={{ width: "calc(var(--tile-size) * 2)", height: "calc(var(--tile-size) * 2)" }}
-        >
-          <img
-            src={CHAOS_STONE_SPRITE}
-            alt=""
-            className="h-full w-full object-contain [image-rendering:pixelated]"
-            draggable={false}
-          />
-        </span>
-      );
-    }
-
-    if (placementPreview.kind === "board" && placementPreview.cells.has(k)) {
-      return (
-        <span className="pointer-events-none absolute inset-0 z-[4] opacity-65">
-          <img
-            src={SIGNBOARD_SPRITE}
-            alt=""
-            className="h-full w-full object-contain [image-rendering:pixelated]"
-            style={placementPreview.valid ? undefined : { filter: "grayscale(1) brightness(0.55) sepia(0.8) hue-rotate(-35deg)" }}
-            draggable={false}
-          />
-        </span>
-      );
-    }
-
-    if (placementPreview.kind === "stone" && hoverTile && x === hoverTile.x && y === hoverTile.y) {
-      return (
-        <span
-          className="pointer-events-none absolute left-0 top-0 z-[3] opacity-55"
-          style={{ width: "calc(var(--tile-size) * 2)", height: "calc(var(--tile-size) * 2)" }}
-        >
-          <img
-            src={CHAOS_STONE_SPRITE}
-            alt=""
-            className="h-full w-full object-contain [image-rendering:pixelated]"
-            style={placementPreview.valid ? undefined : { filter: "grayscale(1) brightness(0.55) sepia(0.8) hue-rotate(-35deg)" }}
-            draggable={false}
-          />
-        </span>
-      );
-    }
-
-    return null;
+    setResultCycle(null);
+    setCopyStatus(
+      `Added ${added.length} board${added.length === 1 ? "" : "s"}.`,
+    );
   }
 
   const unitAdjMonster =
     openMonsterTile && openUnitTile
-      ? Math.abs(openMonsterTile.x - openUnitTile.x) + Math.abs(openMonsterTile.y - openUnitTile.y) === 1
+      ? Math.abs(openMonsterTile.x - openUnitTile.x) +
+          Math.abs(openMonsterTile.y - openUnitTile.y) ===
+        1
       : false;
 
   const monsterTileStandable = openMonsterTile
-    ? !seaTiles.has(keyOf(openMonsterTile.x, openMonsterTile.y)) && !occupiedByStones.has(keyOf(openMonsterTile.x, openMonsterTile.y)) && !blockedFacilityTiles.has(keyOf(openMonsterTile.x, openMonsterTile.y))
+    ? !seaTiles.has(keyOf(openMonsterTile.x, openMonsterTile.y)) &&
+      !occupiedByStones.has(keyOf(openMonsterTile.x, openMonsterTile.y)) &&
+      !blockedFacilityTiles.has(keyOf(openMonsterTile.x, openMonsterTile.y))
     : false;
 
   const unitTileStandable = openUnitTile
-    ? !seaTiles.has(keyOf(openUnitTile.x, openUnitTile.y)) && !occupiedByStones.has(keyOf(openUnitTile.x, openUnitTile.y)) && !blockedFacilityTiles.has(keyOf(openUnitTile.x, openUnitTile.y))
+    ? !seaTiles.has(keyOf(openUnitTile.x, openUnitTile.y)) &&
+      !occupiedByStones.has(keyOf(openUnitTile.x, openUnitTile.y)) &&
+      !blockedFacilityTiles.has(keyOf(openUnitTile.x, openUnitTile.y))
     : false;
-  const zoomPercent = Math.round(mapZoom * 100);
-  const handleZoomChange = (values: number[]) => {
-    const next = values[0];
-    if (typeof next !== "number" || Number.isNaN(next)) return;
-    setMapZoom(clampZoom(next));
+  const selectedKind = selectedPiece ? pieces.get(selectedPiece) : null;
+  const guideKeys = setupGroups.find(
+    (group) => group.id === activeSetupId,
+  )?.pieceKeys;
+  const guideReclaimedCount =
+    setupGroups.find((group) => group.id === activeSetupId)?.reclaimedKeys
+      ?.length ?? reclaimedTiles.size;
+  const guideStoneCount = [...pieces].filter(
+    ([key, kind]) =>
+      kind === "stone" && (!guideKeys || guideKeys.includes(key)),
+  ).length;
+  const guideBoardCount = [...pieces].filter(
+    ([key, kind]) =>
+      kind === "board" && (!guideKeys || guideKeys.includes(key)),
+  ).length;
+  const togglePanel = (next: NonNullable<typeof panel>) => {
+    setPanel((previous) => (previous === next ? null : next));
+    setSelectedPiece(null);
+    setBuildStage("all");
+    cancelPlacement();
+    setPickSetupAreaFromMap(false);
   };
+  const panelClass =
+    "absolute left-3 top-[72px] z-30 max-h-[calc(100%-168px)] w-[min(330px,calc(100%-24px))] overflow-y-auto rounded-xl border border-border bg-card/95 p-4 shadow-xl backdrop-blur";
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-4 p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Chaos Setup Lab</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>
-            Plan chaos stones and sign boards on the world map. Choose direct tile clicks or drag-map placement in the sidebar.
-          </p>
-          <p className="font-medium text-amber-600 dark:text-amber-400">
-            Experimental tool: generated setups may not always match live game behavior. Please verify generated setups with the community on Discord before relying on them.
-          </p>
-          <p className="rounded-md border border-red-500/70 bg-red-500/10 px-3 py-2 font-semibold text-red-700 dark:text-red-300">
-            Warning: when removing a Chaos Stone, pay the 50 diamonds or it will be lost permanently. Losing one permanently is bad enough that many players would rather restart than accept it.
-          </p>
-          <p>
-            Spawn/movement model used in this lab: spawn from the stone's south-east tile (inside 2x2), range is measured from stone borders (West +2 from west edge, East +4 from east edge, North +3 from north edge, South +3 from south edge), with N/E/S/W cardinal movement only.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="space-y-2 p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Reclaim Land:</span>
-            <Button
-              size="sm"
-              variant={tool === "reclaim" && reclaimMode === "claim" ? "default" : "outline"}
-              onClick={() => {
-                setTool((prev) => (prev === "reclaim" && reclaimMode === "claim") ? "none" : "reclaim");
-                setReclaimMode("claim");
-              }}
-            >
-              Claim
-            </Button>
-            <Button
-              size="sm"
-              variant={tool === "reclaim" && reclaimMode === "unclaim" ? "default" : "outline"}
-              onClick={() => {
-                setTool((prev) => (prev === "reclaim" && reclaimMode === "unclaim") ? "none" : "reclaim");
-                setReclaimMode("unclaim");
-              }}
-            >
-              Unclaim
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Map View:</span>
-            <Button size="sm" variant={showDebugLabels ? "default" : "outline"} onClick={() => setShowDebugLabels((prev) => !prev)}>
-              {showDebugLabels ? "Hide Labels" : "Show Labels"}
-            </Button>
-            <Button size="sm" variant={showLevelOverlay ? "default" : "outline"} onClick={() => setShowLevelOverlay((prev) => !prev)}>
-              {showLevelOverlay ? "Hide Levels" : "Level Overlay"}
-            </Button>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Level overlay draws native area borders and shows each area's Lv label in the center.
-          </div>
-
-          <div className="space-y-2 rounded-md border border-border/60 p-2">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Manual Tool</div>
-            <div className="text-xs text-muted-foreground">
-              Choose Click or Drag in the map sidebar. {placementMethod==='direct'?'Click tiles to place immediately; the selected tool stays active for repeated placement.':'Drag the map under the preview, then press the green tick to place or the red X to cancel.'} Erase and Claim use tile clicks.
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Active tool: <span className="font-semibold text-foreground">{tool === "none" ? "none" : tool}</span>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Coverage check: red tiles are leak points. Use boards to cover all non-sea envelope tiles.
-            </div>
-            {showCoverageCheck && stoneCoverageChecks.length > 0 && (
-              <div className="grid grid-cols-1 gap-1 text-xs text-muted-foreground md:grid-cols-2 lg:grid-cols-4">
-                {stoneCoverageChecks.map((check) => (
-                  <div key={`coverage-${check.id}`} className={check.covered ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                    S{check.id}: {check.covered ? "covered" : `${check.leakCount} leak tile${check.leakCount > 1 ? "s" : ""}`}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2 rounded-md border border-border/60 p-2">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Auto Planner</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant={demoAxis === "x" ? "default" : "outline"} onClick={() => setDemoAxis("x")}>Axis X</Button>
-              <Button size="sm" variant={demoAxis === "y" ? "default" : "outline"} onClick={() => setDemoAxis("y")}>Axis Y</Button>
-              <select
-                value={demoSeamMode}
-                onChange={(event) => setDemoSeamMode(event.target.value as DemoSeamMode)}
-                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                aria-label="Demo seam mode"
-              >
-                <option value="auto">Seam: Auto</option>
-                <option value="first">Seam: First</option>
-                <option value="last">Seam: Last</option>
-              </select>
-              <select
-                value={demoStoneCount}
-                onChange={(event) => {
-                  const next = Number.parseInt(event.target.value, 10);
-                  setDemoStoneCount(Number.isFinite(next) ? next : 1);
-                }}
-                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                aria-label="Demo stone count"
-              >
-                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                  <option key={`demo-count-${n}`} value={n}>{n} stone{n > 1 ? "s" : ""}</option>
-                ))}
-              </select>
-              <span className="text-xs font-medium text-muted-foreground">Pick Location:</span>
-              <div ref={levelPickerRef} className="relative">
-                <div className="flex h-8 w-[200px] items-center rounded-md border border-input bg-background">
-                  <input
-                    ref={locationInputRef}
-                    value={locationInput}
-                    onChange={(event) => {
-                      setLocationInput(event.target.value);
-                      setShowLevelDropdown(true);
-                    }}
-                    onFocus={() => setShowLevelDropdown(true)}
-                    onBlur={() => {
-                      if (locationInput.trim()) trySelectLocationFromInput(locationInput);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        setShowLevelDropdown(false);
-                        trySelectLocationFromInput(locationInput);
-                      }
-                      if (event.key === "Escape") {
-                        setShowLevelDropdown(false);
-                      }
-                    }}
-                    placeholder="Level (e.g. 135)"
-                    className="h-full w-full bg-transparent px-2 text-sm outline-none"
-                    aria-label="Pick location level"
-                  />
-                  <button
-                    type="button"
-                    aria-label="Open level suggestions"
-                    onClick={openLocationLevelDropdown}
-                    className="flex h-full w-8 items-center justify-center border-l border-input text-muted-foreground hover:text-foreground"
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                </div>
-                {showLevelDropdown && (
-                  <div className="absolute left-0 top-9 z-30 max-h-52 w-[200px] overflow-auto rounded-md border border-border bg-popover p-1 shadow-md">
-                    {levelOptions
-                      .filter((lv) => locationInput.trim() === "" || String(lv).includes(locationInput.trim()))
-                      .slice(0, 80)
-                      .map((lv) => (
-                        <button
-                          key={`level-option-${lv}`}
-                          type="button"
-                          className="block w-full rounded px-2 py-1 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => {
-                            setLocationInput(String(lv));
-                            setShowLevelDropdown(false);
-                            trySelectLocationFromInput(String(lv));
-                          }}
-                        >
-                          Lv {lv}
-                        </button>
-                      ))}
-                  </div>
-                )}
-              </div>
-              <Button
-                size="sm"
-                variant={pickSetupAreaFromMap ? "default" : "outline"}
-                onClick={() => setPickSetupAreaFromMap((prev) => !prev)}
-              >
-                {pickSetupAreaFromMap ? "Picking From Map..." : "Pick From Map"}
-              </Button>
-              <Button
-                size="sm"
-                variant="default"
-                className="min-w-[110px]"
-                title={selectedSetupArea ? "Generate best setup for selected location" : "Pick a location first, then apply setup"}
-                onClick={() => {
-                  if (!selectedSetupArea) {
-                    setCopyStatus("Pick a location first, then click Apply Setup.");
-                    return;
-                  }
-                  setCopyStatus("Applying setup...");
-                  const ok = applyStoneDemo(demoStoneCount, demoAxis, demoSeamMode);
-                  if (!ok) {
-                    setCopyStatus("Setup could not be applied. Check the message above.");
-                  }
-                }}
-              >
-                Apply Setup
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className={`min-w-[102px] transition-transform duration-150 ${nextResultAnimating ? "scale-95" : "scale-100"}`}
-                disabled={!resultCycle || resultCycle.options.length < 2}
-                onClick={cycleToNextResult}
-              >
-                Next Result
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setSelectedSetupArea(null)}>Clear Area</Button>
-            </div>
-            {resultCycle && resultCycle.options.length > 1 && (
-              <div className="text-xs text-muted-foreground">
-                Showing result {resultCycle.index + 1} of {resultCycle.options.length}. Click Next Result to rotate.
-              </div>
-            )}
-            <div className="text-xs text-muted-foreground">
-              Pick Location uses one control: type a level or use the arrow dropdown, then Pick From Map is the alternate method.
-            </div>
-            <div className="text-xs text-muted-foreground">
-              After changing Axis, Seam, or stone count, click Apply Setup to regenerate.
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" onClick={focusSetupView}>Focus Setup</Button>
-            <div className="flex min-w-[220px] items-center gap-2 rounded-md border border-border/70 px-2 py-1">
-              <span className="text-xs font-medium text-muted-foreground">Zoom</span>
-              <Slider
-                min={ZOOM_MIN}
-                max={ZOOM_MAX}
-                step={ZOOM_STEP}
-                value={[mapZoom]}
-                onValueChange={handleZoomChange}
-                aria-label="Map zoom"
-                className="w-[160px]"
-              />
-              <Button size="sm" variant="outline" onClick={() => setMapZoom(1)}>{zoomPercent}%</Button>
-            </div>
-            <Button size="sm" variant="outline" onClick={copyDiagnostics}>Copy Diagnostics</Button>
-            <Button size="sm" variant="outline" onClick={clearAll}>Clear</Button>
-          </div>
-
-          {generatorError && <div className="w-full text-xs text-red-600 dark:text-red-400">{generatorError}</div>}
-          {copyStatus && <div className="w-full text-xs text-muted-foreground">{copyStatus}</div>}
-          {!selectedSetupArea && (
-            <div className="w-full text-xs text-amber-600 dark:text-amber-400">
-              Pick From Map to enable Apply Setup.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="relative overflow-hidden">
-        <CardContent className="p-2">
+    <div className="p-2 sm:p-3">
+      <div
+        ref={mapPanelRef}
+        className="relative isolate h-[calc(100dvh-80px)] min-h-[480px] overflow-hidden rounded-xl border border-border bg-card"
+        aria-label="Chaos Stone workspace"
+      >
+        <div ref={mapCanvasContainerRef} className="absolute inset-0">
           <RuntimeWorldRenderTestPage
             publicMode
+            fillHeight
             editorCellPicking
-            onTerrainReady={land=>setNativeLand(previous=>previous?.size===land.size&&[...land].every(k=>previous.has(k))?previous:land)}
-            mapPlacement={mapPlacing?{width:tool==='stone'?2:1,height:tool==='stone'?2:1,label:tool,valid:!!nativeLand&&placementPreview.valid,onChange:cell=>setHoverTile(previous=>previous?.x===cell.x&&previous.y===cell.y?previous:cell),onConfirm:cell=>onCellClick(cell.x,cell.y),onCancel:()=>{setTool('none');setHoverTile(null);}}:undefined}
+            interactiveInPublicMode
+            hideNatureToggleButtons
+            initialNatureVisibility={HIDDEN_MAP_NATURE}
+            onTerrainReady={onTerrainReady}
+            mapPlacement={
+              mapPlacing
+                ? {
+                    width: tool === "stone" ? 2 : 1,
+                    height: tool === "stone" ? 2 : 1,
+                    label: tool === "unit" ? "fighter" : tool,
+                    valid: !!nativeLand && placementPreview.valid,
+                    onChange: (cell) =>
+                      setHoverTile((previous) =>
+                        previous?.x === cell.x && previous.y === cell.y
+                          ? previous
+                          : cell,
+                      ),
+                    onConfirm: (cell) => onCellClick(cell.x, cell.y),
+                    onCancel: cancelPlacement,
+                  }
+                : undefined
+            }
             controlledZoom={runtimeMapZoom}
-            showCellGrid
-            visibleOnePieceFacilityIds={[LEGENDARY_CAVE_FACILITY_ID]}
+            zoomRequest={zoomRequest}
+            showCellGrid={false}
+            showLevelOverlay={showLevelOverlay}
+            visibleOnePieceFacilityIds={VISIBLE_MAP_FACILITIES}
             landOverrideCells={runtimeLandOverrideCells}
             reclaimedTintCells={runtimeReclaimedTintCells}
             focusCell={runtimeFocusCell}
-            interactiveInPublicMode
-            hideNatureToggleButtons
-            initialNatureVisibility={{
-              terrain: false,
-              resources: false,
-              humans: false,
-              special: false,
-            }}
-            drawEditorLayer={drawFacilities}
-            externalOverlays={runtimeOverlays}
+            drawSceneLayer={drawScene}
+            animateScene={
+              animateActors &&
+              !!humanFrames &&
+              sceneActors.some((actor) => actor.kind === "unit")
+            }
             cellHighlightOverlays={runtimeCoverageOverlays}
-            onCellHover={mapPlacing?undefined:(cell) => setHoverTile(cell)}
-            onCellClick={mapPlacing?undefined:(cell) => onCellClick(cell.x, cell.y)}
-          />
-        </CardContent>
-        <div className="pointer-events-none absolute right-3 top-1/2 z-20 -translate-y-1/2">
-          <div className="pointer-events-auto rounded-full border border-cyan-300/35 bg-slate-950/75 p-2 backdrop-blur-sm">
-            <div className="flex flex-col items-center gap-2">
-              <div role="group" aria-label="Placement method" className="flex flex-col gap-1 border-b border-cyan-300/25 pb-2">
-                {([{value:'direct',label:'Click',title:'Click tiles to place immediately'},{value:'map',label:'Drag',title:'Drag map, then confirm placement'}] as const).map(method=><button key={method.value} type="button" aria-label={method.title} aria-pressed={placementMethod===method.value} title={method.title} className={`${TOOL_BUTTON_BASE_CLASS} text-xs font-semibold ${placementMethod===method.value?TOOL_BUTTON_ACTIVE_CLASS:TOOL_BUTTON_IDLE_CLASS}`} onClick={()=>{setPlacementMethod(method.value);setHoverTile(null);}}>{method.label}</button>)}
-              </div>
-              <button
-                type="button"
-                aria-label="Place stone"
-                title="Stone"
-                onClick={() => setTool((prev) => prev === "stone" ? "none" : "stone")}
-                className={`${TOOL_BUTTON_BASE_CLASS} ${tool === "stone" ? TOOL_BUTTON_ACTIVE_CLASS : TOOL_BUTTON_IDLE_CLASS}`}
-              >
-                <img src={CHAOS_STONE_SPRITE} alt="" className="h-6 w-6 object-contain [image-rendering:pixelated]" draggable={false} />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Place board"
-                title="Board"
-                onClick={() => setTool((prev) => prev === "board" ? "none" : "board")}
-                className={`${TOOL_BUTTON_BASE_CLASS} ${tool === "board" ? TOOL_BUTTON_ACTIVE_CLASS : TOOL_BUTTON_IDLE_CLASS}`}
-              >
-                <img src={SIGNBOARD_SPRITE} alt="" className="h-6 w-6 object-contain [image-rendering:pixelated]" draggable={false} />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Place monster"
-                title="Monster"
-                onClick={() => setTool((prev) => prev === "monster" ? "none" : "monster")}
-                className={`${TOOL_BUTTON_BASE_CLASS} ${tool === "monster" ? TOOL_BUTTON_ACTIVE_CLASS : TOOL_BUTTON_IDLE_CLASS}`}
-              >
-                <Skull className="h-5 w-5" strokeWidth={2.1} />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Place unit"
-                title="Unit (A Rank Archer)"
-                onClick={() => setTool((prev) => prev === "unit" ? "none" : "unit")}
-                className={`${TOOL_BUTTON_BASE_CLASS} ${tool === "unit" ? TOOL_BUTTON_ACTIVE_CLASS : TOOL_BUTTON_IDLE_CLASS}`}
-              >
-                {unitMarkerSpriteUrl ? (
-                  <img src={unitMarkerSpriteUrl} alt="" className="h-7 w-7 object-contain [image-rendering:pixelated]" draggable={false} />
-                ) : (
-                  <Shield className="h-5 w-5" strokeWidth={2.1} />
-                )}
-              </button>
-
-              <button
-                type="button"
-                aria-label="Erase piece or marker"
-                title="Erase"
-                onClick={() => setTool((prev) => prev === "erase" ? "none" : "erase")}
-                className={`${TOOL_BUTTON_BASE_CLASS} ${tool === "erase" ? TOOL_BUTTON_ACTIVE_CLASS : TOOL_BUTTON_IDLE_CLASS}`}
-              >
-                <Eraser className="h-5 w-5" strokeWidth={2.1} />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Toggle coverage check"
-                title="Coverage Check"
-                onClick={() => setShowCoverageCheck((prev) => !prev)}
-                className={`${TOOL_BUTTON_BASE_CLASS} ${showCoverageCheck ? TOOL_BUTTON_ACTIVE_CLASS : TOOL_BUTTON_IDLE_CLASS}`}
-              >
-                <Check className="h-5 w-5" strokeWidth={2.1} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="relative hidden">
-        <CardContent ref={mapViewportRef} className="max-h-[72vh] overflow-auto p-2">
-          <div
-            ref={mapGridRef}
-            className="mx-auto grid w-max overflow-visible rounded-md"
-            style={{
-              gridTemplateColumns: `repeat(${COLS}, var(--tile-size))`,
-              ["--tile-size" as string]: `calc(clamp(2px, min(calc((100vw - 48px) / ${COLS}), calc((100vh - 360px) / ${ROWS})), ${TILE_PX_MAX}px) * ${mapZoom})`,
+            onCellClick={
+              mapPlacing ? undefined : (cell) => onCellClick(cell.x, cell.y)
+            }
+            onEditorObjectClick={(point, camera) => {
+              if (tool !== "none" || pickSetupAreaFromMap) return false;
+              const id = hitBuilder(
+                point,
+                camera,
+                facilityDraws,
+                spriteCache.alpha,
+              );
+              if (!id || id === "placement-preview") return false;
+              setSelectedPiece(id);
+              setPanel(null);
+              return true;
             }}
-          >
-            {Array.from({ length: ROWS }).map((_, y) =>
-              Array.from({ length: COLS }).map((__, x) => {
-                const k = keyOf(x, y);
-                const levelLabel = showLevelOverlay ? nativeLevelLabelByKey.get(k) : undefined;
-                const shouldShowLevelLabel =
-                  levelLabel != null &&
-                  !showDebugLabels;
-                return (
-                  <button
-                    key={k}
-                    data-map-tile={k}
-                    type="button"
-                    onMouseEnter={() => setHoverTile({ x, y })}
-                    onMouseLeave={() => setHoverTile(null)}
-                    onClick={() => onCellClick(x, y)}
-                    title={tileHoverText(x, y)}
-                    style={{ width: "var(--tile-size)", height: "var(--tile-size)", ...tileInlineStyle(x, y) }}
-                    className={`relative overflow-visible text-[8px] leading-none ${tileStyle(x, y)}`}
-                  >
-                    {tileDecor(x, y)}
-                    {shouldShowLevelLabel && (
-                      <span className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center font-semibold text-slate-50 [text-shadow:0_1px_2px_rgba(0,0,0,0.96)]">
-                        <span
-                          className="leading-none"
-                          style={{ fontSize: `${Math.max(8, Math.min(16, Math.round(mapZoom * 2)))}px` }}
-                        >
-                          Lv {levelLabel}
-                        </span>
-                      </span>
-                    )}
-                    {showDebugLabels && (
-                      <span className="pointer-events-none relative z-10 text-[8px] leading-none text-slate-50 [text-shadow:0_1px_1px_rgba(0,0,0,0.85)]">
-                        {tileLabel(x, y)}
-                      </span>
-                    )}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </CardContent>
-        <div className="pointer-events-none absolute right-2 top-1/2 z-20 -translate-y-1/2">
-          <div className="pointer-events-auto flex items-center">
-            <Slider
-              min={ZOOM_MIN}
-              max={ZOOM_MAX}
-              step={ZOOM_STEP}
-              value={[mapZoom]}
-              onValueChange={handleZoomChange}
-              orientation="vertical"
-              aria-label="Map zoom slider on map"
-              className="h-72 w-6 flex-col"
-              trackClassName="mx-auto h-full w-[3px] rounded-full bg-primary/20"
-              thumbClassName="h-5 w-5 border-primary/70 bg-background shadow"
+          />
+        </div>
+
+        <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between gap-2">
+          <div className="pointer-events-auto flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card/95 px-3 py-2 shadow-lg backdrop-blur">
+            <img
+              src={CHAOS_STONE_SPRITE}
+              alt=""
+              className="h-8 w-8 object-contain [image-rendering:pixelated]"
             />
+            <div>
+              <h1 className="text-sm font-semibold sm:text-base">
+                Chaos Stone
+              </h1>
+              <p className="whitespace-nowrap text-[11px] text-muted-foreground">
+                {activeSetupId &&
+                setupGroups.find((group) => group.id === activeSetupId)
+                  ? `Lv ${levelAt(setupGroups.find((group) => group.id === activeSetupId)!.area.x, setupGroups.find((group) => group.id === activeSetupId)!.area.y)} · ${guideStoneCount} stone${guideStoneCount === 1 ? "" : "s"}`
+                  : `${stoneAnchors.length} stones on map`}
+              </p>
+            </div>
+          </div>
+          <div className="pointer-events-auto flex gap-1 rounded-xl border border-border bg-card/95 p-1 shadow-lg backdrop-blur">
+            <Button
+              size="icon"
+              variant={panel === "view" ? "secondary" : "ghost"}
+              aria-label="View settings"
+              aria-pressed={panel === "view"}
+              onClick={() => togglePanel("view")}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant={panel === "help" ? "secondary" : "ghost"}
+              aria-label="Planner help"
+              aria-pressed={panel === "help"}
+              onClick={() => togglePanel("help")}
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-      </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Diagnostics</CardTitle>
-        </CardHeader>
-        <CardContent className="max-h-[34vh] space-y-3 overflow-auto p-3 text-xs text-muted-foreground">
-          <div className="grid grid-cols-1 gap-1 md:grid-cols-4">
-            <div>Stones: <span className="font-semibold text-foreground">{stoneAnchors.length}</span></div>
-            <div>Boards: <span className="font-semibold text-foreground">{boardIdByKey.size}</span></div>
-            <div>
-              Stone levels: <span className="font-semibold text-foreground">
-                {stoneLevelSummary.min == null ? "-" : `${stoneLevelSummary.min}-${stoneLevelSummary.max} (avg ${stoneLevelSummary.avg})`}
-              </span>
+        {panel && (
+          <section
+            ref={workspacePanelRef}
+            className={panelClass}
+            aria-label={
+              panel === "plan"
+                ? "Generate setup"
+                : panel === "build"
+                  ? "Build tools"
+                  : panel === "view"
+                    ? "View settings"
+                    : "Planner help"
+            }
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">
+                {panel === "plan"
+                  ? "Generate"
+                  : panel === "build"
+                    ? "Edit your layout"
+                    : panel === "view"
+                      ? "Map view"
+                      : "About this planner"}
+              </h2>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Close panel"
+                className="h-7 w-7"
+                onClick={() => {
+                  setPanel(null);
+                  setBuildStage("all");
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-            <div>
-              Setup area: <span className="font-semibold text-foreground">
-                {selectedSetupArea ? `(${selectedSetupArea.x},${selectedSetupArea.y}) Lv ${levelAt(selectedSetupArea.x, selectedSetupArea.y) ?? "-"}` : "auto-center"}
-              </span>
-            </div>
-            <div>Open tiles in envelope (should be 0 extra): <span className="font-semibold text-foreground">{extraOpenInEnvelope}</span></div>
-            <div>Unit adjacent to sink: <span className="font-semibold text-foreground">{unitAdjMonster ? "Yes" : "No"}</span></div>
-            <div>Reclaimed tiles: <span className="font-semibold text-foreground">{reclaimedTiles.size}</span></div>
-            <div>M tile standable: <span className="font-semibold text-foreground">{monsterTileStandable ? "Yes" : "No"}</span></div>
-            <div>U tile standable: <span className="font-semibold text-foreground">{unitTileStandable ? "Yes" : "No"}</span></div>
-          </div>
-          {stoneAnchors.length > 0 && (
-            <div className="space-y-1 pt-1">
-              <div className="font-medium text-foreground">Stone Anchors And Spawn Tiles</div>
-              <div className="grid grid-cols-1 gap-1 md:grid-cols-2 lg:grid-cols-4">
-                {stoneReachChecks.map(({ id, anchor, spawn, canReachM, distanceToM }) => {
-                  return (
-                    <div key={keyOf(anchor.x, anchor.y)}>
-                      Stone {id}: anchor ({anchor.x},{anchor.y}) spawn S{id} ({spawn.x},{spawn.y}) can reach M by range: {canReachM ? "Yes" : "No"} steps to M: {distanceToM ?? "-"}
-                    </div>
-                  );
-                })}
+            {panel === "plan" && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-[minmax(0,1fr)_76px] gap-3">
+                  <label className="min-w-0 text-xs font-medium">
+                    Area level
+                    <input
+                      ref={locationInputRef}
+                      value={locationInput}
+                      list="chaos-levels"
+                      inputMode="numeric"
+                      placeholder="e.g. 135"
+                      aria-label="Map level"
+                      className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      onChange={(event) => {
+                        setLocationInput(event.target.value);
+                        setSelectedSetupArea(
+                          resolveLevelInput(event.target.value),
+                        );
+                        setResultCycle(null);
+                        setCopyStatus(null);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          generateSetup();
+                        }
+                      }}
+                    />
+                    <datalist id="chaos-levels">
+                      {levelOptions.map((level) => (
+                        <option key={level} value={level} />
+                      ))}
+                    </datalist>
+                  </label>
+                  <label className="text-xs font-medium">
+                    Stones
+                    <select
+                      aria-label="Stone count"
+                      value={demoStoneCount}
+                      onChange={(event) => {
+                        setDemoStoneCount(Number(event.target.value));
+                        setResultCycle(null);
+                        setGeneratorError(null);
+                        setSuggestedStoneCount(null);
+                      }}
+                      className="mt-1 h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                        <option key={n}>{n}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {!selectedSetupArea && locationInput.trim() && (
+                  <p className="text-xs text-destructive">
+                    Choose an exact map level from the suggestions.
+                  </p>
+                )}
+                <Button
+                  aria-label="Generate setup"
+                  className="w-full gap-2"
+                  disabled={!selectedSetupArea || !nativeLand}
+                  onClick={() => {
+                    setGeneratorError(null);
+                    generateSetup();
+                  }}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Generate
+                </Button>
+                {activeSetupId &&
+                  selectedSetupArea &&
+                  setupGroups.find((group) => group.id === activeSetupId)
+                    ?.id ===
+                    `${Math.floor(selectedSetupArea.x / 16)},${Math.floor(selectedSetupArea.y / 16)}` && (
+                    <p className="text-xs text-muted-foreground" role="status">
+                      {guideStoneCount} stone{guideStoneCount === 1 ? "" : "s"}{" "}
+                      · {guideBoardCount} boards
+                      {guideReclaimedCount
+                        ? ` · Reclaim ${guideReclaimedCount} tiles`
+                        : ""}
+                    </p>
+                  )}
+                {generatorError && (
+                  <p role="alert" className="text-xs text-destructive">
+                    {generatorError}
+                  </p>
+                )}
+                {suggestedStoneCount !== null && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setDemoStoneCount(suggestedStoneCount);
+                      generateSetup(suggestedStoneCount);
+                    }}
+                  >
+                    Generate with {suggestedStoneCount} stone
+                    {suggestedStoneCount === 1 ? "" : "s"}
+                  </Button>
+                )}
               </div>
+            )}
+            {panel === "build" && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    className="h-20 flex-col gap-1"
+                    onClick={() => beginTool("stone")}
+                  >
+                    <img
+                      src={CHAOS_STONE_SPRITE}
+                      alt=""
+                      className="h-9 w-9 object-contain [image-rendering:pixelated]"
+                    />
+                    Add stone
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-20 flex-col gap-1"
+                    onClick={() => beginTool("board")}
+                  >
+                    <img
+                      src={signboardSpriteUrl}
+                      alt=""
+                      className="h-9 w-9 object-contain [image-rendering:pixelated]"
+                    />
+                    Board
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-16 flex-col gap-1"
+                    onClick={() => beginTool("unit")}
+                  >
+                    <Users className="h-5 w-5" />
+                    Fighter position
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-16 flex-col gap-1"
+                    onClick={() => beginTool("monster")}
+                  >
+                    <img
+                      src={getMonsterSprite("Diamondoom")?.src}
+                      alt=""
+                      className="h-7 w-7 object-contain [image-rendering:pixelated]"
+                    />
+                    Monster position
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Tap an existing structure to move or remove it.
+                </p>
+                <details>
+                  <summary className="cursor-pointer text-xs text-muted-foreground">
+                    Land & reset
+                  </summary>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setReclaimMode("claim");
+                        beginTool("reclaim");
+                      }}
+                    >
+                      Reclaim
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setReclaimMode("unclaim");
+                        beginTool("reclaim");
+                      }}
+                    >
+                      Unclaim
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        clearAll();
+                        setPanel(null);
+                      }}
+                    >
+                      Clear layout
+                    </Button>
+                  </div>
+                </details>
+              </div>
+            )}
+            {panel === "view" && (
+              <div className="space-y-4">
+                <label className="block text-xs">
+                  Structure opacity{" "}
+                  <span className="float-right text-muted-foreground">
+                    {Math.round(structureOpacity * 100)}%
+                  </span>
+                  <input
+                    type="range"
+                    min="25"
+                    max="100"
+                    value={Math.round(structureOpacity * 100)}
+                    onChange={(event) =>
+                      setStructureOpacity(Number(event.target.value) / 100)
+                    }
+                    aria-label="Structure opacity"
+                    className="mt-2 block w-full accent-primary"
+                  />
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={showLevelOverlay ? "secondary" : "outline"}
+                    aria-pressed={showLevelOverlay}
+                    onClick={() => setShowLevelOverlay((previous) => !previous)}
+                  >
+                    Area levels
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={showCoverageCheck ? "secondary" : "outline"}
+                    aria-pressed={showCoverageCheck}
+                    onClick={() =>
+                      setShowCoverageCheck((previous) => !previous)
+                    }
+                  >
+                    Coverage
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={animateActors ? "secondary" : "outline"}
+                    aria-pressed={animateActors}
+                    onClick={() => setAnimateActors((previous) => !previous)}
+                  >
+                    Animate fighter
+                  </Button>
+                </div>
+                <label className="block text-xs">
+                  Fighter preview
+                  <select
+                    aria-label="Fighter preview"
+                    className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    value={humanId}
+                    onChange={(event) => setHumanId(event.target.value)}
+                  >
+                    {HUMAN_IDLE_CHARACTERS.map((character) => (
+                      <option key={character.id} value={character.id}>
+                        {character.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+            {panel === "help" && (
+              <div className="space-y-3 text-xs text-muted-foreground">
+                <p>
+                  {saveError ||
+                    "Your layout saves automatically on this device."}
+                </p>
+                <p>
+                  Drag or pinch the map. Add a piece, move the map beneath it,
+                  then confirm. Tap a structure for Move or Remove. Escape
+                  cancels.
+                </p>
+                <p>
+                  Generated layouts use the existing experimental containment
+                  model. The animated fighter and representative monster show
+                  positions; they do not simulate spawning or combat.
+                </p>
+                <p>
+                  In game, pay the 50 diamonds when removing a Chaos Stone to
+                  keep it. Reclaimed cells here are planning overlays; your town
+                  still needs to permit reclamation.
+                </p>
+                <details>
+                  <summary className="cursor-pointer">Support details</summary>
+                  <div className="mt-2 space-y-2">
+                    <p>
+                      {stoneAnchors.length} stones | {boardIdByKey.size} boards
+                      | {reclaimedTiles.size} reclaimed tiles
+                    </p>
+                    <p>
+                      {stoneAnchors.length
+                        ? `${leakTiles.size} open tiles in the current model`
+                        : "No layout yet."}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={copyDiagnostics}
+                    >
+                      Copy diagnostics
+                    </Button>
+                  </div>
+                </details>
+              </div>
+            )}
+          </section>
+        )}
+
+        {selectedKind && (
+          <section
+            className="absolute bottom-[84px] left-3 z-20 w-[min(300px,calc(100%-24px))] rounded-xl border bg-card/95 p-3 shadow-xl backdrop-blur"
+            aria-label="Selected structure"
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-medium">
+                {selectedKind === "stone" ? "Chaos Stone" : "Info Board"}
+              </p>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Deselect structure"
+                className="h-7 w-7"
+                onClick={() => setSelectedPiece(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={moveSelected}>
+                <Move className="mr-2 h-4 w-4" />
+                Move
+              </Button>
+              <Button size="sm" variant="outline" onClick={removeSelected}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Remove
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {(tool !== "none" || pickSetupAreaFromMap) && (
+          <div
+            className="absolute left-3 bottom-[84px] z-20 flex w-[min(380px,calc(100%-24px))] items-center justify-between gap-2 rounded-xl border bg-card/95 px-3 py-2 text-xs shadow-lg"
+            role="status"
+          >
+            <span>
+              {pickSetupAreaFromMap
+                ? "Tap an area to plan here"
+                : tool === "reclaim"
+                  ? `Tap a tile to ${reclaimMode} land`
+                  : `Move the map under the ${tool === "unit" ? "fighter" : tool}, then confirm`}
+            </span>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Cancel active tool"
+              className="h-8 w-8 shrink-0"
+              onClick={() => {
+                cancelPlacement();
+                setPickSetupAreaFromMap(false);
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+        {((generatorError && panel !== "plan") ||
+          assetError ||
+          saveError ||
+          (copyStatus && tool === "none")) &&
+          !selectedKind && (
+            <div
+              role={
+                generatorError || assetError || saveError ? "alert" : "status"
+              }
+              className="pointer-events-none absolute bottom-[84px] right-3 z-10 max-w-[min(320px,calc(100%-24px))] rounded-lg bg-card/90 px-3 py-2 text-xs shadow backdrop-blur"
+            >
+              {generatorError || assetError || saveError || copyStatus}
             </div>
           )}
-          <div className="space-y-1 pt-1">
-            <div className="font-medium text-foreground">Stone-Count Profile Check (Trial)</div>
-            <div>
-              N={stoneAnchors.length} targets: max distance at most {distanceProfile.target.maxDistance}, spread at most {distanceProfile.target.maxSpread}
-            </div>
-            <div>
-              Measured: max distance {distanceProfile.maxDistance ?? "-"}, min distance {distanceProfile.minDistance ?? "-"}, spread {distanceProfile.spread ?? "-"}
-            </div>
-            <div>
-              Checks: reachability {distanceProfile.allReach ? "PASS" : "FAIL"}, max distance {distanceProfile.distancePass ? "PASS" : "FAIL"}, spread {distanceProfile.spreadPass ? "PASS" : "FAIL"}
-            </div>
-            <div className={distanceProfile.overallPass ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-              Overall profile status: {distanceProfile.overallPass ? "PASS" : "FAIL"}
-            </div>
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex items-end justify-between gap-2">
+          <div
+            role="toolbar"
+            aria-label="Layout tools"
+            className="pointer-events-auto flex items-center gap-1 rounded-xl border bg-card/95 p-1 shadow-xl backdrop-blur"
+          >
+            <Button
+              className="h-12 flex-col gap-0.5 px-3 text-[10px]"
+              variant={panel === "build" ? "secondary" : "ghost"}
+              onClick={() => togglePanel("build")}
+            >
+              <Hammer className="h-5 w-5" />
+              Build
+            </Button>
+            <Button
+              className="h-12 flex-col gap-0.5 px-3 text-[10px]"
+              variant={panel === "plan" ? "secondary" : "ghost"}
+              onClick={() => togglePanel("plan")}
+            >
+              <Sparkles className="h-5 w-5" />
+              Generate
+            </Button>
+            <Button
+              className="h-12 w-10 flex-col gap-0.5 p-1 text-[10px]"
+              variant="ghost"
+              disabled={undoStack.length === 0}
+              onClick={undoSetup}
+            >
+              <Undo2 className="h-5 w-5" />
+              Undo
+            </Button>
+            <Button
+              className="h-12 w-10 flex-col gap-0.5 p-1 text-[10px]"
+              variant="ghost"
+              aria-label="Focus layout"
+              disabled={pieces.size === 0 && !openMonsterTile && !openUnitTile}
+              onClick={() => focusSetupView()}
+            >
+              <LocateFixed className="h-5 w-5" />
+              Focus
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+          <div
+            className="pointer-events-auto flex flex-col rounded-xl border bg-card/95 p-1 shadow-xl backdrop-blur"
+            role="toolbar"
+            aria-label="Map zoom controls"
+          >
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Zoom in"
+              onClick={() => setZoomRequest({ factor: 1.3, token: Date.now() })}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Zoom out"
+              onClick={() =>
+                setZoomRequest({ factor: 1 / 1.3, token: Date.now() })
+              }
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        {!nativeLand && (
+          <p
+            role="status"
+            className="absolute bottom-24 left-1/2 -translate-x-1/2 rounded-lg bg-card p-3 text-xs shadow"
+          >
+            Loading map...
+          </p>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,84 @@
+{
+  "binarySha256": "fb834373cb3bd1dc7dac941fcf94113f3b5123e033cf0a41d5e00c0656e30208",
+  "scope": "Canonical linear-sweep extents without RET trimming; padding and throw tails may be present. Static evidence only.",
+  "methods": [
+    {
+      "rva": "0x147780c",
+      "method": "kairo.unity.ecs.World$$CreateMonster",
+      "instructions": 276,
+      "codeSha256": "658908122258dc97df07f8ccec37a7b3245aa46ea05a6be2336214cdc0d4449d"
+    },
+    {
+      "rva": "0x145fee4",
+      "method": "kairo.unity.math.Random$$Rand",
+      "instructions": 45,
+      "codeSha256": "72200ec9587256b7eb2b9fc134a267c6517da4db052e3f93700cb4e4d838ed51"
+    },
+    {
+      "rva": "0x145ff98",
+      "method": "kairo.unity.math.Random$$Rand",
+      "instructions": 35,
+      "codeSha256": "f7a48cf48f06544620dba5a801b8703bdc58bbd7f2f3d5ac578546b2ebf44e9f"
+    },
+    {
+      "rva": "0x148bf40",
+      "method": "ecs.AISystem$$MoveStart",
+      "instructions": 232,
+      "codeSha256": "425aaad28ec457bece7b7954c9363865f3a3a40dc38dbe8e6ad6578d15aa0912"
+    },
+    {
+      "rva": "0x1477c5c",
+      "method": "kairo.unity.ecs.World$$CreateEnemyMonster",
+      "instructions": 23,
+      "codeSha256": "6741ad020d8faaf2a34e0bd8a8e56c5a2dbc2a8f8b91715a92b0a2d5632ec8d6"
+    },
+    {
+      "rva": "0x15b03d0",
+      "method": "ecs.MapSystem$$GetRandomLocation",
+      "instructions": 32,
+      "codeSha256": "a365a395f412ecbd49d2c5fb4caf513c96cd7b5d5e4740cd952f690ec187b341"
+    },
+    {
+      "rva": "0x15b0450",
+      "method": "ecs.MapSystem$$GetRandomLocation",
+      "instructions": 69,
+      "codeSha256": "e340efa9e83330ff203ae09e67cb223f3082907c5e25bbf54fc96257d33ab2ae"
+    },
+    {
+      "rva": "0x1496eac",
+      "method": "ecs.AISystem$$UpdateMonsterPatrol",
+      "instructions": 298,
+      "codeSha256": "49747106f144369b96141e6e125065def34c233d2f54f257069878da78bec0ae"
+    },
+    {
+      "rva": "0x1566268",
+      "method": "ecs.EnemyBaseSystem$$GenerateMonsterFromEnemyGenerators",
+      "instructions": 281,
+      "codeSha256": "0ed0eca3dbc73afe91ea4cd67521dd000d45108f5449a666edc63b53b5231142"
+    },
+    {
+      "rva": "0x1565f14",
+      "method": "ecs.EnemyBaseSystem$$CreateMonster",
+      "instructions": 213,
+      "codeSha256": "ffe80f08f7961109ac15aa9e7320333fe4612637126dc93a6a59c5333af7a537"
+    },
+    {
+      "rva": "0x1535118",
+      "method": "ecs.DispatchAreaSelectSystem$$CheckDispatch",
+      "instructions": 11,
+      "codeSha256": "c4919aa30807dc770b9f04781fe238d320fb58565f775fdb052b1d1f78af652e"
+    },
+    {
+      "rva": "0x1536478",
+      "method": "ecs.DispatchAreaSelectSystem$$CheckDispatch",
+      "instructions": 151,
+      "codeSha256": "ad107cd31ae11196f2b45d313be50a06eb520a6f8381376f31431039ac01fdaf"
+    },
+    {
+      "rva": "0x15362e0",
+      "method": "ecs.DispatchAreaSelectSystem$$GetDispatchRange",
+      "instructions": 38,
+      "codeSha256": "d29883a0f429fbbfcd1c53039199a08c3b622f8ccfadc618a597db56786a2a53"
+    }
+  ]
+}
