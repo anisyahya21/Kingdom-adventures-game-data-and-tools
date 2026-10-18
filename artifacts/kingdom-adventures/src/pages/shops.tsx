@@ -1134,7 +1134,7 @@ function SilverShopPanel({ shop }: { shop: ShopRecord }) {
       <CardHeader className="pb-3">
         <CardTitle className="text-base">{isZoo ? "Animals" : "Collectables"}</CardTitle>
         <CardDescription>
-          {isZoo ? <>Silver coin prices and habitat requirements. These animals also appear in <Link href="/monsters" className="text-primary underline underline-offset-2">Monsters</Link>.</> : "Silver coin prices and collection requirements."}
+          {isZoo ? <>Silver coin prices and habitat requirements. These animals also appear in <Link href="/monster-spawns" className="text-primary underline underline-offset-2">Monsters</Link>.</> : "Silver coin prices and collection requirements."}
         </CardDescription>
       </CardHeader>
       <CardContent>

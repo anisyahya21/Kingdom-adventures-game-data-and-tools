@@ -9,12 +9,6 @@
       "maxDuration": 30
     }
   },
-  "routes": [
-    {
-      "src": "^/sitemap\\.xml$",
-      "dest": "/sitemap.xml"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -55,10 +49,6 @@
   ],
   "rewrites": [
     {
-      "source": "/ka-auth/discord-provider",
-      "destination": "/api/discord-provider"
-    },
-    {
       "source": "/api/(.*)",
       "destination": "https://kingdom-adventures-game-data-and-tools.onrender.com/api/$1"
     },
@@ -67,12 +57,478 @@
       "destination": "https://kingdom-adventures-game-data-and-tools.onrender.com/ka-api/$1"
     },
     {
-      "source": "/(.*\\..*)",
-      "destination": "/$1"
+      "source": "/add-friends",
+      "destination": "/_search/add-friends.html"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/add-guide",
+      "destination": "/_search/add-guide.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/_search/admin.html"
+    },
+    {
+      "source": "/battle",
+      "destination": "/_search/battle.html"
+    },
+    {
+      "source": "/battle-replay",
+      "destination": "/_search/battle-replay.html"
+    },
+    {
+      "source": "/battle-setup",
+      "destination": "/_search/battle-setup.html"
+    },
+    {
+      "source": "/briefing-room",
+      "destination": "/_search/briefing-room.html"
+    },
+    {
+      "source": "/chaos-setup-lab",
+      "destination": "/_search/chaos-setup-lab.html"
+    },
+    {
+      "source": "/combat",
+      "destination": "/_search/combat.html"
+    },
+    {
+      "source": "/combat/character-builder",
+      "destination": "/_search/combat/character-builder.html"
+    },
+    {
+      "source": "/combat/formulas",
+      "destination": "/_search/combat/formulas.html"
+    },
+    {
+      "source": "/combat/multi-box",
+      "destination": "/_search/combat/multi-box.html"
+    },
+    {
+      "source": "/combat/multi-box/favorites",
+      "destination": "/_search/combat/multi-box/favorites.html"
+    },
+    {
+      "source": "/combat/multi-box/match-stats",
+      "destination": "/_search/combat/multi-box/match-stats.html"
+    },
+    {
+      "source": "/combat/multi-box/simulator",
+      "destination": "/_search/combat/multi-box/simulator.html"
+    },
+    {
+      "source": "/daily-rank-rewards",
+      "destination": "/_search/daily-rank-rewards.html"
+    },
+    {
+      "source": "/eggs",
+      "destination": "/_search/eggs.html"
+    },
+    {
+      "source": "/eggs-pets-monsters",
+      "destination": "/_search/eggs-pets-monsters.html"
+    },
+    {
+      "source": "/equipment",
+      "destination": "/_search/equipment.html"
+    },
+    {
+      "source": "/equipment-exchange",
+      "destination": "/_search/equipment-exchange.html"
+    },
+    {
+      "source": "/equipment-leveling-optimizer",
+      "destination": "/_search/equipment-leveling-optimizer.html"
+    },
+    {
+      "source": "/equipment-stats",
+      "destination": "/_search/equipment-stats.html"
+    },
+    {
+      "source": "/event-reminders",
+      "destination": "/_search/event-reminders.html"
+    },
+    {
+      "source": "/gacha-events",
+      "destination": "/_search/gacha-events.html"
+    },
+    {
+      "source": "/guides",
+      "destination": "/_search/guides.html"
+    },
+    {
+      "source": "/guides/stat-effects",
+      "destination": "/_search/guides/stat-effects.html"
+    },
+    {
+      "source": "/houses",
+      "destination": "/_search/houses.html"
+    },
+    {
+      "source": "/icon-library",
+      "destination": "/_search/icon-library.html"
+    },
+    {
+      "source": "/item-sources",
+      "destination": "/_search/item-sources.html"
+    },
+    {
+      "source": "/job-center",
+      "destination": "/_search/job-center.html"
+    },
+    {
+      "source": "/jobs",
+      "destination": "/_search/jobs.html"
+    },
+    {
+      "source": "/jobs-marriage",
+      "destination": "/_search/jobs-marriage.html"
+    },
+    {
+      "source": "/jobs/Archer",
+      "destination": "/_search/jobs/Archer.html"
+    },
+    {
+      "source": "/jobs/Artisan",
+      "destination": "/_search/jobs/Artisan.html"
+    },
+    {
+      "source": "/jobs/Artist",
+      "destination": "/_search/jobs/Artist.html"
+    },
+    {
+      "source": "/jobs/Beast%20Tamer",
+      "destination": "/_search/jobs/Beast Tamer.html"
+    },
+    {
+      "source": "/jobs/Berserker",
+      "destination": "/_search/jobs/Berserker.html"
+    },
+    {
+      "source": "/jobs/Blacksmith",
+      "destination": "/_search/jobs/Blacksmith.html"
+    },
+    {
+      "source": "/jobs/Carpenter",
+      "destination": "/_search/jobs/Carpenter.html"
+    },
+    {
+      "source": "/jobs/Champion",
+      "destination": "/_search/jobs/Champion.html"
+    },
+    {
+      "source": "/jobs/Cook",
+      "destination": "/_search/jobs/Cook.html"
+    },
+    {
+      "source": "/jobs/Doctor",
+      "destination": "/_search/jobs/Doctor.html"
+    },
+    {
+      "source": "/jobs/Entertainer",
+      "destination": "/_search/jobs/Entertainer.html"
+    },
+    {
+      "source": "/jobs/Farmer",
+      "destination": "/_search/jobs/Farmer.html"
+    },
+    {
+      "source": "/jobs/Guard",
+      "destination": "/_search/jobs/Guard.html"
+    },
+    {
+      "source": "/jobs/Guerilla",
+      "destination": "/_search/jobs/Guerilla.html"
+    },
+    {
+      "source": "/jobs/Gunner",
+      "destination": "/_search/jobs/Gunner.html"
+    },
+    {
+      "source": "/jobs/Knight",
+      "destination": "/_search/jobs/Knight.html"
+    },
+    {
+      "source": "/jobs/Mage",
+      "destination": "/_search/jobs/Mage.html"
+    },
+    {
+      "source": "/jobs/Magic%20Knight",
+      "destination": "/_search/jobs/Magic Knight.html"
+    },
+    {
+      "source": "/jobs/Merchant",
+      "destination": "/_search/jobs/Merchant.html"
+    },
+    {
+      "source": "/jobs/Monarch",
+      "destination": "/_search/jobs/Monarch.html"
+    },
+    {
+      "source": "/jobs/Monk",
+      "destination": "/_search/jobs/Monk.html"
+    },
+    {
+      "source": "/jobs/Mover",
+      "destination": "/_search/jobs/Mover.html"
+    },
+    {
+      "source": "/jobs/Ninja",
+      "destination": "/_search/jobs/Ninja.html"
+    },
+    {
+      "source": "/jobs/Paladin",
+      "destination": "/_search/jobs/Paladin.html"
+    },
+    {
+      "source": "/jobs/Pirate",
+      "destination": "/_search/jobs/Pirate.html"
+    },
+    {
+      "source": "/jobs/Rancher",
+      "destination": "/_search/jobs/Rancher.html"
+    },
+    {
+      "source": "/jobs/Researcher",
+      "destination": "/_search/jobs/Researcher.html"
+    },
+    {
+      "source": "/jobs/Royal",
+      "destination": "/_search/jobs/Royal.html"
+    },
+    {
+      "source": "/jobs/Samurai",
+      "destination": "/_search/jobs/Samurai.html"
+    },
+    {
+      "source": "/jobs/Santa%20Claus",
+      "destination": "/_search/jobs/Santa Claus.html"
+    },
+    {
+      "source": "/jobs/Scholar",
+      "destination": "/_search/jobs/Scholar.html"
+    },
+    {
+      "source": "/jobs/Trader",
+      "destination": "/_search/jobs/Trader.html"
+    },
+    {
+      "source": "/jobs/Viking",
+      "destination": "/_search/jobs/Viking.html"
+    },
+    {
+      "source": "/jobs/Wizard",
+      "destination": "/_search/jobs/Wizard.html"
+    },
+    {
+      "source": "/kairo-room",
+      "destination": "/_search/kairo-room.html"
+    },
+    {
+      "source": "/map-2-testing",
+      "destination": "/_search/map-2-testing.html"
+    },
+    {
+      "source": "/match-finder",
+      "destination": "/_search/match-finder.html"
+    },
+    {
+      "source": "/monster-pet-stats",
+      "destination": "/_search/monster-pet-stats.html"
+    },
+    {
+      "source": "/monster-spawns",
+      "destination": "/_search/monster-spawns.html"
+    },
+    {
+      "source": "/monster-xp",
+      "destination": "/_search/monster-xp.html"
+    },
+    {
+      "source": "/monsters-pets",
+      "destination": "/_search/monsters-pets.html"
+    },
+    {
+      "source": "/player-profile",
+      "destination": "/_search/player-profile.html"
+    },
+    {
+      "source": "/playthrough-guide",
+      "destination": "/_search/playthrough-guide.html"
+    },
+    {
+      "source": "/research",
+      "destination": "/_search/research.html"
+    },
+    {
+      "source": "/runtime-world-grid-test",
+      "destination": "/_search/runtime-world-grid-test.html"
+    },
+    {
+      "source": "/runtime-world-render-test",
+      "destination": "/_search/runtime-world-render-test.html"
+    },
+    {
+      "source": "/shops",
+      "destination": "/_search/shops.html"
+    },
+    {
+      "source": "/shops/accessory-shop",
+      "destination": "/_search/shops/accessory-shop.html"
+    },
+    {
+      "source": "/shops/aquarium",
+      "destination": "/_search/shops/aquarium.html"
+    },
+    {
+      "source": "/shops/armor-shop",
+      "destination": "/_search/shops/armor-shop.html"
+    },
+    {
+      "source": "/shops/furniture-shop",
+      "destination": "/_search/shops/furniture-shop.html"
+    },
+    {
+      "source": "/shops/insectarium",
+      "destination": "/_search/shops/insectarium.html"
+    },
+    {
+      "source": "/shops/item-shop",
+      "destination": "/_search/shops/item-shop.html"
+    },
+    {
+      "source": "/shops/items-reference",
+      "destination": "/_search/shops/items-reference.html"
+    },
+    {
+      "source": "/shops/museum",
+      "destination": "/_search/shops/museum.html"
+    },
+    {
+      "source": "/shops/orchard",
+      "destination": "/_search/shops/orchard.html"
+    },
+    {
+      "source": "/shops/restaurant",
+      "destination": "/_search/shops/restaurant.html"
+    },
+    {
+      "source": "/shops/skill-shop",
+      "destination": "/_search/shops/skill-shop.html"
+    },
+    {
+      "source": "/shops/weapon-shop",
+      "destination": "/_search/shops/weapon-shop.html"
+    },
+    {
+      "source": "/shops/zoo",
+      "destination": "/_search/shops/zoo.html"
+    },
+    {
+      "source": "/skills",
+      "destination": "/_search/skills.html"
+    },
+    {
+      "source": "/strategy-search",
+      "destination": "/_search/strategy-search.html"
+    },
+    {
+      "source": "/survey",
+      "destination": "/_search/survey.html"
+    },
+    {
+      "source": "/sync-devices",
+      "destination": "/_search/sync-devices.html"
+    },
+    {
+      "source": "/terrain-composition-lab",
+      "destination": "/_search/terrain-composition-lab.html"
+    },
+    {
+      "source": "/test",
+      "destination": "/_search/test.html"
+    },
+    {
+      "source": "/timed-events",
+      "destination": "/_search/timed-events.html"
+    },
+    {
+      "source": "/town-rank",
+      "destination": "/_search/town-rank.html"
+    },
+    {
+      "source": "/training-facilities",
+      "destination": "/_search/training-facilities.html"
+    },
+    {
+      "source": "/updates",
+      "destination": "/_search/updates.html"
+    },
+    {
+      "source": "/wario-dungeon",
+      "destination": "/_search/wario-dungeon.html"
+    },
+    {
+      "source": "/weekly-conquest",
+      "destination": "/_search/weekly-conquest.html"
+    },
+    {
+      "source": "/world-builder",
+      "destination": "/_search/world-builder.html"
+    },
+    {
+      "source": "/world-map",
+      "destination": "/_search/world-map.html"
+    },
+    {
+      "source": "/world-map-v2",
+      "destination": "/_search/world-map-v2.html"
+    },
+    {
+      "source": "/guides/:slug",
+      "destination": "/_search/community-guide.html"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/monsters",
+      "destination": "/monster-spawns",
+      "permanent": true
+    },
+    {
+      "source": "/monster-spawn",
+      "destination": "/monster-spawns",
+      "permanent": true
+    },
+    {
+      "source": "/monster-loot",
+      "destination": "/monster-spawns",
+      "permanent": true
+    },
+    {
+      "source": "/skill",
+      "destination": "/skills",
+      "permanent": true
+    },
+    {
+      "source": "/equipment-level-optimizer",
+      "destination": "/equipment-leveling-optimizer",
+      "permanent": true
+    },
+    {
+      "source": "/survey-planner",
+      "destination": "/survey",
+      "permanent": true
+    },
+    {
+      "source": "/items-reference",
+      "destination": "/item-sources",
+      "permanent": true
+    },
+    {
+      "source": "/loadout",
+      "destination": "/combat",
+      "permanent": true
     }
   ]
 }
