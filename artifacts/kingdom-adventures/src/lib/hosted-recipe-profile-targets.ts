@@ -121,83 +121,86 @@ export function projectHostedRecipeProfileCandidates(
     if (skills.length === 0 || skills.length !== skillInvocations.length ||
         skillInvocations.some((level) => !Number.isInteger(level) || level < 0 || level > 2)) continue;
 
-    const picks: ProfileGoalBuild["picks"] = [];
-    const gear: SavedLoadout["equipment"] = [];
-    let addedLevels = 0;
-    const requiredUpgrades: ProfileGoalBuild["requiredUpgrades"] = [];
-    let blocked = false;
-    for (const item of record.build.gear) {
-      const slot = SLOT_LABEL[item.slot];
-      const ownedLevel = profile.equipment[item.name];
-      if (!slot || !Number.isInteger(ownedLevel) || ownedLevel < 1 || settings.reservedEquipment.includes(item.name)) {
-        blocked = true;
-        break;
-      }
-      let level = item.level;
-      if (ownedLevel !== level) {
-        const requestedMax = Number.parseInt(settings.maxGearLevel, 10);
-        const maxLevel = Number.isFinite(requestedMax) ? Math.min(99, Math.max(1, requestedMax)) : 99;
-        if (!settings.levelUpGear || ownedLevel > level || level > maxLevel) {
+    for (const gearMode of settings.levelUpGear ? ["owned", "upgrade"] as const : ["owned"] as const) {
+      const picks: ProfileGoalBuild["picks"] = [];
+      const gear: SavedLoadout["equipment"] = [];
+      let addedLevels = 0;
+      const requiredUpgrades: ProfileGoalBuild["requiredUpgrades"] = [];
+      let blocked = false;
+      for (const item of record.build.gear) {
+        const slot = SLOT_LABEL[item.slot];
+        const ownedLevel = profile.equipment[item.name];
+        if (!slot || !Number.isInteger(ownedLevel) || ownedLevel < 1 || settings.reservedEquipment.includes(item.name)) {
           blocked = true;
           break;
         }
-        const levelsAdded = level - ownedLevel;
-        addedLevels += levelsAdded;
-        requiredUpgrades.push({ item: item.name, currentLevel: ownedLevel, requiredLevel: level, addedLevels: levelsAdded });
+        // Use the player's actual level; optional upgrades are a separate candidate, never a downgrade.
+        const level = gearMode === "owned" ? ownedLevel : Math.max(ownedLevel, item.level);
+        if (level > ownedLevel) {
+          const requestedMax = Number.parseInt(settings.maxGearLevel, 10);
+          const maxLevel = Number.isFinite(requestedMax) ? Math.min(99, Math.max(1, requestedMax)) : 99;
+          if (level > maxLevel) {
+            blocked = true;
+            break;
+          }
+          const levelsAdded = level - ownedLevel;
+          addedLevels += levelsAdded;
+          requiredUpgrades.push({ item: item.name, currentLevel: ownedLevel, requiredLevel: level, addedLevels: levelsAdded });
+        }
+        picks.push({ slot, item: item.name, level });
+        gear.push({ name: item.name, level });
       }
-      picks.push({ slot, item: item.name, level });
-      gear.push({ name: item.name, level });
-    }
-    if (blocked || picks.length !== record.build.gear.length) continue;
+      if (blocked || picks.length !== record.build.gear.length) continue;
 
-    for (const character of profile.characters) {
-      if (settings.excludedCharacters.includes(character.id)) continue;
-      const loadout: SavedLoadout = {
-        id: character.id,
-        name: character.jobName,
-        jobName: character.jobName,
-        rank: character.rank,
-        gender: character.gender,
-        statLevels: { ...character.statLevels },
-        equipment: gear,
-        skills,
-        skillInvocations,
-        residentStatItems: profileResidentStatItems(profile),
-      };
-      const equipmentResult = loadoutEquipment(loadout, sharedData);
-      if (equipmentResult.issues.some(({ category }) => category === "ERROR")) continue;
-      const skillResult = loadoutSkills(loadout);
-      // A recipe is emitted only when the canonical converter resolves each exact skill without
-      // an error or unknown CanSetSkill admission. Rank-mismatch notes are allowed because the
-      // recovered CanSetSkill gate has no rank condition. No missing skill is added to legalize gear.
-      if (skillResult.issues.some(({ category, code }) => category === "ERROR" || code === "SKILL_JOB_GROUP_UNKNOWN")) continue;
-      const stats = allStats(draftStatRows(loadout, sharedData as BuilderSharedData));
-      if (!stats) continue;
-      if (exactOnly && (stats.atk !== record.build.statsAll12.atk || stats.spd !== record.build.statsAll12.spd ||
-          stats.lck !== record.build.statsAll12.lck || stats.dex !== record.build.statsAll12.dex)) continue;
-
-      const fingerprint = `${character.id}|${key}|${JSON.stringify(picks)}`;
-      if (emitted.has(fingerprint)) continue;
-      emitted.add(fingerprint);
-      candidates.push({
-        sourceKind: "hosted-recipe",
-        recipeId: `hosted-recipe:${key}`,
-        cohortIds: [...recipe.cohortIds].sort(),
-        caseIds: [...recipe.caseIds].sort(),
-        skills: [...skills],
-        skillInvocations: [...skillInvocations],
-        build: {
-          characterId: character.id,
-          characterName: character.jobName,
+      for (const character of profile.characters) {
+        if (settings.excludedCharacters.includes(character.id)) continue;
+        const loadout: SavedLoadout = {
+          id: character.id,
+          name: character.jobName,
           jobName: character.jobName,
           rank: character.rank,
+          gender: character.gender,
+          statLevels: { ...character.statLevels },
+          equipment: gear,
+          skills,
+          skillInvocations,
+          residentStatItems: profileResidentStatItems(profile),
+        };
+        const equipmentResult = loadoutEquipment(loadout, sharedData);
+        if (equipmentResult.issues.some(({ category }) => category === "ERROR")) continue;
+        const skillResult = loadoutSkills(loadout);
+        // A recipe is emitted only when the canonical converter resolves each exact skill without
+        // an error or unknown CanSetSkill admission. Rank-mismatch notes are allowed because the
+        // recovered CanSetSkill gate has no rank condition. No missing skill is added to legalize gear.
+        if (skillResult.issues.some(({ category, code }) => category === "ERROR" || code === "SKILL_JOB_GROUP_UNKNOWN")) continue;
+        const stats = allStats(draftStatRows(loadout, sharedData as BuilderSharedData));
+        if (!stats) continue;
+        if (exactOnly && (stats.atk !== record.build.statsAll12.atk || stats.spd !== record.build.statsAll12.spd ||
+            stats.lck !== record.build.statsAll12.lck || stats.dex !== record.build.statsAll12.dex)) continue;
+
+        const fingerprint = `${character.id}|${key}|${JSON.stringify(picks)}`;
+        if (emitted.has(fingerprint)) continue;
+        emitted.add(fingerprint);
+        candidates.push({
+          sourceKind: "hosted-recipe",
+          recipeId: `hosted-recipe:${key}`,
+          cohortIds: [...recipe.cohortIds].sort(),
+          caseIds: [...recipe.caseIds].sort(),
           skills: [...skills],
-          picks,
-          stats,
-          addedLevels,
-          requiredUpgrades,
-        },
-      });
+          skillInvocations: [...skillInvocations],
+          build: {
+            characterId: character.id,
+            characterName: character.jobName,
+            jobName: character.jobName,
+            rank: character.rank,
+            skills: [...skills],
+            picks,
+            stats,
+            addedLevels,
+            requiredUpgrades,
+          },
+        });
+      }
     }
   }
   return candidates;

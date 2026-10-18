@@ -10,7 +10,8 @@ import { prepareHostedAccountEvidenceInput } from "../../src/game-data/prepare-h
 import { localSharedData } from "../../src/lib/local-shared-data.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dataset = JSON.parse(await readFile(path.resolve(here, "../../public/hosted-account-evidence-v3.compact.json"), "utf8"));
+const dataset = JSON.parse(await readFile(path.resolve(here, "../../public/hosted-account-evidence-v4.compact.json"), "utf8"));
+assert.equal(dataset.evidenceBankRevision, "v4", "the loader fixture uses the current hosted evidence bank");
 const prepFixture = JSON.parse(await readFile(path.resolve(here, "canonical-preparation-fixture.json"), "utf8"));
 const pajamas = dataset.records.filter((record) => record.cohortId.includes("pajamas"));
 assert.equal(pajamas.length, 2, "the two Pajamas five-run cohorts stay separately represented");
@@ -54,6 +55,20 @@ assert.equal(matches[0].evidenceClass, "conditional-fixed-synthetic-support-diag
 assert.match(matches[0].caveat, /does not establish full prepared-scene equivalence/);
 assert.equal(matches[0].sample.n, 5);
 
+const scalpelRecords = dataset.records.filter((record) => record.cohortId.startsWith("owned-scalpel-"));
+assert.deepEqual(scalpelRecords.map(({ cohortId }) => cohortId), ["owned-scalpel-red-5", "owned-scalpel-ribbon40-5"]);
+for (const record of scalpelRecords) {
+  const exact = matchHostedAccountCombatEvidence(dataset, queryFor(record));
+  assert.deepEqual(exact.map(({ cohortId }) => cohortId), [record.cohortId], "each scalpel package remains its own exact cohort");
+  assert.equal(exact[0].sample.n, 5);
+  assert.equal(exact[0].outcomeSummary.modeledCallbacks.n, 5);
+}
+const ribbon40 = scalpelRecords.find(({ cohortId }) => cohortId === "owned-scalpel-ribbon40-5");
+assert.equal(ribbon40.outcomeSummary.terminality.terminalByVerdictAndDeparture, 4);
+assert.equal(ribbon40.outcomeSummary.terminality.horizonCensored, 1);
+assert.match(ribbon40.outcomeSummary.callbackScope, /endpoint mean/,
+  "the nonterminal Ribbon 40 run stays labeled as a finite-horizon endpoint");
+
 for (const mutate of [
   (q) => { q.build.stats.dex += 1; },
   (q) => { q.orderedSkills.push("Shield Resistance"); q.skillInvocations.push(0); },
@@ -80,13 +95,14 @@ assert.equal((await lazy.find(query)).length, 2);
 assert.equal(loads, 1, "the lazy result is memoized");
 
 for (const corrupt of [
+  (copy) => { copy.evidenceBankRevision = "v3"; },
   (copy) => { delete copy.records[0].outcomeSummary.modeledCallbacks.mean; },
   (copy) => { copy.records[0].outcomeSummary.survival.sampleSize -= 1; },
 ]) {
   const malformed = structuredClone(dataset);
   corrupt(malformed);
   const malformedLookup = createHostedAccountCombatEvidenceLookup(async () => malformed);
-  await assert.rejects(() => malformedLookup.find(query), /invalid or incomplete record/);
+  await assert.rejects(() => malformedLookup.find(query), /unsupported schema|invalid or incomplete record/);
 }
 
 const primaryRecord = dataset.records.find(({ cohortId }) => cohortId === "primary-six-validation-20");

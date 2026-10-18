@@ -47,7 +47,8 @@ function hostedCohortLabel(match: HostedEvidenceMatch): string {
 function ConditionalHostedEvidence({ matches }: { matches: HostedEvidenceMatch[] }) {
   if (matches.length === 0) return null;
   return <div className="rounded-md border border-primary/25 bg-muted/20 p-3 text-xs">
-    <p className="font-medium">Fixed-support test results</p>
+    <p className="font-medium">Conditional test results</p>
+    <p className="text-muted-foreground">Simulate starts fresh; Herbs are manual.</p>
     <div className="mt-2 space-y-2">{matches.map((match) => {
       const summary = match.outcomeSummary;
       const terminality = summary.terminality;

@@ -7,7 +7,7 @@ import { matchHostedAccountCombatEvidence } from "../../src/game-data/hosted-acc
 import { localSharedData } from "../../src/lib/local-shared-data.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dataset = JSON.parse(await readFile(path.resolve(here, "../../public/hosted-account-evidence-v3.compact.json"), "utf8"));
+const dataset = JSON.parse(await readFile(path.resolve(here, "../../public/hosted-account-evidence-v4.compact.json"), "utf8"));
 const fixture = JSON.parse(await readFile(path.resolve(here, "../hosted-account-evidence-check/canonical-preparation-fixture.json"), "utf8"));
 const character = {
   id: fixture.loadout.id,
@@ -99,16 +99,37 @@ assert.deepEqual(projectHostedRecipeProfileCandidates(dataset, missingGear, loca
 
 const lowerLevel = structuredClone(profile);
 lowerLevel.equipment[fixture.loadout.equipment[0].name] = 98;
-assert.deepEqual(projectHostedRecipeProfileCandidates(dataset, lowerLevel, localSharedData, settings), [], "owned-current mode does not silently upgrade");
+const lowerCandidate = projectHostedRecipeProfileCandidates(dataset, lowerLevel, localSharedData, settings)
+  .find(({ recipeId }) => recipeId === primary.recipeId);
+assert.ok(lowerCandidate, "actual lower equipment levels remain achievable candidates");
+assert.equal(lowerCandidate.build.addedLevels, 0);
+assert.equal(lowerCandidate.build.picks.find(({ item }) => item === fixture.loadout.equipment[0].name).level, 98);
+assert.notDeepEqual(lowerCandidate.build.stats, primary.build.stats, "actual-level stats are recomputed");
+assert.deepEqual(matchHostedAccountCombatEvidence(dataset, {
+  ...evidenceInput, gender: character.gender, build: lowerCandidate.build,
+  orderedSkills: lowerCandidate.skills, skillInvocations: lowerCandidate.skillInvocations,
+}), [], "actual lower-level equipment cannot borrow the source recipe's measured average");
 const upgradeSettings = { ...settings, levelUpGear: true };
 const proposed = projectHostedRecipeProfileCandidates(dataset, lowerLevel, localSharedData, upgradeSettings)
-  .find(({ recipeId }) => recipeId === primary.recipeId);
+  .find(({ recipeId, build }) => recipeId === primary.recipeId && build.addedLevels > 0);
 assert.ok(proposed);
 assert.equal(proposed.build.addedLevels, 1);
 assert.deepEqual(proposed.build.requiredUpgrades, [{
   item: fixture.loadout.equipment[0].name, currentLevel: 98, requiredLevel: 99, addedLevels: 1,
 }]);
 
+assert.ok(projectHostedRecipeProfileCandidates(dataset, lowerLevel, localSharedData, upgradeSettings)
+  .some(({ recipeId, build }) => recipeId === primary.recipeId && build.addedLevels === 0), "upgrades retain the current-level option");
+const aboveRecipe = structuredClone(profile);
+const lowRecipeGear = fixture.loadout.equipment.find(({ level }) => level < 99);
+assert.ok(lowRecipeGear);
+aboveRecipe.equipment[lowRecipeGear.name] = lowRecipeGear.level + 1;
+for (const mode of [settings, upgradeSettings]) {
+  const higher = projectHostedRecipeProfileCandidates(dataset, aboveRecipe, localSharedData, mode).find(({ recipeId }) => recipeId === primary.recipeId);
+  assert.ok(higher, "higher owned levels remain achievable candidates");
+  assert.equal(higher.build.picks.find(({ item }) => item === lowRecipeGear.name).level, lowRecipeGear.level + 1, "never downgrade equipment");
+  assert.equal(higher.build.addedLevels, 0);
+}
 const noDeath = { sample: { n: 20 }, outcomeSummary: { survival: { survived: 20, sampleSize: 20 }, firstBossAttempt: { count: 20, sampleSize: 20 } } };
 const smallerNoDeath = { sample: { n: 5 }, outcomeSummary: { survival: { survived: 5, sampleSize: 5 }, firstBossAttempt: { count: 5, sampleSize: 5 } } };
 const incompleteFirstBoss = { sample: { n: 5 }, outcomeSummary: { survival: { survived: 5, sampleSize: 5 }, firstBossAttempt: { count: 4, sampleSize: 5 } } };
