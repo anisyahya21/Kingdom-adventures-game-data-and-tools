@@ -1,0 +1,10 @@
+{
+  "deployment": "dpl_AHy8jr6LBHX3uW9MDEM18b8uQ5pz",
+  "commit": "0cda0c118a786101cfc6c429d16feb1fffe06197",
+  "url": "https://kingdom-adventures-community-tools.vercel.app",
+  "state": "READY",
+  "productionHttpChecks": 18,
+  "localChecks": 120,
+  "sitemapSubmission": "Sitemap submitted successfully",
+  "sitemapDiscovery": "Previous count still displayed; updated processing pending"
+}
