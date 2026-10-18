@@ -112,6 +112,8 @@ try {
     await help.locator('p').first().waitFor({ state: 'visible' });
     await page.keyboard.press('Enter');
     assert.equal(await help.getAttribute('open'), null);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `Mobile overflow: ${route}`);
+    await page.screenshot({path: path.join(reports, `${route.slice(1)}-mobile.png`)});
     checks.push(`collapsed help present and keyboard accessible ${route}`);
   }
   await page.goto(base);
