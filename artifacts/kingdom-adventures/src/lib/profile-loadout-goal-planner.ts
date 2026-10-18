@@ -356,6 +356,47 @@ function* enumerateCharacter(
         picks.splice(0, picks.length, ...selected.flatMap((candidate, index) => candidate ? [{ slot: slots[index].slot, item: candidate.item, level: candidate.level }] : []));
         yield* visit(slots.length);
       }
+      // Coordinate descent can settle on a very close garment while overlooking a
+      // same-distance HP/DEF alternative. Inspect every legal one-slot replacement of
+      // each warm-start finalist before DFS. Each attempted candidate is a counted node,
+      // so the caller's normal nearest-search budget bounds this coverage too.
+      const selectedItems = new Set(selected.flatMap((candidate) => candidate ? [candidate.item] : []));
+      for (let index = 0; index < slots.length; index += 1) {
+        const original = selected[index];
+        if (original) addValues(runningStats, original.contribution, -1);
+        for (const candidate of slots[index].candidates) {
+          yield { kind: "node" };
+          if (candidate === original || (selectedItems.has(candidate.item) && candidate.item !== original?.item)) continue;
+          const stats = { ...runningStats };
+          addValues(stats, candidate.contribution);
+          if (!keys.every((stat) => isSatisfied(input.goals[stat], stats[stat] ?? 0))) continue;
+          const neighborPicks = selected.flatMap((entry, at) => {
+            const pick = at === index ? candidate : entry;
+            return pick ? [{ slot: slots[at].slot, item: pick.item, level: pick.level }] : [];
+          });
+          const requiredUpgrades = neighborPicks.flatMap((pick) => {
+            const currentLevel = ownedLevels.get(pick.item)?.level ?? pick.level;
+            return pick.level > currentLevel
+              ? [{ item: pick.item, currentLevel, requiredLevel: pick.level, addedLevels: pick.level - currentLevel }]
+              : [];
+          });
+          yield {
+            kind: "build",
+            build: {
+              characterId: character.id,
+              characterName: character.name,
+              skills: (character.skills ?? []).filter((skill) => !character.skillItems?.[skill] || neighborPicks.some((pick) => character.skillItems![skill].includes(pick.item))),
+              ...(character.jobName ? { jobName: character.jobName } : {}),
+              ...(character.rank ? { rank: character.rank } : {}),
+              picks: neighborPicks,
+              stats,
+              addedLevels: requiredUpgrades.reduce((sum, upgrade) => sum + upgrade.addedLevels, 0),
+              requiredUpgrades,
+            },
+          };
+        }
+        if (original) addValues(runningStats, original.contribution);
+      }
       for (const key of Object.keys(runningStats)) delete runningStats[key];
       Object.assign(runningStats, input.baseStats);
       picks.length = 0;
@@ -375,7 +416,8 @@ function yieldToEventLoop(): Promise<void> {
  * Theoretical and unowned equipment are never invented.
  *
  * The async pages let the UI render progress and cancel long searches. `searchNodes` counts DFS
- * states, and `complete` is false on every partial page; there is no silent result cap.
+ * states plus warm-start candidate checks, and `complete` is false on every partial page;
+ * there is no silent result cap.
  */
 export async function* searchProfileGoalBuildPages(
   search: ProfileGoalSearchInput,

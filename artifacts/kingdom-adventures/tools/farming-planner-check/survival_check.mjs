@@ -71,4 +71,10 @@ assert.deepEqual([survivalChoice.build.stats.atk, survivalChoice.build.stats.spd
   survivalChoice.build.stats.hp, survivalChoice.build.stats.def], [822, 696, 399, 11, 4687, 2192]);
 assert.ok(survivalChoice.builds.some((build) => build.picks.some((pick) => pick.item === "Royal Robe" && pick.level === 90)), "the survival-favoring equally-close option remains in the requested HP/DEF frontier");
 assert.ok(survivalChoice.builds.some((build) => build.picks.some((pick) => pick.item === "Durable Garment" && pick.level === 1)), "the distinct 400-Luck tuple remains available despite its survival disadvantage");
+let boundedAlternative;
+for await (const page of compareProfileStrategies(ninjaTradeoff, ninjaTarget, false, 30, ["hp", "def"])) boundedAlternative = page.matches[0];
+assert.equal(boundedAlternative.complete, false, "the short profile search stays explicitly provisional");
+assert.ok(boundedAlternative.searchNodes <= 30, "warm-start neighbor checks count against the caller's search budget");
+assert.ok(boundedAlternative.builds.some((build) => build.picks.some((pick) => pick.item === "Durable Garment" && pick.level === 1)),
+  "bounded warm-start neighbors retain the one-slot garment alternative before exhaustive DFS");
 console.log("PASS: HP, MP and DEF maximize after exact DPS match; largest-deviation tie preserves the HP/DEF-favoring Ninja option; settings validated.");
