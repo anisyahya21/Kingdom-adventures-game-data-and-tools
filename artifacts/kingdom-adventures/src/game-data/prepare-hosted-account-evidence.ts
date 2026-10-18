@@ -82,7 +82,7 @@ export async function prepareHostedAccountEvidenceInput(
     return fail("the build gear does not match current owned equipment levels");
   }
   if (plannerSettings.useProfile !== true || plannerSettings.placeholderSupports !== true ||
-      plannerSettings.allowConsumables !== true || plannerSettings.levelUpGear || plannerSettings.trainCharacters ||
+      plannerSettings.allowConsumables !== true || plannerSettings.trainCharacters ||
       plannerSettings.holyHerbLimit !== HOSTED_ACCOUNT_EVIDENCE_FIXED_POLICY.maximumHerbs ||
       plannerSettings.recoveryPotionLimit !== HOSTED_ACCOUNT_EVIDENCE_FIXED_POLICY.potions) {
     return fail("planner settings are outside the supported profile/synthetic-support/finite-consumable mode");

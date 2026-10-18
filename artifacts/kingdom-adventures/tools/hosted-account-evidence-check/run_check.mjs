@@ -155,6 +155,36 @@ assert.equal(preparation.fingerprints.support, primaryRecord.scenario.supportFin
 assert.equal(preparation.fingerprints.formation, primaryRecord.scenario.formationFingerprintSha256);
 assert.equal(preparation.fingerprints.encounter, primaryRecord.scenario.encounterFingerprintSha256);
 assert.equal(matchHostedAccountCombatEvidence(dataset, preparation.lookupInput).length, 1);
+const lowerGearInput = structuredClone(preparation.lookupInput);
+lowerGearInput.build.picks[0].level -= 1;
+assert.deepEqual(matchHostedAccountCombatEvidence(dataset, lowerGearInput), [],
+  "changing an owned gear level cannot borrow evidence from the measured level");
+const upgradesEnabledSettings = { ...plannerSettings, levelUpGear: true };
+const exactOwnedPreparation = await prepareHostedAccountEvidenceInput({
+  build: liveBuild,
+  profile,
+  sharedData: localSharedData,
+  plannerSettings: upgradesEnabledSettings,
+  policy,
+});
+assert.equal(matchHostedAccountCombatEvidence(dataset, exactOwnedPreparation.lookupInput).length, 1,
+  "enabling optional upgrades does not hide evidence for the exact currently owned build");
+await assert.rejects(() => prepareHostedAccountEvidenceInput({
+  build: {
+    ...liveBuild,
+    addedLevels: 1,
+    requiredUpgrades: [{
+      item: liveBuild.picks[0].item,
+      currentLevel: liveBuild.picks[0].level - 1,
+      requiredLevel: liveBuild.picks[0].level,
+      addedLevels: 1,
+    }],
+  },
+  profile,
+  sharedData: localSharedData,
+  plannerSettings: upgradesEnabledSettings,
+  policy,
+}), /includes gear upgrades/);
 await assert.rejects(() => prepareHostedAccountEvidenceInput({
   build: { ...liveBuild, stats: { ...liveBuild.stats, hp: liveBuild.stats.hp + 1 } },
   profile,
