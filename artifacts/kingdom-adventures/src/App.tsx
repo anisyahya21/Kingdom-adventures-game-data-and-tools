@@ -72,7 +72,7 @@ const PlayerProfilePage = lazy(() => import("@/pages/player-profile"));
 
 function RouteLoading() {
   return (
-    <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+    <div data-route-loading className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
       Loading page...
     </div>
   );
@@ -175,9 +175,18 @@ function SeoManager() {
   return null;
 }
 
+function RouteReadySignal() {
+  const [pathname] = useLocation();
+  useEffect(() => {
+    document.getElementById("root")?.setAttribute("data-client-route", pathname);
+  }, [pathname]);
+  return null;
+}
+
 function Router() {
   return (
     <Suspense fallback={<RouteLoading />}>
+      <RouteReadySignal />
       <Switch>
         <Route path="/">{() => <Home />}</Route>
         <Route path="/jobs-marriage">{() => <JobsMarriagePage />}</Route>

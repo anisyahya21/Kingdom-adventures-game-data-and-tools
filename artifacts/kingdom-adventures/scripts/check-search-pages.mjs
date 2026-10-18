@@ -28,9 +28,15 @@ try {
     check(`initial HTML ${rule.source}`, () => {
       assert.equal((html.match(/rel="canonical"/g) || []).length, 1);
       assert.ok(html.includes(`href="${canonical}"`), `Wrong canonical ${rule.source}`);
-      assert.ok(html.includes('data-search-summary'));
-      const heading = html.match(/<h1>(.*?)<\/h1>/)?.[1].replaceAll('&amp;', '&').replaceAll('&#39;', "'").replaceAll('&quot;', '"').replaceAll('&lt;', '<').replaceAll('&gt;', '>');
-      assert.equal(heading, getSeoMeta(pathname).title);
+      assert.ok(!html.includes('data-search-summary'));
+      if(isIndexablePage(pathname)) {
+        assert.ok(html.includes('data-prerendered-page='), `No actual application HTML: ${pathname}`);
+        assert.ok(!/http:\/\/127\.0\.0\.1:\d+/.test(html), `Local build URL leaked into page HTML: ${pathname}`);
+        assert.ok(!html.includes('Use bundled reference data during static rendering'));
+        if(['/jobs','/houses','/skills','/survey','/monster-spawns','/monster-pet-stats'].includes(pathname)) assert.ok(html.includes('<h1'), `Missing database heading: ${pathname}`);
+        if(pathname==='/jobs') assert.ok(html.includes('Archer'), 'Actual job records must be present before JavaScript');
+        if(pathname==='/monster-spawns') assert.ok(html.includes('Skullene'), 'Actual monster records must be present before JavaScript');
+      }
       assert.ok(html.includes(`content="${isIndexablePage(pathname) ? "index, follow" : "noindex, follow"}"`));
     });
   }
@@ -91,7 +97,7 @@ try {
   page = await context.newPage();
   page.on('pageerror', error => pageErrors.push(error.message));
   await page.goto(base);
-  await page.waitForFunction(() => !document.querySelector('[data-search-summary]') && document.querySelector('h1'));
+  await page.waitForFunction(() => document.querySelector('#root')?.hasAttribute('data-client-route') && document.querySelector('h1'));
   const profile = JSON.stringify({ version:1, equipment:{'Wooden Stick':7},characters:[],valuables:{} });
   await page.evaluate(profile => {
     localStorage.setItem('ka_player_profile_v1', profile);
@@ -116,13 +122,13 @@ try {
 
   await progress('Checking encoded job path');
   await page.goto(base+'/jobs/Beast%20Tamer');
-  await page.waitForFunction(() => !document.querySelector('[data-search-summary]') && document.querySelector('main')?.textContent?.includes('Beast Tamer'));
+  await page.waitForFunction(() => document.querySelector('#root')?.hasAttribute('data-client-route') && document.querySelector('main')?.textContent?.includes('Beast Tamer'));
   assert.equal(await page.locator('link[rel="canonical"]').getAttribute('href'), SITE_URL+'/jobs/Beast%20Tamer');
   checks.push('job name with spaces renders with encoded canonical');
 
   await progress('Checking survey alias');
   await page.goto(base+'/survey-planner?search=retained');
-  await page.waitForFunction(() => !document.querySelector('[data-search-summary]') && document.querySelector('h1'));
+  await page.waitForFunction(() => document.querySelector('#root')?.hasAttribute('data-client-route') && document.querySelector('h1'));
   assert.equal(new URL(page.url()).pathname,'/survey');
   assert.equal(new URL(page.url()).searchParams.get('search'),'retained');
   checks.push('survey alias retains query and renders');
@@ -145,7 +151,7 @@ try {
 
   await progress('Checking profile and saved data');
   await page.goto(base+'/player-profile');
-  await page.waitForFunction(() => !document.querySelector('[data-search-summary]') && document.querySelector('h1'));
+  await page.waitForFunction(() => document.querySelector('#root')?.hasAttribute('data-client-route') && document.querySelector('h1'));
   assert.equal(await page.locator('meta[name="robots"]').getAttribute('content'),'noindex, follow');
   const stored = await page.evaluate(() => ({profile:localStorage.getItem('ka_player_profile_v1'),note:localStorage.getItem('ka_note_monsters')}));
   assert.equal(stored.profile,profile);
