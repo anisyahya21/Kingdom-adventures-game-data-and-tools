@@ -25,3 +25,12 @@ assert.ok(compareFarmingDpsRank(unknown, failed) < 0);
 assert.equal(compareFarmingDpsRank(failed, failed), 0);
 assert.ok(compareFarmingDpsRank({ ...failed, failedExactSetupPilot: false }, unknown) < 0, "other setups retain ordinary ranking");
 console.log("PASS: conditional failed-pilot demotion preserves alternatives and ordinary ranking outside that setup.");
+
+const observedFailure = { id: "observed-6-of-20", measuredMean: 999, deviation: 0, observedDpsDeaths: true };
+assert.ok(compareFarmingDpsRank(observedFailure, unknown) > 0, "recorded deaths remain available after untested exploration options");
+assert.ok(compareFarmingDpsRank(failed, observedFailure) > 0, "distinct failed pre-boss pilot remains last");
+const mixed = [...rows, observedFailure, failed, { ...unknown, id: "another-unknown", deviation: 0.02 }];
+for (const a of mixed) for (const b of mixed) for (const c of mixed) {
+  if (compareFarmingDpsRank(a,b) <= 0 && compareFarmingDpsRank(b,c) <= 0) assert.ok(compareFarmingDpsRank(a,c) <= 0, "mixed evidence ordering must be transitive");
+}
+console.log("PASS: observed failures are retained, unknowns have no invented survival score, mixed ordering is transitive.");

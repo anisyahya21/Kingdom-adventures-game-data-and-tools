@@ -146,7 +146,7 @@ export function accountDiagnosticScenario(diagnostic: DiagnosticCase | LiveBuild
   if ("evidenceClass" in diagnostic && diagnostic.evidenceClass === "live-build-pilot") {
     return `${ACCOUNT_LIVE_BUILD_PILOT_E3.source} ${ACCOUNT_LIVE_BUILD_PILOT_E3.policy} ${ACCOUNT_LIVE_BUILD_PILOT_E3.scenarioCaveat}`;
   }
-  return `${ACCOUNT_DIAGNOSTIC_E3.source} ${ACCOUNT_DIAGNOSTIC_E3.policy} User team not measured. This conditional small-sample diagnostic does not change fixed-research reward averages or ranking.`;
+  return `${ACCOUNT_DIAGNOSTIC_E3.source} ${ACCOUNT_DIAGNOSTIC_E3.policy} User team not measured. Recorded DPS deaths move an exact matching setup after untested options; untested does not mean safer. Fixed-research reward averages are unchanged.`;
 }
 
 /** A conservative ordering signal only for the tested finite-resource support setup. */
@@ -156,6 +156,16 @@ export function accountDiagnosticFailedPilotApplies(
   setup?: { encounterId: number; placeholderSupports: boolean; finiteHpMp: boolean; allowConsumables: boolean; holyHerbLimit: number; recoveryPotionLimit: number },
 ): boolean {
   return !!diagnostic && "evidenceClass" in diagnostic && diagnostic.evidenceClass === "live-build-pilot" &&
+    accountDiagnosticObservedDeathsApply(diagnostic, encounterId, setup);
+}
+
+/** Recorded deaths are an exploration-order signal, never a prediction that unknown builds survive. */
+export function accountDiagnosticObservedDeathsApply(
+  diagnostic: DiagnosticCase | LiveBuildPilotCase | null,
+  encounterId: number,
+  setup?: { encounterId: number; placeholderSupports: boolean; finiteHpMp: boolean; allowConsumables: boolean; holyHerbLimit: number; recoveryPotionLimit: number },
+): boolean {
+  return !!diagnostic && diagnostic.survivedRuns < diagnostic.sampleSize &&
     setup?.encounterId === encounterId && setup.placeholderSupports && setup.finiteHpMp &&
     setup.allowConsumables && setup.holyHerbLimit === 10 && setup.recoveryPotionLimit === 0;
 }
