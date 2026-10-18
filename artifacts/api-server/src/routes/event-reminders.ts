@@ -5,7 +5,7 @@ import path from "path";
 import crypto from "crypto";
 import { eq } from "drizzle-orm";
 import webpush, { type PushSubscription } from "web-push";
-import { getCachedContent, refreshStaticSourceIfStale } from "../lib/google-cache";
+import { getCachedContent } from "../lib/google-cache";
 import monsterSprites from "../../../kingdom-adventures/src/game-data/monster-sprites.json";
 
 const router = Router();
@@ -995,7 +995,6 @@ function getMonsterSpawnMetaByName(): Map<string, MonsterSpawnMeta> {
 }
 
 function getWeeklyConquestLookupById(): Map<number, WeeklyConquestLookupEvent> {
-  refreshStaticSourceIfStale("weekly-conquest-lookup");
   let raw = getCachedContent("weekly-conquest-lookup");
   if (!raw) {
     try {

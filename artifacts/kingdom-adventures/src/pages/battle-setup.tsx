@@ -15,9 +15,8 @@ import { BattleSetupAdapterError } from "@/lib/battle-setup-adapter";
 import { runBattleSetup } from "@/lib/battle-setup-runner";
 import { readBattleSetupHandoff } from "@/lib/battle-setup-handoff";
 import { startBrowserBattle } from "@/lib/browser-battle";
-import { apiUrl } from "@/lib/api";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { loadSharedReferenceData } from "@/lib/local-shared-data";
 import {
   battleSetupFromLoadouts,
   readLoadoutHandoff,
@@ -115,13 +114,13 @@ const loadoutAwareTransport = startBrowserBattle;
 /**
  * Shared job/equipment/skill data for the loadout import. Deliberately not react-query here: this
  * page is also rendered by the stand-alone browser harness without a query provider, and
- * `fetchSharedWithFallback` already falls back to the bundled local shared data.
+ * `loadSharedReferenceData` reads the game reference bundled with this release.
  */
 function useSharedLoadoutData(): SharedLoadoutData | null {
   const [data, setData] = useState<SharedLoadoutData | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetchSharedWithFallback<SharedLoadoutData>(apiUrl("/shared"))
+    loadSharedReferenceData<SharedLoadoutData>()
       .then((loaded) => {
         if (!cancelled) setData(loaded);
       })

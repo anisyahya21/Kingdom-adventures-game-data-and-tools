@@ -18,9 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { parseCsv } from "@/lib/monster-truth";
-import { apiUrl } from "@/lib/api";
 import { getEquipmentIcon } from "@/lib/equipment-icons";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { loadSharedReferenceData } from "@/lib/local-shared-data";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
 import { matchesLooseSearch } from "@/lib/search-normalize";
 import { GameAccountPicker } from "@/components/ka/game-account-picker";
@@ -1469,9 +1468,9 @@ export default function EquipmentLevelingOptimizerPage() {
 
 function EquipmentLevelingWorkspace({ scope, profile, updateCurrentLevel }: { scope: string | null; profile: PlayerProfile; updateCurrentLevel: (name: string, level: number) => void }) {
   const { data: sharedData } = useQuery({
-    queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
-    staleTime: 15000,
+    queryKey: ["ka-reference"],
+    queryFn: () => loadSharedReferenceData<SharedData>(),
+    staleTime: Infinity,
   });
   const equipIcons = sharedData?.equipIcons ?? {};
   const firstItem = EQUIPMENT[0]?.id ? String(EQUIPMENT[0].id) : "";

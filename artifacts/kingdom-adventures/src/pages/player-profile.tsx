@@ -240,9 +240,9 @@ export default function PlayerProfilePage() {
             {accountSync.message}
           </div>
           <div className="flex flex-wrap gap-2">
-            {accountSync.accountId && accountSync.status !== "syncing" && accountSync.status !== "conflict" && (
+            {accountSync.accountId && accountSync.status === "error" && (
               <Button variant="outline" onClick={() => void accountSync.retry()}>
-                {accountSync.status === "error" ? "Retry account sync" : "Refresh account data"}
+                Retry account sync
               </Button>
             )}
             {accountSync.status === "conflict" && (

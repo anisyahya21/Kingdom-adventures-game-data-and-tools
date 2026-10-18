@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiUrl } from "@/lib/api";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { loadSharedReferenceData } from "@/lib/local-shared-data";
 
 type SharedEquipmentIcons = {
   equipIcons?: Record<string, string>;
@@ -8,9 +7,9 @@ type SharedEquipmentIcons = {
 
 export function useEquipmentIcons() {
   const { data } = useQuery({
-    queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<SharedEquipmentIcons>(apiUrl("/shared")),
-    staleTime: 15000,
+    queryKey: ["ka-reference"],
+    queryFn: () => loadSharedReferenceData<SharedEquipmentIcons>(),
+    staleTime: Infinity,
   });
   return data?.equipIcons ?? {};
 }

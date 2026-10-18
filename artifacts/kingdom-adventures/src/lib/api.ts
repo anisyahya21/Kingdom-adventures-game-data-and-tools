@@ -1,3 +1,9 @@
+import equipmentSheetUrl from "../../../api-server/data/google-cache/equipment.txt?url&no-inline";
+import shops_itemsSheetUrl from "../../../api-server/data/google-cache/shops-items.txt?url&no-inline";
+import weekly_conquest_lookupSheetUrl from "../../../api-server/data/google-cache/weekly-conquest-lookup.txt?url&no-inline";
+import weekly_conquest_scheduleSheetUrl from "../../../api-server/data/google-cache/weekly-conquest-schedule.txt?url&no-inline";
+import eggsSheetUrl from "../../../api-server/data/google-cache/eggs.txt?url&no-inline";
+
 const STORED_API_BASE_KEY = "kaApiBaseUrl";
 
 export function configuredApiBase() {
@@ -47,12 +53,12 @@ export function saveConfiguredApiBase(value: string) {
   return clean;
 }
 
-const SHEET_FALLBACK_URLS: Record<string, string> = {
-  equipment: "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=123527243",
-  "shops-items": "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=1863106351",
-  "weekly-conquest-lookup": "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=421403004",
-  "weekly-conquest-schedule": "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=1625050714",
-  eggs: "https://docs.google.com/spreadsheets/d/1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A/gviz/tq?tqx=out:json&gid=1439838004",
+const STATIC_SHEET_URLS: Record<string, string> = {
+  "equipment": equipmentSheetUrl,
+  "shops-items": shops_itemsSheetUrl,
+  "weekly-conquest-lookup": weekly_conquest_lookupSheetUrl,
+  "weekly-conquest-schedule": weekly_conquest_scheduleSheetUrl,
+  "eggs": eggsSheetUrl,
 };
 
 export function apiUrl(path: string): string {
@@ -61,13 +67,11 @@ export function apiUrl(path: string): string {
   return `${apiBase}/ka-api/ka${clean}`;
 }
 
-/** Returns the API-proxied URL for a whitelisted Google Sheet cache key. */
+/** Game reference tables are published static assets, independent of API configuration. */
 export function googleSheetUrl(key: string): string {
-  const apiBase = configuredApiBase();
-  if (apiBase) {
-    return `${apiBase}/ka-api/ka/google/sheet/${encodeURIComponent(key)}`;
-  }
-  return SHEET_FALLBACK_URLS[key] ?? `/ka-api/ka/google/sheet/${encodeURIComponent(key)}`;
+  const url = STATIC_SHEET_URLS[key];
+  if (!url) throw new Error(`Unknown static reference table: ${key}`);
+  return url;
 }
 
 /** Returns the API-proxied URL for a Google Doc cache entry. */

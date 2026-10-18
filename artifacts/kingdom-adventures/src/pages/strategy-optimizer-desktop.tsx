@@ -7,7 +7,6 @@ import {
   Layers,
   Pause,
   Play,
-  RefreshCw,
   Square,
   Swords,
   Upload,
@@ -597,6 +596,7 @@ export default function StrategyOptimizerDesktopPage() {
                 <AlertTitle>The desktop host did not answer</AlertTitle>
                 <AlertDescription>
                   <p className="font-mono text-[11px]">{statusError}</p>
+                  <Button type="button" size="sm" variant="outline" onClick={() => void refresh()} disabled={!api}>Retry loading status</Button>
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -766,16 +766,6 @@ export default function StrategyOptimizerDesktopPage() {
                       Polled every {POLL_INTERVAL_MS / 1000} seconds; the counts are the runner's own.
                     </CardDescription>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void refresh()}
-                    disabled={!api}
-                    data-action="optimizer-refresh"
-                  >
-                    <RefreshCw className="mr-1 h-3.5 w-3.5" /> Refresh
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

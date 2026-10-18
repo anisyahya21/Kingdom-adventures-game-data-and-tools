@@ -1,36 +1,43 @@
+import equipmentSnapshot from "../../data/google-cache/equipment.txt";
+import shops_itemsSnapshot from "../../data/google-cache/shops-items.txt";
+import eggsSnapshot from "../../data/google-cache/eggs.txt";
+import weekly_conquest_lookupSnapshot from "../../data/google-cache/weekly-conquest-lookup.txt";
+import weekly_conquest_scheduleSnapshot from "../../data/google-cache/weekly-conquest-schedule.txt";
 import { logger } from "./logger";
 import fs from "fs";
 import path from "path";
 
 // ─── Refresh intervals ────────────────────────────────────────────────────────
 export const GUIDE_REFRESH_MS = 24 * 60 * 60_000; // 24 hours – guide content is stable
-export const SHEET_REFRESH_MS = 30_000;          // 30 sec – temporary faster sheet refresh
-const WEEKLY_CONQUEST_REFRESH_MS = 2 * 60_000;  // 2 min  – conquest resets weekly
 
 // ─── Whitelisted static Google sources ───────────────────────────────────────
 // Add new sheet sources here; frontend requests by key name only.
 // This prevents the endpoints from being used as an open proxy.
-export const STATIC_SOURCES: Record<string, { url: string; intervalMs: number }> = {
+export const STATIC_SOURCES: Record<string, { url: string }> = {
   "equipment": {
     url: "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=123527243",
-    intervalMs: SHEET_REFRESH_MS,
   },
   "shops-items": {
     url: "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=1863106351",
-    intervalMs: SHEET_REFRESH_MS,
   },
   "weekly-conquest-lookup": {
     url: "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=421403004",
-    intervalMs: WEEKLY_CONQUEST_REFRESH_MS,
   },
   "weekly-conquest-schedule": {
     url: "https://docs.google.com/spreadsheets/d/1e5t0CMBgw2MOv1NRE-vNk3229p7dYg6yJAQ8YbhYnWk/gviz/tq?tqx=out:json&gid=1625050714",
-    intervalMs: WEEKLY_CONQUEST_REFRESH_MS,
   },
   "eggs": {
     url: "https://docs.google.com/spreadsheets/d/1pNx7SjpgjuKFI9Hgr21y3ammRlZjKNTTdvfLYQL7l7A/gviz/tq?tqx=out:json&gid=1439838004",
-    intervalMs: SHEET_REFRESH_MS,
   },
+};
+
+
+const PUBLISHED_GAME_TABLES: Record<string, string> = {
+  "equipment": equipmentSnapshot,
+  "shops-items": shops_itemsSnapshot,
+  "eggs": eggsSnapshot,
+  "weekly-conquest-lookup": weekly_conquest_lookupSnapshot,
+  "weekly-conquest-schedule": weekly_conquest_scheduleSnapshot,
 };
 
 // ─── Internal cache store ─────────────────────────────────────────────────────
@@ -117,8 +124,9 @@ async function doRefresh(key: string, url: string): Promise<void> {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-/** Returns cached content or null if cache is still warming. */
+/** Returns a published snapshot, or null if the deployed file is unavailable. */
 export function getCachedContent(key: string): string | null {
+  if (Object.prototype.hasOwnProperty.call(PUBLISHED_GAME_TABLES, key)) return PUBLISHED_GAME_TABLES[key];
   const entry = cache.get(key) ?? loadPersistedCache(key);
   return entry && entry.data ? entry.data : null;
 }
@@ -126,30 +134,6 @@ export function getCachedContent(key: string): string | null {
 export function getCachedContentAge(key: string): number | null {
   const entry = cache.get(key) ?? loadPersistedCache(key);
   return entry?.data ? Date.now() - entry.fetchedAt : null;
-}
-
-export function refreshStaticSourceIfStale(key: string): void {
-  const source = STATIC_SOURCES[key];
-  if (!source) return;
-  const entry = cache.get(key) ?? loadPersistedCache(key);
-  if (!entry?.data || Date.now() - entry.fetchedAt >= source.intervalMs) {
-    void doRefresh(key, source.url);
-  }
-}
-
-/**
- * Start background refresh timers for all static sheet sources.
- * Call once at server startup.
- */
-export function initGoogleCache(): void {
-  for (const [key, source] of Object.entries(STATIC_SOURCES)) {
-    const entry = loadPersistedCache(key);
-    if (!entry?.data || Date.now() - entry.fetchedAt >= source.intervalMs) {
-      void doRefresh(key, source.url);
-    }
-    const timer = setInterval(() => void doRefresh(key, source.url), source.intervalMs);
-    timer.unref?.();
-  }
 }
 
 const registeredGuideDocs = new Set<string>();

@@ -8,8 +8,7 @@ import { parseCsv } from "@/lib/monster-truth";
 import { SearchableSelect } from "@/components/searchable-select";
 import { PageHeader } from "@/components/ka/page-header";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
-import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
-import { apiUrl } from "@/lib/api";
+import { loadSharedReferenceData, localSharedData } from "@/lib/local-shared-data";
 import { getJobProfiles, getJobsThatOpenBuilding, type SharedJobProfileData } from "@/game-data/job-profile";
 import { SURVEY_TERRAIN_PREVIEW_IMAGES, TERRAIN_NAMES } from "@/game-data/terrain-labels";
 import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon, getSurveyIconByName } from "@/lib/equipment-icons";
@@ -840,7 +839,7 @@ export default function SurveyPlanner() {
 
     async function loadShared() {
       try {
-        const data = await fetchSharedWithFallback<SharedData>(apiUrl("/shared"));
+        const data = await loadSharedReferenceData<SharedData>();
         if (!cancelled) setSharedData(data);
       } catch {
         if (!cancelled) setSharedData(null);

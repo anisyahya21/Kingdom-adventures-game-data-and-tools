@@ -7,9 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import RuntimeWorldRenderTestPage from "@/pages/runtime-world-render-test";
-import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
+import { loadSharedReferenceData, localSharedData } from "@/lib/local-shared-data";
 import { buildLocalAutomaticWeeklyConquestTimeline, resolveAutomaticWeeklyConquestTimelineForNow } from "@/lib/weekly-conquest";
-import { apiUrl } from "@/lib/api";
 import { getEquipmentIcon, getItemIcon } from "@/lib/equipment-icons";
 import { getMonsterSprite } from "@/lib/monster-sprites";
 import { cn } from "@/lib/utils";
@@ -418,11 +417,11 @@ function WeeklySpawnMiniMap({
 
 function useSharedData() {
   return useQuery({
-    queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<WeeklySharedData>(apiUrl("/shared")),
+    queryKey: ["ka-reference"],
+    queryFn: () => loadSharedReferenceData<WeeklySharedData>(),
     initialData: () => localSharedData as WeeklySharedData,
-    staleTime: 15000,
-    refetchOnWindowFocus: true,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 }
 

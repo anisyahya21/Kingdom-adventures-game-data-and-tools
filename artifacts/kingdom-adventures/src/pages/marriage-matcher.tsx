@@ -1631,7 +1631,7 @@ function InfoDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-8 w-8">
+        <Button variant="outline" size="icon" className="h-8 w-8" aria-label="How to use Match Finder">
           <Info className="w-4 h-4" />
         </Button>
       </DialogTrigger>

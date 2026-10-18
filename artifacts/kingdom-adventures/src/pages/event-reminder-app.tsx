@@ -1,7 +1,7 @@
 import { ProfileNotifications } from "@/components/ka/profile-notifications";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { reminderGachaGroup, type ReminderGachaGroup } from "@/lib/event-reminder-catalog";
-import { Bell, BellOff, Check, ChevronDown, Clock3, Info, Loader2, Minus, Plus, RefreshCw, Search, Share, Smartphone } from "lucide-react";
+import { Bell, BellOff, Check, ChevronDown, Clock3, Info, Loader2, Minus, Plus, Search, Share, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { apiUrl } from "@/lib/api";
@@ -461,7 +461,7 @@ export default function EventReminderAppPage({ embedded = false }: { embedded?: 
     void syncTelegramStatus();
   }, [syncDiscordStatus, syncTelegramStatus]);
 
-  useEventRefresh(refresh, 180_000);
+  useEventRefresh(refresh, 0);
 
   useEffect(() => {
     writeSaved(saved);
@@ -834,9 +834,6 @@ export default function EventReminderAppPage({ embedded = false }: { embedded?: 
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-300">Kingdom Adventurers</div>
               <h1 className="text-2xl font-bold tracking-tight">Event Reminders</h1>
             </div>
-            <button type="button" onClick={refresh} className="grid h-11 w-11 place-items-center rounded-full bg-slate-900" aria-label="Refresh">
-              <RefreshCw className="h-5 w-5" />
-            </button>
           </div>
         </div>
 

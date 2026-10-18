@@ -3,8 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 
 import {
-  ArrowUpDown, ArrowUp, ArrowDown, RefreshCw,
-  Loader2, AlertTriangle, Info, X, ImageIcon, Pencil,
+  ArrowUpDown, ArrowUp, ArrowDown,
+  Info, X, ImageIcon, Pencil,
   ChevronDown, ChevronRight, Download, History, CheckSquare, GripVertical,
   Plus, Copy, Settings2, Clock, CheckCircle2, Star, Eye, EyeOff,
 } from "lucide-react";
@@ -16,13 +16,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SearchableSelect } from "@/components/searchable-select";
 import { PageHeader } from "@/components/ka/page-header";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
-import { apiUrl, googleSheetUrl } from "@/lib/api";
+import { loadSharedReferenceData, fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
+import { apiUrl } from "@/lib/api";
 import { getEquipmentIcon, getEquipmentIconKeys } from "@/lib/equipment-icons";
 import { compareEquipmentOriginalOrder } from "@/lib/equipment-order";
 import { parseCsv } from "@/lib/monster-truth";
 import { matchesLooseSearch } from "@/lib/search-normalize";
-import { readBrowserCache, writeBrowserCache } from "@/lib/browser-cache";
 import equipCsv from "../../../../data/sheet-research/raw-copies/KA GameData - Equip.csv?raw";
 const RANKED_EQUIPMENT_NAME = /^[FSABCDE]\s*\/\s*/i;
 const VARIANT_NAME_BY_ID: Record<number, string> = {
@@ -288,10 +287,11 @@ function getEquipmentRank(name: string): string {
 
 function parseLocalEquipmentSnapshot(): EquipmentItem[] {
   const rows = parseCsv(equipCsv);
-  if (rows.length < 4) return [];
+  const headerIndex = rows.findIndex((row) => row.includes("name") && row.includes("type"));
+  if (headerIndex < 0) return [];
 
-  const statLabels = rows[1] ?? [];
-  const header = rows[2] ?? [];
+  const statLabels = rows[headerIndex - 1] ?? [];
+  const header = rows[headerIndex];
   const nameColIdx = header.indexOf("name");
   const typeColIdx = header.indexOf("type");
   const attributeColIdx = header.indexOf("attribute");
@@ -300,8 +300,10 @@ function parseLocalEquipmentSnapshot(): EquipmentItem[] {
 
   const statColumns: Array<{ stat: string; start: number; increment: number }> = [];
   for (let index = 0; index < header.length - 1; index += 1) {
-    if (header[index] !== "start" || header[index + 1] !== "increment") continue;
-    const rawLabel = (statLabels[index] ?? "").trim();
+    if (header[index + 1] !== "increment") continue;
+    const flatLabel = /^(.*?)\s+start$/.exec(header[index] ?? "");
+    if (header[index] !== "start" && !flatLabel) continue;
+    const rawLabel = (flatLabel?.[1] ?? statLabels[index] ?? "").trim();
     if (!rawLabel) continue;
 
     const normalizedStat =
@@ -321,7 +323,7 @@ function parseLocalEquipmentSnapshot(): EquipmentItem[] {
   }
 
   const items: EquipmentItem[] = [];
-  for (const [rowIndex, row] of rows.slice(3).entries()) {
+  for (const [rowIndex, row] of rows.slice(headerIndex + 1).entries()) {
     const name = String(row[nameColIdx] ?? "").trim();
     if (!name || /^\d+$/.test(name) || !isPlayerFacingEquipmentName(name)) continue;
 
@@ -361,123 +363,7 @@ function parseLocalEquipmentSnapshot(): EquipmentItem[] {
   return dedupeEquipmentItems(items);
 }
 
-async function fetchSheet(): Promise<EquipmentItem[]> {
-  const url = googleSheetUrl("equipment");
-  const text = await fetch(url)
-    .then((res) => {
-      if (!res.ok) throw new Error(`Equipment sheet returned ${res.status}`);
-      return res.text();
-    })
-    .catch((err) => {
-      const cached = readBrowserCache<EquipmentItem[]>(EQUIPMENT_CACHE_KEY, 7 * 24 * 60 * 60 * 1000);
-      if (cached) return `__KA_CACHED_EQUIPMENT__${JSON.stringify(cached)}`;
-      const localSnapshot = parseLocalEquipmentSnapshot();
-      if (localSnapshot.length > 0) return `__KA_CACHED_EQUIPMENT__${JSON.stringify(localSnapshot)}`;
-      throw err;
-    });
-  if (text.startsWith("__KA_CACHED_EQUIPMENT__")) {
-    const cachedItems = JSON.parse(text.replace("__KA_CACHED_EQUIPMENT__", "")) as EquipmentItem[];
-    const dedupedCachedItems = dedupeEquipmentItems(cachedItems);
-    writeBrowserCache(EQUIPMENT_CACHE_KEY, dedupedCachedItems);
-    return dedupedCachedItems;
-  }
-  const json = text.replace(/^[^(]+\(/, "").replace(/\);?\s*$/, "");
-  const data = JSON.parse(json);
-  const rawCols: Array<{ id: string; label: string; type: string }> = data.table.cols;
-  const cols = rawCols.map((c) => (c.label || c.id).trim());
-  const colTypes = rawCols.map((c) => c.type);
 
-  const nameColIdx = (() => {
-    const ex = cols.findIndex((c) => /^(name|item.?name|equipment.?name|equip(ment)?)$/i.test(c));
-    if (ex >= 0) return ex;
-    return colTypes.findIndex((t) => t === "string");
-  })();
-
-  const slotColIdx = (() => {
-    const equipmentType = cols.findIndex((c, i) => i !== nameColIdx && /^(type|equip.?type)$/i.test(c));
-    if (equipmentType >= 0) return equipmentType;
-    return cols.findIndex((c, i) => i !== nameColIdx && /^(slot|category|kind)$/i.test(c));
-  })();
-  const attributeColIdx = cols.findIndex((c) => /^(attribute|element|biome)$/i.test(c.trim()));
-  const craftLvlIdx = cols.findIndex((c) => /crafterstudio|studio.?level|crafter.?studio/i.test(c));
-  const craftIntIdx = cols.findIndex((c) => /craftermintelligence|crafter.?intel|craft.*int/i.test(c));
-
-  const rawItems: Omit<EquipmentItem, "uid">[] = [];
-  const statColumnRoles = cols.map((col, index): { stat: string; field: "base" | "inc" } | null => {
-    const startStat = statFromStartCol(col);
-    if (startStat) return { stat: startStat, field: "base" };
-    const previousStartStat = index > 0 ? statFromStartCol(cols[index - 1]) : null;
-    if (/^increment$/i.test(col.trim()) && previousStartStat) return { stat: previousStartStat, field: "inc" };
-    if (isStatCol(col)) return { stat: fullStat(col), field: "base" };
-    const incName = isIncCol(col);
-    return incName ? { stat: incName, field: "inc" } : null;
-  });
-
-  for (const row of data.table.rows) {
-    if (!row?.c) continue;
-    const cells = row.c as Array<{ v: string | number | null } | null>;
-    const get = (i: number) => (i >= 0 && i < cells.length ? cells[i]?.v ?? null : null);
-    const name = String(get(nameColIdx) ?? "").trim();
-    if (!name || /^\d+$/.test(name)) continue;
-    if (!isPlayerFacingEquipmentName(name)) continue;
-    const rawSourceId = get(0);
-    const parsedSourceId = rawSourceId === null || rawSourceId === "" ? NaN : Number(rawSourceId);
-    const sourceId = Number.isFinite(parsedSourceId) ? parsedSourceId : null;
-    const displayName = getVariantDisplayName(name, sourceId);
-    const rawSlot = slotColIdx >= 0 ? get(slotColIdx) : null;
-    const sheetSlot = slotFromEquipmentType(rawSlot);
-    const elementAttribute = parseElementAttribute(attributeColIdx >= 0 ? get(attributeColIdx) : null, rawSlot);
-    const baseStats: Record<string, number> = {};
-    const incStats: Record<string, number> = {};
-    for (let i = 0; i < cols.length; i++) {
-      if (i === nameColIdx || i === slotColIdx || i === craftLvlIdx || i === craftIntIdx) continue;
-      const role = statColumnRoles[i];
-      if (!role) continue;
-      if (role.field === "base") baseStats[role.stat] = Number(get(i)) || 0;
-      else incStats[role.stat] = Number(get(i)) || 0;
-    }
-    for (const s of STAT_ORDER) {
-      if (baseStats[s] === undefined) baseStats[s] = 0;
-      if (incStats[s] === undefined) incStats[s] = 0;
-    }
-    rawItems.push({ name: displayName, sourceName: name, sourceId, sheetSlot, baseStats, incStats, elementAttribute, crafterStudioLevel: Number(get(craftLvlIdx)) || 0, crafterIntelligence: Number(get(craftIntIdx)) || 0 });
-  }
-
-  const dedupedRawItems: Omit<EquipmentItem, "uid">[] = [];
-  const seenSignatures = new Set<string>();
-  for (const item of rawItems) {
-    const statsSignature = STAT_ORDER.map((stat) => `${item.baseStats[stat] ?? 0}:${item.incStats[stat] ?? 0}`).join("|");
-    const signature = item.sourceId !== null
-      ? `id:${item.sourceId}`
-      : `name:${item.name}|slot:${item.sheetSlot}|studio:${item.crafterStudioLevel}|int:${item.crafterIntelligence}|stats:${statsSignature}`;
-    if (seenSignatures.has(signature)) continue;
-    seenSignatures.add(signature);
-    dedupedRawItems.push(item);
-  }
-
-  const duplicateCounts = new Map<string, number>();
-  for (const item of dedupedRawItems) {
-    duplicateCounts.set(item.name, (duplicateCounts.get(item.name) ?? 0) + 1);
-  }
-
-  const seenDuplicateIndex = new Map<string, number>();
-
-  const items = dedupedRawItems.map((item, index) => {
-    const duplicateTotal = duplicateCounts.get(item.name) ?? 0;
-    if (duplicateTotal <= 1) {
-      return { uid: item.sourceId === null ? String(index) : String(item.sourceId), ...item };
-    }
-
-    const seen = (seenDuplicateIndex.get(item.name) ?? 0) + 1;
-    seenDuplicateIndex.set(item.name, seen);
-    const preferredSuffix = item.sourceId === null ? undefined : VARIANT_NAME_BY_ID[item.sourceId]?.match(/\([^)]*\)$/)?.[0];
-    const suffix = preferredSuffix ?? `(${seen})`;
-    return { uid: item.sourceId === null ? String(index) : String(item.sourceId), ...item, name: `${item.name} ${suffix}` };
-  });
-  const dedupedItems = dedupeEquipmentItems(items);
-  writeBrowserCache(EQUIPMENT_CACHE_KEY, dedupedItems);
-  return dedupedItems;
-}
 
 function statAtLevel(base: number, inc: number, level: number): number {
   return Math.round(base + (level - 1) * inc);
@@ -531,14 +417,14 @@ async function putShared(endpoint: string, data: unknown, history?: HistoryPaylo
 function useShared() {
   const qc = useQueryClient();
   const { data: shared = EMPTY_SHARED } = useQuery<SharedState>({
-    queryKey: ["ka-shared"],
-    queryFn: fetchShared,
+    queryKey: ["ka-reference"],
+    queryFn: () => loadSharedReferenceData<SharedState>(),
     initialData: () => ({ ...EMPTY_SHARED, ...(JSON.parse(JSON.stringify(localSharedData)) as Partial<SharedState>) }),
-    staleTime: 15000,
-    refetchOnWindowFocus: true,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
-  const invalidate = useCallback(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }), [qc]);
+  const invalidate = useCallback(async () => { qc.setQueryData(["ka-reference"], await fetchShared()); }, [qc]);
 
   const saveOverrides = useCallback(async (data: Record<string, StatOverrides>, history?: HistoryPayload) => {
     await putShared("overrides", data, history); invalidate();
@@ -843,7 +729,7 @@ function InfoDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-8 w-8"><Info className="w-4 h-4" /></Button>
+        <Button variant="outline" size="icon" className="h-8 w-8" aria-label="How to use Equipment Stats"><Info className="w-4 h-4" /></Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>How to use Equipment Stats</DialogTitle></DialogHeader>
@@ -977,24 +863,7 @@ function exportData(shared: SharedState) {
 
 export default function EquipmentPage() {
   const locationSearch = useSearch();
-  const { data: items = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery({
-    queryKey: ["equipment"],
-    queryFn: fetchSheet,
-    initialData: () => {
-      const cached = readBrowserCache<EquipmentItem[]>(EQUIPMENT_CACHE_KEY, 7 * 24 * 60 * 60 * 1000);
-      if (!cached) {
-        const localSnapshot = parseLocalEquipmentSnapshot();
-        if (localSnapshot.length > 0) return localSnapshot;
-        return undefined;
-      }
-      const dedupedCached = dedupeEquipmentItems(cached);
-      if (dedupedCached.length !== cached.length) writeBrowserCache(EQUIPMENT_CACHE_KEY, dedupedCached);
-      return dedupedCached;
-    },
-    initialDataUpdatedAt: 0,
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
+  const items = useMemo(parseLocalEquipmentSnapshot, []);
   const { shared, saveOverrides, saveSlots, saveEquipIcons, saveStatIcons, saveWeaponTypes, saveWeaponCategories, renameUser } = useShared();
   const { overrides, slotAssignments, equipIcons, statIcons } = shared;
   const weaponTypes = shared.weaponTypes ?? {};
@@ -1677,12 +1546,6 @@ export default function EquipmentPage() {
             </Button>
           )}
 
-          <div className="ml-auto flex items-center gap-2">
-            {dataUpdatedAt && <span className="text-xs text-muted-foreground">Updated {new Date(dataUpdatedAt).toLocaleTimeString()}</span>}
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading} className="h-8 gap-2">
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}Refresh
-            </Button>
-          </div>
         </div>
         {/* Filter dropdowns */}
         <div ref={filterMenuRef} className="flex flex-wrap items-center gap-2 mb-3">
@@ -1859,17 +1722,7 @@ export default function EquipmentPage() {
           <span className="text-[11px] text-muted-foreground">Quick way to compare everything at one level without changing rows one by one.</span>
         </div>
 
-        {isLoading && <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground"><Loader2 className="w-6 h-6 animate-spin text-primary" /><span className="text-sm">Fetching data...</span></div>}
-        {isError && (
-          <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 mb-4">
-            <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-            <p className="text-sm text-destructive">Failed to load sheet data.</p>
-            <Button size="sm" variant="outline" onClick={() => refetch()} className="ml-auto h-7">Retry</Button>
-          </div>
-        )}
-
-        {!isLoading && !isError && (
-          <>
+        <>
             {compareMode && (
               <div className="mb-3 flex items-center gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs text-primary font-medium">
                 <CheckSquare className="w-4 h-4" />
@@ -2601,8 +2454,7 @@ export default function EquipmentPage() {
                 </CardContent>
               </Card>
             )}
-          </>
-        )}
+        </>
 
         <div className="mt-8 pt-4 border-t border-border text-xs text-muted-foreground flex items-center justify-between">
           <span>Data from Google Sheets | Kingdom Adventurers</span>

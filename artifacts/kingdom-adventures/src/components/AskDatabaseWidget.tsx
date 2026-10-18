@@ -12,8 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
-import { apiUrl } from "@/lib/api";
+import { loadSharedReferenceData } from "@/lib/local-shared-data";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
 import { KAIRO_ROOM_LOOT_GROUPS, WAIRO_DUNGEON_LOOT_GROUP } from "@/lib/special-boss-loot";
 import { PLAYTHROUGH_GUIDE_SECTION_OVERLAYS } from "@/lib/playthrough-guide";
@@ -561,7 +560,7 @@ async function fetchEquipmentSheet(): Promise<RawEquipmentItem[]> {
 }
 
 async function fetchSharedData(): Promise<SharedData> {
-  return fetchSharedWithFallback<SharedData>(apiUrl("/shared"));
+  return loadSharedReferenceData<SharedData>();
 }
 
 function buildEquipmentRecords(sheetItems: RawEquipmentItem[], shared: SharedData): EquipmentRecord[] {

@@ -11,12 +11,12 @@ export function useEventRefresh(refresh: () => void, intervalMs = 180_000) {
 
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
-    const interval = window.setInterval(refresh, intervalMs);
+    const interval = intervalMs > 0 ? window.setInterval(refresh, intervalMs) : null;
 
     return () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
-      window.clearInterval(interval);
+      if (interval !== null) window.clearInterval(interval);
     };
   }, [intervalMs, refresh]);
 }

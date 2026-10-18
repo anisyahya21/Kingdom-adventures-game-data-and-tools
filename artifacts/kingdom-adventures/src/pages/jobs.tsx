@@ -16,7 +16,7 @@ import { AffinityBadge, ToneBadge } from "@/components/ka/badges";
 import { EntityLink } from "@/components/ka/entity-link";
 import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { KA_AFFINITY_BADGE_CLASS } from "@/design-system/category-styles";
-import { fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
+import { loadSharedReferenceData, fetchSharedWithFallback, localSharedData } from "@/lib/local-shared-data";
 import { getShopHref } from "@/lib/shop-utils";
 import { JOB_BUILDING_ROUTE_NAMES, splitBuildingRankNote } from "@/game-data/job-buildings";
 import {
@@ -229,12 +229,11 @@ function useFavorites() {
 function useSharedData() {
   return useQuery({
     queryKey: ["ka-jobs-reference"],
-    queryFn: async () => withCategoryBattleTypes(await fetchSharedWithFallback<SharedData>(apiUrl("/shared"))),
+    queryFn: async () => withCategoryBattleTypes(await loadSharedReferenceData<SharedData>()),
     initialData: () => withCategoryBattleTypes(JSON.parse(JSON.stringify(localSharedData)) as SharedData),
     initialDataUpdatedAt: 0,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -3099,14 +3098,14 @@ export default function JobsPage() {
   const handleSaveJobs = useCallback((updated: Record<string,Job>, desc: string) => {
     withName(() => {
       qc.setQueryData(["ka-jobs-reference"], (old: SharedData|undefined) => old ? { ...old, jobs: updated } : old);
-      persistJobs(updated, userName, desc).then(() => qc.invalidateQueries({ queryKey: ["ka-jobs-reference"] }));
+      persistJobs(updated, userName, desc).then(() => fetchSharedWithFallback<SharedData>(apiUrl("/shared")).then((saved) => qc.setQueryData(["ka-jobs-reference"], withCategoryBattleTypes(saved))));
     });
   }, [qc, userName, withName]);
 
   const handleSavePairs = useCallback((updated: SharedPair[]) => {
     withName(() => {
       qc.setQueryData(["ka-jobs-reference"], (old: SharedData|undefined) => old ? { ...old, pairs: updated } : old);
-      persistPairs(updated, userName).then(() => qc.invalidateQueries({ queryKey: ["ka-jobs-reference"] }));
+      persistPairs(updated, userName).then(() => fetchSharedWithFallback<SharedData>(apiUrl("/shared")).then((saved) => qc.setQueryData(["ka-jobs-reference"], withCategoryBattleTypes(saved))));
     });
   }, [qc, userName, withName]);
 

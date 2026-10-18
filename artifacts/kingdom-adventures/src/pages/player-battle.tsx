@@ -11,8 +11,7 @@ import { EncounterSection, TeamSection } from "@/components/ka/battle-builder/te
 import { TeamFormation } from "@/components/ka/battle-builder/team-formation";
 import { NumberField } from "@/components/ka/battle-builder/editors";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
-import { apiUrl } from "@/lib/api";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { loadSharedReferenceData } from "@/lib/local-shared-data";
 import {
   battleSetupFromLoadouts,
   readLoadoutHandoff,
@@ -250,7 +249,7 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
 
   useEffect(() => {
     let cancelled = false;
-    fetchSharedWithFallback<BuilderSharedData>(apiUrl("/shared"))
+    loadSharedReferenceData<BuilderSharedData>()
       .then((loaded) => {
         if (!cancelled) setSharedData(loaded);
       })
@@ -704,10 +703,10 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
           <div className="border-t pt-3" data-account-rosters>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-medium text-muted-foreground">Your account · {accountRosters.length}/20</p>
-              <Button type="button" variant="outline" className="min-h-11" onClick={() => void refreshAccountRosters()} disabled={accountStatus === "loading" || accountBusy}>Refresh</Button>
+              {accountStatus === "error" && <Button type="button" variant="outline" className="min-h-11" onClick={() => void refreshAccountRosters()} disabled={accountBusy}>Retry loading account loadouts</Button>}
             </div>
             {accountStatus === "loading" ? <p className="text-xs text-muted-foreground">Loading account loadouts...</p> : null}
-            {accountStatus === "guest" ? <p className="text-xs text-muted-foreground">Log in with the account button above, then tap Refresh.</p> : null}
+            {accountStatus === "guest" ? <p className="text-xs text-muted-foreground">Log in with the account button above to load your saved teams.</p> : null}
             {accountMessage ? <p className="mb-2 text-xs" role="status">{accountMessage}</p> : null}
             {accountRosters.map((roster) => (
               <div key={roster.id} className="mb-2 flex flex-wrap items-center gap-2 rounded border p-2">

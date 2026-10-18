@@ -17,7 +17,7 @@ import { Link, useLocation } from "wouter";
 import {
   Plus, Trash2, Loader2, Camera, Star,
   ChevronDown, ChevronRight, Package, X, Check, Pencil,
-  Download, Copy, Info, RotateCcw, Crown, Sword, Shield, Gem, ArrowUp, ArrowDown,
+  Download, Copy, RotateCcw, Crown, Sword, Shield, Gem, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -412,10 +412,11 @@ function getEquipRuleState(loadout: Loadout, data: SharedData, equipName: string
 
 function useSharedData() {
   return useQuery({
-    queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
+    queryKey: ["ka-workspace"],
+    queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared?scope=workspace")),
     select: (data) => ({ ...data, overrides: normalizeEquipmentVariantOverrides(data.overrides) }),
-    staleTime: 15000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -2152,16 +2153,6 @@ function ProfileGoalSearchPanel({
     if (clearStatus) setStatus("");
   };
 
-  const useProfileData = () => {
-    resetSearch();
-    setError("");
-    const next = readPlayerProfile();
-    setProfile(next);
-    setProfileMatches(null);
-    setVariantChecks({});
-    const ownedCount = Object.keys(next.equipment).length;
-    setStatus(`Profile loaded: ${next.characters.length} characters and ${ownedCount} owned gear types.`);
-  };
 
   const strategyEncounter = farmingRequest ? ENCOUNTER_VARIANTS.find((entry) => entry.id === farmingRequest.settings.encounterId) : ENCOUNTER_VARIANTS.find((entry) => entry.familyId === strategyFamily && entry.difficulty === strategyDifficulty);
   useEffect(() => {
@@ -2565,7 +2556,6 @@ function ProfileGoalSearchPanel({
             <CardTitle className="text-base">Find Builds</CardTitle>
             <CardDescription>Choose your targets. Search your profile characters and owned equipment.</CardDescription>
           </div>
-          <Button variant="outline" className="min-h-11" onClick={useProfileData}>Refresh profile</Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -3701,8 +3691,6 @@ export default function LoadoutPage({ view = "builder", farmingRequest }: { view
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | "all" | null>(null);
   const [profileImportNotice, setProfileImportNotice] = useState("");
-  const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_loadout", "");
-  const [showNote, setShowNote] = useState(false);
   // Universal "Water of ..." valuables: entered once for the whole page and
   // mirrored onto every loadout so all stat totals pick them up.
   const [activeToolTab, setActiveToolTab] = useState<BoxSetupKind | "combat">("kairo");
@@ -3862,7 +3850,7 @@ export default function LoadoutPage({ view = "builder", farmingRequest }: { view
       });
       if (!response.ok) throw new Error("Publish failed");
       saveSetups(nextSetups);
-      queryClient.invalidateQueries({ queryKey: ["ka-shared"] });
+      queryClient.invalidateQueries({ queryKey: ["ka-workspace"] });
       setPublishStatus((prev) => ({ ...prev, [setup.id]: "ok" }));
     } catch {
       setPublishStatus((prev) => ({ ...prev, [setup.id]: "error" }));
@@ -3947,9 +3935,6 @@ export default function LoadoutPage({ view = "builder", farmingRequest }: { view
                 {(playerProfile.characters?.length ?? 0) > 0 && <Button variant="outline" size="sm" onClick={importProfileCharacters} className="min-h-11">Add/update profile characters</Button>}
                 <Link href="/player-profile" className="inline-flex min-h-11 items-center text-xs text-primary underline-offset-2 hover:underline">Edit profile</Link>
                 {profileImportNotice && <span className="text-[10px] text-muted-foreground">Profile sync: {profileImportNotice}</span>}
-                <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
-                  <Info className="w-3.5 h-3.5" />
-                </Button>
                 <Button variant="ghost" size="icon" onClick={() => setPendingDeleteId("all")} className="h-11 w-11 text-destructive" title="Delete all characters">
                   <RotateCcw className="w-3.5 h-3.5" />
                 </Button>
@@ -3968,16 +3953,6 @@ export default function LoadoutPage({ view = "builder", farmingRequest }: { view
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {showNote && (
-          <div className="mb-4">
-            <textarea
-              value={pageNote}
-              onChange={(e) => setPageNote(e.target.value)}
-              placeholder="Personal notes for this page... (only visible to you, saved on this device)"
-              className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
-            />
-          </div>
-        )}
 
         {/* Universal settings: resident-wide valuables ("Water of ...") */}
         <Card className="mb-5">

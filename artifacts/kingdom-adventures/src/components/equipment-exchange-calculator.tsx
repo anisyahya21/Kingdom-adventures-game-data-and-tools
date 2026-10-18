@@ -7,9 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Ban, Check, Download, Upload } from "lucide-react";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
-import { apiUrl } from "@/lib/api";
 import { getEquipmentIcon } from "@/lib/equipment-icons";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
+import { loadSharedReferenceData } from "@/lib/local-shared-data";
 import { EQUIPMENT_CATALOG, EQUIPMENT_EXCHANGE_ROWS } from "@/lib/generated-equipment-data";
 
 type KairoEquipmentName =
@@ -261,9 +260,9 @@ function buildRoute(
 
 export default function EquipmentExchangeCalculator() {
   const { data: sharedData } = useQuery({
-    queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
-    staleTime: 15000,
+    queryKey: ["ka-reference"],
+    queryFn: () => loadSharedReferenceData<SharedData>(),
+    staleTime: Infinity,
   });
   const equipIcons = sharedData?.equipIcons ?? {};
   const [savedExchangeState, setSavedExchangeState] = useLocalFeature<EquipmentExchangeSavedState>(

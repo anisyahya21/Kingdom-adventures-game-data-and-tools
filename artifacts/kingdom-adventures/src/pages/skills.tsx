@@ -1,19 +1,13 @@
 import { isSkillCraftable } from "@/lib/skill-crafting";
-import { useState, useCallback, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import {
-  Loader2, Pencil, Check, X,
-  BookOpen, Search, Zap, Info,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2, BookOpen, Search, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/ka/page-header";
 import { ToneBadge } from "@/components/ka/badges";
-import { fetchSharedWithFallback } from "@/lib/local-shared-data";
-import { apiUrl } from "@/lib/api";
+import { loadSharedReferenceData } from "@/lib/local-shared-data";
 import { getSkillIcon } from "@/lib/skill-icons";
 import { getNativeSkillDescription, getSkillDescription, getSkillDescriptionEvidence } from "@/lib/skill-descriptions";
 
@@ -92,71 +86,20 @@ const SKILL_TYPE_BY_NAME = new Map<string, "Attack" | "Attack Magic" | "Recovery
 const EXCLUDED_SKILL_NAMES = new Set(["normal attack", "gun attack", "critical hit"]);
 function useSharedData() {
   return useQuery({
-    queryKey: ["ka-shared"],
-    queryFn: () => fetchSharedWithFallback<SharedData>(apiUrl("/shared")),
-    staleTime: 5 * 60_000,
+    queryKey: ["ka-reference"],
+    queryFn: () => loadSharedReferenceData<SharedData>(),
+    staleTime: Infinity,
   });
 }
 
-async function persistSkills(skills: Record<string, Skill>, userName: string, desc: string) {
-  await fetch(apiUrl("/skills"), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      data: skills,
-      history: { userName: userName || "anonymous", changeType: "skill", itemName: "skills", description: desc },
-    }),
-  });
-}
-
-
-function useUserName() {
-  const [name, setName] = useState(() => localStorage.getItem("ka_username") ?? "");
-  const save = (n: string) => { setName(n); localStorage.setItem("ka_username", n); };
-  return { name, save };
-}
-
-function NamePrompt({ onSave, onCancel }: { onSave: (n: string) => void; onCancel: () => void }) {
-  const [val, setVal] = useState("");
-  return (
-    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <DialogContent className="max-w-xs">
-        <DialogHeader><DialogTitle>Enter your name</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground">So the community knows who made changes.</p>
-        <Input value={val} onChange={(e) => setVal(e.target.value)} placeholder="Your name…" className="h-8 text-sm"
-          onKeyDown={(e) => { if (e.key === "Enter" && val.trim()) onSave(val.trim()); }} />
-        <Button onClick={() => { if (val.trim()) onSave(val.trim()); }} className="h-8">Save</Button>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function numCell(val: number | null | undefined, onChange: (v: number | undefined) => void, editing: boolean, prefix?: string) {
-  if (!editing) {
-    return val != null
-      ? <span className="tabular-nums">{prefix}{val.toLocaleString()}</span>
-      : <span className="text-muted-foreground/40">—</span>;
-  }
-  return (
-    <Input
-      type="number"
-      min={0}
-      value={val ?? ""}
-      onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-      className="h-7 text-sm px-2 w-full"
-      placeholder="—"
-    />
-  );
+function numCell(val: number | null | undefined, prefix = "") {
+  return val != null
+    ? <span className="tabular-nums">{prefix}{val.toLocaleString()}</span>
+    : <span className="text-muted-foreground/40">—</span>;
 }
 
 export default function SkillsPage() {
-  const { name: userName, save: saveUserName } = useUserName();
-  const [promptName, setPromptName] = useState(false);
-  const [pendingFn, setPendingFn] = useState<(() => void) | null>(null);
-  const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_skills") ?? "");
-  const [showNote, setShowNote] = useState(false);
   const [includeBasicAttacks, setIncludeBasicAttacks] = useState(false);
-  const qc = useQueryClient();
   const { data, isLoading } = useSharedData();
   const [search, setSearch] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -194,79 +137,18 @@ export default function SkillsPage() {
     ? sorted.filter((s) => `${s.name} ${getSkillDescription(s.name) ?? ""} ${getNativeSkillDescription(s.name) ?? ""}`.toLowerCase().includes(search.toLowerCase()))
     : sorted;
 
-  const withName = useCallback((fn: () => void) => {
-    if (!userName) { setPendingFn(() => fn); setPromptName(true); }
-    else fn();
-  }, [userName]);
-
-  const onNameSaved = (n: string) => {
-    saveUserName(n); setPromptName(false);
-    if (pendingFn) { pendingFn(); setPendingFn(null); }
-  };
-  const onNamePromptCancelled = () => {
-    setPromptName(false);
-    setPendingFn(null);
-  };
-
-  const saveSkills = useCallback((updated: Record<string, Skill>, desc: string) => {
-    withName(() => {
-      const effectiveUserName = userName || localStorage.getItem("ka_username") || "";
-      qc.setQueryData(["ka-shared"], (old: SharedData | undefined) => old ? { ...old, skills: updated } : old);
-      persistSkills(updated, effectiveUserName, desc).then(() => qc.invalidateQueries({ queryKey: ["ka-shared"] }));
-    });
-  }, [qc, userName, withName]);
-
-  // ── Adding a new skill ──
-  // ── Inline editing ──
-  const [editingName, setEditingName] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<Skill | null>(null);
-
-  const startEdit = (skill: Skill) => { setEditingName(skill.name); setEditDraft({ ...skill }); };
-  const cancelEdit = () => { setEditingName(null); setEditDraft(null); };
-  const commitEdit = () => {
-    if (!editDraft || !editingName) return;
-    const originalDescription = skills[editingName]?.description ?? "";
-    const draftDescription = editDraft.description ?? "";
-    if (originalDescription === draftDescription) {
-      cancelEdit();
-      return;
-    }
-    const updated = { ...skills };
-    updated[editingName] = { ...skills[editingName], description: editDraft.description };
-    saveSkills(updated, `Updated skill notes: ${editingName}`);
-    setEditingName(null);
-    setEditDraft(null);
-  };
 
   return (
     <div className="min-h-screen bg-background transition-colors">
-      {promptName && <NamePrompt onSave={onNameSaved} onCancel={onNamePromptCancelled} />}
 
       <div className="max-w-5xl mx-auto px-4 py-6">
         <PageHeader
           icon={<BookOpen className="w-5 h-5 text-emerald-500" />}
           title="Skills Database"
           className="mb-4"
-          actions={(
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
-                <Info className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          )}
+
         />
 
-        {showNote && (
-          <div className="mb-4">
-            <textarea
-              value={pageNote}
-              onChange={(e) => setPageNote(e.target.value)}
-              onBlur={() => localStorage.setItem("ka_note_skills", pageNote)}
-              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
-              className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
-            />
-          </div>
-        )}
         {/* Toolbar */}
         <div className="flex gap-2 mb-4 flex-wrap items-center">
           <div className="relative flex-1 min-w-48">
@@ -321,24 +203,21 @@ export default function SkillsPage() {
                       ))}
                       <th className="hidden md:table-cell text-left px-3 py-2 text-xs font-medium text-muted-foreground">Description</th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tips / Notes</th>
-                      <th className="w-16" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
 
                     {filtered.length === 0 && (
-                      <tr><td colSpan={10} className="text-center py-12 text-sm text-muted-foreground">
+                      <tr><td colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
                         {search ? "No skills match your search." : "No skills found."}
                       </td></tr>
                     )}
 
                     {filtered.map((skill) => {
-                      const isEditing = editingName === skill.name;
-                      const d = isEditing ? editDraft! : skill;
                       const skillIcon = getSkillIcon(skill.name);
                       const craftable = isSkillCraftable(skill);
                       return (
-                        <tr key={skill.name} className={`hover:bg-muted/30 transition-colors ${isEditing ? "bg-sky-50 dark:bg-sky-950/20" : ""}`}>
+                        <tr key={skill.name} className="hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-2 font-medium">
                             <div className="flex items-center gap-2">
                               {skillIcon ? (
@@ -356,16 +235,16 @@ export default function SkillsPage() {
                             </p>
                           </td>
                           <td className="px-3 py-2 text-center">
-                            {numCell(skill.studioLevel, () => undefined, false)}
+                            {numCell(skill.studioLevel)}
                           </td>
                           <td className="px-3 py-2 text-center">
-                            {numCell(skill.craftingIntelligence, () => undefined, false)}
+                            {numCell(skill.craftingIntelligence)}
                           </td>
                           <td className="px-3 py-2 text-center">
-                            {numCell(skill.buyPrice, () => undefined, false, "$")}
+                            {numCell(skill.buyPrice, "$")}
                           </td>
                           <td className="px-3 py-2 text-center">
-                            {numCell(skill.sellPrice, () => undefined, false, "$")}
+                            {numCell(skill.sellPrice, "$")}
                           </td>
                           <td className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">
                             {getSkillTypeLabel(skill) ?? "—"}
@@ -381,32 +260,15 @@ export default function SkillsPage() {
                             </span>
                           </td>
                           <td className="px-3 py-2 min-w-[200px]">
-                            {isEditing
-                              ? <Input value={d.description ?? ""} onChange={(e) => setEditDraft((x) => x ? { ...x, description: e.target.value || undefined } : x)}
-                                  placeholder="Tips or notes…" className="h-7 text-sm px-2" />
-                              : <div className="space-y-0.5">
-                                  {d.weaponResistance && (
-                                    <ToneBadge category="shop" className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold">
-                                      {d.weaponResistance} Resistance
-                                    </ToneBadge>
-                                  )}
-                                  {d.description
-                                    ? <span className="block text-xs text-muted-foreground line-clamp-2">{d.description}</span>
-                                    : !d.weaponResistance && <span className="text-muted-foreground/30 text-xs">—</span>}
-                                </div>}
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="flex gap-1 justify-end">
-                              {isEditing ? (
-                                <>
-                                  <button onClick={commitEdit} className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 p-0.5"><Check className="w-3.5 h-3.5" /></button>
-                                  <button onClick={cancelEdit} className="text-muted-foreground hover:text-destructive p-0.5"><X className="w-3.5 h-3.5" /></button>
-                                </>
-                              ) : (
-                                <>
-                                  <button onClick={() => startEdit(skill)} className="text-muted-foreground hover:text-foreground p-0.5 transition-colors"><Pencil className="w-3 h-3" /></button>
-                                </>
+                            <div className="space-y-0.5">
+                              {skill.weaponResistance && (
+                                <ToneBadge category="shop" className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold">
+                                  {skill.weaponResistance} Resistance
+                                </ToneBadge>
                               )}
+                              {skill.description
+                                ? <span className="block text-xs text-muted-foreground line-clamp-2">{skill.description}</span>
+                                : !skill.weaponResistance && <span className="text-muted-foreground/30 text-xs">—</span>}
                             </div>
                           </td>
                         </tr>

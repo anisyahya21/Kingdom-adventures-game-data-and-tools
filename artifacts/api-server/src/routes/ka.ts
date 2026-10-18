@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { and, eq, gt, gte, isNull, like, sql } from "drizzle-orm";
-import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached, refreshStaticSourceIfStale } from "../lib/google-cache";
+import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached } from "../lib/google-cache";
 import { renderJobPreview, renderJobPreviewByName } from "../lib/character-preview";
 import multer from "multer";
 // Multer setup for image uploads
@@ -926,10 +926,9 @@ router.get("/ka/google/sheet/:key", (req, res) => {
   }
   const data = getCachedContent(key);
   if (!data) {
-    res.status(503).json({ error: "Cache is warming up, try again shortly" });
+    res.status(503).json({ error: "Published reference snapshot is unavailable" });
     return;
   }
-  refreshStaticSourceIfStale(key);
   res.set("Content-Type", "text/plain; charset=utf-8");
   res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
   res.send(data);
@@ -1001,6 +1000,15 @@ function getGroupDevices(devices: SyncedDevice[], groupId: string): SyncedDevice
 
 router.get("/ka/shared", async (req, res) => {
   const state = readState();
+  if (req.query.scope === "workspace") {
+    res.json({
+      loadouts: state.loadouts,
+      loadoutsUpdatedAt: state.loadoutsUpdatedAt,
+      loadoutBoxSetups: state.loadoutBoxSetups,
+      loadoutBoxSetupsUpdatedAt: state.loadoutBoxSetupsUpdatedAt,
+    });
+    return;
+  }
   const currentSession = await resolveAuthenticatedSession(req);
   // The bundled frontend already owns the baseline catalog/icon data. Return
   // only icon overrides here so every poll does not transfer the ~10 MB

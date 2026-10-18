@@ -26,13 +26,25 @@ function mergeSharedData<T>(base: unknown, overlay: unknown): T {
   } as T;
 }
 
+/** The release owns game reference data. Only explicit edits/workspace state use the API. */
+export async function loadSharedReferenceData<T>(): Promise<T> {
+  return mergeSharedData<T>(structuredClone(localSharedData), {});
+}
+
 export async function fetchSharedWithFallback<T>(url: string): Promise<T> {
-  const cacheKey = "shared-data";
+  const cacheKey = url.includes("scope=workspace") ? "player-workspace" : "shared-data";
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Shared API returned ${res.status}`);
-    const data = mergeSharedData<T>(localSharedData, await res.json());
-    writeBrowserCache(cacheKey, data);
+    const payload = await res.json();
+    const overlay = url.includes("scope=workspace") ? {
+      loadouts: payload.loadouts,
+      loadoutsUpdatedAt: payload.loadoutsUpdatedAt,
+      loadoutBoxSetups: payload.loadoutBoxSetups,
+      loadoutBoxSetupsUpdatedAt: payload.loadoutBoxSetupsUpdatedAt,
+    } : payload;
+    const data = mergeSharedData<T>(localSharedData, overlay);
+    writeBrowserCache(cacheKey, url.includes("scope=workspace") ? overlay : data);
     return data;
   } catch {
     const local = JSON.parse(JSON.stringify(localSharedData));

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Info, Search, Skull } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Skull } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -248,7 +248,6 @@ export default function MonstersPage() {
   const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
   const focus = params.get("monster") ?? "";
   const [query, setQuery] = useState(params.get("search") ?? focus);
-  const [showNote, setShowNote] = useState(false);
 
   const combat = useMemo(() => filterMonsterCards(COMBAT_MONSTER_CARDS, query), [query]);
   const animals = useMemo(() => filterMonsterCards(ANIMAL_MONSTER_CARDS, query), [query]);
@@ -262,17 +261,6 @@ export default function MonstersPage() {
             <Skull className="h-5 w-5 text-violet-500" />
             Monster Spawns &amp; Loot
           </h1>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowNote((value) => !value)}
-              className="h-8 w-8 text-muted-foreground"
-              title="Page notes"
-            >
-              <Info className="h-3.5 w-3.5" />
-            </Button>
-          </div>
         </div>
 
         <p className="mb-3 max-w-3xl text-sm text-muted-foreground">
@@ -286,16 +274,6 @@ export default function MonstersPage() {
           cave level shown is the monster&apos;s own lowest level.
         </div>
 
-        {showNote && (
-          <div className="mb-3">
-            <textarea
-              defaultValue={localStorage.getItem("ka_note_monsters") ?? ""}
-              onBlur={(event) => localStorage.setItem("ka_note_monsters", event.target.value)}
-              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
-              className="h-20 w-full resize-none rounded-md border border-input bg-muted/20 px-3 py-2 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-        )}
 
         <div className="relative mb-3">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
