@@ -31,6 +31,7 @@ import {
   type SetupIssueCategory,
 } from "@/lib/battle-setup";
 import { BattleSetupAdapterError, battleSetupToCombatScenario } from "@/lib/battle-setup-adapter";
+import { writeBattleSetupHandoff } from "@/lib/battle-setup-handoff";
 import {
   runBattleSetup,
   type BattleScenarioTransport,
@@ -727,7 +728,7 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
       <Card data-builder-consumables>
         <CardHeader>
           <CardTitle className="text-base">4 - Provision consumables (optional)</CardTitle>
-          <CardDescription>Maximum uses for this fight. 0 means none; a longer fight can run out.</CardDescription>
+          <CardDescription>Maximum uses for this fight. 0 means none; a longer fight can run out. Consumables are used manually during replay; these limits do not automate their timing.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5">
           {providableConsumables.filter((row) => row.supported).map((row) => {
@@ -849,9 +850,17 @@ export default function PlayerBattlePage({ embedded = false }: { embedded?: bool
             <span className="text-xs text-muted-foreground">
               {variant.title} · encounter {draft.encounterId} · {draft.characters.length} unit(s)
             </span>
-            <Link href="/battle-setup" className="text-xs font-medium underline">
+            <Button type="button" variant="link" className="h-auto p-0 text-xs font-medium" disabled={!setup}
+              onClick={() => {
+                if (!setup) return;
+                if (!writeBattleSetupHandoff(setup)) {
+                  setTeamMessage("Raw setup editor was not opened because this browser could not save the current team handoff.");
+                  return;
+                }
+                navigate("/battle-setup");
+              }}>
               Raw setup editor
-            </Link>
+            </Button>
             <Link href="/battle-replay?mode=generated" className="text-xs font-medium underline">
               Generated replay
             </Link>

@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/ka/page-header";
 import { BattleComparisonResult } from "@/components/ka/battle-comparison";
 import { BattleSetupAdapterError } from "@/lib/battle-setup-adapter";
 import { runBattleSetup } from "@/lib/battle-setup-runner";
+import { readBattleSetupHandoff } from "@/lib/battle-setup-handoff";
 import { startBrowserBattle } from "@/lib/browser-battle";
 import { apiUrl } from "@/lib/api";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
@@ -762,6 +763,26 @@ export default function BattleSetupPage() {
     () => (comparisonResult ? comparisonItemBudget(comparisonResult, comparisonCandidates) : null),
     [comparisonResult, comparisonCandidates],
   );
+
+  useEffect(() => {
+    const handoff = readBattleSetupHandoff();
+    if (handoff.status === "none") return;
+    if (handoff.status === "storage-error") {
+      setImportMessage("The current team handoff could not be read from this browser. The default setup remains loaded.");
+      return;
+    }
+    if (handoff.status === "invalid") {
+      const errors = handoff.issues.filter((issue) => issue.category === "ERROR");
+      setImportMessage(`The current team handoff was invalid and was not applied: ${errors.map((issue) => issue.code).join(", ") || "invalid setup"}. The default setup remains loaded.`);
+      return;
+    }
+    handoffRead.current = true;
+    setSetup(handoff.setup);
+    setJsonText(handoff.json);
+    setSelectedUnit(0);
+    setRunState({ status: "idle" });
+    setImportMessage("Loaded the exact current simulator setup, including its full team and declared battle settings.");
+  }, []);
 
   useEffect(() => {
     if (handoffRead.current) return;

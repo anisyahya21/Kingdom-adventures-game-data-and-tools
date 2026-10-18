@@ -20,6 +20,7 @@
     "check:battle-legality": "node --import ./tools/battle-setup-check/register.mjs tools/battle-setup-check/legality_check.mjs",
     "check:legality-matrix": "node --import ./tools/battle-setup-check/register.mjs tools/battle-setup-check/legality_matrix_check.mjs",
     "check:player-battle": "node --import ./tools/battle-setup-check/register.mjs tools/battle-setup-check/player_battle_regression_check.mjs",
+    "check:battle-setup-handoff": "node --import ./tools/battle-setup-check/register.mjs tools/battle-setup-check/handoff_check.mjs",
     "check:battle-builder": "node --import ./tools/battle-setup-check/register.mjs tools/battle-builder-check/visual_builder_check.mjs",
     "check:battle-comparison": "node --import ./tools/battle-setup-check/register.mjs tools/battle-comparison-check/comparison_check.mjs",
     "check:valuable-stats": "node --import ./tools/battle-setup-check/register.mjs tools/valuable-stats-check/run_check.mjs",
