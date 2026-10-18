@@ -450,12 +450,15 @@ export function SiteHeader() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Log in</DialogTitle>
-            <DialogDescription>Choose how to log in with Telegram.</DialogDescription>
+            <DialogDescription>Log in to your account.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
             <Button variant="outline" disabled={authBusy} onClick={() => { setAuthBusy(true); void startDiscordAuth().catch((error) => { setAuthError(error instanceof Error ? error.message : "Discord login is unavailable."); setAuthBusy(false); }); }}>Log in with Discord</Button>
             <Button onClick={() => { setLoginOpen(false); void startPopupLogin(); }} disabled={authBusy}>Log in with Telegram</Button>
-            <Button variant="outline" onClick={() => { setLoginOpen(false); void startFallbackLogin(); }} disabled={fallbackBusy}>Log in with bot code</Button>
+            <details className="mt-2 text-sm text-muted-foreground">
+              <summary className="cursor-pointer rounded-sm py-1 text-center underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Having trouble signing in?</summary>
+              <Button className="mt-2 w-full" variant="outline" onClick={() => { setLoginOpen(false); void startFallbackLogin(); }} disabled={fallbackBusy}>Log in with bot code</Button>
+            </details>
           </div>
         </DialogContent>
       </Dialog>
