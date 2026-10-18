@@ -37,18 +37,30 @@ const temp = await mkdtemp(path.join(tmpdir(),"ka-seo-http-"));
 const run = promisify(execFile);
 function zipManifest(bytes) {
   let offset=0;
+  const entries=new Map();
   while(bytes.readUInt32LE(offset)===0x04034b50) {
     const method=bytes.readUInt16LE(offset+8),size=bytes.readUInt32LE(offset+18);
     const nameLength=bytes.readUInt16LE(offset+26),extraLength=bytes.readUInt16LE(offset+28);
     const name=bytes.subarray(offset+30,offset+30+nameLength).toString('utf8');
     const begin=offset+30+nameLength+extraLength;
-    if(name==='browser-runtime-manifest.json') {
-      const data=bytes.subarray(begin,begin+size);
-      return JSON.parse((method===8 ? inflateRawSync(data) : data).toString('utf8'));
-    }
+    assert.ok(method===0 || method===8, `Unsupported ZIP compression ${method}`);
+    const data=bytes.subarray(begin,begin+size);
+    entries.set(name, method===8 ? inflateRawSync(data) : data);
     offset=begin+size;
   }
-  throw Error('Browser runtime manifest missing');
+  assert.ok(entries.has('browser-runtime-manifest.json'), 'Browser runtime manifest missing');
+  const manifest=JSON.parse(entries.get('browser-runtime-manifest.json').toString('utf8'));
+  const canonical={};
+  for(const [name,body] of entries) {
+    if(name==='browser-runtime-manifest.json') continue;
+    // Verify each archive's own byte hashes before comparing Windows/Linux
+    // source text. Git checkouts legitimately differ in CRLF versus LF.
+    assert.equal(createHash('sha256').update(body).digest('hex'), manifest.files[`battle-runtime/${name}`], `Runtime integrity: ${name}`);
+    const normalized=/\.(py|json)$/.test(name) ? body.toString('utf8').replace(/\r\n/g,'\n') : body;
+    canonical[name]=createHash('sha256').update(normalized).digest('hex');
+  }
+  assert.equal(Object.keys(manifest.files).length, Object.keys(canonical).length);
+  return {...manifest,files:canonical};
 }
 const results = [];
 const started = Date.now();
