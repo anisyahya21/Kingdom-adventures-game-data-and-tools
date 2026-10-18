@@ -74,7 +74,9 @@ try {
   else {
     const {default:binary}=await import('@sparticuz/chromium');
     launch.executablePath=await binary.executablePath();
-    launch.args=binary.args;
+    // Separate renderer processes allow independent isolated contexts. The
+    // Lambda-oriented single-process flag exits Chromium when a context closes.
+    launch.args=binary.args.filter(arg=>arg!=='--single-process');
   }
   browser=await chromium.launch(launch);
   let next=0;
