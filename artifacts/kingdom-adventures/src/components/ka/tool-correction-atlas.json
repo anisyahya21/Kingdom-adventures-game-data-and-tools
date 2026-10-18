@@ -1,0 +1,19 @@
+{
+  "source": "/homepage-artwork/tool-corrections-transparent-v1.png",
+  "width": 2172,
+  "height": 724,
+  "regions": {
+    "/combat/multi-box": [
+      733,
+      37,
+      707,
+      630
+    ],
+    "/items-reference": [
+      1478,
+      96,
+      684,
+      559
+    ]
+  }
+}

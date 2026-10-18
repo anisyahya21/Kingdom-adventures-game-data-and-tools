@@ -1,0 +1,103 @@
+{
+  "source": "/homepage-artwork/tool-specialties-transparent-v1.png",
+  "width": 1374,
+  "height": 1145,
+  "regions": {
+    "/equipment-stats": [
+      41,
+      47,
+      292,
+      234
+    ],
+    "/equipment-exchange": [
+      367,
+      33,
+      300,
+      249
+    ],
+    "/equipment-leveling-optimizer": [
+      698,
+      46,
+      320,
+      242
+    ],
+    "/match-finder": [
+      1066,
+      33,
+      256,
+      255
+    ],
+    "/eggs": [
+      37,
+      328,
+      308,
+      235
+    ],
+    "/monsters-pets": [
+      362,
+      311,
+      332,
+      248
+    ],
+    "/monster-spawns": [
+      713,
+      311,
+      312,
+      252
+    ],
+    "/monster-pet-stats": [
+      1061,
+      303,
+      286,
+      263
+    ],
+    "/monster-xp": [
+      65,
+      579,
+      238,
+      271
+    ],
+    "/combat/character-builder": [
+      377,
+      579,
+      319,
+      271
+    ],
+    "/combat/multi-box": [
+      696,
+      611,
+      344,
+      231
+    ],
+    "/combat/formulas": [
+      1040,
+      602,
+      313,
+      248
+    ],
+    "/houses/plots": [
+      32,
+      850,
+      312,
+      262
+    ],
+    "/houses/facilities": [
+      373,
+      850,
+      305,
+      261
+    ],
+    "/guides/stat-effects": [
+      718,
+      862,
+      293,
+      241
+    ],
+    "/playthrough-guide": [
+      1051,
+      850,
+      292,
+      258
+    ]
+  }
+}

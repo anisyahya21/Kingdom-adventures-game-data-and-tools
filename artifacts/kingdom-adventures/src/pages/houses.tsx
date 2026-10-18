@@ -1,4 +1,5 @@
-﻿import { useState } from "react";
+import { ToolIdentityArtwork } from "@/components/ka/tool-identity";
+import { useState } from "react";
 import { useProfileValuables, useProfileStorageError } from "@/lib/player-profile";
 import { Home } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -993,11 +994,16 @@ export default function HousesPage() {
                   : "bg-muted/30 text-foreground border-border hover:bg-muted/60"
               }`}
             >
-              <div className="text-base font-semibold">{t.label}</div>
-              <div className={`mt-1 text-xs leading-relaxed ${tab === t.key ? "text-primary-foreground/85" : "text-muted-foreground"}`}>
-                {t.key === "houses"
-                  ? "Plots, building types, extra beds, shelves, monster room slots, and owner jobs."
-                  : "Town facilities, indoor objects, map unlocks, upgrade costs, and utility structures."}
+              <div className="flex items-start gap-4">
+                <span className="shrink-0" aria-hidden="true"><ToolIdentityArtwork artworkKey={t.key === "houses" ? "/houses/plots" : "/houses/facilities"} /></span>
+                <div className="min-w-0">
+                  <div className="text-base font-semibold">{t.label}</div>
+                  <div className={`mt-1 text-xs leading-relaxed ${tab === t.key ? "text-primary-foreground/85" : "text-muted-foreground"}`}>
+                    {t.key === "houses"
+                      ? "Plots, building types, extra beds, shelves, monster room slots, and owner jobs."
+                      : "Town facilities, indoor objects, map unlocks, upgrade costs, and utility structures."}
+                  </div>
+                </div>
               </div>
             </button>
           ))}

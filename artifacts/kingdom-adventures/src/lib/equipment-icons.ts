@@ -1,4 +1,4 @@
-﻿import iconManifest from "../../../../website_icons/manifest.json";
+import iconManifest from "../../../../website_icons/manifest.json";
 import facilityIconManifest from "../../../../website_icons/facilities_confirmed/manifest.json";
 import assembledFacilityIconManifest from "../../../../website_icons/facilities_assembled/manifest.json";
 import { PLAYER_VALUABLES } from "@/game-data/player-valuables";
@@ -364,7 +364,7 @@ export function getSurveyIconByName(name: string | undefined | null): string | u
     .replace(/^Survey:\s*/i, "")
     .replace(/\s+Blueprints?$/i, "")
     .trim();
-  if (/^bridge$/i.test(clean)) return BUILD_MENU_ICON;
+  if (/^bridge$/i.test(clean)) return "/world-assets/builder/menu-reclaim.png";
 
   const picTag = /<pic=([^>]+)>/i.exec(clean)?.[1]?.toLowerCase();
   const surveyMaterialNames: Record<string, string> = {

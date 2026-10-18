@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ArrowRight, BriefcaseBusiness, Heart } from "lucide-react";
+import { ToolNavigationCard } from "@/components/ka/tool-navigation-card";
 import { Link } from "wouter";
 import { localSharedData } from "@/lib/local-shared-data";
 
@@ -46,38 +46,11 @@ export default function JobsMarriagePage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div className="rounded-sm border border-border bg-card px-4 py-3 shadow-sm space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Tools</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
-            <Link href="/jobs" className="block">
-              <article className="rounded-sm border border-border bg-background px-3 py-2 transition-colors hover:bg-muted/40">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <BriefcaseBusiness className="w-4 h-4 text-sky-500" />
-                    <h3 className="text-sm font-semibold text-foreground">Job Database</h3>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Explore jobs with stats, battle type, rank behavior, equipment slot access, and skill accessibility.
-                </p>
-              </article>
-            </Link>
-
-            <Link href="/match-finder" className="block">
-              <article className="rounded-sm border border-border bg-background px-3 py-2 transition-colors hover:bg-muted/40">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-rose-600" />
-                    <h3 className="text-sm font-semibold text-foreground">Match Finder & Marriage Sim</h3>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Use Match Finder, Marriage Simulator, and pair data tools to plan children, affinity, and awakening outcomes.
-                </p>
-              </article>
-            </Link>
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold">Tools</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+            <ToolNavigationCard href="/jobs" title="Job Database" description="Explore jobs with stats, battle type, rank behavior, equipment slot access, and skill accessibility." layout="row" />
+            <ToolNavigationCard href="/match-finder" title="Match Finder & Marriage Sim" description="Use Match Finder, Marriage Simulator, and pair data tools to plan children, affinity, and awakening outcomes." layout="row" />
           </div>
         </div>
 

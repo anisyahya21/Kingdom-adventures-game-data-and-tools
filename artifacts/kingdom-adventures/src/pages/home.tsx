@@ -1,20 +1,22 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { Link } from "wouter";
-import { Plus, Heart, Sword, Trash2, ExternalLink, Skull, BookOpen, Package, Store, Home as HomeIcon, CalendarDays, BookMarked, BriefcaseBusiness, UserPlus } from "lucide-react";
+import { type HomeArtworkStyle, type HomeCombatArtwork } from "@/components/ka/home-tool-artwork";
+import { ToolNavigationCard } from "@/components/ka/tool-navigation-card";
+import { useArtworkPreference } from "@/hooks/use-artwork-preference";
+import { Plus, Trash2, ExternalLink, BookOpen, CalendarDays, ArrowUpRight, Palette } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CategoryBadge } from "@/components/ka/category-badge";
-import type { KaCategory } from "@/design-system/category-styles";
 import { fetchAutomaticWeeklyConquestTimeline } from "@/lib/weekly-conquest";
 import { FACILITY_GACHA_EVENTS } from "@/game-data/facility-gacha-events";
 import { getMonsterSpawnReference, presentBriefingMission } from "@/game-data/briefing-room";
 import { eventClockDateToLocalDate, getOffsetAdjustedNow, useEventHourOffset } from "@/lib/event-time";
-import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventStatus } from "@/lib/event-status";
+import { eventStatusLabel, type EventStatus } from "@/lib/event-status";
 import { formatBriefingDate, getCurrentOrUpcomingSpecificMonsterTarget } from "@/lib/briefing-room-schedule";
 import { getNextWarioDungeonSpawn, isWarioDungeonLive } from "@/lib/wairo-schedule";
 
@@ -98,160 +100,72 @@ const BUILT_IN_TOOLS = [
   {
     slug: "/jobs-marriage",
     title: "Jobs",
-    description: "Jobs, Job Database and comparing tools, Marriage finder tool, Marriage simulator, compatilibty Data.",
-    icon: (
-      <div className="flex items-center gap-1.5">
-        <BriefcaseBusiness className="w-5 h-5 text-sky-500" />
-        <Heart className="w-5 h-5 text-rose-500" />
-      </div>
-    ),
-    badge: "Hub",
-    badgeCategory: "marriage" satisfies KaCategory,
+    description: "Stats, ranks & marriage",
   },
   {
     slug: "/equipment",
-    title: "Equipment Stats & Exchange",
-    description: "Open the equipment hub for stats browsing and the exchange calculator.",
-    icon: <Sword className="w-6 h-6 text-amber-500" />,
-    badge: "Equipment",
-    badgeCategory: "equipment" satisfies KaCategory,
+    title: "Equipment",
+    description: "Stats, exchange & leveling",
   },
   {
     slug: "/survey",
     title: "Survey",
-    description: "Survey database and calculator for planning success and rewards.",
-    icon: (
-      <img
-        src="/website_icons/requested/survey_button_00.png"
-        alt="Survey"
-        className="h-10 w-10 object-contain"
-        style={{ imageRendering: "pixelated" }}
-      />
-    ),
-    badge: "Survey",
-    badgeCategory: "survey" satisfies KaCategory,
+    description: "Rewards & success calculator",
   },
   {
     slug: "/skills",
-    title: "Skills Database",
-    description: "Community-editable list of skills and related data.",
-    icon: <BookOpen className="w-6 h-6 text-emerald-500" />,
-    badge: "Skills",
-    badgeCategory: "skill" satisfies KaCategory,
+    title: "Skills",
+    description: "Skill effects & notes",
   },
   {
     slug: "/combat",
     title: "Combat Hub",
-    description: "Build characters, plan multi-box farming teams, and explore combat formulas.",
-    icon: <Package className="w-6 h-6 text-orange-500" />,
-    badge: "Combat",
-    badgeCategory: "builder" satisfies KaCategory,
+    description: "Characters, teams & simulations",
   },
   {
     slug: "/eggs-pets-monsters",
     title: "Eggs, Pets & Monsters",
-    description: "Egg planner plus detailed monster and pet databases for stats, growth, spawn locations, and team planning.",
-    icon: (
-      <div className="flex items-center gap-1.5">
-        <Skull className="w-5 h-5 text-red-500" />
-        <img
-          src="/website_icons/requested/grow_monster_egg_button2.png"
-          alt="Grow monster egg"
-          className="h-9 w-9 object-contain"
-          style={{ imageRendering: "pixelated" }}
-        />
-      </div>
-    ),
-    badge: "Planner",
-    badgeCategory: "monster" satisfies KaCategory,
+    description: "Egg planner, pet stats & spawns",
   },
   {
     slug: "/chaos-setup-lab",
-    title: "Chaos Setup Lab",
-    description: "Plan chaos stones and signboards on the terrain map with setup generation, focus, and result cycling.",
-    icon: <Skull className="w-6 h-6 text-red-500" />,
-    badge: "Planner",
-    badgeCategory: "builder" satisfies KaCategory,
+    title: "Chaos Setup",
+    description: "Stone & signboard layouts",
   },
   {
     slug: "/shops",
-    title: "Shops and items",
-    description: "Browse shops, required crafting facilities, and item feed planning in one place.",
-    icon: (
-      <img
-        src="/website_icons/menu/menu_shop_cropped.png"
-        alt="Shops and items"
-        className="h-14 w-14 object-contain"
-        style={{ imageRendering: "pixelated" }}
-      />
-    ),
-    iconContainerClassName: "-ml-1 p-0 bg-transparent",
-    badge: "Shops",
-    badgeCategory: "shop" satisfies KaCategory,
+    title: "Shops & Items",
+    description: "Catalogs, crafting & feeding",
   },
   {
     slug: "/research",
     title: "Research",
-    description: "Research browser with all entries, facility and equipment breakdowns, item requirements, and town-rank release notes.",
-    icon: (
-      <img
-        src="/website_icons/menu/menu_research_cropped.png"
-        alt="Research"
-        className="h-14 w-14 object-contain"
-        style={{ imageRendering: "pixelated" }}
-      />
-    ),
-    iconContainerClassName: "-ml-1 p-0 bg-transparent",
-    badge: "Research",
-    badgeCategory: "facility" satisfies KaCategory,
+    description: "Unlocks & requirements",
   },
   {
     slug: "/training-facilities",
     title: "Training Facilities",
-    description: "Training-focused facilities hub with room to expand into dedicated guides and optimization tools.",
-    icon: (
-      <img
-        src="/website_icons/menu/menu_train_cropped.png"
-        alt="Training facilities"
-        className="h-14 w-14 object-contain"
-        style={{ imageRendering: "pixelated" }}
-      />
-    ),
-    iconContainerClassName: "-ml-1 p-0 bg-transparent",
-    badge: "Training",
-    badgeCategory: "building" satisfies KaCategory,
+    description: "Stat XP & surround bonuses",
   },
   {
     slug: "/houses",
     title: "Houses & Facilities",
-    description: "Plan plots, building costs, extra beds, shelves, monster rooms, owner jobs, facility upgrades, map unlocks, storage, and production.",
-    icon: <HomeIcon className="w-6 h-6 text-lime-500" />,
-    badge: "Buildings",
-    badgeCategory: "building" satisfies KaCategory,
+    description: "Plots, capacity & facilities",
   },
   {
     slug: "/timed-events",
     title: "Events",
-    description: "Weekly Conquest, Gacha Events, Wairo Dungeon, Kairo Room, and Job Center.",
-    icon: <CalendarDays className="w-6 h-6 text-pink-500" />,
-    badge: "Events",
-    badgeCategory: "event" satisfies KaCategory,
+    description: "Schedules & rewards",
   },
   {
     slug: "/guides",
     title: "Guides",
-    description: "Community-written guides collected in one place, starting with Jaza's playthrough guide.",
-    icon: <BookMarked className="w-6 h-6 text-violet-500" />,
-    badge: "Guides",
-    badgeCategory: "guide" satisfies KaCategory,
+    description: "Walkthroughs & community tips",
   },
   {
     slug: "/add-friends",
     title: "Add Friends",
-    description: "Join the active player pool with your profile display name and game ID. Entries expire after 30 days and can be refreshed to move to the top.",
-    icon: <UserPlus className="w-6 h-6 text-emerald-500" />,
-    badge: "Community",
-    badgeCategory: "service" satisfies KaCategory,
+    description: "Find players & share your game ID",
   },
 ];
 
@@ -299,7 +213,6 @@ type EventTimerCard = {
   status: EventStatus;
   spriteSrc?: string;
   detail?: string;
-  rotationDelayMs?: number;
 };
 
 function EventTimerDescription({ card }: { card: EventTimerCard }) {
@@ -370,7 +283,6 @@ function HomeCountdownBanner() {
         ? formatCountdown(briefingTarget.countdownAt.getTime() - now.getTime())
         : "Unavailable",
       status: briefingTarget?.active ? "live" : "inactive",
-      rotationDelayMs: 12_000,
     },
     {
       href: "/wario-dungeon",
@@ -382,7 +294,6 @@ function HomeCountdownBanner() {
         : "No upcoming spawn found",
       countdown: warioLive ? "Live now" : nextWario ? formatCountdown(nextWario.getTime() - now.getTime()) : "Unavailable",
       status: warioLive ? "live" : "inactive",
-      rotationDelayMs: 4_500,
     },
     {
       href: "/gacha-events",
@@ -396,7 +307,6 @@ function HomeCountdownBanner() {
         ? formatCountdown((facilityActive ? facilityWindow.endAt : facilityWindow.startAt).getTime() - now.getTime())
         : "-",
       status: facilityActive ? "live" : "inactive",
-      rotationDelayMs: 4_500,
     },
     {
       href: "/weekly-conquest",
@@ -416,120 +326,63 @@ function HomeCountdownBanner() {
         ? "Unavailable"
         : "Loading",
       status: weeklyCurrent ? "live" : "inactive",
-      rotationDelayMs: 4_500,
     },
   ];
 
   const activeCard = cards[activeIndex] ?? cards[0];
-  const rotationDelayMs = activeCard.rotationDelayMs ?? 4_500;
-
-  useEffect(() => {
-    const rotate = window.setTimeout(() => {
-      setActiveIndex((previous) => (previous + 1) % cards.length);
-    }, rotationDelayMs);
-    return () => window.clearTimeout(rotate);
-  }, [activeIndex, cards.length, rotationDelayMs]);
+  const timerLabels = ["Briefing Room", "Wairo Dungeon", "S-rank Gacha", "Weekly Conquest"];
 
   return (
-    <div className="rounded-2xl border p-4 sm:p-5 bg-muted/20">
-      <div className="flex items-center gap-2 mb-3">
-        <CalendarDays className="w-5 h-5 text-primary" />
-        <div>
-          <div className="font-semibold xl:text-base text-sm">Event Timers</div>
-          <div className="hidden xl:block text-sm text-muted-foreground">Live countdowns for current and upcoming event windows.</div>
+    <Card className="flex h-full min-w-0 flex-col overflow-hidden shadow-none" aria-labelledby="home-events-title">
+      <div className="flex items-center gap-2 px-4 pt-4 sm:px-5">
+        <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
+        <h2 id="home-events-title" className="text-sm font-semibold">Event Timers</h2>
+      </div>
+      <Link href={activeCard.href} className="group block flex-1 px-4 py-4 no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <h3 className="text-sm font-medium leading-snug text-foreground group-hover:text-primary">{activeCard.title}</h3>
+          <Badge variant="outline" className={`shrink-0 text-xs ${activeCard.status === "live" ? "border-primary/40 bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+            {eventStatusLabel(activeCard.status)}
+          </Badge>
         </div>
+        <div className="mb-3 text-3xl font-semibold leading-none tracking-tight text-foreground tabular-nums">{activeCard.countdown}</div>
+        <EventTimerDescription card={activeCard} />
+      </Link>
+      <div className="grid grid-cols-2 gap-1.5 border-t border-border p-3" role="group" aria-label="Choose event timer">
+        {cards.map((card, index) => (
+          <Button
+            key={card.href}
+            type="button"
+            variant="ghost"
+            aria-label={`Show ${timerLabels[index]} timer`}
+            aria-pressed={index === activeIndex}
+            onClick={() => setActiveIndex(index)}
+            className={`min-h-11 h-auto justify-start whitespace-normal px-2.5 py-2 text-left text-xs ${index === activeIndex ? "bg-primary/10 text-primary hover:bg-primary/15" : "text-muted-foreground"}`}
+          >
+            {timerLabels[index]}
+          </Button>
+        ))}
       </div>
-
-      <div className="xl:hidden">
-        <Link href={activeCard.href}>
-          <Card className={`cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/30 ${eventStatusCardClass(activeCard.status)}`}>
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="font-medium text-sm leading-tight">{activeCard.title}</div>
-                <Badge variant="outline" className={`text-[10px] shrink-0 ${eventStatusClass(activeCard.status)}`}>
-                  {eventStatusLabel(activeCard.status)}
-                </Badge>
-              </div>
-              <div className="text-2xl font-semibold tabular-nums leading-none">{activeCard.countdown}</div>
-              <EventTimerDescription card={activeCard} />
-              <div className="flex items-center gap-2 pt-1">
-                {cards.map((card, index) => (
-                  <button
-                    key={card.title}
-                    type="button"
-                    aria-label={`Show ${card.title}`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setActiveIndex(index);
-                    }}
-                    className={`h-2 rounded-full transition-all ${index === activeIndex ? "w-6 bg-primary" : "w-2 bg-muted-foreground/35 hover:bg-muted-foreground/60"}`}
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
-
-      <div className="hidden xl:block">
-        <Link href={activeCard.href}>
-          <Card className={`cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/30 ${eventStatusCardClass(activeCard.status)}`}>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="font-medium">{activeCard.title}</div>
-                <Badge variant="outline" className={`text-[10px] ${eventStatusClass(activeCard.status)}`}>
-                  {eventStatusLabel(activeCard.status)}
-                </Badge>
-              </div>
-              <div className="text-3xl font-semibold tabular-nums leading-tight">{activeCard.countdown}</div>
-              <EventTimerDescription card={activeCard} />
-              <div className="flex items-center gap-2 pt-1">
-                {cards.map((card, index) => (
-                  <button
-                    key={card.title}
-                    type="button"
-                    aria-label={`Show ${card.title}`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setActiveIndex(index);
-                    }}
-                    className={`h-2.5 rounded-full transition-all ${index === activeIndex ? "w-7 bg-primary" : "w-2.5 bg-muted-foreground/35 hover:bg-muted-foreground/60"}`}
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
-    </div>
+    </Card>
   );
 }
 
-function HomeWorldMapV2Card({ compact = false }: { compact?: boolean }) {
+function HomeWorldMapCard() {
   return (
-    <Link href="/world-map-v2">
-      <Card className={compact
-        ? "cursor-pointer overflow-hidden hover:border-primary/40 hover:bg-muted/30 transition-colors"
-        : "cursor-pointer overflow-hidden hover:border-primary/40 hover:bg-muted/30 transition-colors h-[230px]"
-      }>
-        <div className={compact ? "relative h-28 overflow-hidden border-b border-border/50" : "relative h-[164px] overflow-hidden border-b border-border/50"}>
+    <Link href="/world-map-v2" className="group block min-w-0 rounded-xl no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+      <Card className="flex h-full flex-col overflow-hidden shadow-none transition-colors group-hover:border-primary/40">
+        <div className="relative min-h-48 flex-1 overflow-hidden bg-muted sm:min-h-64">
           <img
             src="/Images/world-map-v2-thumbnail.jpg"
             alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover"
+            fetchPriority="high"
+            width={1418}
+            height={497}
           />
         </div>
-        <CardContent className={compact ? "p-3 space-y-2" : "p-3.5 space-y-1.5"}>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className={compact ? "font-medium text-sm" : "font-medium"}>World map V2</div>
-            <Badge variant="outline" className="text-[10px]">WIP</Badge>
-          </div>
-          <div className={compact ? "text-xs text-muted-foreground leading-relaxed" : "text-[12px] text-muted-foreground leading-snug truncate"}>
-            Isometric world map with terrain, facilities, resources, and nature.
-          </div>
+        <CardContent className="px-4 py-3">
+          <h2 className="text-base font-medium text-foreground group-hover:text-primary">World map</h2>
         </CardContent>
       </Card>
     </Link>
@@ -540,7 +393,11 @@ function generateId() {
   return Math.random().toString(36).slice(2, 9);
 }
 
-export default function Home() {
+export default function Home({ artworkStyle, combatArtwork = "cyan", allowArtworkSwitch = artworkStyle === undefined || artworkStyle === "mixed" }: { artworkStyle?: HomeArtworkStyle; combatArtwork?: HomeCombatArtwork; allowArtworkSwitch?: boolean } = {}) {
+  const [preferGameArtwork, setPreferGameArtwork] = useArtworkPreference();
+  const gameArtworkEnabled = preferGameArtwork === true;
+  const displayedArtwork = allowArtworkSwitch ? (gameArtworkEnabled ? "game" : "mixed") : artworkStyle ?? "mixed";
+  const artworkAction = gameArtworkEnabled ? "Switch to generated artwork" : "Switch to game artwork";
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [customProjects, setCustomProjects] = useLocalFeature<CustomProject[]>("ka_custom_projects", []);
   const [adding, setAdding] = useState(false);
@@ -568,63 +425,36 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background transition-colors">
-      <div className="max-w-5xl mx-auto px-4 py-12 xl:pr-[24rem]">
-        <div className="flex items-start justify-between mb-10 gap-4">
-          <div className="min-w-0">
-            <h1 className="text-4xl font-bold text-foreground tracking-tight">Kingdom Adventurers</h1>
-            <div className="mt-2 max-w-3xl space-y-2 text-sm leading-relaxed text-muted-foreground">
-              <p>
-                Kingdom Adventurers Community Tools is a searchable reference site for jobs, equipment, shops,
-                monsters, pets, events, maps, guides, and planning calculators.
-              </p>
-              <p>
-                Use it to compare job stats, check weapon and shield access, plan equipment exchange routes,
-                find shop unlocks, follow event timers, and make better town progression decisions.
-              </p>
-            </div>
-            <Link href="/updates" className="mt-2 inline-block text-sm font-semibold text-primary underline underline-offset-2 hover:opacity-90 transition-opacity">
-              Click here for the latest updates and patch notes.
-            </Link>
-          </div>
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Kingdom Adventurers</h1>
+          <Link href="/updates" className="inline-flex min-h-11 items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Latest updates <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
         </div>
 
-        <div className="mb-10 xl:pr-[24rem]">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
-            <HomeCountdownBanner />
-            <div className="space-y-5">
-              <HomeWorldMapV2Card compact />
-            </div>
-          </div>
-        </div>
-
-        <div className="hidden xl:block fixed right-6 top-28 w-[320px] 2xl:right-10 z-20">
+        <div className="mb-7 grid gap-4 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)] lg:mb-9 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)]">
           <HomeCountdownBanner />
-          <div className="mt-4">
-            <HomeWorldMapV2Card />
-          </div>
+          <HomeWorldMapCard />
         </div>
 
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tools</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold">Tools</h2>
+          {allowArtworkSwitch && <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" aria-label={artworkAction} onClick={() => setPreferGameArtwork((previous) => previous !== true)} className="h-11 w-11 text-muted-foreground hover:text-foreground">
+                  <Palette className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{artworkAction}</TooltipContent>
+            </Tooltip>
+            <span className="sr-only" role="status">{gameArtworkEnabled ? "Game artwork selected" : "Generated artwork selected"}</span>
+          </>}
+        </div>
+        <div className="mb-8 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {BUILT_IN_TOOLS.map((tool) => (
-            <Link key={tool.slug} href={tool.slug}>
-              <Card className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group h-full">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className={tool.iconContainerClassName ?? "p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors"}>
-                      {tool.icon}
-                    </div>
-                    <CategoryBadge category={tool.badgeCategory as KaCategory} className="text-xs px-2">
-                      {tool.badge}
-                    </CategoryBadge>
-                  </div>
-                  <CardTitle className="text-base mt-2">{tool.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-xs leading-relaxed">{tool.description}</CardDescription>
-                </CardContent>
-              </Card>
-            </Link>
+            <ToolNavigationCard key={tool.slug} href={tool.slug} title={tool.title} description={tool.description} artworkKey={tool.slug} artworkStyle={displayedArtwork} combatArtwork={combatArtwork} homeCard />
           ))}
         </div>
 
@@ -638,8 +468,10 @@ export default function Home() {
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-base">{p.title}</CardTitle>
                       <button
+                        type="button"
+                        aria-label={`Remove ${p.title} from your projects`}
                         onClick={(e) => { e.preventDefault(); removeProject(p.id); }}
-                        className="text-muted-foreground hover:text-destructive transition-colors shrink-0 mt-0.5"
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted-foreground hover:text-destructive transition-colors shrink-0"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -665,28 +497,40 @@ export default function Home() {
               <CardTitle className="text-sm">Add a project</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Input placeholder="Project title *" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="h-8 text-sm" />
-              <Input placeholder="Short description" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="h-8 text-sm" />
-              <Input placeholder="Link (URL)" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} className="h-8 text-sm" />
+              <Input aria-label="Project title" placeholder="Project title *" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="min-h-11 text-sm" />
+              <Input aria-label="Project description" placeholder="Short description" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="min-h-11 text-sm" />
+              <Input aria-label="Project URL" placeholder="Link (URL)" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} className="min-h-11 text-sm" />
               <div className="flex gap-2">
-                <Button size="sm" onClick={addProject} className="h-8">Add</Button>
-                <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setNewTitle(""); setNewDesc(""); setNewUrl(""); }} className="h-8">Cancel</Button>
+                <Button size="sm" onClick={addProject} disabled={!newTitle.trim()} className="min-h-11">Add</Button>
+                <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setNewTitle(""); setNewDesc(""); setNewUrl(""); }} className="min-h-11">Cancel</Button>
               </div>
             </CardContent>
           </Card>
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="w-full flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-muted/30 transition-colors py-5 text-sm text-muted-foreground hover:text-foreground"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/30 hover:text-foreground"
           >
             <Plus className="w-4 h-4" /> Add a project
           </button>
         )}
 
-        <div className="mt-12 pt-6 border-t border-border text-xs text-muted-foreground flex items-center justify-between gap-4 flex-wrap">
+        <section className="mt-8 max-w-3xl space-y-2 border-t border-border pt-5 text-sm leading-relaxed text-muted-foreground" aria-labelledby="home-about-title">
+          <h2 id="home-about-title" className="text-sm font-medium text-foreground">About Kingdom Adventurers Community Tools</h2>
+          <p>
+            Kingdom Adventurers Community Tools is a searchable reference site for jobs, equipment, shops,
+            monsters, pets, events, maps, guides, and planning calculators.
+          </p>
+          <p>
+            Use it to compare job stats, check weapon and shield access, plan equipment exchange routes,
+            find shop unlocks, follow event timers, and make better town progression decisions.
+          </p>
+        </section>
+
+        <div className="mt-6 pt-4 border-t border-border text-xs text-muted-foreground flex items-center justify-between gap-4 flex-wrap">
           <span>Kingdom Adventurers - open source tools</span>
           <div className="flex items-center gap-4">
-            <button onClick={() => setCreditsOpen(true)} className="flex items-center gap-1 hover:text-foreground transition-colors">
+            <button type="button" onClick={() => setCreditsOpen(true)} className="flex min-h-11 items-center gap-1 hover:text-foreground transition-colors">
               <BookOpen className="w-3 h-3" /> Credits
             </button>
             <a

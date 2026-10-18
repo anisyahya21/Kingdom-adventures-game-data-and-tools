@@ -1,10 +1,10 @@
-﻿import { Fragment, useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { Fragment, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import {
-  RefreshCw, Loader2, X, Swords, Hammer,
+  Loader2, X, Swords, Hammer,
   Check, Star, Briefcase, ImageIcon, Heart, ArrowUpDown, Plus,
-  ArrowUp, ArrowDown, Info, RotateCcw, ArrowLeft,
+  ArrowUp, ArrowDown, ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -231,8 +231,10 @@ function useSharedData() {
     queryKey: ["ka-jobs-reference"],
     queryFn: async () => withCategoryBattleTypes(await fetchSharedWithFallback<SharedData>(apiUrl("/shared"))),
     initialData: () => withCategoryBattleTypes(JSON.parse(JSON.stringify(localSharedData)) as SharedData),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
+    initialDataUpdatedAt: 0,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5 * 60 * 1000,
   });
 }
 
@@ -372,7 +374,7 @@ function commitOnEnter(e: React.KeyboardEvent<HTMLInputElement>, commit: () => v
   }
 }
 
-function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, bulkApply, statRanks, onDisplayStateChange }: {
+function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, bulkApply, statRanks, onDisplayStateChange, growthView = false }: {
   jobName: string;
   job: Job;
   statIcons: Record<string, string>;
@@ -381,6 +383,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
   mobile?: boolean;
   bulkApply?: { rank?: string; allLevel?: number; awakening?: number; seq: number };
   statRanks?: Record<string, number>;
+  growthView?: boolean;
   onDisplayStateChange?: (jobName: string, state: RowDisplayState) => void;
 }) {
   const [rs, setRs] = useState<RowState>(() => makeRowState(job));
@@ -460,7 +463,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
           : { ...s };
       }
     }
-    return combined ? statAtLevel(combined, levelFor(stat)) : null;
+    return combined ? (growthView ? combined.inc : statAtLevel(combined, levelFor(stat))) : null;
   };
 
   const [allLvInput, setAllLvInput] = useState("1");
@@ -566,6 +569,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
               {rs.showBackend ? "Hide Base & Growth" : "Show Base & Growth"}
             </button>
             <button
+              hidden={growthView}
               onClick={() => setRs((r) => ({ ...r, showLevels: !r.showLevels }))}
               className={`h-8 px-2 rounded border text-[11px] font-medium transition-colors ${
                 rs.showLevels
@@ -575,7 +579,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
             >
               {rs.showLevels ? "Done" : "Edit Levels"}
             </button>
-            {rs.showLevels && (
+            {rs.showLevels && !growthView && (
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground whitespace-nowrap">All Lv:</span>
                 <Input
@@ -598,7 +602,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
                   {statIcons[stat] && <img src={statIcons[stat]} alt={stat} className="w-3.5 h-3.5 object-contain" />}
                   <span>{STAT_SHORT[stat] ?? stat}</span>
                 </div>
-                {rs.showLevels ? (
+                {rs.showLevels && !growthView ? (
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -609,10 +613,10 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
                     className="h-8 w-16 text-xs text-center px-1 mb-2"
                   />
                 ) : (
-                  <div className="text-[10px] text-muted-foreground/60 mb-1">Lv {levelFor(stat)}</div>
+                  <div className="text-[10px] text-muted-foreground/60 mb-1">{growthView ? "Per level" : `Lv ${levelFor(stat)}`}</div>
                 )}
                 <div className={`text-sm font-semibold tabular-nums ${value === null || value === 0 ? "text-muted-foreground/25" : "text-foreground"}`}>
-                  {value === null || value === 0 ? "-" : Math.round(value * 100) / 100}
+                  {value === null || (!growthView && value === 0) ? "-" : `${growthView && value > 0 ? "+" : ""}${Math.round(value * 100) / 100}`}
                 </div>
               </div>
             ))}
@@ -712,6 +716,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
               {rs.showBackend ? "Hide Base & Growth" : "Show Base & Growth"}
             </button>
             <button
+              hidden={growthView}
               onClick={() => setRs((r) => ({ ...r, showLevels: !r.showLevels }))}
               className={`h-5 px-1.5 rounded border text-[9px] font-medium transition-colors ${
                 rs.showLevels
@@ -722,7 +727,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
             >
               {rs.showLevels ? "Done" : "Edit Levels"}
             </button>
-            {rs.showLevels && (
+            {rs.showLevels && !growthView && (
               <div className="flex items-center gap-1">
                 <span className="text-[9px] text-muted-foreground whitespace-nowrap">All Lv:</span>
                 <Input
@@ -744,7 +749,7 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
           const rnk = statRanks?.[stat];
           return (
             <td key={stat} className="text-center px-1 py-1 align-middle">
-              {rs.showLevels ? (
+              {rs.showLevels && !growthView ? (
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -755,16 +760,16 @@ function JobRow({ jobName, job, statIcons, isFav, onToggleFav, mobile = false, b
                   className="h-5 w-14 text-[10px] text-center px-0.5 mx-auto mb-0.5 block"
                 />
               ) : (
-                <span className="block mb-0.5 text-[10px] text-muted-foreground/60">Lv {levelFor(stat)}</span>
+                <span className="block mb-0.5 text-[10px] text-muted-foreground/60">{growthView ? "Per level" : `Lv ${levelFor(stat)}`}</span>
               )}
               <span className={`text-sm font-semibold tabular-nums ${v === null || v === 0 ? "text-muted-foreground/25" : "text-foreground"}`}>
-                {v === null || v === 0 ? "-" : Math.round(v * 100) / 100}
+                {v === null || (!growthView && v === 0) ? "-" : `${growthView && v > 0 ? "+" : ""}${Math.round(v * 100) / 100}`}
               </span>
-              {rnk !== undefined && v !== null && v !== 0 && (
+              {rnk !== undefined && v !== null && (growthView || v !== 0) && (
                 <span className="block text-[9px] leading-none mt-0.5">
                   {rnk <= 3 ? (
                     <span className="inline-flex items-baseline gap-[1px]">
-                      <span>{rnk === 1 ? "ðŸ¥‡" : rnk === 2 ? "ðŸ¥ˆ" : "ðŸ¥‰"}</span>
+                      <span>{rnk === 1 ? "\u{1F947}" : rnk === 2 ? "\u{1F948}" : "\u{1F949}"}</span>
                       <span style={{ color: rnk === 1 ? "#FFD700" : rnk === 2 ? "#B0B7C0" : "#CD7F32" }} className="font-semibold">#{rnk}</span>
                     </span>
                   ) : (
@@ -2006,20 +2011,21 @@ function JobsTable({
           Compact View
         </button>
         <button
-          onClick={() => setSortByGrowth((v) => !v)}
+          onClick={() => { setSortByGrowth((v) => !v); setCompactView(false); }}
+          aria-pressed={sortByGrowth}
           className={`px-3 h-8 text-xs font-medium rounded border transition-colors ${
             sortByGrowth
               ? "bg-primary text-primary-foreground border-primary"
               : "border-input bg-background text-muted-foreground hover:text-foreground"
           }`}
-          title={sortByGrowth ? "Sorting by Growth +Lv â€” click to sort by stat value" : "Sorting by stat value â€” click to sort by Growth +Lv"}
+          title={sortByGrowth ? "Show stat values at the selected levels" : "Show stat gain per level at each job\'s selected rank"}
         >
-          Sort: {sortByGrowth ? "Growth +Lv" : "Value"}
+          View: {sortByGrowth ? "Gain per level" : "Stat values"}
         </button>
         <button
           onClick={() => setShowRankings((v) => !v)}
           className={`px-3 h-8 text-xs font-medium rounded border transition-colors ${showRankings ? "bg-primary text-primary-foreground border-primary" : "border-input bg-background text-muted-foreground hover:text-foreground"}`}
-          title="Show rank numbers (#1, #2â€¦) beside each stat â€” based on the current sort value mode"
+          title="Show rank numbers (#1, #2...) beside each stat - based on the displayed values"
         >
           {showRankings ? "Hide #Rankings" : "Show #Rankings"}
         </button>
@@ -2039,6 +2045,7 @@ function JobsTable({
           >
             {["S", "A", "B", "C", "D"].map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
+          {!sortByGrowth && <>
           <span className="text-xs text-muted-foreground shrink-0">Lv</span>
           <input
             type="text" inputMode="numeric"
@@ -2048,12 +2055,14 @@ function JobsTable({
             onKeyDown={(e) => { if (e.key === "Enter") { const p = parseInt(bulkLevelInput, 10); const clamped = clampLevel(isNaN(p) ? 1 : p); setBulkLevelInput(String(clamped)); setBulkApply({ rank: bulkRankInput, allLevel: clamped, seq: Date.now() }); (e.target as HTMLInputElement).blur(); } }}
             className="h-6 w-10 border border-border bg-background rounded px-1 text-xs text-center text-foreground"
           />
+          </>}
           <button
-            onClick={() => setBulkApply({ rank: bulkRankInput, allLevel: parseInt(bulkLevelInput) || 1, seq: Date.now() })}
+            onClick={() => setBulkApply({ rank: bulkRankInput, ...(sortByGrowth ? {} : { allLevel: parseInt(bulkLevelInput) || 1 }), seq: Date.now() })}
             className="px-2 h-6 text-xs font-medium rounded bg-muted hover:bg-muted/80 transition-colors text-foreground"
           >
-            Apply all
+            {sortByGrowth ? "Apply rank" : "Apply all"}
           </button>
+          {!sortByGrowth && <>
           <span className="mx-1 h-4 w-px bg-border" />
           <span className="text-xs text-muted-foreground shrink-0">Awk</span>
           <input
@@ -2086,9 +2095,9 @@ function JobsTable({
             title="Set every shown job to max stat levels for this awakening without changing their selected rank"
           >
             Set Awk
-          </button>
+          </button>          </>}
         </div>
-        <div className="flex items-center gap-1.5 border border-input rounded-md px-2 h-8">
+        {!sortByGrowth && (<div className="flex items-center gap-1.5 border border-input rounded-md px-2 h-8">
           <span className="text-xs text-muted-foreground shrink-0">Preset:</span>
           {RANK_AWAKENING_PRESETS.map((preset) => (
             <button
@@ -2103,7 +2112,7 @@ function JobsTable({
               {preset.label}
             </button>
           ))}
-        </div>
+        </div>)}
       </div>
 
       {/* Include specific jobs */}
@@ -2115,7 +2124,7 @@ function JobsTable({
             value={includeSearch}
             onChange={(e) => { setIncludeSearch(e.target.value); setIncludeOpen(true); }}
             onFocus={() => setIncludeOpen(true)}
-            placeholder="Add job to always showâ€¦"
+            placeholder="Add job to always show..."
             className="h-7 px-2 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground/50 w-36 focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {includeOpen && includeSuggestions.length > 0 && (
@@ -2156,7 +2165,7 @@ function JobsTable({
             value={excludeSearch}
             onChange={(e) => { setExcludeSearch(e.target.value); setExcludeOpen(true); }}
             onFocus={() => setExcludeOpen(true)}
-            placeholder="Type a job name to excludeâ€¦"
+            placeholder="Type a job name to exclude..."
             className="h-7 px-2 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground/50 w-36 focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {excludeOpen && excludeSuggestions.length > 0 && (
@@ -2191,7 +2200,7 @@ function JobsTable({
       {sortCol && !compactView && (
         <div className="mb-3 flex items-center gap-2">
           <p className="text-xs text-muted-foreground">
-            Sorted by <strong className="text-foreground">{sortCol}</strong> - {sortDir === "desc" ? "highest first" : "lowest first"} - {sortByGrowth ? <><strong className="text-foreground">Growth +Lv</strong> at each row's selected rank</> : <>using each row's selected rank and shown Lv</>}
+            Sorted by <strong className="text-foreground">{sortCol}</strong> - {sortDir === "desc" ? "highest first" : "lowest first"} - {sortByGrowth ? <><strong className="text-foreground">Gain per level</strong> at each row's selected rank</> : <>using each row's selected rank and shown Lv</>}
           </p>
           <button onClick={() => setSortCol("")} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-3.5 h-3.5" />
@@ -2303,6 +2312,7 @@ function JobsTable({
                       onToggleFav={() => toggleFav(name)}
                       bulkApply={bulkApply}
                       statRanks={statRankMaps?.[name]}
+                      growthView={sortByGrowth}
                       onDisplayStateChange={handleDisplayStateChange}
                     />
                   ))
@@ -2327,6 +2337,8 @@ function JobsTable({
                     mobile
                     bulkApply={bulkApply}
                     statRanks={statRankMaps?.[name]}
+                    growthView={sortByGrowth}
+                    onDisplayStateChange={handleDisplayStateChange}
                   />
                 </div>
               ))
@@ -2335,7 +2347,7 @@ function JobsTable({
         </div>
       )}
       <p className="text-xs text-muted-foreground mt-2 text-center">
-        {sortedEntries.length} job{sortedEntries.length !== 1 ? "s" : ""} - {compactView ? "compact view shows quick job cards for browsing." : "click any stat header to sort, use Edit Levels to preview other levels, and open Show Base & Growth to inspect rank data."}
+        {sortedEntries.length} job{sortedEntries.length !== 1 ? "s" : ""} - {compactView ? "compact view shows quick job cards for browsing." : sortByGrowth ? "showing gain per level at each selected rank; click a stat header to order these gains." : "click any stat header to sort, use Edit Levels to preview other levels, and open Show Base & Growth to inspect rank data."}
       </p>
     </div>
   );
@@ -3066,10 +3078,8 @@ export default function JobsPage() {
   const { name: userName, save: saveUserName } = useUserName();
   const [promptName, setPromptName] = useState(false);
   const [pendingFn,  setPendingFn]  = useState<(() => void) | null>(null);
-  const [pageNote,   setPageNote]   = useState(() => localStorage.getItem("ka_note_jobs") ?? "");
-  const [showNote,   setShowNote]   = useState(false);
   const qc = useQueryClient();
-  const { data, isLoading, refetch } = useSharedData();
+  const { data, isLoading } = useSharedData();
 
   const jobs:             Record<string,Job>    = data?.jobs ?? {};
   const statIcons:        Record<string,string> = data?.statIcons ?? {};
@@ -3114,49 +3124,11 @@ export default function JobsPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-6">
-          {selectedJob ? (
-            <div className="flex justify-end">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
-                  <Info className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => {
-                  if (confirm("Reset your private data for Jobs (favourites, rank selections)? Community data is not affected.")) {
-                    localStorage.removeItem("ka_fav_jobs");
-                    localStorage.removeItem("ka_rank_slots");
-                    window.location.reload();
-                  }
-                }} className="h-8 w-8 text-muted-foreground" title="Reset private data (favourites, rank selections)">
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-8 gap-1.5 text-muted-foreground">
-                  {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                </Button>
-              </div>
-            </div>
-          ) : (
+          {!selectedJob && (
           <PageHeader
             icon={<Briefcase className="w-5 h-5 text-sky-500" />}
             title="Job Database"
-            actions={(
-              <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
-              <Info className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => {
-              if (confirm("Reset your private data for Jobs (favourites, rank selections)? Community data is not affected.")) {
-                localStorage.removeItem("ka_fav_jobs");
-                localStorage.removeItem("ka_rank_slots");
-                window.location.reload();
-              }
-            }} className="h-8 w-8 text-muted-foreground" title="Reset private data (favourites, rank selections)">
-              <RotateCcw className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-8 gap-1.5 text-muted-foreground">
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-            </Button>
-              </div>
-            )}
+
           >
             <p>
               Compare every Kingdom Adventurers job by rank stats, battle type, skills, searching range,
@@ -3166,18 +3138,6 @@ export default function JobsPage() {
           </PageHeader>
           )}
         </div>
-
-        {showNote && (
-          <div className="mb-4">
-            <textarea
-              value={pageNote}
-              onChange={(e) => setPageNote(e.target.value)}
-              onBlur={() => localStorage.setItem("ka_note_jobs", pageNote)}
-              placeholder="Personal notes for this page (only visible to you, saved on this device)"
-              className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
-            />
-          </div>
-        )}
 
         {/* Content */}
         {isLoading ? (

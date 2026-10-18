@@ -1,9 +1,9 @@
-﻿import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearch } from "wouter";
 import {
-  Plus, Trash2, Zap, RefreshCw, HelpCircle, ArrowLeftRight,
+  Plus, Trash2, Zap, HelpCircle, ArrowLeftRight,
   X, Lock, LockOpen, Loader2, AlertTriangle, ExternalLink,
   Info, Star, Baby, Filter, Heart, Home, BarChart2, BookOpen,
   Download, Upload, Check,
@@ -2237,8 +2237,6 @@ export default function MarriageMatcher() {
     urlTab === "simulator" || urlTab === "data" ? urlTab : "finder",
   );
 
-  const [pageNote, setPageNote] = useLocalFeature<string>("ka_note_marriage", "");
-  const [showNote, setShowNote] = useState(false);
 
   const apiFirstGenJobs = useMemo(() => {
     if (!sharedData?.jobs) return null;
@@ -2902,17 +2900,7 @@ export default function MarriageMatcher() {
           icon={<Heart className="w-5 h-5 text-rose-500" />}
           title="Match Finder & Marriage Sim"
           className="mb-6"
-          actions={(
-            <div className="flex items-center gap-2 shrink-0">
-              <Button variant="ghost" size="icon" onClick={() => setShowNote((v) => !v)} className="h-8 w-8 text-muted-foreground" title="Personal notes (private, stored on this device)">
-                <Info className="w-3.5 h-3.5" />
-              </Button>
-              <InfoDialog />
-              <Button variant="outline" size="sm" onClick={reset} className="flex items-center gap-2 h-8">
-                <RefreshCw className="w-4 h-4" /> Reset
-              </Button>
-            </div>
-          )}
+
         >
           <p>
             Find optimal Kingdom Adventures job pairings, simulate marriage outcomes, preview child stats, and browse full compatibility data.
@@ -2922,17 +2910,6 @@ export default function MarriageMatcher() {
         <div className="mb-4 rounded-lg border border-red-300 bg-red-50/70 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
           <strong className="text-foreground dark:text-red-200">Warning:</strong> marriage is forever in Kingdom Adventures. You cannot unmarry or divorce, so double-check pairs before committing in-game. Do not marry your Monarch until you completely understand the marriage mechanics, and it is strongly worth asking the community before committing to a Monarch marriage.
         </div>
-
-        {showNote && (
-          <div className="mb-4">
-            <textarea
-              value={pageNote}
-              onChange={(e) => setPageNote(e.target.value)}
-              placeholder="Personal notes for this page… (only visible to you, saved on this device)"
-              className="w-full h-20 text-sm rounded-md border border-input bg-muted/20 px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/40"
-            />
-          </div>
-        )}
 
         <Card className="mb-4 border-amber-300/60 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/10">
           <CardHeader className="pb-3">

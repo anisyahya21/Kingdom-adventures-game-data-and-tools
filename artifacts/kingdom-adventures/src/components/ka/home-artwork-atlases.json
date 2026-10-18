@@ -1,0 +1,197 @@
+{
+  "original": {
+    "source": "/homepage-artwork/generated-original-transparent-v3.png",
+    "width": 1374,
+    "height": 1145,
+    "regions": {
+      "/jobs-marriage": [
+        138,
+        17,
+        149,
+        252
+      ],
+      "/equipment": [
+        411,
+        43,
+        223,
+        207
+      ],
+      "/survey": [
+        710,
+        42,
+        280,
+        218
+      ],
+      "/skills": [
+        1047,
+        31,
+        270,
+        223
+      ],
+      "/combat": [
+        46,
+        316,
+        279,
+        209
+      ],
+      "/eggs-pets-monsters": [
+        381,
+        346,
+        295,
+        179
+      ],
+      "/chaos-setup-lab": [
+        722,
+        305,
+        255,
+        232
+      ],
+      "/shops": [
+        1032,
+        308,
+        306,
+        229
+      ],
+      "/research": [
+        57,
+        595,
+        277,
+        225
+      ],
+      "/training-facilities": [
+        394,
+        575,
+        261,
+        245
+      ],
+      "/houses": [
+        699,
+        582,
+        306,
+        237
+      ],
+      "/timed-events": [
+        1063,
+        598,
+        261,
+        221
+      ],
+      "/guides": [
+        348,
+        868,
+        335,
+        213
+      ],
+      "/add-friends": [
+        713,
+        856,
+        321,
+        230
+      ]
+    }
+  },
+  "familiar": {
+    "source": "/homepage-artwork/generated-familiar-transparent-v3.png",
+    "width": 1373,
+    "height": 1145,
+    "regions": {
+      "/jobs-marriage": [
+        127,
+        26,
+        134,
+        252
+      ],
+      "/equipment": [
+        404,
+        41,
+        220,
+        211
+      ],
+      "/survey": [
+        708,
+        42,
+        283,
+        219
+      ],
+      "/skills": [
+        1036,
+        64,
+        290,
+        189
+      ],
+      "/combat": [
+        59,
+        315,
+        249,
+        220
+      ],
+      "/eggs-pets-monsters": [
+        370,
+        354,
+        318,
+        185
+      ],
+      "/chaos-setup-lab": [
+        712,
+        284,
+        268,
+        255
+      ],
+      "/shops": [
+        1029,
+        305,
+        314,
+        236
+      ],
+      "/research": [
+        48,
+        589,
+        289,
+        233
+      ],
+      "/training-facilities": [
+        385,
+        571,
+        271,
+        254
+      ],
+      "/houses": [
+        693,
+        577,
+        320,
+        247
+      ],
+      "/timed-events": [
+        1060,
+        597,
+        274,
+        226
+      ],
+      "/guides": [
+        348,
+        863,
+        334,
+        214
+      ],
+      "/add-friends": [
+        703,
+        853,
+        322,
+        230
+      ]
+    }
+  },
+  "mixedEggPet": {
+    "source": "/homepage-artwork/mixed-rainbow-pet-v1.png",
+    "width": 1536,
+    "height": 1024,
+    "regions": {
+      "/eggs-pets-monsters": [
+        248,
+        288,
+        1057,
+        615
+      ]
+    }
+  }
+}

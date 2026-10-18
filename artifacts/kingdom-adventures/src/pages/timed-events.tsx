@@ -1,6 +1,7 @@
+import { ToolIdentityArtwork } from "@/components/ka/tool-identity";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Bell, BriefcaseBusiness, CalendarDays, ClipboardList, Clock3, Trophy, Wand2, Award, Plus, Minus } from "lucide-react";
+import { Bell, BriefcaseBusiness, ClipboardList, Clock3, Trophy, Wand2, Award, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -94,7 +95,7 @@ export default function TimedEventsPage() {
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <div className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-muted-foreground" /><h1 className="text-xl font-bold tracking-tight">Events</h1></div>
+          <div className="flex items-center gap-3"><ToolIdentityArtwork artworkKey="/timed-events" /><h1 className="text-xl font-bold tracking-tight">Events</h1></div>
           <p className="text-sm text-muted-foreground">Schedules, rewards and upcoming events.</p>
         </div>
         <Button asChild variant="outline" size="sm"><Link href="/player-profile?tab=notifications"><Bell className="mr-2 h-4 w-4" />Manage reminders</Link></Button>

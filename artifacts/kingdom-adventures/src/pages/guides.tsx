@@ -1,10 +1,12 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { BookMarked, Check, Copy, ExternalLink, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Copy, ExternalLink, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ToolIdentityArtwork } from "@/components/ka/tool-identity";
+import { ToolNavigationCard, TOOL_CARD_SURFACE } from "@/components/ka/tool-navigation-card";
 import { PageHeader } from "@/components/ka/page-header";
 import { apiUrl } from "@/lib/api";
 import {
@@ -125,7 +127,7 @@ export default function GuidesPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <PageHeader
-        icon={<BookMarked className="w-5 h-5" />}
+        artworkKey="/guides"
         title="Guides"
         actions={(
           <Link href="/add-guide">
@@ -149,35 +151,8 @@ export default function GuidesPage() {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Link href="/guides/stat-effects">
-          <Card className="h-full cursor-pointer shadow-sm transition-all hover:shadow-md hover:border-primary/30">
-            <CardHeader className="pb-2">
-              <Badge variant="outline" className="self-start">Stats & work</Badge>
-              <CardTitle className="text-base mt-2">Stats outside combat</CardTitle>
-            </CardHeader>
-            <CardContent><CardDescription className="text-xs leading-relaxed">Heart and fog, Move and wagon loads, town-work stats, useful thresholds and movement skills. Includes fog and cargo calculators.</CardDescription></CardContent>
-          </Card>
-        </Link>
-        <Link href={BUILT_IN_GUIDE.href}>
-          <Card className="h-full cursor-pointer shadow-sm transition-all hover:shadow-md hover:border-primary/30">
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="p-2 rounded-lg bg-muted">
-                  <BookMarked className="w-5 h-5 text-primary" />
-                </div>
-                <Badge variant="outline">{BUILT_IN_GUIDE.badge}</Badge>
-              </div>
-              <CardTitle className="text-base mt-2">{BUILT_IN_GUIDE.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <CardDescription className="text-xs leading-relaxed">{BUILT_IN_GUIDE.description}</CardDescription>
-              <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <ExternalLink className="w-3 h-3" />
-                {BUILT_IN_GUIDE.note}
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        <ToolNavigationCard href="/guides/stat-effects" title="Stats outside combat" description="Heart and fog, Move and wagon loads, town-work stats, useful thresholds and movement skills. Includes fog and cargo calculators." />
+        <ToolNavigationCard href={BUILT_IN_GUIDE.href} title={BUILT_IN_GUIDE.title} description={BUILT_IN_GUIDE.description} detail={BUILT_IN_GUIDE.note} />
 
         {loading ? (
           <Card>
@@ -195,12 +170,10 @@ export default function GuidesPage() {
           const isEditing = editingId === guide.id;
           const saving = savingId === guide.id;
           return (
-            <Card key={guide.id} className="h-full shadow-sm transition-all hover:shadow-md hover:border-primary/30">
+            <Card key={guide.id} className={TOOL_CARD_SURFACE}>
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <BookMarked className="w-5 h-5 text-primary" />
-                  </div>
+                  <ToolIdentityArtwork artworkKey="/guides" />
                   <Badge variant="outline">{ownerBadge}</Badge>
                 </div>
                 {isEditing ? (

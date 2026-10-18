@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { googleSheetUrl } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CategoryBadge } from "@/components/ka/category-badge";
 import { CostPills } from "@/components/ka/cost-pills";
 import { DataCard } from "@/components/ka/data-card";
+import { ToolIdentityArtwork } from "@/components/ka/tool-identity";
 import { PageHeader } from "@/components/ka/page-header";
 import { StatTable, StatTableHeaderCell } from "@/components/ka/stat-table";
 import { EntityLink } from "@/components/ka/entity-link";
@@ -328,7 +329,7 @@ const FURNITURE_ROWS: FurnitureRow[] = [
 ];
 
 const SHOP_ICONS: Record<ShopSlug, ReactNode> = {
-  "items-reference": <Package className="w-5 h-5 text-indigo-500" />,
+  "items-reference": <ToolIdentityArtwork artworkKey="/items-reference" size={20} />,
   "weapon-shop": <Hammer className="w-5 h-5 text-amber-500" />,
   "armor-shop": <Shield className="w-5 h-5 text-sky-500" />,
   "accessory-shop": <Store className="w-5 h-5 text-violet-500" />,
@@ -1070,7 +1071,7 @@ function ShopIndexCard({ shop, onOpen }: { shop: ShopRecord; onOpen: () => void 
       <CardHeader className="pb-2">
         {plot ? (
           <img src={plot} alt={`${shop.title}, M sized land plot`} className="h-28 w-40 max-w-full object-contain object-left" style={{ imageRendering: "pixelated" }} loading="lazy" />
-        ) : SHOP_ICONS[shop.slug]}
+         ) : <ToolIdentityArtwork artworkKey={shop.slug === "items-reference" ? "/items-reference" : "/shops"} />}
         <CardTitle className="text-base mt-2">{shop.title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
@@ -2211,7 +2212,7 @@ export default function ShopsPage() {
                     className="shadow-sm hover:shadow-md hover:border-primary/30 transition-all group h-full cursor-pointer"
                   >
                     <CardHeader className="pb-2">
-                      <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors w-fit">
+                      <div className="w-fit">
                         {cardIcon ? (
                           <img
                             src={cardIcon}
@@ -2220,7 +2221,7 @@ export default function ShopsPage() {
                             style={{ imageRendering: "pixelated" }}
                           />
                         ) : (
-                          SHOP_ICONS[shop.slug]
+                          <ToolIdentityArtwork artworkKey="/items-reference" />
                         )}
                       </div>
                       <CardTitle className="text-base mt-2">{shop.title}</CardTitle>

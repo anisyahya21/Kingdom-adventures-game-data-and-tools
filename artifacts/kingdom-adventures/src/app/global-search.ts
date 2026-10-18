@@ -1,6 +1,7 @@
 import { localSharedData } from "@/lib/local-shared-data";
 import { SHOP_RECORDS } from "@/lib/shop-utils";
 import { getJobProfiles, type SharedJobProfileData } from "@/game-data/job-profile";
+import { NAV_SECTIONS } from "./navigation";
 
 export type GlobalSearchEntry = { label: string; subtitle: string; href: string };
 
@@ -51,7 +52,11 @@ export function buildGlobalSearchEntries(): GlobalSearchEntry[] {
     skills?: Record<string, unknown>;
     overrides?: Record<string, unknown>;
   };
-  const entries: GlobalSearchEntry[] = [];
+  const entries: GlobalSearchEntry[] = NAV_SECTIONS.flatMap((section) =>
+    section.children
+      .filter((entry) => !entry.external)
+      .map((entry) => ({ label: entry.label, subtitle: section.title, href: entry.href })),
+  );
   entries.push({ label: "Stats outside combat", subtitle: "Guide — Heart, fog, Move, wagons and town work", href: "/guides/stat-effects" });
 
   entries.push({

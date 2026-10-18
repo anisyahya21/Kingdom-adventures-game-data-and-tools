@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, ExternalLink, Loader2, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ export function SiteHeader() {
 
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
   const authPopupRef = useRef<Window | null>(null);
   const authPopupPollTimerRef = useRef<number | null>(null);
   const authPopupPollInFlightRef = useRef(false);
@@ -178,11 +179,12 @@ export function SiteHeader() {
 
   const searchEntries = useMemo(() => buildGlobalSearchEntries(), []);
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return searchEntries.filter((entry) =>
-      entry.label.toLowerCase().includes(q),
-    ).slice(0, 8);
+    const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return [];
+    return searchEntries.filter((entry) => {
+      const searchable = `${entry.label} ${entry.subtitle} ${entry.href.replace(/[-_/]+/g, " ")}`.toLowerCase();
+      return terms.every((term) => searchable.includes(term));
+    }).slice(0, 8);
   }, [query, searchEntries]);
 
   useEffect(() => {
@@ -396,17 +398,24 @@ export function SiteHeader() {
           </Button>
 
           <div ref={searchRef}>
-            <Button variant="ghost" size="icon" className="h-11 w-8 shrink-0 min-[350px]:w-9 sm:w-11" onClick={() => setSearchOpen(!searchOpen)}>
-              <Search className="h-5 w-5 sm:h-[30px] sm:w-[30px]" />
+            <Button ref={searchButtonRef} type="button" variant="ghost" size="icon" className="h-11 w-8 shrink-0 min-[350px]:w-9 sm:w-11" onClick={() => setSearchOpen(!searchOpen)} aria-label={searchOpen ? "Close site search" : "Search site"} aria-expanded={searchOpen} aria-controls="site-search-panel">
+              <Search className="h-5 w-5 sm:h-[30px] sm:w-[30px]" aria-hidden="true" />
             </Button>
 
             {searchOpen && (
-              <div className="absolute right-4 top-full mt-2 z-50 w-[min(32rem,calc(100vw-2rem))]">
+              <div id="site-search-panel" role="search" aria-label="Site search" className="absolute right-4 top-full mt-2 z-50 w-[min(32rem,calc(100vw-2rem))]" onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setSearchOpen(false);
+                  searchButtonRef.current?.focus();
+                }
+              }}>
                 <Card>
                   <CardContent className="p-3 space-y-3">
                     <div className="relative">
                       <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" />
                       <Input
+                        aria-label="Search site"
                         autoFocus
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
@@ -416,6 +425,8 @@ export function SiteHeader() {
 
                       {query && (
                         <button
+                          type="button"
+                          aria-label="Clear site search"
                           onClick={() => setQuery("")}
                           className="absolute right-3 top-1/2 -translate-y-1/2"
                         >
@@ -424,6 +435,9 @@ export function SiteHeader() {
                       )}
                     </div>
 
+                    {query.trim() && filtered.length === 0 && (
+                      <p className="px-2 text-sm text-muted-foreground" role="status">No matching pages or entries.</p>
+                    )}
                     {filtered.map((entry) => (
                       <button
                         key={`${entry.subtitle}-${entry.label}`}
