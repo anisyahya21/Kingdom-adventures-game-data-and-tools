@@ -3,6 +3,8 @@ import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/ka/page-header";
 import { Input } from "@/components/ui/input";
+import { localSharedData } from "@/lib/local-shared-data";
+import { getStatIcon } from "@/lib/stat-icons";
 import { UTILITY_STAT_EFFECTS, freshFogHp, fogPulses, wagonMaterialLoad } from "@/game-data/utility-stat-effects";
 
 const statOrder = ["mov", "hrt", "dex", "int", "gth", "vig"] as const;
@@ -42,8 +44,12 @@ export default function StatEffectsGuidePage() {
 
     {statOrder.map(key => {
       const stat = UTILITY_STAT_EFFECTS.find(entry => entry.key === key)!;
+      const icon = getStatIcon(localSharedData.statIcons as Record<string, string>, key);
       return <section key={key} id={key} className="scroll-mt-20 border-b py-8 sm:py-10">
-        <h2 className="mb-4 text-xl font-semibold tracking-tight">{stat.name}</h2>
+        <h2 className="mb-4 flex items-center gap-2.5 text-xl font-semibold tracking-tight">
+          {icon && <img src={icon} alt="" width={27} height={27} className="h-7 w-7 shrink-0 object-contain" />}
+          {stat.name}
+        </h2>
         <div className="space-y-4 text-base leading-7">
           <p>{stat.effect}</p>
           <p>{stat.training}</p>
