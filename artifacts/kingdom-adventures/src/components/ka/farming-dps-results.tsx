@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Package, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +38,10 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
   const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [created, setCreated] = useState<string[] | null>(null);
+  const equipmentHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (created) equipmentHeading.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [created]);
   const [page, setPage] = useState(0);
   const [createdPage, setCreatedPage] = useState(0);
   const [showFixedTeamBenchmarks, setShowFixedTeamBenchmarks] = useState(false);
@@ -86,11 +90,14 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
     <div className="flex gap-2"><Button variant="outline" size="sm" disabled={visibleCreatedPage === 0} onClick={() => setCreatedPage((value) => Math.max(0, value - 1))}>Previous</Button><Button variant="outline" size="sm" disabled={visibleCreatedPage + 1 >= createdPageCount} onClick={() => setCreatedPage((value) => Math.min(createdPageCount - 1, value + 1))}>Next</Button></div>
   </div>;
   return <section aria-label="Recommended DPS builds" className="space-y-3" data-dps-results>
-    <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Achievable strategies</h2>{busy && <Button variant="outline" onClick={onCancel}>Cancel search</Button>}</div>
+    <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Profile search results</h2>{busy && <Button variant="outline" onClick={onCancel}>Cancel search</Button>}</div>
     <p role="status" className="text-xs text-muted-foreground">{status || "Preparing your profile…"}</p>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {notice && <p role="status" className="text-sm">{notice}</p>}
     {!busy && !error && matches !== null && rows.length === 0 && <p className="rounded-lg border p-4 text-sm text-muted-foreground">No {exactOnly ? "exact " : ""}build found for this setup. Try allowing gear upgrades or removing exclusions. An unfinished search does not prove a build is impossible.</p>}
+    {(testedProfileVisible || visibleTestedAlternatives.length > 0) && <div>
+      <h2 className="text-lg font-semibold">Simulation-tested builds</h2>
+    </div>}
     {testedProfileVisible && <Card><CardContent className="space-y-3 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div><h3 className="font-semibold">Tested profile build</h3>
@@ -102,9 +109,9 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
       <div className="flex flex-wrap gap-2">{testedProfileBuild!.picks.map((pick) => <span key={pick.slot} className="rounded-md border px-2 py-1 text-xs">{pick.slot}: {pick.item} Lv{pick.level}</span>)}</div>
       <p className="text-xs text-muted-foreground">Required skills: {(testedProfileBuild!.skills ?? []).join(", ")} · ownership not recorded.</p>
       <div className="rounded-md border border-amber-500/30 px-3 py-2 text-xs">
-        <p className="font-medium text-amber-700 dark:text-amber-300">Modeled callbacks: average {testedProfileCandidate!.averageCallbacks} · median {testedProfileCandidate!.medianCallbacks} · highest {testedProfileCandidate!.highestCallbacks}</p>
-        <p className="mt-1">{testedProfileCandidate!.sampleSize} paired-seed tests · survived {testedProfileCandidate!.survivedRuns}/{testedProfileCandidate!.sampleSize} · 0–1 callback in {testedProfileCandidate!.atMostOneCallbackRuns}/{testedProfileCandidate!.sampleSize} · median Herbs {testedProfileCandidate!.medianHerbsUsed}</p>
-        <details className="mt-1 text-muted-foreground"><summary className="cursor-pointer">Scenario assumptions</summary>
+        <p className="font-medium text-amber-700 dark:text-amber-300">Modeled average {testedProfileCandidate!.averageCallbacks} · survived {testedProfileCandidate!.survivedRuns}/{testedProfileCandidate!.sampleSize}</p>
+        <details className="mt-1 text-muted-foreground"><summary className="cursor-pointer">Details</summary>
+          <p className="mt-1">{testedProfileCandidate!.sampleSize} paired-seed tests · median {testedProfileCandidate!.medianCallbacks} · highest {testedProfileCandidate!.highestCallbacks} · 0–1 callback in {testedProfileCandidate!.atMostOneCallbackRuns}/{testedProfileCandidate!.sampleSize} · median Herbs {testedProfileCandidate!.medianHerbsUsed}.</p>
           <p className="mt-1">Fixed synthetic supports, finite HP/MP, at most 10 Holy Herbs at 20% DPS MP using a 200-tick window, and 0 potions. One run reached the Herb cap and a low-MP reserve after its final reward callback; no lost eligible cast was demonstrated. Your team has not been measured. These are conditional simulator callbacks, not settled or earned rewards; they do not change fixed-research averages or ranking. The Simulate button starts a fresh run, not a replay of these tests. Herbs must be used manually in the interactive replay; setting the stock does not reproduce the tested timing automatically.</p>
         </details>
       </div>
@@ -118,15 +125,16 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
       <div className="flex flex-wrap gap-2">{build.picks.map((pick) => <span key={pick.slot} className="rounded-md border px-2 py-1 text-xs">{pick.slot}: {pick.item} Lv{pick.level}</span>)}</div>
       <p className="text-xs text-muted-foreground">Required skills: {(build.skills ?? []).join(", ")} · ownership not recorded.</p>
       <div className="rounded-md border border-amber-500/30 px-3 py-2 text-xs">
-        <p className="font-medium text-amber-700 dark:text-amber-300">Modeled callbacks: average {candidate.averageCallbacks} · median {candidate.medianCallbacks} · best {candidate.highestCallbacks}</p>
-        <p className="mt-1">Separate 20-pair, 36,000-tick cohort · survived {candidate.survivedRuns}/20 · completed {candidate.completedRuns}/20 · 0–1 callback in {candidate.atMostOneCallbackRuns}/20 · Herbs avg/median {candidate.averageHerbsUsed}/{candidate.medianHerbsUsed} · paid MP avg {candidate.averagePaidMp?.toLocaleString()}.</p>
-        <details className="mt-1 text-muted-foreground"><summary className="cursor-pointer">Scenario and evidence limits</summary>
+        <p className="font-medium text-amber-700 dark:text-amber-300">Modeled average {candidate.averageCallbacks} · survived {candidate.survivedRuns}/{candidate.sampleSize}</p>
+        <details className="mt-1 text-muted-foreground"><summary className="cursor-pointer">Details</summary>
+          <p className="mt-1">Separate 20-pair, 36,000-tick cohort · median {candidate.medianCallbacks} · best {candidate.highestCallbacks} · completed {candidate.completedRuns}/20 · 0–1 callback in {candidate.atMostOneCallbackRuns}/20 · Herbs avg/median {candidate.averageHerbsUsed}/{candidate.medianHerbsUsed} · paid MP avg {candidate.averagePaidMp?.toLocaleString()}.</p>
           <p className="mt-1">Fixed synthetic supports; finite HP/MP; at most 10 Holy Herbs at 20% DPS MP using a 200-tick window; 0 potions. In these 20 matched seeds, Ribbon averaged 4.65 Herbs and 7,726.4 paid MP versus control 6.75 Herbs and 10,197.8 paid MP. Ribbon averaged 13.9 callbacks; control endpoint averaged 21.05, with 1 unfinished battle, so that is not a full-battle control mean. Paired callback difference was −7.15 (95% interval −22.15 to 4.95); reward retention is uncertain. The current primary build is a separate 18,000-tick cohort, not a paired comparison. These are conditional simulator callbacks, not settled or earned rewards; fixed-research averages and ranking are unchanged. Simulate starts a fresh run at the tested 1,800-second horizon. Herbs must be used manually in replay; stock does not reproduce tested timing. Evidence audit hashes: candidate {candidate.evidenceSha256}; control {candidate.controlEvidenceSha256}.</p>
         </details>
       </div>
     </CardContent></Card>)}
-    {rows.length > 0 && <div className="rounded-xl border bg-card p-4">
-      <p className="mb-2 text-xs text-muted-foreground">Fixed-team rewards do not measure your account team; profile reward results remain unmeasured.</p>
+    {rows.length > 0 && <details className="rounded-xl border bg-card p-4">
+      <summary className="cursor-pointer text-sm font-medium">Browse stat matches ({availableMatches.length}) · rewards untested</summary>
+      <div className="mt-3">
       <label className="mb-3 flex min-h-11 items-center gap-2 text-sm">
         <input type="checkbox" className="h-4 w-4 accent-primary" checked={showFixedTeamBenchmarks}
           onChange={(event) => setShowFixedTeamBenchmarks(event.target.checked)} aria-label="Show fixed-team benchmarks" />
@@ -144,7 +152,7 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
           <td className="p-2"><input aria-label={`Select strategy ${match.id}`} type="checkbox" className="h-4 w-4 accent-primary" checked={selected.includes(match.id)} onChange={(event) => { setSelected((old) => event.target.checked ? [...old, match.id] : old.filter((id) => id !== match.id)); }} /></td>
           <td className="p-2"><div className="whitespace-nowrap text-xs">ATK {option.atk} · SPD {option.spd} · LCK {option.lck} · DEX {option.dex}</div></td>
           <td className="p-2 text-xs"><div className="whitespace-nowrap font-medium">{build.jobName ?? sourceCharacter?.jobName} · {build.rank ?? sourceCharacter?.rank}</div><div className="mt-1 whitespace-nowrap text-[11px]">ATK {build.stats.atk} · SPD {build.stats.spd} · LCK {build.stats.lck} · DEX {build.stats.dex}</div><div className="mt-1 whitespace-nowrap text-[11px] text-muted-foreground">HP {build.stats.hp} · MP {build.stats.mp} · DEF {build.stats.def}</div><div className="mt-1 text-[11px] text-muted-foreground">{exact ? "Exact four-stat match" : "Four-stat distance prioritized"}{!match.complete && " · closest found so far"}</div>{diagnostic && <p className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">{accountDiagnosticLabel(diagnostic)}</p>}</td>
-          <td className="p-2 text-xs text-muted-foreground">{accountRewardEvidenceLabel(exact && measured !== null)}</td>
+          <td className="p-2 text-xs text-muted-foreground"><p>{accountRewardEvidenceLabel(exact && measured !== null)}</p><Button className="mt-2" size="sm" variant="outline" disabled={busy} aria-label={`View equipment for strategy ${match.id}`} onClick={() => setCreated([match.id])}>View equipment</Button></td>
           {showFixedTeamBenchmarks && <>
             <td className="p-2 text-right text-xs">{measured?.mean.toFixed(2) ?? <span className="text-muted-foreground">Not measured</span>}</td>
             <td className="p-2 text-right text-xs">{measured?.highest ?? <span className="text-muted-foreground">Not measured</span>}</td>
@@ -157,9 +165,10 @@ export function FarmingDpsResults({ profile, matches, options, busy, status, err
         </tr>;
       })}</tbody></table></div>
       <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3"><span className="text-xs text-muted-foreground">{availableMatches.length.toLocaleString()} strategies · page {page + 1} of {pageCount}</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>Previous</Button><Button variant="outline" size="sm" disabled={page + 1 >= pageCount} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}>Next</Button></div></div>
-      <Button className="mt-4 min-h-11" disabled={busy || selected.length === 0} onClick={() => setCreated([...selected])}>Create character builds{selected.length > 0 ? ` (${selected.length})` : ""}</Button>
-    </div>}
-    {created && <h2 className="pt-2 text-lg font-semibold">Character builds · equipment and survivability</h2>}
+      <Button className="mt-4 min-h-11" disabled={busy || selected.length === 0} onClick={() => setCreated([...selected])}>View selected equipment{selected.length > 0 ? ` (${selected.length})` : ""}</Button>
+      </div>
+    </details>}
+    {created && <h2 ref={equipmentHeading} className="scroll-mt-24 pt-2 text-lg font-semibold">Equipment and survivability</h2>}
     {createdRows.length > 5 && <div className="rounded-xl border bg-card p-4">{renderCreatedPagination()}</div>}
     {pageCreatedRows.map(({ match, build, option, fingerprint }) => {
       const character = profile!.characters.find((character) => character.id === build.characterId);
