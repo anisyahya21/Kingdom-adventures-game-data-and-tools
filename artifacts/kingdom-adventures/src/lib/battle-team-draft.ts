@@ -214,10 +214,15 @@ export function draftStatRows(character: SavedLoadout, shared: BuilderSharedData
   return STAT_KEYS.map((stat) => {
     const level = levels[stat] ?? character.statLevels?.[stat] ?? character.level ?? 1;
     const parameterId = STAT_PARAMETER_IDS[stat];
-    const rawValue = parameters[String(parameterId)]?.rawValue;
+    const parameter = parameters[String(parameterId)];
+    const bounded = stat === "hp" || stat === "mp" || stat === "vig";
+    // Show bounded capacity (HP/MP/Vigor), and value for the other stats.
+    // Valuable bonuses occupy extraMax/extraValue, not rawValue.
+    const rawValue = parameter ? (bounded ? parameter.rawMax : parameter.rawValue) : undefined;
+    const extraValue = parameter ? (bounded ? parameter.extraMax : parameter.extraValue) : 0;
     const entry = curve[stat];
     const curveValue = entry ? statAtLevel(entry.base, entry.inc, level) : null;
-    const valuableValue = rawValue !== undefined && curveValue !== null ? rawValue - curveValue : 0;
+    const valuableValue = extraValue;
 
     let equipmentValue = 0;
     if (shared && slots) {
@@ -236,8 +241,7 @@ export function draftStatRows(character: SavedLoadout, shared: BuilderSharedData
       }
     }
 
-    // `rawValue` already carries the valuables, so the shown total is that value plus equipment.
-    const baseValue = rawValue !== undefined ? rawValue : curveValue;
+    const baseValue = rawValue !== undefined ? rawValue + extraValue : curveValue;
     return {
       stat,
       level,
