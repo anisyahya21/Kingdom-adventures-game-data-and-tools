@@ -149,6 +149,15 @@ export default function GuidesPage() {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
+        <Link href="/guides/stat-effects">
+          <Card className="h-full cursor-pointer shadow-sm transition-all hover:shadow-md hover:border-primary/30">
+            <CardHeader className="pb-2">
+              <Badge variant="outline" className="self-start">Stats & work</Badge>
+              <CardTitle className="text-base mt-2">Stats outside combat</CardTitle>
+            </CardHeader>
+            <CardContent><CardDescription className="text-xs leading-relaxed">Heart and fog, Move and wagon loads, town-work stats, useful thresholds and movement skills. Includes fog and cargo calculators.</CardDescription></CardContent>
+          </Card>
+        </Link>
         <Link href={BUILT_IN_GUIDE.href}>
           <Card className="h-full cursor-pointer shadow-sm transition-all hover:shadow-md hover:border-primary/30">
             <CardHeader className="pb-2">

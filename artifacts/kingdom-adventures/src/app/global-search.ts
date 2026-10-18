@@ -52,6 +52,7 @@ export function buildGlobalSearchEntries(): GlobalSearchEntry[] {
     overrides?: Record<string, unknown>;
   };
   const entries: GlobalSearchEntry[] = [];
+  entries.push({ label: "Stats outside combat", subtitle: "Guide — Heart, fog, Move, wagons and town work", href: "/guides/stat-effects" });
 
   entries.push({
     label: "Add Friends",

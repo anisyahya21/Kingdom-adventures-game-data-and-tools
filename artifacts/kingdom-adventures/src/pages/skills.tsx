@@ -15,6 +15,7 @@ import { ToneBadge } from "@/components/ka/badges";
 import { fetchSharedWithFallback } from "@/lib/local-shared-data";
 import { apiUrl } from "@/lib/api";
 import { getSkillIcon } from "@/lib/skill-icons";
+import { getNativeSkillDescription, getSkillDescription, getSkillDescriptionEvidence } from "@/lib/skill-descriptions";
 
 
 type Skill = {
@@ -154,6 +155,7 @@ export default function SkillsPage() {
   const [pendingFn, setPendingFn] = useState<(() => void) | null>(null);
   const [pageNote, setPageNote] = useState(() => localStorage.getItem("ka_note_skills") ?? "");
   const [showNote, setShowNote] = useState(false);
+  const [includeBasicAttacks, setIncludeBasicAttacks] = useState(false);
   const qc = useQueryClient();
   const { data, isLoading } = useSharedData();
   const [search, setSearch] = useState(() => {
@@ -170,7 +172,7 @@ export default function SkillsPage() {
     else { setSortKey(key); setSortDir("asc"); }
   };
   const sorted = Object.values(skills)
-    .filter((skill) => !EXCLUDED_SKILL_NAMES.has(skill.name.trim().toLowerCase()))
+    .filter((skill) => includeBasicAttacks || !EXCLUDED_SKILL_NAMES.has(skill.name.trim().toLowerCase()))
     .sort((a, b) => {
       const dir = sortDir === "asc" ? 1 : -1;
       if (sortKey === "name") return dir * a.name.localeCompare(b.name);
@@ -189,7 +191,7 @@ export default function SkillsPage() {
       return dir * ((av as number) < (bv as number) ? -1 : (av as number) > (bv as number) ? 1 : 0);
     });
   const filtered = search.trim()
-    ? sorted.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
+    ? sorted.filter((s) => `${s.name} ${getSkillDescription(s.name) ?? ""} ${getNativeSkillDescription(s.name) ?? ""}`.toLowerCase().includes(search.toLowerCase()))
     : sorted;
 
   const withName = useCallback((fn: () => void) => {
@@ -266,19 +268,24 @@ export default function SkillsPage() {
           </div>
         )}
         {/* Toolbar */}
-        <div className="flex gap-2 mb-4 flex-wrap">
+        <div className="flex gap-2 mb-4 flex-wrap items-center">
           <div className="relative flex-1 min-w-48">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search skills…" className="h-8 text-sm pl-8" />
           </div>
+          <label className="inline-flex min-h-11 items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <input type="checkbox" checked={includeBasicAttacks} onChange={e => setIncludeBasicAttacks(e.target.checked)} />
+            Include basic attacks
+          </label>
         </div>
 
         <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Skills</CardTitle>
             <CardDescription className="text-xs">
-              Sheet-derived skill data is read-only here. Only the Tips / Notes text is editable for community context.
+              Every named skill has an explanation. Some effects still need deeper investigation; unconfirmed effects are marked. Tips / Notes are community context.
+              {" "}<Link href="/guides/stat-effects" className="text-primary hover:underline">Stats outside combat guide</Link>
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -312,6 +319,7 @@ export default function SkillsPage() {
                           </span>
                         </th>
                       ))}
+                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Description</th>
                       <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Tips / Notes</th>
                       <th className="w-16" />
                     </tr>
@@ -319,7 +327,7 @@ export default function SkillsPage() {
                   <tbody className="divide-y divide-border">
 
                     {filtered.length === 0 && (
-                      <tr><td colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
+                      <tr><td colSpan={10} className="text-center py-12 text-sm text-muted-foreground">
                         {search ? "No skills match your search." : "No skills found."}
                       </td></tr>
                     )}
@@ -364,6 +372,11 @@ export default function SkillsPage() {
                               {craftable ? "Y" : "N"}
                             </span>
                           </td>
+                          <td className="px-3 py-2 min-w-[220px] max-w-sm text-xs text-muted-foreground">
+                            <span data-description-source={getSkillDescriptionEvidence(skill.name)} title={`${getSkillDescriptionEvidence(skill.name) === "code" ? "Clarified from game code. " : ""}${getNativeSkillDescription(skill.name) ? `Original in-game wording: ${getNativeSkillDescription(skill.name)}` : "Original game text marks this entry unused."}`}>
+                              {getSkillDescription(skill.name) ?? <span className="text-muted-foreground/50">Not documented in game</span>}
+                            </span>
+                          </td>
                           <td className="px-3 py-2 min-w-[200px]">
                             {isEditing
                               ? <Input value={d.description ?? ""} onChange={(e) => setEditDraft((x) => x ? { ...x, description: e.target.value || undefined } : x)}
@@ -404,7 +417,7 @@ export default function SkillsPage() {
         </Card>
 
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          {Object.keys(skills).length} skill{Object.keys(skills).length !== 1 ? "s" : ""} in database � Base data is shared game data, notes are community-added context
+          {Object.keys(skills).length} skill{Object.keys(skills).length !== 1 ? "s" : ""} in database · Descriptions use game code and in-game text; notes are community context
         </p>
       </div>
     </div>

@@ -1,0 +1,1232 @@
+{
+  "source": "Original APK English.lproj/Skill.txt",
+  "sourceSha256": "2523fffcb3d5d0803f20acf9cc84bb6917116884e45b6fbcde55f74dca85607e",
+  "evidence": "native-description",
+  "limits": "Original in-game wording; not independent verification of every effect. Null means no usable native description.",
+  "skills": [
+    {
+      "id": 0,
+      "name": "Normal Attack",
+      "description": "Normal Attack",
+      "category": 0,
+      "type": 0,
+      "value": 0,
+      "flags": 24
+    },
+    {
+      "id": 1,
+      "name": "Bow Attack",
+      "description": "Bow Attack",
+      "category": 0,
+      "type": 0,
+      "value": 0,
+      "flags": 16408
+    },
+    {
+      "id": 2,
+      "name": "Gun Attack",
+      "description": "Gun Attack",
+      "category": 0,
+      "type": 0,
+      "value": 0,
+      "flags": 32792
+    },
+    {
+      "id": 3,
+      "name": "Critical Hit",
+      "description": "Critical Hit",
+      "category": 0,
+      "type": 0,
+      "value": 0,
+      "flags": 24
+    },
+    {
+      "id": 4,
+      "name": "Arrow Rain",
+      "description": "Shoots a bunch of arrows.",
+      "category": 0,
+      "type": 11,
+      "value": 90,
+      "flags": 794
+    },
+    {
+      "id": 5,
+      "name": "Fire Magic Ⅰ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 150,
+      "flags": 70938
+    },
+    {
+      "id": 6,
+      "name": "Fire Magic Ⅱ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 165,
+      "flags": 70938
+    },
+    {
+      "id": 7,
+      "name": "Fire Magic Ⅲ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 180,
+      "flags": 70938
+    },
+    {
+      "id": 8,
+      "name": "Fire Magic Ⅳ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 200,
+      "flags": 70938
+    },
+    {
+      "id": 9,
+      "name": "Fire Magic Ⅴ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 240,
+      "flags": 70936
+    },
+    {
+      "id": 10,
+      "name": "Ice Magic Ⅰ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 150,
+      "flags": 70938
+    },
+    {
+      "id": 11,
+      "name": "Ice Magic Ⅱ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 165,
+      "flags": 70938
+    },
+    {
+      "id": 12,
+      "name": "Ice Magic Ⅲ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 180,
+      "flags": 70938
+    },
+    {
+      "id": 13,
+      "name": "Ice Magic Ⅳ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 200,
+      "flags": 70938
+    },
+    {
+      "id": 14,
+      "name": "Ice Magic Ⅴ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 240,
+      "flags": 70936
+    },
+    {
+      "id": 15,
+      "name": "Lightning Magic Ⅰ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 150,
+      "flags": 70938
+    },
+    {
+      "id": 16,
+      "name": "Lightning Magic Ⅱ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 165,
+      "flags": 70938
+    },
+    {
+      "id": 17,
+      "name": "Lightning Magic Ⅲ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 180,
+      "flags": 70938
+    },
+    {
+      "id": 18,
+      "name": "Lightning Magic Ⅳ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 200,
+      "flags": 70938
+    },
+    {
+      "id": 19,
+      "name": "Lightning Magic Ⅴ",
+      "description": "Attack with a magic spell.",
+      "category": 0,
+      "type": 1,
+      "value": 240,
+      "flags": 70936
+    },
+    {
+      "id": 20,
+      "name": "Half Reflect",
+      "description": "Deal 50% of damage received back to the enemy.",
+      "category": 0,
+      "type": 18,
+      "value": 50,
+      "flags": 70458
+    },
+    {
+      "id": 21,
+      "name": "Full Reflect",
+      "description": "Deal 100% of damage received back to the enemy.",
+      "category": 0,
+      "type": 18,
+      "value": 100,
+      "flags": 70456
+    },
+    {
+      "id": 22,
+      "name": "2-Hit Attack",
+      "description": "2 consecutive attacks.",
+      "category": 0,
+      "type": 19,
+      "value": 0,
+      "flags": 70426
+    },
+    {
+      "id": 23,
+      "name": "3-Hit Attack",
+      "description": "3 consecutive attacks.",
+      "category": 0,
+      "type": 19,
+      "value": 0,
+      "flags": 70426
+    },
+    {
+      "id": 24,
+      "name": "4-Hit Attack",
+      "description": "4 consecutive attacks.",
+      "category": 0,
+      "type": 19,
+      "value": 0,
+      "flags": 70426
+    },
+    {
+      "id": 25,
+      "name": "5-Hit Attack",
+      "description": "5 consecutive attacks.",
+      "category": 0,
+      "type": 19,
+      "value": 0,
+      "flags": 70426
+    },
+    {
+      "id": 26,
+      "name": "Counter",
+      "description": "Counterattack immediately after an enemy's attack.",
+      "category": 0,
+      "type": 20,
+      "value": 0,
+      "flags": 70458
+    },
+    {
+      "id": 27,
+      "name": "Parry",
+      "description": "Reduce damage taken from an enemy's attack.",
+      "category": 0,
+      "type": 21,
+      "value": 50,
+      "flags": 70442
+    },
+    {
+      "id": 28,
+      "name": "Perfect Dodge",
+      "description": "Dodge all enemies' attacks when activated.",
+      "category": 0,
+      "type": 24,
+      "value": 100,
+      "flags": 70442
+    },
+    {
+      "id": 29,
+      "name": "Dodge UP",
+      "description": "Increases chances of dodging enemy attacks for a short time.",
+      "category": 0,
+      "type": 22,
+      "value": 40,
+      "flags": 70602
+    },
+    {
+      "id": 30,
+      "name": "Critical UP",
+      "description": "Increases chances of landing critical hits for a short time.",
+      "category": 0,
+      "type": 23,
+      "value": 30,
+      "flags": 66506
+    },
+    {
+      "id": 31,
+      "name": "Direct Attack Ⅰ",
+      "description": "A 3-row attack in a straight line.",
+      "category": 0,
+      "type": 26,
+      "value": 0,
+      "flags": 70410
+    },
+    {
+      "id": 32,
+      "name": "Direct Attack Ⅱ",
+      "description": "A 5-row attack in a straight line.",
+      "category": 0,
+      "type": 26,
+      "value": 0,
+      "flags": 70408
+    },
+    {
+      "id": 33,
+      "name": "Area Attack Ⅰ",
+      "description": "A 1-row area attack.",
+      "category": 0,
+      "type": 27,
+      "value": 0,
+      "flags": 70410
+    },
+    {
+      "id": 34,
+      "name": "Area Attack Ⅱ",
+      "description": "A 2-row area attack.",
+      "category": 0,
+      "type": 27,
+      "value": 0,
+      "flags": 70410
+    },
+    {
+      "id": 35,
+      "name": "Area Attack Ⅲ",
+      "description": "A 3-row area attack.",
+      "category": 0,
+      "type": 27,
+      "value": 0,
+      "flags": 70408
+    },
+    {
+      "id": 36,
+      "name": "Myriad Arrows",
+      "description": "Attack a wide area with a bow.",
+      "category": 0,
+      "type": 11,
+      "value": 150,
+      "flags": 4889
+    },
+    {
+      "id": 37,
+      "name": "Heal Maddy",
+      "description": "Recover HP by 15%.",
+      "category": 1,
+      "type": 2,
+      "value": 15,
+      "flags": 71962
+    },
+    {
+      "id": 38,
+      "name": "Heal M",
+      "description": "Recover HP by 35%.",
+      "category": 1,
+      "type": 2,
+      "value": 35,
+      "flags": 71962
+    },
+    {
+      "id": 39,
+      "name": "Heal L",
+      "description": "Recover HP by 65%.",
+      "category": 1,
+      "type": 2,
+      "value": 65,
+      "flags": 71962
+    },
+    {
+      "id": 40,
+      "name": "Revive 50%",
+      "description": "Revive an ally with 50% HP.",
+      "category": 1,
+      "type": 15,
+      "value": 50,
+      "flags": 71962
+    },
+    {
+      "id": 41,
+      "name": "Revive 100%",
+      "description": "Revive an ally with 100% HP.",
+      "category": 1,
+      "type": 15,
+      "value": 100,
+      "flags": 71960
+    },
+    {
+      "id": 42,
+      "name": "Agriculturist",
+      "description": "Helps grow better crops in fields.",
+      "category": 2,
+      "type": 5,
+      "value": 200,
+      "flags": 2
+    },
+    {
+      "id": 43,
+      "name": "Construction Chief",
+      "description": "Construction will be successful no matter how many builders.",
+      "category": 2,
+      "type": 6,
+      "value": 200,
+      "flags": 2
+    },
+    {
+      "id": 44,
+      "name": "Thief",
+      "description": "Sometimes causes a treasure chest to appear when attacking.",
+      "category": 2,
+      "type": 3,
+      "value": 5,
+      "flags": 65538
+    },
+    {
+      "id": 45,
+      "name": "Culinarian",
+      "description": "Produce items at restaurants etc.",
+      "category": 2,
+      "type": 4,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 46,
+      "name": "Transport Corps",
+      "description": "Allows you to move materials between different towns.",
+      "category": 2,
+      "type": 7,
+      "value": 200,
+      "flags": 2
+    },
+    {
+      "id": 47,
+      "name": "Research",
+      "description": "Allows you to perform research.",
+      "category": 2,
+      "type": 12,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 48,
+      "name": "Research Ⅱ",
+      "description": "Reduces research time by 5%",
+      "category": 2,
+      "type": 12,
+      "value": 5,
+      "flags": 2
+    },
+    {
+      "id": 49,
+      "name": "Research Ⅲ",
+      "description": "Reduces research time by 10%",
+      "category": 2,
+      "type": 12,
+      "value": 10,
+      "flags": 2
+    },
+    {
+      "id": 50,
+      "name": "Research Ⅳ",
+      "description": "Reduces research time by 25%",
+      "category": 2,
+      "type": 12,
+      "value": 25,
+      "flags": 2
+    },
+    {
+      "id": 51,
+      "name": "Research Ⅴ",
+      "description": "Reduces research time by 30%",
+      "category": 2,
+      "type": 12,
+      "value": 30,
+      "flags": 2
+    },
+    {
+      "id": 52,
+      "name": "Ranch Know-How",
+      "description": "Allows you to catch animals and raise them on the farm.",
+      "category": 2,
+      "type": 13,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 53,
+      "name": "Treasure Analysis",
+      "description": "Allows you to extract the contents of treasure chests.",
+      "category": 2,
+      "type": 14,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 54,
+      "name": "Craftsmanship",
+      "description": "Allows you to create products for tourists in a workshop.",
+      "category": 2,
+      "type": 16,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 55,
+      "name": "Craftsmanship Ⅱ",
+      "description": "Reduces crafting time by 5%",
+      "category": 2,
+      "type": 16,
+      "value": 5,
+      "flags": 2
+    },
+    {
+      "id": 56,
+      "name": "Craftsmanship Ⅲ",
+      "description": "Reduces crafting time by 10%",
+      "category": 2,
+      "type": 16,
+      "value": 10,
+      "flags": 2
+    },
+    {
+      "id": 57,
+      "name": "Craftsmanship Ⅳ",
+      "description": "Reduces crafting time by 25%",
+      "category": 2,
+      "type": 16,
+      "value": 25,
+      "flags": 2
+    },
+    {
+      "id": 58,
+      "name": "Craftsmanship Ⅴ",
+      "description": "Reduces crafting time by 30%",
+      "category": 2,
+      "type": 16,
+      "value": 30,
+      "flags": 2
+    },
+    {
+      "id": 59,
+      "name": "Instant Construction",
+      "description": "Complete construction instantly.",
+      "category": 2,
+      "type": 28,
+      "value": 0,
+      "flags": 258
+    },
+    {
+      "id": 60,
+      "name": "Instant Workshop",
+      "description": "Complete production instantly.",
+      "category": 2,
+      "type": 29,
+      "value": 0,
+      "flags": 258
+    },
+    {
+      "id": 61,
+      "name": "Insta-Move",
+      "description": "Occasionally move to your destination instantly.",
+      "category": 2,
+      "type": 30,
+      "value": 0,
+      "flags": 258
+    },
+    {
+      "id": 62,
+      "name": "Instant Weeding",
+      "description": "Complete harvesting natural resources instantly.",
+      "category": 2,
+      "type": 31,
+      "value": 0,
+      "flags": 258
+    },
+    {
+      "id": 63,
+      "name": "Instant Treasure Analysis",
+      "description": "Complete treasure chest analysis instantly.",
+      "category": 2,
+      "type": 32,
+      "value": 0,
+      "flags": 258
+    },
+    {
+      "id": 64,
+      "name": "Move Speed UP",
+      "description": "Increases walking speed.",
+      "category": 2,
+      "type": 9,
+      "value": 1,
+      "flags": 2
+    },
+    {
+      "id": 65,
+      "name": "All-Out Sprint",
+      "description": "Always dash.",
+      "category": 2,
+      "type": 33,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 66,
+      "name": "Miner",
+      "description": "Allows you to mine.",
+      "category": 2,
+      "type": 34,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 67,
+      "name": "Deployment Range Ⅰ",
+      "description": "Increases questing range a little.",
+      "category": 2,
+      "type": 35,
+      "value": 2,
+      "flags": 2
+    },
+    {
+      "id": 68,
+      "name": "Deployment Range Ⅱ",
+      "description": "Significantly increases questing range.",
+      "category": 2,
+      "type": 35,
+      "value": 4,
+      "flags": 2
+    },
+    {
+      "id": 69,
+      "name": "De-Fogger",
+      "description": "Dispel fog over a wider area.",
+      "category": 2,
+      "type": 36,
+      "value": 1,
+      "flags": 2
+    },
+    {
+      "id": 70,
+      "name": "Experience UP Ⅰ",
+      "description": "Increases EXP gained from battles a little.",
+      "category": 2,
+      "type": 37,
+      "value": 25,
+      "flags": 4098
+    },
+    {
+      "id": 71,
+      "name": "Experience UP Ⅱ",
+      "description": "Increases EXP gained from battles.",
+      "category": 2,
+      "type": 37,
+      "value": 50,
+      "flags": 4098
+    },
+    {
+      "id": 72,
+      "name": "Experience UP Ⅲ",
+      "description": "Significantly increases EXP gained from battles.",
+      "category": 2,
+      "type": 37,
+      "value": 75,
+      "flags": 4098
+    },
+    {
+      "id": 73,
+      "name": "Deployment Discount Ⅰ",
+      "description": "Decreases Energy consumed during quests a little.",
+      "category": 2,
+      "type": 38,
+      "value": 5,
+      "flags": 2
+    },
+    {
+      "id": 74,
+      "name": "Deployment Discount Ⅱ",
+      "description": "Significantly decreases Energy consumed during quests.",
+      "category": 2,
+      "type": 38,
+      "value": 10,
+      "flags": 2
+    },
+    {
+      "id": 75,
+      "name": "Auto Recovery HP",
+      "description": "Steadily recover HP while walking.",
+      "category": 2,
+      "type": 39,
+      "value": 5,
+      "flags": 2
+    },
+    {
+      "id": 76,
+      "name": "Auto Recovery MP",
+      "description": "Steadily recover MP while walking.",
+      "category": 2,
+      "type": 40,
+      "value": 5,
+      "flags": 2
+    },
+    {
+      "id": 77,
+      "name": "Auto Recovery Vigor",
+      "description": "Steadily recover Vigor while walking.",
+      "category": 2,
+      "type": 41,
+      "value": 5,
+      "flags": 2
+    },
+    {
+      "id": 78,
+      "name": "Facility Rec. UP HP",
+      "description": "Increases HP recovered when using facilities.",
+      "category": 2,
+      "type": 42,
+      "value": 20,
+      "flags": 2
+    },
+    {
+      "id": 79,
+      "name": "Facility Rec. UP Vigor",
+      "description": "Increases Vigor recovered when using facilities.",
+      "category": 2,
+      "type": 43,
+      "value": 20,
+      "flags": 2
+    },
+    {
+      "id": 80,
+      "name": "Facility Rec. UP MP",
+      "description": "Increases MP recovered when using facilities.",
+      "category": 2,
+      "type": 44,
+      "value": 20,
+      "flags": 2
+    },
+    {
+      "id": 81,
+      "name": "Stubborn",
+      "description": "When mortally wounded, auto-revives at the cost of own MP.",
+      "category": 2,
+      "type": 45,
+      "value": 25,
+      "flags": 8194
+    },
+    {
+      "id": 82,
+      "name": "Sword Resistance",
+      "description": "Negates weakness against Sword-type weapons.",
+      "category": 2,
+      "type": 48,
+      "value": 1,
+      "flags": 4098
+    },
+    {
+      "id": 83,
+      "name": "Staff Resistance",
+      "description": "Negates weakness against Staff-type weapons.",
+      "category": 2,
+      "type": 48,
+      "value": 2,
+      "flags": 4098
+    },
+    {
+      "id": 84,
+      "name": "Axe Resistance",
+      "description": "Negates weakness against Axe-type weapons.",
+      "category": 2,
+      "type": 48,
+      "value": 3,
+      "flags": 4098
+    },
+    {
+      "id": 85,
+      "name": "Spear Resistance",
+      "description": "Negates weakness against Spear-type weapons.",
+      "category": 2,
+      "type": 48,
+      "value": 4,
+      "flags": 4098
+    },
+    {
+      "id": 86,
+      "name": "Hammer Resistance",
+      "description": "Negates weakness against Hammer-type weapons.",
+      "category": 2,
+      "type": 48,
+      "value": 5,
+      "flags": 4098
+    },
+    {
+      "id": 87,
+      "name": "Club Resistance",
+      "description": "Negates weakness against Club-type weapons.",
+      "category": 2,
+      "type": 48,
+      "value": 6,
+      "flags": 4098
+    },
+    {
+      "id": 88,
+      "name": "Gun Resistance",
+      "description": "Negates weakness against Gun-type weapons.",
+      "category": 2,
+      "type": 48,
+      "value": 7,
+      "flags": 4098
+    },
+    {
+      "id": 89,
+      "name": "Bow Resistance",
+      "description": "Negates weakness against Bow-type weapons.",
+      "category": 2,
+      "type": 48,
+      "value": 8,
+      "flags": 4098
+    },
+    {
+      "id": 90,
+      "name": "Book Resistance",
+      "description": "Negates weakness against Book-type weapons.",
+      "category": 2,
+      "type": 48,
+      "value": 9,
+      "flags": 4098
+    },
+    {
+      "id": 91,
+      "name": "Shield Resistance",
+      "description": "Negates weakness against Shield-type weapons.",
+      "category": 2,
+      "type": 48,
+      "value": 11,
+      "flags": 4098
+    },
+    {
+      "id": 92,
+      "name": "Stealth",
+      "description": "Dispelling fog will not attract monsters.",
+      "category": 2,
+      "type": 46,
+      "value": 0,
+      "flags": 258
+    },
+    {
+      "id": 93,
+      "name": "Instinct",
+      "description": "Digging will not attract monsters.",
+      "category": 2,
+      "type": 47,
+      "value": 0,
+      "flags": 258
+    },
+    {
+      "id": 94,
+      "name": "Strategic Retreat",
+      "description": "Picking up items will end a battle.",
+      "category": 2,
+      "type": 49,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 95,
+      "name": "Battle Maniac",
+      "description": "Won't pick up items during quests.",
+      "category": 2,
+      "type": 50,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 96,
+      "name": "House-sitter",
+      "description": null,
+      "category": 2,
+      "type": 51,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 97,
+      "name": "Round Trip",
+      "description": "Return to town after exploring all available quest areas.",
+      "category": 2,
+      "type": 52,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 98,
+      "name": "Rambler",
+      "description": null,
+      "category": 2,
+      "type": 53,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 99,
+      "name": "Naturalist",
+      "description": null,
+      "category": 2,
+      "type": 54,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 100,
+      "name": "Traveler",
+      "description": null,
+      "category": 2,
+      "type": 55,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 101,
+      "name": "Aid Specialist",
+      "description": "Unable to fight during enemy attacks.",
+      "category": 2,
+      "type": 56,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 102,
+      "name": "Domestic Production",
+      "description": "Makes it easier to collect materials within your territory.",
+      "category": 2,
+      "type": 57,
+      "value": 0,
+      "flags": 2
+    },
+    {
+      "id": 103,
+      "name": "Countryside Fanatic",
+      "description": null,
+      "category": 2,
+      "type": 58,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 104,
+      "name": "Well-Prepared",
+      "description": null,
+      "category": 2,
+      "type": 59,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 105,
+      "name": "Leading the Charge",
+      "description": "Stands in the front line in boss battles.",
+      "category": 2,
+      "type": 60,
+      "value": 0,
+      "flags": 65538
+    },
+    {
+      "id": 106,
+      "name": "Daring Charge",
+      "description": "Stands directly in front of the boss in boss battles.",
+      "category": 2,
+      "type": 60,
+      "value": 1,
+      "flags": 65538
+    },
+    {
+      "id": 107,
+      "name": "Backup",
+      "description": "Stays at the back in boss battles.",
+      "category": 2,
+      "type": 60,
+      "value": 4,
+      "flags": 65538
+    },
+    {
+      "id": 108,
+      "name": "Critical UP+",
+      "description": "Increases chances of landing critical hits for a short time.",
+      "category": 0,
+      "type": 23,
+      "value": 50,
+      "flags": 66504
+    },
+    {
+      "id": 109,
+      "name": "6-Hit Attack",
+      "description": "6 consecutive attacks.",
+      "category": 0,
+      "type": 19,
+      "value": 0,
+      "flags": 70424
+    },
+    {
+      "id": 110,
+      "name": "7-Hit Attack",
+      "description": "7 consecutive attacks.",
+      "category": 0,
+      "type": 19,
+      "value": 0,
+      "flags": 70424
+    },
+    {
+      "id": 111,
+      "name": "Skilled Craftsman Ⅰ",
+      "description": "Spends more time in workshops.",
+      "category": 2,
+      "type": 62,
+      "value": 30,
+      "flags": 2
+    },
+    {
+      "id": 112,
+      "name": "Skilled Craftsman Ⅱ",
+      "description": "Spends a lot more time in workshops.",
+      "category": 2,
+      "type": 62,
+      "value": 100,
+      "flags": 2
+    },
+    {
+      "id": 113,
+      "name": "Armor Breaker Ⅰ",
+      "description": "Lowers enemies' DEF by 10%",
+      "category": 0,
+      "type": 66,
+      "value": 10,
+      "flags": 463624
+    },
+    {
+      "id": 114,
+      "name": "Armor Breaker Ⅱ",
+      "description": "Lowers enemies' DEF by 25%",
+      "category": 0,
+      "type": 66,
+      "value": 25,
+      "flags": 463624
+    },
+    {
+      "id": 115,
+      "name": "Armor Breaker Ⅲ",
+      "description": "Lowers enemies' DEF by 25%",
+      "category": 0,
+      "type": 66,
+      "value": 25,
+      "flags": 463624
+    },
+    {
+      "id": 116,
+      "name": "Armor Breaker Ⅳ",
+      "description": "Lowers enemies' DEF by 30%",
+      "category": 0,
+      "type": 66,
+      "value": 30,
+      "flags": 463624
+    },
+    {
+      "id": 117,
+      "name": "Sandman Ⅰ",
+      "description": "Puts enemies to sleep for a short time.",
+      "category": 0,
+      "type": 67,
+      "value": 15,
+      "flags": 459528
+    },
+    {
+      "id": 118,
+      "name": "Sandman Ⅱ",
+      "description": "Puts enemies to sleep for a short time.",
+      "category": 0,
+      "type": 67,
+      "value": 10,
+      "flags": 459528
+    },
+    {
+      "id": 119,
+      "name": "Sandman Ⅲ",
+      "description": "Puts enemies to sleep for a short time.",
+      "category": 0,
+      "type": 67,
+      "value": 5,
+      "flags": 459528
+    },
+    {
+      "id": 120,
+      "name": "Skill",
+      "description": null,
+      "category": 0,
+      "type": 0,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 121,
+      "name": "Skill",
+      "description": null,
+      "category": 0,
+      "type": 0,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 122,
+      "name": "Skill",
+      "description": null,
+      "category": 0,
+      "type": 0,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 123,
+      "name": "Skill",
+      "description": null,
+      "category": 0,
+      "type": 0,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 124,
+      "name": "Guerilla Ⅰ",
+      "description": "Patrols a 10-square area around town at own initiative.",
+      "category": 2,
+      "type": 61,
+      "value": 10,
+      "flags": 0
+    },
+    {
+      "id": 125,
+      "name": "Guerilla Ⅱ",
+      "description": "Patrols a 20-square area around town at own initiative.",
+      "category": 2,
+      "type": 61,
+      "value": 20,
+      "flags": 0
+    },
+    {
+      "id": 126,
+      "name": "Guerilla Ⅲ",
+      "description": "Patrols a 30-square area around town at own initiative.",
+      "category": 2,
+      "type": 61,
+      "value": 30,
+      "flags": 0
+    },
+    {
+      "id": 127,
+      "name": "Art Ⅰ",
+      "description": "Allows you to create products at a studio.",
+      "category": 2,
+      "type": 63,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 128,
+      "name": "Art Ⅱ",
+      "description": "Makes item creation at a studio a little quicker.",
+      "category": 2,
+      "type": 63,
+      "value": 5,
+      "flags": 0
+    },
+    {
+      "id": 129,
+      "name": "Art Ⅲ",
+      "description": "Makes item creation at a studio quicker.",
+      "category": 2,
+      "type": 63,
+      "value": 10,
+      "flags": 0
+    },
+    {
+      "id": 130,
+      "name": "Art Ⅳ",
+      "description": "Makes item creation at a studio a lot quicker.",
+      "category": 2,
+      "type": 63,
+      "value": 25,
+      "flags": 0
+    },
+    {
+      "id": 131,
+      "name": "Art Ⅴ",
+      "description": "Makes item creation at a studio significantly quicker.",
+      "category": 2,
+      "type": 63,
+      "value": 30,
+      "flags": 0
+    },
+    {
+      "id": 132,
+      "name": "Capture",
+      "description": "Allows you to capture wild animals.",
+      "category": 2,
+      "type": 64,
+      "value": 0,
+      "flags": 0
+    },
+    {
+      "id": 133,
+      "name": "Chat Ⅰ",
+      "description": "Makes it a little easier to build affection.",
+      "category": 2,
+      "type": 65,
+      "value": 3,
+      "flags": 2
+    },
+    {
+      "id": 134,
+      "name": "Chat Ⅱ",
+      "description": "Makes it easier to build affection.",
+      "category": 2,
+      "type": 65,
+      "value": 5,
+      "flags": 2
+    },
+    {
+      "id": 135,
+      "name": "Chat Ⅲ",
+      "description": "Makes it much easier to build affection.",
+      "category": 2,
+      "type": 65,
+      "value": 8,
+      "flags": 2
+    }
+  ]
+}

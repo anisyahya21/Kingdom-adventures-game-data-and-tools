@@ -234,6 +234,11 @@ export function getSeoMeta(pathname: string): SeoMeta {
   }
 
   if (cleanPath.startsWith("/guides/")) {
+    if (cleanPath === "/guides/stat-effects") return {
+      title: "Stats Outside Combat - Kingdom Adventurers Guide",
+      description: "Understand Heart and fog, Move and wagon loads, work stats, useful thresholds and movement skills. Includes fog and cargo calculators.",
+      canonicalPath: cleanPath,
+    };
     const guideName = decodeURIComponent(cleanPath.replace("/guides/", "")).replace(/-/g, " ");
     return {
       title: `${guideName} - Kingdom Adventurers Guide`,

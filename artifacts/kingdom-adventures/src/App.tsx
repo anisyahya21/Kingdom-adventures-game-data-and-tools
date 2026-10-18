@@ -52,6 +52,7 @@ const StrategySearchPage = lazy(() => import("@/pages/strategy-search"));
 const PlayerBattlePage = lazy(() => import("@/pages/player-battle"));
 const PlaythroughGuidePage = lazy(() => import("@/pages/playthrough-guide"));
 const GuidesPage = lazy(() => import("@/pages/guides"));
+const StatEffectsGuidePage = lazy(() => import("@/pages/stat-effects-guide"));
 const AddGuidePage = lazy(() => import("@/pages/add-guide"));
 const AddFriendsPage = lazy(() => import("@/pages/add-friends"));
 const CommunityGuidePage = lazy(() => import("@/pages/community-guide"));
@@ -231,6 +232,7 @@ function Router() {
         <Route path="/battle">{() => <PlayerBattlePage />}</Route>
         <Route path="/gacha-events">{() => <GachaEventsPage />}</Route>
         <Route path="/town-rank">{() => <TownRankPage />}</Route>
+        <Route path="/guides/stat-effects">{() => <StatEffectsGuidePage />}</Route>
         <Route path="/guides/:slug">{() => <CommunityGuidePage />}</Route>
         <Route path="/guides">{() => <GuidesPage />}</Route>
         <Route path="/add-friends">{() => <AddFriendsPage />}</Route>

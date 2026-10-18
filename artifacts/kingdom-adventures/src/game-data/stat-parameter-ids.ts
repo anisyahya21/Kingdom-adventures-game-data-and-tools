@@ -16,8 +16,9 @@
  *
  * The site's short stat keys and their native ids therefore are:
  *   hp 10, mp 11, vig 12, atk 13, def 14, spd 15, lck 16, int 18, dex 19, gth 20, mov 21, hrt 22.
- * `mov` is the only key whose native name is not recovered - it is still the slot the equipment
- * table and the site totals both use, so it is converted rather than invented.
+ * Native metadata names id 21 `Movement` (dump.cs, parameter id constants).
+ * UpdateTransport 0x14a4420 and UpdateSupplyMaterial 0x14a7388 read it as a load limit;
+ * see docs/reverse-engineering/skills-and-utility-stats.md for the non-combat evidence.
  */
 
 /** Canonical short stat keys used by the loadout builder and the equipment/job tables. */
@@ -69,7 +70,7 @@ export const PARAMETER_NATIVE_NAMES: Record<number, string> = {
   18: "Intelligence",
   19: "Dexterity",
   20: "Gathering",
-  21: "UNKNOWN",
+  21: "Movement",
   22: "Love",
 };
 
