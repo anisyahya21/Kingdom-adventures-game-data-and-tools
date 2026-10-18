@@ -1,0 +1,9 @@
+{
+  "chaos": "Restored existing familiar atlas illustration: grey Chaos Stone with blue halo, region /chaos-setup-lab. Actual facility remains in map.",
+  "gacha": {
+    "asset": "gacha-casino-art-v1.png",
+    "tool": "Built-in image generation",
+    "prompt": "Cute pixel-game fantasy slot machine with sword, star, treasure reels, purple/red cabinet, gold trim and lever; transparent background.",
+    "scope": "Decorative thumbnail illustration, not an in-game facility."
+  }
+}

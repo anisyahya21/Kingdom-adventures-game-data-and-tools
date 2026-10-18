@@ -1,0 +1,10 @@
+{
+  "scope": "Local thumbnail proposals only",
+  "profile": "Illustrative roster and equipment levels, not account ownership. Actual game renderer and valuable icons.",
+  "sources": "Canonical treasure-source projection, monster 0/1 edges and Meat On The Bone lane; 5% treasure drop and 100% inside treasure kept separate.",
+  "art": {
+    "tool": "Built-in image generation",
+    "file": "monarch-proposal-couple-v2.png",
+    "prompt": "Preserve kneeling Monarch offering a ring; add blonde female Mage in purple witch hat directly in front of him facing him; compact whole-body transparent composition."
+  }
+}

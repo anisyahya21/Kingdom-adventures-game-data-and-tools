@@ -1,0 +1,194 @@
+[
+  {
+    "route": "/",
+    "label": "Home",
+    "group": "Home",
+    "id": "home"
+  },
+  {
+    "route": "/jobs",
+    "label": "Jobs",
+    "group": "Game Database",
+    "id": "jobs"
+  },
+  {
+    "route": "/skills",
+    "label": "Skills",
+    "group": "Game Database",
+    "id": "skills"
+  },
+  {
+    "route": "/houses",
+    "label": "Houses",
+    "group": "Game Database",
+    "id": "houses"
+  },
+  {
+    "route": "/shops",
+    "label": "Shops",
+    "group": "Game Database",
+    "id": "shops"
+  },
+  {
+    "route": "/item-sources",
+    "label": "Items",
+    "group": "Game Database",
+    "id": "item-sources"
+  },
+  {
+    "route": "/equipment-stats",
+    "label": "Equipments",
+    "group": "Game Database",
+    "id": "equipment-stats"
+  },
+  {
+    "route": "/training-facilities",
+    "label": "Facilities",
+    "group": "Game Database",
+    "id": "training-facilities"
+  },
+  {
+    "route": "/research",
+    "label": "Research",
+    "group": "Game Database",
+    "id": "research"
+  },
+  {
+    "route": "/monster-spawns",
+    "label": "Enemies",
+    "group": "Game Database",
+    "id": "monster-spawns"
+  },
+  {
+    "route": "/monster-pet-stats",
+    "label": "Pets",
+    "group": "Game Database",
+    "id": "monster-pet-stats"
+  },
+  {
+    "route": "/world-map-v2",
+    "label": "Maps",
+    "group": "Game Database",
+    "id": "world-map-v2"
+  },
+  {
+    "route": "/match-finder",
+    "label": "Marriage Match Finder",
+    "group": "Tools",
+    "id": "match-finder"
+  },
+  {
+    "route": "/combat",
+    "label": "Combat Hub",
+    "group": "Tools",
+    "id": "combat"
+  },
+  {
+    "route": "/equipment-exchange",
+    "label": "Equipment Exchange",
+    "group": "Tools",
+    "id": "equipment-exchange"
+  },
+  {
+    "route": "/equipment-leveling-optimizer",
+    "label": "Equipment lv Optimizer",
+    "group": "Tools",
+    "id": "equipment-leveling-optimizer"
+  },
+  {
+    "route": "/survey",
+    "label": "Survey Calculator",
+    "group": "Tools",
+    "id": "survey"
+  },
+  {
+    "route": "/eggs",
+    "label": "Egg Planner",
+    "group": "Tools",
+    "id": "eggs"
+  },
+  {
+    "route": "/chaos-setup-lab",
+    "label": "Chaos Stone Setup",
+    "group": "Tools",
+    "id": "chaos-setup-lab"
+  },
+  {
+    "route": "/world-builder",
+    "label": "World Builder",
+    "group": "Tools",
+    "id": "world-builder"
+  },
+  {
+    "route": "/timed-events",
+    "label": "Overview",
+    "group": "Events",
+    "id": "timed-events"
+  },
+  {
+    "route": "/briefing-room",
+    "label": "Briefing Room",
+    "group": "Events",
+    "id": "briefing-room"
+  },
+  {
+    "route": "/gacha-events",
+    "label": "Gacha Events",
+    "group": "Events",
+    "id": "gacha-events"
+  },
+  {
+    "route": "/weekly-conquest",
+    "label": "Weekly Conquest",
+    "group": "Events",
+    "id": "weekly-conquest"
+  },
+  {
+    "route": "/wario-dungeon",
+    "label": "Wairo Dungeon",
+    "group": "Events",
+    "id": "wario-dungeon"
+  },
+  {
+    "route": "/daily-rank-rewards",
+    "label": "Daily Rank Rewards",
+    "group": "Events",
+    "id": "daily-rank-rewards"
+  },
+  {
+    "route": "/kairo-room",
+    "label": "Kairo Room",
+    "group": "Events",
+    "id": "kairo-room"
+  },
+  {
+    "route": "/job-center",
+    "label": "Job Center",
+    "group": "Events",
+    "id": "job-center"
+  },
+  {
+    "route": "/jobs-marriage",
+    "label": "Jobs & Awakening",
+    "group": "Guides",
+    "id": "jobs-marriage"
+  },
+  {
+    "route": "/playthrough-guide",
+    "label": "Playthrough",
+    "group": "Guides",
+    "id": "playthrough-guide"
+  },
+  {
+    "route": "/guides",
+    "label": "Guides & Tips",
+    "group": "Guides",
+    "id": "guides"
+  },
+  {
+    "route": "/player-profile",
+    "label": "Player Profile",
+    "group": "Community",
+    "id": "player-profile"
+  }
+]

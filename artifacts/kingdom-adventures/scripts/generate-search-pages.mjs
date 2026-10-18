@@ -2,7 +2,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { getSeoMeta, getDocumentTitle, SITE_NAME, SITE_URL, encodeCanonicalPath } from "../src/app/seo.ts";
+import { getSeoMeta, getDocumentTitle, getShareImageUrl, SITE_NAME, SITE_URL, encodeCanonicalPath } from "../src/app/seo.ts";
 import { ROUTE_ALIASES, isIndexablePage } from "../src/app/seo-policy.ts";
 import { SHOP_RECORDS } from "../src/lib/shop-utils.ts";
 
@@ -40,11 +40,14 @@ function documentFor(pathname, { notFound = false, dynamicGuide = false } = {}) 
   const title = notFound ? `Page not found | ${SITE_NAME}` : getDocumentTitle(meta.title);
   const description = notFound ? "This page could not be found. Browse the Kingdom Adventurers tools and guides." : meta.description;
   const canonical = `${SITE_URL}${encodeCanonicalPath(meta.canonicalPath)}`;
+  const image = getShareImageUrl(pathname);
   let doc = html.replace(/<title>[^]*?<\/title>/, `<title>${escape(title)}</title>`)
     .replace(/<meta\s+name="description"[^]*?\/>/, `<meta name="description" content="${escape(description)}" />`)
     .replace(/<meta name="robots"[^>]*>/, `<meta name="robots" content="${notFound || !isIndexablePage(pathname) ? "noindex, follow" : "index, follow"}" />`)
     .replace(/<link rel="canonical"[^>]*>/g, "")
     .replace(/<meta property="og:title"[^>]*>/, `<meta property="og:title" content="${escape(title)}" />`)
+    .replace(/<meta property="og:image"[^>]*>/, `<meta property="og:image" content="${escape(image)}" />`)
+    .replace(/<meta name="twitter:image"[^>]*>/, `<meta name="twitter:image" content="${escape(image)}" />`)
     .replace(/<meta\s+property="og:description"[^]*?\/>/, `<meta property="og:description" content="${escape(description)}" />`)
     .replace(/<meta property="og:url"[^>]*>/, dynamicGuide || notFound ? "" : `<meta property="og:url" content="${escape(canonical)}" />`)
     .replace(/<meta name="twitter:title"[^>]*>/, `<meta name="twitter:title" content="${escape(title)}" />`)

@@ -1,8 +1,15 @@
 ﻿import { SHOP_RECORDS } from "@/lib/shop-utils";
 import { canonicalPath, isKnownPage } from "./seo-policy";
+import shareImages from "./share-images.json";
 
 export const SITE_URL = "https://kingdom-adventures-community-tools.vercel.app";
 export const SITE_NAME = "Kingdom Adventurers Community Tools";
+export function getShareImageUrl(pathname: string) {
+  const route = canonicalPath(pathname);
+  const images: Record<string, string> = shareImages;
+  const parent = Object.keys(images).filter(path => path !== "/" && route.startsWith(path + "/")).sort((a, b) => b.length - a.length)[0];
+  return SITE_URL + (images[route] ?? images[parent] ?? images["/"]);
+}
 export function getDocumentTitle(title: string) {
   return title.includes("Kingdom Adventurers") ? title : `${title} | ${SITE_NAME}`;
 }

@@ -1,0 +1,11 @@
+{
+  "scope": "One playful costume concept only; native thumbnail sprites unchanged",
+  "asset": "wedding-blacksmith-carpenter-concept-v1.png",
+  "tool": "Built-in image generation",
+  "prompt": "Blacksmith father in black wedding suit and Carpenter mother in white dress, preserving small pixel sprite proportions and job head identity; transparent background.",
+  "parentJobs": 27,
+  "separateFatherMotherAssets": 54,
+  "allJobs": 34,
+  "separateAllJobAssets": 68,
+  "recommendedApproach": "Reusable suit and dress body layers composed with existing job heads; review exceptions before full rollout."
+}

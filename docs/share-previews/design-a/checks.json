@@ -1,0 +1,166 @@
+{
+  "total": 32,
+  "failures": [],
+  "checks": [
+    {
+      "id": "home",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "skills",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "houses",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "jobs",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "shops",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "training-facilities",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "item-sources",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "equipment-stats",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "research",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "monster-spawns",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "monster-pet-stats",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "world-map-v2",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "combat",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "match-finder",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "equipment-leveling-optimizer",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "equipment-exchange",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "eggs",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "survey",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "chaos-setup-lab",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "world-builder",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "timed-events",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "briefing-room",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "weekly-conquest",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "gacha-events",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "wario-dungeon",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "daily-rank-rewards",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "kairo-room",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "jobs-marriage",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "job-center",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "playthrough-guide",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "guides",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "player-profile",
+      "overflow": [],
+      "brokenImages": 0
+    }
+  ]
+}

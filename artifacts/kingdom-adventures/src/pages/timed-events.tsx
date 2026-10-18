@@ -12,7 +12,7 @@ import { eventStatusCardClass, eventStatusClass, eventStatusLabel, type EventSta
 import { isWarioDungeonLive } from "@/lib/wairo-schedule";
 import { getFacilityIcon } from "@/lib/equipment-icons";
 
-const GACHA_BUTTON_X4_ICON = "/website_icons/requested/gacha_button_x4.png";
+const GACHA_EVENTS_ARTWORK = "/homepage-artwork/gacha-casino-v1.png";
 const WAIRO_DUNGEON_ICON = "/website_icons/facilities_confirmed/mapchip_223_wairo_dungeon.png";
 
 const EVENT_CARDS = [
@@ -28,7 +28,7 @@ const EVENT_CARDS = [
     href: "/gacha-events",
     title: "Gacha Events",
     description: "Featured S-rank jobs, S facilities, Kairo windows, and weapon banner timing.",
-    customIcon: GACHA_BUTTON_X4_ICON,
+    customIcon: GACHA_EVENTS_ARTWORK,
     status: "live" as EventStatus,
   },
   {
