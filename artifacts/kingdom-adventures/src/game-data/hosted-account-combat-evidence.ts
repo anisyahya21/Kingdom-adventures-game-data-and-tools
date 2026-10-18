@@ -297,3 +297,8 @@ const browserLookup = createHostedAccountCombatEvidenceLookup(async () => {
 export function findHostedAccountCombatEvidence(input: HostedEvidenceLookupInput): Promise<HostedEvidenceMatch[]> {
   return browserLookup.find(input);
 }
+
+/** Load the same validated memoized dataset used by exact evidence lookups. */
+export function loadHostedAccountCombatEvidenceDataset(): Promise<HostedEvidenceDataset> {
+  return browserLookup.load();
+}

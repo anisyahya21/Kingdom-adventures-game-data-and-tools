@@ -11,9 +11,10 @@ import { measuredStrategyBuild } from "@/lib/chest-strategy-boundaries";
 import { strategyMatchDeviation, type ProfileStrategyMatch } from "@/lib/profile-strategy-matches";
 import { compareFarmingDpsRank } from "@/lib/farming-dps-ranking";
 import { exactAccountDiagnosticCase, accountDiagnosticLabel, accountDiagnosticScenario, accountDiagnosticFailedPilotApplies, accountDiagnosticObservedDeathsApply } from "@/game-data/account-diagnostic-evidence";
-import { findHostedAccountCombatEvidence, type HostedEvidenceMatch } from "@/game-data/hosted-account-combat-evidence";
+import { findHostedAccountCombatEvidence, loadHostedAccountCombatEvidenceDataset, type HostedEvidenceMatch } from "@/game-data/hosted-account-combat-evidence";
 import { HOSTED_ACCOUNT_EVIDENCE_FIXED_POLICY, prepareHostedAccountEvidenceInput } from "@/game-data/prepare-hosted-account-evidence";
 import type { ProfileGoalBuild } from "@/lib/profile-loadout-goal-planner";
+import { compareHostedRecipeEvidenceOrder, hostedEvidenceMatchesForScope, hostedRecipeEvidenceOrder, profileFarmingBuildFingerprint, projectHostedRecipeProfileCandidates, type HostedRecipeProfileCandidate } from "@/lib/hosted-recipe-profile-targets";
 import type { PlayerProfile } from "@/lib/player-profile";
 import type { SharedLoadoutData } from "@/lib/battle-legality";
 import type { FarmingPlannerSettings } from "@/lib/farming-planner";
@@ -50,8 +51,10 @@ function ConditionalHostedEvidence({ matches }: { matches: HostedEvidenceMatch[]
     <div className="mt-2 space-y-2">{matches.map((match) => {
       const summary = match.outcomeSummary;
       const terminality = summary.terminality;
+      const observedDeaths = summary.survival.survived < summary.survival.sampleSize;
+      const incompleteFirstBossCoverage = summary.firstBossAttempt.count < match.sample.n;
       return <div key={match.cohortId} className="rounded border bg-background/60 p-2">
-        <p className="font-medium">{hostedCohortLabel(match)} · {match.sample.n} tests</p>
+        <p className={`font-medium ${observedDeaths || incompleteFirstBossCoverage ? "text-amber-700 dark:text-amber-300" : ""}`}>{observedDeaths ? "Observed deaths · " : incompleteFirstBossCoverage ? "First boss not reached in every run · " : ""}{hostedCohortLabel(match)} · {match.sample.n} tests</p>
         <p className="mt-1 tabular-nums">Modeled average {summary.modeledCallbacks.mean.toFixed(1)} · survived {summary.survival.survived}/{summary.survival.sampleSize}{terminality.horizonCensored > 0 ? " · 18k-tick endpoint" : ""}</p>
         <details className="mt-1 text-muted-foreground">
           <summary className="cursor-pointer">Scope, resources, and limits</summary>
@@ -63,6 +66,22 @@ function ConditionalHostedEvidence({ matches }: { matches: HostedEvidenceMatch[]
     })}</div>
   </div>;
 }
+
+type BuildCardRow = {
+  sourceKind: "research-target" | "hosted-recipe";
+  match: ProfileStrategyMatch | null;
+  option: ChestStrategyOption | null;
+  recipe: HostedRecipeProfileCandidate | null;
+  build: ProfileGoalBuild;
+  fingerprint: string;
+  dedupeFingerprint: string;
+  favoriteFingerprints: string[];
+  measured: ReturnType<typeof measuredStrategyBuild>;
+  failedExactSetupPilot: boolean;
+  observedDpsDeaths: boolean;
+  deviation: number;
+  hostedMatches: HostedEvidenceMatch[];
+};
 
 export function FarmingDpsResults({ profile, sharedData, plannerSettings, matches, options, busy, status, error, onCancel, onCreate, equipmentIcons, allowUpgrades, exactOnly, testedProfileBuild, testedProfileCandidate, testedProfileAlternatives, testedProfileSetup }: {
   profile: PlayerProfile | null; matches: ProfileStrategyMatch[] | null; options: ChestStrategyOption[];
@@ -77,9 +96,21 @@ export function FarmingDpsResults({ profile, sharedData, plannerSettings, matche
     profile: PlayerProfile; sharedData: SharedLoadoutData; settings: FarmingPlannerSettings;
     matches: Record<string, HostedEvidenceMatch[]>;
   } | null>(null);
-  const hostedEvidenceByFingerprint = hostedEvidenceState?.profile === profile &&
-    hostedEvidenceState?.sharedData === sharedData && hostedEvidenceState?.settings === plannerSettings
-    ? hostedEvidenceState.matches : {};
+  const [hostedDatasetState, setHostedDatasetState] = useState<{
+    profile: PlayerProfile; sharedData: SharedLoadoutData; settings: FarmingPlannerSettings;
+    dataset: Awaited<ReturnType<typeof loadHostedAccountCombatEvidenceDataset>>;
+  } | null>(null);
+  const [recipeEvidenceState, setRecipeEvidenceState] = useState<{
+    profile: PlayerProfile; sharedData: SharedLoadoutData; settings: FarmingPlannerSettings;
+    matches: Record<string, HostedEvidenceMatch[]>;
+  } | null>(null);
+  const hostedEvidenceByFingerprint = hostedEvidenceMatchesForScope(hostedEvidenceState, profile, sharedData, plannerSettings);
+  const hostedDataset = hostedDatasetState?.profile === profile && hostedDatasetState.sharedData === sharedData &&
+    hostedDatasetState.settings === plannerSettings ? hostedDatasetState.dataset : null;
+  const hostedRecipeCandidates = useMemo(() => profile && sharedData && plannerSettings && hostedDataset
+    ? projectHostedRecipeProfileCandidates(hostedDataset, profile, sharedData, plannerSettings, exactOnly) : [],
+  [hostedDataset, profile, sharedData, plannerSettings, exactOnly]);
+  const hostedRecipeEvidenceByFingerprint = hostedEvidenceMatchesForScope(recipeEvidenceState, profile, sharedData, plannerSettings);
   const favorites = useFarmingFavorites();
   const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -91,6 +122,18 @@ export function FarmingDpsResults({ profile, sharedData, plannerSettings, matche
       setNotice("");
     }
   }, [busy]);
+  useEffect(() => {
+    let cancelled = false;
+    setHostedDatasetState(null);
+    setRecipeEvidenceState(null);
+    if (!profile || !sharedData || !plannerSettings) return () => { cancelled = true; };
+    void loadHostedAccountCombatEvidenceDataset().then((dataset) => {
+      if (!cancelled) setHostedDatasetState({ profile, sharedData, settings: plannerSettings, dataset });
+    }).catch(() => {
+      // Recipe suggestions are optional; a failed evidence asset leaves the existing stat search intact.
+    });
+    return () => { cancelled = true; };
+  }, [profile, sharedData, plannerSettings]);
   const equipmentHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (created) equipmentHeading.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -100,7 +143,7 @@ export function FarmingDpsResults({ profile, sharedData, plannerSettings, matche
   const [showFixedTeamBenchmarks, setShowFixedTeamBenchmarks] = useState(false);
   useEffect(() => setPage(0), [matches]);
   useEffect(() => setCreatedPage(0), [matches, created]);
-  const rows = useMemo(() => {
+  const targetRows = useMemo(() => {
     const optionById = new Map(options.map((option) => [option.id, option]));
     const seen = new Set<string>();
     return (matches ?? []).flatMap((match) => {
@@ -116,28 +159,107 @@ export function FarmingDpsResults({ profile, sharedData, plannerSettings, matche
         const diagnostic = exactAccountDiagnosticCase(option.encounter, build, character?.gender);
         const failedExactSetupPilot = accountDiagnosticFailedPilotApplies(diagnostic, option.encounter, testedProfileSetup);
         const observedDpsDeaths = accountDiagnosticObservedDeathsApply(diagnostic, option.encounter, testedProfileSetup);
-        return [{ match: variant, build, option, fingerprint, measured, failedExactSetupPilot, observedDpsDeaths, deviation: strategyMatchDeviation(variant, option) }];
+        return [{ sourceKind: "research-target" as const, match: variant, build, option, recipe: null, fingerprint, dedupeFingerprint: profileFarmingBuildFingerprint(build, profile), favoriteFingerprints: [fingerprint], measured, failedExactSetupPilot, observedDpsDeaths, deviation: strategyMatchDeviation(variant, option), hostedMatches: [] as HostedEvidenceMatch[] }];
       });
     }).sort((a, b) => compareFarmingDpsRank({ id: a.match.id, failedExactSetupPilot: a.failedExactSetupPilot, observedDpsDeaths: a.observedDpsDeaths, measuredMean: a.measured?.mean ?? null, deviation: a.deviation }, { id: b.match.id, failedExactSetupPilot: b.failedExactSetupPilot, observedDpsDeaths: b.observedDpsDeaths, measuredMean: b.measured?.mean ?? null, deviation: b.deviation }));
   }, [matches, options, profile, exactOnly, testedProfileSetup]);
   const firstRows = useMemo(() => {
-    const first = new Map<string, (typeof rows)[number]>();
-    for (const row of rows) if (!first.has(row.match.id)) first.set(row.match.id, row);
+    const first = new Map<string, (typeof targetRows)[number]>();
+    for (const row of targetRows) if (!first.has(row.match.id)) first.set(row.match.id, row);
     return first;
-  }, [rows]);
+  }, [targetRows]);
   const matchesById = new Map((matches ?? []).map((match) => [match.id, match]));
   const availableMatches = [...firstRows.keys()].flatMap((id) => matchesById.has(id) ? [matchesById.get(id)!] : []);
   const pageCount = Math.max(1, Math.ceil(availableMatches.length / 25));
   const pageMatches = availableMatches.slice(page * 25, (page + 1) * 25);
+  const targetByFingerprint = useMemo(() => {
+    const map = new Map<string, (typeof targetRows)[number]>();
+    for (const row of targetRows) if (!map.has(row.dedupeFingerprint)) map.set(row.dedupeFingerprint, row);
+    return map;
+  }, [targetRows]);
+  useEffect(() => {
+    let cancelled = false;
+    setRecipeEvidenceState(null);
+    if (!profile || !sharedData || !plannerSettings || hostedRecipeCandidates.length === 0) return () => { cancelled = true; };
+    void Promise.all(hostedRecipeCandidates.map(async (candidate) => {
+      const fingerprint = favoriteFingerprint(candidate.build, profile);
+      try {
+        if (candidate.build.addedLevels !== 0) return [fingerprint, []] as const;
+        const prepared = await prepareHostedAccountEvidenceInput({ build: candidate.build, profile, sharedData, plannerSettings, policy: HOSTED_ACCOUNT_EVIDENCE_FIXED_POLICY });
+        return [fingerprint, await findHostedAccountCombatEvidence(prepared.lookupInput)] as const;
+      } catch {
+        return [fingerprint, []] as const;
+      }
+    })).then((entries) => {
+      if (!cancelled) setRecipeEvidenceState({ profile, sharedData, settings: plannerSettings, matches: Object.fromEntries(entries) });
+    });
+    return () => { cancelled = true; };
+  }, [hostedRecipeCandidates, profile, sharedData, plannerSettings]);
+  const recipeRows = useMemo<BuildCardRow[]>(() => hostedRecipeCandidates.map((recipe) => {
+    const build = recipe.build;
+    const fingerprint = profile ? favoriteFingerprint(build, profile) : "";
+    const dedupeFingerprint = profile ? profileFarmingBuildFingerprint(build, profile) : fingerprint;
+    const target = targetByFingerprint.get(dedupeFingerprint);
+    const character = profile?.characters.find(({ id }) => id === build.characterId);
+    const diagnostic = plannerSettings ? exactAccountDiagnosticCase(plannerSettings.encounterId, build, character?.gender) : null;
+    const hostedMatches = hostedRecipeEvidenceByFingerprint[fingerprint] ?? [];
+    const encounterId = plannerSettings?.encounterId;
+    const measured = target?.measured ?? null;
+    return {
+      sourceKind: "hosted-recipe",
+      match: target?.match ?? null,
+      option: target?.option ?? null,
+      recipe,
+      build,
+      fingerprint,
+      dedupeFingerprint,
+      favoriteFingerprints: [...new Set([fingerprint, ...(target?.favoriteFingerprints ?? [])])],
+      measured,
+      failedExactSetupPilot: encounterId === undefined ? false : accountDiagnosticFailedPilotApplies(diagnostic, encounterId, testedProfileSetup),
+      observedDpsDeaths: encounterId === undefined ? false : accountDiagnosticObservedDeathsApply(diagnostic, encounterId, testedProfileSetup),
+      deviation: target?.deviation ?? Infinity,
+      hostedMatches,
+    };
+  }), [hostedRecipeCandidates, profile, targetByFingerprint, plannerSettings, hostedRecipeEvidenceByFingerprint, testedProfileSetup]);
+  const buildRows = useMemo<BuildCardRow[]>(() => {
+    const recipeFingerprints = new Set(recipeRows.map(({ dedupeFingerprint }) => dedupeFingerprint));
+    const combined: BuildCardRow[] = [
+      ...targetRows.filter(({ dedupeFingerprint }) => !recipeFingerprints.has(dedupeFingerprint)),
+      ...recipeRows,
+    ];
+    const tier = (row: BuildCardRow) => {
+      if (row.failedExactSetupPilot || row.observedDpsDeaths) return 3;
+      if (row.sourceKind === "research-target") return 1;
+      const order = hostedRecipeEvidenceOrder(row.hostedMatches);
+      if (order.kind === "observed-deaths") return 3;
+      return order.kind === "no-observed-deaths" ? 0 : 2;
+    };
+    return combined.sort((a, b) => {
+      const rank = tier(a) - tier(b);
+      if (rank !== 0) return rank;
+      const sourceOrder = a.sourceKind.localeCompare(b.sourceKind);
+      if (sourceOrder !== 0) return sourceOrder;
+      if (a.sourceKind === "hosted-recipe" && b.sourceKind === "hosted-recipe") {
+        return compareHostedRecipeEvidenceOrder(hostedRecipeEvidenceOrder(a.hostedMatches), hostedRecipeEvidenceOrder(b.hostedMatches)) ||
+          (a.recipe?.recipeId ?? "").localeCompare(b.recipe?.recipeId ?? "");
+      }
+      if (a.sourceKind === "research-target" && b.sourceKind === "research-target") {
+        return compareFarmingDpsRank({ id: a.match?.id ?? a.fingerprint, failedExactSetupPilot: a.failedExactSetupPilot, observedDpsDeaths: a.observedDpsDeaths, measuredMean: a.measured?.mean ?? null, deviation: a.deviation },
+          { id: b.match?.id ?? b.fingerprint, failedExactSetupPilot: b.failedExactSetupPilot, observedDpsDeaths: b.observedDpsDeaths, measuredMean: b.measured?.mean ?? null, deviation: b.deviation });
+      }
+      return 0;
+    });
+  }, [recipeRows, targetRows]);
   const createdRows = useMemo(() => {
-    if (busy && !created) return [];
+    if (busy && !created) return buildRows.filter((row) => row.sourceKind === "hosted-recipe");
     const seen = new Set<string>();
-    return rows.filter((row) => {
-      if (created && !created.includes(row.match.id) || seen.has(row.fingerprint)) return false;
-      seen.add(row.fingerprint);
+    return buildRows.filter((row) => {
+      if (row.sourceKind === "research-target" && created !== null && !created.includes(row.match?.id ?? "") ||
+          seen.has(row.dedupeFingerprint)) return false;
+      seen.add(row.dedupeFingerprint);
       return true;
     });
-  }, [rows, created, busy]);
+  }, [buildRows, recipeRows, created, busy]);
   const createdPageCount = Math.max(1, Math.ceil(createdRows.length / 5));
   const visibleCreatedPage = Math.min(createdPage, createdPageCount - 1);
   const testedProfileVisible = !!testedProfileBuild && !!testedProfileCandidate && !!testedProfileSetup && !!profile &&
@@ -147,8 +269,9 @@ export function FarmingDpsResults({ profile, sharedData, plannerSettings, matche
   useEffect(() => {
     let cancelled = false;
     setHostedEvidenceState(null);
-    if (!profile || !sharedData || !plannerSettings || !pageCreatedRows.length) return () => { cancelled = true; };
-    void Promise.all(pageCreatedRows.map(async ({ fingerprint, build }) => {
+    const targetPageRows = pageCreatedRows.filter(({ sourceKind }) => sourceKind === "research-target");
+    if (!profile || !sharedData || !plannerSettings || !targetPageRows.length) return () => { cancelled = true; };
+    void Promise.all(targetPageRows.map(async ({ fingerprint, build }) => {
       try {
         const prepared = await prepareHostedAccountEvidenceInput({ build, profile, sharedData, plannerSettings, policy: HOSTED_ACCOUNT_EVIDENCE_FIXED_POLICY });
         return [fingerprint, await findHostedAccountCombatEvidence(prepared.lookupInput)] as const;
@@ -173,8 +296,8 @@ export function FarmingDpsResults({ profile, sharedData, plannerSettings, matche
     <p role="status" className="text-xs text-muted-foreground">{status || "Preparing your profile…"}</p>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {notice && <p role="status" className="text-sm">{notice}</p>}
-    {!busy && !error && matches !== null && rows.length === 0 && <p className="rounded-lg border p-4 text-sm text-muted-foreground">No {exactOnly ? "exact " : ""}build found for this setup. Try allowing gear upgrades or removing exclusions. An unfinished search does not prove a build is impossible.</p>}
-    {rows.length > 0 && <details className="rounded-xl border bg-card p-4">
+    {!busy && !error && matches !== null && targetRows.length === 0 && hostedRecipeCandidates.length === 0 && <p className="rounded-lg border p-4 text-sm text-muted-foreground">No {exactOnly ? "exact " : ""}build found for this setup. Try allowing gear upgrades or removing exclusions. An unfinished search does not prove a build is impossible.</p>}
+    {targetRows.length > 0 && <details className="rounded-xl border bg-card p-4">
       <summary className="cursor-pointer text-sm font-medium">Browse stat matches ({availableMatches.length}) · rewards untested</summary>
       <div className="mt-3">
       <label className="mb-3 flex min-h-11 items-center gap-2 text-sm">
@@ -210,15 +333,19 @@ export function FarmingDpsResults({ profile, sharedData, plannerSettings, matche
       <Button className="mt-4 min-h-11" disabled={busy || selected.length === 0} onClick={() => setCreated([...selected])}>View selected equipment{selected.length > 0 ? ` (${selected.length})` : ""}</Button>
       </div>
     </details>}
-    {createdRows.length > 0 && <h2 ref={equipmentHeading} className="scroll-mt-24 pt-2 text-lg font-semibold">Your equipment options · untested first</h2>}
+    {createdRows.length > 0 && <h2 ref={equipmentHeading} className="scroll-mt-24 pt-2 text-lg font-semibold">Your equipment options</h2>}
     {createdRows.length > 5 && <div className="rounded-xl border bg-card p-4">{renderCreatedPagination()}</div>}
-    {pageCreatedRows.map(({ match, build, option, fingerprint }) => {
+    {pageCreatedRows.map((row) => {
+      const { sourceKind, match, build, option, recipe, fingerprint } = row;
       const character = profile!.characters.find((character) => character.id === build.characterId);
-      const evidence = measuredStrategyBuild(option.encounter, build.stats);
-      const diagnostic = exactAccountDiagnosticCase(option.encounter, build, character?.gender);
-      const saved = favorites.some((favorite) => favorite.fingerprint === fingerprint);
-      return <Card key={`${option.id}:${fingerprint}`}><CardContent className="space-y-4 p-4 sm:p-5">
-        <div className="flex items-center gap-3"><CharacterPreviewCanvas jobName={build.jobName ?? character?.jobName ?? "Guard"} rank={build.rank ?? character?.rank} variant={character?.gender === 1 ? 2 : 1} equipState="right" scale={2} poseFrame={0} weaponName={build.picks.find((pick) => pick.slot === "Weapon")?.item} shieldName={build.picks.find((pick) => pick.slot === "Shield")?.item} label={build.characterName} className="h-16 w-16 object-contain" /><div><h3 className="font-semibold">{build.jobName ?? character?.jobName} · Rank {build.rank ?? character?.rank}</h3><p className="text-xs text-muted-foreground">{match.complete ? "Search complete" : "Closest found so far"} · {strategyMatchDeviation(match, option) === 0 ? "Exact target stats" : "Alternative stats"}</p></div></div>
+      const diagnostic = exactAccountDiagnosticCase(option?.encounter ?? plannerSettings?.encounterId ?? 0, build, character?.gender);
+      const saved = favorites.some((favorite) => row.favoriteFingerprints.includes(favorite.fingerprint));
+      const favoriteGoals = option
+        ? chestStrategyGoals(option, { atk: 0, spd: 0, lck: 0 })
+        : Object.fromEntries(["atk", "spd", "lck", "dex"].map((stat) => [stat, { mode: "range" as const, min: build.stats[stat], max: build.stats[stat] }]));
+      const hostedMatches = recipe ? row.hostedMatches : hostedEvidenceByFingerprint[fingerprint] ?? [];
+      return <Card key={`${recipe?.recipeId ?? option?.id ?? "recipe"}:${fingerprint}`}><CardContent className="space-y-4 p-4 sm:p-5">
+        <div className="flex items-center gap-3"><CharacterPreviewCanvas jobName={build.jobName ?? character?.jobName ?? "Guard"} rank={build.rank ?? character?.rank} variant={character?.gender === 1 ? 2 : 1} equipState="right" scale={2} poseFrame={0} weaponName={build.picks.find((pick) => pick.slot === "Weapon")?.item} shieldName={build.picks.find((pick) => pick.slot === "Shield")?.item} label={build.characterName} className="h-16 w-16 object-contain" /><div><h3 className="font-semibold">{build.jobName ?? character?.jobName} · Rank {build.rank ?? character?.rank}</h3><p className="text-xs text-muted-foreground">{sourceKind === "hosted-recipe" ? (build.addedLevels > 0 ? "Gear upgrades required" : "Built from your profile") : match ? `${match.complete ? "Search complete" : "Closest found so far"} · ${strategyMatchDeviation(match, option!) === 0 ? "Exact target stats" : "Alternative stats"}` : "Profile build"}</p></div></div>
         <div className="flex flex-wrap gap-3 text-sm tabular-nums">{["atk", "spd", "lck", "dex", "hp", "mp", "def"].map((stat) => <span key={stat}><span className="text-xs text-muted-foreground">{stat.toUpperCase()}</span> {build.stats[stat]?.toLocaleString()}</span>)}</div>
         <div><h4 className="mb-2 text-xs font-medium">Equipment</h4><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{build.picks.map((pick) => {
           const icon = getEquipmentIcon(equipmentIcons, pick.item);
@@ -227,9 +354,9 @@ export function FarmingDpsResults({ profile, sharedData, plannerSettings, matche
         })}{build.picks.length === 0 && <p className="text-sm text-muted-foreground">No equipment needed for these stats.</p>}</div></div>
         {!!build.skills?.length && <p className="text-xs text-muted-foreground">Required skills: {build.skills.join(" · ")} · check ownership in game.</p>}
         {diagnostic && <div className="rounded-md border border-amber-500/30 px-3 py-2 text-xs"><p className="font-medium text-amber-700 dark:text-amber-300">{accountDiagnosticLabel(diagnostic)}</p><details className="mt-1 text-muted-foreground"><summary className="cursor-pointer">Scenario assumptions</summary><p className="mt-1">{accountDiagnosticScenario(diagnostic)}</p></details></div>}
-        <p className="text-xs text-muted-foreground">{evidence ? `These exact stats averaged ${evidence.mean.toFixed(2)} chests with the fixed research team (${evidence.n} runs).` : "Rewards for these stats have not been measured."} Test your own team in the simulator.</p>
-        <ConditionalHostedEvidence matches={hostedEvidenceByFingerprint[fingerprint] ?? []} />
-        <div className="flex flex-wrap gap-2"><Button onClick={() => onCreate(build, profile!, "simulator")}>Simulate</Button><Button variant="outline" onClick={() => onCreate(build, profile!, "builder")}>Save character</Button><Button variant="outline" disabled={saved} onClick={() => { try { saveFarmingFavorite(build, profile!, chestStrategyGoals(option, { atk: 0, spd: 0, lck: 0 }), allowUpgrades); setNotice("Saved to Favorites."); } catch (cause) { setNotice(cause instanceof Error ? cause.message : "Could not save favorite."); } }}><Star className={`mr-2 h-4 w-4 ${saved ? "fill-current" : ""}`} />{saved ? "Saved" : "Favorite"}</Button></div>
+        {hostedMatches.length === 0 && <p className="text-xs text-muted-foreground">Reward average unmeasured for this build.</p>}
+        <ConditionalHostedEvidence matches={hostedMatches} />
+        <div className="flex flex-wrap gap-2"><Button onClick={() => onCreate(build, profile!, "simulator")}>Simulate</Button><Button variant="outline" onClick={() => onCreate(build, profile!, "builder")}>Save character</Button><Button variant="outline" disabled={saved} onClick={() => { try { saveFarmingFavorite(build, profile!, favoriteGoals, allowUpgrades); setNotice("Saved to Favorites."); } catch (cause) { setNotice(cause instanceof Error ? cause.message : "Could not save favorite."); } }}><Star className={`mr-2 h-4 w-4 ${saved ? "fill-current" : ""}`} />{saved ? "Saved" : "Favorite"}</Button></div>
       </CardContent></Card>;
     })}
     {createdRows.length > 5 && <div className="rounded-xl border bg-card p-4">{renderCreatedPagination()}</div>}
