@@ -1,0 +1,586 @@
+{
+  "count": 116,
+  "old": [],
+  "report": [
+    {
+      "route": "/",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/admin",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/add-friends",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/battle",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/add-guide",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/combat/character-builder",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/combat-18ff5e03eb.png"
+    },
+    {
+      "route": "/battle-replay",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/combat/formulas",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/combat-18ff5e03eb.png"
+    },
+    {
+      "route": "/battle-setup",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/combat/multi-box",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/combat-18ff5e03eb.png"
+    },
+    {
+      "route": "/combat",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/combat-18ff5e03eb.png"
+    },
+    {
+      "route": "/chaos-setup-lab",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/chaos-setup-lab-a8ea6453a6.png"
+    },
+    {
+      "route": "/briefing-room",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/briefing-room-ffd0da0f25.png"
+    },
+    {
+      "route": "/combat/multi-box/favorites",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/combat-18ff5e03eb.png"
+    },
+    {
+      "route": "/combat/multi-box/simulator",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/combat-18ff5e03eb.png"
+    },
+    {
+      "route": "/combat/multi-box/match-stats",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/combat-18ff5e03eb.png"
+    },
+    {
+      "route": "/eggs",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/eggs-8005fa6bdb.png"
+    },
+    {
+      "route": "/eggs-pets-monsters",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/daily-rank-rewards",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/daily-rank-rewards-c8d7ee5a92.png"
+    },
+    {
+      "route": "/equipment",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/equipment-exchange",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/equipment-exchange-b14427b435.png"
+    },
+    {
+      "route": "/gacha-events",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/gacha-events-963e45efda.png"
+    },
+    {
+      "route": "/equipment-stats",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/equipment-stats-dea9e8f9a2.png"
+    },
+    {
+      "route": "/event-reminders",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/guides/stat-effects",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/guides-7b7262b98e.png"
+    },
+    {
+      "route": "/guides",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/guides-7b7262b98e.png"
+    },
+    {
+      "route": "/equipment-leveling-optimizer",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/equipment-leveling-optimizer-0dc44be305.png"
+    },
+    {
+      "route": "/equipment-level-optimizer",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/equipment-leveling-optimizer-0dc44be305.png"
+    },
+    {
+      "route": "/icon-library",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/houses",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/houses-45eef21a78.png"
+    },
+    {
+      "route": "/items-reference",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/item-sources-0d5573d8b3.png"
+    },
+    {
+      "route": "/item-sources",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/item-sources-0d5573d8b3.png"
+    },
+    {
+      "route": "/job-center",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/job-center-1da2f484c0.png"
+    },
+    {
+      "route": "/jobs-marriage",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-marriage-5ac7660fca.png"
+    },
+    {
+      "route": "/jobs/Artisan",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Artist",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Archer",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Berserker",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Beast Tamer",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Blacksmith",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Champion",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Carpenter",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Doctor",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Cook",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Entertainer",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Guerilla",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Guard",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Farmer",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Gunner",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Knight",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Mage",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Magic Knight",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Monarch",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Merchant",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Mover",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Ninja",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Monk",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Pirate",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Paladin",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Rancher",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Royal",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Researcher",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Scholar",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Santa Claus",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Trader",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Samurai",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/match-finder",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/match-finder-ee30301de9.png"
+    },
+    {
+      "route": "/loadout",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/combat-18ff5e03eb.png"
+    },
+    {
+      "route": "/jobs/Viking",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/jobs/Wizard",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/jobs-16560c4489.png"
+    },
+    {
+      "route": "/map-2-testing",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/monster-pet-stats",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/monster-pet-stats-7deb900787.png"
+    },
+    {
+      "route": "/monster-spawns",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/monster-spawns-568e047ee6.png"
+    },
+    {
+      "route": "/monster-spawn",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/monster-spawns-568e047ee6.png"
+    },
+    {
+      "route": "/monster-loot",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/monster-spawns-568e047ee6.png"
+    },
+    {
+      "route": "/monsters",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/monster-spawns-568e047ee6.png"
+    },
+    {
+      "route": "/player-profile",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/player-profile-141620751e.png"
+    },
+    {
+      "route": "/monsters-pets",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/monster-xp",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/research",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/research-a40b776598.png"
+    },
+    {
+      "route": "/runtime-world-grid-test",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/kairo-room",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/kairo-room-485cb19826.png"
+    },
+    {
+      "route": "/runtime-world-render-test",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/shops",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/accessory-shop",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/furniture-shop",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/aquarium",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/armor-shop",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/insectarium",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/item-shop",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/museum",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/orchard",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/restaurant",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/items-reference",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/weapon-shop",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/zoo",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/shops/skill-shop",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/shops-7cfba84a7f.png"
+    },
+    {
+      "route": "/skills",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/skills-bba8bee7fb.png"
+    },
+    {
+      "route": "/skill",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/skills-bba8bee7fb.png"
+    },
+    {
+      "route": "/strategy-search",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/survey",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/survey-9228aeaa26.png"
+    },
+    {
+      "route": "/survey-planner",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/survey-9228aeaa26.png"
+    },
+    {
+      "route": "/sync-devices",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/terrain-composition-lab",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/test",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/timed-events",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/timed-events-fdb30ccc16.png"
+    },
+    {
+      "route": "/updates",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/town-rank",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/training-facilities",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/training-facilities-0023a8eb02.png"
+    },
+    {
+      "route": "/wario-dungeon",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/wario-dungeon-76c44374c3.png"
+    },
+    {
+      "route": "/weekly-conquest",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/weekly-conquest-051e555f93.png"
+    },
+    {
+      "route": "/world-builder",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/world-builder-6ea147f5ec.png"
+    },
+    {
+      "route": "/world-map",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/home-f1b81a3395.png"
+    },
+    {
+      "route": "/world-map-v2",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/world-map-v2-a21740ad7e.png"
+    },
+    {
+      "route": "/playthrough-guide",
+      "status": 200,
+      "image": "https://kingdom-adventures-community-tools.vercel.app/social/design-a-v1/playthrough-guide-9f9aa56555.png"
+    }
+  ]
+}

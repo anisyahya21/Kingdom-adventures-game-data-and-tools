@@ -1,19 +1,9 @@
 {
-  "total": 32,
+  "total": 43,
   "failures": [],
   "checks": [
     {
       "id": "home",
-      "overflow": [],
-      "brokenImages": 0
-    },
-    {
-      "id": "skills",
-      "overflow": [],
-      "brokenImages": 0
-    },
-    {
-      "id": "houses",
       "overflow": [],
       "brokenImages": 0
     },
@@ -23,12 +13,17 @@
       "brokenImages": 0
     },
     {
-      "id": "shops",
+      "id": "houses",
       "overflow": [],
       "brokenImages": 0
     },
     {
-      "id": "training-facilities",
+      "id": "skills",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "shops",
       "overflow": [],
       "brokenImages": 0
     },
@@ -38,12 +33,12 @@
       "brokenImages": 0
     },
     {
-      "id": "equipment-stats",
+      "id": "training-facilities",
       "overflow": [],
       "brokenImages": 0
     },
     {
-      "id": "research",
+      "id": "equipment-stats",
       "overflow": [],
       "brokenImages": 0
     },
@@ -53,7 +48,7 @@
       "brokenImages": 0
     },
     {
-      "id": "monster-pet-stats",
+      "id": "research",
       "overflow": [],
       "brokenImages": 0
     },
@@ -63,7 +58,7 @@
       "brokenImages": 0
     },
     {
-      "id": "combat",
+      "id": "monster-pet-stats",
       "overflow": [],
       "brokenImages": 0
     },
@@ -73,7 +68,7 @@
       "brokenImages": 0
     },
     {
-      "id": "equipment-leveling-optimizer",
+      "id": "combat",
       "overflow": [],
       "brokenImages": 0
     },
@@ -83,12 +78,17 @@
       "brokenImages": 0
     },
     {
-      "id": "eggs",
+      "id": "equipment-leveling-optimizer",
       "overflow": [],
       "brokenImages": 0
     },
     {
       "id": "survey",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "eggs",
       "overflow": [],
       "brokenImages": 0
     },
@@ -113,12 +113,12 @@
       "brokenImages": 0
     },
     {
-      "id": "weekly-conquest",
+      "id": "gacha-events",
       "overflow": [],
       "brokenImages": 0
     },
     {
-      "id": "gacha-events",
+      "id": "weekly-conquest",
       "overflow": [],
       "brokenImages": 0
     },
@@ -159,6 +159,61 @@
     },
     {
       "id": "player-profile",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "combat-formulas",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "character-builder",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "multi-box",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "match-stats",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "favorite-builds",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "resident-stats",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "farming-simulator",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "equipment",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "eggs-pets-monsters",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "monster-xp",
+      "overflow": [],
+      "brokenImages": 0
+    },
+    {
+      "id": "monsters-pets",
       "overflow": [],
       "brokenImages": 0
     }

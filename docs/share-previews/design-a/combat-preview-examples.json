@@ -1,0 +1,38 @@
+{
+  "attack": 1000,
+  "defence": 500,
+  "normal": {
+    "usedDefense": 500,
+    "attackPart": 1000,
+    "defensePart": 400,
+    "damage": "600"
+  },
+  "critical": {
+    "usedDefense": 62,
+    "attackPart": 1000,
+    "defensePart": 49,
+    "damage": "951"
+  },
+  "magic": [
+    {
+      "tier": "I",
+      "cells": 1
+    },
+    {
+      "tier": "II",
+      "cells": 5
+    },
+    {
+      "tier": "III",
+      "cells": 5
+    },
+    {
+      "tier": "IV",
+      "cells": 13
+    },
+    {
+      "tier": "V",
+      "cells": 13
+    }
+  ]
+}

@@ -190,5 +190,71 @@
     "label": "Player Profile",
     "group": "Community",
     "id": "player-profile"
+  },
+  {
+    "id": "combat-formulas",
+    "route": "/combat/formulas",
+    "label": "Combat Formulas",
+    "group": "Tools"
+  },
+  {
+    "id": "character-builder",
+    "route": "/combat/character-builder",
+    "label": "Character Builder",
+    "group": "Tools"
+  },
+  {
+    "id": "multi-box",
+    "route": "/combat/multi-box",
+    "label": "Multi-Box Farming",
+    "group": "Tools"
+  },
+  {
+    "id": "favorite-builds",
+    "route": "/combat/multi-box/favorites",
+    "label": "Favorite Builds",
+    "group": "Tools"
+  },
+  {
+    "id": "match-stats",
+    "route": "/combat/multi-box/match-stats",
+    "label": "Match Stats",
+    "group": "Tools"
+  },
+  {
+    "id": "farming-simulator",
+    "route": "/combat/multi-box/simulator",
+    "label": "Farming Simulator",
+    "group": "Tools"
+  },
+  {
+    "id": "resident-stats",
+    "route": "/guides/stat-effects",
+    "label": "Resident Stats",
+    "group": "Guides"
+  },
+  {
+    "id": "equipment",
+    "route": "/equipment",
+    "label": "Equipment",
+    "group": "Tools"
+  },
+  {
+    "id": "eggs-pets-monsters",
+    "route": "/eggs-pets-monsters",
+    "label": "Eggs, Pets & Monsters",
+    "group": "Tools"
+  },
+  {
+    "id": "monster-xp",
+    "route": "/monster-xp",
+    "label": "Monster XP",
+    "group": "Tools"
+  },
+  {
+    "id": "monsters-pets",
+    "route": "/monsters-pets",
+    "label": "Monsters & Pets",
+    "group": "Tools"
   }
 ]
