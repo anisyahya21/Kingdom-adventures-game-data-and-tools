@@ -112,6 +112,7 @@ const STAT_SHORT: Record<string, string> = {
 const MOBILE_SORT_OPTIONS = [
   { value: "mobile-sort", label: "Sort by" },
   { value: "name", label: "Name" },
+  { value: "shootingRange", label: "Shooting range" },
   { value: "element", label: "Element" },
   { value: "slot", label: "Slot" },
   { value: "studioLevel", label: "Studio Lv" },
@@ -256,6 +257,7 @@ export interface EquipmentItem {
   baseStats: Record<string, number>;
   incStats: Record<string, number>;
   elementAttribute: number | null;
+  shootingRange: number | null;
   crafterStudioLevel: number;
   crafterIntelligence: number;
 }
@@ -295,6 +297,7 @@ function parseLocalEquipmentSnapshot(): EquipmentItem[] {
   const nameColIdx = header.indexOf("name");
   const typeColIdx = header.indexOf("type");
   const attributeColIdx = header.indexOf("attribute");
+  const shootingRangeIdx = header.indexOf("shootingRange");
   const craftLvlIdx = header.indexOf("craftTermStudioLevel");
   const craftIntIdx = header.indexOf("craftTermIntelligence");
 
@@ -355,6 +358,8 @@ function parseLocalEquipmentSnapshot(): EquipmentItem[] {
       baseStats,
       incStats,
       elementAttribute,
+      shootingRange: sheetSlot === "Weapon" && shootingRangeIdx >= 0 && row[shootingRangeIdx]?.trim() && Number.isFinite(Number(row[shootingRangeIdx]))
+        ? Number(row[shootingRangeIdx]) : null,
       crafterStudioLevel: Number(row[craftLvlIdx]) || 0,
       crafterIntelligence: Number(row[craftIntIdx]) || 0,
     });
@@ -1232,6 +1237,11 @@ export default function EquipmentPage() {
           av = aAttr === null ? 99 : aAttr;
           bv = bAttr === null ? 99 : bAttr;
         }
+        else if (sortCol === "shootingRange") {
+          if (a.shootingRange === null && b.shootingRange !== null) return 1;
+          if (b.shootingRange === null && a.shootingRange !== null) return -1;
+          av = a.shootingRange ?? 0; bv = b.shootingRange ?? 0;
+        }
         else if (sortCol === "studioLevel") { av = a.crafterStudioLevel; bv = b.crafterStudioLevel; }
         else if (sortCol === "intReq") { av = a.crafterIntelligence; bv = b.crafterIntelligence; }
         else if (sortCol === "slot") { av = getItemSlot(a.name); bv = getItemSlot(b.name); }
@@ -1298,7 +1308,7 @@ export default function EquipmentPage() {
     return STAT_ORDER.filter((stat) => !excludeStatFilters.has(stat));
   }, [hideExcludedStatColumns, excludeStatFilters]);
 
-  const colCount = 10 + visibleStats.length; // drag, checkbox, favorite, icon, name, element, level, slot, craftable, ...stats
+  const colCount = 10 + visibleStats.length; // drag, checkbox, icon, favorite, name, range, level, slot, craftable, element, ...stats
 
   useEffect(() => {
     if (!sortCol) return;
@@ -1758,7 +1768,23 @@ export default function EquipmentPage() {
                       <th className="text-left px-1.5 py-2 font-medium text-muted-foreground whitespace-nowrap">
                         <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-foreground">Name <SortIcon col="name" /></button>
                       </th>
-                      <th className="text-center px-1 py-2 font-medium text-muted-foreground whitespace-nowrap w-11">
+                      <th className="text-center px-1 py-2 font-medium text-muted-foreground whitespace-nowrap w-px text-[11px]">
+                        <button onClick={() => handleSort("shootingRange")} className="inline-flex items-center gap-1 hover:text-foreground" title="Shooting range from the equipment data (weapons only)">
+                          <span>Shooting<br />range</span><SortIcon col="shootingRange" />
+                        </button>
+                      </th>
+                      <th className="text-center px-1.5 py-2 font-medium text-muted-foreground whitespace-nowrap w-16">Level</th>
+                      <th className="text-left px-1.5 py-2 font-medium text-muted-foreground whitespace-nowrap">
+                        <button onClick={() => handleSort("slot")} className="flex items-center gap-1 hover:text-foreground">Slot <SortIcon col="slot" /></button>
+                      </th>
+                      <th className="text-left px-1 py-2 font-medium text-muted-foreground whitespace-nowrap w-px text-[10px]">
+                        <div className="flex items-center gap-0.5">
+                          <button onClick={() => handleSort("studioLevel")} className="flex items-center gap-1 hover:text-foreground">Studio Lv <SortIcon col="studioLevel" /></button>
+                          <span className="text-muted-foreground/40">/</span>
+                          <button onClick={() => handleSort("intReq")} className="flex items-center gap-1 hover:text-foreground">INT Req <SortIcon col="intReq" /></button>
+                        </div>
+                      </th>
+                      <th className="text-center px-1 py-2 font-medium text-muted-foreground whitespace-nowrap w-px text-[11px]">
                         <div className="relative inline-flex items-center gap-1" ref={desktopElementSortMenuRef}>
                           <button onClick={() => handleSort("element")} className="inline-flex items-center gap-1 hover:text-foreground">Element</button>
                           <button
@@ -1808,17 +1834,6 @@ export default function EquipmentPage() {
                               })}
                             </div>
                           )}
-                        </div>
-                      </th>
-                      <th className="text-center px-1.5 py-2 font-medium text-muted-foreground whitespace-nowrap w-16">Level</th>
-                      <th className="text-left px-1.5 py-2 font-medium text-muted-foreground whitespace-nowrap">
-                        <button onClick={() => handleSort("slot")} className="flex items-center gap-1 hover:text-foreground">Slot <SortIcon col="slot" /></button>
-                      </th>
-                      <th className="text-left px-1.5 py-2 font-medium text-muted-foreground whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => handleSort("studioLevel")} className="flex items-center gap-1 hover:text-foreground">Studio Lv <SortIcon col="studioLevel" /></button>
-                          <span className="text-muted-foreground/40">/</span>
-                          <button onClick={() => handleSort("intReq")} className="flex items-center gap-1 hover:text-foreground">INT Req <SortIcon col="intReq" /></button>
                         </div>
                       </th>
                     {visibleStats.map((stat) => (
@@ -1914,17 +1929,8 @@ export default function EquipmentPage() {
                                 )}
                               </button>
                             </td>
-                            <td className="px-1 py-1.5 text-center">
-                              {item.elementAttribute !== null && ELEMENT_ICON_BY_ATTR[item.elementAttribute] ? (
-                                <img
-                                  src={ELEMENT_ICON_BY_ATTR[item.elementAttribute].src}
-                                  alt={ELEMENT_ICON_BY_ATTR[item.elementAttribute].label}
-                                  className="w-4 h-4 object-contain mx-auto"
-                                  title={ELEMENT_ICON_BY_ATTR[item.elementAttribute].label}
-                                />
-                              ) : (
-                                <span className="text-muted-foreground/40">-</span>
-                              )}
+                            <td className="px-1 py-1.5 text-center text-xs tabular-nums">
+                              {item.shootingRange ?? <span className="text-muted-foreground/40">-</span>}
                             </td>
                             <td className="px-1.5 py-1.5">
                               <NumInput value={level} min={1} max={99}
@@ -1937,10 +1943,22 @@ export default function EquipmentPage() {
                                 {itemSlot !== " " ? itemSlot : item.sheetSlot || " "}
                               </span>
                             </td>
-                            <td className="px-1.5 py-1.5">
+                            <td className="px-1 py-1.5 whitespace-nowrap text-[10px] tabular-nums">
                               {item.crafterStudioLevel === 0
-                                ? <span className="text-destructive text-xs font-medium">Not craftable</span>
-                                : <span className="text-xs"><strong>{item.crafterStudioLevel}</strong>{item.crafterIntelligence > 0 && <> / INT <strong>{item.crafterIntelligence}</strong></>}</span>}
+                                ? <span className="text-destructive text-[10px] font-medium">Not craftable</span>
+                                : <span><strong>{item.crafterStudioLevel}</strong>{item.crafterIntelligence > 0 && <> / INT <strong>{item.crafterIntelligence}</strong></>}</span>}
+                            </td>
+                            <td className="px-1 py-1.5 text-center">
+                              {item.elementAttribute !== null && ELEMENT_ICON_BY_ATTR[item.elementAttribute] ? (
+                                <img
+                                  src={ELEMENT_ICON_BY_ATTR[item.elementAttribute].src}
+                                  alt={ELEMENT_ICON_BY_ATTR[item.elementAttribute].label}
+                                  className="w-4 h-4 object-contain mx-auto"
+                                  title={ELEMENT_ICON_BY_ATTR[item.elementAttribute].label}
+                                />
+                              ) : (
+                                <span className="text-muted-foreground/40">-</span>
+                              )}
                             </td>
                           {visibleStats.map((stat) => {
   const unset = isStatUnset(item, stat, overrides);
@@ -2127,6 +2145,11 @@ export default function EquipmentPage() {
                               <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
                                 {itemSlot !== " " ? itemSlot : item.sheetSlot || "-"}
                               </span>
+                              {item.shootingRange !== null && (
+                                <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
+                                  Shooting range {item.shootingRange}
+                                </span>
+                              )}
                               {itemSlot === "Weapon" && weaponTypes[item.name] && (
                                 <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-2 py-1 text-[11px] font-medium text-foreground/80">
                                   {weaponTypes[item.name]}
