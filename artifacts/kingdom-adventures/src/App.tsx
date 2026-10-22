@@ -167,6 +167,7 @@ function SeoManager() {
       "@context": "https://schema.org",
       "@type": "WebSite",
       name: SITE_NAME,
+      alternateName: "Kingdom Adventurers",
       url: SITE_URL,
       description: DEFAULT_DESCRIPTION,
     }));
