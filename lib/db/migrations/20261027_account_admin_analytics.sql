@@ -1,4 +1,9 @@
 -- Additive only. Existing login identities, sessions and raw events are preserved.
+CREATE TABLE IF NOT EXISTS analytics_traffic_exclusions (
+  event_id text PRIMARY KEY,
+  reason text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin boolean NOT NULL DEFAULT false;
 CREATE TABLE IF NOT EXISTS analytics_site_daily (
   date date PRIMARY KEY,

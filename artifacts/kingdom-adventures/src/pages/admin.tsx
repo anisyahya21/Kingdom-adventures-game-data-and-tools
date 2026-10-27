@@ -238,7 +238,10 @@ export default function AdminPage() {
           </Button>
         }
       >
-        <p>Traffic history, daily visitors, and the pages people use.</p>
+        <p>
+          Estimated human traffic. Known crawlers, automated browsers, and
+          reviewed suspicious traffic are excluded.
+        </p>
       </PageHeader>
       <Card>
         <CardContent className="space-y-3 pt-5">
@@ -368,7 +371,7 @@ export default function AdminPage() {
               ),
           ],
           [
-            "Unique visitors",
+            "Estimated human visitors",
             data?.totals.uniqueVisitors,
             data &&
               comparison(
@@ -480,10 +483,10 @@ export default function AdminPage() {
             </p>
           )}
           <p className="mt-3 text-xs text-muted-foreground">
-            A visitor may use several devices or clear browser storage. Unique
-            visitors are estimates of browsers, not a count of identified
-            people. Period uniques are calculated separately, never by adding
-            daily uniques.
+            These are estimates, not verified people. Known automation is
+            excluded; unidentified automation may remain. One person can use
+            multiple devices or clear browser storage. Period uniques are
+            calculated separately, never by adding daily uniques.
           </p>
         </CardContent>
       </Card>

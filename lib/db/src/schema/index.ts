@@ -6,3 +6,4 @@ export * from "./analytics-events";
 export * from "./analytics-daily-rollup";
 export * from "./analytics-site-daily";
 export * from "./analytics-history-coverage";
+export * from "./analytics-traffic-exclusions";

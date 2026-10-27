@@ -131,24 +131,79 @@ try {
   );
   // Same anonymous browser across routes/day: one daily unique, repeated views.
   await db.query(
+    "ALTER TABLE analytics_events ALTER COLUMN user_agent SET DEFAULT 'Mozilla/5.0 Firefox/144.0'",
+  );
+  await db.query(
     "INSERT INTO analytics_events(event_id,timestamp,event_type,route,tool_slug,user_id,anon_id,session_id) VALUES('a','2025-01-01T12:00:00Z','page_view','/equipment','equipment',$1,'browser-a','s1'),('b','2025-01-01T13:00:00Z','page_view','/guides','guides',$1,'browser-a','s1'),('c','2025-01-01T14:00:00Z','page_view','/equipment','equipment',NULL,'browser-b','s2'),('d','2025-01-02T12:00:00Z','page_view','/equipment','equipment',$1,'browser-a','s3'),('e','2025-01-02T23:30:00Z','page_view','/guides','guides',NULL,'browser-b','s4')",
     [owner],
   );
+  await db.query(
+    "INSERT INTO analytics_site_daily(date,views,unique_visitors) VALUES('2025-01-01',999,999),('2025-01-03',999,999)",
+  );
+  const realPoolQuery = mod.pool.query.bind(mod.pool);
+  mod.pool.query = (...args) =>
+    String(args[0]).includes("INSERT INTO analytics_site_daily")
+      ? Promise.reject(new Error("fixture initial backfill failure"))
+      : realPoolQuery(...args);
+  await assert.rejects(
+    mod.refreshDailyAnalytics(true),
+    /fixture initial backfill failure/,
+  );
+  mod.pool.query = realPoolQuery;
+  await mod.refreshDailyAnalytics();
+  assert.equal(
+    Number(
+      (
+        await db.query(
+          "SELECT views FROM analytics_site_daily WHERE date='2025-01-01'",
+        )
+      ).rows[0].views,
+    ),
+    3,
+  );
   await mod.refreshDailyAnalytics(true);
+  checks.push(
+    "failed initial backfill retries full history instead of leaving stale raw counts",
+  );
+  await db.query(
+    "INSERT INTO analytics_events(event_id,timestamp,event_type,route,anon_id,session_id,user_agent) VALUES('google','2025-01-01T13:00Z','page_view','/bot','browser-a','bot','Googlebot/2.1'),('headless','2025-01-02T13:00Z','page_view','/bot','headless','headless','HeadlessChrome/145'),('bot-only','2025-01-04T13:00Z','page_view','/bot','bot-only','bot-only','DuckAssistBot/1.2'),('reviewed','2025-01-01T14:00Z','page_view','/reviewed','reviewed','reviewed','Mozilla/5.0 Chrome/145.0')",
+  );
+  await db.query(
+    "INSERT INTO analytics_traffic_exclusions(event_id,reason) VALUES('reviewed','suspected_automation_test_fixture')",
+  );
   await mod.refreshDailyAnalytics(true);
   await db.query(
-    "UPDATE analytics_history_coverage SET end_date='2025-01-03'; INSERT INTO analytics_history_coverage(start_date,end_date,source) VALUES('2026-01-01',NULL,'Current collection')",
+    "UPDATE analytics_history_coverage SET end_date='2025-01-04'; INSERT INTO analytics_history_coverage(start_date,end_date,source) VALUES('2026-01-01',NULL,'Current collection')",
   );
   assert.equal(
     (await db.query("SELECT count(*)::int AS n FROM analytics_site_daily"))
       .rows[0].n,
-    3,
+    4,
   );
   const rollup = (
     await db.query("SELECT * FROM analytics_site_daily WHERE date='2025-01-01'")
   ).rows[0];
   assert.equal(Number(rollup.views), 3);
   assert.equal(Number(rollup.unique_visitors), 2);
+  assert.equal(
+    Number(
+      (
+        await db.query(
+          "SELECT views FROM analytics_site_daily WHERE date='2025-01-04'",
+        )
+      ).rows[0].views,
+    ),
+    0,
+  );
+  assert.equal(
+    (await db.query("SELECT count(*)::int AS n FROM analytics_events")).rows[0]
+      .n,
+    9,
+  );
+  checks.push(
+    "known crawlers, headless and reviewed suspect records excluded without deleting originals",
+    "bot-only days have zero estimated human views",
+  );
   checks.push(
     "historical backfill is repeatable",
     "daily unique browsers deduplicated across pages",
@@ -303,6 +358,12 @@ try {
   await db.query(
     "INSERT INTO analytics_events(event_id,timestamp,event_type,route,tool_slug,anon_id,session_id) VALUES('older-than-day',now()-interval '25 hours','page_view','/recent','recent','recent-a','recent-a'),('inside-day',now()-interval '1 hour','page_view','/recent','recent','recent-b','recent-b')",
   );
+  await db.query(
+    "INSERT INTO analytics_events(event_id,timestamp,event_type,route,tool_slug,anon_id,session_id,user_agent) VALUES('recent-bot',now()-interval '2 hours','page_view','/bot','bot','recent-bot','recent-bot','Googlebot/2.1'),('recent-reviewed',now()-interval '2 hours','page_view','/reviewed','reviewed','recent-reviewed','recent-reviewed','Mozilla/5.0 Chrome/145')",
+  );
+  await db.query(
+    "INSERT INTO analytics_traffic_exclusions(event_id,reason) VALUES('recent-reviewed','suspected_automation_test_fixture')",
+  );
   await mod.refreshDailyAnalytics(true);
   const last24 = await request("/ka/admin/analytics?hours=24", ownerToken);
   assert.equal(last24.status, 200);
@@ -319,6 +380,89 @@ try {
   checks.push(
     "24 hours is a true rolling window in totals and daily rows",
     "24-hour comparison uses preceding 24 hours",
+  );
+  const trackerBody = {
+    eventId: "collector-check",
+    eventType: "page_view",
+    route: "/collector",
+    anonId: "collector-visitor",
+    sessionId: "collector-session",
+  };
+  const beforeIntake = (
+    await db.query("SELECT count(*)::int AS n FROM analytics_events")
+  ).rows[0].n;
+  for (const [agent, origin, automation] of [
+    [
+      "Googlebot/2.1",
+      "https://kingdom-adventures-community-tools.vercel.app",
+      false,
+    ],
+    [
+      "HeadlessChrome/145",
+      "https://kingdom-adventures-community-tools.vercel.app",
+      false,
+    ],
+    [
+      "ExaSearchBot/1.0",
+      "https://kingdom-adventures-community-tools.vercel.app",
+      false,
+    ],
+    ["Mozilla/5.0 Chrome/145", "http://localhost:5186", false],
+    ["Mozilla/5.0 Chrome/145", "https://preview-example.vercel.app", false],
+    [
+      "Mozilla/5.0 Chrome/145",
+      "https://kingdom-adventures-community-tools.vercel.app",
+      true,
+    ],
+  ]) {
+    const rejected = await request("/ka/analytics/events", undefined, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "user-agent": agent,
+        origin,
+      },
+      body: JSON.stringify({ ...trackerBody, automation }),
+    });
+    assert.equal(rejected.body.skipped, true);
+  }
+  assert.equal(
+    (await db.query("SELECT count(*)::int AS n FROM analytics_events")).rows[0]
+      .n,
+    beforeIntake,
+  );
+  const accepted = await request("/ka/analytics/events", undefined, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "user-agent": "Mozilla/5.0 Chrome/145",
+      origin: "https://kingdom-adventures-community-tools.vercel.app",
+    },
+    body: JSON.stringify(trackerBody),
+  });
+  assert.equal(accepted.body.ok, true);
+  assert.equal(
+    (await db.query("SELECT count(*)::int AS n FROM analytics_events")).rows[0]
+      .n,
+    beforeIntake + 1,
+  );
+  await mod.refreshDailyAnalytics(true);
+  assert.equal(
+    (await request("/ka/admin/top-pages?days=365", ownerToken)).body.rows.some(
+      (r) => r.route === "/bot" || r.route === "/reviewed",
+    ),
+    false,
+  );
+  assert.equal(
+    (await request("/ka/admin/top-tools?days=365", ownerToken)).body.rows.some(
+      (r) => r.toolSlug === "bot",
+    ),
+    false,
+  );
+  checks.push(
+    "intake discards known crawlers, automated flags, localhost and previews before persistence",
+    "normal production browser events remain trackable",
+    "legacy ranking endpoints use the same human filter",
   );
   const profile = await request("/auth/profile", userToken, {
     method: "POST",

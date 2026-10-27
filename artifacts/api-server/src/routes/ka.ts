@@ -4,6 +4,7 @@ import path from "path";
 import crypto from "crypto";
 import { readAnalytics } from "../lib/admin-analytics";
 import { getReminderAdminSummary } from "./event-reminders";
+import { HUMAN_TRAFFIC_SQL, isAnalyticsOrigin, isAutomationUserAgent } from "../lib/human-traffic";
 import { and, eq, gt, gte, isNull, like, sql } from "drizzle-orm";
 import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached } from "../lib/google-cache";
 import { renderJobPreview, renderJobPreviewByName } from "../lib/character-preview";
@@ -1002,6 +1003,10 @@ router.get("/ka/shared", async (req, res) => {
 });
 
 router.post("/ka/analytics/events", async (req, res) => {
+  const payload = req.body as { automation?: unknown } | undefined;
+  if (payload?.automation === true || isAutomationUserAgent(req.get("user-agent") || "") || !isAnalyticsOrigin(req.get("origin") || req.get("referer") || "")) {
+    res.json({ ok: true, skipped: true }); return;
+  }
   if (!dbModule) {
     await initDbModule();
   }
@@ -1093,7 +1098,7 @@ router.get("/ka/admin/overview", async (req, res) => {
   const uniqueVisitors30dResult = await dbModule.db
     .select({ count: sql<number>`count(distinct ${dbModule.analyticsEventsTable.anonId})::int` })
     .from(dbModule.analyticsEventsTable)
-    .where(gte(dbModule.analyticsEventsTable.timestamp, since));
+    .where(and(gte(dbModule.analyticsEventsTable.timestamp, since), eq(dbModule.analyticsEventsTable.eventType, "page_view"), sql.raw(HUMAN_TRAFFIC_SQL)));
 
   const state = readState();
   res.json({
@@ -1127,6 +1132,7 @@ router.get("/ka/admin/top-pages", async (req, res) => {
     .from(dbModule.analyticsEventsTable)
     .where(and(
       eq(dbModule.analyticsEventsTable.eventType, "page_view"),
+      sql.raw(HUMAN_TRAFFIC_SQL),
       gte(dbModule.analyticsEventsTable.timestamp, since),
     ))
     .groupBy(dbModule.analyticsEventsTable.route)
@@ -1157,6 +1163,7 @@ router.get("/ka/admin/top-tools", async (req, res) => {
     .from(dbModule.analyticsEventsTable)
     .where(and(
       eq(dbModule.analyticsEventsTable.eventType, "page_view"),
+      sql.raw(HUMAN_TRAFFIC_SQL),
       gte(dbModule.analyticsEventsTable.timestamp, since),
     ))
     .groupBy(dbModule.analyticsEventsTable.toolSlug)

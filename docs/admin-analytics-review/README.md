@@ -30,3 +30,15 @@ Signed-in reminder saves and client-context synchronization capture the account 
 - Screenshots use isolated fixture accounts and data. Real user provider consent is not claimed from fixture tests.
 
 Deployment status is recorded separately after verifying the API and website releases. The schema and owner grant were applied before releasing code that reads the new flag.
+
+## Human-traffic estimates
+
+The dashboard now filters known crawler, headless-browser and tool User-Agent signatures from every traffic query, daily aggregate, comparison, and legacy ranking endpoint. Missing User-Agents are excluded as unverified. This is an estimate, not proof that every remaining browser is a person. Explicit crawler names are used rather than a broad `bot` substring, so real device brands such as CUBOT are preserved.
+
+The production collector skips development, localhost, previews, known automation, navigator.webdriver and explicit QA-disabled contexts. The intake also rejects non-production origins, known automation and client-marked automation before database initialization/insertion. Google and other crawlers can still access the website; only their analytics events are suppressed. None of these signals is an authentication boundary or a complete anti-spoofing solution.
+
+Historical source records are preserved. `analytics_traffic_exclusions` records 227 reviewed suspicious events from 2026-09-17, 14:00-16:00 Europe/Berlin: fresh single-page visitor IDs with one exact browser string across 82 routes. This narrowly reviewed group is excluded as unverified/suspected automation, not asserted to be proven bots. Other unknown browser strings are not excluded merely for being unfamiliar. The filter can be revised and summaries rebuilt from original records.
+
+At review time, the policy estimated 41 visitors for 2026-09-17 (297 raw IDs) and 51 for 2026-10-18 (180 raw IDs). These counts are not forced to match Vercel, which uses a different visitor identification method. Dates, recovered history, gaps, reminder metrics and account permissions are preserved.
+
+`node tools/human-traffic-check.mjs` verifies the shared classifier and client collector without network calls. The real-router/PostgreSQL/browser suite now passes 42 grouped checks, including mixed human/bot days, zero-human days, preserved source records, collector rejection, normal production tracking, and consistent filtering across endpoints. The shared policy lives in a public JS module with type declarations so both browser and API use the same signatures and source list.

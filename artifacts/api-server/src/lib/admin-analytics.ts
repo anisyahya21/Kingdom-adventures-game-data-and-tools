@@ -1,5 +1,6 @@
 import { pool } from "@workspace/db";
 import migration from "../../../../lib/db/migrations/20261027_account_admin_analytics.sql";
+import { HUMAN_TRAFFIC_SQL } from "./human-traffic";
 
 export const ANALYTICS_TIMEZONE = "Europe/Berlin";
 
@@ -21,6 +22,7 @@ export async function ensureAdminAnalyticsSchema() {
 }
 
 let refreshedAt = 0;
+let needsFullRefresh = true;
 let refreshing: Promise<void> | undefined;
 export function refreshDailyAnalytics(force = false): Promise<void> {
   if (refreshing) return refreshing;
@@ -37,15 +39,18 @@ export function refreshDailyAnalytics(force = false): Promise<void> {
     // dates and new dates, making interrupted/back-to-back runs repeatable.
     await pool.query(
       `INSERT INTO analytics_site_daily(date, views, unique_visitors, signed_in_users, sessions)
-      SELECT (timestamp AT TIME ZONE $1)::date, count(*), count(DISTINCT anon_id), count(DISTINCT user_id), count(DISTINCT session_id)
+      SELECT (timestamp AT TIME ZONE $1)::date,
+        count(*) FILTER (WHERE ${HUMAN_TRAFFIC_SQL}), count(DISTINCT anon_id) FILTER (WHERE ${HUMAN_TRAFFIC_SQL}),
+        count(DISTINCT user_id) FILTER (WHERE ${HUMAN_TRAFFIC_SQL}), count(DISTINCT session_id) FILTER (WHERE ${HUMAN_TRAFFIC_SQL})
       FROM analytics_events
       WHERE event_type='page_view' AND ($2::boolean OR timestamp >= COALESCE(
         ((SELECT max(date)-1 FROM analytics_site_daily)::timestamp AT TIME ZONE $1), '-infinity'::timestamptz))
       GROUP BY 1
       ON CONFLICT(date) DO UPDATE SET views=excluded.views, unique_visitors=excluded.unique_visitors,
         signed_in_users=excluded.signed_in_users, sessions=excluded.sessions, updated_at=now()`,
-      [ANALYTICS_TIMEZONE, force],
+      [ANALYTICS_TIMEZONE, force || needsFullRefresh],
     );
+    needsFullRefresh = false;
     refreshedAt = Date.now();
   })().finally(() => {
     refreshing = undefined;
@@ -133,7 +138,7 @@ export async function readAnalytics(query: Record<string, unknown>) {
       ? pool.query(
           `WITH counts AS (
       SELECT (timestamp AT TIME ZONE $3)::date AS date,count(*)::int AS views,count(DISTINCT anon_id)::int AS visitors,count(DISTINCT user_id)::int AS users
-      FROM analytics_events WHERE event_type='page_view' AND timestamp >= $4::timestamptz AND timestamp < $5::timestamptz GROUP BY 1)
+      FROM analytics_events WHERE event_type='page_view' AND (${HUMAN_TRAFFIC_SQL}) AND timestamp >= $4::timestamptz AND timestamp < $5::timestamptz GROUP BY 1)
       SELECT to_char(d.date,'YYYY-MM-DD') AS date,coalesce(c.views,0) AS views,coalesce(c.visitors,0) AS "uniqueVisitors",coalesce(c.users,0) AS "signedInUsers"
       FROM generate_series($1::date,$2::date,'1 day') d(date) LEFT JOIN counts c ON c.date=d.date::date ORDER BY d.date`,
           bounds,
@@ -148,21 +153,21 @@ export async function readAnalytics(query: Record<string, unknown>) {
     pool.query(
       `SELECT count(*)::int AS views, count(DISTINCT anon_id)::int AS "uniqueVisitors",
       count(DISTINCT session_id)::int AS sessions, count(DISTINCT user_id)::int AS "signedInUsers"
-      FROM analytics_events WHERE event_type='page_view'
+      FROM analytics_events WHERE event_type='page_view' AND (${HUMAN_TRAFFIC_SQL})
       AND timestamp >= ($1::date::timestamp AT TIME ZONE $3)
       AND timestamp < (($2::date+1)::timestamp AT TIME ZONE $3)
       AND ($4::timestamptz IS NULL OR (timestamp >= $4::timestamptz AND timestamp < $5::timestamptz))`,
       bounds,
     ),
     pool.query(
-      `SELECT route, count(*)::int AS views FROM analytics_events WHERE event_type='page_view'
+      `SELECT route, count(*)::int AS views FROM analytics_events WHERE event_type='page_view' AND (${HUMAN_TRAFFIC_SQL})
       AND timestamp >= ($1::date::timestamp AT TIME ZONE $3) AND timestamp < (($2::date+1)::timestamp AT TIME ZONE $3)
       AND ($4::timestamptz IS NULL OR (timestamp >= $4::timestamptz AND timestamp < $5::timestamptz))
       GROUP BY route ORDER BY views DESC,route LIMIT 50`,
       bounds,
     ),
     pool.query(
-      `SELECT tool_slug AS "toolSlug",count(*)::int AS views FROM analytics_events WHERE event_type='page_view' AND coalesce(tool_slug,'')<>''
+      `SELECT tool_slug AS "toolSlug",count(*)::int AS views FROM analytics_events WHERE event_type='page_view' AND (${HUMAN_TRAFFIC_SQL}) AND coalesce(tool_slug,'')<>''
       AND timestamp >= ($1::date::timestamp AT TIME ZONE $3) AND timestamp < (($2::date+1)::timestamp AT TIME ZONE $3)
       AND ($4::timestamptz IS NULL OR (timestamp >= $4::timestamptz AND timestamp < $5::timestamptz))
       GROUP BY tool_slug ORDER BY views DESC,tool_slug LIMIT 50`,
@@ -172,13 +177,13 @@ export async function readAnalytics(query: Record<string, unknown>) {
       ? pool.query(
           `SELECT count(*)::int AS views,count(DISTINCT anon_id)::int AS "uniqueVisitors",
       to_char(($1::timestamptz-interval '24 hours') AT TIME ZONE $3,'YYYY-MM-DD') AS "from",to_char($1::timestamptz AT TIME ZONE $3,'YYYY-MM-DD') AS "to"
-      FROM analytics_events WHERE event_type='page_view' AND timestamp >= $1::timestamptz-interval '24 hours' AND timestamp < $1::timestamptz AND $2::timestamptz IS NOT NULL`,
+      FROM analytics_events WHERE event_type='page_view' AND (${HUMAN_TRAFFIC_SQL}) AND timestamp >= $1::timestamptz-interval '24 hours' AND timestamp < $1::timestamptz AND $2::timestamptz IS NOT NULL`,
           [fromInstant, toInstant, ANALYTICS_TIMEZONE],
         )
       : pool.query(
           `SELECT count(*)::int AS views,count(DISTINCT anon_id)::int AS "uniqueVisitors",
       to_char($1::date-($2::date-$1::date+1),'YYYY-MM-DD') AS "from",to_char($1::date-1,'YYYY-MM-DD') AS "to"
-      FROM analytics_events WHERE event_type='page_view'
+      FROM analytics_events WHERE event_type='page_view' AND (${HUMAN_TRAFFIC_SQL})
       AND timestamp >= (($1::date-($2::date-$1::date+1))::timestamp AT TIME ZONE $3)
       AND timestamp < ($1::date::timestamp AT TIME ZONE $3)`,
           [start, end, ANALYTICS_TIMEZONE],
@@ -219,7 +224,7 @@ export async function readAnalytics(query: Record<string, unknown>) {
     },
     definitions: {
       uniqueVisitors:
-        "Distinct browser visitor IDs. One person can use multiple devices; cleared cookies/storage create a new ID.",
+        "Estimated human browser visitors, excluding known automation and explicitly reviewed suspect traffic. Not proof of individual people.",
       views: "Tracked page views, including repeat visits.",
       dailyRetention:
         "Daily totals have no expiry. Existing raw events are preserved.",

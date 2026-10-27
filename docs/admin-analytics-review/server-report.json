@@ -4,6 +4,9 @@
     "additive repeatable migration preserves sessions",
     "no automatic username grant",
     "explicit account admin grant",
+    "failed initial backfill retries full history instead of leaving stale raw counts",
+    "known crawlers, headless and reviewed suspect records excluded without deleting originals",
+    "bot-only days have zero estimated human views",
     "historical backfill is repeatable",
     "daily unique browsers deduplicated across pages",
     "Berlin day boundaries",
@@ -22,6 +25,9 @@
     "reminder account attribution uses server session and preserves existing ownership",
     "24 hours is a true rolling window in totals and daily rows",
     "24-hour comparison uses preceding 24 hours",
+    "intake discards known crawlers, automated flags, localhost and previews before persistence",
+    "normal production browser events remain trackable",
+    "legacy ranking endpoints use the same human filter",
     "profile changes cannot elevate privileges",
     "Discord login uses same account and admin role",
     "unlink Telegram retains admin via Discord",
@@ -38,7 +44,7 @@
     "guest cannot open dashboard",
     "no browser runtime errors"
   ],
-  "count": 36,
+  "count": 42,
   "database": "disposable local PostgreSQL, removed on exit",
   "provider": "controlled Discord OAuth fixture, real account/session/router logic"
 }
