@@ -1,0 +1,18 @@
+{
+  "result": "PASS",
+  "checks": [
+    "quick duration buttons include rolling 24 hours",
+    "all stored history beyond one year",
+    "CSV contains accurate daily totals",
+    "chart metric toggle",
+    "ranking search",
+    "daily table pagination",
+    "custom historical date selection",
+    "mobile dashboard has no page overflow",
+    "analytics failure is visible and account totals remain available",
+    "guest cannot open dashboard",
+    "no browser runtime errors"
+  ],
+  "count": 11,
+  "backend": "actual server and disposable PostgreSQL; local fixture accounts"
+}

@@ -1,4 +1,5 @@
 import { discordApiFetch } from "../lib/discord-oauth";
+import { resolveWebsiteAccountId } from "./auth";
 import { Router } from "express";
 import fs from "fs";
 import path from "path";
@@ -109,6 +110,7 @@ type DiscordConnection = {
 
 type ReminderSubscription = {
   id: string;
+  ownerUserId?: string;
   clientId: string;
   clientTimeZoneOffsetMinutes?: number;
   endpoint?: string;
@@ -713,7 +715,19 @@ async function bootstrapEventReminderPersistence() {
   }
 }
 
-void bootstrapEventReminderPersistence();
+const reminderPersistenceReady = bootstrapEventReminderPersistence();
+
+// Share the exact initialized store used by reminder delivery; the dashboard
+// must not count an unrelated or stale local-file snapshot.
+export async function getReminderAdminSummary() {
+  await reminderPersistenceReady;
+  const subscriptions = readStore().subscriptions;
+  const devices = new Set(subscriptions.map((s) => s.clientId));
+  const identifiedDevices = new Set(subscriptions.filter((s) => s.ownerUserId).map((s) => s.clientId));
+  return { subscriptions: subscriptions.length, devices: devices.size,
+    accounts: new Set(subscriptions.map((s) => s.ownerUserId).filter(Boolean)).size,
+    unattributedDevices: [...devices].filter((id) => !identifiedDevices.has(id)).length, storage: persistenceMode };
+}
 
 function eventClockDateToLocalDate(date: Date, offset: number) {
   return new Date(date.getTime() - offset * HOUR_MS);
@@ -1683,6 +1697,7 @@ router.post("/event-reminders/discord/disconnect", async (req, res) => {
 });
 
 router.post("/event-reminders/subscriptions", async (req, res) => {
+  await reminderPersistenceReady;
   const pushSubscription = req.body?.pushSubscription;
   const clientId = String(req.body?.clientId || "").trim();
   const subscriptionId = String(req.body?.subscriptionId || "");
@@ -1731,6 +1746,7 @@ router.post("/event-reminders/subscriptions", async (req, res) => {
   const existing = store.subscriptions.find((subscription) => subscription.id === id);
   const next: ReminderSubscription = {
     id,
+    ownerUserId: existing?.ownerUserId || await resolveWebsiteAccountId(String(req.cookies?.ka_session || "")),
     clientId,
     clientTimeZoneOffsetMinutes: normalizeTimeZoneOffset(req.body?.clientTimeZoneOffsetMinutes),
     endpoint: isPushSubscription(pushSubscription) ? pushSubscription.endpoint : undefined,
@@ -1766,6 +1782,8 @@ router.delete("/event-reminders/subscriptions", async (req, res) => {
 });
 
 router.post("/event-reminders/subscriptions/sync-client-context", async (req, res) => {
+  await reminderPersistenceReady;
+  const ownerUserId = await resolveWebsiteAccountId(String(req.cookies?.ka_session || ""));
   const clientId = String(req.body?.clientId || "").trim();
   const clientTimeZoneOffsetMinutes = normalizeTimeZoneOffset(req.body?.clientTimeZoneOffsetMinutes);
   if (!clientId || clientTimeZoneOffsetMinutes === undefined) {
@@ -1777,10 +1795,11 @@ router.post("/event-reminders/subscriptions/sync-client-context", async (req, re
   let updated = 0;
   store.subscriptions = store.subscriptions.map((subscription) => {
     if (subscription.clientId !== clientId) return subscription;
-    if (subscription.clientTimeZoneOffsetMinutes === clientTimeZoneOffsetMinutes) return subscription;
+    if (subscription.clientTimeZoneOffsetMinutes === clientTimeZoneOffsetMinutes && (subscription.ownerUserId || !ownerUserId)) return subscription;
     updated += 1;
     return {
       ...subscription,
+      ownerUserId: subscription.ownerUserId || ownerUserId,
       clientTimeZoneOffsetMinutes,
       updatedAt: Date.now(),
     };
@@ -1947,6 +1966,6 @@ router.post("/event-reminders/debug/test-weekly", async (req, res) => {
   res.status(result.failed ? 502 : 200).json({ ok: result.delivered > 0 && result.failed === 0, ...result });
 });
 
-startAutoDueScheduler();
+if (process.env.NODE_ENV !== "test") startAutoDueScheduler();
 
 export default router;

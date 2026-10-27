@@ -158,28 +158,6 @@ async function verifyTelegramOidcIdToken(idToken: string, nonce: string) {
   return payload;
 }
 
-function getAdminTelegramUserIds() {
-  return new Set(
-    String(process.env.TELEGRAM_ADMIN_USER_IDS || "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean),
-  );
-}
-
-function getAdminTelegramUsernames() {
-  // The default is the verified owner account. Deployments can replace this
-  // with a comma-separated TELEGRAM_ADMIN_USERNAMES allowlist.
-  const configured = String(process.env.TELEGRAM_ADMIN_USERNAMES || "AnesYahya");
-  return new Set(configured.split(",").map((value) => value.trim().replace(/^@+/, "").toLowerCase()).filter(Boolean));
-}
-
-function isAdminTelegramUser(telegramUserId?: string | null, telegramUsername?: string | null) {
-  if (telegramUserId && getAdminTelegramUserIds().has(String(telegramUserId))) return true;
-  if (!telegramUsername) return false;
-  return getAdminTelegramUsernames().has(String(telegramUsername).replace(/^@+/, "").toLowerCase());
-}
-
 function baseUrlFromRequest(req: Parameters<typeof router.get>[1] extends never ? never : any) {
   const explicitClientOrigin = String(req.get("x-ka-origin") || "").trim();
   if (/^https?:\/\//i.test(explicitClientOrigin)) {
@@ -398,6 +376,7 @@ async function getSessionUser(module: DbModule, rawSessionToken: string) {
       sessionId: module.userSessionsTable.id,
       sessionExpiresAt: module.userSessionsTable.expiresAt,
       userId: module.usersTable.id,
+      isAdmin: module.usersTable.isAdmin,
       telegramUserId: module.usersTable.telegramUserId,
       telegramUsername: module.usersTable.telegramUsername,
       discordUserId: module.usersTable.discordUserId,
@@ -419,6 +398,13 @@ async function getSessionUser(module: DbModule, rawSessionToken: string) {
     .limit(1);
 
   return rows[0] || null;
+}
+
+export async function resolveWebsiteAccountId(rawSessionToken: string): Promise<string | undefined> {
+  if (!rawSessionToken) return undefined;
+  const module = await getDbModule();
+  if (!module) return undefined;
+  return (await getSessionUser(module, rawSessionToken))?.userId;
 }
 
 function clearSessionCookie(res: Parameters<typeof router.get>[1] extends never ? never : any) {
@@ -929,7 +915,7 @@ router.get("/session", async (req, res) => {
     guest: false,
     user: {
       id: sessionUser.userId,
-      isAdmin: isAdminTelegramUser(sessionUser.telegramUserId, sessionUser.telegramUsername),
+      isAdmin: sessionUser.isAdmin === true,
       telegramUsername: sessionUser.telegramUsername || "",
       linkedProviders: { telegram: Boolean(sessionUser.telegramUserId), discord: Boolean(sessionUser.discordUserId) },
       discordUsername: sessionUser.discordUsername || "",

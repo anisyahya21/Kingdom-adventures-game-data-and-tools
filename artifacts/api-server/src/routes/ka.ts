@@ -2,6 +2,8 @@ import { Router, type Request } from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { readAnalytics } from "../lib/admin-analytics";
+import { getReminderAdminSummary } from "./event-reminders";
 import { and, eq, gt, gte, isNull, like, sql } from "drizzle-orm";
 import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached } from "../lib/google-cache";
 import { renderJobPreview, renderJobPreviewByName } from "../lib/character-preview";
@@ -803,20 +805,6 @@ type AnalyticsEventRequest = {
   country?: string;
 };
 
-function getAdminTelegramUserIds() {
-  return new Set(
-    String(process.env.TELEGRAM_ADMIN_USER_IDS || "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean),
-  );
-}
-
-function getAdminTelegramUsernames() {
-  const configured = String(process.env.TELEGRAM_ADMIN_USERNAMES || "AnesYahya");
-  return new Set(configured.split(",").map((value) => value.trim().replace(/^@+/, "").toLowerCase()).filter(Boolean));
-}
-
 async function resolveAuthenticatedSession(req: Request): Promise<AuthenticatedSession | undefined> {
   const rawSessionToken = String((req as Request & { cookies?: Record<string, string> }).cookies?.[SESSION_COOKIE_NAME] || "").trim();
   if (!rawSessionToken || !process.env.DATABASE_URL) return undefined;
@@ -830,6 +818,7 @@ async function resolveAuthenticatedSession(req: Request): Promise<AuthenticatedS
   const rows = await dbModule.db
     .select({
       userId: dbModule.userSessionsTable.userId,
+      isAdmin: dbModule.usersTable.isAdmin,
       telegramUserId: dbModule.usersTable.telegramUserId,
       telegramUsername: dbModule.usersTable.telegramUsername,
       firstName: dbModule.usersTable.firstName,
@@ -861,8 +850,7 @@ async function resolveAuthenticatedSession(req: Request): Promise<AuthenticatedS
   return {
     userId: row.userId,
     telegramUserId: row.telegramUserId || "",
-    isAdmin: getAdminTelegramUserIds().has(String(row.telegramUserId))
-      || getAdminTelegramUsernames().has(String(row.telegramUsername || "").replace(/^@+/, "").toLowerCase()),
+    isAdmin: row.isAdmin === true,
     displayName,
     gameId: String(row.gameId || "").trim(),
   };
@@ -884,17 +872,6 @@ function requireAdmin(session: AuthenticatedSession | undefined, res: Parameters
   if (session?.isAdmin) return true;
   res.status(403).json({ error: "Admin access required." });
   return false;
-}
-
-function countReminderSubscriptions() {
-  const reminderStorePath = path.join(DATA_DIR, "event-reminder-subscriptions.json");
-  if (!fs.existsSync(reminderStorePath)) return 0;
-  try {
-    const parsed = JSON.parse(fs.readFileSync(reminderStorePath, "utf8")) as { subscriptions?: unknown[] };
-    return Array.isArray(parsed.subscriptions) ? parsed.subscriptions.length : 0;
-  } catch {
-    return 0;
-  }
 }
 
 function uniqueGuideSlug(state: SharedState, base: string, existingId?: string) {
@@ -1069,6 +1046,26 @@ router.post("/ka/analytics/events", async (req, res) => {
   res.json({ ok: true });
 });
 
+router.use("/ka/admin", (_req, res, next) => {
+  res.set("Cache-Control", "private, no-store");
+  res.set("Vercel-CDN-Cache-Control", "no-store");
+  res.vary("Cookie");
+  next();
+});
+
+router.get("/ka/admin/analytics", async (req, res) => {
+  const session = await resolveAuthenticatedSession(req);
+  if (!requireAdmin(session, res)) return;
+  try { res.json(await readAnalytics(req.query)); }
+  catch (error) {
+    if (error instanceof Error && /^(Choose valid dates|Stored history begins)/.test(error.message)) {
+      res.status(400).json({ error: error.message }); return;
+    }
+    console.error("admin analytics failed", error);
+    res.status(503).json({ error: "Analytics could not be loaded. Please try again." });
+  }
+});
+
 router.get("/ka/admin/overview", async (req, res) => {
   const currentSession = await resolveAuthenticatedSession(req);
   if (!requireAdmin(currentSession, res)) return;
@@ -1102,7 +1099,8 @@ router.get("/ka/admin/overview", async (req, res) => {
   res.json({
     users: usersCountResult[0]?.count ?? 0,
     activeSessions: activeSessionsResult[0]?.count ?? 0,
-    reminderSubscriptions: countReminderSubscriptions(),
+    reminderSubscriptions: (await getReminderAdminSummary()).subscriptions,
+    reminderAudience: await getReminderAdminSummary(),
     guides: state.communityGuides.length,
     uniqueVisitors30d: uniqueVisitors30dResult[0]?.count ?? 0,
   });

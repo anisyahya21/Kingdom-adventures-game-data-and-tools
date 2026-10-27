@@ -4,3 +4,5 @@ export * from "./user-sessions";
 export * from "./auth-challenges";
 export * from "./analytics-events";
 export * from "./analytics-daily-rollup";
+export * from "./analytics-site-daily";
+export * from "./analytics-history-coverage";

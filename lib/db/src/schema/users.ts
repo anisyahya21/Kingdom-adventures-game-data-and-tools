@@ -1,7 +1,8 @@
-import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const usersTable = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
+  isAdmin: boolean("is_admin").notNull().default(false),
   telegramUserId: text("telegram_user_id").unique(),
   discordUserId: text("discord_user_id").unique(),
   discordUsername: text("discord_username"),
