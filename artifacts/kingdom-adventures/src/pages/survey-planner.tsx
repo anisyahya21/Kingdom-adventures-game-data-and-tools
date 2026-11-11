@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { PLAYTHROUGH_GUIDE_LOCAL_URL } from "@/lib/playthrough-guide";
+import { PLAYTHROUGH_GUIDE_MARKDOWN } from "@/lib/playthrough-guide";
 import { parseCsv } from "@/lib/monster-truth";
 import { SearchableSelect } from "@/components/searchable-select";
 import { PageHeader } from "@/components/ka/page-header";
@@ -686,8 +686,6 @@ export default function SurveyPlanner() {
   const [overrideValues, setOverrideValues] = useState(false);
   const [surveyTimeMinutes, setSurveyTimeMinutes] = useState<number | "">(0);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const [guideMarkdown, setGuideMarkdown] = useState("");
-  const [guideLoading, setGuideLoading] = useState(true);
   const [surveyListExpanded, setSurveyListExpanded] = useState(false);
   const [isMobileSurveyList, setIsMobileSurveyList] = useState(false);
   // New: Track expanded/collapsed state for each group
@@ -700,7 +698,6 @@ export default function SurveyPlanner() {
     mediaQuery.addEventListener?.("change", updateMobile);
     return () => mediaQuery.removeEventListener?.("change", updateMobile);
   }, []);
-  const [guideError, setGuideError] = useState<string | null>(null);
 
   const survey = SURVEYS.find((s) => s.id === selectedSurveyId) ?? SURVEYS[0];
   const surveyCapableJobFamilies = useMemo(() => {
@@ -805,38 +802,6 @@ export default function SurveyPlanner() {
     setManualEquipmentHeartValue("");
     setManualCombinedHeartValue("");
   }, [selectedJobGroupId, selectedJobFamily?.variants, surveyCapableJobFamilies]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadGuide() {
-      setGuideLoading(true);
-      setGuideError(null);
-      try {
-        const response = await fetch(PLAYTHROUGH_GUIDE_LOCAL_URL);
-        if (!response.ok) {
-          throw new Error(`Guide request failed with ${response.status}`);
-        }
-        const text = await response.text();
-        if (!cancelled) {
-          setGuideMarkdown(text);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setGuideError(error instanceof Error ? error.message : "Failed to load guide");
-        }
-      } finally {
-        if (!cancelled) {
-          setGuideLoading(false);
-        }
-      }
-    }
-
-    loadGuide();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1386,27 +1351,21 @@ export default function SurveyPlanner() {
             </div>
           </DialogHeader>
           <div className="overflow-y-auto max-h-[82vh] space-y-4 text-sm leading-relaxed text-muted-foreground">
-            {guideLoading ? (
-              <div className="py-10 text-center text-sm text-muted-foreground">Loading full survey section...</div>
-            ) : guideError ? (
-              <div className="py-10 text-center text-sm text-destructive">{guideError}</div>
-            ) : (
-              (() => {
-                const parsedGuide = parseGuide(guideMarkdown);
-                const surveySection = parsedGuide.sections.find((section) => section.title.toLowerCase() === "survey");
-                if (!surveySection) {
-                  return <div className="py-10 text-center text-sm text-muted-foreground">Could not locate the full survey section in the guide.</div>;
-                }
-                return (
+            {(() => {
+              const parsedGuide = parseGuide(PLAYTHROUGH_GUIDE_MARKDOWN);
+              const surveySection = parsedGuide.sections.find((section) => section.title.toLowerCase() === "survey");
+              if (!surveySection) {
+                return <div className="py-10 text-center text-sm text-muted-foreground">Could not locate the full survey section in the guide.</div>;
+              }
+              return (
+                <div className="space-y-4">
+                  <div className="text-sm text-foreground font-semibold">Survey</div>
                   <div className="space-y-4">
-                    <div className="text-sm text-foreground font-semibold">Survey</div>
-                    <div className="space-y-4">
-                      {surveySection.lines.map((line, index) => renderLine(line, index, parsedGuide.imageMap))}
-                    </div>
+                    {surveySection.lines.map((line, index) => renderLine(line, index, parsedGuide.imageMap))}
                   </div>
-                );
-              })()
-            )}
+                </div>
+              );
+            })()}
           </div>
         </DialogContent>
       </Dialog>

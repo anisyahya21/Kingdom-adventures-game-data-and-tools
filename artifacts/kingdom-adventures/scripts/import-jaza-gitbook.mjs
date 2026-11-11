@@ -1,7 +1,7 @@
 import { rename, writeFile } from "node:fs/promises";
 
 const source = new URL("https://jazas.gitbook.io/kingdom-adventurers/");
-const output = new URL("../public/guides/jaza-gitbook.md", import.meta.url);
+const output = new URL("../src/lib/jaza-gitbook.md", import.meta.url);
 const temporary = new URL(output.href + ".tmp");
 
 async function fetchText(url) {

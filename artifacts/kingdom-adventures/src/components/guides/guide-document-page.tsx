@@ -2677,6 +2677,7 @@ export function GuideDocumentPage({
   docUrl,
   sourceLabel = "Open Google Doc",
   fallbackUrl,
+  bundledMarkdown,
   overlays = {},
   ownerGuideId,
   ownerToken,
@@ -2688,6 +2689,7 @@ export function GuideDocumentPage({
   docUrl?: string;
   sourceLabel?: string;
   fallbackUrl?: string;
+  bundledMarkdown?: string;
   overlays?: Record<string, GuideSectionOverlay>;
   ownerGuideId?: string;
   ownerToken?: string;
@@ -2695,8 +2697,8 @@ export function GuideDocumentPage({
 }) {
   const guideCacheKey = `guide-doc:${docId ?? fallbackUrl}`;
   const cachedMarkdown = readBrowserCache<string>(guideCacheKey, 7 * 24 * 60 * 60 * 1000);
-  const [markdown, setMarkdown] = useState(() => cachedMarkdown ?? "");
-  const [loading, setLoading] = useState(() => !cachedMarkdown);
+  const [markdown, setMarkdown] = useState(() => bundledMarkdown ?? cachedMarkdown ?? "");
+  const [loading, setLoading] = useState(() => !bundledMarkdown && !cachedMarkdown);
   const [error, setError] = useState<string | null>(null);
   const [linkOverrides, setLinkOverridesState] = useState<GuideLinkOverrides>(() => {
     const normalizedServerOverrides = normalizeGuideLinkOverrides(serverLinkOverrides);
@@ -2943,6 +2945,7 @@ export function GuideDocumentPage({
   }, [ownerGuideId, normalizedServerOverrides, normalizedServerOverridesKey]);
 
   useEffect(() => {
+    if (bundledMarkdown !== undefined) return;
     let cancelled = false;
     const cached = readBrowserCache<string>(guideCacheKey, 7 * 24 * 60 * 60 * 1000);
     if (cached) {
@@ -2954,25 +2957,6 @@ export function GuideDocumentPage({
     }
 
     async function loadGuide() {
-      if (!docId && fallbackUrl) {
-        try {
-          const response = await fetch(fallbackUrl);
-          if (!response.ok) throw new Error("Could not load the guide.");
-          const content = await response.text();
-          if (!/^# /m.test(content)) throw new Error("Could not load the guide.");
-          if (!cancelled) {
-            writeBrowserCache(guideCacheKey, content);
-            setMarkdown(content);
-            setError(null);
-          }
-        } catch {
-          if (!cancelled && !cached) setError("Could not load the guide.");
-        } finally {
-          if (!cancelled) setLoading(false);
-        }
-        return;
-      }
-
       let fallbackLoaded = false;
 
       // Local markdown should be the primary render path when available.
@@ -3042,7 +3026,7 @@ export function GuideDocumentPage({
     return () => {
       cancelled = true;
     };
-  }, [docId, fallbackUrl, guideCacheKey]);
+  }, [docId, fallbackUrl, guideCacheKey, bundledMarkdown]);
 
   useEffect(() => {
     // Do not persist TOC section selection in the URL.
@@ -3063,7 +3047,8 @@ export function GuideDocumentPage({
     });
   }, [mobileTocOpen]);
 
-  const parsedGuide = useMemo(() => parseGuide(markdown), [markdown]);
+  const guideMarkdown = bundledMarkdown ?? markdown;
+  const parsedGuide = useMemo(() => parseGuide(guideMarkdown), [guideMarkdown]);
   const sections = parsedGuide.sections;
   const toc = sections.filter((section) => section.level <= 2);
   const getGuideScrollOffset = () => {

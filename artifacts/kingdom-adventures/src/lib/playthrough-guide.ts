@@ -1,4 +1,4 @@
-export const PLAYTHROUGH_GUIDE_LOCAL_URL = "/guides/jaza-gitbook.md";
+export { default as PLAYTHROUGH_GUIDE_MARKDOWN } from "./jaza-gitbook.md?raw";
 
 export const PLAYTHROUGH_GUIDE_SOURCE_URL = "https://jazas.gitbook.io/kingdom-adventurers";
 
