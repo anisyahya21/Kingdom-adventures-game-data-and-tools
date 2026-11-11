@@ -2345,7 +2345,7 @@ function MarriageReference({ interactive }: { interactive: boolean }) {
   );
 
   return (
-    <ReferencePage title="Marriage compatibility" actions={[
+    <ReferencePage title="Marriage compatibility" fullWidth actions={[
       { href: "/match-finder?tab=finder", label: "Match Finder", icon: "/website_icons/requested/child_mark.png", description: "Find matches for the residents in your town." },
       { href: "/match-finder?tab=simulator", label: "Marriage Simulator", icon: "/website_icons/requested/assign_button.png", description: "Try two parents and see their possible children." },
     ]}>
@@ -2413,8 +2413,8 @@ function MarriageReference({ interactive }: { interactive: boolean }) {
             {viewPicker}
           </div>
           {rows.length > 0 && (
-            <div className="hidden md:block">
-              <p className="mb-2 text-sm text-muted-foreground">Each cell shows affinity and the child job associated with the pair. Select a pair to see all options.</p>
+            <div className="min-w-0">
+              <p className="mb-2 text-sm text-muted-foreground">Select a pair to see its child jobs. Scroll sideways for more parents.</p>
               {selected && <p className="mb-2 text-sm" role="status"><strong>{selected.jobA} + {selected.jobB}:</strong>{" "}{selected.options.length ? selected.options.join(", ") : "No recorded child jobs."}</p>}
               <div className={parentJobs.length ? "w-fit max-w-full" : undefined}>
                 <ReferenceTable label="Marriage compatibility matrix" compact>
@@ -2445,21 +2445,7 @@ function MarriageReference({ interactive }: { interactive: boolean }) {
               </div>
             </div>
           )}
-          <div className={rows.length ? "md:hidden" : ""}>
-            <ReferenceTable label="Marriage pair results">
-              <thead><tr><th scope="col">Parent pair</th><th scope="col">Affinity</th><th scope="col">Possible child jobs</th></tr></thead>
-              <tbody>
-                {matching.map((pair) => (
-                  <tr key={pair.id}>
-                    <th scope="row"><ReferenceJobName name={pair.jobA} /> + <ReferenceJobName name={pair.jobB} /></th>
-                    <td><span className={"inline-block rounded border px-1 font-semibold " + (AFFINITY_STYLE[pair.affinity] ?? "border-border")}>{pair.affinity || "—"}</span>{pair.affinityNum !== undefined ? ` (${pair.affinityNum}%)` : ""}</td>
-                    <td className="min-w-32 whitespace-normal">{pair.options.length ? pair.options.map((name, index) => <span key={name}>{index > 0 && ", "}<ReferenceJobName name={name} /></span>) : "—"}</td>
-                  </tr>
-                ))}
-                {!matching.length && <tr><td colSpan={3}>No pair matches.</td></tr>}
-              </tbody>
-            </ReferenceTable>
-          </div>
+          {!rows.length && <p role="status" className="py-4 text-sm text-muted-foreground">No parent pairs match these filters.</p>}
         </>
       )}
     </ReferencePage>

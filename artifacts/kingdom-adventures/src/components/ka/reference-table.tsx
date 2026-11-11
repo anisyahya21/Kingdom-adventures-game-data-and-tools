@@ -20,13 +20,14 @@ export function ReferenceToolCard({ label, description, href, onClick, disabled,
     : <button type="button" onClick={onClick} disabled={disabled} className={toolCardClass + " disabled:opacity-50"}>{content}</button>;
 }
 
-export function ReferencePage({ title, actions, children }: {
+export function ReferencePage({ title, actions, children, fullWidth = false }: {
   title: string;
+  fullWidth?: boolean;
   actions: { href: string; label: string; description?: string; icon?: string }[];
   children: ReactNode;
 }) {
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
+    <main className={"mx-auto w-full min-w-0 px-4 py-6 sm:py-8 " + (fullWidth ? "" : "max-w-7xl")}>
       <h1 className="mb-4 text-2xl font-semibold tracking-tight">{title}</h1>
       <nav aria-label={title + " tools"} className="mb-5 grid gap-3 sm:grid-cols-2">
         {actions.map((action) => <ReferenceToolCard key={action.href} {...action} />)}
