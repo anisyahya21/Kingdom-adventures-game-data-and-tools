@@ -1,4 +1,15 @@
 import { Link } from "wouter";
+import { releaseNotes } from "@/lib/release-notes";
+
+function releaseDateLabel(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "long",
+    ...(day ? { day: "numeric" } : {}),
+  }).format(Date.UTC(year, month - 1, day ?? 1));
+}
 
 export default function UpdatesPage() {
   return (
@@ -7,6 +18,23 @@ export default function UpdatesPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">What is new?</h1>
         </div>
+
+        {releaseNotes.map(({ date, title, changes }) => (
+          <section key={date} className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
+            <div>
+              <time dateTime={date} className="text-sm text-muted-foreground">{releaseDateLabel(date)}</time>
+              <h2 className="text-lg font-bold">{title}</h2>
+            </div>
+            <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
+              {changes.map(({ label, href, description }) => (
+                <li key={href}>
+                  <Link href={href} className="font-medium text-foreground underline underline-offset-2">{label}</Link>
+                  {" — "}{description}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
 
         <section className="rounded-lg border bg-card p-5 shadow-sm space-y-3">
           <h2 className="text-lg font-bold">06/05/2026</h2>
