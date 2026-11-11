@@ -93,7 +93,7 @@ function persistCache(key: string, data: string, fetchedAt: number) {
   }
 }
 
-async function doRefresh(key: string, url: string): Promise<void> {
+async function doRefresh(key: string, load: () => Promise<string>): Promise<void> {
   const existing = cache.get(key);
   if (existing?.refreshing) return; // already in flight
 
@@ -104,9 +104,7 @@ async function doRefresh(key: string, url: string): Promise<void> {
   });
 
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.text();
+    const data = await load();
     const fetchedAt = Date.now();
     cache.set(key, { data, fetchedAt, refreshing: false });
     persistCache(key, data, fetchedAt);
@@ -136,21 +134,28 @@ export function getCachedContentAge(key: string): number | null {
   return entry?.data ? Date.now() - entry.fetchedAt : null;
 }
 
-const registeredGuideDocs = new Set<string>();
+const registeredGuides = new Set<string>();
 
 /**
  * Register a guide doc for background caching.
  * Safe to call multiple times with the same docId – idempotent.
  */
 export function ensureGuideDocCached(docId: string): void {
-  if (registeredGuideDocs.has(docId)) return;
-  registeredGuideDocs.add(docId);
-  const key = `guide:${docId}`;
   const url = `https://docs.google.com/document/d/${docId}/export?format=md`;
+  registerGuideRefresh(`guide:${docId}`, async () => {
+    const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.text();
+  });
+}
+
+export function registerGuideRefresh(key: string, load: () => Promise<string>): void {
+  if (registeredGuides.has(key)) return;
+  registeredGuides.add(key);
   const entry = loadPersistedCache(key);
   if (!entry?.data || Date.now() - entry.fetchedAt >= GUIDE_REFRESH_MS) {
-    void doRefresh(key, url);
+    void doRefresh(key, load);
   }
-  const timer = setInterval(() => void doRefresh(key, url), GUIDE_REFRESH_MS);
+  const timer = setInterval(() => void doRefresh(key, load), GUIDE_REFRESH_MS);
   timer.unref?.();
 }

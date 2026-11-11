@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { PLAYTHROUGH_GUIDE_MARKDOWN } from "@/lib/playthrough-guide";
+import { usePlaythroughGuideMarkdown } from "@/lib/playthrough-guide";
 import { parseCsv } from "@/lib/monster-truth";
 import { SearchableSelect } from "@/components/searchable-select";
 import { PageHeader } from "@/components/ka/page-header";
@@ -686,6 +686,7 @@ export default function SurveyPlanner() {
   const [overrideValues, setOverrideValues] = useState(false);
   const [surveyTimeMinutes, setSurveyTimeMinutes] = useState<number | "">(0);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const guideMarkdown = usePlaythroughGuideMarkdown(isGuideOpen);
   const [surveyListExpanded, setSurveyListExpanded] = useState(false);
   const [isMobileSurveyList, setIsMobileSurveyList] = useState(false);
   // New: Track expanded/collapsed state for each group
@@ -1352,7 +1353,7 @@ export default function SurveyPlanner() {
           </DialogHeader>
           <div className="overflow-y-auto max-h-[82vh] space-y-4 text-sm leading-relaxed text-muted-foreground">
             {(() => {
-              const parsedGuide = parseGuide(PLAYTHROUGH_GUIDE_MARKDOWN);
+              const parsedGuide = parseGuide(guideMarkdown);
               const surveySection = parsedGuide.sections.find((section) => section.title.toLowerCase() === "survey");
               if (!surveySection) {
                 return <div className="py-10 text-center text-sm text-muted-foreground">Could not locate the full survey section in the guide.</div>;

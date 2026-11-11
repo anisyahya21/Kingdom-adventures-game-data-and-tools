@@ -1,4 +1,29 @@
-export { default as PLAYTHROUGH_GUIDE_MARKDOWN } from "./jaza-gitbook.md?raw";
+import { useEffect, useState } from "react";
+import bundledMarkdown from "./jaza-gitbook.md?raw";
+
+export function usePlaythroughGuideMarkdown(enabled = true): string {
+  const [markdown, setMarkdown] = useState(bundledMarkdown);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch("/api/ka/guides/jaza-gitbook", {
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.headers.get("Content-Type")?.startsWith("text/plain")) return;
+        const latest = await response.text();
+        if (latest.trim() && !controller.signal.aborted) setMarkdown(latest);
+      } catch {
+        // Keep the bundled or previously loaded guide if the server is unavailable.
+      }
+    })();
+    return () => controller.abort();
+  }, [enabled]);
+
+  return markdown;
+}
 
 export const PLAYTHROUGH_GUIDE_SOURCE_URL = "https://jazas.gitbook.io/kingdom-adventurers";
 

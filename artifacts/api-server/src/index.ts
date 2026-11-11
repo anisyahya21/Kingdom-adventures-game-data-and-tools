@@ -1,4 +1,5 @@
 import app from "./app";
+import { startJazaGuideRefresh } from "./lib/jaza-guide-cache";
 import { logger } from "./lib/logger";
 import { ensureProfileSchema } from "./lib/profile-schema";
 import { ensureAdminAnalyticsSchema, refreshDailyAnalytics } from "./lib/admin-analytics";
@@ -31,5 +32,6 @@ app.listen({ port, host }, (err) => {
   }
 
   logger.info({ port, host }, "Server listening");
+  startJazaGuideRefresh();
   void verifyDiscordOAuthReadiness();
 });

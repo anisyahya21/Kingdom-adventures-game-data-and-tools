@@ -7,6 +7,7 @@ import { getReminderAdminSummary } from "./event-reminders";
 import { HUMAN_TRAFFIC_SQL, isAnalyticsOrigin, isAutomationUserAgent } from "../lib/human-traffic";
 import { and, eq, gt, gte, isNull, like, sql } from "drizzle-orm";
 import { STATIC_SOURCES, getCachedContent, ensureGuideDocCached } from "../lib/google-cache";
+import { getJazaGuide } from "../lib/jaza-guide-cache";
 import { renderJobPreview, renderJobPreviewByName } from "../lib/character-preview";
 import multer from "multer";
 // Multer setup for image uploads
@@ -910,6 +911,18 @@ router.get("/ka/google/sheet/:key", (req, res) => {
   res.set("Content-Type", "text/plain; charset=utf-8");
   res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
   res.send(data);
+});
+
+router.get("/ka/guides/jaza-gitbook", (_req, res) => {
+  const markdown = getJazaGuide();
+  if (!markdown) {
+    res.set("Cache-Control", "no-store");
+    res.status(503).json({ error: "Guide cache is warming up" });
+    return;
+  }
+  res.type("text/plain");
+  res.set("Cache-Control", "public, max-age=300");
+  res.send(markdown);
 });
 
 // GET /ka/google/doc/:docId – serve cached Google Doc markdown by docId
