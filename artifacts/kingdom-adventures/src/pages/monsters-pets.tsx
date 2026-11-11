@@ -3,10 +3,10 @@ import { PageHeader } from "@/components/ka/page-header";
 
 const CARDS = [
   {
-    href: "/monster-spawns",
-    title: "Monster Spawns & Loot",
+    href: "/monsters",
+    title: "Monster Database",
     description:
-      "One card per monster: spawn biome and level, the cave that spawns it, the treasure box it drops with every content and chance, and average XP per kill.",
+      "Look up spawns, drops, XP, egg colours, skills, and stats for individual monsters.",
   },
   {
     href: "/monster-pet-stats",
@@ -30,7 +30,7 @@ export default function MonstersPetsPage() {
             monster levels, pet base stats, growth, and level-based stat comparisons.
           </p>
           <p>
-            Use Monster Spawns when you need to find where an enemy appears, or Monster & Pet Stats when you want
+            Use the Monster Database to look up individual monsters, or Monster & Pet Stats when you want
             the deeper data for collecting, pet planning, and team comparisons.
           </p>
         </div>

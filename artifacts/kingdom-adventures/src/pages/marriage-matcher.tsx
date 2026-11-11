@@ -1,7 +1,9 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useState, useCallback, useMemo, useEffect, useRef, type CSSProperties } from "react";
 import { useLocalFeature } from "@/hooks/sync/use-local-feature";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearch } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
+import { ReferencePage, ReferenceTable, ReferenceToolCard, referenceSelectClass } from "@/components/ka/reference-table";
 import {
   Plus, Trash2, Zap, HelpCircle, ArrowLeftRight,
   X, Lock, LockOpen, Loader2, AlertTriangle, ExternalLink,
@@ -2225,19 +2227,254 @@ function SimTab({
   );
 }
 
-type ActiveTab = "finder" | "simulator" | "data";
+type MarriageTool = "finder" | "simulator";
 
-export default function MarriageMatcher() {
-  // -- API data --
-  const { data: sharedData, isLoading: jobsLoading, isPlaceholderData } = useSharedData();
 
-  // -- Tab state (read/write from URL: ?tab=finder|simulator|data) --
-  const search = useSearch();
-  const urlTab = new URLSearchParams(search).get("tab") as ActiveTab | null;
-  const [activeTab, setActiveTab] = useState<ActiveTab>(
-    urlTab === "simulator" || urlTab === "data" ? urlTab : "finder",
+const MARRIAGE_JOB_COLORS: Readonly<Record<string, readonly [light: string, dark: string]>> = {
+  Archer: ["#2a6578", "#5ad7ff"],
+  Artisan: ["#705b25", "#ffce54"],
+  Artist: ["#86438c", "#f479ff"],
+  "Beast Tamer": ["#9e3f41", "#ff6669"],
+  Berserker: ["#963223", "#ef6546"],
+  Blacksmith: ["#5b5e64", "#abb2bc"],
+  Carpenter: ["#735745", "#d5a27f"],
+  Champion: ["#a62c6e", "#ff44aa"],
+  Cook: ["#85522b", "#ff9e52"],
+  Doctor: ["#446357", "#afffe0"],
+  Entertainer: ["#6b5d00", "#f7f327"],
+  Farmer: ["#49661b", "#a3e33d"],
+  Guard: ["#475a94", "#7b9cff"],
+  Guerilla: ["#006e00", "#00aa00"],
+  Gunner: ["#006c48", "#00cc88"],
+  Knight: ["#9d4300", "#ee6600"],
+  Mage: ["#006298", "#0099ee"],
+  "Magic Knight": ["#6d4ca3", "#aa77ff"],
+  Merchant: ["#665d4c", "#ffe8bd"],
+  Monarch: ["#5e5e5e", "#ffffff"],
+  Monk: ["#72563c", "#e9c38d"],
+  Mover: ["#006962", "#00ffee"],
+  Ninja: ["#66548a", "#bd9bff"],
+  Paladin: ["#595c20", "#dfff8a"],
+  Pirate: ["#8b452c", "#cc784c"],
+  Rancher: ["#5d6039", "#c2c877"],
+  Researcher: ["#884e4e", "#ee8888"],
+  Royal: ["#704b76", "#be8fbf"],
+  Samurai: ["#535c7d", "#aabbff"],
+  "Santa Claus": ["#416741", "#77bb77"],
+  Scholar: ["#305a70", "#82aebf"],
+  Trader: ["#1d6b2b", "#44ff66"],
+  Viking: ["#4a616b", "#b0e6ff"],
+  Wizard: ["#4d528c", "#a6a1ed"],
+};
+
+function ReferenceJobName({ name }: { name: string }) {
+  const colors = MARRIAGE_JOB_COLORS[name];
+  if (!colors) return <span>{name}</span>;
+  return (
+    <span
+      style={{ "--job-light": colors[0], "--job-dark": colors[1] } as CSSProperties}
+      className="font-medium text-[color:var(--job-light)] dark:text-[color:var(--job-dark)]"
+    >
+      {name}
+    </span>
+  );
+}
+
+function MarriageReference({ interactive }: { interactive: boolean }) {
+  const [, navigate] = useLocation();
+  const [parentJobs, setParentJobs] = useState<string[]>([]);
+  const [affinities, setAffinities] = useState<string[]>([]);
+  const [selectedPair, setSelectedPair] = useState("");
+  const jobs = localSharedData.jobs as MatcherSharedData["jobs"];
+  const jobNames = Object.keys(jobs);
+  const jobTypes = Object.fromEntries(jobNames.flatMap((name) => {
+    const job = jobs[name];
+    const type = typeFromJobCategory(job.category, job.type);
+    return type ? [[name, type] as const] : [];
+  }));
+  const jobGenerations = Object.fromEntries(jobNames.map((name) => [name, jobs[name].generation]));
+  const [parent, setParent] = useState("");
+  const [partner, setPartner] = useState("");
+  const [child, setChild] = useState("");
+  const lookup = useMemo(() => {
+    const data = { pairs: BUNDLED_PAIRS };
+    const pairs = BUNDLED_PAIRS.map((pair) => ({
+      ...pair,
+      affinity: pair.affinity || AFFINITY_NUM_TO_LETTER[pair.affinityNum ?? 0],
+      options: getPossibleMarriageChildren(data, pair.jobA, pair.jobB),
+      pairChildren: getPossibleMarriageChildren(data, pair.jobA, pair.jobB, { includeParentInheritance: false }),
+    }));
+    return {
+      pairs,
+      parents: normalizeStringList(pairs.flatMap((pair) => [pair.jobA, pair.jobB])),
+      children: normalizeStringList(pairs.flatMap((pair) => pair.options)),
+      byPair: new Map(pairs.map((pair) => [pairKey(pair.jobA, pair.jobB), pair])),
+    };
+  }, []);
+
+  const hasPairFilters = Boolean(parent || partner || child || affinities.length);
+  const hasFilters = hasPairFilters || parentJobs.length > 0;
+  const eligibleParents = parentJobs.length
+    ? lookup.parents.filter((name) => parentJobs.includes(name))
+    : lookup.parents;
+  const matchesCell = (row: string, column: string) => {
+    if (parentJobs.length && (!parentJobs.includes(row) || !parentJobs.includes(column))) return false;
+    if (parent && normJob(row) !== normJob(parent)) return false;
+    if (partner && normJob(column) !== normJob(partner)) return false;
+    const pair = lookup.byPair.get(pairKey(row, column));
+    return Boolean(pair
+      && (!affinities.length || affinities.includes(pair.affinity))
+      && (!child || pair.options.some((name) => normJob(name) === normJob(child))));
+  };
+  const matching = lookup.pairs.filter((pair) =>
+    matchesCell(pair.jobA, pair.jobB) || matchesCell(pair.jobB, pair.jobA));
+  const rows = hasPairFilters
+    ? eligibleParents.filter((row) => eligibleParents.some((column) => matchesCell(row, column)))
+    : eligibleParents;
+  const columns = hasPairFilters
+    ? eligibleParents.filter((column) => rows.some((row) => matchesCell(row, column)))
+    : eligibleParents;
+  const selected = matching.find((pair) => pair.id === selectedPair);
+  const viewPicker = (
+    <select className={referenceSelectClass + " ml-auto"} aria-label="Compatibility view"
+      value={interactive ? "interactive" : "matrix"}
+      onChange={(event) => navigate(event.target.value === "interactive" ? "/match-finder?view=interactive" : "/match-finder")}>
+      <option value="matrix">Compatibility table</option>
+      <option value="interactive">Interactive compatibility</option>
+    </select>
   );
 
+  return (
+    <ReferencePage title="Marriage compatibility" actions={[
+      { href: "/match-finder?tab=finder", label: "Match Finder", icon: "/website_icons/requested/child_mark.png", description: "Find matches for the residents in your town." },
+      { href: "/match-finder?tab=simulator", label: "Marriage Simulator", icon: "/website_icons/requested/assign_button.png", description: "Try two parents and see their possible children." },
+    ]}>
+      {interactive ? (
+        <>
+          <div className="mb-3 flex">{viewPicker}</div>
+          <PairsPanel pairs={BUNDLED_PAIRS} jobTypeMap={jobTypes} jobGenMap={jobGenerations} allJobNames={jobNames} />
+        </>
+      ) : (
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <select className={referenceSelectClass} aria-label="First parent job" value={parent} onChange={(event) => setParent(event.target.value)}>
+              <option value="">Any first parent</option>
+              {lookup.parents.map((name) => <option key={name}>{name}</option>)}
+            </select>
+            <select className={referenceSelectClass} aria-label="Second parent job" value={partner} onChange={(event) => setPartner(event.target.value)}>
+              <option value="">Any second parent</option>
+              {lookup.parents.map((name) => <option key={name}>{name}</option>)}
+            </select>
+            <select className={referenceSelectClass} aria-label="Child job" value={child} onChange={(event) => setChild(event.target.value)}>
+              <option value="">Any child job</option>
+              {lookup.children.map((name) => <option key={name}>{name}</option>)}
+            </select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" size="sm">
+                  <Filter className="size-4" /> {parentJobs.length ? "Filter by parents (" + parentJobs.length + ")" : "Filter by parents"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-[min(24rem,60vh)] overflow-y-auto">
+                {lookup.parents.map((name) => (
+                  <DropdownMenuCheckboxItem key={name} checked={parentJobs.includes(name)}
+                    onSelect={(event) => event.preventDefault()}
+                    onCheckedChange={(checked) => {
+                      setSelectedPair("");
+                      setParentJobs((current) => checked ? [...current, name] : current.filter((job) => job !== name));
+                    }}>
+                    <ReferenceJobName name={name} />
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" size="sm">
+                  <Filter className="size-4" /> {affinities.length ? "Affinity: " + affinities.join(", ") : "Filter by affinity"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {ALL_AFFINITIES.map((grade) => (
+                  <DropdownMenuCheckboxItem key={grade} checked={affinities.includes(grade)}
+                    onSelect={(event) => event.preventDefault()}
+                    onCheckedChange={(checked) => {
+                      setSelectedPair("");
+                      setAffinities((current) => ALL_AFFINITIES.filter((option) =>
+                        option === grade ? checked === true : current.includes(option)));
+                    }}>
+                    Affinity {grade}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {hasFilters && <button type="button" className="px-2 text-sm text-primary hover:underline"
+              onClick={() => { setParent(""); setPartner(""); setChild(""); setParentJobs([]); setAffinities([]); setSelectedPair(""); }}>Clear filters</button>}
+            {viewPicker}
+          </div>
+          {rows.length > 0 && (
+            <div className="hidden md:block">
+              <p className="mb-2 text-sm text-muted-foreground">Each cell shows affinity and the child job associated with the pair. Select a pair to see all options.</p>
+              {selected && <p className="mb-2 text-sm" role="status"><strong>{selected.jobA} + {selected.jobB}:</strong>{" "}{selected.options.length ? selected.options.join(", ") : "No recorded child jobs."}</p>}
+              <div className={parentJobs.length ? "w-fit max-w-full" : undefined}>
+                <ReferenceTable label="Marriage compatibility matrix" compact>
+                  <thead><tr><th scope="col">Parent job</th>{columns.map((name) => <th key={name} scope="col"><ReferenceJobName name={name} /></th>)}</tr></thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr key={row}>
+                        <th scope="row"><ReferenceJobName name={row} /></th>
+                        {columns.map((column) => {
+                          const pair = matchesCell(row, column) ? lookup.byPair.get(pairKey(row, column)) : undefined;
+                          return (
+                            <td key={column}>
+                              {pair ? (
+                                <button type="button" onClick={() => setSelectedPair(pair.id)}
+                                  className="block text-left hover:text-primary focus-visible:outline-primary"
+                                  aria-label={`Check ${row} and ${column}`}>
+                                  <span className={"mr-1.5 inline-block rounded border px-1 font-semibold " + (AFFINITY_STYLE[pair.affinity] ?? "border-border")}>{pair.affinity || "—"}</span>
+                                  {pair.pairChildren.length ? pair.pairChildren.map((name, index) => <span key={name}>{index > 0 && ", "}<ReferenceJobName name={name} /></span>) : "—"}
+                                </button>
+                              ) : "—"}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </ReferenceTable>
+              </div>
+            </div>
+          )}
+          <div className={rows.length ? "md:hidden" : ""}>
+            <ReferenceTable label="Marriage pair results">
+              <thead><tr><th scope="col">Parent pair</th><th scope="col">Affinity</th><th scope="col">Possible child jobs</th></tr></thead>
+              <tbody>
+                {matching.map((pair) => (
+                  <tr key={pair.id}>
+                    <th scope="row"><ReferenceJobName name={pair.jobA} /> + <ReferenceJobName name={pair.jobB} /></th>
+                    <td><span className={"inline-block rounded border px-1 font-semibold " + (AFFINITY_STYLE[pair.affinity] ?? "border-border")}>{pair.affinity || "—"}</span>{pair.affinityNum !== undefined ? ` (${pair.affinityNum}%)` : ""}</td>
+                    <td className="min-w-32 whitespace-normal">{pair.options.length ? pair.options.map((name, index) => <span key={name}>{index > 0 && ", "}<ReferenceJobName name={name} /></span>) : "—"}</td>
+                  </tr>
+                ))}
+                {!matching.length && <tr><td colSpan={3}>No pair matches.</td></tr>}
+              </tbody>
+            </ReferenceTable>
+          </div>
+        </>
+      )}
+    </ReferencePage>
+  );
+}
+
+export default function MarriageMatcher() {
+  const params = new URLSearchParams(useSearch());
+  const tab = params.get("tab");
+  if (tab === "finder" || tab === "simulator") return <MarriageTools key={tab} activeTab={tab} />;
+  return <MarriageReference interactive={tab === "data" || params.get("view") === "interactive"} />;
+}
+
+function MarriageTools({ activeTab }: { activeTab: MarriageTool }) {
+  const { data: sharedData, isLoading: jobsLoading, isPlaceholderData } = useSharedData();
 
   const apiFirstGenJobs = useMemo(() => {
     if (!sharedData?.jobs) return null;
@@ -2916,6 +3153,13 @@ export default function MarriageMatcher() {
           </ToolHelp>
         </div>
 
+        <nav aria-label="Marriage tools" className="mb-4 grid gap-3 sm:grid-cols-2">
+          <ReferenceToolCard href="/match-finder" label="Marriage compatibility" icon="/website_icons/requested/child_mark.png" />
+          {activeTab === "finder"
+            ? <ReferenceToolCard href="/match-finder?tab=simulator" label="Marriage Simulator" icon="/website_icons/requested/assign_button.png" />
+            : <ReferenceToolCard href="/match-finder?tab=finder" label="Match Finder" icon="/website_icons/requested/child_mark.png" />}
+        </nav>
+
         <div className="mb-4 rounded-lg border border-red-300 bg-red-50/70 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/20 dark:text-red-300">
           <strong className="text-foreground dark:text-red-200">Warning:</strong> marriage is forever in Kingdom Adventures. You cannot unmarry or divorce, so double-check pairs before committing in-game. Do not marry your Monarch until you completely understand the marriage mechanics, and it is strongly worth asking the community before committing to a Monarch marriage.
         </div>
@@ -2947,29 +3191,6 @@ export default function MarriageMatcher() {
           </CardContent>
         </Card>
 
-        {/* Tab nav */}
-        <div className="flex gap-1 mb-6 border-b border-border pb-0">
-          {([
-            { key: "finder",    icon: Heart,     label: "Match Finder" },
-            { key: "simulator", icon: Baby,       label: "Marriage Simulator" },
-            { key: "data",      icon: BarChart2,  label: "Compatibility Data" },
-          ] as const).map(({ key, icon: Icon, label }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                activeTab === key
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Finder tab ──────────────────────────────────────────────── */}
         {activeTab === "finder" && (<>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.75fr)_minmax(320px,0.85fr)] items-start">
@@ -3311,15 +3532,6 @@ export default function MarriageMatcher() {
         )}
 
         {/* ── Data tab ───────────────────────────────────────────────── */}
-        {activeTab === "data" && (
-          <PairsPanel
-            pairs={pairs}
-            jobTypeMap={jobTypeMap}
-            jobGenMap={jobGenMap}
-            allJobNames={allJobNames}
-          />
-        )}
-
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
           <span>Match Finder &amp; Marriage Sim — open source</span>

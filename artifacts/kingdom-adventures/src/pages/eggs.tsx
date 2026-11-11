@@ -18,7 +18,11 @@ import { Input } from "@/components/ui/input";
 import { ThemedNumberInput } from "@/components/ui/themed-number-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchableSelect } from "@/components/searchable-select";
+import { getMonsterSpriteById } from "@/lib/monster-sprites";
+import { getSkillIcon } from "@/lib/skill-icons";
 import { getItemIcon, getEggIconByColor } from "@/lib/equipment-icons";
+import { ReferencePage, ReferenceTable, referenceSelectClass } from "@/components/ka/reference-table";
+import { Link, useSearch } from "wouter";
 import {
   EggBand,
   EggFeedItem,
@@ -190,9 +194,112 @@ function BandProgress({
   );
 }
 
+
+function EggReference({ foodView }: { foodView: boolean }) {
+  const [query, setQuery] = useState("");
+  const [color, setColor] = useState("");
+  const [stat, setStat] = useState("");
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["egg-reference-data"],
+    queryFn: fetchEggReferenceData,
+  });
+
+  const term = query.trim().toLowerCase();
+  const pets = data?.monsters.filter((pet) =>
+    pet.eggColor && (!color || pet.eggColor === color) && (!stat || pet.requiredStat === stat)
+      && pet.monsterName.toLowerCase().includes(term),
+  ) ?? [];
+  const foods = data?.feedItems.filter((food) =>
+    food.name.toLowerCase().includes(term) && (!stat || food.stats[stat as EggStat] > 0),
+  ) ?? [];
+
+  return (
+    <ReferencePage title={foodView ? "Egg foods" : "Eggs & Pets"} actions={[
+      foodView ? { href: "/eggs", label: "Pet thresholds", icon: "/website_icons/eggs/egg_7.png", description: "Find the egg colour and stat points for each pet." } : { href: "/eggs?view=foods", label: "Food bonuses", icon: getItemIcon("Bread"), description: "Look up how many points each food adds." },
+      { href: "/eggs?view=planner", label: "Feeding Planner", icon: "/website_icons/eggs/egg_7.png", description: "Choose a pet or an egg and calculate what to feed it." },
+    ]}>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Input type="search" className="h-9 w-full sm:w-60" aria-label={foodView ? "Search foods" : "Search pets"}
+          placeholder={foodView ? "Search foods" : "Search pets"} value={query} onChange={(event) => setQuery(event.target.value)} />
+        {!foodView && (
+          <select className={referenceSelectClass} aria-label="Egg colour" value={color} onChange={(event) => setColor(event.target.value)}>
+            <option value="">All egg colours</option>
+            {data?.eggColors.map((name) => <option key={name}>{name}</option>)}
+          </select>
+        )}
+        <select className={referenceSelectClass} aria-label="Required stat" value={stat} onChange={(event) => setStat(event.target.value)}>
+          <option value="">All stats</option>
+          {STATS.map((name) => <option key={name}>{name}</option>)}
+        </select>
+      </div>
+      {isLoading ? <p role="status">Loading egg data…</p> : error || !data ? (
+        <p role="alert">Could not load the egg reference data.</p>
+      ) : foodView ? (
+        <ReferenceTable label="Stat points per food item">
+          <thead><tr><th scope="col">Food</th>{STATS.map((name) => <th key={name} scope="col">{name} points</th>)}</tr></thead>
+          <tbody>
+            {foods.map((food) => (
+              <tr key={food.name}>
+                <th scope="row"><EggTableIcon src={getItemIcon(food.name)} label={food.name} /></th>
+                {STATS.map((name) => <td key={name} className="tabular-nums">{food.stats[name] ? `+${food.stats[name]}` : "0"}</td>)}
+              </tr>
+            ))}
+            {!foods.length && <tr><td colSpan={5}>No foods match.</td></tr>}
+          </tbody>
+        </ReferenceTable>
+      ) : (
+        <>
+          <p className="mb-2 text-sm text-muted-foreground">These are total stat points. To stay in High, reach the High number and stop before the Over number. Select a pet to plan what to feed it.</p>
+          <ReferenceTable label="Pet hatching thresholds">
+            <thead><tr>
+              <th scope="col">Pet</th><th scope="col">Egg colour</th><th scope="col">Required stat</th>
+              {BAND_ORDER.map((band) => <th key={band} scope="col">{band}</th>)}
+              <th scope="col">Starting skill</th><th scope="col">Second skill item</th>
+            </tr></thead>
+            <tbody>
+              {pets.map((pet) => {
+                const icon = getEggIconByColor(pet.eggColor);
+                return (
+                  <tr key={pet.monsterName}>
+                    <th scope="row">
+                      <Link className="text-primary underline-offset-4 hover:underline"
+                        title="Open feeding planner"
+                        href={`/eggs?view=planner&pet=${encodeURIComponent(pet.monsterName)}`}><EggTableIcon src={getMonsterSpriteById(pet.monsterId)} label={pet.monsterName} /></Link>
+                    </th>
+                    <td><span className="flex items-center gap-1.5">{icon && <img src={icon} alt="" className="size-5 object-contain" loading="lazy" />}{pet.eggColor}</span></td>
+                    <td>{pet.requiredStat}</td>
+                    {BAND_ORDER.map((band) => <td key={band} className="tabular-nums">{pet.thresholds[band] ?? "—"}</td>)}
+                    <td className="min-w-32 whitespace-normal"><EggTableIcon src={getSkillIcon(pet.startingSkill)} label={pet.startingSkill} /></td><td><EggTableIcon src={getItemIcon(pet.secondSkillItem)} label={pet.secondSkillItem} /></td>
+                  </tr>
+                );
+              })}
+              {!pets.length && <tr><td colSpan={9}>No pets match.</td></tr>}
+            </tbody>
+          </ReferenceTable>
+        </>
+      )}
+    </ReferencePage>
+  );
+}
+
+function EggTableIcon({ src, label }: { src?: string | null; label: string }) {
+  return <span className="inline-flex items-center gap-2">
+    {src && <img src={src} alt="" loading="lazy" className="size-6 shrink-0 object-contain [image-rendering:pixelated]" />}
+    {label}
+  </span>;
+}
+
 export default function EggsPage() {
+  const params = new URLSearchParams(useSearch());
+  const view = params.get("view");
+  return view === "planner"
+    ? <EggPlanner key={params.get("pet")} initialPet={params.get("pet") ?? ""} />
+    : <EggReference key={view} foodView={view === "foods"} />;
+}
+
+function EggPlanner({ initialPet }: { initialPet: string }) {
   const [mode, setMode] = useState<"target" | "existing">("target");
-  const [selectedMonster, setSelectedMonster] = useState("");
+  const [selectedMonster, setSelectedMonster] = useState(initialPet);
   const [selectedEggColor, setSelectedEggColor] = useState("");
   const [eggLevel, setEggLevel] = useState("30");
   const [existingPlanStat, setExistingPlanStat] = useState<EggStat>("Defense");
@@ -309,47 +416,26 @@ export default function EggsPage() {
   }, [existingBestPerItem, existingPerItemOptions]);
 
   const existingBestPerItemNum = Number.parseInt(existingBestPerItem, 10) || 0;
-  const existingMaxTotal = existingBestPerItemNum * eggItemCap;
 
   const existingEggResults = useMemo(() => {
-    const monsters = (data?.monsters ?? []).filter((monster) => monster.eggColor === selectedEggColor);
-    const rows = monsters.map((monster) => {
-      const total = monster.requiredStat === existingPlanStat ? existingMaxTotal : 0;
-      const band: EggBand = monster.requiredStat === existingPlanStat
-        ? (
-          (monster.thresholds.High !== null && total >= monster.thresholds.High) ? "High"
-            : (monster.thresholds.Medium !== null && total >= monster.thresholds.Medium) ? "Medium"
-              : (monster.thresholds.Low !== null && total >= monster.thresholds.Low) ? "Low"
-                : "None"
-        )
-        : "None";
-      const itemsToLow = monster.requiredStat === existingPlanStat
-        ? itemsNeededForThreshold(monster.thresholds.Low, existingBestPerItemNum)
-        : null;
-      const itemsToMedium = monster.requiredStat === existingPlanStat
-        ? itemsNeededForThreshold(monster.thresholds.Medium, existingBestPerItemNum)
-        : null;
-      const itemsToHigh = monster.requiredStat === existingPlanStat
-        ? itemsNeededForThreshold(monster.thresholds.High, existingBestPerItemNum)
-        : null;
-      return {
-        monster,
-        total,
-        band,
-        itemsToLow,
-        itemsToMedium,
-        itemsToHigh,
-      };
-    });
-    return rows
-      .filter((row) => (showOnlyReachable ? row.band !== "None" : true))
-      .sort((a, b) => {
-        const bandScore = (band: EggBand) => band === "High" ? 4 : band === "Medium" ? 3 : band === "Low" ? 2 : band === "Over" ? 1 : 0;
-        const bandDelta = bandScore(b.band) - bandScore(a.band);
-        if (bandDelta !== 0) return bandDelta;
-        return a.monster.monsterName.localeCompare(b.monster.monsterName);
-      });
-  }, [data, existingMaxTotal, existingPlanStat, existingBestPerItemNum, selectedEggColor, showOnlyReachable]);
+    return (data?.monsters ?? [])
+      .filter((monster) => monster.eggColor === selectedEggColor && monster.requiredStat === existingPlanStat)
+      .map((monster) => {
+        const thresholds = monster.thresholds;
+        const limits = { Low: thresholds.Medium, Medium: thresholds.High, High: thresholds.Over };
+        const bands = (["Low", "Medium", "High"] as const).map((band) => {
+          const minimum = itemsNeededForThreshold(thresholds[band], existingBestPerItemNum);
+          const limit = limits[band];
+          const maximum = limit === null || existingBestPerItemNum <= 0
+            ? eggItemCap
+            : Math.min(eggItemCap, Math.floor((limit - 1) / existingBestPerItemNum));
+          return { band, count: minimum !== null && minimum <= maximum ? { minimum, maximum } : null };
+        });
+        return { monster, bands };
+      })
+      .filter((row) => !showOnlyReachable || row.bands.some(({ count }) => count !== null))
+      .sort((a, b) => a.monster.monsterName.localeCompare(b.monster.monsterName));
+  }, [data, eggItemCap, existingPlanStat, existingBestPerItemNum, selectedEggColor, showOnlyReachable]);
 
   const sortedFeedItems = useMemo(() => {
     const items = [...(data?.feedItems ?? [])];
@@ -431,7 +517,8 @@ export default function EggsPage() {
           <div className="flex items-center gap-3">
 
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Eggs & Pets</h1>
+              <h1 className="text-2xl font-bold text-foreground">Egg feeding planner</h1>
+              <Link href="/eggs" className="text-sm text-primary hover:underline">Pet thresholds</Link>
               <p className="text-sm text-muted-foreground">
                 Plan from the pet you want or the egg you already have, then use feed items to see the likely band.
               </p>
@@ -452,7 +539,7 @@ export default function EggsPage() {
               In <span className="text-foreground font-medium">I Want This Pet</span>, you can only add foods that boost the required stat for that pet.
             </p>
             <p>
-              In <span className="text-foreground font-medium">I Have This Egg</span>, choose the stat path and the best bonus per item you currently own, then the planner shows what that egg can reach from 0 to its cap.
+              In <span className="text-foreground font-medium">I Have This Egg</span>, choose the stat and points your food adds to see how many items to feed.
             </p>
           </CardContent>
         </Card>
@@ -464,7 +551,7 @@ export default function EggsPage() {
         ) : error || !data ? (
           <Card className="shadow-sm border-destructive/30">
             <CardContent className="py-8 text-sm text-destructive">
-              Could not load the Eggs & Pets data from the public sheets.
+              Could not load the Eggs & Pets data from game data.
             </CardContent>
           </Card>
         ) : (
@@ -552,11 +639,11 @@ export default function EggsPage() {
                           </div>
                           <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
                             <div className="text-xs text-muted-foreground">Starting skill</div>
-                            <div className="font-semibold text-foreground">{selectedMonsterData.startingSkill || "-"}</div>
+                            <div className="font-semibold text-foreground"><EggTableIcon src={getSkillIcon(selectedMonsterData.startingSkill)} label={selectedMonsterData.startingSkill} /></div>
                           </div>
                           <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
                             <div className="text-xs text-muted-foreground">2nd skill item</div>
-                            <div className="font-semibold text-foreground">{selectedMonsterData.secondSkillItem || "-"}</div>
+                            <div className="font-semibold text-foreground"><EggTableIcon src={getItemIcon(selectedMonsterData.secondSkillItem)} label={selectedMonsterData.secondSkillItem} /></div>
                           </div>
                         </div>
 
@@ -685,7 +772,7 @@ export default function EggsPage() {
                       <CardTitle className="text-base">What Can I Get From This Egg?</CardTitle>
                     </div>
                     <CardDescription>
-                      Pick the stat path you plan to raise, then choose the best bonus per item you have for it.
+                      Enter your egg colour and level, then pick the stat and points your food adds.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -708,8 +795,7 @@ export default function EggsPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                      <Badge variant="secondary">Item cap: {eggItemCap}</Badge>
-                      <Badge variant="secondary">Max planned total: {existingMaxTotal}</Badge>
+                      <Badge variant="secondary">Feeding limit: {eggItemCap} items</Badge>
                       <label className="flex items-center gap-2 text-sm text-muted-foreground">
                         <input
                           type="checkbox"
@@ -717,13 +803,13 @@ export default function EggsPage() {
                           onChange={(e) => setShowOnlyReachable(e.target.checked)}
                           className="rounded border-border"
                         />
-                        Show only pets that currently reach at least Low
+                        Hide pets I can’t reach with this food bonus
                       </label>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Plan path</div>
+                        <div className="text-xs text-muted-foreground mb-1">Stat to raise</div>
                         <SearchableSelect
                           value={existingPlanStat}
                           onChange={(value) => setExistingPlanStat(value as EggStat)}
@@ -734,7 +820,7 @@ export default function EggsPage() {
                         />
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground mb-1">Best available per item</div>
+                        <div className="text-xs text-muted-foreground mb-1">Points per food item</div>
                         <SearchableSelect
                           value={existingBestPerItem}
                           onChange={setExistingBestPerItem}
@@ -746,85 +832,27 @@ export default function EggsPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-lg border border-border/60 overflow-hidden hidden md:block">
-                      <div className="grid grid-cols-[1.4fr_0.7fr_0.7fr_0.9fr_0.9fr_0.9fr] gap-3 px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border/60 bg-muted/20">
-                        <div>Pet</div>
-                        <div>Req. Stat</div>
-                        <div>0 to Cap</div>
-                        <div>Best Goal</div>
-                        <div>Low / Med</div>
-                        <div>High</div>
-                      </div>
-                      <div className="max-h-[420px] overflow-y-auto">
-                        {existingEggResults.length === 0 ? (
-                          <div className="px-3 py-6 text-sm text-muted-foreground">
-                            No pets match this view yet.
-                          </div>
-                        ) : (
-                          existingEggResults.map((row) => (
-                            <div
-                              key={row.monster.monsterName}
-                              className="grid grid-cols-[1.4fr_0.7fr_0.7fr_0.9fr_0.9fr_0.9fr] gap-3 px-3 py-2 text-sm border-b border-border/40 last:border-b-0"
-                            >
-                              <div className="min-w-0">
-                                <div className="font-medium text-foreground truncate">{row.monster.monsterName}</div>
-                                <div className="text-[11px] text-muted-foreground truncate">{row.monster.startingSkill || "-"}</div>
-                              </div>
-                              <div className="text-muted-foreground">{row.monster.requiredStat}</div>
-                              <div className="text-foreground">0 to {row.total}</div>
-                              <div><BandPill band={row.band} /></div>
-                              <div className="text-[11px] text-muted-foreground">
-                                {row.itemsToLow && row.itemsToLow <= eggItemCap ? `${row.itemsToLow}` : "-"} / {row.itemsToMedium && row.itemsToMedium <= eggItemCap ? `${row.itemsToMedium}` : "-"}
-                              </div>
-                              <div className="text-[11px] text-muted-foreground">
-                                {row.itemsToHigh && row.itemsToHigh <= eggItemCap ? `${row.itemsToHigh}` : "-"}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                    <div className="md:hidden space-y-2">
-                      {existingEggResults.length === 0 ? (
-                        <div className="rounded-lg border border-border/60 px-3 py-6 text-sm text-muted-foreground">
-                          No pets match this view yet.
-                        </div>
-                      ) : (
-                        existingEggResults.map((row) => (
-                          <div key={row.monster.monsterName} className="rounded-lg border border-border/60 px-3 py-3 bg-card/60">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="font-medium text-foreground break-words">{row.monster.monsterName}</div>
-                                <div className="text-[11px] text-muted-foreground break-words">{row.monster.startingSkill || "-"}</div>
-                              </div>
-                              <BandPill band={row.band} />
-                            </div>
-                            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                              <div className="rounded-md border border-border/50 bg-muted/20 px-2 py-2">
-                                <div className="text-muted-foreground">Required stat</div>
-                                <div className="font-medium text-foreground">{row.monster.requiredStat}</div>
-                              </div>
-                              <div className="rounded-md border border-border/50 bg-muted/20 px-2 py-2">
-                                <div className="text-muted-foreground">0 to Cap</div>
-                                <div className="font-medium text-foreground">0 to {row.total}</div>
-                              </div>
-                              <div className="rounded-md border border-border/50 bg-muted/20 px-2 py-2">
-                                <div className="text-muted-foreground">Low / Med</div>
-                                <div className="font-medium text-foreground">
-                                  {row.itemsToLow && row.itemsToLow <= eggItemCap ? `${row.itemsToLow}` : "-"} / {row.itemsToMedium && row.itemsToMedium <= eggItemCap ? `${row.itemsToMedium}` : "-"}
-                                </div>
-                              </div>
-                              <div className="rounded-md border border-border/50 bg-muted/20 px-2 py-2">
-                                <div className="text-muted-foreground">High</div>
-                                <div className="font-medium text-foreground">
-                                  {row.itemsToHigh && row.itemsToHigh <= eggItemCap ? `${row.itemsToHigh}` : "-"}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Starting at 0 points, feed any number of items in the listed range to land in that band.
+                      Each item in the plan adds {existingBestPerItemNum} {existingPlanStat} points. Hatching can still produce a different pet.
+                    </p>
+                    <ReferenceTable label="How many items to feed">
+                      <thead><tr><th scope="col">Possible pet</th><th scope="col">Low</th><th scope="col">Medium</th><th scope="col">High</th></tr></thead>
+                      <tbody>
+                        {existingEggResults.map(({ monster, bands }) => (
+                          <tr key={monster.monsterId}>
+                            <th scope="row"><EggTableIcon src={getMonsterSpriteById(monster.monsterId)} label={monster.monsterName} /></th>
+                            {bands.map(({ band, count }) => (
+                              <td key={band} className="tabular-nums">
+                                {count === null ? <span className="text-muted-foreground">Unreachable</span> :
+                                  count.minimum === count.maximum ? count.minimum : count.minimum + "–" + count.maximum}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                        {!existingEggResults.length && <tr><td colSpan={4}>No pets match this egg colour, stat and food bonus.</td></tr>}
+                      </tbody>
+                    </ReferenceTable>
                   </CardContent>
                 </Card>
               </TabsContent>

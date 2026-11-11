@@ -36,14 +36,14 @@ try {
         assert.ok(html.includes('data-prerendered-page='), `No actual application HTML: ${pathname}`);
         assert.ok(!/http:\/\/127\.0\.0\.1:\d+/.test(html), `Local build URL leaked into page HTML: ${pathname}`);
         assert.ok(!html.includes('Use bundled reference data during static rendering'));
-        if(['/jobs','/houses','/skills','/survey','/monster-spawns','/monster-pet-stats','/jobs-marriage','/guides','/playthrough-guide','/match-finder','/world-map','/world-map-v2','/world-builder'].includes(pathname)) assert.ok(html.includes('<h1'), `Missing page heading: ${pathname}`);
+        if(['/jobs','/houses','/skills','/survey','/monsters','/monster-pet-stats','/jobs-marriage','/guides','/playthrough-guide','/match-finder','/world-map','/world-map-v2','/world-builder'].includes(pathname)) assert.ok(html.includes('<h1'), `Missing page heading: ${pathname}`);
         if(pathname==='/playthrough-guide') {
           assert.ok(html.includes('Your first step'), 'Guide content must be present before JavaScript');
           assert.ok(html.includes('Open Survey Calculator'), 'Guide links to the corresponding calculator');
           assert.ok(!html.includes('Could not load the guide.'), 'Do not publish a guide loading error');
         }
         if(pathname==='/jobs') assert.ok(html.includes('Archer'), 'Actual job records must be present before JavaScript');
-        if(pathname==='/monster-spawns') assert.ok(html.includes('Skullene'), 'Actual monster records must be present before JavaScript');
+        if(pathname==='/monsters') assert.ok(html.includes('Skullene'), 'Actual monster records must be present before JavaScript');
         if(['/monster-pet-stats','/monster-xp'].includes(pathname)) {
           assert.match(html, /<details data-tool-help[^>]*>/);
           assert.doesNotMatch(html.match(/<details data-tool-help[^>]*>/)[0], /\bopen(?:=|\s|>)/);
@@ -162,12 +162,12 @@ try {
   }, profile);
 
   await progress('Checking redirected monster filter');
-  await page.goto(base+'/monsters?monster=Skullene#loot');
+  await page.goto(base+'/monster-spawns?monster=Skullene#loot');
   await page.waitForFunction(() => [...document.querySelectorAll('input')].some(e => e.value==='Skullene'));
   check('monster alias preserves query and fragment', () => {
-    const u=new URL(page.url());assert.equal(u.pathname,'/monster-spawns');assert.equal(u.searchParams.get('monster'),'Skullene');assert.equal(u.hash,'#loot');
+    const u=new URL(page.url());assert.equal(u.pathname,'/monsters');assert.equal(u.searchParams.get('monster'),'Skullene');assert.equal(u.hash,'#loot');
   });
-  assert.equal(await page.locator('link[rel="canonical"]').getAttribute('href'), SITE_URL+'/monster-spawns');
+  assert.equal(await page.locator('link[rel="canonical"]').getAttribute('href'), SITE_URL+'/monsters');
 
   await progress('Checking facilities filtered link');
   await page.goto(base+'/houses?tab=facilities&search=Tool%20Workshop');

@@ -1,4 +1,7 @@
-import { googleSheetUrl } from "@/lib/api";
+import monsterCsv from "../../../../data/Sheet csv/KA GameData - Monster.csv?raw";
+import itemCsv from "../../../../data/Sheet csv/KA GameData - Item.csv?raw";
+import { parseCsv } from "@/lib/csv";
+import { renderSkillName, SKILL_BY_ID } from "@/lib/battle-setup";
 
 
 export type EggStat = "Attack" | "Defense" | "Balanced" | "Special";
@@ -7,6 +10,7 @@ export type EggBand = "None" | "Low" | "Medium" | "High" | "Over";
 export interface EggMonsterOutcome {
   eggColor: string;
   monsterName: string;
+  monsterId: number;
   requiredStat: EggStat;
   thresholds: Record<Exclude<EggBand, "None">, number | null>;
   startingSkill: string;
@@ -26,139 +30,6 @@ export interface EggReferenceData {
   monsters: EggMonsterOutcome[];
   feedItems: EggFeedItem[];
   eggColors: string[];
-}
-
-type GoogleVizResponse = {
-  table?: {
-    rows?: Array<{
-      c?: Array<{ v?: string | number | null; f?: string | null } | null>;
-    }>;
-  };
-};
-
-function parseGoogleViz(text: string): GoogleVizResponse {
-  const json = text.replace(/^[^(]+\(/, "").replace(/\);?\s*$/, "");
-  return JSON.parse(json) as GoogleVizResponse;
-}
-
-function cellValue(
-  cells: Array<{ v?: string | number | null; f?: string | null } | null> | undefined,
-  index: number
-): string | number | null {
-  if (!cells || index < 0 || index >= cells.length) return null;
-  const cell = cells[index];
-  if (!cell) return null;
-  return cell.v ?? cell.f ?? null;
-}
-
-function asText(value: string | number | null): string {
-  return String(value ?? "").trim();
-}
-
-function parseNumber(value: string | number | null): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  const raw = asText(value);
-  if (!raw || raw === "-" || raw === "?" || raw.toLowerCase() === "jiu") return null;
-  const match = raw.match(/-?\d+(?:\.\d+)?/);
-  return match ? Number(match[0]) : null;
-}
-
-function parseEggStat(value: string | number | null): EggStat | null {
-  const raw = asText(value).toLowerCase();
-  if (raw === "attack" || raw === "atk") return "Attack";
-  if (raw === "defense" || raw === "defence" || raw === "def") return "Defense";
-  if (raw === "balanced" || raw === "balance") return "Balanced";
-  if (raw === "special") return "Special";
-  return null;
-}
-
-function parseHatchTimeSeconds(remarks: string): number | null {
-  const match = remarks.match(/(-?\d+(?:\.\d+)?)\s*seconds?/i);
-  return match ? Number(match[1]) : null;
-}
-
-function toMonsterOutcome(
-  cells: Array<{ v?: string | number | null; f?: string | null } | null>
-): EggMonsterOutcome | null {
-  const monsterName = asText(cellValue(cells, 1));
-  if (!monsterName) return null;
-
-  const requiredStat = parseEggStat(cellValue(cells, 2));
-  if (!requiredStat) return null;
-
-  return {
-    eggColor: asText(cellValue(cells, 0)),
-    monsterName,
-    requiredStat,
-    thresholds: {
-      Low: parseNumber(cellValue(cells, 3)),
-      Medium: parseNumber(cellValue(cells, 4)),
-      High: parseNumber(cellValue(cells, 5)),
-      Over: parseNumber(cellValue(cells, 6)),
-    },
-    startingSkill: asText(cellValue(cells, 7)),
-    secondSkillItem: asText(cellValue(cells, 8)),
-  };
-}
-
-// Known name corrections from the Google Sheet source to canonical item names.
-// Keys are lowercased for case-insensitive matching.
-const FEED_ITEM_NAME_CORRECTIONS: Record<string, string> = {
-  "hearty mushroom": "Healthy Mushroom",
-  "carbonated juice": "Fizzy Juice",
-  "kingdom flag": "National Flag",
-  "rice omelette": "Rice Omelet",
-  // Sage's Tome — handle apostrophe/spacing variants from Google Sheets
-  "sage\u2019s tome": "Sage's Tome",
-  "sage's tome": "Sage's Tome",
-  "sage \u2019s tome": "Sage's Tome",
-  "sage 's tome": "Sage's Tome",
-  // Grape Juice — bad Japanese romanization from sheet
-  "budjusjus": "Grape Juice",
-  "budjujus": "Grape Juice",
-};
-
-// Rows from the sheet that are clearly garbage data and should be dropped.
-const FEED_ITEM_GARBAGE_NAMES = new Set(["6", "thailand"]);
-
-function toFeedItem(
-  cells: Array<{ v?: string | number | null; f?: string | null } | null>
-): EggFeedItem | null {
-  const rawName = asText(cellValue(cells, 10));
-  if (!rawName) return null;
-  if (FEED_ITEM_GARBAGE_NAMES.has(rawName.toLowerCase())) return null;
-  const name = FEED_ITEM_NAME_CORRECTIONS[rawName.toLowerCase()] ?? rawName;
-  const remarks = asText(cellValue(cells, 17));
-
-  return {
-    name,
-    copperCoins: parseNumber(cellValue(cells, 11)),
-    stats: {
-      Attack: parseNumber(cellValue(cells, 12)) ?? 0,
-      Defense: parseNumber(cellValue(cells, 13)) ?? 0,
-      Balanced: parseNumber(cellValue(cells, 14)) ?? 0,
-      Special: parseNumber(cellValue(cells, 15)) ?? 0,
-    },
-    exp: parseNumber(cellValue(cells, 16)) ?? 0,
-    hatchTimeSeconds: parseHatchTimeSeconds(remarks),
-    remarks,
-  };
-}
-
-function mergeFeedItem(current: EggFeedItem, next: EggFeedItem): EggFeedItem {
-  return {
-    ...current,
-    copperCoins: current.copperCoins ?? next.copperCoins,
-    exp: current.exp || next.exp,
-    hatchTimeSeconds: current.hatchTimeSeconds ?? next.hatchTimeSeconds,
-    remarks: current.remarks || next.remarks,
-    stats: {
-      Attack: current.stats.Attack || next.stats.Attack,
-      Defense: current.stats.Defense || next.stats.Defense,
-      Balanced: current.stats.Balanced || next.stats.Balanced,
-      Special: current.stats.Special || next.stats.Special,
-    },
-  };
 }
 
 export function getReachedBand(total: number, thresholds: Record<Exclude<EggBand, "None">, number | null>): EggBand {
@@ -183,35 +54,57 @@ export function getNextThreshold(
   return null;
 }
 
+const EGG_COLORS = ["White", "Blue", "Green", "Red", "Purple", "Black", "Yellow", "Rainbow"];
+const EGG_STATS: EggStat[] = ["Attack", "Defense", "Balanced", "Special"];
+
+function dataRows(csv: string, headerIndex: number) {
+  const rows = parseCsv(csv);
+  return rows.slice(headerIndex + 1)
+    .filter((row) => /^\d+$/.test(row[0]))
+    .map((row) => Object.fromEntries(rows[headerIndex].map((key, index) => [key, row[index]])));
+}
+
 export async function fetchEggReferenceData(): Promise<EggReferenceData> {
-  const url = googleSheetUrl("eggs");
-  const res = await fetch(url);
-  const text = await res.text();
-  const data = parseGoogleViz(text);
+  const items = dataRows(itemCsv, 1);
+  const itemsById = new Map(items.map((item) => [Number(item.id), item.name]));
+  const monsters = dataRows(monsterCsv, 2).flatMap((row): EggMonsterOutcome[] => {
+    const eggColor = EGG_COLORS[Number(row.eggId)];
+    const requiredStat = EGG_STATS[Number(row.hatchCategory)];
+    if (!eggColor || !requiredStat) return [];
+    const min = Number(row.minHatchBasis);
+    const max = Number(row.maxHatchBasis);
+    const span = max - min;
+    const skillId = Number(row.skillId);
+    const itemId = Number(row.skillAdditionItemId);
+    const skill = SKILL_BY_ID.get(skillId);
+    return [{
+      eggColor,
+      requiredStat,
+      monsterName: row.name,
+      monsterId: Number(row.id),
+      // The Low, Medium and High bands start at 0%, 30% and 85% of the hatch range.
+      thresholds: { Low: min, Medium: min + Math.ceil(span * 30 / 100), High: min + Math.ceil(span * 85 / 100), Over: max + 1 },
+      startingSkill: skill ? renderSkillName(skill) : skillId < 0 ? "None" : "Skill ID " + skillId,
+      secondSkillItem: itemsById.get(itemId) ?? (itemId < 0 ? "None" : "Item ID " + itemId),
+    }];
+  }).sort((a, b) => a.eggColor.localeCompare(b.eggColor) || a.monsterName.localeCompare(b.monsterName));
 
-  const monsterMap = new Map<string, EggMonsterOutcome>();
-  const feedMap = new Map<string, EggFeedItem>();
-
-  for (const row of data.table?.rows ?? []) {
-    const cells = row.c ?? [];
-
-    const monster = toMonsterOutcome(cells);
-    if (monster && !monsterMap.has(monster.monsterName)) {
-      monsterMap.set(monster.monsterName, monster);
-    }
-
-    const feedItem = toFeedItem(cells);
-    if (feedItem) {
-      const existing = feedMap.get(feedItem.name);
-      feedMap.set(feedItem.name, existing ? mergeFeedItem(existing, feedItem) : feedItem);
-    }
-  }
-
-  const monsters = Array.from(monsterMap.values()).sort((a, b) =>
-    a.eggColor.localeCompare(b.eggColor) || a.monsterName.localeCompare(b.monsterName)
-  );
-  const feedItems = Array.from(feedMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  const eggColors = Array.from(new Set(monsters.map((monster) => monster.eggColor))).filter(Boolean);
-
-  return { monsters, feedItems, eggColors };
+  const feedItems = items.flatMap((item): EggFeedItem[] => {
+    const type = Number(item.eggBonusType);
+    const bonus = Number(item.eggBonusValue);
+    const exp = Number(item.eggBonusExp);
+    const seconds = Number(item.eggBonusTime);
+    if (!(bonus > 0 || exp > 0 || seconds > 0)) return [];
+    const coins = Number(item.copperCoinExchangeRateNum);
+    const points = (stat: number) => type === 4 || type === stat ? bonus : 0;
+    return [{
+      name: item.name,
+      copperCoins: coins > 0 ? coins : null,
+      stats: { Attack: points(0), Defense: points(1), Balanced: points(2), Special: points(3) },
+      exp,
+      hatchTimeSeconds: seconds > 0 ? seconds : null,
+      remarks: "",
+    }];
+  }).sort((a, b) => a.name.localeCompare(b.name));
+  return { monsters, feedItems, eggColors: EGG_COLORS };
 }

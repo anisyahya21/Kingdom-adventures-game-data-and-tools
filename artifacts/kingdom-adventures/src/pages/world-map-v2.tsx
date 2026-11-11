@@ -18,10 +18,21 @@ export default function WorldMapV2Page() {
       <PageHeader title="Kingdom Adventurers World Map">
         <p>Explore terrain, area levels, facilities and resources in isometric or top view. Work in progress.</p>
       </PageHeader>
+      <section aria-labelledby="map-expansion" className="mt-4 max-w-4xl rounded-lg border border-border bg-card p-4">
+        <h2 id="map-expansion" className="mb-2 text-lg font-semibold">Map expansion requirements</h2>
+        <p className="mb-3 text-sm text-muted-foreground">Defeat area bosses to clear fog and raise your Peace Level. Later areas also require town and collection milestones.</p>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+          <dt className="font-semibold">59%</dt><dd>Area levels 62, 74, 76, 88, 90, 92, 135 and 142.</dd>
+          <dt className="font-semibold">69%</dt><dd>Area levels 69, 85, 112, 120, 162, 208, 225, 250 and 320.</dd>
+          <dt className="font-semibold">77%</dt><dd>Area levels 121, 265, 311, 360, 454, 525, 592, 624 and 777. Build 3 Town Halls.</dd>
+          <dt className="font-semibold">89%</dt><dd>Area levels 888, 1020, 1100, 1600 and 3200. Build 5 Town Halls, raise one to rank 50, and have at least one child.</dd>
+          <dt className="font-semibold">94%</dt><dd>Area levels 2400, 4800, 5100, 6000 and 9999. Build 5 Town Halls and raise one to rank 80. Collect 7 different kinds of insects, 7 kinds of fish, and 7 different paintings for the Insectarium, Aquarium, and Museum.</dd>
+        </dl>
+      </section>
       <div className="mt-3">
         <ToolHelp title="Map views and planning tools">
           <p>Switch between isometric and top-view maps. Use Show levels to check areas and the layer controls to choose which objects are visible.</p>
-          <p>To plan towns, plots and indoor facilities, open the <a href="/world-builder" className="underline underline-offset-2">World Builder</a>. For drawing and exploration annotations, use the <a href="/world-map" className="underline underline-offset-2">Tile Map</a>.</p>
+          <p>To plan towns, plots and indoor facilities, open the <a href="/world-builder" className="underline underline-offset-2">World Builder</a>.</p>
         </ToolHelp>
       </div>
 

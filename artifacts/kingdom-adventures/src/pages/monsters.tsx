@@ -1,3 +1,10 @@
+import { Link, useSearch } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { fetchEggReferenceData, type EggMonsterOutcome } from "@/lib/eggs-data";
+import { MONSTER_INNATE_SKILL_BY_ID, renderSkillName, SKILL_BY_ID } from "@/lib/battle-setup";
+import { getEggIconByColor, getItemIcon } from "@/lib/equipment-icons";
+import { getSkillIcon } from "@/lib/skill-icons";
+import { MONSTERS, STAT_KEYS, STAT_LABELS, statValueAtLevel } from "@/lib/monster-stats";
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Search, Skull } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -204,7 +211,78 @@ function XpBlock({ card }: { card: MonsterCard }) {
   );
 }
 
-function MonsterTile({ card, animal = false }: { card: MonsterCard; animal?: boolean }) {
+const statsById = new Map(MONSTERS.map((monster) => [monster.id, monster]));
+
+function MonsterDetails({ card, egg }: { card: MonsterCard; egg?: EggMonsterOutcome }) {
+  const stats = statsById.get(card.id);
+  const skillId = MONSTER_INNATE_SKILL_BY_ID.get(card.id);
+  const skill = skillId != null ? SKILL_BY_ID.get(skillId) : undefined;
+  const skillName = skill ? renderSkillName(skill) : egg?.startingSkill;
+  const eggIcon = egg && getEggIconByColor(egg.eggColor);
+  const skillIcon = getSkillIcon(skillName);
+  const unlockIcon = egg && getItemIcon(egg.secondSkillItem);
+  const [level, setLevel] = useState("1");
+  const value = Math.max(1, Math.min(10000, Number(level) || 1));
+
+  return (
+    <div className="mt-2 space-y-2 border-t border-border/60 px-2.5 py-2 text-xs">
+      {egg && (
+        <details>
+          <summary className="cursor-pointer font-medium text-primary">
+            <span className="inline-flex items-center gap-1.5 align-middle">
+              {eggIcon && <img src={eggIcon} alt="" loading="lazy" className="size-5 object-contain" />}
+              Hatching: {egg.eggColor.toLowerCase()} egg
+            </span>
+          </summary>
+          <div className="mt-2 space-y-1">
+            <p><strong>{egg.requiredStat}</strong> points to hatch</p>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1">
+              {(["Low", "Medium", "High", "Over"] as const).map((band, index, bands) => {
+                const start = egg.thresholds[band];
+                const nextBand = bands[index + 1];
+                const next = nextBand ? egg.thresholds[nextBand] : null;
+                const points = start === null || (next != null && next <= start) ? "—" : next == null
+                  ? formatNumber(start, 0) + "+"
+                  : next === start + 1 ? formatNumber(start, 0)
+                  : formatNumber(start, 0) + "–" + formatNumber(next - 1, 0);
+                return <div key={band} className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">{band}</dt><dd className="tabular-nums">{points}</dd>
+                </div>;
+              })}
+            </dl>
+            <Link className="inline-block font-medium text-primary hover:underline"
+              href={"/eggs?view=planner&pet=" + encodeURIComponent(egg.monsterName)}>
+              Open feeding planner
+            </Link>
+          </div>
+        </details>
+      )}
+      {skillName && <p className="flex items-center gap-1.5">
+        {skillIcon && <img src={skillIcon} alt="" loading="lazy" className="size-5 object-contain" />}
+        <span><span className="text-muted-foreground">Innate skill</span> {skillName}</span>
+      </p>}
+      {egg && <p className="flex items-center gap-1.5">
+        {unlockIcon && <img src={unlockIcon} alt="" loading="lazy" className="size-5 object-contain" />}
+        <span><span className="text-muted-foreground">Second skill item</span> {egg.secondSkillItem}</span>
+      </p>}
+      {stats && <details>
+        <summary className="cursor-pointer font-medium text-primary">Stats by level</summary>
+        <label className="my-2 flex items-center gap-2">
+          Level
+          <Input type="number" min={1} max={10000} value={level} onChange={(event) => setLevel(event.target.value)} className="h-8 w-24" />
+        </label>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1">
+          {STAT_KEYS.map((stat) => <div key={stat} className="flex justify-between gap-2">
+            <dt className="text-muted-foreground">{STAT_LABELS[stat]}</dt>
+            <dd className="tabular-nums">{formatNumber(statValueAtLevel(stats.stats[stat], value), 0)}</dd>
+          </div>)}
+        </dl>
+      </details>}
+    </div>
+  );
+}
+
+function MonsterTile({ card, egg, animal = false }: { card: MonsterCard; egg?: EggMonsterOutcome; animal?: boolean }) {
   return (
     <Card className="overflow-hidden">
       <MonsterArt card={card} />
@@ -228,16 +306,17 @@ function MonsterTile({ card, animal = false }: { card: MonsterCard; animal?: boo
       ) : (
         <XpBlock card={card} />
       )}
+      {!animal && <MonsterDetails card={card} egg={egg} />}
     </Card>
   );
 }
 
-function TileGrid({ cards, animal = false }: { cards: MonsterCard[]; animal?: boolean }) {
+function TileGrid({ cards, eggs, animal = false }: { cards: MonsterCard[]; eggs?: Map<number, EggMonsterOutcome>; animal?: boolean }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map((card) => (
         <div key={`${card.id}-${card.terrainCode}`} id={`monster-${card.id}`}>
-          <MonsterTile card={card} animal={animal} />
+          <MonsterTile card={card} egg={eggs?.get(card.id)} animal={animal} />
         </div>
       ))}
     </div>
@@ -245,10 +324,12 @@ function TileGrid({ cards, animal = false }: { cards: MonsterCard[]; animal?: bo
 }
 
 export default function MonstersPage() {
-  const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+  const params = new URLSearchParams(useSearch());
   const focus = params.get("monster") ?? "";
   const [query, setQuery] = useState(params.get("search") ?? focus);
 
+  const { data: eggData } = useQuery({ queryKey: ["egg-reference-data"], queryFn: fetchEggReferenceData });
+  const eggs = useMemo(() => new Map(eggData?.monsters.map((egg) => [egg.monsterId, egg])), [eggData]);
   const combat = useMemo(() => filterMonsterCards(COMBAT_MONSTER_CARDS, query), [query]);
   const animals = useMemo(() => filterMonsterCards(ANIMAL_MONSTER_CARDS, query), [query]);
   const total = COMBAT_MONSTER_CARDS.length + ANIMAL_MONSTER_CARDS.length;
@@ -259,13 +340,12 @@ export default function MonstersPage() {
         <div className="mb-3 flex items-center justify-between">
           <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
             <Skull className="h-5 w-5 text-violet-500" />
-            Monster Spawns &amp; Loot
+            Monster Database
           </h1>
         </div>
 
         <p className="mb-3 max-w-3xl text-sm text-muted-foreground">
-          One card per monster: where it spawns, the cave that spawns it, what its treasure box contains and the
-          average XP per kill.
+          Look up where a monster spawns, what it drops, how much XP it gives, and its egg, skills and stats.
         </p>
 
         <div className="mb-3 rounded-lg border border-border bg-muted/15 px-3 py-2 text-xs text-muted-foreground">
@@ -292,7 +372,7 @@ export default function MonstersPage() {
           </span>
         </div>
         {combat.length ? (
-          <TileGrid cards={combat} />
+          <TileGrid cards={combat} eggs={eggs} />
         ) : (
           <Card className="p-6 text-sm text-muted-foreground">No combat monsters match that search.</Card>
         )}

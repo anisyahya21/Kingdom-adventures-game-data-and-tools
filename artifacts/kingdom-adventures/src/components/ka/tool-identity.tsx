@@ -28,7 +28,7 @@ Object.assign(NATIVE_TOOL_ARTWORK, {
   "/match-finder": "/website_icons/requested/child_mark.png",
   "/eggs": "/website_icons/eggs/egg_7.png",
   "/monsters-pets": "/monster-sprites/9.png",
-  "/monster-spawns": "/website_icons/requested/explore_mark.png",
+  "/monsters": "/website_icons/requested/explore_mark.png",
   "/monster-pet-stats": "/monster-sprites/9.png",
   "/monster-xp": "/website_icons/requested/rankup_button.png",
   "/combat/character-builder": "/website_icons/requested/assign_button.png",
@@ -42,7 +42,7 @@ Object.assign(NATIVE_TOOL_ARTWORK, {
 const ROUTE_ARTWORK: Record<string, string> = {
   "/jobs": "/jobs-marriage", "/jobs-marriage": "/jobs-marriage", "/match-finder": "/match-finder",
   "/equipment": "/equipment", "/equipment-stats": "/equipment-stats", "/equipment-exchange": "/equipment-exchange", "/equipment-leveling-optimizer": "/equipment-leveling-optimizer",
-  "/eggs-pets-monsters": "/eggs-pets-monsters", "/eggs": "/eggs", "/monsters-pets": "/monsters-pets", "/monster-spawns": "/monster-spawns", "/monster-pet-stats": "/monster-pet-stats", "/monster-xp": "/monster-xp",
+  "/eggs-pets-monsters": "/eggs-pets-monsters", "/eggs": "/eggs", "/monsters-pets": "/monsters-pets", "/monsters": "/monsters", "/monster-pet-stats": "/monster-pet-stats", "/monster-xp": "/monster-xp",
   "/combat": "/combat", "/combat/character-builder": "/combat/character-builder", "/combat/multi-box": "/combat/multi-box", "/combat/formulas": "/combat/formulas",
   "/shops": "/shops", "/shops/items-reference": "/items-reference", "/items-reference": "/items-reference", "/item-sources": "/items-reference",
   "/guides/stat-effects": "/guides/stat-effects",

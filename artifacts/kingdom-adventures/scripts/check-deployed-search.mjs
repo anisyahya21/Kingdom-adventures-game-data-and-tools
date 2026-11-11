@@ -21,7 +21,7 @@ const cases = [
   {path:"/monster-pet-stats",canonical:"/monster-pet-stats",rendered:true,help:true},
   {path:"/monster-xp",canonical:"/monster-xp",rendered:true,help:true},
   ...['/guides','/jobs-marriage','/playthrough-guide','/match-finder','/world-map','/world-map-v2','/world-builder'].map(path=>({path,canonical:path,rendered:true,point5:true})),
-  {path:"/monsters?monster=Skullene",status:308,redirect:"/monster-spawns?monster=Skullene"},
+  {path:"/monster-spawns?monster=Skullene",status:308,redirect:"/monsters?monster=Skullene"},
   {path:"/survey-planner?search=retained",status:308,redirect:"/survey?search=retained"},
   {path:"/skill",status:308,redirect:"/skills"},
   {path:"/loadout?share=preserved",status:308,redirect:"/combat?share=preserved"},

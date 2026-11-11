@@ -337,12 +337,12 @@
       "destination": "/_search/monster-pet-stats.html"
     },
     {
-      "source": "/monster-spawns",
-      "destination": "/_search/monster-spawns.html"
-    },
-    {
       "source": "/monster-xp",
       "destination": "/_search/monster-xp.html"
+    },
+    {
+      "source": "/monsters",
+      "destination": "/_search/monsters.html"
     },
     {
       "source": "/monsters-pets",
@@ -491,18 +491,18 @@
   ],
   "redirects": [
     {
-      "source": "/monsters",
-      "destination": "/monster-spawns",
+      "source": "/monster-spawns",
+      "destination": "/monsters",
       "permanent": true
     },
     {
       "source": "/monster-spawn",
-      "destination": "/monster-spawns",
+      "destination": "/monsters",
       "permanent": true
     },
     {
       "source": "/monster-loot",
-      "destination": "/monster-spawns",
+      "destination": "/monsters",
       "permanent": true
     },
     {

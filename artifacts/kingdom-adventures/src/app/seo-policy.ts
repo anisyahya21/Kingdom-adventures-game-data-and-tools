@@ -2,9 +2,9 @@ import catalog from "./search-route-catalog.json";
 
 /** Exact aliases only. Query strings and fragments remain functional. */
 export const ROUTE_ALIASES: Record<string, string> = {
-  "/monsters": "/monster-spawns",
-  "/monster-spawn": "/monster-spawns",
-  "/monster-loot": "/monster-spawns",
+  "/monster-spawns": "/monsters",
+  "/monster-spawn": "/monsters",
+  "/monster-loot": "/monsters",
   "/skill": "/skills",
   "/equipment-level-optimizer": "/equipment-leveling-optimizer",
   "/survey-planner": "/survey",

@@ -13,7 +13,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/equipment-stats", label: "Equipments" },
       { href: "/training-facilities", label: "Facilities" },
       { href: "/research", label: "Research" },
-      { href: "/monster-spawns", label: "Enemies" },
+      { href: "/monsters", label: "Monster Database" },
       { href: "/monster-pet-stats", label: "Pets" },
       { href: "/world-map-v2", label: "Maps" },
     ],
