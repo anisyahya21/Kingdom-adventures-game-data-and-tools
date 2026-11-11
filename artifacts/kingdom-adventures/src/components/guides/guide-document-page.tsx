@@ -644,6 +644,8 @@ function buildGuideLinks(): GuideLink[] {
   addItemLink("Bronze");
   addItemLink("Iron Ore");
   addItemLink("Gold Nugget");
+  addItemLink("Gold", "Gold Nugget");
+  add("Flower", "/houses?tab=facilities&search=Flowers");
   addItemLink("High Grade Brick");
   addItemLink("Large Nail");
   addItemLink("Sturdy Board");
@@ -741,6 +743,34 @@ const PROTECTED_PHRASES: ProtectedPhrase[] = [
   { phrase: "Mage's Potion", blockedLabels: ["mage"] },
   { phrase: "Mage’s Potion", blockedLabels: ["mage"] },
 ];
+function getContextualGuideEntity(label: string, line: string, offset: number) {
+  const after = line.slice(offset + label.length);
+
+  if (label === "gold") {
+    return /(?:iron ore, bronze,|ore workbench.*copper, iron,)\s*$/i.test(line.slice(0, offset))
+      ? { icon: getItemIcon("Gold Nugget") }
+      : false;
+  }
+  if (label === "flower" || label === "tomato") {
+    if (/^\*\*Tomato, Flower\*\*:/i.test(line) && offset < line.indexOf(":")) {
+      const facility = label === "flower" ? "Flowers" : "Tomato";
+      return { href: "/houses?tab=facilities&search=" + facility, icon: getFacilityIconByName(facility) };
+    }
+    if (label === "flower") return false;
+  }
+  if (label === "mover" && (/^\s+facility\b/i.test(after) || /move your fighter back to mover/i.test(line))) {
+    return { href: "/houses?tab=facilities&facilityTab=map&search=Movers", icon: getFacilityIconByName("Movers") };
+  }
+  if (label === "register" && /^\s+(?:your|their|our|my)\b/i.test(after)) return false;
+  if (label === "field" && /on the field\b/i.test(line)) return false;
+  if (label === "well" && /\b(?:as|might as) well\b|\bwell, too bad\b/i.test(line)) return false;
+  if (label === "miner" && /\byour miner\b/i.test(line)) return false;
+  if (label === "research" && !/^\s+skill\b/i.test(after)) return false;
+  if (label === "shelf" && /^\s+price\b/i.test(after)) return false;
+  if (label === "guard" && /leather chest guard\b/i.test(line)) return false;
+  return undefined;
+}
+
 function buildGuideLinkPattern(links: GuideLink[]) {
   return links.length > 0
     ? new RegExp(`(^|[^A-Za-z0-9/])(${links.map((link) => escapeGuideLinkLabel(link.label)).join("|")})(?=$|[^A-Za-z0-9])`, "gi")
@@ -1193,7 +1223,7 @@ function parseGuide(markdown: string): ParsedGuide {
   // Keep those data URLs directly instead of converting them to
   // /guides/images/image155.png. That way new Google Doc images can render
   // without also uploading static image files to the website.
-  for (const match of normalized.matchAll(/^\[image(?<id>\d+)\]:\s*<(?<src>data:image\/[a-zA-Z0-9.+-]+;base64,[^>\n]+)>\s*$/gm)) {
+  for (const match of normalized.matchAll(/^\[image(?<id>\d+)\]:\s*<(?<src>data:image\/[a-zA-Z0-9.+-]+;base64,[^>\n]+|https:\/\/[^>\s]+)>\s*$/gm)) {
     const id = match.groups?.id;
     const src = match.groups?.src;
     if (!id || !src) continue;
@@ -1204,6 +1234,7 @@ function parseGuide(markdown: string): ParsedGuide {
   // If a malformed export ever misses the closing ">", this still removes the
   // whole definition line so the base64 text does not flood the page.
   const cleaned = normalized
+    .replace(/^\[image\d+\]:\s*<https:\/\/[^>\s]+>[ \t]*$/gm, "")
     .replace(/^\[image\d+\]:\s*<data:image\/[^\n>]+>?\s*$/gm, "")
     .replace(/^\[image\d+\]:\s*<data:image\/.*$/gm, "");
 
@@ -1416,8 +1447,11 @@ function renderInlineContent(
       const occurrenceKey = buildGuideOccurrenceKey(options?.occurrenceScope, absoluteMatchIndex, fullMatch);
       if (options?.disabledOccurrenceKeys?.has(occurrenceKey)) continue;
       const link = findGuideLinkForOccurrence(effectiveLinks, fullMatch, occurrenceKey);
-      const href = link?.href ?? "";
-      const inlineIconSrc = options?.resolveInlineIcon?.({ label: fullMatch, href: href ?? "", occurrenceKey, target: link?.target });
+      const contextual = link?.kind === "custom" ? undefined : getContextualGuideEntity(normalizedLabel, text, absoluteMatchIndex);
+      if (contextual === false) continue;
+      const href = contextual?.href ?? link?.href ?? "";
+      const inlineIconSrc = contextual?.icon
+        ?? options?.resolveInlineIcon?.({ label: fullMatch, href, occurrenceKey, target: link?.target });
 
       if (!href && !inlineIconSrc) continue;
 
@@ -1449,7 +1483,7 @@ function renderInlineContent(
             {fullMatch}
           </button>,
         );
-      } else if (link?.target && options?.onOpenGuideTarget) {
+      } else if (!contextual?.href && link?.target && options?.onOpenGuideTarget) {
         parts.push(
           <button
             key={`${fullMatch}-${absoluteMatchIndex}`}
@@ -2641,6 +2675,7 @@ export function GuideDocumentPage({
   description,
   docId,
   docUrl,
+  sourceLabel = "Open Google Doc",
   fallbackUrl,
   overlays = {},
   ownerGuideId,
@@ -2649,15 +2684,16 @@ export function GuideDocumentPage({
 }: {
   title: string;
   description: string;
-  docId: string;
+  docId?: string;
   docUrl?: string;
+  sourceLabel?: string;
   fallbackUrl?: string;
   overlays?: Record<string, GuideSectionOverlay>;
   ownerGuideId?: string;
   ownerToken?: string;
   serverLinkOverrides?: GuideLinkOverrides;
 }) {
-  const guideCacheKey = `guide-doc:${docId}`;
+  const guideCacheKey = `guide-doc:${docId ?? fallbackUrl}`;
   const cachedMarkdown = readBrowserCache<string>(guideCacheKey, 7 * 24 * 60 * 60 * 1000);
   const [markdown, setMarkdown] = useState(() => cachedMarkdown ?? "");
   const [loading, setLoading] = useState(() => !cachedMarkdown);
@@ -2918,6 +2954,25 @@ export function GuideDocumentPage({
     }
 
     async function loadGuide() {
+      if (!docId && fallbackUrl) {
+        try {
+          const response = await fetch(fallbackUrl);
+          if (!response.ok) throw new Error("Could not load the guide.");
+          const content = await response.text();
+          if (!/^# /m.test(content)) throw new Error("Could not load the guide.");
+          if (!cancelled) {
+            writeBrowserCache(guideCacheKey, content);
+            setMarkdown(content);
+            setError(null);
+          }
+        } catch {
+          if (!cancelled && !cached) setError("Could not load the guide.");
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+        return;
+      }
+
       let fallbackLoaded = false;
 
       // Local markdown should be the primary render path when available.
@@ -2942,12 +2997,12 @@ export function GuideDocumentPage({
         if (!cached && !fallbackLoaded) setLoading(true);
         setError(null);
         // Refresh from server-side Google Doc cache in background.
-        const googleDocUrlProxy = googleDocUrl(docId);
+        const googleDocUrlProxy = docId ? googleDocUrl(docId) : null;
         let fetchedMarkdown = "";
         let usedGoogleDoc = false;
         try {
-          const response = await fetch(googleDocUrlProxy);
-          if (response.ok) {
+          const response = googleDocUrlProxy ? await fetch(googleDocUrlProxy) : null;
+          if (response?.ok) {
             const text = await response.text();
             // Only use if it contains markdown headings and image refs
             if (/^#|^##|!\[\]\[image\d+\]/m.test(text)) {
@@ -3446,7 +3501,7 @@ export function GuideDocumentPage({
           >
             <Button variant="outline" className="gap-2">
               <ExternalLink className="w-4 h-4" />
-              Open Google Doc
+              {sourceLabel}
             </Button>
           </a>
           {isOwner ? (

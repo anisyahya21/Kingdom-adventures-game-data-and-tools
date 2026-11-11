@@ -516,7 +516,11 @@ function parseGuide(markdown: string): ParsedGuide {
     imageMap[`image${id}`] = `/guides/images/image${id}.${ext}`;
   }
 
-  const cleaned = normalized.replace(/^\[image\d+\]:\s*<data:image\/[^\n]+$/gm, "");
+  for (const match of normalized.matchAll(/^\[(image\d+)\]:\s*<(https:\/\/[^>\s]+)>[ \t]*$/gm)) {
+    imageMap[match[1]] = match[2];
+  }
+
+  const cleaned = normalized.replace(/^\[image\d+\]:\s*<(?:data:image\/|https:\/\/)[^\n]+$/gm, "");
   const lines = cleaned.split("\n");
   const sections: GuideSection[] = [];
   let current: GuideSection | null = null;
