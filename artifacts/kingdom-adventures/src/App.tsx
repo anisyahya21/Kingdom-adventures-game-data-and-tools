@@ -55,6 +55,9 @@ const PlayerBattlePage = lazy(() => import("@/pages/player-battle"));
 const PlaythroughGuidePage = lazy(() => import("@/pages/playthrough-guide"));
 const GuidesPage = lazy(() => import("@/pages/guides"));
 const StatEffectsGuidePage = lazy(() => import("@/pages/stat-effects-guide"));
+const BestJobGuidePage = lazy(() => import("@/pages/best-job-guide"));
+const BestJobGuideDesigns = lazy(() => import("@/pages/best-job-guide-designs"));
+const BEST_JOB_DESIGNS_PATH = "/guides/what-is-the-best-job/designs";
 const AddGuidePage = lazy(() => import("@/pages/add-guide"));
 const AddFriendsPage = lazy(() => import("@/pages/add-friends"));
 const CommunityGuidePage = lazy(() => import("@/pages/community-guide"));
@@ -66,6 +69,7 @@ const RuntimeWorldGridTestPage = lazy(() => import("@/pages/runtime-world-grid-t
 const RuntimeWorldRenderTestPage = lazy(() => import("@/pages/runtime-world-render-test"));
 const WorldMapV2Page = lazy(() => import("@/pages/world-map-v2"));
 const WorldBuilderPage = lazy(() => import("@/pages/world-builder"));
+const MiscellaneousPage = lazy(() => import("@/pages/miscellaneous"));
 const TerrainCompositionLabPage = lazy(() => import("@/pages/terrain-composition-lab"));
 const AdminPage = lazy(() => import("@/pages/admin"));
 const PlayerProfilePage = lazy(() => import("@/pages/player-profile"));
@@ -230,6 +234,7 @@ function Router() {
         <Route path="/world-map">{() => <WorldMapPage />}</Route>
         <Route path="/world-map-v2">{() => <WorldMapV2Page />}</Route>
         <Route path="/world-builder">{() => <WorldBuilderPage />}</Route>
+        <Route path="/miscellaneous">{() => <MiscellaneousPage />}</Route>
         <Route path="/chaos-setup-lab">{() => <ChaosSetupLabPage />}</Route>
         <Route path="/map-2-testing">{() => <Map2TestingPage />}</Route>
         <Route path="/runtime-world-grid-test">{() => <RuntimeWorldGridTestPage />}</Route>
@@ -252,6 +257,8 @@ function Router() {
         <Route path="/gacha-events">{() => <GachaEventsPage />}</Route>
         <Route path="/town-rank">{() => <TownRankPage />}</Route>
         <Route path="/guides/stat-effects">{() => <StatEffectsGuidePage />}</Route>
+        {import.meta.env.DEV && <Route path={BEST_JOB_DESIGNS_PATH}>{() => <BestJobGuideDesigns />}</Route>}
+        <Route path="/guides/what-is-the-best-job">{() => <BestJobGuidePage />}</Route>
         <Route path="/guides/:slug">{() => <CommunityGuidePage />}</Route>
         <Route path="/guides">{() => <GuidesPage />}</Route>
         <Route path="/add-friends">{() => <AddFriendsPage />}</Route>

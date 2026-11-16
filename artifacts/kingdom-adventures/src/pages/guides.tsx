@@ -151,6 +151,8 @@ export default function GuidesPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <ToolNavigationCard href="/guides/stat-effects" title="Resident Stats" description="What to train for carrying, clearing fog and working around town." />
+        <ToolNavigationCard href="/combat/formulas" title="Combat Formulas" description="How damage, skill targeting, attack coverage, and speed work." />
+        <ToolNavigationCard href="/guides/what-is-the-best-job" title="What is the best Job." description="Compare what jobs can build, equip, and do in battle, and choose your first level 999 character." />
         <ToolNavigationCard href={BUILT_IN_GUIDE.href} title={BUILT_IN_GUIDE.title} description={BUILT_IN_GUIDE.description} detail={BUILT_IN_GUIDE.note} />
         <ToolNavigationCard href="/jobs-marriage" title="Jobs, Ranks & Awakening" description="Job types, skill slots, level caps and awakening, with links to the marriage calculator." />
 

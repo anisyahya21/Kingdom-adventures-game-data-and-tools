@@ -8,6 +8,16 @@ type ReleaseNote = {
 
 export const releaseNotes: ReadonlyArray<ReleaseNote> = [
   {
+    date: "2026-11-16",
+    title: "Easier access to tools, treasure sources, and combat guides",
+    changes: [
+      { label: "Miscellaneous", href: "/miscellaneous", description: "Open Items, World Builder, and Town Rank from the home page. Items and World Builder are easier to find, and Town Rank no longer requires a direct link." },
+      { label: "Item & Skill Sources", href: "/item-sources", description: "Fixed a bug that left some items and skills out of the source lookup. Find skills like Armor Breaker II and see which job and rank they come with. Craftable skills show the required Studio level and INT. Treasure lookup shows all matches at once, with source icons to help you spot caves, events, and monster drops before opening a result." },
+      { label: "Combat Formulas", href: "/combat/formulas", description: "Open Combat Formulas from Guides and compare the reach, coverage, and MP cost of Area Attack, Direct Attack, Arrows, and Magic in battle and on the town map." },
+      { label: "What is the best Job.", href: "/guides/what-is-the-best-job", description: "Compare what jobs can build and equip, which skills they can use, and how their ranges and training costs differ. The guide also explains what to look for when choosing your first level 999 character." },
+    ],
+  },
+  {
     date: "2026-11-11",
     title: "Easier lookups for jobs, marriage, monsters, and eggs",
     changes: [

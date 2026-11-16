@@ -5,6 +5,10 @@ import catalog from "./battle-skill-catalog.json";
 // Original ARM64 checks rerun 2026-10-16. Not a captured original-game fight.
 export const ATTACK_SPELLS = catalog.skills.filter((skill) => skill.type === 1);
 export const ARROW_SKILLS = catalog.skills.filter((skill) => skill.id === 4 || skill.id === 36);
+// UseSkill dispatches type 26 to a forward line and type 27 to a five-column band in battle.
+export const DIRECT_ATTACK_TIERS = catalog.skills.filter((skill) => skill.type === 26);
+export const AREA_ATTACK_TIERS = catalog.skills.filter((skill) => skill.type === 27);
+export const BATTLE_ATTACK_COLUMNS = 5;
 export const DEFENSIVE_REACTION_SKILLS = catalog.skills
   .filter((skill) => skill.type === 18 || skill.type === 21)
   .sort((left, right) => right.type - left.type || left.value - right.value);
@@ -26,6 +30,11 @@ export function projectileFootprint(size: number) {
     if (Math.abs(x) + Math.abs(y) < size) cells.push({ x, y });
   }
   return cells;
+}
+// GetRangeAttackLocations 0x15e07f4 reads the user's cell in Worlds.Main and
+// calls CellUtil.GetRange with range + 1 and includeCenter = false.
+export function townAreaAttackFootprint(range: number) {
+  return projectileFootprint(range + 1).filter(({ x, y }) => x !== 0 || y !== 0);
 }
 export const MAGIC_TIER_ROWS = ATTACK_SPELLS.filter((skill) => skill.id >= 5 && skill.id <= 9).map((skill, index) => ({
   ...skill, tier: ["I", "II", "III", "IV", "V"][index], cells: projectileFootprint(skill.range).length,

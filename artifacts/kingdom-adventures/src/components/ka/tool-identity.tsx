@@ -39,6 +39,13 @@ Object.assign(NATIVE_TOOL_ARTWORK, {
   "/guides/stat-effects": "/website_icons/valuable/know_how_journal.png",
   "/playthrough-guide": "/website_icons/menu/menu_research_cropped.png",
 });
+const ILLUSTRATED_TOOL_ARTWORK: Record<string, string> = {
+  "/guides/what-is-the-best-job": "/icons/guides/best-job-ladder.png",
+  "/miscellaneous": "/icons/miscellaneous/assortment.webp",
+  "miscellaneous-items": "/icons/miscellaneous/items.webp",
+  "miscellaneous-world-builder": "/icons/miscellaneous/world-builder.webp",
+  "miscellaneous-town-rank": "/icons/miscellaneous/town-rank.webp",
+};
 const ROUTE_ARTWORK: Record<string, string> = {
   "/jobs": "/jobs-marriage", "/jobs-marriage": "/jobs-marriage", "/match-finder": "/match-finder",
   "/equipment": "/equipment", "/equipment-stats": "/equipment-stats", "/equipment-exchange": "/equipment-exchange", "/equipment-leveling-optimizer": "/equipment-leveling-optimizer",
@@ -46,9 +53,11 @@ const ROUTE_ARTWORK: Record<string, string> = {
   "/combat": "/combat", "/combat/character-builder": "/combat/character-builder", "/combat/multi-box": "/combat/multi-box", "/combat/formulas": "/combat/formulas",
   "/shops": "/shops", "/shops/items-reference": "/items-reference", "/items-reference": "/items-reference", "/item-sources": "/items-reference",
   "/guides/stat-effects": "/guides/stat-effects",
+  "/guides/what-is-the-best-job": "/guides/what-is-the-best-job",
   "/houses/plots": "/houses/plots", "/houses/facilities": "/houses/facilities",
   "/skills": "/skills", "/survey": "/survey", "/research": "/research", "/training-facilities": "/training-facilities", "/houses": "/houses", "/chaos-setup-lab": "/chaos-setup-lab",
   "/timed-events": "/timed-events", "/guides": "/guides", "/playthrough-guide": "/playthrough-guide", "/add-guide": "/guides", "/add-friends": "/add-friends",
+  "/miscellaneous": "/miscellaneous",
 };
 export function getToolArtworkKey(href: string): string | undefined {
   return ROUTE_ARTWORK[href.split(/[?#]/)[0]];
@@ -57,5 +66,9 @@ export function ToolIdentityArtwork({ artworkKey, size = 40, artworkStyle, comba
   artworkKey: string; size?: number; artworkStyle?: HomeArtworkStyle; combatArtwork?: HomeCombatArtwork;
 }) {
   const [game] = useArtworkPreference();
+  const illustration = ILLUSTRATED_TOOL_ARTWORK[artworkKey];
+  if (illustration) {
+    return <img src={illustration} alt="" width={size} height={size} className="shrink-0 object-contain" />;
+  }
   return <HomeToolArtwork source={NATIVE_TOOL_ARTWORK[artworkKey] ?? ""} toolKey={artworkKey} size={size} style={artworkStyle ?? (game ? "game" : "mixed")} combatArtwork={combatArtwork} />;
 }

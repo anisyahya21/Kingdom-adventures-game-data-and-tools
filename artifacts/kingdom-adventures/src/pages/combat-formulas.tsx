@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { BookOpen, Crosshair, Flame, MoveRight, Sparkles, Swords, Gauge, Zap } from "lucide-react";
+import { ArrowUp, BookOpen, Crosshair, Flame, Grid2X2, MoveRight, Sparkles, Swords, Gauge, UserRound, Zap } from "lucide-react";
 
 import { CombatNavigation } from "@/components/ka/combat-navigation";
 
@@ -14,27 +14,167 @@ import { Badge } from "@/components/ui/badge";
 
 import { COMBAT_SPEED_BRACKETS } from "@/lib/combat-speed-brackets";
 
-import { ARROW_SKILLS, damageExample, MAGIC_TIER_ROWS, projectileFootprint, SKILL_ACTIVATION_RATES, ARMOR_BREAKER_TIERS, ARMOR_BREAKER_DURATION_BRACKETS, STATUS_DURATION_TICKS, DEFENSIVE_REACTION_SKILLS } from "@/game-data/combat-mechanics";
+import { AREA_ATTACK_TIERS, ARROW_SKILLS, BATTLE_ATTACK_COLUMNS, damageExample, DIRECT_ATTACK_TIERS, MAGIC_TIER_ROWS, projectileFootprint, SKILL_ACTIVATION_RATES, ARMOR_BREAKER_TIERS, ARMOR_BREAKER_DURATION_BRACKETS, STATUS_DURATION_TICKS, DEFENSIVE_REACTION_SKILLS, townAreaAttackFootprint } from "@/game-data/combat-mechanics";
 
 
 
-function Footprint({ size }: { size: number }) {
+type AttackLocation = "battle" | "town";
 
+function FootprintLocationControl({ view, onChange }: { view: AttackLocation; onChange: (view: AttackLocation) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Attack location">
+      {(["battle", "town"] as const).map((location) => (
+        <button key={location} type="button" aria-pressed={view === location} onClick={() => onChange(location)}
+          className={`min-h-11 rounded-lg border px-3 text-sm ${view === location ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
+          {location === "battle" ? "Battle" : "Town map"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Footprint({ size, view }: { size: number; view: AttackLocation }) {
   const points = projectileFootprint(size);
-
-  return <div className="grid h-36 w-36 grid-cols-5 grid-rows-5 gap-1" role="img" aria-label={`${points.length} cells in a diamond, centered on the target`}>
-
-    {Array.from({ length: 25 }, (_, i) => { const x = i % 5 - 2; const y = Math.floor(i / 5) - 2; const active = points.some((point) => point.x === x && point.y === y); return <span key={i} className={`flex items-center justify-center rounded border ${x === 0 && y === 0 ? "border-primary bg-primary text-primary-foreground" : active ? "border-primary/30 bg-primary/15" : "border-border/50 bg-muted/20"}`}>{x === 0 && y === 0 ? <Crosshair className="h-4 w-4" /> : null}</span>; })}
-
-  </div>;
-
+  const grid = (rows: number[], enemySide: boolean) => (
+    <div className="grid grid-cols-5 gap-1">
+      {rows.flatMap((y) => Array.from({ length: BATTLE_ATTACK_COLUMNS }, (_, column) => {
+        const x = column - 2;
+        const target = x === 0 && y === 0;
+        const caster = view === "battle" && x === 0 && y === 1;
+        const covered = enemySide && points.some((point) => point.x === x && point.y === y);
+        return (
+          <span key={`${x},${y}`} className={`flex aspect-square items-center justify-center rounded border ${target
+            ? "border-primary bg-primary text-primary-foreground"
+            : covered ? "border-primary/50 bg-primary/25"
+              : caster ? "border-foreground/50 bg-muted" : "border-border/50 bg-muted/20"}`}>
+            {target && <Crosshair className="h-4 w-4" />}
+            {caster && <UserRound className="h-4 w-4" />}
+          </span>
+        );
+      }))}
+    </div>
+  );
+  if (view === "town") {
+    return <div className="w-36" role="img" aria-label={`${points.length} cells centered on the target on the town map`}>{grid([-2, -1, 0, 1, 2], true)}</div>;
+  }
+  const enemyCells = points.filter(({ y }) => y <= 0).length;
+  return (
+    <div className="w-36 space-y-1" role="img" aria-label={`Example battle formation with a front-row target. ${enemyCells} tiles covered on the enemy side.`}>
+      <p className="text-center text-xs text-muted-foreground">Enemy side</p>
+      {grid([-2, -1, 0], true)}
+      <div className="border-t border-dashed border-border py-0.5" />
+      {grid([1, 2], false)}
+      <p className="text-center text-xs text-muted-foreground">Your side</p>
+    </div>
+  );
 }
 
 
 
+function PhysicalAttackGuide({ area, view, onLocationChange }: { area: boolean; view: AttackLocation; onLocationChange: (view: AttackLocation) => void }) {
+  const skills = area ? AREA_ATTACK_TIERS : DIRECT_ATTACK_TIERS;
+  const name = area ? "Area Attack" : "Direct Attack";
+  const [selected, setSelected] = useState(0);
+  const skill = skills[selected];
+  const depth = area ? skill.range : skill.shootingRange;
+  const townArea = area && view === "town";
+  const townCells = townArea ? townAreaAttackFootprint(depth) : [];
+  const cells = townArea ? townCells.length : (area ? BATTLE_ATTACK_COLUMNS : 1) * depth;
+  const columns = townArea ? depth * 2 + 1 : BATTLE_ATTACK_COLUMNS;
+  const rows = townArea ? columns : depth + 1;
+  const footprintLabel = townArea
+    ? `${cells} attack cells around the attacker, excluding the center`
+    : `${cells} attack cells in ${depth} ${depth === 1 ? "row" : "rows"} ahead of the attacker`;
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">{name}</CardTitle>
+          <Badge variant="secondary" className="w-fit">Physical damage</Badge>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm leading-6">
+          <p>
+            {area
+              ? townArea
+                ? "On the town map, Area Attack hits in all directions around the attacker. Higher tiers reach farther from the center."
+                : "In battles, Area Attack covers all five columns across the rows ahead of the attacker. Higher tiers cover more rows."
+              : "In battle and on the town map, Direct Attack hits a one-tile-wide line in the direction the attacker faces. Tier II reaches two tiles farther than Tier I."}
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <caption className="sr-only">{name} tier comparison</caption>
+              <thead className="border-b text-xs text-muted-foreground">
+                <tr><th scope="col">Tier</th><th scope="col" className="p-2">{townArea ? "Radius" : "Rows ahead"}</th><th scope="col" className="p-2">Cells covered</th><th scope="col" className="py-2 pl-2">MP cost</th></tr>
+              </thead>
+              <tbody>
+                {skills.map((row, index) => {
+                  const rowsAhead = area ? row.range : row.shootingRange;
+                  return (
+                    <tr key={row.id} className={`border-b last:border-0 ${index === selected ? "bg-primary/5" : ""}`}>
+                      <th scope="row">
+                        <button type="button" className="min-h-11 min-w-11 rounded hover:bg-muted" aria-label={`Show ${name} ${row.nameArg}`} aria-pressed={index === selected} onClick={() => setSelected(index)}>
+                          {row.nameArg}
+                        </button>
+                      </th>
+                      <td className="p-2">{rowsAhead}</td>
+                      <td className="p-2">{townArea ? townAreaAttackFootprint(rowsAhead).length : rowsAhead * (area ? BATTLE_ATTACK_COLUMNS : 1)}</td>
+                      <td className="whitespace-nowrap py-2 pl-2">{row.minMp}–{row.maxMp}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p>Every tier uses your final <strong>ATK</strong> against each enemy’s <strong>DEF</strong>. Hits, criticals, and defensive reactions resolve separately for each enemy.</p>
+          <p className="text-xs text-muted-foreground">One attack per use. Human MP costs scale with average stat training level. Monsters pay the lower listed cost.</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle className="text-lg">{view === "town" ? "Town map footprint" : "Battle footprint"}</CardTitle></CardHeader>
+        <CardContent className="space-y-5">
+          <FootprintLocationControl view={view} onChange={onLocationChange} />
+          <div className="flex flex-wrap gap-2">
+            {skills.map((row, index) => (
+              <button type="button" key={row.id} aria-pressed={index === selected} onClick={() => setSelected(index)} className={`min-h-11 min-w-11 rounded-lg border text-sm ${index === selected ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
+                {row.nameArg}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-center">
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${columns}, 1.5rem)` }} role="img" aria-label={footprintLabel}>
+              {Array.from({ length: columns * rows }, (_, index) => {
+                const column = index % columns;
+                const row = Math.floor(index / columns);
+                const middle = column === Math.floor(columns / 2);
+                const attacker = row === depth && middle;
+                const hit = townArea
+                  ? townCells.some(({ x, y }) => x === column - depth && y === row - depth)
+                  : row !== depth && (area || middle);
+                return (
+                  <span key={index} aria-hidden="true" className={`flex aspect-square items-center justify-center rounded border ${attacker ? "border-primary bg-primary text-primary-foreground" : hit ? "border-primary/30 bg-primary/15" : "border-border/50 bg-muted/20"}`}>
+                    {attacker && (townArea ? <UserRound className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />)}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="font-semibold">{cells} cells per use</p>
+            <p className="mt-1 text-sm text-muted-foreground">{townArea
+              ? "The center marks the attacker. Only the surrounding highlighted cells are checked for enemies."
+              : "The arrow marks the attacker and the direction they face. Only the lighter tiles are covered."}</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function CombatFormulasPage() {
 
   const [section, setSection] = useState("damage");
+  const [location, setLocation] = useState<AttackLocation>("battle");
 
   const [offense, setOffense] = useState("1000");
 
@@ -72,11 +212,13 @@ export default function CombatFormulasPage() {
 
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="tablist" aria-label="Combat mechanics">
 
-        {[{ id: "damage", label: "Damage", icon: Swords }, { id: "magic", label: "Magic", icon: Flame }, { id: "arrows", label: "Arrows", icon: MoveRight }, { id: "targeting", label: "Targeting", icon: Crosshair }, { id: "activation", label: "Skill Activation", icon: Zap }, { id: "speed", label: "Speed Brackets", icon: Gauge }].map(({ id, label, icon: Icon }) => <button key={id} id={`tab-${id}`} role="tab" aria-selected={section === id} aria-controls={`panel-${id}`} onClick={() => setSection(id)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-xs font-medium sm:px-4 sm:text-sm ${section === id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-muted"}`}><Icon className="h-4 w-4" />{label}</button>)}
+        {[{ id: "damage", label: "Damage", icon: Swords }, { id: "magic", label: "Magic", icon: Flame }, { id: "arrows", label: "Arrows", icon: MoveRight }, { id: "area-attack", label: "Area Attack", icon: Grid2X2 }, { id: "direct-attack", label: "Direct Attack", icon: ArrowUp }, { id: "targeting", label: "Targeting", icon: Crosshair }, { id: "activation", label: "Skill Activation", icon: Zap }, { id: "speed", label: "Speed Brackets", icon: Gauge }].map(({ id, label, icon: Icon }) => <button key={id} id={`tab-${id}`} role="tab" aria-selected={section === id} aria-controls={`panel-${id}`} onClick={() => setSection(id)} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-xs font-medium sm:px-4 sm:text-sm ${section === id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-muted"}`}><Icon className="h-4 w-4" />{label}</button>)}
 
       </div>
 
       <div role="tabpanel" id={`panel-${section}`} aria-labelledby={`tab-${section}`}>
+        {section === "area-attack" && <PhysicalAttackGuide key="area-attack" area view={location} onLocationChange={setLocation} />}
+        {section === "direct-attack" && <PhysicalAttackGuide key="direct-attack" area={false} view={location} onLocationChange={setLocation} />}
 
         {section === "damage" && <article className="max-w-4xl space-y-8 rounded-xl border bg-card p-5 text-sm leading-7 sm:p-8">
 
@@ -165,11 +307,11 @@ export default function CombatFormulasPage() {
 
           </CardContent></Card>
 
-          <Card><CardHeader><CardTitle className="text-lg">See the spell footprint</CardTitle></CardHeader><CardContent className="space-y-6"><div className="flex flex-wrap gap-2">{MAGIC_TIER_ROWS.map((row, index) => <button key={row.id} aria-pressed={index === tier} onClick={() => setTier(index)} className={`min-h-11 min-w-11 rounded-lg border text-sm ${index === tier ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}>{row.tier}</button>)}</div><div className="flex justify-center py-4"><Footprint size={spell.range} /></div><div className="text-center"><p className="text-lg font-semibold">{spell.cells} cells · one volley</p><p className="mt-2 text-sm leading-6 text-muted-foreground">One projectile per cell. The crosshair is the target position. Empty cells still receive a projectile.</p></div><p className="rounded-lg bg-muted/40 p-4 text-sm leading-6 text-muted-foreground">A larger area can catch more enemies. It does not hit one stationary enemy 13 times: each projectile hits whoever is in its landing cell.</p></CardContent></Card>
+          <Card><CardHeader><CardTitle className="text-lg">Spell footprint</CardTitle></CardHeader><CardContent className="space-y-6"><FootprintLocationControl view={location} onChange={setLocation} /><div className="flex flex-wrap gap-2">{MAGIC_TIER_ROWS.map((row, index) => <button key={row.id} aria-pressed={index === tier} onClick={() => setTier(index)} className={`min-h-11 min-w-11 rounded-lg border text-sm ${index === tier ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}>{row.tier}</button>)}</div><div className="flex justify-center py-4"><Footprint size={spell.range} view={location} /></div><div className="text-center"><p className="text-lg font-semibold">{spell.cells} cells · one volley</p><p className="mt-2 text-sm leading-6 text-muted-foreground">{location === "battle" ? "Example with a front-row target. Highlighted tiles show coverage on the enemy side." : "One projectile per cell, centered on the target. Empty cells still receive a projectile."}</p></div><p className="rounded-lg bg-muted/40 p-4 text-sm leading-6 text-muted-foreground">A larger area can catch more enemies. It does not hit one stationary enemy 13 times: each projectile checks for eligible enemies in its landing cell.</p></CardContent></Card>
 
         </div>}
 
-        {section === "arrows" && <div className="grid gap-5 md:grid-cols-2">{ARROW_SKILLS.map((skill) => <Card key={skill.id}><CardHeader><CardTitle className="text-lg">{skill.nameText}</CardTitle><Badge variant="secondary" className="w-fit">Bow required · Physical damage</Badge></CardHeader><CardContent className="space-y-5"><div className="flex justify-center"><Footprint size={skill.range} /></div><div className="grid grid-cols-2 gap-3">{[["Targeting range", skill.shootingRange], ["Volleys", skill.count], ["Arrows per volley", projectileFootprint(skill.range).length], ["MP cost", `${skill.minMp}–${skill.maxMp}`]].map(([label, value]) => <div key={label} className="rounded-lg bg-muted/40 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-lg font-semibold">{value}</p></div>)}</div><p className="text-sm leading-6 text-muted-foreground">{skill.id === 36 ? "Three volleys cover the target and its four neighboring cells. Each arrow uses ATK against DEF, like a normal physical hit. A stationary enemy in the center can take three hits. For example, three hits of about 600 damage give about 1,800 total. MP is paid once for the whole skill." : "Fires one projectile at one cell, despite the name suggesting a shower of arrows. The hit uses ATK against DEF, like a normal physical hit."}</p></CardContent></Card>)}</div>}
+        {section === "arrows" && <div className="grid gap-5 md:grid-cols-2">{ARROW_SKILLS.map((skill) => <Card key={skill.id}><CardHeader><CardTitle className="text-lg">{skill.nameText}</CardTitle><Badge variant="secondary" className="w-fit">Bow required · Physical damage</Badge></CardHeader><CardContent className="space-y-5"><FootprintLocationControl view={location} onChange={setLocation} /><div className="flex justify-center"><Footprint size={skill.range} view={location} /></div>{location === "battle" && <p className="text-center text-xs text-muted-foreground">Example with a front-row target.</p>}<div className="grid grid-cols-2 gap-3">{[["Targeting range", skill.shootingRange], ["Volleys", skill.count], ["Arrows per volley", projectileFootprint(skill.range).length], ["MP cost", `${skill.minMp}–${skill.maxMp}`]].map(([label, value]) => <div key={label} className="rounded-lg bg-muted/40 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-lg font-semibold">{value}</p></div>)}</div><p className="text-sm leading-6 text-muted-foreground">{skill.id === 36 ? "Three volleys cover the target and its four neighboring cells. Each arrow uses ATK against DEF, like a normal physical hit. A stationary enemy in the center can take three hits. For example, three hits of about 600 damage give about 1,800 total. MP is paid once for the whole skill." : "Fires one projectile at one cell, despite the name suggesting a shower of arrows. The hit uses ATK against DEF, like a normal physical hit."}</p></CardContent></Card>)}</div>}
 
         {section === "targeting" && <Card><CardHeader><CardTitle className="text-lg">Nearest enemy, not best area coverage</CardTitle></CardHeader><CardContent className="space-y-6"><ol className="space-y-4 text-sm leading-6">{["Consider enemies with positive HP inside the spell’s acquisition range.", "Measure grid distance: horizontal distance + vertical distance.", "Choose the nearest. Equal distances keep the first enemy in the game’s enumeration order.", "Center the projectile footprint on the chosen target’s position when the volley is released."].map((step, index) => <li key={step} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 font-medium text-primary">{index + 1}</span><span>{step}</span></li>)}</ol><div><div className="rounded-xl bg-muted/40 p-5"><h2 className="font-medium">Do spells aim for the front line?</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Usually, because it is closest. Magic has no explicit front-line-only selection rule. It does not search for the center that would hit the most enemies.</p></div></div><p className="border-l-2 border-primary pl-4 text-sm leading-6 text-muted-foreground">A projectile hits whoever is in its landing cell. If the selected enemy moves away, it may miss them or hit someone else instead.</p></CardContent></Card>}
 

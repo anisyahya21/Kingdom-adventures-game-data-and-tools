@@ -13,8 +13,9 @@
 import raw from "@/game-data/treasure-source-profiles.json";
 import { DAILY_RANK_REWARDS } from "@/game-data/daily-rank-rewards";
 import caves from "@/game-data/native-caves.json";
-import { matchesLooseSearch, normalizeSearchText } from "@/lib/search-normalize";
-import { treasureDisplayName } from "@/lib/treasure-lookup";
+import { normalizeSearchText } from "@/lib/search-normalize";
+import { getSkillCrafting } from "@/lib/skill-crafting";
+import { gatheringTerrains, TREASURE_TERRAIN_NAMES, treasureDisplayName } from "@/lib/treasure-lookup";
 
 export type RewardType = "item" | "equipment" | "skill" | "furniture" | "valuable" | "job";
 export type EvidenceGrade =
@@ -123,8 +124,10 @@ export const PROJECTION_STATS = DATA.stats;
 export const PROJECTION_BASIS = DATA.basis;
 
 /** Same normalisation the rest of the site uses, so "A/ Kairo Bow" and "A Kairo Bow" agree. */
+export const normalizeRewardName = (name: string) =>
+  normalizeSearchText(name.normalize("NFKC").replace(/\+/g, " plus "));
 export const rewardKey = (type: RewardType | string, name: string) => {
-  const normalized = normalizeSearchText(name);
+  const normalized = normalizeRewardName(name);
   return normalized ? `${type}|${normalized}` : "";
 };
 
@@ -177,12 +180,6 @@ export function getRewardTarget(type: RewardType, name: string): RewardTarget | 
   return targetByKey.get(rewardKey(type, name));
 }
 
-export function searchRewardTargets(query: string, limit = 30): RewardTarget[] {
-  const trimmed = query.trim();
-  if (!trimmed) return REWARD_TARGETS.slice(0, limit);
-  return REWARD_TARGETS.filter((target) => matchesLooseSearch(target.name, trimmed)).slice(0, limit);
-}
-
 /** Treasure profiles whose contents include this exact reward. Grouped once per profile. */
 export function profilesForReward(type: RewardType, name: string): { profile: Profile; lanes: Lane[] }[] {
   return lanesByReward.get(rewardKey(type, name)) ?? [];
@@ -193,30 +190,43 @@ export function directSourcesForReward(type: RewardType, name: string): DirectSo
   return directByReward.get(rewardKey(type, name)) ?? [];
 }
 
-const haystacks = new Map<string, string>(
-  PROFILES.map((profile) => [
-    profile.id,
-    normalizeSearchText([
-      profile.name,
-      ...profile.nativeNames,
-      ...profile.memberIds,
-      profile.loot,
-      ...profile.lanes.filter((lane) => lane.rate > 0).map((lane) => lane.name),
-      ...profile.routes.map((route) => `${SOURCE_NODES[route.source]?.label ?? ""} ${route.mechanism}`),
-      ...profile.variants.map((variant) => variant.name),
-    ].join(" ")),
-  ]),
-);
+const treasureSearchIndex = PROFILES.map((profile) => ({
+  profile,
+  names: [profile.name, ...profile.nativeNames, ...profile.variants.map((variant) => variant.name)]
+    .map(normalizeRewardName),
+  contentsAndSources: [
+    ...profile.lanes.filter((lane) => lane.rate > 0).map((lane) => lane.name),
+    ...profile.routes.flatMap((route) => {
+      const source = SOURCE_NODES[route.source];
+      return [source?.label ?? "", terrainNamesForSource(source), route.mechanism];
+    }),
+  ].map(normalizeRewardName),
+}));
 
 /** Browse search over player-facing profiles — never over the 1,295 raw rows. */
-export function searchProfiles(query: string, limit = 24): Profile[] {
-  const trimmed = query.trim();
-  if (!trimmed) return PROFILES.filter((profile) => profile.edges.length > 0).slice(0, limit);
-  const words = normalizeSearchText(trimmed).split(" ").filter(Boolean);
-  return PROFILES.filter((profile) => {
-    const haystack = haystacks.get(profile.id) ?? "";
-    return words.every((word) => haystack.includes(word));
-  }).slice(0, limit);
+export function searchProfiles(query: string): Profile[] {
+  const search = normalizeRewardName(query);
+  if (!search) return PROFILES.filter(profileHasSource);
+  const queryWords = search.split(" ");
+  // Keep all query words in one name, reward, or source. A Blue Treasure Chest
+  // containing a Gold Nugget does not match "gold chest".
+  const matchesField = (field: string) => {
+    const words = field.split(" ");
+    return queryWords.every((queryWord) => words.some((word) => word.startsWith(queryWord)));
+  };
+  const matches: { profile: Profile; rank: number }[] = [];
+  for (const { profile, names, contentsAndSources } of treasureSearchIndex) {
+    if (names.includes(search)) matches.push({ profile, rank: 0 });
+    else if (names.some(matchesField)) matches.push({ profile, rank: 1 });
+    else if (contentsAndSources.some(matchesField) || profile.memberIds.some((id) => String(id) === search)) {
+      matches.push({ profile, rank: 2 });
+    }
+  }
+  return matches
+    .sort((a, b) => a.rank - b.rank
+      || Number(profileHasSource(b.profile)) - Number(profileHasSource(a.profile))
+      || a.profile.name.localeCompare(b.profile.name))
+    .map(({ profile }) => profile);
 }
 
 export const activeLanes = (profile: Profile): Lane[] => profile.lanes.filter((lane) => lane.rate > 0);
@@ -399,6 +409,13 @@ function tidyLabel(label: string): string {
     .trim();
 }
 
+function terrainNamesForSource(source?: SourceNode): string {
+  const group = source?.conditions?.dropGroup;
+  if (source?.kind !== "terrain" || typeof group !== "number") return "";
+  const names = gatheringTerrains(group).map(({ type }) => TREASURE_TERRAIN_NAMES[type]);
+  return names.every(Boolean) ? [...new Set(names)].join(", ") : "";
+}
+
 /**
  * The Source column and the Requirement column of the item table. Caves become
  * "Normal Cave" + "Area #74 · Level 320"; a daily-rank row becomes
@@ -418,7 +435,7 @@ export function sourceFamilyAndDetail(sourceId: string): { family: string; detai
   switch (node.kind) {
     case "legendary-cave": return { family: "Legendary Cave", detail: "Any completed floor" };
     case "legendary-cave-end-chest": return { family: "Legendary Cave", detail: "Fixed end chest" };
-    case "terrain":
+    case "terrain": return { family: "Gathering", detail: terrainNamesForSource(node) || label.replace(/^Gathering · /, "") };
     case "terrain-reference": return { family: "Gathering", detail: label.replace(/^Gathering · /, "") };
     case "monster": return { family: "Monster drop", detail: label.replace(/^Defeat /, "") };
     case "daily-rank": return { family: "Daily Rank Bonus", detail: "" };
@@ -684,12 +701,14 @@ export function buildItemDirectRows(type: RewardType, name: string): ItemSourceR
     const facility = typeof node?.conditions?.facility === "string" ? node.conditions.facility : undefined;
     const priceMin = Number(node?.conditions?.priceMin ?? source.conditions?.priceMin);
     const priceMax = Number(node?.conditions?.priceMax ?? source.conditions?.priceMax);
+    const skillCrafting = source.mechanism === "skill-crafting" ? getSkillCrafting(source.name) : undefined;
 
     // A crafting route is answered by the facility that owns the recipe, not by "Crafting".
     const family = source.mechanism === "craft-group-facility" && facility
       ? facility
       : DIRECT_FAMILY[source.mechanism] ?? label;
     const requirement = (() => {
+      if (skillCrafting) return `Studio Lv. ${skillCrafting.studioLevel} · INT ${skillCrafting.intelligence}`;
       if (source.input) return `Trade ${source.input}`;
       if (source.mechanism === "material-shop") {
         return Number.isFinite(priceMin) && Number.isFinite(priceMax) ? `Price ${priceMin}–${priceMax}` : "";
@@ -878,7 +897,10 @@ export function buildItemSourceRows(type: RewardType, name: string): ItemSourceR
     // Terrain has no single level requirement; list the box eligibility ranges instead.
     const requirement = bucket.requirement
       || (bucket.kind === "terrain" || bucket.kind === "terrain-reference"
-        ? distinctSorted(contributions.map((entry) => entry.summary).filter(Boolean)).join(" · ") || "Any area level"
+        ? [
+          terrainNamesForSource(SOURCE_NODES[bucket.sourceIds[0]]),
+          distinctSorted(contributions.map((entry) => entry.summary).filter(Boolean)).join(" · ") || "Any area level",
+        ].filter(Boolean).join(" · ")
         : "");
 
     const treasureRate: ItemSourceNumber = (() => {
@@ -888,7 +910,7 @@ export function buildItemSourceRows(type: RewardType, name: string): ItemSourceR
       if (formulas.length) {
         return {
           text: "Varies",
-          detail: formulas[0].note ?? formulas[0].formula,
+          detail: "",
           established: false,
         };
       }

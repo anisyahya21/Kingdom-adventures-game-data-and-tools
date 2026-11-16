@@ -27,6 +27,10 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
     title: SITE_NAME,
     description: DEFAULT_DESCRIPTION,
   },
+  "/miscellaneous": {
+    title: "Miscellaneous Kingdom Adventurers Tools",
+    description: "Find item and skill sources, plan your town with World Builder, and check town rank requirements.",
+  },
   "/jobs": {
     title: "Kingdom Adventurers Job Database",
     description: "Compare Kingdom Adventurers jobs by stats, battle type, skills, ranges, and weapon or shield access.",
@@ -255,6 +259,11 @@ export function getSeoMeta(pathname: string): SeoMeta {
   }
 
   if (cleanPath.startsWith("/guides/")) {
+    if (cleanPath === "/guides/what-is-the-best-job") return {
+      title: "What is the best Job.",
+      description: "What Kingdom Adventurers jobs share, how they differ, and which jobs to consider for your first level 999.",
+      canonicalPath: cleanPath,
+    };
     if (cleanPath === "/guides/stat-effects") return {
       title: "Resident Stats - Kingdom Adventurers Guide",
       description: "Learn how Move, Heart, Dexterity, Intelligence, Gathering and Vigor help your residents work and explore.",

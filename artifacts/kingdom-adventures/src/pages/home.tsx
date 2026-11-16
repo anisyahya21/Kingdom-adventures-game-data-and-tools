@@ -167,6 +167,11 @@ const BUILT_IN_TOOLS = [
     title: "Add Friends",
     description: "Find players & share your game ID",
   },
+  {
+    slug: "/miscellaneous",
+    title: "Miscellaneous",
+    description: "Items, world building & town ranks",
+  },
 ];
 
 function formatCountdown(ms: number): string {
@@ -454,7 +459,7 @@ export default function Home({ artworkStyle, combatArtwork = "cyan", allowArtwor
         </div>
         <div className="mb-8 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {BUILT_IN_TOOLS.map((tool) => (
-            <ToolNavigationCard key={tool.slug} href={tool.slug} title={tool.title} description={tool.description} artworkKey={tool.slug} artworkStyle={displayedArtwork} combatArtwork={combatArtwork} homeCard />
+            <ToolNavigationCard key={tool.slug} href={tool.slug} title={tool.title} description={tool.description} artworkStyle={displayedArtwork} combatArtwork={combatArtwork} homeCard />
           ))}
         </div>
 
