@@ -3,6 +3,16 @@ import { ToolNavigationCard } from "@/components/ka/tool-navigation-card";
 
 const CARDS = [
   {
+    href: "/map-rewards",
+    title: "Map Rewards",
+    description: "Look up area chests, recruits and boss unlocks.",
+  },
+  {
+    href: "/valuables",
+    title: "Valuables",
+    description: "Find every numbered Treasure, its effect, and how to get it.",
+  },
+  {
     href: "/item-sources",
     artworkKey: "miscellaneous-items",
     title: "Items",

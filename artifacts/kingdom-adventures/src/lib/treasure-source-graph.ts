@@ -389,7 +389,7 @@ export function mechanismName(mechanism: string): string {
 /* ------------------------------------------------- display-only source grouping */
 
 /**
- * A cave dungeon row is placed in exactly one map area; the area carries the player-facing number
+ * A cave dungeon row is placed in exactly one map area; the area carries the player-facing terrain
  * and level. The graph labels normal-cave rows by their internal row id, so the label is lifted
  * from the same recovered cave table the rest of the site uses. Display only — the graph's own
  * source key, conditions and edges are untouched.
@@ -418,7 +418,7 @@ function terrainNamesForSource(source?: SourceNode): string {
 
 /**
  * The Source column and the Requirement column of the item table. Caves become
- * "Normal Cave" + "Area #74 · Level 320"; a daily-rank row becomes
+ * "Normal Cave" + "Level 320"; a daily-rank row becomes
  * "Daily Rank Bonus" + "Wednesday · Rank E".
  */
 export function sourceFamilyAndDetail(sourceId: string): { family: string; detail: string } {
@@ -427,7 +427,7 @@ export function sourceFamilyAndDetail(sourceId: string): { family: string; detai
   const match = CAVE_ROW_KEY.exec(node.key);
   if (match) {
     const area = AREA_BY_DUNGEON.get(Number(match[1]));
-    const parts = area ? [`Area #${area.id}`, `Level ${area.level}`] : [`Row ${match[1]}`];
+    const parts = area ? [`Level ${area.level}`] : [];
     if (node.kind === "normal-cave-end-chest") parts.push("completion chest");
     return { family: "Normal Cave", detail: parts.join(" · ") };
   }
@@ -440,7 +440,11 @@ export function sourceFamilyAndDetail(sourceId: string): { family: string; detai
     case "monster": return { family: "Monster drop", detail: label.replace(/^Defeat /, "") };
     case "daily-rank": return { family: "Daily Rank Bonus", detail: "" };
     case "survey": return { family: "Survey", detail: label.replace(/^Survey: /, "") };
-    case "area": return { family: "Area reward", detail: label.replace(/^Clear area /, "Area ") };
+    case "area": {
+      const { level, terrain } = node.conditions ?? {};
+      const parts = [typeof level === "number" ? `Level ${level}` : "", typeof terrain === "number" ? TREASURE_TERRAIN_NAMES[terrain] : ""];
+      return { family: "Area reward", detail: parts.filter(Boolean).join(" · ") };
+    }
     case "kairo-room": return { family: "Kairo Room", detail: label };
     case "wairo-dungeon": return { family: "Wairo Dungeon", detail: label };
     case "arena": return { family: "Arena", detail: "PvP reward pool" };
@@ -541,7 +545,9 @@ export function groupProfileSources(profile: Profile, routes: ProfileRoute[] = p
   for (const route of routes) {
     // Group by what the player sees: several source nodes can share one player-facing name
     // (e.g. surveys that differ only by required area level). The nodes stay separate below.
-    const key = `${playerFacingSourceLabel(route.source)}|${route.mechanism}`;
+    const kind = SOURCE_NODES[route.source]?.kind;
+    const location = kind === "area" || kind === "normal-cave" || kind === "normal-cave-end-chest" ? route.source : "";
+    const key = `${playerFacingSourceLabel(route.source)}|${route.mechanism}|${location}`;
     buckets.set(key, [...(buckets.get(key) ?? []), route]);
   }
   const groups: DisplaySourceGroup[] = [];
@@ -655,7 +661,7 @@ export type ItemSourceRow = {
   direct?: boolean;
   /** Source column, e.g. "Legendary Cave", "Monster drop", "Daily Rank Bonus". */
   family: string;
-  /** Requirement column, e.g. "Area #74 · Level 320", "Wednesday · Rank E". */
+  /** Requirement column, e.g. "Level 320", "Wednesday · Rank E". */
   requirement: string;
   sourceId: string;
   kind: string;
@@ -781,12 +787,10 @@ function requirementInfo(kind: string, conditions: Record<string, unknown> | und
       return { display: level !== undefined ? `Area level ${level}+` : "", key: sourceKey };
     }
     case "area": {
-      const level = number("level");
-      return { display: level !== undefined ? `Level ${level}` : "", key: sourceKey };
+      return { display: sourceFamilyAndDetail(sourceId).detail, key: sourceKey };
     }
     case "normal-cave":
     case "normal-cave-end-chest": {
-      // Level-focused wording: the area number lives in the expandable detail.
       const detail = sourceFamilyAndDetail(sourceId).detail;
       const level = /Level (\d+)/.exec(detail)?.[1];
       const chest = kind === "normal-cave-end-chest" ? " · completion chest" : "";

@@ -16,6 +16,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/monsters", label: "Monster Database" },
       { href: "/monster-pet-stats", label: "Pets" },
       { href: "/world-map-v2", label: "Maps" },
+      { href: "/map-rewards", label: "Map Rewards" },
     ],
   },
   {

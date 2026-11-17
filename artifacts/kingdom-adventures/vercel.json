@@ -333,6 +333,10 @@
       "destination": "/_search/map-2-testing.html"
     },
     {
+      "source": "/map-rewards",
+      "destination": "/_search/map-rewards.html"
+    },
+    {
       "source": "/match-finder",
       "destination": "/_search/match-finder.html"
     },
@@ -471,6 +475,10 @@
     {
       "source": "/updates",
       "destination": "/_search/updates.html"
+    },
+    {
+      "source": "/valuables",
+      "destination": "/_search/valuables.html"
     },
     {
       "source": "/wario-dungeon",

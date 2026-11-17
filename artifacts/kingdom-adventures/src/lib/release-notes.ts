@@ -8,6 +8,17 @@ type ReleaseNote = {
 
 export const releaseNotes: ReadonlyArray<ReleaseNote> = [
   {
+    date: "2026-11-17",
+    title: "Map Rewards and Valuables",
+    changes: [
+      { label: "Miscellaneous", href: "/miscellaneous", description: "Open Map Rewards and Valuables from Miscellaneous on the home page." },
+      { label: "Map Rewards", href: "/map-rewards", description: "Look up chest contents, recruits, Town Halls and facility unlocks for all 100 map areas. Hover over an icon for its name and quantity, or tap an area to open its reward card. Gate artwork now shows both doors." },
+      { label: "Valuables", href: "/valuables", description: "Browse 228 numbered Treasures across 15 types. See their effects, Treasure Room requirements and costs, area chest locations, and Underground Arena milestones." },
+      { label: "Item & Skill Sources", href: "/item-sources", description: "Area rewards and normal caves use the area's level in source labels." },
+      { label: "Combat Formulas", href: "/combat/formulas", description: "The Magic tab now states that the difference between Fire, Ice, and Lightning at matching tiers is only visual." },
+    ],
+  },
+  {
     date: "2026-11-16",
     title: "Easier access to tools, treasure sources, and combat guides",
     changes: [

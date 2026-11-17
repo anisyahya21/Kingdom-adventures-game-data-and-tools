@@ -163,14 +163,14 @@ const BUILT_IN_TOOLS = [
     description: "Walkthroughs & community tips",
   },
   {
+    slug: "/miscellaneous",
+    title: "Miscellaneous",
+    description: "Items, map rewards, valuables & town tools",
+  },
+  {
     slug: "/add-friends",
     title: "Add Friends",
     description: "Find players & share your game ID",
-  },
-  {
-    slug: "/miscellaneous",
-    title: "Miscellaneous",
-    description: "Items, world building & town ranks",
   },
 ];
 

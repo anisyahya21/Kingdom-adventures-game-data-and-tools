@@ -409,6 +409,12 @@ for (const icon of assembledFacilityIconManifest.icons) {
   }
 }
 
+// The assembled catalog crop contains one door. The builder export contains both native gate pieces.
+const COMPLETE_GATE_ICON = "/world-assets/builder/entrance-28-0.png";
+facilityIconLookup.set(28, COMPLETE_GATE_ICON);
+facilityNameIconLookup.set(normalizeIconName("Gate"), COMPLETE_GATE_ICON);
+furnitureIconLookup.set(normalizeIconName("Gate"), COMPLETE_GATE_ICON);
+
 export function getFurnitureIcon(name: string | undefined | null): string | undefined {
   if (!name) return undefined;
   const clean = name.trim();

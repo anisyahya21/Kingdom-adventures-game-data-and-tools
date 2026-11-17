@@ -40,6 +40,8 @@ Object.assign(NATIVE_TOOL_ARTWORK, {
   "/playthrough-guide": "/website_icons/menu/menu_research_cropped.png",
 });
 const ILLUSTRATED_TOOL_ARTWORK: Record<string, string> = {
+  "/valuables": "/icons/valuables/illustration-v1.webp",
+  "/map-rewards": "/icons/map-rewards/illustration-v1.webp",
   "/guides/what-is-the-best-job": "/icons/guides/best-job-ladder.png",
   "/miscellaneous": "/icons/miscellaneous/assortment.webp",
   "miscellaneous-items": "/icons/miscellaneous/items.webp",
@@ -47,6 +49,8 @@ const ILLUSTRATED_TOOL_ARTWORK: Record<string, string> = {
   "miscellaneous-town-rank": "/icons/miscellaneous/town-rank.webp",
 };
 const ROUTE_ARTWORK: Record<string, string> = {
+  "/valuables": "/valuables",
+  "/map-rewards": "/map-rewards",
   "/jobs": "/jobs-marriage", "/jobs-marriage": "/jobs-marriage", "/match-finder": "/match-finder",
   "/equipment": "/equipment", "/equipment-stats": "/equipment-stats", "/equipment-exchange": "/equipment-exchange", "/equipment-leveling-optimizer": "/equipment-leveling-optimizer",
   "/eggs-pets-monsters": "/eggs-pets-monsters", "/eggs": "/eggs", "/monsters-pets": "/monsters-pets", "/monsters": "/monsters", "/monster-pet-stats": "/monster-pet-stats", "/monster-xp": "/monster-xp",

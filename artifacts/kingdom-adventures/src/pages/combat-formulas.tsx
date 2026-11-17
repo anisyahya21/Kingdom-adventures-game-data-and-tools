@@ -297,7 +297,7 @@ export default function CombatFormulasPage() {
 
         {section === "magic" && <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
 
-          <Card><CardHeader><CardTitle className="text-lg">Fire, Ice & Lightning</CardTitle><p className="text-sm leading-6 text-muted-foreground">Fire, Ice, and Lightning deal the same damage at matching tiers. Choose between their visual effects; these spells do not add burning, freezing, stun, or chain lightning.</p></CardHeader><CardContent className="space-y-5">
+          <Card><CardHeader><CardTitle className="text-lg">Fire, Ice & Lightning</CardTitle><p className="text-sm leading-6 text-muted-foreground">Fire, Ice, and Lightning deal the same damage at matching tiers. The difference is only visual. These spells do not add burning, freezing, stun, or chain lightning.</p></CardHeader><CardContent className="space-y-5">
 
             <div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="sr-only">Magic tier comparison for all three elements</caption><thead className="border-b text-xs text-muted-foreground"><tr><th className="py-3 pr-3">Tier</th><th className="p-3">Reach</th><th className="p-3">Cells</th><th className="py-3 pl-3">MP cost</th></tr></thead><tbody>{MAGIC_TIER_ROWS.map((row, index) => <tr key={row.id} className={`border-b last:border-0 ${index === tier ? "bg-primary/5" : ""}`}><th className="py-3"><button className="min-h-11 min-w-11 rounded hover:bg-muted" onClick={() => setTier(index)} aria-label={`Show magic tier ${row.tier}`}>{row.tier}</button></th><td className="p-3">{row.shootingRange}</td><td className="p-3">{row.cells}</td><td className="py-3 pl-3 whitespace-nowrap">{row.minMp}–{row.maxMp}</td></tr>)}</tbody></table></div>
 

@@ -29,7 +29,11 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
   },
   "/miscellaneous": {
     title: "Miscellaneous Kingdom Adventurers Tools",
-    description: "Find item and skill sources, plan your town with World Builder, and check town rank requirements.",
+    description: "Find item sources, map rewards and Valuables, plan your town, and check town rank requirements.",
+  },
+  "/valuables": {
+    title: "Kingdom Adventurers Valuables & Treasure Room",
+    description: "Look up numbered Valuables, permanent effects, trophy costs, Treasure Room requirements, area chest rewards, and Arena milestones.",
   },
   "/jobs": {
     title: "Kingdom Adventurers Job Database",
@@ -174,6 +178,10 @@ const ROUTE_SEO: Record<string, Omit<SeoMeta, "canonicalPath">> = {
   "/world-map-v2": {
     title: "Kingdom Adventurers Interactive World Map: Levels & Resources",
     description: "Explore Kingdom Adventurers terrain, area levels, facilities and resource locations in isometric or top view. Switch map layers and plan your next area.",
+  },
+  "/map-rewards": {
+    title: "Kingdom Adventurers Map Rewards: Area Chests & Boss Unlocks",
+    description: "Look up Kingdom Adventurers area chest contents, recruits, Town Halls, and facility unlocks by level or world map location.",
   },
   "/world-builder": {
     title: "Kingdom Adventurers World Builder & Town Layout Planner",

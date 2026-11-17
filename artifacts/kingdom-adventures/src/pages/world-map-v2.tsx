@@ -17,6 +17,7 @@ export default function WorldMapV2Page() {
     <div className="mx-auto max-w-[2400px] px-4 py-4">
       <PageHeader title="Kingdom Adventurers World Map">
         <p>Explore terrain, area levels, facilities and resources in isometric or top view. Work in progress.</p>
+        <p><a href="/map-rewards" className="text-primary underline underline-offset-2">Look up area chests and boss rewards</a></p>
       </PageHeader>
       <section aria-labelledby="map-expansion" className="mt-4 max-w-4xl rounded-lg border border-border bg-card p-4">
         <h2 id="map-expansion" className="mb-2 text-lg font-semibold">Map expansion requirements</h2>

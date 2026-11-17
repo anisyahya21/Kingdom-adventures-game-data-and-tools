@@ -68,8 +68,10 @@ const TestPage = lazy(() => import("./pages/Test"));
 const RuntimeWorldGridTestPage = lazy(() => import("@/pages/runtime-world-grid-test"));
 const RuntimeWorldRenderTestPage = lazy(() => import("@/pages/runtime-world-render-test"));
 const WorldMapV2Page = lazy(() => import("@/pages/world-map-v2"));
+const MapRewardsPage = lazy(() => import("@/pages/map-rewards"));
 const WorldBuilderPage = lazy(() => import("@/pages/world-builder"));
 const MiscellaneousPage = lazy(() => import("@/pages/miscellaneous"));
+const ValuablesPage = lazy(() => import("@/pages/valuables"));
 const TerrainCompositionLabPage = lazy(() => import("@/pages/terrain-composition-lab"));
 const AdminPage = lazy(() => import("@/pages/admin"));
 const PlayerProfilePage = lazy(() => import("@/pages/player-profile"));
@@ -233,8 +235,10 @@ function Router() {
         <Route path="/sync-devices">{() => <SyncDevicesPage />}</Route>
         <Route path="/world-map">{() => <WorldMapPage />}</Route>
         <Route path="/world-map-v2">{() => <WorldMapV2Page />}</Route>
+        <Route path="/map-rewards">{() => <MapRewardsPage />}</Route>
         <Route path="/world-builder">{() => <WorldBuilderPage />}</Route>
         <Route path="/miscellaneous">{() => <MiscellaneousPage />}</Route>
+        <Route path="/valuables">{() => <ValuablesPage />}</Route>
         <Route path="/chaos-setup-lab">{() => <ChaosSetupLabPage />}</Route>
         <Route path="/map-2-testing">{() => <Map2TestingPage />}</Route>
         <Route path="/runtime-world-grid-test">{() => <RuntimeWorldGridTestPage />}</Route>
