@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ArrowLeft, ChevronUp } from "lucide-react";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -66,14 +67,16 @@ function VariantRow({ variant }: { variant: ValuableVariant }) {
 export default function ValuablesPage() {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<SourceFilter>("all");
-  const [selectedKey, setSelectedKey] = useState<string>("book-of-awakening");
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [typesOpen, setTypesOpen] = useState(true);
+  const mobileTypesButton = useRef<HTMLButtonElement>(null);
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const groups = VALUABLE_GROUPS.map(group => ({
     ...group,
     matching: group.variants.filter(variant => matchesSource(variant, source)
       && terms.every(term => `${variant.name} ${variant.effect}`.toLowerCase().includes(term))),
   })).filter(group => group.matching.length > 0);
-  const selected = groups.find(group => group.key === selectedKey) ?? groups[0];
+  const selected = groups.find(group => group.key === (selectedKey ?? "book-of-awakening")) ?? groups[0];
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 px-4 py-6">
@@ -102,22 +105,32 @@ export default function ValuablesPage() {
         </div>
       </div>
       {selected ? <div className="grid min-w-0 items-start gap-4 md:grid-cols-[14rem_minmax(0,1fr)]">
-        <div className="space-y-1 text-sm md:hidden">
-          <label htmlFor="valuable-type" className="block font-medium">Valuable type</label>
-          <select id="valuable-type" className="h-10 w-full rounded-md border border-input bg-background px-3" value={selected.key}
-            onChange={event => setSelectedKey(event.target.value)}>
-            {groups.map(group => <option key={group.key} value={group.key}>{group.name} ({group.matching.length})</option>)}
-          </select>
-        </div>
-        <div className="hidden space-y-1 md:block" role="group" aria-label="Valuable types">
-          {groups.map(group => <button key={group.key} type="button" aria-pressed={group.key === selected.key} onClick={() => setSelectedKey(group.key)}
-            className="flex w-full items-center gap-2 rounded-md border border-transparent px-2 py-2 text-left text-sm hover:bg-muted aria-pressed:border-border aria-pressed:bg-card">
+        {selectedKey && <button ref={mobileTypesButton} type="button" aria-expanded={typesOpen} aria-controls="valuable-types"
+          className="sticky top-16 z-10 flex min-h-11 scroll-mt-20 items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left text-sm font-medium md:hidden"
+          onClick={() => setTypesOpen(open => !open)}>
+          {typesOpen ? <ChevronUp aria-hidden="true" className="size-4" /> : <ArrowLeft aria-hidden="true" className="size-4" />}
+          {typesOpen ? "Hide valuable types" : "Back to valuable types"}
+        </button>}
+        <div id="valuable-types" className={`${typesOpen ? "block" : "hidden"} space-y-1 md:block`} role="group" aria-label="Valuable types">
+          {groups.map(group => <button key={group.key} type="button" aria-pressed={group.key === selected.key}
+            onClick={() => {
+              setSelectedKey(group.key);
+              setTypesOpen(false);
+              requestAnimationFrame(() => {
+                const button = mobileTypesButton.current;
+                if (button?.offsetWidth) {
+                  button.focus({ preventScroll: true });
+                  button.scrollIntoView({ block: "start" });
+                }
+              });
+            }}
+            className={`flex min-h-11 w-full items-center gap-2 rounded-md border border-transparent px-2 py-2 text-left text-sm hover:bg-muted ${selectedKey ? "aria-pressed:border-border aria-pressed:bg-card" : "md:aria-pressed:border-border md:aria-pressed:bg-card"}`}>
             <img src={group.iconSrc} alt="" className="size-6 shrink-0 object-contain [image-rendering:pixelated]" />
             <span className="flex-1">{group.name}</span>
             <span className="shrink-0 text-xs text-muted-foreground">{group.matching.length}</span>
           </button>)}
         </div>
-        <section aria-labelledby="selected-valuable" className="min-w-0 rounded-lg border border-border bg-card">
+        <section aria-labelledby="selected-valuable" className={`${typesOpen ? "hidden md:block" : ""} min-w-0 rounded-lg border border-border bg-card`}>
           <div className="flex flex-wrap items-center gap-3 p-4">
             <img src={selected.iconSrc} alt="" className="size-9 object-contain [image-rendering:pixelated]" />
             <h2 id="selected-valuable" className="text-lg font-semibold">{selected.name}</h2>

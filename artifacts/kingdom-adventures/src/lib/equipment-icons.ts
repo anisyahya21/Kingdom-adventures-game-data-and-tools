@@ -352,10 +352,13 @@ export function getFacilityIconByName(name: string | undefined | null): string |
     const icon = facilityNameIconLookup.get(alias);
     if (icon) return icon;
   }
+  // Treasure rewards list standard storehouses as "Storehouse (Material)".
+  const storehouseMaterial = /^storehouse (.+)$/.exec(normalizedName)?.[1];
+  if (storehouseMaterial === "eggs") return facilityNameIconLookup.get("egg house");
+  if (storehouseMaterial === "items") return facilityNameIconLookup.get("item storehouse");
+  if (storehouseMaterial) return facilityNameIconLookup.get(`${storehouseMaterial} storehouse`);
   return undefined;
 }
-
-const BUILD_MENU_ICON = `/website_icons/menu/menu_build.png?v=${ICON_CACHE_VERSION}`;
 
 /** Resolve the facility represented by a survey label, including blueprint and game-name aliases. */
 export function getSurveyIconByName(name: string | undefined | null): string | undefined {
@@ -415,13 +418,34 @@ facilityIconLookup.set(28, COMPLETE_GATE_ICON);
 facilityNameIconLookup.set(normalizeIconName("Gate"), COMPLETE_GATE_ICON);
 furnitureIconLookup.set(normalizeIconName("Gate"), COMPLETE_GATE_ICON);
 
+// These map rewards use the corresponding World Builder facility previews.
+const BUILD_MENU_FACILITY_BY_REWARD: Readonly<Record<string, number>> = {
+  "bridge": 6,
+  "canal": 41,
+  "flowerbed": 79,
+  "flying carpet": 242,
+  "gold exchange": 176,
+  "gravel path": 3,
+  "monster shop": 179,
+  "pitfall": 161,
+  "road": 4,
+  "wall fence": 23,
+  "wall wood": 24,
+};
+
 export function getFurnitureIcon(name: string | undefined | null): string | undefined {
   if (!name) return undefined;
   const clean = name.trim();
-  if (/^land\s*\(l\)$/i.test(clean)) return BUILD_MENU_ICON;
+  const plotSize = /^land\s*\((s|m|l|xl)\)$/i.exec(clean)?.[1];
+  if (plotSize) return `/world-assets/builder/land-${plotSize.toUpperCase()}.png`;
+  const normalizedName = normalizeIconName(clean);
+  if (normalizedName === "reclaimed land") return "/world-assets/builder/menu-reclaim.png";
+  if (normalizedName === "scorched earth") return "/world-assets/building/building_76.png";
+  const facilityId = BUILD_MENU_FACILITY_BY_REWARD[normalizedName];
   return (
     furnitureIconLookup.get(clean) ??
     furnitureIconLookup.get(clean.toLowerCase()) ??
-    furnitureIconLookup.get(normalizeIconName(clean))
+    furnitureIconLookup.get(normalizedName) ??
+    (typeof facilityId === "number" ? `/world-assets/builder/menu-${facilityId}.png` : undefined)
   );
 }

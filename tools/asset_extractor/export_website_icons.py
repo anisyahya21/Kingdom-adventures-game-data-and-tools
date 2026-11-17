@@ -304,7 +304,11 @@ def export_equipment_icons(output_dir: Path, scale: int = 1) -> list[dict]:
                 opt_data = parse_opt(opt_path)
                 sprite = next((s for s in opt_data["sprites"] if s["u"] == icon_u and s["v"] == icon_v), None)
                 
-                if not sprite or sprite["status"] != "filled":
+                # Robot Helmet uses the recovered short record validated in validate_icon_parser_v11.py.
+                if not sprite or not (
+                    sprite["status"] == "filled"
+                    or (equip_id == 270 and sprite["status"] == "short_recovered")
+                ):
                     errors.append(f"Equip {equip_id}: sprite not found in opt")
                     continue
                 

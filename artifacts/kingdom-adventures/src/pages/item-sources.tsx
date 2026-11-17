@@ -12,6 +12,7 @@ import { CharacterPreviewCanvas } from "@/components/character-preview-canvas";
 import { getEquipmentIcon, getFacilityIconByName, getFurnitureIcon, getItemIcon, getSurveyIconByName, getValuableIcon } from "@/lib/equipment-icons";
 import { getMonsterSprite } from "@/lib/monster-sprites";
 import { getSkillIcon } from "@/lib/skill-icons";
+import { SHOP_RECORDS } from "@/lib/shop-utils";
 import { findCatalogEntries, isBriefingReward, jobsWithSkill } from "@/lib/item-source-catalog";
 import { TREASURE_MONSTERS, treasureDisplayName } from "@/lib/treasure-lookup";
 import {
@@ -393,12 +394,15 @@ export default function ItemSourcesPage() {
     setMode("item");
   };
   const itemLabel = selected ? safeRewardLabel(selected.type, selected.name) : "";
+  const workshopShop = selected?.type === "furniture"
+    ? SHOP_RECORDS.find((shop) => shop.workbench?.name === selected.name)
+    : undefined;
 
   return (
     <div className="container mx-auto max-w-6xl space-y-6 px-4 py-8">
       <PageHeader icon={<Search className="h-5 w-5" />} title="Item & Skill Sources">
         <p>
-          Find where to get items and skills, including which skills come with each job and rank.
+          Find where to get items, equipment, furniture, and skills. See which skills each job learns by rank.
         </p>
       </PageHeader>
 
@@ -487,6 +491,13 @@ export default function ItemSourcesPage() {
                   <Badge variant="secondary" className="mt-2">{TYPE_LABEL[selected.type]}</Badge>
                 </div>
               </div>
+
+              {workshopShop && (
+                <p className="text-sm text-muted-foreground">
+                  This is the crafting facility used by the{" "}
+                  <Link href={`/shops/${workshopShop.slug}`} className="font-medium text-primary hover:underline">{workshopShop.title}</Link>.
+                </p>
+              )}
 
               {learnedBy.length > 0 && (
                 <Card>

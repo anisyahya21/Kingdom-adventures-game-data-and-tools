@@ -6,7 +6,10 @@ import { localSharedData } from "@/lib/local-shared-data";
 import { matchesLooseSearch } from "@/lib/search-normalize";
 import { normalizeRewardName, REWARD_TARGETS, rewardKey, type RewardTarget, type RewardType } from "@/lib/treasure-source-graph";
 
-const targets = new Map(REWARD_TARGETS.map((target) => [rewardKey(target.type, target.name), target]));
+const targets = new Map(REWARD_TARGETS
+  // The Monster Shop treasure record has no established acquisition route.
+  .filter((target) => target.type !== "furniture" || target.name !== "Monster Shop")
+  .map((target) => [rewardKey(target.type, target.name), target]));
 const jobsBySkill = new Map<string, Map<string, string[]>>();
 const itemIdsByName = new Map<string, Set<number>>();
 const briefingRewardIds = new Set(BRIEFING_MISSION_TEMPLATES.map((mission) => mission.rewardId));
@@ -35,10 +38,14 @@ for (const [job, byRank] of Object.entries(JOB_SKILL_DATA)) {
 const [itemHeader, ...itemRows] = parseCsv(itemCsv);
 const itemNameColumn = itemHeader.indexOf("name");
 const itemIdColumn = itemHeader.indexOf("id");
+const itemCategoryColumn = itemHeader.indexOf("category");
+const itemTypeColumn = itemHeader.indexOf("type");
 for (const row of itemRows) {
   const name = row[itemNameColumn]?.replace(/<br\s*\/?>/gi, " ").trim();
   const rawId = row[itemIdColumn];
   if (!name || name.toLowerCase() === "not used" || !/^\d+$/.test(rawId)) continue;
+  if (row[itemCategoryColumn] === "0") continue; // Menu actions and promotions.
+  if (row[itemTypeColumn] === "8" && /^\d[\d,]* Diamonds$/.test(name)) continue; // Diamond shop packs.
   const key = addCatalogEntry("item", name);
   const ids = itemIdsByName.get(key) ?? new Set<number>();
   ids.add(Number(rawId));

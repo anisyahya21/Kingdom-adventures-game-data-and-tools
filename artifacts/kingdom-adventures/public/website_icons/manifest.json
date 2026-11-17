@@ -4795,6 +4795,18 @@
       "iconV": 3
     },
     {
+      "id": 270,
+      "name": "A/ Robot Helmet",
+      "type": 13,
+      "attribute": null,
+      "biome": null,
+      "filename": "equip_270.png",
+      "method": "icon_head_opt",
+      "sheet": "icon_head.png",
+      "iconU": 9,
+      "iconV": 3
+    },
+    {
       "id": 271,
       "name": "E/ Locket",
       "type": 14,
@@ -7515,7 +7527,7 @@
   ],
   "summary": {
     "items": 161,
-    "equipment": 307,
+    "equipment": 308,
     "eggs": 8,
     "attributes": 8,
     "gender": 2,
